@@ -15,35 +15,57 @@ The line beginning at `#` is the command line. All the rest are ignored (use for
     #PLAYER 1
 This data is for Single Play.
 
+---
+
     #PLAYER 2
 This data is for Two Play.
+
+---
 
     #PLAYER 3
 This data is for Double Play.
 
+---
+
     #GENRE xxxxxxxx
 Definition of Genre.
+
+---
 
     #TITLE xxxxxxxx
 Definition of Title.
 
+---
+
     #ARTIST xxxxxxxx
 Definition of Artist.
+
+---
 
     #BPM xxx
 Definition of BPM (Beat Per Minute) at the top of music. Default is 130.
 
+---
+
     #MIDIFILE xxxxxxx.mid
 Background music by MIDI.
+
+---
 
     #PLAYLEVEL x
 Information of Game Level for player.
 
+---
+
     #RANK x
 judgement level. x = `0`: very hard, `1`: hard, `2`: normal, `3`: easy.
 
+---
+
     #VOLWAV xxx
 Relative volume control in percentage.
+
+---
 
     #WAVxx yyyyyyyy.wav
 Definition of Wave Data. `xx`: `01` to `FF` (Hex), `yyyyyyyy.wav`: wave file name.
