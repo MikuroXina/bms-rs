@@ -54,6 +54,8 @@ e.g.
     #WAV02 HOUSE02.WAV // assign HOUSE02.WAV to 02 wav
     #WAVFF HOUSE03.WAV // assign HOUSE03.WAV to FF wav
 
+---
+
     #BMPxx yyyyyyyy.bmp
 Definition of Bitmap file. `xx`: `01` to `FF` (Hex), `yyyyyyyy.bmp`: bitmap file name. Bitmap size must be 256 * 256. (max color 65536)
 
