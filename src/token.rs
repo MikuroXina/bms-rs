@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use crate::command::*;
+use crate::{command::*, cursor::Cursor, ParseError, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
@@ -20,6 +20,23 @@ pub enum Token<'a> {
         channel: Channel,
         message: &'a str,
     },
+}
+
+impl<'a> Token<'a> {
+    pub(crate) fn parse(cursor: &mut Cursor<'a>) -> Result<Self> {
+        let command = cursor
+            .next_token()
+            .ok_or_else(|| ParseError::ExpectedToken {
+                line: cursor.line(),
+                col: cursor.col(),
+                message: "expected command but not found",
+            })?;
+
+        Ok(match command {
+            "#PLAYER" => Self::Player(PlayerMode::from(cursor)?),
+            _ => todo!(),
+        })
+    }
 }
 
 pub struct TokenStream<'a> {

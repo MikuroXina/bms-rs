@@ -1,10 +1,29 @@
 use std::num::NonZeroU16;
 
+use crate::{cursor::Cursor, ParseError, Result};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlayerMode {
     Single,
     Two,
     Double,
+}
+
+impl PlayerMode {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
+        Ok(match c.next_token() {
+            Some("1") => Self::Single,
+            Some("2") => Self::Two,
+            Some("3") => Self::Double,
+            _ => {
+                return Err(ParseError::ExpectedToken {
+                    line: c.line(),
+                    col: c.col(),
+                    message: "expected one of 1, 2 or 3",
+                })
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
