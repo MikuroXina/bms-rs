@@ -113,10 +113,3 @@ pub enum Channel {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Track(u32);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Message<'a> {
-    pub track: Track,
-    pub channel: Channel,
-    pub message: &'a str,
-}

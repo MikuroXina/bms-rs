@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 
 use crate::command::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
     Player(PlayerMode),
     Genre(&'a str),
@@ -14,7 +15,11 @@ pub enum Token<'a> {
     VolWav(Volume),
     Wav(WavId, &'a OsStr),
     Bgi(BgiId, &'a OsStr),
-    Message(Message<'a>),
+    Message {
+        track: Track,
+        channel: Channel,
+        message: &'a str,
+    },
 }
 
 pub struct TokenStream<'a> {
@@ -30,6 +35,15 @@ impl<'a> TokenStream<'a> {
         TokenStreamIter {
             iter: self.tokens.iter(),
         }
+    }
+}
+
+impl<'a> IntoIterator for TokenStream<'a> {
+    type Item = Token<'a>;
+    type IntoIter = <Vec<Token<'a>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.tokens.into_iter()
     }
 }
 
