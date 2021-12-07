@@ -1,3 +1,5 @@
+use crate::ParseError;
+
 pub(crate) struct Cursor<'a> {
     line: usize,
     col: usize,
@@ -57,6 +59,14 @@ impl<'a> Cursor<'a> {
 
     pub(crate) fn col(&self) -> usize {
         self.col
+    }
+
+    pub(crate) fn err_expected_token(&self, message: &'static str) -> ParseError {
+        ParseError::ExpectedToken {
+            line: self.line(),
+            col: self.col(),
+            message,
+        }
     }
 }
 
