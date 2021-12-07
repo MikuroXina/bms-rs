@@ -17,6 +17,10 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    pub(crate) fn is_end(&self) -> bool {
+        self.index == self.source.len()
+    }
+
     fn get_token(&self) -> std::ops::Range<usize> {
         fn is_separator(c: char) -> bool {
             c.is_whitespace() || c == '\n'
