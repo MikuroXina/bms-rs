@@ -7,7 +7,13 @@ pub enum Token<'a> {
     Player(PlayerMode),
     Genre(&'a str),
     Title(&'a str),
+    SubTitle(&'a str),
     Artist(&'a str),
+    SubArtist(&'a str),
+    Difficulty(u8),
+    StageFile(&'a OsStr),
+    Banner(&'a OsStr),
+    Total(&'a str),
     Bpm(u8),
     MidiFile(&'a OsStr),
     PlayLevel(u8),
@@ -38,9 +44,37 @@ impl<'a> Token<'a> {
                 c.next_token()
                     .ok_or_else(|| c.err_expected_token("title"))?,
             ),
+            "#SUBTITLE" => Self::Title(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("subtitle"))?,
+            ),
             "#ARTIST" => Self::Artist(
                 c.next_token()
                     .ok_or_else(|| c.err_expected_token("artist"))?,
+            ),
+            "#SUBARTIST" => Self::SubArtist(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("subartist"))?,
+            ),
+            "#DIFFICULTY" => Self::Difficulty(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("difficulty"))?
+                    .parse()
+                    .map_err(|_| c.err_expected_token("integer"))?,
+            ),
+            "#STAEGFILE" => Self::StageFile(
+                c.next_token()
+                    .map(OsStr::new)
+                    .ok_or_else(|| c.err_expected_token("stage filename"))?,
+            ),
+            "#BANNER" => Self::Banner(
+                c.next_token()
+                    .map(OsStr::new)
+                    .ok_or_else(|| c.err_expected_token("banner filename"))?,
+            ),
+            "#TOTAL" => Self::Total(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("gauge increase rate"))?,
             ),
             "#BPM" => Self::Bpm(
                 c.next_token()
