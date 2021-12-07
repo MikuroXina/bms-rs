@@ -111,7 +111,7 @@ impl Key {
             "7" => FreeZone,
             "8" => Key6,
             "9" => Key7,
-            _ => return Err(c.err_expected_token("digit")),
+            _ => return Err(c.err_expected_token("[1-9]")),
         })
     }
 }
