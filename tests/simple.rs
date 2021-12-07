@@ -39,9 +39,9 @@ fn simple() {
             Bpm(120),
             PlayLevel(6),
             Rank(JudgeLevel::Normal),
-            Wav(WavId::from(1).unwrap(), OsStr::new("hoge.WAV")),
-            Wav(WavId::from(2).unwrap(), OsStr::new("foo.WAV")),
-            Wav(WavId::from(3).unwrap(), OsStr::new("bar.WAV")),
+            Wav(WavId(1.try_into().unwrap()), OsStr::new("hoge.WAV")),
+            Wav(WavId(2.try_into().unwrap()), OsStr::new("foo.WAV")),
+            Wav(WavId(3.try_into().unwrap()), OsStr::new("bar.WAV")),
             Message {
                 track: Track(2),
                 channel: Channel::Note {
