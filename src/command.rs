@@ -41,7 +41,7 @@ impl JudgeLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct WavId(NonZeroU16);
+pub struct WavId(pub NonZeroU16);
 
 impl WavId {
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
@@ -53,7 +53,7 @@ impl WavId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BgiId(NonZeroU16);
+pub struct BgiId(pub NonZeroU16);
 
 impl BgiId {
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
