@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use crate::{command::*, cursor::Cursor, ParseError, Result};
+use crate::{command::*, cursor::Cursor, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
@@ -23,17 +23,46 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(cursor: &mut Cursor<'a>) -> Result<Self> {
-        let command = cursor
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+        let command = c
             .next_token()
-            .ok_or_else(|| ParseError::ExpectedToken {
-                line: cursor.line(),
-                col: cursor.col(),
-                message: "expected command but not found",
-            })?;
+            .ok_or_else(|| c.err_expected_token("command"))?;
 
         Ok(match command {
-            "#PLAYER" => Self::Player(PlayerMode::from(cursor)?),
+            "#PLAYER" => Self::Player(PlayerMode::from(c)?),
+            "#GENRE" => Self::Genre(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("genre"))?,
+            ),
+            "#TITLE" => Self::Title(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("title"))?,
+            ),
+            "#ARTIST" => Self::Artist(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("artist"))?,
+            ),
+            "#BPM" => Self::Bpm(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("bpm"))?
+                    .parse()
+                    .map_err(|_| c.err_expected_token("integer"))?,
+            ),
+            "#PLAYLEVEL" => Self::PlayLevel(
+                c.next_token()
+                    .ok_or_else(|| c.err_expected_token("play level"))?
+                    .parse()
+                    .map_err(|_| c.err_expected_token("integer"))?,
+            ),
+            "#RANK" => Self::Rank(JudgeLevel::from(c)?),
+            wav if wav.starts_with("#WAV") => {
+                let id = wav.trim_start_matches("#WAV");
+                let filename = OsStr::new(
+                    c.next_token()
+                        .ok_or_else(|| c.err_expected_token("key audio filename"))?,
+                );
+                Self::Wav(WavId::from(id, c)?, filename)
+            }
             _ => todo!(),
         })
     }
