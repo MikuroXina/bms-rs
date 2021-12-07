@@ -1,11 +1,13 @@
-use std::{collections::HashMap, ffi::OsString, num::NonZeroU16};
+use std::num::NonZeroU16;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlayerMode {
     Single,
     Two,
     Double,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JudgeLevel {
     VeryHard,
     Hard,
@@ -13,33 +15,26 @@ pub enum JudgeLevel {
     Easy,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WavId(NonZeroU16);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BgiId(NonZeroU16);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Volume {
-    relative_percent: u8,
+    pub relative_percent: u8,
 }
 
-pub struct Header {
-    player_mode: PlayerMode,
-    genre: String,
-    title: String,
-    artist: String,
-    bpm: f64,
-    midi_bgm: Option<OsString>,
-    play_level: u8,
-    wavs: HashMap<WavId, OsString>,
-    bgis: HashMap<BgiId, OsString>,
-}
-
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Argb {
-    alpha: u8,
-    red: u8,
-    green: u8,
-    blue: u8,
+    pub alpha: u8,
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoteKind {
     Visible,
     Invisible,
@@ -47,48 +42,69 @@ pub enum NoteKind {
     Landmine,
 }
 
-pub struct Note {
-    kind: NoteKind,
-    is_player1: bool,
-    key: Option<WavId>,
-    damage: Option<NonZeroU16>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Key {
+    Key1,
+    Key2,
+    Key3,
+    Key4,
+    Key5,
+    Key6,
+    Key7,
+    Scratch,
+    FreeZone,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Note {
+    pub kind: NoteKind,
+    pub is_player1: bool,
+    pub key: Key,
+    pub wav: Option<WavId>,
+    pub damage: Option<NonZeroU16>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SpeedLength {
+    integral: u64,
+    fractional: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Channel {
     Bgm(WavId),
-    SectionLen(f64),
+    SectionLen(SpeedLength),
     BpmChange(u8),
     BgaBase(BgiId),
     ExtObj(String),
     SeekObj(i32),
     BgaPoor(BgiId),
     BgaLayer(BgiId),
-    ExtBpmChange(f64),
+    ExtBpmChange(SpeedLength),
     Stop(u64),
     BgaLayer2(BgiId),
     BgaBaseOpacity(u8),
-    BgaLayerOpcatiy(u8),
+    BgaLayerOpactiy(u8),
     BgaLayer2Opacity(u8),
     BgaPoorOpacity(u8),
     BgmVolume(u8),
     KeyVolume(u8),
     Text(String),
-    JudgeLevel(JudgeLevel),
     BgaBaseArgb(Argb),
     BgaLayerArgb(Argb),
     BgaLayer2Argb(Argb),
     BgaPoorArgb(Argb),
-    BgaKeybound(String),
+    BgaKeyBound(String),
     ChangeOption(String),
     Note(Note),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Track(u32);
 
-pub enum Command {
-    Channel {
-        track: Track,
-        channel: Channel,
-    },
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Message<'a> {
+    pub track: Track,
+    pub channel: Channel,
+    pub message: &'a str,
 }
-
