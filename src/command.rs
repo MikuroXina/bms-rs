@@ -18,8 +18,20 @@ pub enum JudgeLevel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WavId(NonZeroU16);
 
+impl WavId {
+    pub fn from(id: u16) -> Option<Self> {
+        id.try_into().ok().map(Self)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BgiId(NonZeroU16);
+
+impl BgiId {
+    pub fn from(id: u16) -> Option<Self> {
+        id.try_into().ok().map(Self)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Volume {
