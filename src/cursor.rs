@@ -18,7 +18,7 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn is_end(&self) -> bool {
-        self.index == self.source.len()
+        self.peek_token().is_none()
     }
 
     fn get_token(&self) -> std::ops::Range<usize> {
