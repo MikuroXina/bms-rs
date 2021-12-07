@@ -28,7 +28,7 @@ impl<'a> Token<'a> {
             .next_token()
             .ok_or_else(|| c.err_expected_token("command"))?;
 
-        Ok(match command {
+        Ok(match command.to_uppercase().as_str() {
             "#PLAYER" => Self::Player(PlayerMode::from(c)?),
             "#GENRE" => Self::Genre(
                 c.next_token()
@@ -56,12 +56,37 @@ impl<'a> Token<'a> {
             ),
             "#RANK" => Self::Rank(JudgeLevel::from(c)?),
             wav if wav.starts_with("#WAV") => {
-                let id = wav.trim_start_matches("#WAV");
+                let id = command.trim_start_matches("#WAV");
                 let filename = OsStr::new(
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("key audio filename"))?,
                 );
                 Self::Wav(WavId::from(id, c)?, filename)
+            }
+            bmp if bmp.starts_with("#BMP") => {
+                let id = command.trim_start_matches("#BMP");
+                let filename = OsStr::new(
+                    c.next_token()
+                        .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
+                );
+                Self::Bgi(BgiId::from(id, c)?, filename)
+            }
+            message
+                if message.starts_with('#')
+                    && message.chars().nth(6) == Some(':')
+                    && 9 <= message.len()
+                    && message.len() % 2 == 1 =>
+            {
+                let track = command[1..4]
+                    .parse()
+                    .map_err(|_| c.err_expected_token("[000-999]"))?;
+                let channel = &command[4..6];
+                let message = &command[8..];
+                Self::Message {
+                    track: Track(track),
+                    channel: Channel::from(channel, c)?,
+                    message,
+                }
             }
             _ => todo!(),
         })
