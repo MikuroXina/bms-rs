@@ -1,12 +1,12 @@
-#![allow(unused)]
+use self::token::TokenStream;
 
-mod command;
+pub mod command;
+pub mod token;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+#[non_exhaustive]
+#[derive(Debug, Clone)]
+pub enum ParseError {}
+
+pub fn parse(source: &str) -> Result<TokenStream, ParseError> {
+    todo!()
 }
-
