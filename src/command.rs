@@ -1,6 +1,6 @@
 use std::num::NonZeroU16;
 
-use crate::{cursor::Cursor, ParseError, Result};
+use crate::{cursor::Cursor, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlayerMode {
@@ -15,13 +15,7 @@ impl PlayerMode {
             Some("1") => Self::Single,
             Some("2") => Self::Two,
             Some("3") => Self::Double,
-            _ => {
-                return Err(ParseError::ExpectedToken {
-                    line: c.line(),
-                    col: c.col(),
-                    message: "expected one of 1, 2 or 3",
-                })
-            }
+            _ => return Err(c.err_expected_token("one of 1, 2 or 3")),
         })
     }
 }
@@ -32,6 +26,18 @@ pub enum JudgeLevel {
     Hard,
     Normal,
     Easy,
+}
+
+impl JudgeLevel {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
+        Ok(match c.next_token() {
+            Some("0") => Self::VeryHard,
+            Some("1") => Self::Hard,
+            Some("2") => Self::Normal,
+            Some("3") => Self::Easy,
+            _ => return Err(c.err_expected_token("one of 0, 1, 2 or 3")),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
