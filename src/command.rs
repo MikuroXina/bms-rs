@@ -44,8 +44,11 @@ impl JudgeLevel {
 pub struct WavId(NonZeroU16);
 
 impl WavId {
-    pub fn from(id: u16) -> Option<Self> {
-        id.try_into().ok().map(Self)
+    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
+        let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
+        id.try_into()
+            .map(Self)
+            .map_err(|_| c.err_expected_token("non zero index"))
     }
 }
 
@@ -53,8 +56,11 @@ impl WavId {
 pub struct BgiId(NonZeroU16);
 
 impl BgiId {
-    pub fn from(id: u16) -> Option<Self> {
-        id.try_into().ok().map(Self)
+    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
+        let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
+        id.try_into()
+            .map(Self)
+            .map_err(|_| c.err_expected_token("non zero index"))
     }
 }
 
