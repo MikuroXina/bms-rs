@@ -103,10 +103,8 @@ pub enum Channel {
         kind: NoteKind,
         is_player1: bool,
         key: Key,
-        wav: Option<WavId>,
-        damage: Option<NonZeroU16>,
     },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Track(u32);
+pub struct Track(pub u32);
