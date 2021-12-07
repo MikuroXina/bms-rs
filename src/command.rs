@@ -68,15 +68,6 @@ pub enum Key {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Note {
-    pub kind: NoteKind,
-    pub is_player1: bool,
-    pub key: Key,
-    pub wav: Option<WavId>,
-    pub damage: Option<NonZeroU16>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SpeedLength {
     integral: u64,
     fractional: u64,
@@ -108,7 +99,13 @@ pub enum Channel {
     BgaPoorArgb(Argb),
     BgaKeyBound(String),
     ChangeOption(String),
-    Note(Note),
+    Note {
+        kind: NoteKind,
+        is_player1: bool,
+        key: Key,
+        wav: Option<WavId>,
+        damage: Option<NonZeroU16>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
