@@ -43,14 +43,9 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 pub fn parse(source: &str) -> Result<TokenStream> {
     let mut cursor = Cursor::new(source);
 
-    let tokens = std::iter::repeat_with(move || Token::parse(&mut cursor)).fold(
-        Ok(vec![]),
-        |mut tokens, token| {
-            if let Ok(tokens) = &mut tokens {
-                tokens.push(token?);
-            }
-            tokens
-        },
-    )?;
+    let mut tokens = vec![];
+    while !cursor.is_end() {
+        tokens.push(Token::parse(&mut cursor)?);
+    }
     Ok(TokenStream::from_tokens(tokens))
 }
