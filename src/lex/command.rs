@@ -40,8 +40,21 @@ impl JudgeLevel {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObjId(pub NonZeroU16);
+
+impl std::fmt::Debug for ObjId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let digits = (self.0.get() / 36, self.0.get() % 36);
+        f.debug_tuple("ObjId")
+            .field(&format!(
+                "{}{}",
+                char::from_digit(digits.0 as u32, 36).unwrap(),
+                char::from_digit(digits.1 as u32, 36).unwrap()
+            ))
+            .finish()
+    }
+}
 
 impl TryFrom<u16> for ObjId {
     type Error = std::num::TryFromIntError;
