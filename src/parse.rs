@@ -23,7 +23,7 @@ impl std::error::Error for ParseError {}
 pub type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Note {
+pub struct Obj {
     pub track: u32,
     pub time_numerator_in_track: u32,
     pub time_denominator_in_track: u32,
@@ -31,13 +31,13 @@ pub struct Note {
     pub obj: ObjId,
 }
 
-impl PartialOrd for Note {
+impl PartialOrd for Obj {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Note {
+impl Ord for Obj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.track.cmp(&other.track).then_with(|| {
             let self_time_in_track = self.time_numerator_in_track * other.time_denominator_in_track;
@@ -51,7 +51,7 @@ impl Ord for Note {
 #[derive(Debug)]
 pub struct Bms {
     pub header: Header,
-    pub sorted_notes: Vec<Note>,
+    pub sorted_notes: Vec<Obj>,
 }
 
 impl Bms {
@@ -105,7 +105,7 @@ impl Bms {
                     .map(|(i, obj)| obj.map(|obj| (i, obj)))
                     .flatten()
                 {
-                    notes_heap.push(Note {
+                    notes_heap.push(Obj {
                         track: track.0,
                         time_numerator_in_track: i as u32 + 1,
                         time_denominator_in_track: message.len() as u32,
