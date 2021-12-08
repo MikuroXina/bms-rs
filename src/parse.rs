@@ -107,7 +107,7 @@ impl Bms {
                 {
                     notes_heap.push(Note {
                         track: track.0,
-                        time_numerator_in_track: i as u32,
+                        time_numerator_in_track: i as u32 + 1,
                         time_denominator_in_track: message.len() as u32,
                         channel: channel.clone(),
                         obj,
