@@ -1,4 +1,4 @@
-use crate::ParseError;
+use super::LexError;
 
 pub(crate) struct Cursor<'a> {
     line: usize,
@@ -65,8 +65,8 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn err_expected_token(&self, message: &'static str) -> ParseError {
-        ParseError::ExpectedToken {
+    pub(crate) fn err_expected_token(&self, message: &'static str) -> LexError {
+        LexError::ExpectedToken {
             line: self.line(),
             col: self.col(),
             message,

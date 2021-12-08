@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use crate::{command::*, cursor::Cursor, Result};
+use super::{command::*, cursor::Cursor, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {

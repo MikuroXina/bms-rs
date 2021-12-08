@@ -1,6 +1,6 @@
 use std::num::NonZeroU16;
 
-use crate::{cursor::Cursor, ParseError, Result};
+use super::{cursor::Cursor, LexError, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlayerMode {
@@ -172,7 +172,7 @@ impl Channel {
                 key: Key::from(&channel[1..], c)?,
             },
             _ => {
-                return Err(ParseError::UnknownCommand {
+                return Err(LexError::UnknownCommand {
                     line: c.line(),
                     col: c.col(),
                 })
