@@ -1,9 +1,10 @@
 mod header;
+mod random;
 pub mod rng;
 
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, ops::ControlFlow};
 
-use self::{header::Header, rng::Rng};
+use self::{header::Header, random::RandomParser, rng::Rng};
 use crate::lex::{
     command::{Channel, ObjId},
     token::{Token, TokenStream},
@@ -59,12 +60,8 @@ pub struct Bms {
 }
 
 impl Bms {
-    pub fn from_token_stream(token_stream: &TokenStream, mut rng: impl Rng) -> Result<Self> {
-        enum ClauseState {
-            Random(u32),
-            If(bool),
-        }
-        let mut random_stack = vec![];
+    pub fn from_token_stream(token_stream: &TokenStream, rng: impl Rng) -> Result<Self> {
+        let mut random_parser = RandomParser::new(rng);
         let mut notes_heap = BinaryHeap::with_capacity(
             token_stream
                 .iter()
@@ -74,65 +71,10 @@ impl Bms {
         let mut header = Header::default();
 
         for token in token_stream.iter() {
-            match *token {
-                Token::If(rand_target) => {
-                    if let Some(&ClauseState::Random(rand)) = random_stack.last() {
-                        random_stack.push(ClauseState::If(rand_target == rand));
-                        continue;
-                    }
-                    return Err(ParseError::SyntaxError(
-                        "#IF command must be in #RANDOM - #ENDRANDOM block".into(),
-                    ));
-                }
-                Token::ElseIf(rand_target) => {
-                    if let Some(ClauseState::If(_)) = random_stack.last() {
-                        random_stack.pop();
-                        let rand = match random_stack.last().unwrap() {
-                            &ClauseState::Random(rand) => rand,
-                            ClauseState::If(_) => unreachable!(),
-                        };
-                        random_stack.push(ClauseState::If(rand_target == rand));
-                        continue;
-                    }
-                    return Err(ParseError::SyntaxError(
-                        "#ELSEIF command must come after #IF block".into(),
-                    ));
-                }
-                Token::EndIf => {
-                    if let Some(ClauseState::If(_)) = random_stack.last() {
-                        random_stack.pop();
-                        continue;
-                    }
-                    return Err(ParseError::SyntaxError(
-                        "#ENDIF command must come after #IF or #ELSEIF block".into(),
-                    ));
-                }
-                Token::Random(rand_max) => {
-                    if let Some(&ClauseState::Random(_)) = random_stack.last() {
-                        return Err(ParseError::SyntaxError(
-                            "#RANDOM command must come in root or #IF block".into(),
-                        ));
-                    }
-                    if let Some(ClauseState::If(false)) = random_stack.last() {
-                        random_stack.push(ClauseState::Random(0));
-                        continue;
-                    }
-                    random_stack.push(ClauseState::Random(rng.gen(1..=rand_max)));
-                    continue;
-                }
-                Token::EndRandom => {
-                    if let Some(&ClauseState::Random(_)) = random_stack.last() {
-                        random_stack.pop();
-                        continue;
-                    }
-                    return Err(ParseError::SyntaxError(
-                        "#ENDRANDOM command must come after #RANDOM block".into(),
-                    ));
-                }
-                _ => {}
-            }
-            if let Some(ClauseState::Random(_) | ClauseState::If(false)) = random_stack.last() {
-                continue;
+            match random_parser.parse(token) {
+                ControlFlow::Continue(_) => {}
+                ControlFlow::Break(Ok(_)) => continue,
+                ControlFlow::Break(Err(e)) => return Err(e),
             }
             if let Token::Message {
                 track,
