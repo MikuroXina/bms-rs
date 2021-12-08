@@ -105,7 +105,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: vec![Some(id3), Some(id3), Some(id3), Some(id3)],
+                    message: vec![Some(id3), Some(id3), Some(id3), Some(id3), Some(id3)],
                 },
                 Message {
                     track: Track(2),
@@ -114,7 +114,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: vec![Some(id3), Some(id3), None, Some(id3)],
+                    message: vec![Some(id3), Some(id3), None, Some(id3), Some(id3)],
                 },
                 Message {
                     track: Track(2),
@@ -132,7 +132,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: vec![None, Some(id2), Some(id2)],
+                    message: vec![None, Some(id2), Some(id2), Some(id2)],
                 },
             ]
         );
