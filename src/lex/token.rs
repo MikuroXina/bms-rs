@@ -4,28 +4,28 @@ use super::{command::*, cursor::Cursor, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
-    Player(PlayerMode),
-    Genre(&'a str),
-    Title(&'a str),
-    SubTitle(&'a str),
     Artist(&'a str),
-    SubArtist(&'a str),
-    Difficulty(u8),
-    StageFile(&'a OsStr),
     Banner(&'a OsStr),
-    Total(&'a str),
-    Bpm(&'a str),
-    MidiFile(&'a OsStr),
-    PlayLevel(u8),
-    Rank(JudgeLevel),
-    VolWav(Volume),
-    Wav(WavId, &'a OsStr),
     Bgi(BgiId, &'a OsStr),
+    Bpm(&'a str),
+    Difficulty(u8),
+    Genre(&'a str),
     Message {
         track: Track,
         channel: Channel,
         message: &'a str,
     },
+    MidiFile(&'a OsStr),
+    Player(PlayerMode),
+    PlayLevel(u8),
+    Rank(JudgeLevel),
+    StageFile(&'a OsStr),
+    SubArtist(&'a str),
+    SubTitle(&'a str),
+    Title(&'a str),
+    Total(&'a str),
+    VolWav(Volume),
+    Wav(WavId, &'a OsStr),
 }
 
 impl<'a> Token<'a> {
