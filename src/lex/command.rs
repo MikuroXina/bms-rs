@@ -111,6 +111,7 @@ pub enum Channel {
     BgaPoor,
     Bgm,
     BpmChange,
+    ChangeOption,
     Note {
         kind: NoteKind,
         is_player1: bool,
