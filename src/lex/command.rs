@@ -43,6 +43,14 @@ impl JudgeLevel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObjId(pub NonZeroU16);
 
+impl TryFrom<u16> for ObjId {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
+        Ok(Self(value.try_into()?))
+    }
+}
+
 impl ObjId {
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
         let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
