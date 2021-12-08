@@ -104,6 +104,20 @@ impl Key {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+
+pub enum PoorMode {
+    Interrupt,
+    Overlay,
+    Hidden,
+}
+
+impl Default for PoorMode {
+    fn default() -> Self {
+        Self::Interrupt
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Channel {
     BgaBase,
