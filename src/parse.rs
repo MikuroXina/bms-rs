@@ -68,17 +68,26 @@ impl Bms {
 
         for token in token_stream.iter() {
             match *token {
-                Token::Random(rand_max) => random_stack.push(rng.gen_range(1..=rand_max)),
+                Token::Random(rand_max) => {
+                    random_stack.push(rng.gen_range(1..=rand_max));
+                    continue;
+                }
                 Token::EndRandom => {
                     random_stack.pop();
+                    continue;
                 }
                 Token::If(rand_target) => {
-                    in_ignored_clause = Some(&rand_target) != random_stack.last()
+                    in_ignored_clause = Some(&rand_target) != random_stack.last();
+                    continue;
                 }
                 Token::ElseIf(rand_target) => {
-                    in_ignored_clause = Some(&rand_target) != random_stack.last()
+                    in_ignored_clause = Some(&rand_target) != random_stack.last();
+                    continue;
                 }
-                Token::EndIf => in_ignored_clause = false,
+                Token::EndIf => {
+                    in_ignored_clause = false;
+                    continue;
+                }
                 _ => {}
             }
             if in_ignored_clause {
