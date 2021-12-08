@@ -112,6 +112,7 @@ pub enum Channel {
     BgaBase,
     BgaPoor,
     BgaLayer,
+    Stop,
     Note {
         kind: NoteKind,
         is_player1: bool,
@@ -129,6 +130,7 @@ impl Channel {
             "04" => BgaBase,
             "06" => BgaPoor,
             "07" => BgaLayer,
+            "09" => Stop,
             player1 if player1.starts_with('1') => Note {
                 kind: NoteKind::Visible,
                 is_player1: true,
