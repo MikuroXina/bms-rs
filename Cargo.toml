@@ -5,4 +5,3 @@ authors = ["MikuroXina <ryosukadnak@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-rand = "0.8.4"
