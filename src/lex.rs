@@ -89,7 +89,7 @@ mod tests {
                 Genre("FUGA"),
                 Title("BAR(^^)"),
                 Artist("MikuroXina"),
-                Bpm(120),
+                Bpm("120"),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 Wav(WavId(1.try_into().unwrap()), OsStr::new("hoge.WAV")),

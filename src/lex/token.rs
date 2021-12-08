@@ -14,7 +14,7 @@ pub enum Token<'a> {
     StageFile(&'a OsStr),
     Banner(&'a OsStr),
     Total(&'a str),
-    Bpm(u8),
+    Bpm(&'a str),
     MidiFile(&'a OsStr),
     PlayLevel(u8),
     Rank(JudgeLevel),
@@ -76,12 +76,7 @@ impl<'a> Token<'a> {
                 c.next_token()
                     .ok_or_else(|| c.err_expected_token("gauge increase rate"))?,
             ),
-            "#BPM" => Self::Bpm(
-                c.next_token()
-                    .ok_or_else(|| c.err_expected_token("bpm"))?
-                    .parse()
-                    .map_err(|_| c.err_expected_token("integer"))?,
-            ),
+            "#BPM" => Self::Bpm(c.next_token().ok_or_else(|| c.err_expected_token("bpm"))?),
             "#PLAYLEVEL" => Self::PlayLevel(
                 c.next_token()
                     .ok_or_else(|| c.err_expected_token("play level"))?
