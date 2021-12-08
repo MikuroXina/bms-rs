@@ -131,6 +131,13 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.err_expected_token("integer"))?,
                 ),
                 "#RANK" => Self::Rank(JudgeLevel::from(c)?),
+                "#LNTYPE" => {
+                    if c.next_token() == Some("2") {
+                        Self::LnTypeMgq
+                    } else {
+                        Self::LnTypeRdm
+                    }
+                }
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let filename = Path::new(
