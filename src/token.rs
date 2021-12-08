@@ -115,7 +115,7 @@ impl<'a> Token<'a> {
                     .parse()
                     .map_err(|_| c.err_expected_token("[000-999]"))?;
                 let channel = &command[4..6];
-                let message = &command[8..];
+                let message = &command[7..];
                 Self::Message {
                     track: Track(track),
                     channel: Channel::from(channel, c)?,
