@@ -48,7 +48,7 @@ pub enum Token<'a> {
     Message {
         track: Track,
         channel: Channel,
-        message: &'a str,
+        message: Vec<ObjId>,
     },
     MidiFile(&'a Path),
     OctFp,
@@ -170,7 +170,13 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.err_expected_token("[000-999]"))?;
                     let channel = &command[4..6];
-                    let message = &command[7..];
+
+                    let message_ids = &command[7..];
+                    let messages_len = message_ids.len() / 2;
+                    let mut message = Vec::with_capacity(messages_len);
+                    for i in 0..messages_len {
+                        message.push(ObjId::from(&message_ids[i..i + 1], c)?);
+                    }
                     Self::Message {
                         track: Track(track),
                         channel: Channel::from(channel, c)?,
