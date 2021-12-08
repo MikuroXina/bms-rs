@@ -52,7 +52,7 @@ pub fn parse(source: &str) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsStr;
+    use std::path::Path;
 
     use super::{command::*, parse, token::Token::*};
 
@@ -92,9 +92,9 @@ mod tests {
                 Bpm("120"),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
-                Wav(ObjId(1.try_into().unwrap()), OsStr::new("hoge.WAV")),
-                Wav(ObjId(2.try_into().unwrap()), OsStr::new("foo.WAV")),
-                Wav(ObjId(3.try_into().unwrap()), OsStr::new("bar.WAV")),
+                Wav(ObjId(1.try_into().unwrap()), Path::new("hoge.WAV")),
+                Wav(ObjId(2.try_into().unwrap()), Path::new("foo.WAV")),
+                Wav(ObjId(3.try_into().unwrap()), Path::new("bar.WAV")),
                 Message {
                     track: Track(2),
                     channel: Channel::Note {

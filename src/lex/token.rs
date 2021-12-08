@@ -1,31 +1,32 @@
-use std::ffi::OsStr;
+use std::path::Path;
 
 use super::{command::*, cursor::Cursor, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
     Artist(&'a str),
-    Banner(&'a OsStr),
-    Bgi(ObjId, &'a OsStr),
+    Banner(&'a Path),
+    Bgi(ObjId, &'a Path),
     Bpm(&'a str),
     Difficulty(u8),
+    ExRank(ObjId, JudgeLevel),
     Genre(&'a str),
     Message {
         track: Track,
         channel: Channel,
         message: &'a str,
     },
-    MidiFile(&'a OsStr),
+    MidiFile(&'a Path),
     Player(PlayerMode),
     PlayLevel(u8),
     Rank(JudgeLevel),
-    StageFile(&'a OsStr),
+    StageFile(&'a Path),
     SubArtist(&'a str),
     SubTitle(&'a str),
     Title(&'a str),
     Total(&'a str),
     VolWav(Volume),
-    Wav(ObjId, &'a OsStr),
+    Wav(ObjId, &'a Path),
 }
 
 impl<'a> Token<'a> {
@@ -64,12 +65,12 @@ impl<'a> Token<'a> {
             ),
             "#STAEGFILE" => Self::StageFile(
                 c.next_token()
-                    .map(OsStr::new)
+                    .map(Path::new)
                     .ok_or_else(|| c.err_expected_token("stage filename"))?,
             ),
             "#BANNER" => Self::Banner(
                 c.next_token()
-                    .map(OsStr::new)
+                    .map(Path::new)
                     .ok_or_else(|| c.err_expected_token("banner filename"))?,
             ),
             "#TOTAL" => Self::Total(
@@ -86,7 +87,7 @@ impl<'a> Token<'a> {
             "#RANK" => Self::Rank(JudgeLevel::from(c)?),
             wav if wav.starts_with("#WAV") => {
                 let id = command.trim_start_matches("#WAV");
-                let filename = OsStr::new(
+                let filename = Path::new(
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("key audio filename"))?,
                 );
@@ -94,7 +95,7 @@ impl<'a> Token<'a> {
             }
             bmp if bmp.starts_with("#BMP") => {
                 let id = command.trim_start_matches("#BMP");
-                let filename = OsStr::new(
+                let filename = Path::new(
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
                 );
