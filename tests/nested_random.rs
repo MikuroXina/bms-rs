@@ -3,7 +3,7 @@ use bms_rs::{
         command::{Channel, Key, NoteKind},
         parse,
     },
-    parse::{Bms, Obj, RngMock},
+    parse::{rng::RngMock, Bms, Obj},
 };
 
 #[test]

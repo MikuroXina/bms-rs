@@ -1,8 +1,9 @@
 mod header;
+pub mod rng;
 
-use std::{collections::BinaryHeap, ops::RangeInclusive};
+use std::collections::BinaryHeap;
 
-use self::header::Header;
+use self::{header::Header, rng::Rng};
 use crate::lex::{
     command::{Channel, ObjId},
     token::{Token, TokenStream},
@@ -48,19 +49,6 @@ impl Ord for Obj {
                 other.time_numerator_in_track * self.time_denominator_in_track;
             self_time_in_track.cmp(&other_time_in_track)
         })
-    }
-}
-
-pub trait Rng {
-    fn gen(&mut self, range: RangeInclusive<u32>) -> u32;
-}
-
-pub struct RngMock<const N: usize>(pub [u32; N]);
-
-impl<const N: usize> Rng for RngMock<N> {
-    fn gen(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-        self.0.rotate_left(1);
-        self.0[N - 1]
     }
 }
 
