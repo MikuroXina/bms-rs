@@ -24,6 +24,7 @@ pub enum Token<'a> {
     },
     Bmp(ObjId, &'a Path),
     Bpm(&'a str),
+    BpmChange(ObjId, &'a str),
     Case(u32),
     ChangeOption(ObjId, &'a str),
     Comment(&'a str),
@@ -153,6 +154,11 @@ impl<'a> Token<'a> {
                             .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
                     );
                     Self::Bmp(ObjId::from(id, c)?, filename)
+                }
+                bpm if bpm.starts_with("#BPM") => {
+                    let id = command.trim_start_matches("#BPM");
+                    let bpm = c.next_token().ok_or_else(|| c.err_expected_token("bpm"))?;
+                    Self::BpmChange(ObjId::from(id, c)?, bpm)
                 }
                 message
                     if message.starts_with('#')
