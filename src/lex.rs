@@ -81,6 +81,9 @@ mod tests {
 
         let ts = parse(SRC).expect("SRC must be parsed");
 
+        let id1 = 1.try_into().unwrap();
+        let id2 = 2.try_into().unwrap();
+        let id3 = 3.try_into().unwrap();
         let tokens: Vec<_> = ts.into_iter().collect();
         assert_eq!(
             tokens,
@@ -92,9 +95,9 @@ mod tests {
                 Bpm("120"),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
-                Wav(ObjId(1.try_into().unwrap()), Path::new("hoge.WAV")),
-                Wav(ObjId(2.try_into().unwrap()), Path::new("foo.WAV")),
-                Wav(ObjId(3.try_into().unwrap()), Path::new("bar.WAV")),
+                Wav(id1, Path::new("hoge.WAV")),
+                Wav(id2, Path::new("foo.WAV")),
+                Wav(id3, Path::new("bar.WAV")),
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
@@ -102,7 +105,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "0303030303",
+                    message: vec![Some(id3), Some(id3), Some(id3), Some(id3)],
                 },
                 Message {
                     track: Track(2),
@@ -111,7 +114,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "0303000303",
+                    message: vec![Some(id3), Some(id3), None, Some(id3)],
                 },
                 Message {
                     track: Track(2),
@@ -120,7 +123,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "010101",
+                    message: vec![Some(id1), Some(id1), Some(id1)],
                 },
                 Message {
                     track: Track(2),
@@ -129,7 +132,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "00020202",
+                    message: vec![None, Some(id2), Some(id2)],
                 },
             ]
         );

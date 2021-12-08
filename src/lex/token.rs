@@ -48,7 +48,7 @@ pub enum Token<'a> {
     Message {
         track: Track,
         channel: Channel,
-        message: Vec<ObjId>,
+        message: Vec<Option<ObjId>>,
     },
     MidiFile(&'a Path),
     OctFp,
@@ -174,8 +174,12 @@ impl<'a> Token<'a> {
                     let message_ids = &command[7..];
                     let messages_len = message_ids.len() / 2;
                     let mut message = Vec::with_capacity(messages_len);
-                    for i in 0..messages_len {
-                        message.push(ObjId::from(&message_ids[i..i + 1], c)?);
+                    for i in (0..messages_len).map(|n| 2 * n) {
+                        if &message_ids[i..i + 2] == "00" {
+                            message.push(None);
+                        } else {
+                            message.push(Some(ObjId::from(&message_ids[i..i + 2], c)?));
+                        }
                     }
                     Self::Message {
                         track: Track(track),
