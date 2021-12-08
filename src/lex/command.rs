@@ -126,7 +126,7 @@ impl Channel {
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
             "02" => SectionLen,
-            "03" => BpmChange,
+            "03" | "08" => BpmChange,
             "04" => BgaBase,
             "06" => BgaPoor,
             "07" => BgaLayer,
