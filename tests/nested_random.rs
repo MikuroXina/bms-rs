@@ -3,17 +3,8 @@ use bms_rs::{
         command::{Channel, Key, NoteKind},
         parse,
     },
-    parse::{Bms, Obj, Rng},
+    parse::{Bms, Obj, RngMock},
 };
-
-struct RngMock<const N: usize>([u32; N]);
-
-impl<const N: usize> Rng for RngMock<N> {
-    fn gen(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-        self.0.rotate_left(1);
-        self.0[N - 1]
-    }
-}
 
 #[test]
 fn nested_random() {
