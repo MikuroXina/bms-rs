@@ -41,21 +41,9 @@ impl JudgeLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct WavId(pub NonZeroU16);
+pub struct ObjId(pub NonZeroU16);
 
-impl WavId {
-    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
-        let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
-        id.try_into()
-            .map(Self)
-            .map_err(|_| c.err_expected_token("non zero index"))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BgiId(pub NonZeroU16);
-
-impl BgiId {
+impl ObjId {
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
         let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
         id.try_into()

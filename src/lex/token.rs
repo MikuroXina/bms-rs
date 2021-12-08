@@ -6,7 +6,7 @@ use super::{command::*, cursor::Cursor, Result};
 pub enum Token<'a> {
     Artist(&'a str),
     Banner(&'a OsStr),
-    Bgi(BgiId, &'a OsStr),
+    Bgi(ObjId, &'a OsStr),
     Bpm(&'a str),
     Difficulty(u8),
     Genre(&'a str),
@@ -25,7 +25,7 @@ pub enum Token<'a> {
     Title(&'a str),
     Total(&'a str),
     VolWav(Volume),
-    Wav(WavId, &'a OsStr),
+    Wav(ObjId, &'a OsStr),
 }
 
 impl<'a> Token<'a> {
@@ -90,7 +90,7 @@ impl<'a> Token<'a> {
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("key audio filename"))?,
                 );
-                Self::Wav(WavId::from(id, c)?, filename)
+                Self::Wav(ObjId::from(id, c)?, filename)
             }
             bmp if bmp.starts_with("#BMP") => {
                 let id = command.trim_start_matches("#BMP");
@@ -98,7 +98,7 @@ impl<'a> Token<'a> {
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
                 );
-                Self::Bgi(BgiId::from(id, c)?, filename)
+                Self::Bgi(ObjId::from(id, c)?, filename)
             }
             message
                 if message.starts_with('#')

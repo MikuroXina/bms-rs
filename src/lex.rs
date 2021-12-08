@@ -92,9 +92,9 @@ mod tests {
                 Bpm("120"),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
-                Wav(WavId(1.try_into().unwrap()), OsStr::new("hoge.WAV")),
-                Wav(WavId(2.try_into().unwrap()), OsStr::new("foo.WAV")),
-                Wav(WavId(3.try_into().unwrap()), OsStr::new("bar.WAV")),
+                Wav(ObjId(1.try_into().unwrap()), OsStr::new("hoge.WAV")),
+                Wav(ObjId(2.try_into().unwrap()), OsStr::new("foo.WAV")),
+                Wav(ObjId(3.try_into().unwrap()), OsStr::new("bar.WAV")),
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
