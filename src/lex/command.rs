@@ -106,18 +106,18 @@ impl Key {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Channel {
-    Bgm,
-    SectionLen,
-    BpmChange,
     BgaBase,
-    BgaPoor,
     BgaLayer,
-    Stop,
+    BgaPoor,
+    Bgm,
+    BpmChange,
     Note {
         kind: NoteKind,
         is_player1: bool,
         key: Key,
     },
+    SectionLen,
+    Stop,
 }
 
 impl Channel {
