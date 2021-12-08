@@ -163,7 +163,10 @@ impl<'a> Token<'a> {
                     message,
                 }
             }
-            _ => todo!(),
+            unknown => {
+                eprintln!("unknown command found: {:?}", unknown);
+                todo!();
+            }
         })
     }
 }
