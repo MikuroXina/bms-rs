@@ -159,6 +159,16 @@ impl Channel {
                 is_player1: false,
                 key: Key::from(&channel[1..], c)?,
             },
+            player1 if player1.starts_with('D') => Note {
+                kind: NoteKind::Landmine,
+                is_player1: true,
+                key: Key::from(&channel[1..], c)?,
+            },
+            player2 if player2.starts_with('E') => Note {
+                kind: NoteKind::Landmine,
+                is_player1: false,
+                key: Key::from(&channel[1..], c)?,
+            },
             _ => {
                 return Err(LexError::UnknownCommand {
                     line: c.line(),
