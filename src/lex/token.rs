@@ -5,26 +5,58 @@ use super::{command::*, cursor::Cursor, Result};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token<'a> {
     Artist(&'a str),
+    AtBga {
+        id: ObjId,
+        source_bmp: ObjId,
+        trim_top_left: (i16, i16),
+        trim_size: (u16, u16),
+        draw_point: (i16, i16),
+    },
     Banner(&'a Path),
-    Bgi(ObjId, &'a Path),
+    BackBmp(&'a Path),
+    BaseBpm(&'a str),
+    Bga {
+        id: ObjId,
+        source_bmp: ObjId,
+        trim_top_left: (i16, i16),
+        trim_bottom_right: (i16, i16),
+        draw_point: (i16, i16),
+    },
+    Bmp(ObjId, &'a Path),
     Bpm(&'a str),
+    ChangeOption(ObjId, &'a str),
+    Comment(&'a str),
     Difficulty(u8),
+    Email(&'a str),
+    ExBmp(ObjId, Argb, &'a Path),
     ExRank(ObjId, JudgeLevel),
+    ExWav(ObjId, [&'a str; 4], &'a Path),
     Genre(&'a str),
+    LnObj(ObjId),
+    LnTypeRdm,
+    LnTypeMgq,
+    Maker(&'a str),
     Message {
         track: Track,
         channel: Channel,
         message: &'a str,
     },
     MidiFile(&'a Path),
+    OctFp,
+    Option(&'a str),
+    PathWav(&'a Path),
     Player(PlayerMode),
     PlayLevel(u8),
+    PoorBga(PoorMode),
     Rank(JudgeLevel),
     StageFile(&'a Path),
     SubArtist(&'a str),
     SubTitle(&'a str),
+    Text(ObjId, &'a str),
     Title(&'a str),
     Total(&'a str),
+    Url(&'a str),
+    VideoFile(&'a Path),
     VolWav(Volume),
     Wav(ObjId, &'a Path),
 }
@@ -99,7 +131,7 @@ impl<'a> Token<'a> {
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
                 );
-                Self::Bgi(ObjId::from(id, c)?, filename)
+                Self::Bmp(ObjId::from(id, c)?, filename)
             }
             message
                 if message.starts_with('#')
