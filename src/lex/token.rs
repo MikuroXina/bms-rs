@@ -139,6 +139,24 @@ impl<'a> Token<'a> {
                         Self::LnTypeRdm
                     }
                 }
+                "#RANDOM" => {
+                    let rand_max = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("random max"))?
+                        .parse()
+                        .map_err(|_| c.err_expected_token("integer"))?;
+                    Self::Random(rand_max)
+                }
+                "#ENDRANDOM" => Self::EndRandom,
+                "#IF" => {
+                    let rand_target = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("random target"))?
+                        .parse()
+                        .map_err(|_| c.err_expected_token("integer"))?;
+                    Self::If(rand_target)
+                }
+                "#ENDIF" => Self::EndIf,
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let filename = Path::new(
