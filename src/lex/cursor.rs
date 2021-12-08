@@ -10,8 +10,8 @@ pub(crate) struct Cursor<'a> {
 impl<'a> Cursor<'a> {
     pub(crate) fn new(source: &'a str) -> Self {
         Self {
-            line: 0,
-            col: 0,
+            line: 1,
+            col: 1,
             index: 0,
             source,
         }
