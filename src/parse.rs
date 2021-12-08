@@ -1,7 +1,6 @@
 mod header;
 
-use rand::Rng;
-use std::collections::BinaryHeap;
+use std::{collections::BinaryHeap, ops::RangeInclusive};
 
 use self::header::Header;
 use crate::lex::{
@@ -10,11 +9,15 @@ use crate::lex::{
 };
 
 #[derive(Debug, Clone)]
-pub enum ParseError {}
+pub enum ParseError {
+    SyntaxError(String),
+}
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        match self {
+            ParseError::SyntaxError(mes) => write!(f, "syntax error: {}", mes),
+        }
     }
 }
 
@@ -48,6 +51,10 @@ impl Ord for Obj {
     }
 }
 
+pub trait Rng {
+    fn gen(&mut self, range: RangeInclusive<u32>) -> u32;
+}
+
 #[derive(Debug)]
 pub struct Bms {
     pub header: Header,
@@ -56,8 +63,11 @@ pub struct Bms {
 
 impl Bms {
     pub fn from_token_stream(token_stream: &TokenStream, mut rng: impl Rng) -> Result<Self> {
+        enum ClauseState {
+            Random(u32),
+            If(bool),
+        }
         let mut random_stack = vec![];
-        let mut in_ignored_clause = false;
         let mut notes_heap = BinaryHeap::with_capacity(
             token_stream
                 .iter()
@@ -68,29 +78,63 @@ impl Bms {
 
         for token in token_stream.iter() {
             match *token {
+                Token::If(rand_target) => {
+                    if let Some(&ClauseState::Random(rand)) = random_stack.last() {
+                        random_stack.push(ClauseState::If(rand_target == rand));
+                        continue;
+                    }
+                    return Err(ParseError::SyntaxError(
+                        "#IF command must be in #RANDOM - #ENDRANDOM block".into(),
+                    ));
+                }
+                Token::ElseIf(rand_target) => {
+                    if let Some(ClauseState::If(_)) = random_stack.last() {
+                        random_stack.pop();
+                        let rand = match random_stack.last().unwrap() {
+                            &ClauseState::Random(rand) => rand,
+                            ClauseState::If(_) => unreachable!(),
+                        };
+                        random_stack.push(ClauseState::If(rand_target == rand));
+                        continue;
+                    }
+                    return Err(ParseError::SyntaxError(
+                        "#ELSEIF command must come after #IF block".into(),
+                    ));
+                }
+                Token::EndIf => {
+                    if let Some(ClauseState::If(_)) = random_stack.last() {
+                        random_stack.pop();
+                        continue;
+                    }
+                    return Err(ParseError::SyntaxError(
+                        "#ENDIF command must come after #IF or #ELSEIF block".into(),
+                    ));
+                }
                 Token::Random(rand_max) => {
-                    random_stack.push(rng.gen_range(1..=rand_max));
+                    if let Some(&ClauseState::Random(_)) = random_stack.last() {
+                        return Err(ParseError::SyntaxError(
+                            "#RANDOM command must come in root or #IF block".into(),
+                        ));
+                    }
+                    if let Some(ClauseState::If(false)) = random_stack.last() {
+                        random_stack.push(ClauseState::Random(0));
+                        continue;
+                    }
+                    random_stack.push(ClauseState::Random(rng.gen(1..=rand_max)));
                     continue;
                 }
                 Token::EndRandom => {
-                    random_stack.pop();
-                    continue;
-                }
-                Token::If(rand_target) => {
-                    in_ignored_clause = Some(&rand_target) != random_stack.last();
-                    continue;
-                }
-                Token::ElseIf(rand_target) => {
-                    in_ignored_clause = Some(&rand_target) != random_stack.last();
-                    continue;
-                }
-                Token::EndIf => {
-                    in_ignored_clause = false;
-                    continue;
+                    if let Some(&ClauseState::Random(_)) = random_stack.last() {
+                        random_stack.pop();
+                        continue;
+                    }
+                    return Err(ParseError::SyntaxError(
+                        "#ENDRANDOM command must come after #RANDOM block".into(),
+                    ));
                 }
                 _ => {}
             }
-            if in_ignored_clause {
+            if let Some(ClauseState::Random(_) | ClauseState::If(false)) = random_stack.last() {
                 continue;
             }
             if let Token::Message {
