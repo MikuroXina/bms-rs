@@ -58,11 +58,23 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
-        let next_line_end = self.source[self.index..]
+        let remaining_start = self.source[self.index..]
+            .find(|c: char| !c.is_whitespace())
+            .unwrap_or(self.source.len());
+        let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source.len());
-        let ret = &self.source[self.index..self.index + next_line_end];
-        self.index = next_line_end;
+        let ret = if self
+            .source
+            .get(self.index + remaining_end - 1..=self.index + remaining_end)
+            == Some("\r\n")
+        {
+            &self.source[self.index + remaining_start..self.index + remaining_end - 1]
+        } else {
+            &self.source[self.index + remaining_start..self.index + remaining_end]
+        };
+        self.col += remaining_end;
+        self.index += remaining_end;
         ret
     }
 
