@@ -82,7 +82,9 @@ use self::{lex::LexError, parse::ParseError};
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum BmsError {
+    /// An error comes from lexical analyzer.
     LexError(LexError),
+    /// An error comes from syntax parser.
     ParseError(ParseError),
 }
 
@@ -119,4 +121,5 @@ impl std::error::Error for BmsError {
     }
 }
 
+/// A custom result type for bms-rs.
 pub type Result<T> = std::result::Result<T, BmsError>;
