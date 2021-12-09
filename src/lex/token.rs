@@ -14,7 +14,6 @@ pub enum Token<'a> {
     },
     Banner(&'a Path),
     BackBmp(&'a Path),
-    BaseBpm(&'a str),
     Bga {
         id: ObjId,
         source_bmp: ObjId,
