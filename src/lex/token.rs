@@ -84,26 +84,11 @@ impl<'a> Token<'a> {
 
             break Ok(match command.to_uppercase().as_str() {
                 "#PLAYER" => Self::Player(PlayerMode::from(c)?),
-                "#GENRE" => Self::Genre(
-                    c.next_token()
-                        .ok_or_else(|| c.err_expected_token("genre"))?,
-                ),
-                "#TITLE" => Self::Title(
-                    c.next_token()
-                        .ok_or_else(|| c.err_expected_token("title"))?,
-                ),
-                "#SUBTITLE" => Self::Title(
-                    c.next_token()
-                        .ok_or_else(|| c.err_expected_token("subtitle"))?,
-                ),
-                "#ARTIST" => Self::Artist(
-                    c.next_token()
-                        .ok_or_else(|| c.err_expected_token("artist"))?,
-                ),
-                "#SUBARTIST" => Self::SubArtist(
-                    c.next_token()
-                        .ok_or_else(|| c.err_expected_token("subartist"))?,
-                ),
+                "#GENRE" => Self::Genre(c.next_line_remaining()),
+                "#TITLE" => Self::Title(c.next_line_remaining()),
+                "#SUBTITLE" => Self::Title(c.next_line_remaining()),
+                "#ARTIST" => Self::Artist(c.next_line_remaining()),
+                "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
                 "#DIFFICULTY" => Self::Difficulty(
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("difficulty"))?
@@ -205,7 +190,10 @@ impl<'a> Token<'a> {
                         message,
                     }
                 }
-                comment if !comment.starts_with('#') => continue,
+                comment if !comment.starts_with('#') => {
+                    c.next_line_remaining();
+                    continue;
+                }
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);
                     todo!();

@@ -57,6 +57,15 @@ impl<'a> Cursor<'a> {
         Some(&self.source[ret])
     }
 
+    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        let next_line_end = self.source[self.index..]
+            .find('\n')
+            .unwrap_or(self.source.len());
+        let ret = &self.source[self.index..self.index + next_line_end];
+        self.index = next_line_end;
+        ret
+    }
+
     pub(crate) fn line(&self) -> usize {
         self.line
     }
