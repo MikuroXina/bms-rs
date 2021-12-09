@@ -1,6 +1,6 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use super::Result;
+use super::{ParseError, Result};
 use crate::lex::{command::*, token::Token};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -27,6 +27,9 @@ pub struct Header {
     pub difficulty: Option<u8>,
     pub total: Option<f64>,
     pub ln_type: LnType,
+    pub wav_files: HashMap<ObjId, PathBuf>,
+    pub bmp_files: HashMap<ObjId, PathBuf>,
+    pub bpm_changes: HashMap<ObjId, f64>,
 }
 
 impl Header {
@@ -49,7 +52,15 @@ impl Header {
                 trim_bottom_right,
                 draw_point,
             } => todo!(),
-            Token::Bmp(_, _) => todo!(),
+            Token::Bmp(id, path) => {
+                if self.bmp_files.insert(id, path.into()).is_some() {
+                    eprintln!(
+                        "duplicated bmp definition found: {:?} {:?}",
+                        id,
+                        path.display()
+                    );
+                }
+            }
             Token::Bpm(bpm) => {
                 if let Ok(parsed) = bpm.parse() {
                     self.bpm = Some(parsed);
@@ -57,7 +68,19 @@ impl Header {
                     eprintln!("not number bpm found: {:?}", bpm);
                 }
             }
-            Token::BpmChange(_, _) => todo!(),
+            Token::BpmChange(id, bpm) => {
+                if self
+                    .bpm_changes
+                    .insert(
+                        id,
+                        bpm.parse()
+                            .map_err(|_| ParseError::BpmParseError(bpm.into()))?,
+                    )
+                    .is_some()
+                {
+                    eprintln!("duplicated bpm change definition found: {:?} {:?}", id, bpm);
+                }
+            }
             Token::ChangeOption(_, _) => todo!(),
             Token::Comment(_) => todo!(),
             Token::Def => todo!(),
@@ -103,7 +126,15 @@ impl Header {
             Token::Url(_) => todo!(),
             Token::VideoFile(_) => todo!(),
             Token::VolWav(_) => todo!(),
-            Token::Wav(_, _) => todo!(),
+            Token::Wav(id, path) => {
+                if self.wav_files.insert(id, path.into()).is_some() {
+                    eprintln!(
+                        "duplicated wav definition found: {:?} {:?}",
+                        id,
+                        path.display()
+                    );
+                }
+            }
             _ => {}
         }
         Ok(())
