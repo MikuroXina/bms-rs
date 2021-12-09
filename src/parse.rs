@@ -13,12 +13,14 @@ use crate::lex::{
 #[derive(Debug, Clone)]
 pub enum ParseError {
     SyntaxError(String),
+    BpmParseError(String),
 }
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseError::SyntaxError(mes) => write!(f, "syntax error: {}", mes),
+            ParseError::BpmParseError(bpm) => write!(f, "not a number bpm: {}", bpm),
         }
     }
 }
