@@ -3,5 +3,10 @@ name = "bms-rs"
 version = "0.1.0"
 authors = ["MikuroXina <ryosukadnak@gmail.com>"]
 edition = "2021"
+description = "The BMS format parser."
+license = "Apache-2.0"
+keywords = ["bms", "parser"]
+categories = ["parsing"]
+repository = "https://github.com/MikuroXina/bms-rs"
 
 [dependencies]
