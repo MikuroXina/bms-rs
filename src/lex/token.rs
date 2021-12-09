@@ -228,6 +228,7 @@ impl<'a> IntoIterator for TokenStream<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct TokenStreamIter<'t, 'a> {
     iter: std::slice::Iter<'t, Token<'a>>,
 }
