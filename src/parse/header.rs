@@ -86,7 +86,6 @@ impl Header {
             }
             Token::ChangeOption(_, _) => todo!(),
             Token::Comment(_) => todo!(),
-            Token::Def => todo!(),
             Token::Difficulty(diff) => self.difficulty = Some(diff),
             Token::Email(_) => todo!(),
             Token::ExBmp(_, _, _) => todo!(),
@@ -108,15 +107,10 @@ impl Header {
             Token::Player(player) => self.player = Some(player),
             Token::PlayLevel(play_level) => self.play_level = Some(play_level),
             Token::PoorBga(_) => todo!(),
-            Token::Random(_) => todo!(),
             Token::Rank(rank) => self.rank = Some(rank),
-            Token::SetRandom(_) => todo!(),
-            Token::SetSwitch(_) => todo!(),
-            Token::Skip => todo!(),
             Token::StageFile(file) => self.stage_file = Some(file.into()),
             Token::SubArtist(_) => todo!(),
             Token::SubTitle(_) => todo!(),
-            Token::Switch(_) => todo!(),
             Token::Text(_, _) => todo!(),
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
