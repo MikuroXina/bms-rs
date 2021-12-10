@@ -272,8 +272,7 @@ impl<'a> Token<'a> {
                 message
                     if message.starts_with('#')
                         && message.chars().nth(6) == Some(':')
-                        && 9 <= message.len()
-                        && message.len() % 2 == 1 =>
+                        && 8 <= message.len() =>
                 {
                     let track = command[1..4]
                         .parse()
