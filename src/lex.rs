@@ -1,5 +1,7 @@
+//! Lexical analyzer of BMS format.
+
 pub mod command;
-pub mod cursor;
+mod cursor;
 pub mod token;
 
 use self::{
@@ -7,16 +9,24 @@ use self::{
     token::{Token, TokenStream},
 };
 
+/// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum LexError {
+    /// An unknown command detected.
     UnknownCommand {
+        /// The line number of the command detected.
         line: usize,
+        /// The column number of the command detected.
         col: usize,
     },
+    /// The token was expected but not found.
     ExpectedToken {
+        /// The line number of the token expected.
         line: usize,
+        /// The column number of the token expected.
         col: usize,
+        /// What the expected is.
         message: &'static str,
     },
 }
@@ -38,8 +48,10 @@ impl std::fmt::Display for LexError {
 
 impl std::error::Error for LexError {}
 
+/// An error occurred when lexical analyzing the BMS format file.
 pub type Result<T> = std::result::Result<T, LexError>;
 
+/// Analyzes and converts the BMS format text into [`TokenStream`].
 pub fn parse(source: &str) -> Result<TokenStream> {
     let mut cursor = Cursor::new(source);
 

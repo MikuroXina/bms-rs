@@ -1,11 +1,17 @@
+//! Definitions of command argument data.
+
 use std::num::NonZeroU16;
 
 use super::{cursor::Cursor, LexError, Result};
 
+/// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlayerMode {
+    /// For single play, a player uses 5 or 7 keys.
     Single,
+    /// For couple play, two players use each 5 or 7 keys.
     Two,
+    /// For double play, a player uses 10 or 14 keys.
     Double,
 }
 
@@ -20,11 +26,16 @@ impl PlayerMode {
     }
 }
 
+/// A rank to determine judge level, but treatment differs among the BMS players.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JudgeLevel {
+    /// Rank 0, the most difficult rank.
     VeryHard,
+    /// Rank 1, the harder rank.
     Hard,
+    /// Rank 2, the easier rank.
     Normal,
+    /// Rank 3, the easiest rank.
     Easy,
 }
 
@@ -40,6 +51,7 @@ impl JudgeLevel {
     }
 }
 
+/// An object id. Its meaning is determined by the channel belonged to.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObjId(pub NonZeroU16);
 
@@ -73,37 +85,72 @@ impl ObjId {
     }
 }
 
+/// A play volume of the sound in the score. Defaults to 100.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Volume {
+    /// A play volume percentage of the sound.
     pub relative_percent: u8,
 }
 
+impl Default for Volume {
+    fn default() -> Self {
+        Self {
+            relative_percent: 100,
+        }
+    }
+}
+
+/// An alpha-red-gree-blue color data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Argb {
+    /// A component of alpha.
     pub alpha: u8,
+    /// A component of red.
     pub red: u8,
+    /// A component of green.
     pub green: u8,
+    /// A component of blue.
     pub blue: u8,
 }
 
+/// A kind of the note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoteKind {
+    /// A normal note can be seen by the user.
     Visible,
+    /// A invisible note cannot be played by the user.
     Invisible,
+    /// A long-press note (LN), requires the user to hold pressing the key.
     Long,
+    /// A landmine note that treated as POOR judgement when
     Landmine,
 }
 
+/// A key of the controller or keyboard.
+///
+/// |---------|----------------------|
+/// |         |   [K2]  [K4]  [K6]   |
+/// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
+/// |---------|----------------------|
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Key {
+    /// The leftmost white key.
     Key1,
+    /// The leftmost black key.
     Key2,
+    /// The second white key from the left.
     Key3,
+    /// The second black key from the left.
     Key4,
+    /// The third white key from the left.
     Key5,
+    /// The rightmost black key.
     Key6,
+    /// The rightmost white key.
     Key7,
+    /// The scratch disk.
     Scratch,
+    /// The zone that the user can scratch disk freely.
     FreeZone,
 }
 
@@ -125,11 +172,15 @@ impl Key {
     }
 }
 
+/// A POOR BGA display mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 
 pub enum PoorMode {
+    /// To hide the normal BGA and display the POOR BGA.
     Interrupt,
+    /// To overlap the POOR BGA onto the normal BGA.
     Overlay,
+    /// Not to display the POOR BGA.
     Hidden,
 }
 
@@ -139,20 +190,33 @@ impl Default for PoorMode {
     }
 }
 
+/// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Channel {
+    /// The BGA channel.
     BgaBase,
+    /// The BGA channel but overlay to [`Channel::BgaBase`] channel.
     BgaLayer,
+    /// The POOR BGA channel.
     BgaPoor,
+    /// For the note which will be auto-played.
     Bgm,
+    /// For the bpm change object.
     BpmChange,
+    /// For the change option object.
     ChangeOption,
+    /// For the note which the user can interact.
     Note {
+        /// The kind of the note.
         kind: NoteKind,
+        /// The note for the player 1.
         is_player1: bool,
+        /// The key which corresponds to the note.
         key: Key,
     },
+    /// For the section length change object.
     SectionLen,
+    /// For the stop object.
     Stop,
 }
 
@@ -217,5 +281,6 @@ impl Channel {
     }
 }
 
+/// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Track(pub u32);
