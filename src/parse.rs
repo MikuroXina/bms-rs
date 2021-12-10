@@ -1,3 +1,5 @@
+//! Parser for BMS format. The reason why the implementation separated into lex and parse is the score may contain some randomized elements such as `#RANDOM`. This separation make us able to parse the tokens with the custom random generator cheaply.
+
 mod header;
 mod random;
 pub mod rng;
@@ -10,9 +12,12 @@ use crate::lex::{
     token::{Token, TokenStream},
 };
 
+/// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone)]
 pub enum ParseError {
+    /// Syntax formed from the commands was invalid.
     SyntaxError(String),
+    /// The invalid real number for the BPM.
     BpmParseError(String),
 }
 
@@ -27,14 +32,21 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
+/// A custom result type for parsing.
 pub type Result<T> = std::result::Result<T, ParseError>;
 
+/// An object on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Obj {
+    /// The track, or measure, where the object is in.
     pub track: u32,
+    /// The time offset numerator in the track.
     pub time_numerator_in_track: u32,
+    /// The time offset denominator in the track.
     pub time_denominator_in_track: u32,
+    /// The channel, or lane, where the object is placed.
     pub channel: Channel,
+    /// The id of the object.
     pub obj: ObjId,
 }
 
@@ -55,13 +67,17 @@ impl Ord for Obj {
     }
 }
 
+/// A score data of BMS format.
 #[derive(Debug)]
 pub struct Bms {
+    /// The header data in the score.
     pub header: Header,
+    /// The sound objects sorted by its time.
     pub sorted_notes: Vec<Obj>,
 }
 
 impl Bms {
+    /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream(token_stream: &TokenStream, rng: impl Rng) -> Result<Self> {
         let mut random_parser = RandomParser::new(rng);
         let mut notes_heap = BinaryHeap::with_capacity(
