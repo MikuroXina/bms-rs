@@ -280,6 +280,14 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.err_expected_token("[000-999]"))?;
                     let channel = &command[4..6];
 
+                    if channel == "02" {
+                        return Ok(Self::Message {
+                            track: Track(track),
+                            channel: Channel::SectionLen(command[7..].into()),
+                            message: vec![],
+                        });
+                    }
+
                     let message_ids = &command[7..];
                     let messages_len = message_ids.len() / 2;
                     let mut message = Vec::with_capacity(messages_len);
