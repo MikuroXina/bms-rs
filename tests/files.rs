@@ -10,3 +10,11 @@ fn test_lal() {
     let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
     eprintln!("{:?}", bms);
 }
+
+#[test]
+fn test_nc() {
+    let source = include_str!("nc_mx.bme");
+    let ts = parse(source).expect("must be parsed");
+    let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
+    eprintln!("{:?}", bms);
+}
