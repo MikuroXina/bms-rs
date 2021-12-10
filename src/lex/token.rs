@@ -260,6 +260,15 @@ impl<'a> Token<'a> {
                     let bpm = c.next_token().ok_or_else(|| c.err_expected_token("bpm"))?;
                     Self::BpmChange(ObjId::from(id, c)?, bpm)
                 }
+                stop if stop.starts_with("#STOP") => {
+                    let id = command.trim_start_matches("#STOP");
+                    let stop = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("stop beats"))?
+                        .parse()
+                        .map_err(|_| c.err_expected_token("integer"))?;
+                    Self::Stop(ObjId::from(id, c)?, stop)
+                }
                 message
                     if message.starts_with('#')
                         && message.chars().nth(6) == Some(':')
