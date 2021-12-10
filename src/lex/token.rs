@@ -234,6 +234,11 @@ impl<'a> Token<'a> {
                     Self::If(rand_target)
                 }
                 "#ENDIF" => Self::EndIf,
+                "#STAGEFILE" => Self::StageFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.err_expected_token("splashscreen imege filename"))?,
+                ),
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let filename = Path::new(
