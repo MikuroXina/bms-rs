@@ -62,6 +62,7 @@ impl Header {
                 }
             }
             Token::Bpm(bpm) => {
+                // TODO(MikuroXina): bpm must be greater than zero but there is no assertion
                 if let Ok(parsed) = bpm.parse() {
                     self.bpm = Some(parsed);
                 } else {
