@@ -20,15 +20,28 @@ pub struct Header {
     pub player: Option<PlayerMode>,
     pub genre: Option<String>,
     pub title: Option<String>,
+    pub subtitle: Option<String>,
     pub artist: Option<String>,
+    pub sub_artist: Option<String>,
+    pub maker: Option<String>,
+    pub comment: Option<Vec<String>>,
+    pub email: Option<String>,
+    pub url: Option<String>,
+    pub options: Option<Vec<String>>,
     pub bpm: Option<f64>,
     pub play_level: Option<u8>,
     pub rank: Option<JudgeLevel>,
     pub difficulty: Option<u8>,
     pub total: Option<f64>,
+    pub volume: Volume,
     pub ln_type: LnType,
+    pub poor_bga_mode: PoorMode,
+    pub back_bmp: Option<PathBuf>,
     pub stage_file: Option<PathBuf>,
     pub banner: Option<PathBuf>,
+    pub midi_file: Option<PathBuf>,
+    pub video_file: Option<PathBuf>,
+    pub wav_path_root: Option<PathBuf>,
     pub wav_files: HashMap<ObjId, PathBuf>,
     pub bmp_files: HashMap<ObjId, PathBuf>,
     pub bpm_changes: HashMap<ObjId, f64>,
@@ -46,7 +59,7 @@ impl Header {
                 draw_point,
             } => todo!(),
             Token::Banner(file) => self.banner = Some(file.into()),
-            Token::BackBmp(_) => todo!(),
+            Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
             Token::Bga {
                 id,
                 source_bmp,
@@ -85,9 +98,12 @@ impl Header {
                 }
             }
             Token::ChangeOption(_, _) => todo!(),
-            Token::Comment(_) => todo!(),
+            Token::Comment(comment) => self
+                .comment
+                .get_or_insert_with(Vec::new)
+                .push(comment.into()),
             Token::Difficulty(diff) => self.difficulty = Some(diff),
-            Token::Email(_) => todo!(),
+            Token::Email(email) => self.email = Some(email.into()),
             Token::ExBmp(_, _, _) => todo!(),
             Token::ExRank(_, _) => todo!(),
             Token::ExWav(_, _, _) => todo!(),
@@ -99,18 +115,21 @@ impl Header {
             Token::LnTypeMgq => {
                 self.ln_type = LnType::Mgq;
             }
-            Token::Maker(_) => todo!(),
-            Token::MidiFile(_) => todo!(),
+            Token::Maker(maker) => self.maker = Some(maker.into()),
+            Token::MidiFile(midi_file) => self.midi_file = Some(midi_file.into()),
             Token::OctFp => todo!(),
-            Token::Option(_) => todo!(),
-            Token::PathWav(_) => todo!(),
+            Token::Option(option) => self
+                .options
+                .get_or_insert_with(Vec::new)
+                .push(option.into()),
+            Token::PathWav(wav_path_root) => self.wav_path_root = Some(wav_path_root.into()),
             Token::Player(player) => self.player = Some(player),
             Token::PlayLevel(play_level) => self.play_level = Some(play_level),
-            Token::PoorBga(_) => todo!(),
+            Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(rank),
             Token::StageFile(file) => self.stage_file = Some(file.into()),
-            Token::SubArtist(_) => todo!(),
-            Token::SubTitle(_) => todo!(),
+            Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
+            Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
             Token::Text(_, _) => todo!(),
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
@@ -120,9 +139,9 @@ impl Header {
                     eprintln!("not number total found: {:?}", total);
                 }
             }
-            Token::Url(_) => todo!(),
-            Token::VideoFile(_) => todo!(),
-            Token::VolWav(_) => todo!(),
+            Token::Url(url) => self.url = Some(url.into()),
+            Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
+            Token::VolWav(volume) => self.volume = volume,
             Token::Wav(id, path) => {
                 if self.wav_files.insert(id, path.into()).is_some() {
                     eprintln!(
