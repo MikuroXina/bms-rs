@@ -52,7 +52,7 @@ impl JudgeLevel {
 }
 
 /// An object id. Its meaning is determined by the channel belonged to.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ObjId(pub NonZeroU16);
 
 impl std::fmt::Debug for ObjId {

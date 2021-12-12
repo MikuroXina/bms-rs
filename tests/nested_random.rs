@@ -50,7 +50,7 @@ fn nested_random() {
     let rng = RngMock([1]);
     let bms = Bms::from_token_stream(&ts, rng).expect("must be parsed");
     assert_eq!(
-        bms.sorted_notes,
+        bms.notes.into_all_notes(),
         vec![
             Obj {
                 track: 1,
@@ -98,7 +98,7 @@ fn nested_random() {
     let rng = RngMock([1, 2]);
     let bms = Bms::from_token_stream(&ts, rng).expect("must be parsed");
     assert_eq!(
-        bms.sorted_notes,
+        bms.notes.into_all_notes(),
         vec![
             Obj {
                 track: 1,
@@ -146,7 +146,7 @@ fn nested_random() {
     let rng = RngMock([2]);
     let bms = Bms::from_token_stream(&ts, rng).expect("must be parsed");
     assert_eq!(
-        bms.sorted_notes,
+        bms.notes.into_all_notes(),
         vec![
             Obj {
                 track: 1,

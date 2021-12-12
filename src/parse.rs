@@ -5,7 +5,10 @@ mod random;
 pub mod rng;
 
 use itertools::Itertools;
-use std::{collections::BinaryHeap, ops::ControlFlow};
+use std::{
+    collections::{BinaryHeap, HashMap},
+    ops::ControlFlow,
+};
 
 use self::{header::Header, random::RandomParser, rng::Rng};
 use crate::lex::{
@@ -99,6 +102,39 @@ impl Ord for Obj {
         self.track
             .cmp(&other.track)
             .then(self.offset.cmp(&other.offset))
+            .then(self.obj.cmp(&other.obj))
+    }
+}
+
+/// The objects set for querying by channel or time.
+#[derive(Debug)]
+pub struct Notes(HashMap<Channel, BinaryHeap<Obj>>);
+
+impl Notes {
+    /// Returns the iterator having all of the notes sorted by time.
+    pub fn into_all_notes(self) -> Vec<Obj> {
+        self.0
+            .into_values()
+            .reduce(|mut a, mut b| {
+                a.append(&mut b);
+                a
+            })
+            .map(|heap| heap.into_sorted_vec())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn push(&mut self, note: Obj) {
+        let note = &note;
+        self.0
+            .entry(note.channel.clone())
+            .and_modify(move |heap| {
+                heap.push(note.clone());
+            })
+            .or_insert_with(move || {
+                let mut heap = BinaryHeap::new();
+                heap.push(note.clone());
+                heap
+            });
     }
 }
 
@@ -107,20 +143,15 @@ impl Ord for Obj {
 pub struct Bms {
     /// The header data in the score.
     pub header: Header,
-    /// The sound objects sorted by its time.
-    pub sorted_notes: Vec<Obj>,
+    /// The objects in the score.
+    pub notes: Notes,
 }
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream(token_stream: &TokenStream, rng: impl Rng) -> Result<Self> {
         let mut random_parser = RandomParser::new(rng);
-        let mut notes_heap = BinaryHeap::with_capacity(
-            token_stream
-                .iter()
-                .filter(|token| matches!(token, Token::Message { .. }))
-                .count(),
-        );
+        let mut notes = Notes(HashMap::new());
         let mut header = Header::default();
 
         for token in token_stream.iter() {
@@ -142,7 +173,7 @@ impl Bms {
                             continue;
                         }
                         let obj = (id as u16).try_into().unwrap();
-                        notes_heap.push(Obj {
+                        notes.push(Obj {
                             track: track.0,
                             offset: ObjTime::new(i as u32, denominator),
                             channel: channel.clone(),
@@ -157,9 +188,6 @@ impl Bms {
             header.parse(token)?;
         }
 
-        Ok(Self {
-            header,
-            sorted_notes: notes_heap.into_sorted_vec(),
-        })
+        Ok(Self { header, notes })
     }
 }
