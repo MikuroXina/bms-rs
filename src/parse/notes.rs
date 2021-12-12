@@ -3,7 +3,10 @@
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 
-use super::{Obj, ObjTime, ParseError, Result};
+use super::{
+    obj::{Obj, ObjTime},
+    ParseError, Result,
+};
 use crate::lex::{
     command::{Channel, Key, NoteKind, ObjId},
     token::Token,

@@ -3,7 +3,11 @@ use bms_rs::{
         command::{Key, NoteKind},
         parse,
     },
-    parse::{rng::RngMock, Bms, Obj, ObjTime},
+    parse::{
+        obj::{Obj, ObjTime},
+        rng::RngMock,
+        Bms,
+    },
 };
 
 #[test]
