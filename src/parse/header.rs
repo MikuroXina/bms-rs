@@ -77,23 +77,24 @@ impl Header {
                 }
             }
             Token::Bpm(bpm) => {
-                // TODO(MikuroXina): bpm must be greater than zero but there is no assertion
                 if let Ok(parsed) = bpm.parse() {
-                    self.bpm = Some(parsed);
+                    if 0.0 < parsed {
+                        self.bpm = Some(parsed);
+                    } else {
+                        eprintln!("not positive bpm found: {:?}", parsed);
+                    }
                 } else {
                     eprintln!("not number bpm found: {:?}", bpm);
                 }
             }
             Token::BpmChange(id, bpm) => {
-                if self
-                    .bpm_changes
-                    .insert(
-                        id,
-                        bpm.parse()
-                            .map_err(|_| ParseError::BpmParseError(bpm.into()))?,
-                    )
-                    .is_some()
-                {
+                let parsed: f64 = bpm
+                    .parse()
+                    .map_err(|_| ParseError::BpmParseError(bpm.into()))?;
+                if parsed <= 0.0 || !parsed.is_finite() {
+                    return Err(ParseError::BpmParseError(bpm.into()));
+                }
+                if self.bpm_changes.insert(id, parsed).is_some() {
                     eprintln!("duplicated bpm change definition found: {:?} {:?}", id, bpm);
                 }
             }
