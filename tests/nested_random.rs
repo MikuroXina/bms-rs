@@ -3,7 +3,7 @@ use bms_rs::{
         command::{Channel, Key, NoteKind},
         parse,
     },
-    parse::{rng::RngMock, Bms, Obj},
+    parse::{rng::RngMock, Bms, Obj, ObjTime},
 };
 
 #[test]
@@ -54,8 +54,7 @@ fn nested_random() {
         vec![
             Obj {
                 track: 1,
-                time_numerator_in_track: 1,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -65,8 +64,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 2,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -76,8 +74,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 2,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -87,8 +84,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 4,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -106,8 +102,7 @@ fn nested_random() {
         vec![
             Obj {
                 track: 1,
-                time_numerator_in_track: 1,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -117,8 +112,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 2,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -128,8 +122,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 3,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(2, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -139,8 +132,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 4,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -158,8 +150,7 @@ fn nested_random() {
         vec![
             Obj {
                 track: 1,
-                time_numerator_in_track: 1,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -169,8 +160,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 3,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(2, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -180,8 +170,7 @@ fn nested_random() {
             },
             Obj {
                 track: 1,
-                time_numerator_in_track: 4,
-                time_denominator_in_track: 4,
+                offset: ObjTime::new(3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,

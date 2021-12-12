@@ -36,15 +36,52 @@ impl std::error::Error for ParseError {}
 /// A custom result type for parsing.
 pub type Result<T> = std::result::Result<T, ParseError>;
 
+/// A time of the object on the score.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ObjTime {
+    /// The time offset numerator in the track.
+    pub numerator: u32,
+    /// The time offset denominator in the track.
+    pub denominator: u32,
+}
+
+impl ObjTime {
+    /// Create a new time.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `denominator` is 0 or `numerator` is greater than or equal to `denominator`.
+    pub fn new(numerator: u32, denominator: u32) -> Self {
+        assert!(0 < denominator);
+        assert!(numerator < denominator);
+        Self {
+            numerator,
+            denominator,
+        }
+    }
+}
+
+impl PartialOrd for ObjTime {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ObjTime {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_time_in_track = self.numerator * other.denominator;
+        let other_time_in_track = other.numerator * self.denominator;
+        self_time_in_track.cmp(&other_time_in_track)
+    }
+}
+
 /// An object on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Obj {
     /// The track, or measure, where the object is in.
     pub track: u32,
-    /// The time offset numerator in the track.
-    pub time_numerator_in_track: u32,
-    /// The time offset denominator in the track.
-    pub time_denominator_in_track: u32,
+    /// The time offset in the track.
+    pub offset: ObjTime,
     /// The channel, or lane, where the object is placed.
     pub channel: Channel,
     /// The id of the object.
@@ -59,12 +96,9 @@ impl PartialOrd for Obj {
 
 impl Ord for Obj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track.cmp(&other.track).then_with(|| {
-            let self_time_in_track = self.time_numerator_in_track * other.time_denominator_in_track;
-            let other_time_in_track =
-                other.time_numerator_in_track * self.time_denominator_in_track;
-            self_time_in_track.cmp(&other_time_in_track)
-        })
+        self.track
+            .cmp(&other.track)
+            .then(self.offset.cmp(&other.offset))
     }
 }
 
@@ -101,7 +135,7 @@ impl Bms {
                     channel,
                     message,
                 } if channel != &Channel::SectionLen => {
-                    let time_denominator_in_track = message.len() as u32 / 2;
+                    let denominator = message.len() as u32 / 2;
                     for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
                         let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
                         if id == 0 {
@@ -110,8 +144,7 @@ impl Bms {
                         let obj = (id as u16).try_into().unwrap();
                         notes_heap.push(Obj {
                             track: track.0,
-                            time_numerator_in_track: i as u32 + 1,
-                            time_denominator_in_track,
+                            offset: ObjTime::new(i as u32, denominator),
                             channel: channel.clone(),
                             obj,
                         });
