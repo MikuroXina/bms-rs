@@ -23,6 +23,8 @@ pub enum ParseError {
     SyntaxError(String),
     /// The invalid real number for the BPM.
     BpmParseError(String),
+    /// The object has required but not defined,
+    UndefinedObject(ObjId),
 }
 
 impl std::fmt::Display for ParseError {
@@ -30,6 +32,7 @@ impl std::fmt::Display for ParseError {
         match self {
             ParseError::SyntaxError(mes) => write!(f, "syntax error: {}", mes),
             ParseError::BpmParseError(bpm) => write!(f, "not a number bpm: {}", bpm),
+            ParseError::UndefinedObject(id) => write!(f, "undefined object: {:?}", id),
         }
     }
 }
@@ -166,26 +169,24 @@ impl Notes {
                     });
                 }
             }
-            Token::LnObj(end_id) => todo!(),
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => todo!(),
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => todo!(),
-            Token::ChangeOption(_, _) => todo!(),
-            Token::ExBmp(_, _, _) => todo!(),
-            Token::ExRank(_, _) => todo!(),
-            Token::ExWav(_, _, _) => todo!(),
-            Token::Text(_, _) => todo!(),
+            &Token::LnObj(end_id) => {
+                let mut end_note = self
+                    .remove(end_id)
+                    .ok_or(ParseError::UndefinedObject(end_id))?;
+                let Obj {
+                    offset, channel, ..
+                } = &end_note;
+                let (_, &begin_id) = self.ids_by_lane[channel]
+                    .range(..offset)
+                    .last()
+                    .ok_or_else(|| {
+                        ParseError::SyntaxError(format!(
+                            "expected preceding object for #LNOBJ {:?}",
+                            end_id
+                        ))
+                    })?;
+                let mut begin_note = self.remove(begin_id).unwrap();
+            }
             _ => {}
         }
         Ok(())
