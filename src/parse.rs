@@ -123,7 +123,7 @@ impl Notes {
             .unwrap_or_default()
     }
 
-    pub(crate) fn push(&mut self, note: Obj) {
+    fn push(&mut self, note: Obj) {
         let note = &note;
         self.0
             .entry(note.channel.clone())
@@ -135,6 +135,53 @@ impl Notes {
                 heap.push(note.clone());
                 heap
             });
+    }
+
+    pub(crate) fn parse(&mut self, token: &Token) -> Result<()> {
+        match token {
+            Token::Message {
+                track,
+                channel,
+                message,
+            } if channel != &Channel::SectionLen => {
+                let denominator = message.len() as u32 / 2;
+                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
+                    if id == 0 {
+                        continue;
+                    }
+                    let obj = (id as u16).try_into().unwrap();
+                    self.push(Obj {
+                        track: track.0,
+                        offset: ObjTime::new(i as u32, denominator),
+                        channel: channel.clone(),
+                        obj,
+                    });
+                }
+            }
+            Token::LnObj(end_id) => todo!(),
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => todo!(),
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => todo!(),
+            Token::ChangeOption(_, _) => todo!(),
+            Token::ExBmp(_, _, _) => todo!(),
+            Token::ExRank(_, _) => todo!(),
+            Token::ExWav(_, _, _) => todo!(),
+            Token::Text(_, _) => todo!(),
+            _ => {}
+        }
+        Ok(())
     }
 }
 
@@ -160,31 +207,7 @@ impl Bms {
                 ControlFlow::Break(Ok(_)) => continue,
                 ControlFlow::Break(Err(e)) => return Err(e),
             }
-            match token {
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } if channel != &Channel::SectionLen => {
-                    let denominator = message.len() as u32 / 2;
-                    for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                        let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-                        if id == 0 {
-                            continue;
-                        }
-                        let obj = (id as u16).try_into().unwrap();
-                        notes.push(Obj {
-                            track: track.0,
-                            offset: ObjTime::new(i as u32, denominator),
-                            channel: channel.clone(),
-                            obj,
-                        });
-                    }
-                    continue;
-                }
-                Token::LnObj(end_id) => {}
-                _ => {}
-            }
+            notes.parse(token)?;
             header.parse(token)?;
         }
 

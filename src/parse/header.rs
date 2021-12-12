@@ -52,22 +52,8 @@ impl Header {
     pub fn parse(&mut self, token: &Token) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => todo!(),
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => todo!(),
             Token::Bmp(id, path) => {
                 if self.bmp_files.insert(id, path.into()).is_some() {
                     eprintln!(
@@ -99,18 +85,13 @@ impl Header {
                     eprintln!("duplicated bpm change definition found: {:?} {:?}", id, bpm);
                 }
             }
-            Token::ChangeOption(_, _) => todo!(),
             Token::Comment(comment) => self
                 .comment
                 .get_or_insert_with(Vec::new)
                 .push(comment.into()),
             Token::Difficulty(diff) => self.difficulty = Some(diff),
             Token::Email(email) => self.email = Some(email.into()),
-            Token::ExBmp(_, _, _) => todo!(),
-            Token::ExRank(_, _) => todo!(),
-            Token::ExWav(_, _, _) => todo!(),
             Token::Genre(genre) => self.genre = Some(genre.to_owned()),
-            Token::LnObj(_) => todo!(),
             Token::LnTypeRdm => {
                 self.ln_type = LnType::Rdm;
             }
@@ -132,7 +113,6 @@ impl Header {
             Token::StageFile(file) => self.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
-            Token::Text(_, _) => todo!(),
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
                 if let Ok(parsed) = total.parse() {
