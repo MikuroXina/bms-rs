@@ -12,8 +12,8 @@
 //!     parse::{rng::RngMock, Bms},
 //! };
 //!
-//! let source = std::fs::read_to_string("tests/lilith_mx.bms");
-//! let token_stream = parse(source).expect("must be parsed");
+//! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
+//! let token_stream = parse(&source).expect("must be parsed");
 //! let rng = RngMock([1]);
 //! let bms = Bms::from_token_stream(&token_stream, rng).expect("must be parsed");
 //! ```
