@@ -39,6 +39,7 @@ pub struct Header {
     pub back_bmp: Option<PathBuf>,
     pub stage_file: Option<PathBuf>,
     pub banner: Option<PathBuf>,
+    pub is_octave: bool,
     pub midi_file: Option<PathBuf>,
     pub video_file: Option<PathBuf>,
     pub wav_path_root: Option<PathBuf>,
@@ -118,7 +119,7 @@ impl Header {
             }
             Token::Maker(maker) => self.maker = Some(maker.into()),
             Token::MidiFile(midi_file) => self.midi_file = Some(midi_file.into()),
-            Token::OctFp => todo!(),
+            Token::OctFp => self.is_octave = true,
             Token::Option(option) => self
                 .options
                 .get_or_insert_with(Vec::new)
