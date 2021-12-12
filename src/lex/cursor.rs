@@ -102,18 +102,18 @@ fn test1() {
         ",
     );
 
-    assert_eq!(cursor.line(), 0);
-    assert_eq!(cursor.col(), 0);
-    assert_eq!(cursor.next_token(), Some("hoge"));
     assert_eq!(cursor.line(), 1);
-    assert_eq!(cursor.col(), 13);
-    assert_eq!(cursor.next_token(), Some("foo"));
+    assert_eq!(cursor.col(), 1);
+    assert_eq!(cursor.next_token(), Some("hoge"));
     assert_eq!(cursor.line(), 2);
     assert_eq!(cursor.col(), 13);
-    assert_eq!(cursor.next_token(), Some("bar"));
+    assert_eq!(cursor.next_token(), Some("foo"));
     assert_eq!(cursor.line(), 3);
     assert_eq!(cursor.col(), 13);
     assert_eq!(cursor.next_token(), Some("bar"));
-    assert_eq!(cursor.line(), 3);
+    assert_eq!(cursor.line(), 4);
+    assert_eq!(cursor.col(), 13);
+    assert_eq!(cursor.next_token(), Some("bar"));
+    assert_eq!(cursor.line(), 4);
     assert_eq!(cursor.col(), 17);
 }
