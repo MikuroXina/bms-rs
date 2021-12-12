@@ -1,6 +1,6 @@
 use bms_rs::{
     lex::{
-        command::{Channel, Key, NoteKind},
+        command::{Key, NoteKind},
         parse,
     },
     parse::{rng::RngMock, Bms, Obj, ObjTime},
@@ -54,38 +54,30 @@ fn nested_random() {
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key1,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key1,
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key2,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key2,
                 obj: id22,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key5,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key5,
                 obj: id55,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key4,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key4,
                 obj: id44,
             }
         ]
@@ -98,38 +90,30 @@ fn nested_random() {
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key1,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key1,
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key2,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key2,
                 obj: id22,
             },
             Obj {
                 offset: ObjTime::new(1, 2, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Scratch,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Scratch,
                 obj: id66,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key4,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key4,
                 obj: id44,
             }
         ]
@@ -142,29 +126,23 @@ fn nested_random() {
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key1,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key1,
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 2, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key3,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
                 obj: id33,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
-                channel: Channel::Note {
-                    kind: NoteKind::Visible,
-                    is_player1: true,
-                    key: Key::Key4,
-                },
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key4,
                 obj: id44,
             }
         ]
