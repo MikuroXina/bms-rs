@@ -53,8 +53,7 @@ fn nested_random() {
         bms.notes.into_all_notes(),
         vec![
             Obj {
-                track: 1,
-                offset: ObjTime::new(0, 4),
+                offset: ObjTime::new(1, 0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -63,8 +62,7 @@ fn nested_random() {
                 obj: id11,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(1, 4),
+                offset: ObjTime::new(1, 1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -73,8 +71,7 @@ fn nested_random() {
                 obj: id22,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(1, 4),
+                offset: ObjTime::new(1, 1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -83,8 +80,7 @@ fn nested_random() {
                 obj: id55,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(3, 4),
+                offset: ObjTime::new(1, 3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -101,8 +97,7 @@ fn nested_random() {
         bms.notes.into_all_notes(),
         vec![
             Obj {
-                track: 1,
-                offset: ObjTime::new(0, 4),
+                offset: ObjTime::new(1, 0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -111,8 +106,7 @@ fn nested_random() {
                 obj: id11,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(1, 4),
+                offset: ObjTime::new(1, 1, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -121,8 +115,7 @@ fn nested_random() {
                 obj: id22,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(2, 4),
+                offset: ObjTime::new(1, 2, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -131,8 +124,7 @@ fn nested_random() {
                 obj: id66,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(3, 4),
+                offset: ObjTime::new(1, 3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -149,8 +141,7 @@ fn nested_random() {
         bms.notes.into_all_notes(),
         vec![
             Obj {
-                track: 1,
-                offset: ObjTime::new(0, 4),
+                offset: ObjTime::new(1, 0, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -159,8 +150,7 @@ fn nested_random() {
                 obj: id11,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(2, 4),
+                offset: ObjTime::new(1, 2, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
@@ -169,8 +159,7 @@ fn nested_random() {
                 obj: id33,
             },
             Obj {
-                track: 1,
-                offset: ObjTime::new(3, 4),
+                offset: ObjTime::new(1, 3, 4),
                 channel: Channel::Note {
                     kind: NoteKind::Visible,
                     is_player1: true,
