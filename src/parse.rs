@@ -12,7 +12,7 @@ use std::{
 
 use self::{header::Header, random::RandomParser, rng::Rng};
 use crate::lex::{
-    command::{Channel, ObjId},
+    command::{Channel, Key, NoteKind, ObjId},
     token::{Token, TokenStream},
 };
 
@@ -94,8 +94,12 @@ impl Ord for ObjTime {
 pub struct Obj {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// The channel, or lane, where the object is placed.
-    pub channel: Channel,
+    /// THe note kind of the the object.
+    pub kind: NoteKind,
+    /// Whether the note is for player 1.
+    pub is_player1: bool,
+    /// The key, or lane, where the object is placed.
+    pub key: Key,
     /// The id of the object.
     pub obj: ObjId,
 }
@@ -114,11 +118,11 @@ impl Ord for Obj {
     }
 }
 
-/// The objects set for querying by channel or time.
+/// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
     objs: HashMap<ObjId, Obj>,
-    ids_by_lane: HashMap<Channel, BTreeMap<ObjTime, ObjId>>,
+    ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
 }
 
 impl Notes {
@@ -130,8 +134,8 @@ impl Notes {
     /// Adds the new note object to the notes.
     pub fn push(&mut self, note: Obj) {
         self.objs.insert(note.obj, note.clone());
-        self.ids_by_lane
-            .entry(note.channel)
+        self.ids_by_key
+            .entry(note.key)
             .or_insert_with(BTreeMap::new)
             .insert(note.offset, note.obj);
     }
@@ -139,8 +143,8 @@ impl Notes {
     /// Removes the note from the notes.
     pub fn remove(&mut self, id: ObjId) -> Option<Obj> {
         self.objs.remove(&id).map(|removed| {
-            self.ids_by_lane
-                .get_mut(&removed.channel)
+            self.ids_by_key
+                .get_mut(&removed.key)
                 .unwrap()
                 .remove(&removed.offset)
                 .unwrap();
@@ -152,9 +156,14 @@ impl Notes {
         match token {
             Token::Message {
                 track,
-                channel,
+                channel:
+                    Channel::Note {
+                        kind,
+                        is_player1,
+                        key,
+                    },
                 message,
-            } if channel != &Channel::SectionLen => {
+            } => {
                 let denominator = message.len() as u32 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
                     let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
@@ -164,7 +173,9 @@ impl Notes {
                     let obj = (id as u16).try_into().unwrap();
                     self.push(Obj {
                         offset: ObjTime::new(track.0, i as u32, denominator),
-                        channel: channel.clone(),
+                        kind: *kind,
+                        is_player1: *is_player1,
+                        key: *key,
                         obj,
                     });
                 }
@@ -173,19 +184,19 @@ impl Notes {
                 let mut end_note = self
                     .remove(end_id)
                     .ok_or(ParseError::UndefinedObject(end_id))?;
-                let Obj {
-                    offset, channel, ..
-                } = &end_note;
-                let (_, &begin_id) = self.ids_by_lane[channel]
-                    .range(..offset)
-                    .last()
-                    .ok_or_else(|| {
+                let Obj { offset, key, .. } = &end_note;
+                let (_, &begin_id) =
+                    self.ids_by_key[key].range(..offset).last().ok_or_else(|| {
                         ParseError::SyntaxError(format!(
                             "expected preceding object for #LNOBJ {:?}",
                             end_id
                         ))
                     })?;
                 let mut begin_note = self.remove(begin_id).unwrap();
+                begin_note.kind = NoteKind::Long;
+                end_note.kind = NoteKind::Long;
+                self.push(begin_note);
+                self.push(end_note);
             }
             _ => {}
         }
