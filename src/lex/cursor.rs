@@ -58,6 +58,10 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        while &self.source[self.index..self.index + 1] == " " {
+            self.col += 1;
+            self.index += 1;
+        }
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source.len());
