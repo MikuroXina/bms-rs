@@ -4,6 +4,7 @@ mod header;
 mod random;
 pub mod rng;
 
+use itertools::Itertools;
 use std::{collections::BinaryHeap, ops::ControlFlow};
 
 use self::{header::Header, random::RandomParser, rng::Rng};
@@ -94,27 +95,34 @@ impl Bms {
                 ControlFlow::Break(Ok(_)) => continue,
                 ControlFlow::Break(Err(e)) => return Err(e),
             }
-            if let Token::Message {
-                track,
-                channel,
-                message,
-            } = token
-            {
-                for (i, obj) in message
-                    .iter()
-                    .enumerate()
-                    .map(|(i, obj)| obj.map(|obj| (i, obj)))
-                    .flatten()
-                {
-                    notes_heap.push(Obj {
-                        track: track.0,
-                        time_numerator_in_track: i as u32 + 1,
-                        time_denominator_in_track: message.len() as u32,
-                        channel: channel.clone(),
-                        obj,
-                    });
+            match token {
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } if channel != &Channel::SectionLen => {
+                    let time_denominator_in_track = message.len() as u32 / 2;
+                    for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                        let mut id = String::new();
+                        id.push(c1);
+                        id.push(c2);
+                        let id: u16 = id.parse().unwrap();
+                        if id == 0 {
+                            continue;
+                        }
+                        let obj = id.try_into().unwrap();
+                        notes_heap.push(Obj {
+                            track: track.0,
+                            time_numerator_in_track: i as u32 + 1,
+                            time_denominator_in_track,
+                            channel: channel.clone(),
+                            obj,
+                        });
+                    }
+                    continue;
                 }
-                continue;
+                Token::LnObj(end_id) => {}
+                _ => {}
             }
             header.parse(token)?;
         }

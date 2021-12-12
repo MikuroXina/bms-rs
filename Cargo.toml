@@ -9,4 +9,7 @@ keywords = ["bms", "parser"]
 categories = ["parsing"]
 repository = "https://github.com/MikuroXina/bms-rs"
 
+[features]
+
 [dependencies]
+itertools = "0.10.3"

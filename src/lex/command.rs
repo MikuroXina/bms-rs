@@ -215,7 +215,7 @@ pub enum Channel {
         key: Key,
     },
     /// For the section length change object.
-    SectionLen(String),
+    SectionLen,
     /// For the stop object.
     Stop,
 }

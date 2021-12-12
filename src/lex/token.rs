@@ -99,23 +99,8 @@ pub enum Token<'a> {
         track: Track,
         /// The channel commonly expresses what the lane be arranged the note to.
         channel: Channel,
-        /// The object id sequence. `None` means the rest (no object lies). The object lies on the position divided equally by how many the object is in the measure. For example:
-        ///
-        /// ```text
-        /// vec![Some(ObjId(3)), Some(ObjId(3)), None, Some(ObjId(3)), Some(ObjId(3))]
-        /// ```
-        ///
-        /// This will be placed as:
-        ///
-        /// ```text
-        /// 00y|------|
-        ///    |  03  |
-        ///    |  03  |
-        ///    |      |
-        ///    |  03  |
-        /// 00x|--03--|
-        /// ```
-        message: Vec<Option<ObjId>>,
+        /// The message to the channel.
+        message: &'a str,
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
@@ -279,24 +264,7 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.err_expected_token("[000-999]"))?;
                     let channel = &command[4..6];
 
-                    if channel == "02" {
-                        return Ok(Self::Message {
-                            track: Track(track),
-                            channel: Channel::SectionLen(command[7..].into()),
-                            message: vec![],
-                        });
-                    }
-
-                    let message_ids = &command[7..];
-                    let messages_len = message_ids.len() / 2;
-                    let mut message = Vec::with_capacity(messages_len);
-                    for i in (0..messages_len).map(|n| 2 * n) {
-                        if &message_ids[i..i + 2] == "00" {
-                            message.push(None);
-                        } else {
-                            message.push(Some(ObjId::from(&message_ids[i..i + 2], c)?));
-                        }
-                    }
+                    let message = &command[7..];
                     Self::Message {
                         track: Track(track),
                         channel: Channel::from(channel, c)?,
