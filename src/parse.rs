@@ -103,14 +103,11 @@ impl Bms {
                 } if channel != &Channel::SectionLen => {
                     let time_denominator_in_track = message.len() as u32 / 2;
                     for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                        let mut id = String::new();
-                        id.push(c1);
-                        id.push(c2);
-                        let id: u16 = id.parse().unwrap();
+                        let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
                         if id == 0 {
                             continue;
                         }
-                        let obj = id.try_into().unwrap();
+                        let obj = (id as u16).try_into().unwrap();
                         notes_heap.push(Obj {
                             track: track.0,
                             time_numerator_in_track: i as u32 + 1,
