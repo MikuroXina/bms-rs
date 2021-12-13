@@ -60,22 +60,10 @@ impl Header {
     pub fn parse(&mut self, token: &Token) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => todo!(),
+            Token::AtBga { .. } => todo!(),
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => todo!(),
+            Token::Bga { .. } => todo!(),
             Token::Bmp(id, path) => {
                 if self
                     .bmp_files
