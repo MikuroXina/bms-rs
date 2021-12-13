@@ -47,6 +47,7 @@ pub struct Header {
     pub bmp_files: HashMap<ObjId, PathBuf>,
     pub bpm_changes: HashMap<ObjId, f64>,
     pub texts: HashMap<ObjId, String>,
+    pub change_options: HashMap<ObjId, String>,
 }
 
 impl Header {
@@ -100,7 +101,14 @@ impl Header {
                     eprintln!("duplicated bpm change definition found: {:?} {:?}", id, bpm);
                 }
             }
-            Token::ChangeOption(_, _) => todo!(),
+            Token::ChangeOption(id, option) => {
+                if self.change_options.insert(id, option.into()).is_some() {
+                    eprintln!(
+                        "duplicated change option definition found: {:?} {}",
+                        id, option
+                    );
+                }
+            }
             Token::Comment(comment) => self
                 .comment
                 .get_or_insert_with(Vec::new)
