@@ -113,6 +113,17 @@ pub struct Argb {
     pub blue: u8,
 }
 
+impl Default for Argb {
+    fn default() -> Self {
+        Self {
+            alpha: 255,
+            red: 0,
+            green: 0,
+            blue: 0,
+        }
+    }
+}
+
 /// A kind of the note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoteKind {
