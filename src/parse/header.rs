@@ -15,6 +15,12 @@ impl Default for LnType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Bmp {
+    pub file: PathBuf,
+    pub transparent_color: Argb,
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Header {
     pub player: Option<PlayerMode>,
@@ -44,7 +50,7 @@ pub struct Header {
     pub video_file: Option<PathBuf>,
     pub wav_path_root: Option<PathBuf>,
     pub wav_files: HashMap<ObjId, PathBuf>,
-    pub bmp_files: HashMap<ObjId, PathBuf>,
+    pub bmp_files: HashMap<ObjId, Bmp>,
     pub bpm_changes: HashMap<ObjId, f64>,
     pub texts: HashMap<ObjId, String>,
     pub change_options: HashMap<ObjId, String>,
@@ -71,7 +77,17 @@ impl Header {
                 draw_point,
             } => todo!(),
             Token::Bmp(id, path) => {
-                if self.bmp_files.insert(id, path.into()).is_some() {
+                if self
+                    .bmp_files
+                    .insert(
+                        id,
+                        Bmp {
+                            file: path.into(),
+                            transparent_color: Argb::default(),
+                        },
+                    )
+                    .is_some()
+                {
                     eprintln!(
                         "duplicated bmp definition found: {:?} {:?}",
                         id,
@@ -115,7 +131,25 @@ impl Header {
                 .push(comment.into()),
             Token::Difficulty(diff) => self.difficulty = Some(diff),
             Token::Email(email) => self.email = Some(email.into()),
-            Token::ExBmp(_, _, _) => todo!(),
+            Token::ExBmp(id, transparent_color, path) => {
+                if self
+                    .bmp_files
+                    .insert(
+                        id,
+                        Bmp {
+                            file: path.into(),
+                            transparent_color,
+                        },
+                    )
+                    .is_some()
+                {
+                    eprintln!(
+                        "duplicated bmp definition found: {:?} {:?}",
+                        id,
+                        path.display()
+                    );
+                }
+            }
             Token::ExRank(_, _) => todo!(),
             Token::ExWav(_, _, _) => todo!(),
             Token::Genre(genre) => self.genre = Some(genre.to_owned()),
