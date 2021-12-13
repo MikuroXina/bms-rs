@@ -46,6 +46,7 @@ pub struct Header {
     pub wav_files: HashMap<ObjId, PathBuf>,
     pub bmp_files: HashMap<ObjId, PathBuf>,
     pub bpm_changes: HashMap<ObjId, f64>,
+    pub texts: HashMap<ObjId, String>,
 }
 
 impl Header {
@@ -131,7 +132,11 @@ impl Header {
             Token::StageFile(file) => self.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
-            Token::Text(_, _) => todo!(),
+            Token::Text(id, text) => {
+                if self.texts.insert(id, text.into()).is_some() {
+                    eprintln!("duplicated text definition found: {:?} {}", id, text);
+                }
+            }
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
                 if let Ok(parsed) = total.parse() {
