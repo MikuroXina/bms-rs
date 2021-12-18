@@ -20,9 +20,14 @@ pub struct Notes {
 }
 
 impl Notes {
-    /// Returns the iterator having all of the notes sorted by time.
+    /// Converts into the notes sorted by time.
     pub fn into_all_notes(self) -> Vec<Obj> {
         self.objs.into_values().sorted().collect()
+    }
+
+    /// Returns the iterator having all of the notes sorted by time.
+    pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
+        self.objs.values().sorted()
     }
 
     /// Adds the new note object to the notes.
