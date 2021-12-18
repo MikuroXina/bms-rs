@@ -59,7 +59,7 @@ impl Bms {
                 ControlFlow::Break(Ok(_)) => continue,
                 ControlFlow::Break(Err(e)) => return Err(e),
             }
-            notes.parse(token)?;
+            notes.parse(token, &header)?;
             header.parse(token)?;
         }
 

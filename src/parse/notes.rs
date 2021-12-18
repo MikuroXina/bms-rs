@@ -4,6 +4,7 @@ use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 
 use super::{
+    header::Header,
     obj::{Obj, ObjTime},
     ParseError, Result,
 };
@@ -13,13 +14,21 @@ use crate::lex::{
 };
 
 /// An object to change the BPM of the score.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
-    /// The object id of the BPM change which in the [`super::Header`]'s `bpm_changes`.
-    pub id: ObjId,
+    /// The BPM to be.
+    pub bpm: f64,
 }
+
+impl PartialEq for BpmChangeObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+    }
+}
+
+impl Eq for BpmChangeObj {}
 
 impl PartialOrd for BpmChangeObj {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -34,7 +43,7 @@ impl Ord for BpmChangeObj {
 }
 
 /// An object to change its section length of the score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SectionLenChangeObj {
     /// The time to begin the change of section length.
     pub time: ObjTime,
@@ -113,7 +122,7 @@ impl Notes {
         })
     }
 
-    pub(crate) fn parse(&mut self, token: &Token) -> Result<()> {
+    pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
         match token {
             Token::Message {
                 track,
@@ -128,9 +137,40 @@ impl Notes {
                     }
                     let obj = (id as u16).try_into().unwrap();
                     let time = ObjTime::new(track.0, i as u32, denominator);
+                    let &bpm = header
+                        .bpm_changes
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
                     if self
                         .bpm_changes
-                        .insert(time, BpmChangeObj { time, id: obj })
+                        .insert(time, BpmChangeObj { time, bpm })
+                        .is_some()
+                    {
+                        eprintln!("duplicate bpm change object detected at {:?}", time);
+                    }
+                }
+            }
+            Token::Message {
+                track,
+                channel: Channel::BpmChangeU8,
+                message,
+            } => {
+                let denominator = message.len() as u32 / 2;
+                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                    let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
+                    if bpm == 0 {
+                        continue;
+                    }
+                    let time = ObjTime::new(track.0, i as u32, denominator);
+                    if self
+                        .bpm_changes
+                        .insert(
+                            time,
+                            BpmChangeObj {
+                                time,
+                                bpm: bpm as f64,
+                            },
+                        )
                         .is_some()
                     {
                         eprintln!("duplicate bpm change object detected at {:?}", time);

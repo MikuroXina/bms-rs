@@ -214,6 +214,8 @@ pub enum Channel {
     BgaPoor,
     /// For the note which will be auto-played.
     Bgm,
+    /// For the bpm change by an [`u8`] integer.
+    BpmChangeU8,
     /// For the bpm change object.
     BpmChange,
     /// For the change option object.
@@ -239,7 +241,8 @@ impl Channel {
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
             "02" => SectionLen,
-            "03" | "08" => BpmChange, // FIXME (MikuroXina): Message meaning is different between channel 03 and channel 08.
+            "03" => BpmChangeU8,
+            "08" => BpmChange,
             "04" => BgaBase,
             "06" => BgaPoor,
             "07" => BgaLayer,
