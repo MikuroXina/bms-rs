@@ -239,7 +239,7 @@ impl Channel {
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
             "02" => SectionLen,
-            "03" | "08" => BpmChange,
+            "03" | "08" => BpmChange, // FIXME (MikuroXina): Message meaning is different between channel 03 and channel 08.
             "04" => BgaBase,
             "06" => BgaPoor,
             "07" => BgaLayer,
