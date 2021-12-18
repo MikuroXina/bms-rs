@@ -139,10 +139,12 @@ pub enum NoteKind {
 
 /// A key of the controller or keyboard.
 ///
+/// ```text
 /// |---------|----------------------|
 /// |         |   [K2]  [K4]  [K6]   |
 /// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
 /// |---------|----------------------|
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Key {
     /// The leftmost white key.
