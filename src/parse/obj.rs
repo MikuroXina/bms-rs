@@ -3,7 +3,7 @@
 use crate::lex::command::{Key, NoteKind, ObjId};
 
 /// A time of the object on the score.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ObjTime {
     /// The track, or measure, where the object is in.
     pub track: u32,
