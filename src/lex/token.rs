@@ -39,8 +39,8 @@ pub enum Token<'a> {
         /// The top left point to be rendered in pixels.
         draw_point: (i16, i16),
     },
-    /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent.
-    Bmp(ObjId, &'a Path),
+    /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
+    Bmp(Option<ObjId>, &'a Path),
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
     Bpm(&'a str),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
@@ -248,7 +248,11 @@ impl<'a> Token<'a> {
                         c.next_token()
                             .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
                     );
-                    Self::Bmp(ObjId::from(id, c)?, filename)
+                    if id == "00" {
+                        Self::Bmp(None, filename)
+                    } else {
+                        Self::Bmp(Some(ObjId::from(id, c)?), filename)
+                    }
                 }
                 bpm if bpm.starts_with("#BPM") => {
                     let id = command.trim_start_matches("#BPM");

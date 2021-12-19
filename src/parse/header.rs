@@ -50,6 +50,7 @@ pub struct Header {
     pub video_file: Option<PathBuf>,
     pub wav_path_root: Option<PathBuf>,
     pub wav_files: HashMap<ObjId, PathBuf>,
+    pub poor_bmp: Option<PathBuf>,
     pub bmp_files: HashMap<ObjId, Bmp>,
     pub bpm_changes: HashMap<ObjId, f64>,
     pub texts: HashMap<ObjId, String>,
@@ -65,6 +66,11 @@ impl Header {
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
             Token::Bga { .. } => todo!(),
             Token::Bmp(id, path) => {
+                if id.is_none() {
+                    self.poor_bmp = Some(path.into());
+                    return Ok(());
+                }
+                let id = id.unwrap();
                 if self
                     .bmp_files
                     .insert(
