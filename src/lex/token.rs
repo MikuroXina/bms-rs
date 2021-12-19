@@ -224,6 +224,16 @@ impl<'a> Token<'a> {
                         .map(Path::new)
                         .ok_or_else(|| c.err_expected_token("splashscreen imege filename"))?,
                 ),
+                "#VOLWAV" => {
+                    let volume = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("volume"))?
+                        .parse()
+                        .map_err(|_| c.err_expected_token("integer"))?;
+                    Self::VolWav(Volume {
+                        relative_percent: volume,
+                    })
+                }
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let filename = Path::new(
