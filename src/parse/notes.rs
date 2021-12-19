@@ -75,6 +75,7 @@ impl Ord for SectionLenChangeObj {
 #[derive(Debug, Default)]
 pub struct Notes {
     objs: HashMap<ObjId, Obj>,
+    bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
     section_len_changes: BTreeMap<ObjTime, SectionLenChangeObj>,
@@ -89,6 +90,11 @@ impl Notes {
     /// Returns the iterator having all of the notes sorted by time.
     pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
         self.objs.values().sorted()
+    }
+
+    /// Returns all the bgms in the score.
+    pub fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
+        &self.bgms
     }
 
     /// Returns the bpm change objects.
@@ -191,6 +197,24 @@ impl Notes {
                     .is_some()
                 {
                     eprintln!("duplicate bpm change object detected at {:?}", time);
+                }
+            }
+            Token::Message {
+                track,
+                channel: Channel::Bgm,
+                message,
+            } => {
+                let denominator = message.len() as u32 / 2;
+                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
+                    if id == 0 {
+                        continue;
+                    }
+                    let obj = (id as u16).try_into().unwrap();
+                    self.bgms
+                        .entry(ObjTime::new(track.0, i as u32, denominator))
+                        .and_modify(|vec| vec.push(obj))
+                        .or_insert_with(Vec::new);
                 }
             }
             Token::Message {
