@@ -1,11 +1,16 @@
+//! Header information from parsed BMS file.
+
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use super::{ParseError, Result};
 use crate::lex::{command::*, token::Token};
 
+/// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LnType {
+    /// The RDM type.
     Rdm,
+    /// The MGQ type.
     Mgq,
 }
 
@@ -15,50 +20,86 @@ impl Default for LnType {
     }
 }
 
+/// A background image/video data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Bmp {
+    /// The path to the image/video file. This is relative path from the BMS file.
     pub file: PathBuf,
+    /// The color which should to be treated as transparent. It should be used only if `file` is an image.
     pub transparent_color: Argb,
 }
 
+/// A header parsed from [`crate::lex::TokenStream`].
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Header {
+    /// The play style of the score.
     pub player: Option<PlayerMode>,
+    /// The genre of the score.
     pub genre: Option<String>,
+    /// The title of the score.
     pub title: Option<String>,
+    /// The subtitle of the score.
     pub subtitle: Option<String>,
+    /// The artist of the music in the score.
     pub artist: Option<String>,
+    /// The co-artist of the music in the score.
     pub sub_artist: Option<String>,
+    /// Who placed the notes into the score.
     pub maker: Option<String>,
+    /// The text messages of the score. It may be closed with double quotes.
     pub comment: Option<Vec<String>>,
+    /// The email address of the author.
     pub email: Option<String>,
+    /// The url of the author.
     pub url: Option<String>,
+    /// The message for overriding options of some BMS player.
     pub options: Option<Vec<String>>,
+    /// The initial BPM of the score.
     pub bpm: Option<f64>,
+    /// The play level of the score.
     pub play_level: Option<u8>,
+    /// The judgement level of the score.
     pub rank: Option<JudgeLevel>,
+    /// The difficulty of the score.
     pub difficulty: Option<u8>,
+    /// The total gauge percentage when all notes is got as PERFECT.
     pub total: Option<f64>,
+    /// The volume of the score.
     pub volume: Volume,
+    /// The LN notation type of the score.
     pub ln_type: LnType,
+    /// The display mode for background image/video.
     pub poor_bga_mode: PoorMode,
+    /// The path of background image, which is shown while playing the score.
     pub back_bmp: Option<PathBuf>,
+    /// The path of splash screen image, which is shown before playing the score.
     pub stage_file: Option<PathBuf>,
+    /// The path of banner image.
     pub banner: Option<PathBuf>,
+    /// Whether the score is the octave mode.
     pub is_octave: bool,
+    /// The path of MIDI file, which is played as BGM while playing the score.
     pub midi_file: Option<PathBuf>,
+    /// The path of the background video. The video should be started the playing from the section 000.
     pub video_file: Option<PathBuf>,
+    /// The path to override the base path of the WAV file path.
     pub wav_path_root: Option<PathBuf>,
+    /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
+    /// The path of image, which is shown when the player got POOR.
     pub poor_bmp: Option<PathBuf>,
+    /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
+    /// The BPMs corresponding to the id of the BPM change object.
     pub bpm_changes: HashMap<ObjId, f64>,
+    /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
+    /// The option messages corresponding to the id of the change option object.
     pub change_options: HashMap<ObjId, String>,
 }
 
 impl Header {
-    pub fn parse(&mut self, token: &Token) -> Result<()> {
+    pub(crate) fn parse(&mut self, token: &Token) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
             Token::AtBga { .. } => todo!(),

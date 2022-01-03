@@ -1,6 +1,6 @@
 //! Parser for BMS format. The reason why the implementation separated into lex and parse is the score may contain some randomized elements such as `#RANDOM`. This separation make us able to parse the tokens with the custom random generator cheaply.
 
-mod header;
+pub mod header;
 pub mod notes;
 pub mod obj;
 mod random;
