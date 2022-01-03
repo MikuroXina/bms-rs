@@ -61,10 +61,10 @@ impl<'a> Cursor<'a> {
         let spaces = self.source[self.index..]
             .find(|c: char| !c.is_whitespace())
             .unwrap_or(self.source.len());
-        
+
         self.col += spaces;
         self.index += spaces;
-        
+
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source.len());
@@ -127,7 +127,7 @@ fn test1() {
 
 #[test]
 fn test2() {
-    const SOURCE: &'static str = r"
+    const SOURCE: &str = r"
         #TITLE 花たちに希望を [SP ANOTHER]
         #ARTIST Sound piercer feat.DAZBEE
         #BPM 187
