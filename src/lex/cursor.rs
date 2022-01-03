@@ -58,10 +58,13 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
-        while &self.source[self.index..self.index + 1] == " " {
-            self.col += 1;
-            self.index += 1;
-        }
+        let spaces = self.source[self.index..]
+            .find(|c: char| !c.is_whitespace())
+            .unwrap_or(self.source.len());
+        
+        self.col += spaces;
+        self.index += spaces;
+        
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source.len());
@@ -120,4 +123,22 @@ fn test1() {
     assert_eq!(cursor.next_token(), Some("bar"));
     assert_eq!(cursor.line(), 4);
     assert_eq!(cursor.col(), 17);
+}
+
+#[test]
+fn test2() {
+    const SOURCE: &'static str = r"
+        #TITLE 花たちに希望を [SP ANOTHER]
+        #ARTIST Sound piercer feat.DAZBEE
+        #BPM 187
+    ";
+
+    let mut cursor = Cursor::new(SOURCE);
+
+    assert_eq!(cursor.next_token(), Some("#TITLE"));
+    assert_eq!(cursor.next_line_remaining(), "花たちに希望を [SP ANOTHER]");
+    assert_eq!(cursor.next_token(), Some("#ARTIST"));
+    assert_eq!(cursor.next_line_remaining(), "Sound piercer feat.DAZBEE");
+    assert_eq!(cursor.next_token(), Some("#BPM"));
+    assert_eq!(cursor.next_line_remaining(), "187");
 }
