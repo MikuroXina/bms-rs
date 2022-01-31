@@ -29,7 +29,7 @@ pub struct Bmp {
     pub transparent_color: Argb,
 }
 
-/// A header parsed from [`crate::lex::TokenStream`].
+/// A header parsed from [`TokenStream`](crate::lex::token::TokenStream).
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Header {
     /// The play style of the score.
