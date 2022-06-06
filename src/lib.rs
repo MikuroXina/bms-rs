@@ -46,7 +46,7 @@
 //!
 //! ### Message command
 //!
-//! Message command starts with `#XXXYY:ZZ.... XXX` is the number of the measure, `YY` is the channel of the message, and `ZZ...` is the object id sequence.
+//! Message command starts with `#XXXYY:ZZ...`. `XXX` is the number of the measure, `YY` is the channel of the message, and `ZZ...` is the object id sequence.
 //!
 //! The measure must start from 1, but some player may allow the 0 measure (i.e. Lunatic Rave 2).
 //!
