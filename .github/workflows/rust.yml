@@ -33,3 +33,6 @@ jobs:
         run: cargo clippy --verbose
       - name: Test crate
         run: cargo test --verbose
+
+      - name: cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v1.2.1
