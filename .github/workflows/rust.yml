@@ -34,5 +34,6 @@ jobs:
       - name: Test crate
         run: cargo test --verbose
 
-      - name: cargo-deny
+      - if: matrix.os == 'ubuntu-latest'
+        name: cargo-deny
         uses: EmbarkStudios/cargo-deny-action@v1.3.1
