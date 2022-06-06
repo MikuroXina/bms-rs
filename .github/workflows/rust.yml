@@ -35,4 +35,4 @@ jobs:
         run: cargo test --verbose
 
       - name: cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v1.2.1
+        uses: EmbarkStudios/cargo-deny-action@v1.3.1
