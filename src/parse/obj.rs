@@ -4,6 +4,7 @@ use crate::lex::command::{Key, NoteKind, ObjId};
 
 /// A time of the object on the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjTime {
     /// The track, or measure, where the object is in.
     pub track: u32,
@@ -51,6 +52,7 @@ impl Ord for ObjTime {
 
 /// An object on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Obj {
     /// The time offset in the track.
     pub offset: ObjTime,

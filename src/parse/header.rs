@@ -7,6 +7,7 @@ use crate::lex::{command::*, token::Token};
 
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LnType {
     /// The RDM type.
     Rdm,
@@ -22,6 +23,7 @@ impl Default for LnType {
 
 /// A background image/video data.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bmp {
     /// The path to the image/video file. This is relative path from the BMS file.
     pub file: PathBuf,
@@ -31,6 +33,7 @@ pub struct Bmp {
 
 /// A header parsed from [`TokenStream`](crate::lex::token::TokenStream).
 #[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Header {
     /// The play style of the score.
     pub player: Option<PlayerMode>,

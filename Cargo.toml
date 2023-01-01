@@ -10,6 +10,8 @@ categories = ["parsing"]
 repository = "https://github.com/MikuroXina/bms-rs"
 
 [features]
+serde = ["dep:serde"]
 
 [dependencies]
 itertools = "0.10.3"
+serde = { version = "1.0.152", features = ["derive"], optional = true }

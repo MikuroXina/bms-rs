@@ -6,6 +6,7 @@ use super::{cursor::Cursor, LexError, Result};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PlayerMode {
     /// For single play, a player uses 5 or 7 keys.
     Single,
@@ -28,6 +29,7 @@ impl PlayerMode {
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
     /// Rank 0, the most difficult rank.
     VeryHard,
@@ -53,6 +55,7 @@ impl JudgeLevel {
 
 /// An object id. Its meaning is determined by the channel belonged to.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjId(pub NonZeroU16);
 
 impl std::fmt::Debug for ObjId {
@@ -87,6 +90,7 @@ impl ObjId {
 
 /// A play volume of the sound in the score. Defaults to 100.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Volume {
     /// A play volume percentage of the sound.
     pub relative_percent: u8,
@@ -102,6 +106,7 @@ impl Default for Volume {
 
 /// An alpha-red-gree-blue color data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Argb {
     /// A component of alpha.
     pub alpha: u8,
@@ -126,6 +131,7 @@ impl Default for Argb {
 
 /// A kind of the note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NoteKind {
     /// A normal note can be seen by the user.
     Visible,
@@ -146,6 +152,7 @@ pub enum NoteKind {
 /// |---------|----------------------|
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Key {
     /// The leftmost white key.
     Key1,
@@ -187,7 +194,7 @@ impl Key {
 
 /// A POOR BGA display mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PoorMode {
     /// To hide the normal BGA and display the POOR BGA.
     Interrupt,

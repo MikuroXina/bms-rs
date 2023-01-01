@@ -15,6 +15,7 @@ use crate::lex::{
 
 /// An object to change the BPM of the score.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
@@ -44,6 +45,7 @@ impl Ord for BpmChangeObj {
 
 /// An object to change its section length of the score.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SectionLenChangeObj {
     /// The time to begin the change of section length.
     pub time: ObjTime,
@@ -264,5 +266,74 @@ impl Notes {
             _ => {}
         }
         Ok(())
+    }
+}
+
+#[cfg(feature = "serde")]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// A pack of [`Notes`] for serialize/deserialize.
+pub struct NotesPack {
+    /// Note objects, ring the sound.
+    pub objs: Vec<Obj>,
+    /// BPM change events.
+    pub bpm_changes: Vec<BpmChangeObj>,
+    /// Section length change events.
+    pub section_len_changes: Vec<SectionLenChangeObj>,
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Notes {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        NotesPack {
+            objs: self.all_notes().cloned().collect(),
+            bpm_changes: self.bpm_changes.values().cloned().collect(),
+            section_len_changes: self.section_len_changes.values().cloned().collect(),
+        }
+        .serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Notes {
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let pack = NotesPack::deserialize(deserializer)?;
+        let mut objs = HashMap::new();
+        let mut bgms: BTreeMap<ObjTime, Vec<ObjId>> = BTreeMap::new();
+        let mut ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>> = HashMap::new();
+        for obj in pack.objs {
+            if matches!(obj.kind, NoteKind::Invisible) {
+                bgms.entry(obj.offset)
+                    .and_modify(|ids| ids.push(obj.obj))
+                    .or_default();
+            }
+            ids_by_key
+                .entry(obj.key)
+                .and_modify(|id_map| {
+                    id_map.insert(obj.offset, obj.obj);
+                })
+                .or_default();
+            objs.insert(obj.obj, obj);
+        }
+        let mut bpm_changes = BTreeMap::new();
+        for bpm_change in pack.bpm_changes {
+            bpm_changes.insert(bpm_change.time, bpm_change);
+        }
+        let mut section_len_changes = BTreeMap::new();
+        for section_len_change in pack.section_len_changes {
+            section_len_changes.insert(section_len_change.time, section_len_change);
+        }
+        Ok(Notes {
+            objs,
+            bgms,
+            ids_by_key,
+            bpm_changes,
+            section_len_changes,
+        })
     }
 }
