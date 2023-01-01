@@ -39,6 +39,7 @@ pub type Result<T> = std::result::Result<T, ParseError>;
 
 /// A score data of BMS format.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// The header data in the score.
     pub header: Header,
