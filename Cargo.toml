@@ -1,6 +1,6 @@
 [package]
 name = "bms-rs"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["MikuroXina <ryosukadnak@gmail.com>"]
 edition = "2021"
 description = "The BMS format parser."
@@ -13,5 +13,5 @@ repository = "https://github.com/MikuroXina/bms-rs"
 serde = ["dep:serde"]
 
 [dependencies]
-itertools = "0.10.3"
+itertools = "0.10.5"
 serde = { version = "1.0.152", features = ["derive"], optional = true }
