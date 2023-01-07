@@ -78,6 +78,7 @@ mod tests {
 #BPM 120
 #PLAYLEVEL 6
 #RANK 2
+#BACKBMP boon.jpg
 
 #WAV01 hoge.WAV
 #WAV02 foo.WAV
@@ -107,6 +108,7 @@ mod tests {
                 Bpm("120"),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
+                BackBmp(Path::new("boon.jpg")),
                 Wav(id1, Path::new("hoge.WAV")),
                 Wav(id2, Path::new("foo.WAV")),
                 Wav(id3, Path::new("bar.WAV")),
