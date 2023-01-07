@@ -182,6 +182,11 @@ impl<'a> Token<'a> {
                         .map(Path::new)
                         .ok_or_else(|| c.err_expected_token("banner filename"))?,
                 ),
+                "#BACKBMP" => Self::BackBmp(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.err_expected_token("backbmp filename"))?,
+                ),
                 "#TOTAL" => Self::Total(
                     c.next_token()
                         .ok_or_else(|| c.err_expected_token("gauge increase rate"))?,
