@@ -2,12 +2,17 @@
 
 use crate::lex::command::{Key, NoteKind, ObjId};
 
+/// A track, or measure, where the object is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Track(pub u32);
+
 /// A time of the object on the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjTime {
     /// The track, or measure, where the object is in.
-    pub track: u32,
+    pub track: Track,
     /// The time offset numerator in the track.
     pub numerator: u32,
     /// The time offset denominator in the track.
@@ -27,7 +32,7 @@ impl ObjTime {
         assert!(0 < denominator);
         assert!(numerator < denominator);
         Self {
-            track,
+            track: Track(track),
             numerator,
             denominator,
         }
