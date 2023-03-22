@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use super::{
     header::Header,
-    obj::{Obj, ObjTime},
+    obj::{Obj, ObjTime, Track},
     ParseError, Result,
 };
 use crate::lex::{
@@ -47,15 +47,15 @@ impl Ord for BpmChangeObj {
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SectionLenChangeObj {
-    /// The time to begin the change of section length.
-    pub time: ObjTime,
+    /// The target track to change.
+    pub track: Track,
     /// The length to be.
     pub length: f64,
 }
 
 impl PartialEq for SectionLenChangeObj {
     fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
+        self.track == other.track
     }
 }
 
@@ -69,7 +69,7 @@ impl PartialOrd for SectionLenChangeObj {
 
 impl Ord for SectionLenChangeObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
+        self.track.cmp(&other.track)
     }
 }
 
@@ -80,7 +80,7 @@ pub struct Notes {
     bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
-    section_len_changes: BTreeMap<ObjTime, SectionLenChangeObj>,
+    section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
 }
 
 impl Notes {
@@ -105,7 +105,7 @@ impl Notes {
     }
 
     /// Returns the section len change objects.
-    pub fn section_len_changes(&self) -> &BTreeMap<ObjTime, SectionLenChangeObj> {
+    pub fn section_len_changes(&self) -> &BTreeMap<Track, SectionLenChangeObj> {
         &self.section_len_changes
     }
 
@@ -190,15 +190,18 @@ impl Notes {
                 channel: Channel::SectionLen,
                 message,
             } => {
-                let time = ObjTime::new(track.0, 0, 4);
+                let track = Track(track.0);
                 let length = message.parse().expect("f64 as section length");
                 assert!(0.0 < length, "section length must be greater than zero");
                 if self
                     .section_len_changes
-                    .insert(time, SectionLenChangeObj { time, length })
+                    .insert(track, SectionLenChangeObj { track, length })
                     .is_some()
                 {
-                    eprintln!("duplicate bpm change object detected at {:?}", time);
+                    eprintln!(
+                        "duplicate section length change object detected at {:?}",
+                        track
+                    );
                 }
             }
             Token::Message {
@@ -326,7 +329,7 @@ impl<'de> serde::Deserialize<'de> for Notes {
         }
         let mut section_len_changes = BTreeMap::new();
         for section_len_change in pack.section_len_changes {
-            section_len_changes.insert(section_len_change.time, section_len_change);
+            section_len_changes.insert(section_len_change.track, section_len_change);
         }
         Ok(Notes {
             objs,
