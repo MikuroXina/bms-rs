@@ -455,7 +455,7 @@ impl Notes {
         for bpm_change in self.bpm_changes.values() {
             hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator);
         }
-        hyp_resolution / 4
+        hyp_resolution
     }
 }
 
