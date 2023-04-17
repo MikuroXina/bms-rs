@@ -75,8 +75,11 @@
 #![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+#[cfg(feature = "bmson")]
+pub mod bmson;
 pub mod lex;
 pub mod parse;
+pub mod time;
 
 use self::{lex::LexError, parse::ParseError};
 
