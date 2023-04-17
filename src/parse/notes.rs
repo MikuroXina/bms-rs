@@ -4,6 +4,7 @@ use itertools::Itertools;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
+    ops::Bound,
 };
 
 use super::{header::Header, obj::Obj, ParseError, Result};
@@ -152,6 +153,15 @@ impl Notes {
     /// Returns the scroll stop objects.
     pub fn stops(&self) -> &BTreeMap<ObjTime, StopObj> {
         &self.stops
+    }
+
+    /// Finds next object on the key `Key` from the time `ObjTime`.
+    pub fn next_obj_by_key(&self, key: Key, time: ObjTime) -> Option<&Obj> {
+        self.ids_by_key
+            .get(&key)?
+            .range((Bound::Excluded(time), Bound::Unbounded))
+            .next()
+            .and_then(|(_, id)| self.objs.get(id))
     }
 
     /// Adds the new note object to the notes.
