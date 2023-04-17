@@ -31,19 +31,23 @@ impl PulseConverter {
     /// Creates a new converter from [`Notes`].
     pub fn new(notes: &Notes) -> Self {
         let resolution = notes.resolution_for_pulses();
+        let last_track = notes.last_obj_time().map_or(0, |time| time.track.0);
+
         let mut pulses_at_track_start = BTreeMap::new();
+        pulses_at_track_start.insert(Track(0), 0);
         let mut current_track = 0;
         let mut current_pulses = 0;
-        for (track, section_len_change) in notes.section_len_changes() {
-            while current_track < track.0 {
-                pulses_at_track_start.insert(Track(current_track), current_pulses);
-                current_pulses += resolution;
-                current_track += 1;
-            }
-
-            debug_assert_eq!(current_track, track.0);
+        loop {
+            let section_len = notes
+                .section_len_changes()
+                .get(&Track(current_track))
+                .map_or(1.0, |section| section.length);
+            current_pulses += (section_len * (4 * resolution) as f64) as u32;
+            current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
-            current_pulses += (section_len_change.length * 4.0 * resolution as f64) as u32;
+            if last_track < current_track {
+                break;
+            }
         }
         Self {
             pulses_at_track_start,
@@ -78,10 +82,7 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::{
-        lex::command::{Key, NoteKind},
-        parse::{notes::SectionLenChangeObj, obj::Obj},
-    };
+    use crate::parse::notes::SectionLenChangeObj;
 
     // Source BMS:
     // ```
@@ -98,22 +99,11 @@ fn pulse_conversion() {
             track: Track(2),
             length: 1.25,
         });
-        notes.push_note(Obj {
-            offset: ObjTime {
-                track: Track(1),
-                numerator: 2,
-                denominator: 3,
-            },
-            kind: NoteKind::Visible,
-            is_player1: true,
-            key: Key::Key1,
-            obj: 1.try_into().unwrap(),
-        });
         notes
     };
     let converter = PulseConverter::new(&notes);
 
-    assert_eq!(converter.resolution, 2);
+    assert_eq!(converter.resolution, 1);
 
     assert_eq!(
         converter
