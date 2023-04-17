@@ -1,16 +1,18 @@
 //! Note objects manager.
 
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
-
-use super::{
-    header::Header,
-    obj::{Obj, ObjTime, Track},
-    ParseError, Result,
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, HashMap},
 };
-use crate::lex::{
-    command::{Channel, Key, NoteKind, ObjId},
-    token::Token,
+
+use super::{header::Header, obj::Obj, ParseError, Result};
+use crate::{
+    lex::{
+        command::{Channel, Key, NoteKind, ObjId},
+        token::Token,
+    },
+    time::{ObjTime, Track},
 };
 
 /// An object to change the BPM of the score.
@@ -73,6 +75,38 @@ impl Ord for SectionLenChangeObj {
     }
 }
 
+/// An object to stop scrolling of score.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StopObj {
+    /// Time to start the stop.
+    pub time: ObjTime,
+    /// Object duration how long stops scrolling of score.
+    ///
+    /// Note that the duration of stopping will not be changed by a current measure length but BPM.
+    pub duration: u32,
+}
+
+impl PartialEq for StopObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+    }
+}
+
+impl Eq for StopObj {}
+
+impl PartialOrd for StopObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StopObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.time.cmp(&other.time)
+    }
+}
+
 /// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
@@ -81,9 +115,15 @@ pub struct Notes {
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
     section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
+    stops: BTreeMap<ObjTime, StopObj>,
 }
 
 impl Notes {
+    /// Creates a new notes dictionary.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Converts into the notes sorted by time.
     pub fn into_all_notes(self) -> Vec<Obj> {
         self.objs.into_values().sorted().collect()
@@ -109,8 +149,13 @@ impl Notes {
         &self.section_len_changes
     }
 
+    /// Returns the scroll stop objects.
+    pub fn stops(&self) -> &BTreeMap<ObjTime, StopObj> {
+        &self.stops
+    }
+
     /// Adds the new note object to the notes.
-    pub fn push(&mut self, note: Obj) {
+    pub fn push_note(&mut self, note: Obj) {
         self.objs.insert(note.obj, note.clone());
         self.ids_by_key
             .entry(note.key)
@@ -119,7 +164,7 @@ impl Notes {
     }
 
     /// Removes the note from the notes.
-    pub fn remove(&mut self, id: ObjId) -> Option<Obj> {
+    pub fn remove_note(&mut self, id: ObjId) -> Option<Obj> {
         self.objs.remove(&id).map(|removed| {
             self.ids_by_key
                 .get_mut(&removed.key)
@@ -128,6 +173,44 @@ impl Notes {
                 .unwrap();
             removed
         })
+    }
+
+    /// Adds a new BPM change object to the notes.
+    pub fn push_bpm_change(&mut self, bpm_change: BpmChangeObj) {
+        if self
+            .bpm_changes
+            .insert(bpm_change.time, bpm_change)
+            .is_some()
+        {
+            eprintln!(
+                "duplicate bpm change object detected at {:?}",
+                bpm_change.time
+            );
+        }
+    }
+
+    /// Adds a new section length change object to the notes.
+    pub fn push_section_len_change(&mut self, section_len_change: SectionLenChangeObj) {
+        if self
+            .section_len_changes
+            .insert(section_len_change.track, section_len_change)
+            .is_some()
+        {
+            eprintln!(
+                "duplicate section length change object detected at {:?}",
+                section_len_change.track
+            );
+        }
+    }
+
+    /// Adds a new stop object to the notes.
+    pub fn push_stop(&mut self, stop: StopObj) {
+        self.stops
+            .entry(stop.time)
+            .and_modify(|existing| {
+                existing.duration = existing.duration.saturating_add(stop.duration)
+            })
+            .or_insert(stop);
     }
 
     pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
@@ -149,13 +232,7 @@ impl Notes {
                         .bpm_changes
                         .get(&obj)
                         .ok_or(ParseError::UndefinedObject(obj))?;
-                    if self
-                        .bpm_changes
-                        .insert(time, BpmChangeObj { time, bpm })
-                        .is_some()
-                    {
-                        eprintln!("duplicate bpm change object detected at {:?}", time);
-                    }
+                    self.push_bpm_change(BpmChangeObj { time, bpm });
                 }
             }
             Token::Message {
@@ -170,19 +247,10 @@ impl Notes {
                         continue;
                     }
                     let time = ObjTime::new(track.0, i as u32, denominator);
-                    if self
-                        .bpm_changes
-                        .insert(
-                            time,
-                            BpmChangeObj {
-                                time,
-                                bpm: bpm as f64,
-                            },
-                        )
-                        .is_some()
-                    {
-                        eprintln!("duplicate bpm change object detected at {:?}", time);
-                    }
+                    self.push_bpm_change(BpmChangeObj {
+                        time,
+                        bpm: bpm as f64,
+                    });
                 }
             }
             Token::Message {
@@ -193,15 +261,28 @@ impl Notes {
                 let track = Track(track.0);
                 let length = message.parse().expect("f64 as section length");
                 assert!(0.0 < length, "section length must be greater than zero");
-                if self
-                    .section_len_changes
-                    .insert(track, SectionLenChangeObj { track, length })
-                    .is_some()
-                {
-                    eprintln!(
-                        "duplicate section length change object detected at {:?}",
-                        track
-                    );
+                self.push_section_len_change(SectionLenChangeObj { track, length });
+            }
+            Token::Message {
+                track,
+                channel: Channel::Stop,
+                message,
+            } => {
+                let denominator = message.len() as u32 / 2;
+                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
+                    if id == 0 {
+                        continue;
+                    }
+                    let obj = (id as u16).try_into().unwrap();
+                    let &duration = header
+                        .stops
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    self.push_stop(StopObj {
+                        time: ObjTime::new(track.0, i as u32, denominator),
+                        duration,
+                    })
                 }
             }
             Token::Message {
@@ -239,7 +320,7 @@ impl Notes {
                         continue;
                     }
                     let obj = (id as u16).try_into().unwrap();
-                    self.push(Obj {
+                    self.push_note(Obj {
                         offset: ObjTime::new(track.0, i as u32, denominator),
                         kind: *kind,
                         is_player1: *is_player1,
@@ -250,7 +331,7 @@ impl Notes {
             }
             &Token::LnObj(end_id) => {
                 let mut end_note = self
-                    .remove(end_id)
+                    .remove_note(end_id)
                     .ok_or(ParseError::UndefinedObject(end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) =
@@ -260,15 +341,59 @@ impl Notes {
                             end_id
                         ))
                     })?;
-                let mut begin_note = self.remove(begin_id).unwrap();
+                let mut begin_note = self.remove_note(begin_id).unwrap();
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
-                self.push(begin_note);
-                self.push(end_note);
+                self.push_note(begin_note);
+                self.push_note(end_note);
             }
             _ => {}
         }
         Ok(())
+    }
+
+    /// Gets the time of last visible object.
+    pub fn last_visible_time(&self) -> Option<ObjTime> {
+        self.objs
+            .values()
+            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
+            .map(Reverse)
+            .sorted()
+            .next()
+            .map(|Reverse(obj)| obj.offset)
+    }
+
+    /// Gets the time of last BGM object.
+    ///
+    /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
+    pub fn last_bgm_time(&self) -> Option<ObjTime> {
+        self.bgms.last_key_value().map(|(time, _)| time).cloned()
+    }
+
+    /// Gets the time of last sound object including visible and BGM.
+    ///
+    /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
+    pub fn last_obj_time(&self) -> Option<ObjTime> {
+        self.objs
+            .values()
+            .map(Reverse)
+            .sorted()
+            .next()
+            .map(|Reverse(obj)| obj.offset)
+    }
+
+    /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
+    pub fn resolution_for_pulses(&self) -> u32 {
+        use num::Integer;
+
+        let mut hyp_resolution = 1;
+        for obj in self.objs.values() {
+            hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator);
+        }
+        for bpm_change in self.bpm_changes.values() {
+            hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator);
+        }
+        hyp_resolution / 4
     }
 }
 
@@ -282,6 +407,8 @@ pub struct NotesPack {
     pub bpm_changes: Vec<BpmChangeObj>,
     /// Section length change events.
     pub section_len_changes: Vec<SectionLenChangeObj>,
+    /// Stop events.
+    pub stops: Vec<StopObj>,
 }
 
 #[cfg(feature = "serde")]
@@ -294,6 +421,7 @@ impl serde::Serialize for Notes {
             objs: self.all_notes().cloned().collect(),
             bpm_changes: self.bpm_changes.values().cloned().collect(),
             section_len_changes: self.section_len_changes.values().cloned().collect(),
+            stops: self.stops.values().cloned().collect(),
         }
         .serialize(serializer)
     }
@@ -331,12 +459,17 @@ impl<'de> serde::Deserialize<'de> for Notes {
         for section_len_change in pack.section_len_changes {
             section_len_changes.insert(section_len_change.track, section_len_change);
         }
+        let mut stops = BTreeMap::new();
+        for stop in pack.stops {
+            stops.insert(stop.time, stop);
+        }
         Ok(Notes {
             objs,
             bgms,
             ids_by_key,
             bpm_changes,
             section_len_changes,
+            stops,
         })
     }
 }
