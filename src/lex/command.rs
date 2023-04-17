@@ -317,5 +317,5 @@ impl Channel {
 }
 
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Track(pub u32);
