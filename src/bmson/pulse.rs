@@ -13,6 +13,13 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PulseNumber(pub u32);
 
+impl PulseNumber {
+    /// Calculates an absolute difference of two pulses.
+    pub const fn abs_diff(self, other: Self) -> u32 {
+        self.0.abs_diff(other.0)
+    }
+}
+
 /// Converter from [`ObjTime`] into pulses, which split one quarter note evenly.
 #[derive(Debug, Clone)]
 pub struct PulseConverter {
