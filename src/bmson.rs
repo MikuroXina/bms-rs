@@ -304,16 +304,22 @@ impl TryFrom<Bms> for Bmson {
             let path_root = value.header.wav_path_root.unwrap_or_default();
             let mut sound_channels = HashMap::new();
             for note in value.notes.all_notes() {
-                let note_lane = note.kind.is_playable().then(|| match note.key {
-                    Key::Key1 => 1,
-                    Key::Key2 => 2,
-                    Key::Key3 => 3,
-                    Key::Key4 => 4,
-                    Key::Key5 => 5,
-                    Key::Key6 => 6,
-                    Key::Key7 => 7,
-                    Key::Scratch | Key::FreeZone => 8,
-                } + if note.is_player1 {0} else {8}).map(|num| NonZeroU8::new(num).unwrap());
+                let note_lane = note
+                    .kind
+                    .is_playable()
+                    .then_some(
+                        match note.key {
+                            Key::Key1 => 1,
+                            Key::Key2 => 2,
+                            Key::Key3 => 3,
+                            Key::Key4 => 4,
+                            Key::Key5 => 5,
+                            Key::Key6 => 6,
+                            Key::Key7 => 7,
+                            Key::Scratch | Key::FreeZone => 8,
+                        } + if note.is_player1 { 0 } else { 8 },
+                    )
+                    .map(|num| NonZeroU8::new(num).unwrap());
                 let pulses = converter.get_pulses_at(note.offset);
                 let duration =
                     if let Some(next_note) = value.notes.next_obj_by_key(note.key, note.offset) {

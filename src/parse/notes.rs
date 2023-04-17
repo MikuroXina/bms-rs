@@ -302,7 +302,7 @@ impl Notes {
                 message,
             } => {
                 let denominator = message.len() as u32 / 2;
-                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
+                for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
                     if bpm == 0 {
                         continue;
@@ -480,7 +480,7 @@ fn ids_from_message(
     message: &'_ str,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
     let denominator = message.len() as u32 / 2;
-    let mut chars = message.chars().tuples().into_iter().enumerate();
+    let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
         let (i, id) = loop {
             let (i, (c1, c2)) = chars.next()?;
