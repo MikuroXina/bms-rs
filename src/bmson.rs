@@ -33,10 +33,10 @@ pub struct Bmson {
     /// This format represents an irregular meter by bar lines.
     pub lines: Option<Vec<BarLine>>,
     /// Events of bpm change. If there are coincident events, the successor is only applied.
-    #[serde(default = "Vec::new")]
+    #[serde(default)]
     pub bpm_events: Vec<BpmEvent>,
     /// Events of scroll stop. If there are coincident events, they are happened in succession.
-    #[serde(default = "Vec::new")]
+    #[serde(default)]
     pub stop_events: Vec<StopEvent>,
     /// Note data.
     pub sound_channels: Vec<SoundChannel>,
@@ -63,7 +63,7 @@ pub struct BmsonInfo {
     /// ```json
     /// "subartists": ["music:5argon", "music:encX", "chart:flicknote", "movie:5argon", "image:5argon"]
     /// ```
-    #[serde(default = "Vec::new")]
+    #[serde(default)]
     pub subartists: Vec<String>,
     /// Self explanatory genre.
     pub genre: String,
@@ -73,7 +73,7 @@ pub struct BmsonInfo {
     #[serde(default = "default_mode_hint")]
     pub mode_hint: String,
     /// Special chart name, e.g. "BEGINNER", "NORMAL", "HYPER", "FOUR DIMENSIONS".
-    #[serde(default = "String::new")]
+    #[serde(default)]
     pub chart_name: String,
     /// Self explanatory level number. It is usually set with subjective rating by the author.
     pub level: u32,
