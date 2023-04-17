@@ -432,16 +432,32 @@ impl Notes {
         self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }
 
-    /// Gets the time of last sound object including visible and BGM.
+    /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
     pub fn last_obj_time(&self) -> Option<ObjTime> {
-        self.objs
+        let obj_last = self
+            .objs
             .values()
             .map(Reverse)
             .sorted()
             .next()
-            .map(|Reverse(obj)| obj.offset)
+            .map(|Reverse(obj)| obj.offset);
+        let bpm_last = self.bpm_changes.last_key_value().map(|(&time, _)| time);
+        let section_len_last =
+            self.section_len_changes
+                .last_key_value()
+                .map(|(&time, _)| ObjTime {
+                    track: time,
+                    numerator: 0,
+                    denominator: 4,
+                });
+        let stop_last = self.stops.last_key_value().map(|(&time, _)| time);
+        let bga_last = self.bga_changes.last_key_value().map(|(&time, _)| time);
+        [obj_last, bpm_last, section_len_last, stop_last, bga_last]
+            .into_iter()
+            .max()
+            .flatten()
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
