@@ -5,7 +5,6 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
     ops::Bound,
-    path::PathBuf,
 };
 
 use super::{header::Header, obj::Obj, ParseError, Result};
@@ -110,13 +109,13 @@ impl Ord for StopObj {
 }
 
 /// An object to change the image for BGA (background animation).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaObj {
     /// Time to start to display the image.
     pub time: ObjTime,
-    /// Relative file path to the image/video file from the BMS file.
-    pub file: PathBuf,
+    /// Identifier represents the image/video file registered in [`Header`].
+    pub id: ObjId,
     /// Layer to display.
     pub layer: BgaLayer,
 }
@@ -277,9 +276,8 @@ impl Notes {
 
     /// Adds a new bga change object to the notes.
     pub fn push_bga_change(&mut self, bga: BgaObj) {
-        let time = bga.time;
-        if self.bga_changes.insert(time, bga).is_some() {
-            eprintln!("duplicate bga change object detected at {:?}", time);
+        if self.bga_changes.insert(bga.time, bga).is_some() {
+            eprintln!("duplicate bga change object detected at {:?}", bga.time);
         }
     }
 
@@ -345,10 +343,9 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let bmp = header
-                        .bmp_files
-                        .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    if !header.bmp_files.contains_key(&obj) {
+                        return Err(ParseError::UndefinedObject(obj));
+                    }
                     let layer = match channel {
                         Channel::BgaBase => BgaLayer::Base,
                         Channel::BgaPoor => BgaLayer::Poor,
@@ -357,7 +354,7 @@ impl Notes {
                     };
                     self.push_bga_change(BgaObj {
                         time,
-                        file: bmp.file.clone(),
+                        id: obj,
                         layer,
                     });
                 }
