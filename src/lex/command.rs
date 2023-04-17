@@ -144,9 +144,14 @@ pub enum NoteKind {
 }
 
 impl NoteKind {
-    /// Returns whether the note is visible.
-    pub const fn is_visible(self) -> bool {
+    /// Returns whether the note is a playable.
+    pub const fn is_playable(self) -> bool {
         !matches!(self, Self::Invisible)
+    }
+
+    /// Returns whether the note is a long-press note.
+    pub const fn is_long(self) -> bool {
+        matches!(self, Self::Long)
     }
 }
 
