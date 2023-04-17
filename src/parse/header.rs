@@ -99,6 +99,8 @@ pub struct Header {
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
     pub change_options: HashMap<ObjId, String>,
+    /// Stop lengths by stop object id.
+    pub stops: HashMap<ObjId, u32>,
 }
 
 impl Header {
@@ -210,6 +212,12 @@ impl Header {
             Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(rank),
             Token::StageFile(file) => self.stage_file = Some(file.into()),
+            Token::Stop(id, len) => {
+                self.stops
+                    .entry(id)
+                    .and_modify(|current_len| *current_len += len)
+                    .or_insert(len);
+            }
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
             Token::Text(id, text) => {
