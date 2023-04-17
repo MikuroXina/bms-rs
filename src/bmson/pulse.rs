@@ -75,7 +75,8 @@ impl PulseConverter {
         let PulseNumber(track_base) = self.get_pulses_on(time.track);
         PulseNumber(
             track_base
-                + (self.resolution as f64 * time.numerator as f64 / time.denominator as f64) as u32,
+                + ((4 * self.resolution) as f64 * time.numerator as f64 / time.denominator as f64)
+                    as u32,
         )
     }
 }
@@ -123,27 +124,27 @@ fn pulse_conversion() {
                 denominator: 4
             })
             .0,
+        2
+    );
+    assert_eq!(
+        converter
+            .get_pulses_at(ObjTime {
+                track: Track(1),
+                numerator: 0,
+                denominator: 4
+            })
+            .0,
         4
     );
     assert_eq!(
         converter
             .get_pulses_at(ObjTime {
                 track: Track(1),
-                numerator: 0,
-                denominator: 4
-            })
-            .0,
-        8
-    );
-    assert_eq!(
-        converter
-            .get_pulses_at(ObjTime {
-                track: Track(1),
                 numerator: 2,
                 denominator: 4
             })
             .0,
-        11
+        6
     );
     assert_eq!(
         converter
@@ -153,7 +154,7 @@ fn pulse_conversion() {
                 denominator: 4
             })
             .0,
-        14
+        7
     );
     assert_eq!(
         converter
@@ -163,7 +164,7 @@ fn pulse_conversion() {
                 denominator: 4
             })
             .0,
-        19
+        9
     );
     assert_eq!(
         converter
@@ -173,6 +174,6 @@ fn pulse_conversion() {
                 denominator: 4
             })
             .0,
-        24
+        12
     );
 }
