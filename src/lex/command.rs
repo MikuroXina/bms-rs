@@ -143,6 +143,18 @@ pub enum NoteKind {
     Landmine,
 }
 
+impl NoteKind {
+    /// Returns whether the note is a playable.
+    pub const fn is_playable(self) -> bool {
+        !matches!(self, Self::Invisible)
+    }
+
+    /// Returns whether the note is a long-press note.
+    pub const fn is_long(self) -> bool {
+        matches!(self, Self::Long)
+    }
+}
+
 /// A key of the controller or keyboard.
 ///
 /// ```text
@@ -175,6 +187,11 @@ pub enum Key {
 }
 
 impl Key {
+    /// Returns whether the key appears only 7 keys.
+    pub fn is_extended_key(self) -> bool {
+        matches!(self, Self::Key6 | Self::Key7)
+    }
+
     pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self> {
         use Key::*;
         Ok(match key {
@@ -305,5 +322,5 @@ impl Channel {
 }
 
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Track(pub u32);

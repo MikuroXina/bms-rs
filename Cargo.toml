@@ -10,8 +10,13 @@ categories = ["parsing"]
 repository = "https://github.com/MikuroXina/bms-rs"
 
 [features]
+default = ["bmson"]
 serde = ["dep:serde"]
+bmson = ["dep:serde", "serde_json"]
 
 [dependencies]
 itertools = "0.10.5"
+num = "0.4.0"
 serde = { version = "1.0.152", features = ["derive"], optional = true }
+serde_json = { version = "1.0.96", optional = true }
+thiserror = "1.0.40"
