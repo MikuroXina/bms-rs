@@ -1,6 +1,28 @@
 //! The [bmson format](https://bmson-spec.readthedocs.io/en/master/doc/index.html) definition.
-
-// TODO: Document about order of processing notes.
+//!
+//! # Order of Processing
+//!
+//! When there are coincident events in the same pulse, they are processed in the order below:
+//!
+//! - [`Note`] and [`BgaEvent`] (are independent each other),
+//! - [`BpmEvent`],
+//! - [`StopEvent`].
+//!
+//! If a [`BpmEvent`] and a [`StopEvent`] appear on the same pulse, the current BPM will be changed at first, then scrolling the chart will be stopped for a while depending the changed BPM.
+//!
+//! If a [`Note`] and a [`StopEvent`] appear on the same pulse, the sound will be played (or should be hit by a player), then scrolling the chart will be stopped.
+//!
+//! # Layered Notes
+//!
+//! In case that notes (not BGM) from different sound channels exist on the same (key and pulse) position:
+//!
+//! - When its length is not equal to each other, yo should treat as an error and warn to a player.
+//! - Otherwise your player may fusion the notes. That means when a player hit the key, two sounds will be played.
+//!
+//! # Differences from BMS
+//!
+//! - BMS can play different sound on the start and end of long note. But bmson does not allow this.
+//! - Transparent color on BGA is not supported. But you can use PNG files having RGBA channels.
 
 use std::{collections::HashMap, num::NonZeroU8};
 
@@ -49,7 +71,7 @@ pub struct Bmson {
 pub struct BmsonInfo {
     /// Self explanatory title.
     pub title: String,
-    /// Self explanatory subtitle.
+    /// Self explanatory subtitle. Usually this is shown as a smaller text than `title`.
     #[serde(default)]
     pub subtitle: String,
     /// Author of the chart. It may multiple names such as `Alice vs Bob`, `Alice feat. Bob` and so on. But you should respect the value because it usually have special meaning.
@@ -126,6 +148,18 @@ pub struct BarLine {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SoundChannel {
     /// Sound file path. If the extension is not specified or not supported, you can try search files about other extensions for fallback.
+    ///
+    /// BMS players are expected to support the audio containers below:
+    ///
+    /// - WAV (`.wav`),
+    /// - OGG (`.ogg`),
+    /// - Audio-only MPEG-4 (`.m4a`).
+    ///
+    /// BMS players are expected to support the audio codec below:
+    ///
+    /// - LPCM (Linear Pulse-Code Modulation),
+    /// - Ogg Vorbis,
+    /// - AAC (Advanced Audio Coding).
     pub name: String,
     /// Data of note to be placed.
     pub notes: Vec<Note>,
