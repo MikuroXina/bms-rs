@@ -9,7 +9,7 @@ use std::{
 use super::{header::Header, obj::Obj, ParseError, Result};
 use crate::{
     lex::{
-        command::{Channel, Key, NoteKind, ObjId},
+        command::{self, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
     time::{ObjTime, Track},
@@ -220,14 +220,7 @@ impl Notes {
                 channel: Channel::BpmChange,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
-                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-                    if id == 0 {
-                        continue;
-                    }
-                    let obj = (id as u16).try_into().unwrap();
-                    let time = ObjTime::new(track.0, i as u32, denominator);
+                for (time, obj) in ids_from_message(*track, message) {
                     let &bpm = header
                         .bpm_changes
                         .get(&obj)
@@ -268,21 +261,12 @@ impl Notes {
                 channel: Channel::Stop,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
-                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-                    if id == 0 {
-                        continue;
-                    }
-                    let obj = (id as u16).try_into().unwrap();
+                for (time, obj) in ids_from_message(*track, message) {
                     let &duration = header
                         .stops
                         .get(&obj)
                         .ok_or(ParseError::UndefinedObject(obj))?;
-                    self.push_stop(StopObj {
-                        time: ObjTime::new(track.0, i as u32, denominator),
-                        duration,
-                    })
+                    self.push_stop(StopObj { time, duration })
                 }
             }
             Token::Message {
@@ -290,15 +274,9 @@ impl Notes {
                 channel: Channel::Bgm,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
-                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-                    if id == 0 {
-                        continue;
-                    }
-                    let obj = (id as u16).try_into().unwrap();
+                for (time, obj) in ids_from_message(*track, message) {
                     self.bgms
-                        .entry(ObjTime::new(track.0, i as u32, denominator))
+                        .entry(time)
                         .and_modify(|vec| vec.push(obj))
                         .or_insert_with(Vec::new);
                 }
@@ -313,15 +291,9 @@ impl Notes {
                     },
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
-                for (i, (c1, c2)) in message.chars().tuples().into_iter().enumerate() {
-                    let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-                    if id == 0 {
-                        continue;
-                    }
-                    let obj = (id as u16).try_into().unwrap();
+                for (offset, obj) in ids_from_message(*track, message) {
                     self.push_note(Obj {
-                        offset: ObjTime::new(track.0, i as u32, denominator),
+                        offset,
                         kind: *kind,
                         is_player1: *is_player1,
                         key: *key,
@@ -395,6 +367,26 @@ impl Notes {
         }
         hyp_resolution / 4
     }
+}
+
+fn ids_from_message(
+    track: command::Track,
+    message: &'_ str,
+) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
+    let denominator = message.len() as u32 / 2;
+    let mut chars = message.chars().tuples().into_iter().enumerate();
+    std::iter::from_fn(move || {
+        let (i, id) = loop {
+            let (i, (c1, c2)) = chars.next()?;
+            let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
+            if id != 0 {
+                break (i, id);
+            }
+        };
+        let obj = (id as u16).try_into().unwrap();
+        let time = ObjTime::new(track.0, i as u32, denominator);
+        Some((time, obj))
+    })
 }
 
 #[cfg(feature = "serde")]
