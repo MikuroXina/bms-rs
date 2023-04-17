@@ -5,6 +5,7 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
     ops::Bound,
+    path::PathBuf,
 };
 
 use super::{header::Header, obj::Obj, ParseError, Result};
@@ -108,6 +109,51 @@ impl Ord for StopObj {
     }
 }
 
+/// An object to change the image for BGA (background animation).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BgaObj {
+    /// Time to start to display the image.
+    pub time: ObjTime,
+    /// Relative file path to the image/video file from the BMS file.
+    pub file: PathBuf,
+    /// Layer to display.
+    pub layer: BgaLayer,
+}
+
+impl PartialEq for BgaObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+    }
+}
+
+impl Eq for BgaObj {}
+
+impl PartialOrd for BgaObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BgaObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.time.cmp(&other.time)
+    }
+}
+
+/// A layer where the image for BGA to be displayed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+pub enum BgaLayer {
+    /// The lowest layer.
+    Base,
+    /// Layer which is displayed only if a player missed to play notes.
+    Poor,
+    /// An overlaying layer.
+    Overlay,
+}
+
 /// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
@@ -117,6 +163,7 @@ pub struct Notes {
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
     section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
     stops: BTreeMap<ObjTime, StopObj>,
+    bga_changes: BTreeMap<ObjTime, BgaObj>,
 }
 
 impl Notes {
@@ -153,6 +200,11 @@ impl Notes {
     /// Returns the scroll stop objects.
     pub fn stops(&self) -> &BTreeMap<ObjTime, StopObj> {
         &self.stops
+    }
+
+    /// Returns the bga change objects.
+    pub fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
+        &self.bga_changes
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
@@ -223,6 +275,14 @@ impl Notes {
             .or_insert(stop);
     }
 
+    /// Adds a new bga change object to the notes.
+    pub fn push_bga_change(&mut self, bga: BgaObj) {
+        let time = bga.time;
+        if self.bga_changes.insert(time, bga).is_some() {
+            eprintln!("duplicate bga change object detected at {:?}", time);
+        }
+    }
+
     pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
         match token {
             Token::Message {
@@ -277,6 +337,29 @@ impl Notes {
                         .get(&obj)
                         .ok_or(ParseError::UndefinedObject(obj))?;
                     self.push_stop(StopObj { time, duration })
+                }
+            }
+            Token::Message {
+                track,
+                channel: channel @ (Channel::BgaBase | Channel::BgaPoor | Channel::BgaLayer),
+                message,
+            } => {
+                for (time, obj) in ids_from_message(*track, message) {
+                    let bmp = header
+                        .bmp_files
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    let layer = match channel {
+                        Channel::BgaBase => BgaLayer::Base,
+                        Channel::BgaPoor => BgaLayer::Poor,
+                        Channel::BgaLayer => BgaLayer::Overlay,
+                        _ => unreachable!(),
+                    };
+                    self.push_bga_change(BgaObj {
+                        time,
+                        file: bmp.file.clone(),
+                        layer,
+                    });
                 }
             }
             Token::Message {
@@ -411,6 +494,8 @@ pub struct NotesPack {
     pub section_len_changes: Vec<SectionLenChangeObj>,
     /// Stop events.
     pub stops: Vec<StopObj>,
+    /// BGA change events.
+    pub bga_changes: Vec<BgaObj>,
 }
 
 #[cfg(feature = "serde")]
@@ -424,6 +509,7 @@ impl serde::Serialize for Notes {
             bpm_changes: self.bpm_changes.values().cloned().collect(),
             section_len_changes: self.section_len_changes.values().cloned().collect(),
             stops: self.stops.values().cloned().collect(),
+            bga_changes: self.bga_changes.values().cloned().collect(),
         }
         .serialize(serializer)
     }
@@ -465,6 +551,10 @@ impl<'de> serde::Deserialize<'de> for Notes {
         for stop in pack.stops {
             stops.insert(stop.time, stop);
         }
+        let mut bga_changes = BTreeMap::new();
+        for bga_change in pack.bga_changes {
+            bga_changes.insert(bga_change.time, bga_change);
+        }
         Ok(Notes {
             objs,
             bgms,
@@ -472,6 +562,7 @@ impl<'de> serde::Deserialize<'de> for Notes {
             bpm_changes,
             section_len_changes,
             stops,
+            bga_changes,
         })
     }
 }
