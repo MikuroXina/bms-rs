@@ -143,6 +143,13 @@ pub enum NoteKind {
     Landmine,
 }
 
+impl NoteKind {
+    /// Returns whether the note is visible.
+    pub const fn is_visible(self) -> bool {
+        !matches!(self, Self::Invisible)
+    }
+}
+
 /// A key of the controller or keyboard.
 ///
 /// ```text
@@ -175,6 +182,11 @@ pub enum Key {
 }
 
 impl Key {
+    /// Returns whether the key appears only 7 keys.
+    pub fn is_extended_key(self) -> bool {
+        matches!(self, Self::Key6 | Self::Key7)
+    }
+
     pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self> {
         use Key::*;
         Ok(match key {
