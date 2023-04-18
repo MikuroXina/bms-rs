@@ -74,6 +74,7 @@
 
 #![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
+#![cfg_attr(feature = "nightly", feature(doc_cfg))]
 
 #[cfg(feature = "bmson")]
 pub mod bmson;
