@@ -8,6 +8,7 @@ license = "Apache-2.0"
 keywords = ["bms", "parser"]
 categories = ["parsing"]
 repository = "https://github.com/MikuroXina/bms-rs"
+documentation = "https://docs.rs/bms-rs/latest/bms_rs/"
 
 [features]
 default = ["bmson"]
