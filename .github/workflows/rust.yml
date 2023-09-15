@@ -18,7 +18,7 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup rustfmt and clippy
         uses: actions-rs/toolchain@v1
         with:
