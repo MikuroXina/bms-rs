@@ -36,4 +36,4 @@ jobs:
 
       - if: matrix.os == 'ubuntu-latest'
         name: cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v1.3.1
+        uses: EmbarkStudios/cargo-deny-action@v1.5.4
