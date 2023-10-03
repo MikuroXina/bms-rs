@@ -233,7 +233,14 @@ impl Notes {
 
     /// Removes the latest note from the notes.
     pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
-        self.objs.entry(id).or_default().pop()
+        self.objs.entry(id).or_default().pop().map(|removed| {
+            self.ids_by_key
+                .get_mut(&removed.key)
+                .unwrap()
+                .remove(&removed.offset)
+                .unwrap();
+            removed
+        })
     }
 
     /// Removes the note from the notes.
