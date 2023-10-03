@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/MikuroXina/bms-rs/compare/v0.3.0...v0.4.0) (2023-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Store multiple notes by id ([#29](https://github.com/MikuroXina/bms-rs/issues/29))
+
+### Features
+
+* Store multiple notes by id ([#29](https://github.com/MikuroXina/bms-rs/issues/29)) ([ae6d531](https://github.com/MikuroXina/bms-rs/commit/ae6d531077a397367b282c060a3ddf7d818b26c2))
+
+
+### Miscellaneous Chores
+
+* Relase 0.4.0 ([#31](https://github.com/MikuroXina/bms-rs/issues/31)) ([5e6f2e0](https://github.com/MikuroXina/bms-rs/commit/5e6f2e075cf9e5fb859e9b5b60ee7a7ff911ce7a))
+
 ## 0.3.0 (2023-04-17)
 
 
