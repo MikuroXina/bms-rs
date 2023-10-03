@@ -156,7 +156,8 @@ pub enum BgaLayer {
 /// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
-    objs: HashMap<ObjId, Obj>,
+    // objects stored in obj is sorted, so it can be searched by bisection method
+    objs: HashMap<ObjId, Vec<Obj>>,
     bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
@@ -173,12 +174,12 @@ impl Notes {
 
     /// Converts into the notes sorted by time.
     pub fn into_all_notes(self) -> Vec<Obj> {
-        self.objs.into_values().sorted().collect()
+        self.objs.into_values().flatten().sorted().collect()
     }
 
     /// Returns the iterator having all of the notes sorted by time.
     pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
-        self.objs.values().sorted()
+        self.objs.values().flatten().sorted()
     }
 
     /// Returns all the bgms in the score.
@@ -212,26 +213,39 @@ impl Notes {
             .get(&key)?
             .range((Bound::Excluded(time), Bound::Unbounded))
             .next()
-            .and_then(|(_, id)| self.objs.get(id))
+            .and_then(|(_, id)| {
+                let objs = self.objs.get(id)?;
+                let idx = objs
+                    .binary_search_by(|probe| probe.offset.cmp(&time))
+                    .unwrap_or_else(|idx| idx);
+                objs.get(idx)
+            })
     }
 
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: Obj) {
-        self.objs.insert(note.obj, note.clone());
+        self.objs.entry(note.obj).or_default().push(note.clone());
         self.ids_by_key
             .entry(note.key)
             .or_insert_with(BTreeMap::new)
             .insert(note.offset, note.obj);
     }
 
+    /// Removes the latest note from the notes.
+    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
+        self.objs.entry(id).or_default().pop()
+    }
+
     /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Option<Obj> {
-        self.objs.remove(&id).map(|removed| {
-            self.ids_by_key
-                .get_mut(&removed.key)
-                .unwrap()
-                .remove(&removed.offset)
-                .unwrap();
+    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
+        self.objs.remove(&id).map_or(vec![], |removed| {
+            for item in &removed {
+                self.ids_by_key
+                    .get_mut(&item.key)
+                    .unwrap()
+                    .remove(&item.offset)
+                    .unwrap();
+            }
             removed
         })
     }
@@ -393,7 +407,7 @@ impl Notes {
             }
             &Token::LnObj(end_id) => {
                 let mut end_note = self
-                    .remove_note(end_id)
+                    .remove_latest_note(end_id)
                     .ok_or(ParseError::UndefinedObject(end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) =
@@ -403,7 +417,7 @@ impl Notes {
                             end_id
                         ))
                     })?;
-                let mut begin_note = self.remove_note(begin_id).unwrap();
+                let mut begin_note = self.remove_latest_note(begin_id).unwrap();
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.push_note(begin_note);
@@ -418,6 +432,7 @@ impl Notes {
     pub fn last_visible_time(&self) -> Option<ObjTime> {
         self.objs
             .values()
+            .flatten()
             .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
             .map(Reverse)
             .sorted()
@@ -439,6 +454,7 @@ impl Notes {
         let obj_last = self
             .objs
             .values()
+            .flatten()
             .map(Reverse)
             .sorted()
             .next()
@@ -465,7 +481,7 @@ impl Notes {
         use num::Integer;
 
         let mut hyp_resolution = 1;
-        for obj in self.objs.values() {
+        for obj in self.objs.values().flatten() {
             hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator);
         }
         for bpm_change in self.bpm_changes.values() {
@@ -535,7 +551,7 @@ impl<'de> serde::Deserialize<'de> for Notes {
         D: serde::Deserializer<'de>,
     {
         let pack = NotesPack::deserialize(deserializer)?;
-        let mut objs = HashMap::new();
+        let mut objs = HashMap::<ObjId, Vec<Obj>>::new();
         let mut bgms: BTreeMap<ObjTime, Vec<ObjId>> = BTreeMap::new();
         let mut ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>> = HashMap::new();
         for obj in pack.objs {
@@ -550,7 +566,7 @@ impl<'de> serde::Deserialize<'de> for Notes {
                     id_map.insert(obj.offset, obj.obj);
                 })
                 .or_default();
-            objs.insert(obj.obj, obj);
+            objs.entry(obj.obj).or_default().push(obj);
         }
         let mut bpm_changes = BTreeMap::new();
         for bpm_change in pack.bpm_changes {
