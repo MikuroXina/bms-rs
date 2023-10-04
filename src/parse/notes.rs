@@ -386,10 +386,7 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    self.bgms
-                        .entry(time)
-                        .and_modify(|vec| vec.push(obj))
-                        .or_insert_with(Vec::new);
+                    self.bgms.entry(time).or_default().push(obj)
                 }
             }
             Token::Message {
