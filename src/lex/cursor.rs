@@ -67,11 +67,14 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        fn is_blank_or_tab(c: char) -> bool {
+            return c == ' ' || c == '\t';
+        }
         let spaces = self.source[self.index..]
-            .find(|c: char| !c.is_whitespace())
+            .find(|c: char| !is_blank_or_tab(c))
             .unwrap_or(self.source.len());
 
-        self.col += spaces;
+        self.col += 1;
         self.index += spaces;
 
         let remaining_end = self.source[self.index..]

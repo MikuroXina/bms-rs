@@ -1,6 +1,6 @@
 use bms_rs::{
-    lex::parse,
-    parse::{rng::RngMock, Bms},
+    lex::{parse, LexError},
+    parse::{rng::RngMock, Bms, ParseError},
 };
 
 #[test]
@@ -25,4 +25,11 @@ fn test_j219() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
     eprintln!("{:?}", bms);
+}
+
+#[test]
+fn test_blank() {
+    let source = include_str!("dive_withblank.bme");
+    let ts = parse(source);
+    assert_eq!(ts.is_err(), true);
 }
