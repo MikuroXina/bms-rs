@@ -67,13 +67,6 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
-        let spaces = self.source[self.index..]
-            .find(|c: char| !c.is_whitespace())
-            .unwrap_or(self.source.len());
-
-        self.col += spaces;
-        self.index += spaces;
-
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source.len());
@@ -88,7 +81,7 @@ impl<'a> Cursor<'a> {
         };
         self.col += ret.chars().count();
         self.index += remaining_end;
-        ret
+        ret.trim()
     }
 
     pub(crate) fn line(&self) -> usize {
