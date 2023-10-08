@@ -242,21 +242,19 @@ impl<'a> Token<'a> {
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let str = c.next_line_remaining();
-                    let filename = Path::new(
-                        (!(str.is_empty()))
-                            .then(|| str)
-                            .ok_or_else(|| c.err_expected_token("key audio filename"))?,
-                    );
+                    if str.is_empty() {
+                        return Err(c.err_expected_token("key audio filename"));
+                    }
+                    let filename = Path::new(str);
                     Self::Wav(ObjId::from(id, c)?, filename)
                 }
                 bmp if bmp.starts_with("#BMP") => {
                     let id = command.trim_start_matches("#BMP");
                     let str = c.next_line_remaining();
-                    let filename = Path::new(
-                        (!str.is_empty())
-                            .then(|| str)
-                            .ok_or_else(|| c.err_expected_token("bgi image filename"))?,
-                    );
+                    if str.is_empty() {
+                        return Err(c.err_expected_token("key audio filename"));
+                    }
+                    let filename = Path::new(str);
                     if id == "00" {
                         Self::Bmp(None, filename)
                     } else {

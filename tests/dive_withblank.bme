@@ -12,14 +12,14 @@
 #STAGEFILE _title.bmp
 
 *WAV with blank
-#WAV1O Cymbals Crash 05.wav
+#WAV1O	Cymbals	Crash 05.wav
 #WAV1P Cymbals Crash 10.wav
 #WAV1Q Cymbals Crash 10_240.wav
 #WAV1R Cymbals Crash 10_480.wav
-#WAV1S Cymbals Ride 05.wav
+#WAV1S 
 
 *Blank BMP
-#BMP01 
+#BMP01
 
 *---------------------- MAIN DATA FIELD
 

@@ -11,7 +11,7 @@ use self::{
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LexError {
     /// An unknown command detected.
     UnknownCommand {
@@ -47,7 +47,6 @@ impl std::fmt::Display for LexError {
 }
 
 impl std::error::Error for LexError {}
-
 /// An error occurred when lexical analyzing the BMS format file.
 pub type Result<T> = std::result::Result<T, LexError>;
 

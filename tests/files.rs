@@ -1,6 +1,6 @@
 use bms_rs::{
     lex::{parse, LexError},
-    parse::{rng::RngMock, Bms, ParseError},
+    parse::{rng::RngMock, Bms},
 };
 
 #[test]
@@ -31,5 +31,12 @@ fn test_j219() {
 fn test_blank() {
     let source = include_str!("dive_withblank.bme");
     let ts = parse(source);
-    assert_eq!(ts.is_err(), true);
+    assert_eq!(
+        ts.err(),
+        Some(LexError::ExpectedToken {
+            line: 19,
+            col: 8,
+            message: "key audio filename"
+        })
+    );
 }
