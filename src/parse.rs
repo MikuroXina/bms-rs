@@ -8,31 +8,24 @@ pub mod rng;
 
 use std::ops::ControlFlow;
 
+use thiserror::Error;
+
 use self::{header::Header, notes::Notes, random::RandomParser, rng::Rng};
 use crate::lex::{command::ObjId, token::TokenStream};
 
 /// An error occurred when parsing the [`TokenStream`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ParseError {
     /// Syntax formed from the commands was invalid.
+    #[error("syntax error: {0}")]
     SyntaxError(String),
     /// The invalid real number for the BPM.
+    #[error("not a number bpm: {0}")]
     BpmParseError(String),
     /// The object has required but not defined,
+    #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
 }
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::SyntaxError(mes) => write!(f, "syntax error: {}", mes),
-            ParseError::BpmParseError(bpm) => write!(f, "not a number bpm: {}", bpm),
-            ParseError::UndefinedObject(id) => write!(f, "undefined object: {:?}", id),
-        }
-    }
-}
-
-impl std::error::Error for ParseError {}
 
 /// A custom result type for parsing.
 pub type Result<T> = std::result::Result<T, ParseError>;

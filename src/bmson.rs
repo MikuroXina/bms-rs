@@ -232,7 +232,7 @@ pub struct BgaEvent {
 pub struct BgaId(pub u32);
 
 /// Errors on converting from `Bms` into `Bmson`.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BmsonConvertError {
     /// The initial BPM was infinity or NaN.
