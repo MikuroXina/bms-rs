@@ -4,6 +4,8 @@ pub mod command;
 mod cursor;
 pub mod token;
 
+use thiserror::Error;
+
 use self::{
     cursor::Cursor,
     token::{Token, TokenStream},
@@ -11,9 +13,10 @@ use self::{
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum LexError {
     /// An unknown command detected.
+    #[error("unknown command found at line {line}, col {col}")]
     UnknownCommand {
         /// The line number of the command detected.
         line: usize,
@@ -21,6 +24,7 @@ pub enum LexError {
         col: usize,
     },
     /// The token was expected but not found.
+    #[error("expected {message}, but not found at line {line}, col {col}")]
     ExpectedToken {
         /// The line number of the token expected.
         line: usize,
@@ -31,22 +35,6 @@ pub enum LexError {
     },
 }
 
-impl std::fmt::Display for LexError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LexError::UnknownCommand { line, col } => {
-                write!(f, "unknown command found at line {}, col {}", line, col)
-            }
-            LexError::ExpectedToken { line, col, message } => write!(
-                f,
-                "expected {}, but not found at line {}, col {}",
-                message, line, col
-            ),
-        }
-    }
-}
-
-impl std::error::Error for LexError {}
 /// An error occurred when lexical analyzing the BMS format file.
 pub type Result<T> = std::result::Result<T, LexError>;
 

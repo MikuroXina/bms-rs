@@ -82,15 +82,19 @@ pub mod lex;
 pub mod parse;
 pub mod time;
 
+use thiserror::Error;
+
 use self::{lex::LexError, parse::ParseError};
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum BmsError {
     /// An error comes from lexical analyzer.
+    #[error("lex error: {0}")]
     LexError(LexError),
     /// An error comes from syntax parser.
+    #[error("parse error: {0}")]
     ParseError(ParseError),
 }
 
@@ -102,28 +106,6 @@ impl From<LexError> for BmsError {
 impl From<ParseError> for BmsError {
     fn from(e: ParseError) -> Self {
         Self::ParseError(e)
-    }
-}
-
-impl std::fmt::Display for BmsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BmsError::LexError(lex) => {
-                write!(f, "lex error: {}", lex)
-            }
-            BmsError::ParseError(parse) => {
-                write!(f, "parse error: {}", parse)
-            }
-        }
-    }
-}
-
-impl std::error::Error for BmsError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            BmsError::LexError(lex) => Some(lex),
-            BmsError::ParseError(parse) => Some(parse),
-        }
     }
 }
 
