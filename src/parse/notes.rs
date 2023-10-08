@@ -227,7 +227,7 @@ impl Notes {
         self.objs.entry(note.obj).or_default().push(note.clone());
         self.ids_by_key
             .entry(note.key)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .insert(note.offset, note.obj);
     }
 
