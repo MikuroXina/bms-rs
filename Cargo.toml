@@ -20,4 +20,4 @@ itertools = "0.11.0"
 num = "0.4.1"
 serde = { version = "1.0.189", features = ["derive"], optional = true }
 serde_json = { version = "1.0.107", optional = true }
-thiserror = "1.0.49"
+thiserror = "1.0.50"
