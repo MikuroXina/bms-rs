@@ -163,7 +163,7 @@ impl<'a> Token<'a> {
                 "#PLAYER" => Self::Player(PlayerMode::from(c)?),
                 "#GENRE" => Self::Genre(c.next_line_remaining()),
                 "#TITLE" => Self::Title(c.next_line_remaining()),
-                "#SUBTITLE" => Self::Title(c.next_line_remaining()),
+                "#SUBTITLE" => Self::SubTitle(c.next_line_remaining()),
                 "#ARTIST" => Self::Artist(c.next_line_remaining()),
                 "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
                 "#DIFFICULTY" => Self::Difficulty(
