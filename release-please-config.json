@@ -1,0 +1,6 @@
+{
+    ".": {
+        "package-name": "bms-rs",
+        "bump-minor-pre-major": true
+    }
+}

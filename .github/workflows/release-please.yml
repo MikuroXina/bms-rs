@@ -24,6 +24,4 @@ jobs:
         -   uses: google-github-actions/release-please-action@v4
             with:
                 release-type: rust
-                package-name: bms-rs
                 token: ${{ steps.token.outputs.token }}
-                bump-minor-pre-major: true
