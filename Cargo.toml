@@ -19,5 +19,5 @@ bmson = ["dep:serde", "serde_json"]
 itertools = "0.12.0"
 num = "0.4.1"
 serde = { version = "1.0.193", features = ["derive"], optional = true }
-serde_json = { version = "1.0.108", optional = true }
+serde_json = { version = "1.0.111", optional = true }
 thiserror = "1.0.56"
