@@ -18,6 +18,6 @@ bmson = ["dep:serde", "serde_json"]
 [dependencies]
 itertools = "0.12.1"
 num = "0.4.2"
-serde = { version = "1.0.198", features = ["derive"], optional = true }
+serde = { version = "1.0.199", features = ["derive"], optional = true }
 serde_json = { version = "1.0.116", optional = true }
 thiserror = "1.0.59"
