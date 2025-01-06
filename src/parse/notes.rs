@@ -213,6 +213,38 @@ impl Ord for SpacingFactorObj {
     }
 }
 
+/// An extended object on the score.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExtendedMessageObj {
+    /// The track which the message is on.
+    pub track: Track,
+    /// The channel which the message is on.
+    pub channel: Channel,
+    /// The extended message.
+    pub message: String,
+}
+
+impl PartialEq for ExtendedMessageObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.track == other.track
+    }
+}
+
+impl Eq for ExtendedMessageObj {}
+
+impl PartialOrd for ExtendedMessageObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExtendedMessageObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.track.cmp(&other.track)
+    }
+}
+
 /// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
@@ -226,6 +258,7 @@ pub struct Notes {
     bga_changes: BTreeMap<ObjTime, BgaObj>,
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
+    extended_messages: Vec<ExtendedMessageObj>,
 }
 
 impl Notes {
@@ -392,6 +425,11 @@ impl Notes {
         }
     }
 
+    /// Adds the new extended message object to the notes.
+    pub fn push_extended_message(&mut self, message: ExtendedMessageObj) {
+        self.extended_messages.push(message);
+    }
+
     pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
         match token {
             Token::Message {
@@ -525,6 +563,18 @@ impl Notes {
                     });
                 }
             }
+            Token::ExtendedMessage {
+                track,
+                channel,
+                message,
+            } => {
+                let track = Track(track.0);
+                self.push_extended_message(ExtendedMessageObj {
+                    track,
+                    channel: channel.clone(),
+                    message: (*message).to_owned(),
+                });
+            }
             &Token::LnObj(end_id) => {
                 let mut end_note = self
                     .remove_latest_note(end_id)
@@ -649,6 +699,8 @@ pub struct NotesPack {
     pub scrolling_factor_changes: Vec<ScrollingFactorObj>,
     /// Spacing factor change events.
     pub spacing_factor_changes: Vec<SpacingFactorObj>,
+    /// Extended message events.
+    pub extended_messages: Vec<ExtendedMessageObj>,
 }
 
 #[cfg(feature = "serde")]
@@ -665,6 +717,7 @@ impl serde::Serialize for Notes {
             bga_changes: self.bga_changes.values().cloned().collect(),
             scrolling_factor_changes: self.scrolling_factor_changes.values().cloned().collect(),
             spacing_factor_changes: self.spacing_factor_changes.values().cloned().collect(),
+            extended_messages: self.extended_messages.clone(),
         }
         .serialize(serializer)
     }
@@ -718,6 +771,10 @@ impl<'de> serde::Deserialize<'de> for Notes {
         for spacing_change in pack.spacing_factor_changes {
             spacing_factor_changes.insert(spacing_change.time, spacing_change);
         }
+        let mut extended_messages = vec![];
+        for extended_message in pack.extended_messages {
+            extended_messages.push(extended_message);
+        }
         Ok(Notes {
             objs,
             bgms,
@@ -728,6 +785,7 @@ impl<'de> serde::Deserialize<'de> for Notes {
             bga_changes,
             scrolling_factor_changes,
             spacing_factor_changes,
+            extended_messages,
         })
     }
 }

@@ -76,6 +76,15 @@ pub enum Token<'a> {
     EndRandom,
     /// `#ENDSWITCH`. Closes the random scope. See [Token::Switch].
     EndSwitch,
+    /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
+    ExtendedMessage {
+        /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
+        track: Track,
+        /// The channel commonly expresses what the lane be arranged the note to.
+        channel: Channel,
+        /// The message to the channel, but not only object ids.
+        message: &'a str,
+    },
     /// `#BMP[01-ZZ] [0-255],[0-255],[0-255],[0-255] [filename]`. Defines the background image/movie object with the color (alpha, red, green and blue) which will be treated as transparent.
     ExBmp(ObjId, Argb, &'a Path),
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
@@ -293,6 +302,29 @@ impl<'a> Token<'a> {
                         .next_token()
                         .ok_or_else(|| c.err_expected_token("spacing factor"))?;
                     Self::Speed(ObjId::from(id, c)?, scroll)
+                }
+                ext_message if ext_message.starts_with("#EXT") => {
+                    let message = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("message definition"))?;
+                    if !(message.starts_with('#')
+                        && message.chars().nth(6) == Some(':')
+                        && 8 <= message.len())
+                    {
+                        eprintln!("unknown #EXT format: {:?}", message);
+                        continue;
+                    }
+
+                    let track = message[1..4]
+                        .parse()
+                        .map_err(|_| c.err_expected_token("[000-999]"))?;
+                    let channel = &message[4..6];
+                    let message = &message[7..];
+                    Self::ExtendedMessage {
+                        track: Track(track),
+                        channel: Channel::from(channel, c)?,
+                        message,
+                    }
                 }
                 message
                     if message.starts_with('#')

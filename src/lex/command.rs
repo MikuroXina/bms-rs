@@ -229,6 +229,8 @@ impl Default for PoorMode {
 
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Channel {
     /// The BGA channel.
     BgaBase,
