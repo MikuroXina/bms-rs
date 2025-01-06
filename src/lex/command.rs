@@ -1,7 +1,5 @@
 //! Definitions of command argument data.
 
-use std::num::NonZeroU16;
-
 use super::{cursor::Cursor, LexError, Result};
 
 /// A play style of the score.
@@ -53,38 +51,130 @@ impl JudgeLevel {
     }
 }
 
+fn char_to_base62(ch: char) -> Result<u8> {
+    match ch {
+        '0'..='9' | 'A'..='Z' | 'a'..='z' => Ok(ch as u32 as u8),
+        _ => Err(LexError::OutOfBase62),
+    }
+}
+
+fn base62_to_byte(base62: u8) -> u8 {
+    match base62 {
+        b'0'..=b'9' => base62 - b'0',
+        b'A'..=b'Z' => base62 - b'A' + 10,
+        b'a'..=b'z' => base62 - b'a' + 36,
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn test_base62() {
+    assert_eq!(char_to_base62('/'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('0'), Ok(b'0'));
+    assert_eq!(char_to_base62('9'), Ok(b'9'));
+    assert_eq!(char_to_base62(':'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('@'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('A'), Ok(b'A'));
+    assert_eq!(char_to_base62('Z'), Ok(b'Z'));
+    assert_eq!(char_to_base62('['), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('`'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('a'), Ok(b'a'));
+    assert_eq!(char_to_base62('z'), Ok(b'z'));
+    assert_eq!(char_to_base62('{'), Err(LexError::OutOfBase62));
+}
+
 /// An object id. Its meaning is determined by the channel belonged to.
+///
+/// The representation is 2 digits of ASCII characters.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ObjId(pub NonZeroU16);
+pub struct ObjId([u8; 2]);
 
 impl std::fmt::Debug for ObjId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let digits = (self.0.get() / 36, self.0.get() % 36);
         f.debug_tuple("ObjId")
-            .field(&format!(
-                "{}{}",
-                char::from_digit(digits.0 as u32, 36).unwrap(),
-                char::from_digit(digits.1 as u32, 36).unwrap()
-            ))
+            .field(&format!("{}{}", self.0[0] as char, self.0[1] as char))
             .finish()
     }
 }
 
-impl TryFrom<u16> for ObjId {
-    type Error = std::num::TryFromIntError;
+impl TryFrom<&str> for ObjId {
+    type Error = LexError;
+    fn try_from(value: &str) -> Result<Self> {
+        if value.len() != 2 {
+            return Err(LexError::ExpectedToken {
+                line: 1,
+                col: 1,
+                message: "`0-9A-Za-z` was expected",
+            });
+        }
+        let mut chars = value.chars();
+        let ch1 = chars.next().unwrap();
+        let ch2 = chars.next().unwrap();
+        Ok(Self([char_to_base62(ch1)?, char_to_base62(ch2)?]))
+    }
+}
 
-    fn try_from(value: u16) -> std::result::Result<Self, Self::Error> {
-        Ok(Self(value.try_into()?))
+impl TryFrom<[char; 2]> for ObjId {
+    type Error = LexError;
+    fn try_from(value: [char; 2]) -> Result<Self> {
+        Self::from_chars(value)
+    }
+}
+
+impl From<ObjId> for u16 {
+    fn from(value: ObjId) -> Self {
+        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+    }
+}
+
+impl From<ObjId> for u32 {
+    fn from(value: ObjId) -> Self {
+        Into::<u16>::into(value) as u32
+    }
+}
+
+impl From<ObjId> for u64 {
+    fn from(value: ObjId) -> Self {
+        Into::<u16>::into(value) as u64
     }
 }
 
 impl ObjId {
+    /// Instances a special null id, which means the rest object.
+    pub const fn null() -> Self {
+        Self([0, 0])
+    }
+
+    /// Converts 2-digit of base-62 numeric characters into an object id.
+    pub fn from_chars(chars: [char; 2]) -> Result<Self> {
+        Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
+    }
+
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
-        let id = u16::from_str_radix(id, 36).map_err(|_| c.err_expected_token("[00-ZZ]"))?;
         id.try_into()
-            .map(Self)
-            .map_err(|_| c.err_expected_token("non zero index"))
+            .map_err(|_| c.err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
+    }
+
+    /// Converts the object id into an `u16` value.
+    pub fn as_u16(self) -> u16 {
+        self.into()
+    }
+
+    /// Converts the object id into an `u32` value.
+    pub fn as_u32(self) -> u32 {
+        self.into()
+    }
+
+    /// Converts the object id into an `u64` value.
+    pub fn as_u64(self) -> u64 {
+        self.into()
+    }
+
+    /// Makes the object id uppercase.
+    pub fn make_uppercase(&mut self) {
+        self.0[0] = self.0[0].to_ascii_uppercase();
+        self.0[1] = self.0[1].to_ascii_uppercase();
     }
 }
 

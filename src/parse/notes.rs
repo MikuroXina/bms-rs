@@ -668,14 +668,13 @@ fn ids_from_message(
     let denominator = message.len() as u32 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
-        let (i, id) = loop {
+        let (i, c1, c2) = loop {
             let (i, (c1, c2)) = chars.next()?;
-            let id = c1.to_digit(36).unwrap() * 36 + c2.to_digit(36).unwrap();
-            if id != 0 {
-                break (i, id);
+            if !(c1 == '0' && c2 == '0') {
+                break (i, c1, c2);
             }
         };
-        let obj = (id as u16).try_into().unwrap();
+        let obj = ObjId::from_chars([c1, c2]).expect("invalid object id");
         let time = ObjTime::new(track.0, i as u32, denominator);
         Some((time, obj))
     })
