@@ -95,6 +95,10 @@ pub struct Header {
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// The BPMs corresponding to the id of the BPM change object.
     pub bpm_changes: HashMap<ObjId, f64>,
+    /// The scrolling factors corresponding to the id of the scroll speed change object.
+    pub scrolling_factor_changes: HashMap<ObjId, f64>,
+    /// The spacing factors corresponding to the id of the spacing change object.
+    pub spacing_factor_changes: HashMap<ObjId, f64>,
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
@@ -211,6 +215,34 @@ impl Header {
             Token::PlayLevel(play_level) => self.play_level = Some(play_level),
             Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(rank),
+            Token::Scroll(id, factor) => {
+                let parsed: f64 = factor
+                    .parse()
+                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                if parsed <= 0.0 || !parsed.is_finite() {
+                    return Err(ParseError::BpmParseError(factor.into()));
+                }
+                if self.scrolling_factor_changes.insert(id, parsed).is_some() {
+                    eprintln!(
+                        "duplicated bpm change definition found: {:?} {:?}",
+                        id, factor
+                    );
+                }
+            }
+            Token::Speed(id, factor) => {
+                let parsed: f64 = factor
+                    .parse()
+                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                if parsed <= 0.0 || !parsed.is_finite() {
+                    return Err(ParseError::BpmParseError(factor.into()));
+                }
+                if self.spacing_factor_changes.insert(id, parsed).is_some() {
+                    eprintln!(
+                        "duplicated bpm change definition found: {:?} {:?}",
+                        id, factor
+                    );
+                }
+            }
             Token::StageFile(file) => self.stage_file = Some(file.into()),
             Token::Stop(id, len) => {
                 self.stops

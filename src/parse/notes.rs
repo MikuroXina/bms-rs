@@ -153,6 +153,98 @@ pub enum BgaLayer {
     Overlay,
 }
 
+/// An object to change scrolling factor of the score.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ScrollingFactorObj {
+    /// The time to begin the change of BPM.
+    pub time: ObjTime,
+    /// The scrolling factor to be.
+    pub factor: f64,
+}
+
+impl PartialEq for ScrollingFactorObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+    }
+}
+
+impl Eq for ScrollingFactorObj {}
+
+impl PartialOrd for ScrollingFactorObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ScrollingFactorObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.time.cmp(&other.time)
+    }
+}
+
+/// An object to change spacing factor between notes with linear interpolation.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SpacingFactorObj {
+    /// The time to begin the change of BPM.
+    pub time: ObjTime,
+    /// The spacing factor to be.
+    pub factor: f64,
+}
+
+impl PartialEq for SpacingFactorObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.time == other.time
+    }
+}
+
+impl Eq for SpacingFactorObj {}
+
+impl PartialOrd for SpacingFactorObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SpacingFactorObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.time.cmp(&other.time)
+    }
+}
+
+/// An extended object on the score.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExtendedMessageObj {
+    /// The track which the message is on.
+    pub track: Track,
+    /// The channel which the message is on.
+    pub channel: Channel,
+    /// The extended message.
+    pub message: String,
+}
+
+impl PartialEq for ExtendedMessageObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.track == other.track
+    }
+}
+
+impl Eq for ExtendedMessageObj {}
+
+impl PartialOrd for ExtendedMessageObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExtendedMessageObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.track.cmp(&other.track)
+    }
+}
+
 /// The objects set for querying by lane or time.
 #[derive(Debug, Default)]
 pub struct Notes {
@@ -164,6 +256,9 @@ pub struct Notes {
     section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
     stops: BTreeMap<ObjTime, StopObj>,
     bga_changes: BTreeMap<ObjTime, BgaObj>,
+    scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
+    spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
+    extended_messages: Vec<ExtendedMessageObj>,
 }
 
 impl Notes {
@@ -271,6 +366,34 @@ impl Notes {
         }
     }
 
+    /// Adds a new scrolling factor change object to the notes.
+    pub fn push_scrolling_factor_change(&mut self, bpm_change: ScrollingFactorObj) {
+        if self
+            .scrolling_factor_changes
+            .insert(bpm_change.time, bpm_change)
+            .is_some()
+        {
+            eprintln!(
+                "duplicate scrolling factor change object detected at {:?}",
+                bpm_change.time
+            );
+        }
+    }
+
+    /// Adds a new spacing factor change object to the notes.
+    pub fn push_spacing_factor_change(&mut self, bpm_change: SpacingFactorObj) {
+        if self
+            .spacing_factor_changes
+            .insert(bpm_change.time, bpm_change)
+            .is_some()
+        {
+            eprintln!(
+                "duplicate spacing factor change object detected at {:?}",
+                bpm_change.time
+            );
+        }
+    }
+
     /// Adds a new section length change object to the notes.
     pub fn push_section_len_change(&mut self, section_len_change: SectionLenChangeObj) {
         if self
@@ -300,6 +423,11 @@ impl Notes {
         if self.bga_changes.insert(bga.time, bga).is_some() {
             eprintln!("duplicate bga change object detected at {:?}", bga.time);
         }
+    }
+
+    /// Adds the new extended message object to the notes.
+    pub fn push_extended_message(&mut self, message: ExtendedMessageObj) {
+        self.extended_messages.push(message);
     }
 
     pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
@@ -333,6 +461,32 @@ impl Notes {
                         time,
                         bpm: bpm as f64,
                     });
+                }
+            }
+            Token::Message {
+                track,
+                channel: Channel::Scroll,
+                message,
+            } => {
+                for (time, obj) in ids_from_message(*track, message) {
+                    let &factor = header
+                        .scrolling_factor_changes
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    self.push_scrolling_factor_change(ScrollingFactorObj { time, factor });
+                }
+            }
+            Token::Message {
+                track,
+                channel: Channel::Speed,
+                message,
+            } => {
+                for (time, obj) in ids_from_message(*track, message) {
+                    let &factor = header
+                        .spacing_factor_changes
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    self.push_spacing_factor_change(SpacingFactorObj { time, factor });
                 }
             }
             Token::Message {
@@ -408,6 +562,18 @@ impl Notes {
                         obj,
                     });
                 }
+            }
+            Token::ExtendedMessage {
+                track,
+                channel,
+                message,
+            } => {
+                let track = Track(track.0);
+                self.push_extended_message(ExtendedMessageObj {
+                    track,
+                    channel: channel.clone(),
+                    message: (*message).to_owned(),
+                });
             }
             &Token::LnObj(end_id) => {
                 let mut end_note = self
@@ -529,6 +695,12 @@ pub struct NotesPack {
     pub stops: Vec<StopObj>,
     /// BGA change events.
     pub bga_changes: Vec<BgaObj>,
+    /// Scrolling factor change events.
+    pub scrolling_factor_changes: Vec<ScrollingFactorObj>,
+    /// Spacing factor change events.
+    pub spacing_factor_changes: Vec<SpacingFactorObj>,
+    /// Extended message events.
+    pub extended_messages: Vec<ExtendedMessageObj>,
 }
 
 #[cfg(feature = "serde")]
@@ -543,6 +715,9 @@ impl serde::Serialize for Notes {
             section_len_changes: self.section_len_changes.values().cloned().collect(),
             stops: self.stops.values().cloned().collect(),
             bga_changes: self.bga_changes.values().cloned().collect(),
+            scrolling_factor_changes: self.scrolling_factor_changes.values().cloned().collect(),
+            spacing_factor_changes: self.spacing_factor_changes.values().cloned().collect(),
+            extended_messages: self.extended_messages.clone(),
         }
         .serialize(serializer)
     }
@@ -588,6 +763,18 @@ impl<'de> serde::Deserialize<'de> for Notes {
         for bga_change in pack.bga_changes {
             bga_changes.insert(bga_change.time, bga_change);
         }
+        let mut scrolling_factor_changes = BTreeMap::new();
+        for scrolling_change in pack.scrolling_factor_changes {
+            scrolling_factor_changes.insert(scrolling_change.time, scrolling_change);
+        }
+        let mut spacing_factor_changes = BTreeMap::new();
+        for spacing_change in pack.spacing_factor_changes {
+            spacing_factor_changes.insert(spacing_change.time, spacing_change);
+        }
+        let mut extended_messages = vec![];
+        for extended_message in pack.extended_messages {
+            extended_messages.push(extended_message);
+        }
         Ok(Notes {
             objs,
             bgms,
@@ -596,6 +783,9 @@ impl<'de> serde::Deserialize<'de> for Notes {
             section_len_changes,
             stops,
             bga_changes,
+            scrolling_factor_changes,
+            spacing_factor_changes,
+            extended_messages,
         })
     }
 }

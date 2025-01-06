@@ -229,6 +229,8 @@ impl Default for PoorMode {
 
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum Channel {
     /// The BGA channel.
     BgaBase,
@@ -257,6 +259,10 @@ pub enum Channel {
     SectionLen,
     /// For the stop object.
     Stop,
+    /// For the scroll speed change object.
+    Scroll,
+    /// For the note spacing change object.
+    Speed,
 }
 
 impl Channel {
@@ -271,6 +277,8 @@ impl Channel {
             "06" => BgaPoor,
             "07" => BgaLayer,
             "09" => Stop,
+            "SC" => Scroll,
+            "SP" => Speed,
             player1 if player1.starts_with('1') => Note {
                 kind: NoteKind::Visible,
                 is_player1: true,

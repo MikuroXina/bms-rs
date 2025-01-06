@@ -6,6 +6,7 @@ use super::{command::*, cursor::Cursor, Result};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Token<'a> {
     /// `#ARTIST [string]`. Defines the artist name of the music.
     Artist(&'a str),
@@ -75,6 +76,15 @@ pub enum Token<'a> {
     EndRandom,
     /// `#ENDSWITCH`. Closes the random scope. See [Token::Switch].
     EndSwitch,
+    /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
+    ExtendedMessage {
+        /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
+        track: Track,
+        /// The channel commonly expresses what the lane be arranged the note to.
+        channel: Channel,
+        /// The message to the channel, but not only object ids.
+        message: &'a str,
+    },
     /// `#BMP[01-ZZ] [0-255],[0-255],[0-255],[0-255] [filename]`. Defines the background image/movie object with the color (alpha, red, green and blue) which will be treated as transparent.
     ExBmp(ObjId, Argb, &'a Path),
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
@@ -120,12 +130,16 @@ pub enum Token<'a> {
     Random(u32),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
+    /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
+    Scroll(ObjId, &'a str),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
     SetRandom(u32),
     /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
     SetSwitch(u32),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
+    /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
+    Speed(ObjId, &'a str),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
@@ -274,6 +288,43 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.err_expected_token("integer"))?;
                     Self::Stop(ObjId::from(id, c)?, stop)
+                }
+                scroll if scroll.starts_with("#SCROLL") => {
+                    let id = command.trim_start_matches("#SCROLL");
+                    let scroll = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("scroll factor"))?;
+                    Self::Scroll(ObjId::from(id, c)?, scroll)
+                }
+                speed if speed.starts_with("#SPEED") => {
+                    let id = command.trim_start_matches("#SPEED");
+                    let scroll = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("spacing factor"))?;
+                    Self::Speed(ObjId::from(id, c)?, scroll)
+                }
+                ext_message if ext_message.starts_with("#EXT") => {
+                    let message = c
+                        .next_token()
+                        .ok_or_else(|| c.err_expected_token("message definition"))?;
+                    if !(message.starts_with('#')
+                        && message.chars().nth(6) == Some(':')
+                        && 8 <= message.len())
+                    {
+                        eprintln!("unknown #EXT format: {:?}", message);
+                        continue;
+                    }
+
+                    let track = message[1..4]
+                        .parse()
+                        .map_err(|_| c.err_expected_token("[000-999]"))?;
+                    let channel = &message[4..6];
+                    let message = &message[7..];
+                    Self::ExtendedMessage {
+                        track: Track(track),
+                        channel: Channel::from(channel, c)?,
+                        message,
+                    }
                 }
                 message
                     if message.starts_with('#')
