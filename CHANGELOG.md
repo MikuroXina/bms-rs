@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/MikuroXina/bms-rs/compare/v0.4.4...v0.5.0) (2025-01-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Support Bemuse extensions ([#93](https://github.com/MikuroXina/bms-rs/issues/93))
+
+### Features
+
+* Support base 62 object id ([#95](https://github.com/MikuroXina/bms-rs/issues/95)) ([31d753b](https://github.com/MikuroXina/bms-rs/commit/31d753b944a8ea5f1a97f854880f8c1a2f41ebbf))
+* Support Bemuse extensions ([#93](https://github.com/MikuroXina/bms-rs/issues/93)) ([5d027eb](https://github.com/MikuroXina/bms-rs/commit/5d027ebd8e0274d9aab6a5c9a704bcce4d5f8aea))
+
+
+### Miscellaneous Chores
+
+* Release 0.5.0 ([#96](https://github.com/MikuroXina/bms-rs/issues/96)) ([322941c](https://github.com/MikuroXina/bms-rs/commit/322941c6ea89eb84517370df33540a953be2de90))
+
 ## [0.4.4](https://github.com/MikuroXina/bms-rs/compare/v0.4.3...v0.4.4) (2023-11-09)
 
 
