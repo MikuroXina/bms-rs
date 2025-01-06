@@ -40,3 +40,11 @@ fn test_blank() {
         })
     );
 }
+
+#[test]
+fn test_bemuse_ext() {
+    let source = include_str!("bemuse_ext.bms");
+    let ts = parse(source).expect("must be parsed");
+    let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
+    eprintln!("{:?}", bms);
+}
