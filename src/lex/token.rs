@@ -27,6 +27,8 @@ pub enum Token<'a> {
     Banner(&'a Path),
     /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
     BackBmp(&'a Path),
+    /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
+    Base62,
     /// `#BGA[01-ZZ] [01-ZZ] [x1] [y1] [x2] [y2] [dx] [dy]`. Defines the image object from trimming the existing image object.
     Bga {
         /// The id of the object to define.
@@ -110,7 +112,7 @@ pub enum Token<'a> {
         /// The channel commonly expresses what the lane be arranged the note to.
         channel: Channel,
         /// The message to the channel.
-        message: &'a str,
+        message: String,
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
@@ -253,6 +255,14 @@ impl<'a> Token<'a> {
                         relative_percent: volume,
                     })
                 }
+                "#BASE" => {
+                    let base = c.next_line_remaining();
+                    if base != "62" {
+                        eprintln!("unknown base declared: {:?}", base);
+                        continue;
+                    }
+                    Self::Base62
+                }
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let str = c.next_line_remaining();
@@ -340,7 +350,7 @@ impl<'a> Token<'a> {
                     Self::Message {
                         track: Track(track),
                         channel: Channel::from(channel, c)?,
-                        message,
+                        message: message.to_owned(),
                     }
                 }
                 comment if !comment.starts_with('#') => {
@@ -352,6 +362,60 @@ impl<'a> Token<'a> {
                     todo!();
                 }
             });
+        }
+    }
+
+    pub(crate) fn make_id_uppercase(&mut self) {
+        use Token::*;
+        match self {
+            AtBga { id, source_bmp, .. } => {
+                id.make_uppercase();
+                source_bmp.make_uppercase();
+            }
+            Bga { id, source_bmp, .. } => {
+                id.make_uppercase();
+                source_bmp.make_uppercase();
+            }
+            Bmp(Some(id), _) => {
+                id.make_uppercase();
+            }
+            BpmChange(id, _) => {
+                id.make_uppercase();
+            }
+            ChangeOption(id, _) => {
+                id.make_uppercase();
+            }
+            ExBmp(id, _, _) => {
+                id.make_uppercase();
+            }
+            ExRank(id, _) => {
+                id.make_uppercase();
+            }
+            ExWav(id, _, _) => {
+                id.make_uppercase();
+            }
+            LnObj(id) => {
+                id.make_uppercase();
+            }
+            Message { message, .. } => {
+                message.make_ascii_uppercase();
+            }
+            Scroll(id, _) => {
+                id.make_uppercase();
+            }
+            Speed(id, _) => {
+                id.make_uppercase();
+            }
+            Stop(id, _) => {
+                id.make_uppercase();
+            }
+            Text(id, _) => {
+                id.make_uppercase();
+            }
+            Wav(id, _) => {
+                id.make_uppercase();
+            }
+            _ => {}
         }
     }
 }

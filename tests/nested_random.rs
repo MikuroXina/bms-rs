@@ -40,12 +40,12 @@ fn nested_random() {
         #00114:00000044
     ";
 
-    let id11 = 37.try_into().unwrap();
-    let id22 = 74.try_into().unwrap();
-    let id33 = 111.try_into().unwrap();
-    let id44 = 148.try_into().unwrap();
-    let id55 = 185.try_into().unwrap();
-    let id66 = 222.try_into().unwrap();
+    let id11 = "11".try_into().unwrap();
+    let id22 = "22".try_into().unwrap();
+    let id33 = "33".try_into().unwrap();
+    let id44 = "44".try_into().unwrap();
+    let id55 = "55".try_into().unwrap();
+    let id66 = "66".try_into().unwrap();
 
     let ts = parse(SRC).expect("must be parsed");
     let rng = RngMock([1]);

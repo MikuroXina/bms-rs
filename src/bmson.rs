@@ -398,7 +398,7 @@ impl TryFrom<Bms> for Bmson {
             };
             for (id, bmp) in &value.header.bmp_files {
                 bga.bga_header.push(BgaHeader {
-                    id: BgaId(id.0.get() as u32),
+                    id: BgaId(id.as_u32()),
                     name: bmp.file.display().to_string(),
                 });
             }
@@ -410,7 +410,7 @@ impl TryFrom<Bms> for Bmson {
                 };
                 target.push(BgaEvent {
                     y: converter.get_pulses_at(time),
-                    id: BgaId(change.id.0.get() as u32),
+                    id: BgaId(change.id.as_u32()),
                 })
             }
             bga

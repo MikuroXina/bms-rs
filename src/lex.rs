@@ -33,6 +33,9 @@ pub enum LexError {
         /// What the expected is.
         message: &'static str,
     },
+    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
+    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
+    OutOfBase62,
 }
 
 /// An error occurred when lexical analyzing the BMS format file.
@@ -45,6 +48,12 @@ pub fn parse(source: &str) -> Result<TokenStream> {
     let mut tokens = vec![];
     while !cursor.is_end() {
         tokens.push(Token::parse(&mut cursor)?);
+    }
+    let case_sensitive = tokens.contains(&Token::Base62);
+    if !case_sensitive {
+        for token in &mut tokens {
+            token.make_id_uppercase();
+        }
     }
     Ok(TokenStream::from_tokens(tokens))
 }
@@ -81,9 +90,9 @@ mod tests {
 
         let ts = parse(SRC).expect("SRC must be parsed");
 
-        let id1 = 1.try_into().unwrap();
-        let id2 = 2.try_into().unwrap();
-        let id3 = 3.try_into().unwrap();
+        let id1 = "01".try_into().unwrap();
+        let id2 = "02".try_into().unwrap();
+        let id3 = "03".try_into().unwrap();
         let tokens: Vec<_> = ts.into_iter().collect();
         assert_eq!(
             tokens,
@@ -106,7 +115,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "0303030303",
+                    message: "0303030303".into(),
                 },
                 Message {
                     track: Track(2),
@@ -115,7 +124,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "0303000303",
+                    message: "0303000303".into(),
                 },
                 Message {
                     track: Track(2),
@@ -124,7 +133,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "010101",
+                    message: "010101".into(),
                 },
                 Message {
                     track: Track(2),
@@ -133,7 +142,7 @@ mod tests {
                         is_player1: true,
                         key: Key::Key1,
                     },
-                    message: "00020202",
+                    message: "00020202".into(),
                 },
             ]
         );
