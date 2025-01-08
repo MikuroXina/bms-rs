@@ -1,6 +1,6 @@
 //! Definitions of the token in BMS format.
 
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 use super::{command::*, cursor::Cursor, Result};
 
@@ -112,7 +112,7 @@ pub enum Token<'a> {
         /// The channel commonly expresses what the lane be arranged the note to.
         channel: Channel,
         /// The message to the channel.
-        message: String,
+        message: Cow<'a, str>,
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
@@ -350,7 +350,7 @@ impl<'a> Token<'a> {
                     Self::Message {
                         track: Track(track),
                         channel: Channel::from(channel, c)?,
-                        message: message.to_owned(),
+                        message: Cow::Borrowed(message),
                     }
                 }
                 comment if !comment.starts_with('#') => {
@@ -398,7 +398,7 @@ impl<'a> Token<'a> {
                 id.make_uppercase();
             }
             Message { message, .. } => {
-                message.make_ascii_uppercase();
+                *message = Cow::Owned(message.to_ascii_uppercase());
             }
             Scroll(id, _) => {
                 id.make_uppercase();
