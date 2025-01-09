@@ -398,7 +398,7 @@ impl<'a> Token<'a> {
                 id.make_uppercase();
             }
             Message { message, .. } => {
-                *message = Cow::Owned(message.to_ascii_uppercase());
+                message.make_ascii_uppercase();
             }
             Scroll(id, _) => {
                 id.make_uppercase();
@@ -417,6 +417,34 @@ impl<'a> Token<'a> {
             }
             _ => {}
         }
+    }
+}
+
+trait CowStr {
+    fn make_ascii_uppercase(&mut self);
+}
+
+impl CowStr for Cow<'_, str> {
+    fn make_ascii_uppercase(&mut self) {
+        let Some((first_lower_index, _)) = self
+            .as_bytes()
+            .iter()
+            .enumerate()
+            .find(|(_, byte)| byte.is_ascii_lowercase())
+        else {
+            return;
+        };
+        *self = Cow::Owned(unsafe {
+            let mut string = self.to_string();
+            string
+                .as_bytes_mut()
+                .iter_mut()
+                .skip(first_lower_index)
+                .for_each(|byte| {
+                    *byte = byte.to_ascii_uppercase();
+                });
+            string
+        });
     }
 }
 
