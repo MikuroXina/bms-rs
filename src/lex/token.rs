@@ -1,5 +1,6 @@
 //! Definitions of the token in BMS format.
 
+use core::str;
 use std::path::Path;
 
 use super::{command::*, cursor::Cursor, Result};
@@ -116,6 +117,8 @@ pub enum Token<'a> {
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
+    /// Non-empty lines that not starts in # in bms file.
+    NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
@@ -263,6 +266,10 @@ impl<'a> Token<'a> {
                     }
                     Self::Base62
                 }
+                "#COMMENT" => {
+                    let comment = c.next_line_remaining();
+                    Self::Comment(comment)
+                }
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let str = c.next_line_remaining();
@@ -354,8 +361,19 @@ impl<'a> Token<'a> {
                     }
                 }
                 comment if !comment.starts_with('#') => {
-                    c.next_line_remaining();
-                    continue;
+                    unsafe {
+                        // SAFETY: All ptr is from the str in the cursor.
+                        // TEST: TODO!
+                        // Why do this? Because could not change the cursor when keeping the str.
+                        let remaining = c.next_line_remaining();
+                        let start_ptr = comment.as_ptr();
+                        let end_ptr = remaining.as_ptr().add(remaining.len());
+                        let new_str = str::from_utf8_unchecked(std::slice::from_raw_parts(
+                            start_ptr,
+                            end_ptr.offset_from(start_ptr) as usize,
+                        ));
+                        Self::NotACommand(new_str)
+                    }
                 }
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);
