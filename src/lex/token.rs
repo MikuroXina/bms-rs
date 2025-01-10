@@ -285,7 +285,7 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("switch case value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::SetSwitch(case_value)
+                    Self::Case(case_value)
                 }
                 "#SKIP" => Self::Skip,
                 "#DEF" => Self::Def,
