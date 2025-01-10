@@ -206,6 +206,8 @@ fn nested_switch() {
 }
 
 /// https://hitkey.bms.ms/cmds.htm#TEST-CASES
+///
+/// TODO: This example cannot be resolved for now. It cannot be parse by just scanning by line order.
 #[test]
 fn test_switch_unimpl() {
     const _SRC: &str = r"
