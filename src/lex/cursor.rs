@@ -98,7 +98,7 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn generate_err_expected_token(&self, message: &'static str) -> LexError {
+    pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexError {
         LexError::ExpectedToken {
             line: self.line(),
             col: self.col(),

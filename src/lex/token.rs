@@ -173,7 +173,7 @@ impl<'a> Token<'a> {
         loop {
             let command = c
                 .next_token()
-                .ok_or_else(|| c.generate_err_expected_token("command"))?;
+                .ok_or_else(|| c.make_err_expected_token("command"))?;
 
             break Ok(match command.to_uppercase().as_str() {
                 "#PLAYER" => Self::Player(PlayerMode::from(c)?),
@@ -184,38 +184,38 @@ impl<'a> Token<'a> {
                 "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
                 "#DIFFICULTY" => Self::Difficulty(
                     c.next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("difficulty"))?
+                        .ok_or_else(|| c.make_err_expected_token("difficulty"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?,
+                        .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
                 "#STAEGFILE" => Self::StageFile(
                     c.next_token()
                         .map(Path::new)
-                        .ok_or_else(|| c.generate_err_expected_token("stage filename"))?,
+                        .ok_or_else(|| c.make_err_expected_token("stage filename"))?,
                 ),
                 "#BANNER" => Self::Banner(
                     c.next_token()
                         .map(Path::new)
-                        .ok_or_else(|| c.generate_err_expected_token("banner filename"))?,
+                        .ok_or_else(|| c.make_err_expected_token("banner filename"))?,
                 ),
                 "#BACKBMP" => Self::BackBmp(
                     c.next_token()
                         .map(Path::new)
-                        .ok_or_else(|| c.generate_err_expected_token("backbmp filename"))?,
+                        .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
                 ),
                 "#TOTAL" => Self::Total(
                     c.next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("gauge increase rate"))?,
+                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
                 ),
                 "#BPM" => Self::Bpm(
                     c.next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("bpm"))?,
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?,
                 ),
                 "#PLAYLEVEL" => Self::PlayLevel(
                     c.next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("play level"))?
+                        .ok_or_else(|| c.make_err_expected_token("play level"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?,
+                        .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
                 "#RANK" => Self::Rank(JudgeLevel::from(c)?),
                 "#LNTYPE" => {
@@ -228,32 +228,32 @@ impl<'a> Token<'a> {
                 "#RANDOM" => {
                     let rand_max = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("random max"))?
+                        .ok_or_else(|| c.make_err_expected_token("random max"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?;
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::Random(rand_max)
                 }
                 "#ENDRANDOM" => Self::EndRandom,
                 "#IF" => {
                     let rand_target = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("random target"))?
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?;
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::If(rand_target)
                 }
                 "#ENDIF" => Self::EndIf,
-                "#STAGEFILE" => {
-                    Self::StageFile(c.next_token().map(Path::new).ok_or_else(|| {
-                        c.generate_err_expected_token("splashscreen imege filename")
-                    })?)
-                }
+                "#STAGEFILE" => Self::StageFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("splashscreen imege filename"))?,
+                ),
                 "#VOLWAV" => {
                     let volume = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("volume"))?
+                        .ok_or_else(|| c.make_err_expected_token("volume"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?;
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::VolWav(Volume {
                         relative_percent: volume,
                     })
@@ -270,7 +270,7 @@ impl<'a> Token<'a> {
                     let id = command.trim_start_matches("#WAV");
                     let str = c.next_line_remaining();
                     if str.is_empty() {
-                        return Err(c.generate_err_expected_token("key audio filename"));
+                        return Err(c.make_err_expected_token("key audio filename"));
                     }
                     let filename = Path::new(str);
                     Self::Wav(ObjId::from(id, c)?, filename)
@@ -279,7 +279,7 @@ impl<'a> Token<'a> {
                     let id = command.trim_start_matches("#BMP");
                     let str = c.next_line_remaining();
                     if str.is_empty() {
-                        return Err(c.generate_err_expected_token("key audio filename"));
+                        return Err(c.make_err_expected_token("key audio filename"));
                     }
                     let filename = Path::new(str);
                     if id == "00" {
@@ -292,36 +292,36 @@ impl<'a> Token<'a> {
                     let id = command.trim_start_matches("#BPM");
                     let bpm = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("bpm"))?;
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
                     Self::BpmChange(ObjId::from(id, c)?, bpm)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
                     let stop = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("stop beats"))?
+                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("integer"))?;
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::Stop(ObjId::from(id, c)?, stop)
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
                     let scroll = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("scroll factor"))?;
+                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
                     Self::Scroll(ObjId::from(id, c)?, scroll)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
                     let scroll = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("spacing factor"))?;
+                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
                     Self::Speed(ObjId::from(id, c)?, scroll)
                 }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
                         .next_token()
-                        .ok_or_else(|| c.generate_err_expected_token("message definition"))?;
+                        .ok_or_else(|| c.make_err_expected_token("message definition"))?;
                     if !(message.starts_with('#')
                         && message.chars().nth(6) == Some(':')
                         && 8 <= message.len())
@@ -332,7 +332,7 @@ impl<'a> Token<'a> {
 
                     let track = message[1..4]
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("[000-999]"))?;
+                        .map_err(|_| c.make_err_expected_token("[000-999]"))?;
                     let channel = &message[4..6];
                     let message = &message[7..];
                     Self::ExtendedMessage {
@@ -348,7 +348,7 @@ impl<'a> Token<'a> {
                 {
                     let track = command[1..4]
                         .parse()
-                        .map_err(|_| c.generate_err_expected_token("[000-999]"))?;
+                        .map_err(|_| c.make_err_expected_token("[000-999]"))?;
                     let channel = &command[4..6];
 
                     let message = &command[7..];
