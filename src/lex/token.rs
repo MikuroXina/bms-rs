@@ -359,7 +359,10 @@ impl<'a> Token<'a> {
                 }
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);
-                    todo!();
+                    break Err(super::LexError::UnknownCommand {
+                        line: c.line(),
+                        col: c.col(),
+                    });
                 }
             });
         }
