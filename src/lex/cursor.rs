@@ -110,12 +110,12 @@ impl<'a> Cursor<'a> {
             self.index + remaining_end
         };
         let ret_remaining = &self.source[self.index..ret_line_end_index];
-        // Get line
+        // Get line start index
         let line_start_index = self.source[..self.index].rfind('\n').unwrap_or(0);
         // Record from remaining
         self.col += ret_remaining.chars().count();
         self.index += remaining_end;
-        // Return line
+        // Return entire line
         self.source[line_start_index..ret_line_end_index].trim()
     }
 
