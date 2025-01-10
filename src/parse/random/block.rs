@@ -13,10 +13,10 @@ impl ControlFlowBlock {
             ControlFlowBlock::Switch(switch_block) => switch_block.pass(),
         }
     }
-    pub fn is_if_value_empty(&self) -> bool {
+    pub fn is_in_if_block(&self) -> bool {
         match self {
-            ControlFlowBlock::Random(random_block) => random_block.is_if_value_empty(),
-            ControlFlowBlock::Switch(switch_block) => switch_block.is_case_value_empty(),
+            ControlFlowBlock::Random(random_block) => random_block.is_in_if_block(),
+            ControlFlowBlock::Switch(switch_block) => switch_block.is_in_case_block(),
         }
     }
 }
@@ -99,6 +99,13 @@ impl RandomBlock {
         self.is_in_else = !self.is_in_else;
         self.is_in_else
     }
+    /// Return if there is in else.
+    pub fn is_in_else(&self) -> bool {
+        self.is_in_else
+    }
+    pub fn is_in_if_block(&self) -> bool {
+        !self.is_if_value_empty() || self.is_in_else()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -150,5 +157,12 @@ impl SwitchBlock {
         self.clear_case_values();
         self.is_in_default = !self.is_in_default;
         self.is_in_default
+    }
+    /// Return if there is in else.
+    pub fn is_in_default(&self) -> bool {
+        self.is_in_default
+    }
+    pub fn is_in_case_block(&self) -> bool {
+        !self.is_case_value_empty() || self.is_in_default()
     }
 }

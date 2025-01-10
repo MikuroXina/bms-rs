@@ -26,7 +26,7 @@ pub enum ControlFlowRule {
     #[error("#ELSEIF command must come after #IF block")]
     ElseIfAfterIf,
     #[error("#ENDIF command must come after #IF/#ELSEIF/#ELSE block")]
-    EndifAfterIfs,
+    EndIfAfterIfs,
     #[error("#ENDRANDOM command must come after #RANDOM block")]
     EndRandomAfterRandomBlock,
     #[error("#ENDRANDOM command must come after #ENDIF")]
@@ -61,7 +61,7 @@ impl<R: Rng> RandomParser<R> {
                     self.stack.push(RandomBlock::new(Some(rand_value)).into());
                     return Break(Ok(()));
                 };
-                if parent_block.is_if_value_empty() {
+                if !parent_block.is_in_if_block() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 let rand_value = self.rng.gen(1..=rand_max);
@@ -76,7 +76,7 @@ impl<R: Rng> RandomParser<R> {
                     self.stack.push(RandomBlock::new(Some(rand_value)).into());
                     return Break(Ok(()));
                 };
-                if parent_block.is_if_value_empty() {
+                if !parent_block.is_in_if_block() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 self.stack.push(
@@ -120,20 +120,20 @@ impl<R: Rng> RandomParser<R> {
                 let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::IfsInRandomBlock.into();
                 };
-                if random_block.is_if_value_empty() {
-                    return ControlFlowRule::EndifAfterIfs.into();
+                if !random_block.is_in_if_block() {
+                    return ControlFlowRule::EndIfAfterIfs.into();
                 }
                 random_block.reset_if();
                 Break(Ok(()))
             }
             Token::EndRandom => {
-                let Some(random_block) = self.stack.last_mut() else {
+                let Some(ControlFlowBlock::Random(_random_block)) = self.stack.last() else {
                     return ControlFlowRule::EndRandomAfterRandomBlock.into();
                 };
-                let if_closed = random_block.is_if_value_empty();
-                self.stack.pop();
-                if !if_closed {
-                    return ControlFlowRule::EndRandomAfterEndif.into();
+                if let Some(random_block) = self.stack.pop() {
+                    if random_block.is_in_if_block() {
+                        return ControlFlowRule::EndRandomAfterEndif.into();
+                    }
                 }
                 Break(Ok(()))
             }
@@ -145,7 +145,7 @@ impl<R: Rng> RandomParser<R> {
                     self.stack.push(SwitchBlock::new(Some(switch_value)).into());
                     return Break(Ok(()));
                 };
-                if parent_block.is_if_value_empty() {
+                if !parent_block.is_in_if_block() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 let switch_value = self.rng.gen(1..=switch_max);
@@ -160,7 +160,7 @@ impl<R: Rng> RandomParser<R> {
                     self.stack.push(SwitchBlock::new(Some(switch_value)).into());
                     return Break(Ok(()));
                 };
-                if parent_block.is_if_value_empty() {
+                if !parent_block.is_in_if_block() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 self.stack.push(
@@ -194,7 +194,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::EndSwitch => {
-                let Some(_random_block) = self.stack.last_mut() else {
+                let Some(ControlFlowBlock::Switch(_switch_block)) = self.stack.last() else {
                     return ControlFlowRule::EndSwitchAfterSwitchBlock.into();
                 };
                 self.stack.pop();
@@ -249,20 +249,143 @@ fn test_switch() {
         Title("Outside Title"),
         Switch(2),
             Title("Illegal Title"),
+        Case(1),
+            Title("Title 1"),
+        Case(2),
+            Title("Title 2"),
+            Switch(2),
             Case(1),
-                Title("Title 1"),
-            Case(2),
-                Title("Title 2"),
-                Switch(2),
-                Case(1),
                 Title("Title 2 1"),
-                Case(2),
+            Case(2),
                 Title("Title 2 2"),
-                EndSwitch,
-            Skip,
-            Def,
+            EndSwitch,
+        Skip,
+        Def,
             Title("Default Title"),
         EndSwitch,
+    ];
+    let rng = RngMock([2]);
+    let mut parser = RandomParser::new(rng);
+    let err_tokens: Vec<_> = TOKENS
+        .iter()
+        .enumerate()
+        .filter_map(|(i, token)| {
+            if let ControlFlow::Break(Err(error)) = parser.parse(token) {
+                Some((
+                    i,
+                    token.to_owned(),
+                    error,
+                    parser.stack.len(),
+                    parser.stack.last().cloned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+    dbg!(&err_tokens);
+    assert!(err_tokens.is_empty());
+    let rng = RngMock([2]);
+    let mut parser = RandomParser::new(rng);
+    let accepted_tokens: Vec<_> = TOKENS
+        .iter()
+        .filter(|token| parser.parse(token).is_continue())
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        accepted_tokens,
+        vec![Title("Outside Title"), Title("Title 2"), Title("Title 2 2")]
+    )
+}
+
+#[test]
+fn test_random_in_switch() {
+    use super::rng::RngMock;
+    use Token::*;
+    #[rustfmt::skip]
+    const TOKENS: [Token; 26] = [
+        Title("Outside Title"),
+        Switch(2),
+            Title("Illegal Title"),
+        Case(1),
+            Title("Title 1"),
+            Random(2),
+            If(1),
+                Title("Title 1 1"),
+            ElseIf(2),
+                Title("Title 1 2"),
+            EndIf,
+            EndRandom,
+        Skip,
+        Case(2),
+            Title("Title 2"),
+            Random(2),
+            If(1),
+                Title("Title 2 1"),
+            ElseIf(2),
+                Title("Title 2 2"),
+            EndIf,
+            EndRandom,
+        Skip,
+        Def,
+            Title("Default Title"),
+        EndSwitch,
+    ];
+    let rng = RngMock([2]);
+    let mut parser = RandomParser::new(rng);
+    let err_tokens: Vec<_> = TOKENS
+        .iter()
+        .enumerate()
+        .filter_map(|(i, token)| {
+            if let ControlFlow::Break(Err(error)) = parser.parse(token) {
+                Some((
+                    i,
+                    token.to_owned(),
+                    error,
+                    parser.stack.len(),
+                    parser.stack.last().cloned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+    dbg!(&err_tokens);
+    assert!(err_tokens.is_empty());
+    let rng = RngMock([1, 2]);
+    let mut parser = RandomParser::new(rng);
+    let accepted_tokens: Vec<_> = TOKENS
+        .iter()
+        .filter(|token| parser.parse(token).is_continue())
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        accepted_tokens,
+        vec![Title("Outside Title"), Title("Title 1"), Title("Title 1 2")]
+    )
+}
+
+#[test]
+fn test_switch_in_random() {
+    use super::rng::RngMock;
+    use Token::*;
+    #[rustfmt::skip]
+    const TOKENS: [Token; 15] = [
+        Title("Outside Title"),
+        Random(2),
+        Title("Illegal Title"),
+        If(1),
+            Title("Title 1"),
+        Else,
+            Title("Title 2"),
+            Switch(2),
+            Case(1),
+                Title("Title 2 1"),
+            Case(2),
+                Title("Title 2 2"),
+            EndSwitch,
+        EndIf,
+        EndRandom
     ];
     let rng = RngMock([2]);
     let mut parser = RandomParser::new(rng);
