@@ -160,7 +160,7 @@ impl<R: Rng> RandomParser<R> {
                 }
                 let switch_value = self.rng.gen(1..=switch_max);
                 self.random_stack.push(
-                    RandomBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
+                    SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
@@ -175,7 +175,7 @@ impl<R: Rng> RandomParser<R> {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 self.random_stack.push(
-                    RandomBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
+                    SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
@@ -251,5 +251,63 @@ fn test_random() {
     assert_eq!(
         accepted_tokens,
         vec![Title("Outside Title"), Title("Title 2")]
+    )
+}
+
+#[test]
+fn test_switch() {
+    use super::rng::RngMock;
+    use Token::*;
+    #[rustfmt::skip]
+    const TOKENS: [Token; 17] = [
+        Title("Outside Title"),
+        Switch(2),
+            Title("Illegal Title"),
+            Case(1),
+                Title("Title 1"),
+            Case(2),
+                Title("Title 2"),
+                Switch(2),
+                Case(1),
+                Title("Title 2 1"),
+                Case(2),
+                Title("Title 2 2"),
+                EndSwitch,
+            Skip,
+            Def,
+            Title("Default Title"),
+        EndSwitch,
+    ];
+    let rng = RngMock([2]);
+    let mut parser = RandomParser::new(rng);
+    let err_tokens: Vec<_> = TOKENS
+        .iter()
+        .enumerate()
+        .filter_map(|(i, token)| {
+            if let ControlFlow::Break(Err(error)) = parser.parse(token) {
+                Some((
+                    i,
+                    token.to_owned(),
+                    error,
+                    parser.random_stack.len(),
+                    parser.random_stack.last().cloned(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+    dbg!(&err_tokens);
+    assert!(err_tokens.is_empty());
+    let rng = RngMock([2]);
+    let mut parser = RandomParser::new(rng);
+    let accepted_tokens: Vec<_> = TOKENS
+        .iter()
+        .filter(|token| parser.parse(token).is_continue())
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        accepted_tokens,
+        vec![Title("Outside Title"), Title("Title 2"), Title("Title 2 2")]
     )
 }
