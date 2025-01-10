@@ -219,8 +219,6 @@ fn nested_random_in_switch() {
 
             #IF 1
                 #00115:00550000
-            #SKIP
-
             #ELSEIF 2
                 #00116:00006600
             #ENDIF
