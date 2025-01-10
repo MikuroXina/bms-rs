@@ -10,7 +10,12 @@ use std::ops::ControlFlow;
 
 use thiserror::Error;
 
-use self::{header::Header, notes::Notes, random::RandomParser, rng::Rng};
+use self::{
+    header::Header,
+    notes::Notes,
+    random::{ControlFlowRule, RandomParser},
+    rng::Rng,
+};
 use crate::lex::{command::ObjId, token::TokenStream};
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -19,6 +24,9 @@ pub enum ParseError {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
+    /// Violation of control flow rule.
+    #[error("violate control flow rule: {0}")]
+    ViolateControlFlowRule(ControlFlowRule),
     /// The invalid real number for the BPM.
     #[error("not a number bpm: {0}")]
     BpmParseError(String),

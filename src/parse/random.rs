@@ -1,5 +1,7 @@
 use std::ops::ControlFlow::{self, *};
 
+use thiserror::Error;
+
 use super::{rng::Rng, ParseError, Result};
 use crate::lex::token::Token;
 
@@ -7,6 +9,21 @@ use crate::lex::token::Token;
 enum ClauseState {
     Random(u32),
     If(bool),
+}
+
+/// An error occurred when parsing the [`TokenStream`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+pub enum ControlFlowRule {
+    #[error("#RANDOM/#SETRANDOM command must come in root of #IF block")]
+    RandomInIfBlock,
+    #[error("#IF command must be in #RANDOM - #ENDRANDOM block")]
+    IfInRandomBlock,
+    #[error("#ELSEIF command must come after #IF block")]
+    ElseIfAfterIf,
+    #[error("#ENDIF command must come after #IF or #ELSEIF block")]
+    EndifAfterIf,
+    #[error("#ENDRANDOM command must come after #RANDOM block")]
+    EndRandomAfterRandomBlock,
 }
 
 pub struct RandomParser<R> {
@@ -27,8 +44,8 @@ impl<R: Rng> RandomParser<R> {
             // Part: Random
             Token::Random(rand_max) => {
                 if let Some(&ClauseState::Random(_)) = self.random_stack.last() {
-                    Break(Err(ParseError::SyntaxError(
-                        "#RANDOM command must come in root or #IF block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::RandomInIfBlock,
                     )))
                 } else if let Some(ClauseState::If(false)) = self.random_stack.last() {
                     self.random_stack.push(ClauseState::Random(0));
@@ -41,8 +58,8 @@ impl<R: Rng> RandomParser<R> {
             }
             Token::SetRandom(rand_value) => {
                 if let Some(&ClauseState::Random(_)) = self.random_stack.last() {
-                    Break(Err(ParseError::SyntaxError(
-                        "#SETRANDOM command must come in root or #IF block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::RandomInIfBlock,
                     )))
                 } else if let Some(ClauseState::If(false)) = self.random_stack.last() {
                     self.random_stack.push(ClauseState::Random(0));
@@ -57,8 +74,8 @@ impl<R: Rng> RandomParser<R> {
                     self.random_stack.push(ClauseState::If(rand_target == rand));
                     Break(Ok(()))
                 } else {
-                    Break(Err(ParseError::SyntaxError(
-                        "#IF command must be in #RANDOM - #ENDRANDOM block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::IfInRandomBlock,
                     )))
                 }
             }
@@ -72,8 +89,8 @@ impl<R: Rng> RandomParser<R> {
                     self.random_stack.push(ClauseState::If(rand_target == rand));
                     Break(Ok(()))
                 } else {
-                    Break(Err(ParseError::SyntaxError(
-                        "#ELSEIF command must come after #IF block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::ElseIfAfterIf,
                     )))
                 }
             }
@@ -85,8 +102,8 @@ impl<R: Rng> RandomParser<R> {
                     self.random_stack.pop();
                     Break(Ok(()))
                 } else {
-                    Break(Err(ParseError::SyntaxError(
-                        "#ENDIF command must come after #IF or #ELSEIF block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::EndifAfterIf,
                     )))
                 }
             }
@@ -95,8 +112,8 @@ impl<R: Rng> RandomParser<R> {
                     self.random_stack.pop();
                     Break(Ok(()))
                 } else {
-                    Break(Err(ParseError::SyntaxError(
-                        "#ENDRANDOM command must come after #RANDOM block".into(),
+                    Break(Err(ParseError::ViolateControlFlowRule(
+                        ControlFlowRule::EndRandomAfterRandomBlock,
                     )))
                 }
             }
