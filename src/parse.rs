@@ -41,8 +41,6 @@ pub struct Bms {
     pub header: Header,
     /// The objects in the score.
     pub notes: Notes,
-    /// Lines that starts with #COMMENT.
-    pub comments: Vec<String>,
     /// Lines that not starts with #.
     pub non_command_lines: Vec<String>,
 }
@@ -53,7 +51,6 @@ impl Bms {
         let mut random_parser = RandomParser::new(rng);
         let mut notes = Notes::default();
         let mut header = Header::default();
-        let mut comments: Vec<String> = Vec::new();
         let mut non_command_lines: Vec<String> = Vec::new();
 
         for token in token_stream.iter() {
@@ -64,17 +61,14 @@ impl Bms {
             }
             notes.parse(token, &header)?;
             header.parse(token)?;
-            match token {
-                Token::Comment(comment) => comments.push(comment.to_string()),
-                Token::NotACommand(comment) => non_command_lines.push(comment.to_string()),
-                _ => {}
+            if let Token::NotACommand(comment) = token {
+                non_command_lines.push(comment.to_string())
             }
         }
 
         Ok(Self {
             header,
             notes,
-            comments,
             non_command_lines,
         })
     }
