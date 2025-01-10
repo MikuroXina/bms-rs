@@ -24,6 +24,34 @@ impl<R: Rng> RandomParser<R> {
 
     pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
         match *token {
+            // Part: Random
+            Token::Random(rand_max) => {
+                if let Some(&ClauseState::Random(_)) = self.random_stack.last() {
+                    Break(Err(ParseError::SyntaxError(
+                        "#RANDOM command must come in root or #IF block".into(),
+                    )))
+                } else if let Some(ClauseState::If(false)) = self.random_stack.last() {
+                    self.random_stack.push(ClauseState::Random(0));
+                    Break(Ok(()))
+                } else {
+                    self.random_stack
+                        .push(ClauseState::Random(self.rng.gen(1..=rand_max)));
+                    Break(Ok(()))
+                }
+            }
+            Token::SetRandom(rand_value) => {
+                if let Some(&ClauseState::Random(_)) = self.random_stack.last() {
+                    Break(Err(ParseError::SyntaxError(
+                        "#SETRANDOM command must come in root or #IF block".into(),
+                    )))
+                } else if let Some(ClauseState::If(false)) = self.random_stack.last() {
+                    self.random_stack.push(ClauseState::Random(0));
+                    Break(Ok(()))
+                } else {
+                    self.random_stack.push(ClauseState::Random(rand_value));
+                    Break(Ok(()))
+                }
+            }
             Token::If(rand_target) => {
                 if let Some(&ClauseState::Random(rand)) = self.random_stack.last() {
                     self.random_stack.push(ClauseState::If(rand_target == rand));
@@ -49,6 +77,9 @@ impl<R: Rng> RandomParser<R> {
                     )))
                 }
             }
+            Token::Else => {
+                todo!()
+            }
             Token::EndIf => {
                 if let Some(ClauseState::If(_)) = self.random_stack.last() {
                     self.random_stack.pop();
@@ -57,20 +88,6 @@ impl<R: Rng> RandomParser<R> {
                     Break(Err(ParseError::SyntaxError(
                         "#ENDIF command must come after #IF or #ELSEIF block".into(),
                     )))
-                }
-            }
-            Token::Random(rand_max) => {
-                if let Some(&ClauseState::Random(_)) = self.random_stack.last() {
-                    Break(Err(ParseError::SyntaxError(
-                        "#RANDOM command must come in root or #IF block".into(),
-                    )))
-                } else if let Some(ClauseState::If(false)) = self.random_stack.last() {
-                    self.random_stack.push(ClauseState::Random(0));
-                    Break(Ok(()))
-                } else {
-                    self.random_stack
-                        .push(ClauseState::Random(self.rng.gen(1..=rand_max)));
-                    Break(Ok(()))
                 }
             }
             Token::EndRandom => {
@@ -83,6 +100,29 @@ impl<R: Rng> RandomParser<R> {
                     )))
                 }
             }
+            // Part: Switch
+            Token::Switch(switch_max) => {
+                dbg!(switch_max);
+                todo!()
+            }
+            Token::SetSwitch(switch_value) => {
+                dbg!(switch_value);
+                todo!()
+            }
+            Token::Case(case_value) => {
+                dbg!(case_value);
+                todo!()
+            }
+            Token::Skip => {
+                todo!()
+            }
+            Token::Def => {
+                todo!()
+            }
+            Token::EndSwitch => {
+                todo!()
+            }
+            // Part: Non ControlFlow command
             _ => {
                 if let Some(ClauseState::Random(_) | ClauseState::If(false)) =
                     self.random_stack.last()
