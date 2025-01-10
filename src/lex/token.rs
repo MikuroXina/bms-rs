@@ -116,6 +116,8 @@ pub enum Token<'a> {
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
+    /// Non-empty lines that not starts in # in bms file.
+    NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
@@ -314,6 +316,10 @@ impl<'a> Token<'a> {
                     }
                     Self::Base62
                 }
+                "#COMMENT" => {
+                    let comment = c.next_line_remaining();
+                    Self::Comment(comment)
+                }
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -407,10 +413,7 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
-                comment if !comment.starts_with('#') => {
-                    c.next_line_remaining();
-                    continue;
-                }
+                comment if !comment.starts_with('#') => Self::NotACommand(c.next_line_entire()),
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);
                     break Err(super::LexError::UnknownCommand {

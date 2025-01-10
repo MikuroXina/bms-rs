@@ -16,7 +16,10 @@ use self::{
     random::{ControlFlowRule, RandomParser},
     rng::Rng,
 };
-use crate::lex::{command::ObjId, token::TokenStream};
+use crate::lex::{
+    command::ObjId,
+    token::{Token, TokenStream},
+};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -46,6 +49,8 @@ pub struct Bms {
     pub header: Header,
     /// The objects in the score.
     pub notes: Notes,
+    /// Lines that not starts with #.
+    pub non_command_lines: Vec<String>,
 }
 
 impl Bms {
@@ -54,6 +59,7 @@ impl Bms {
         let mut random_parser = RandomParser::new(rng);
         let mut notes = Notes::default();
         let mut header = Header::default();
+        let mut non_command_lines: Vec<String> = Vec::new();
 
         for token in token_stream.iter() {
             match random_parser.parse(token) {
@@ -63,8 +69,15 @@ impl Bms {
             }
             notes.parse(token, &header)?;
             header.parse(token)?;
+            if let Token::NotACommand(comment) = token {
+                non_command_lines.push(comment.to_string())
+            }
         }
 
-        Ok(Self { header, notes })
+        Ok(Self {
+            header,
+            notes,
+            non_command_lines,
+        })
     }
 }
