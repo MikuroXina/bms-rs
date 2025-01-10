@@ -127,9 +127,9 @@ impl SwitchBlock {
     }
     /// Return true if it is not already exist.
     pub fn add_case_value(&mut self, case_value: u32) -> bool {
-        if let Some(random_value) = self.switch_value {
-            self.pass |= case_value == random_value;
-            self.has_passed |= case_value == random_value;
+        if let Some(switch_value) = self.switch_value {
+            self.pass |= case_value == switch_value;
+            self.has_passed |= case_value == switch_value;
         }
         self.case_values.insert(case_value)
     }

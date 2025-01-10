@@ -43,55 +43,49 @@ impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
 
 pub struct RandomParser<R> {
     rng: R,
-    random_stack: Vec<ControlFlowBlock>,
+    stack: Vec<ControlFlowBlock>,
 }
 
 impl<R: Rng> RandomParser<R> {
     pub fn new(rng: R) -> Self {
-        Self {
-            rng,
-            random_stack: vec![],
-        }
+        Self { rng, stack: vec![] }
     }
 
     pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
         match *token {
             // Part: Random
             Token::Random(rand_max) => {
-                let Some(parent_block) = self.random_stack.last() else {
+                let Some(parent_block) = self.stack.last() else {
                     // The First Random Level?
                     let rand_value = self.rng.gen(1..=rand_max);
-                    self.random_stack
-                        .push(RandomBlock::new(Some(rand_value)).into());
+                    self.stack.push(RandomBlock::new(Some(rand_value)).into());
                     return Break(Ok(()));
                 };
                 if parent_block.is_if_value_empty() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 let rand_value = self.rng.gen(1..=rand_max);
-                self.random_stack.push(
+                self.stack.push(
                     RandomBlock::new(Some(rand_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
             Token::SetRandom(rand_value) => {
                 // The First Random Level
-                let Some(parent_block) = self.random_stack.last() else {
-                    self.random_stack
-                        .push(RandomBlock::new(Some(rand_value)).into());
+                let Some(parent_block) = self.stack.last() else {
+                    self.stack.push(RandomBlock::new(Some(rand_value)).into());
                     return Break(Ok(()));
                 };
                 if parent_block.is_if_value_empty() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
-                self.random_stack.push(
+                self.stack.push(
                     RandomBlock::new(Some(rand_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
             Token::If(if_value) => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::IfsInRandomBlock.into();
                 };
                 if !random_block.check_clear_and_add_if_value(if_value) {
@@ -100,8 +94,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::ElseIf(if_value) => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::IfsInRandomBlock.into();
                 };
                 if random_block.is_if_value_empty() {
@@ -115,8 +108,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::Else => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::IfsInRandomBlock.into();
                 };
                 if !random_block.add_else() {
@@ -125,8 +117,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::EndIf => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::IfsInRandomBlock.into();
                 };
                 if random_block.is_if_value_empty() {
@@ -136,11 +127,11 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::EndRandom => {
-                let Some(random_block) = self.random_stack.last_mut() else {
+                let Some(random_block) = self.stack.last_mut() else {
                     return ControlFlowRule::EndRandomAfterRandomBlock.into();
                 };
                 let if_closed = random_block.is_if_value_empty();
-                self.random_stack.pop();
+                self.stack.pop();
                 if !if_closed {
                     return ControlFlowRule::EndRandomAfterEndif.into();
                 }
@@ -148,40 +139,37 @@ impl<R: Rng> RandomParser<R> {
             }
             // Part: Switch
             Token::Switch(switch_max) => {
-                let Some(parent_block) = self.random_stack.last() else {
+                let Some(parent_block) = self.stack.last() else {
                     // The First Random Level?
                     let switch_value = self.rng.gen(1..=switch_max);
-                    self.random_stack
-                        .push(SwitchBlock::new(Some(switch_value)).into());
+                    self.stack.push(SwitchBlock::new(Some(switch_value)).into());
                     return Break(Ok(()));
                 };
                 if parent_block.is_if_value_empty() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
                 let switch_value = self.rng.gen(1..=switch_max);
-                self.random_stack.push(
+                self.stack.push(
                     SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
             Token::SetSwitch(switch_value) => {
-                let Some(parent_block) = self.random_stack.last() else {
+                let Some(parent_block) = self.stack.last() else {
                     // The First Random Level?
-                    self.random_stack
-                        .push(SwitchBlock::new(Some(switch_value)).into());
+                    self.stack.push(SwitchBlock::new(Some(switch_value)).into());
                     return Break(Ok(()));
                 };
                 if parent_block.is_if_value_empty() {
                     return ControlFlowRule::RandomsInIfsBlock.into();
                 }
-                self.random_stack.push(
+                self.stack.push(
                     SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
                 );
                 Break(Ok(()))
             }
             Token::Case(case_value) => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::CasesInSwitchBlock.into();
                 };
                 if !switch_block.add_case_value(case_value) {
@@ -190,16 +178,14 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::Skip => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::CasesInSwitchBlock.into();
                 };
                 switch_block.clear_case_values();
                 Break(Ok(()))
             }
             Token::Def => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.random_stack.last_mut()
-                else {
+                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
                     return ControlFlowRule::CasesInSwitchBlock.into();
                 };
                 if !switch_block.add_default() {
@@ -208,15 +194,15 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::EndSwitch => {
-                let Some(_random_block) = self.random_stack.last_mut() else {
+                let Some(_random_block) = self.stack.last_mut() else {
                     return ControlFlowRule::EndSwitchAfterSwitchBlock.into();
                 };
-                self.random_stack.pop();
+                self.stack.pop();
                 Break(Ok(()))
             }
             // Part: Non ControlFlow command
             _ => {
-                if self.random_stack.last().is_none_or(|block| block.pass()) {
+                if self.stack.last().is_none_or(|block| block.pass()) {
                     Continue(())
                 } else {
                     Break(Ok(()))
@@ -289,8 +275,8 @@ fn test_switch() {
                     i,
                     token.to_owned(),
                     error,
-                    parser.random_stack.len(),
-                    parser.random_stack.last().cloned(),
+                    parser.stack.len(),
+                    parser.stack.last().cloned(),
                 ))
             } else {
                 None
