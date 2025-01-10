@@ -118,7 +118,7 @@ pub enum Token<'a> {
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
     /// Non-empty lines that not starts in # in bms file.
-    NotACommand(&'a str),
+    NotACommand(String),
     /// `#OCT/FP`. Declares the score as the octave mode.
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
@@ -361,19 +361,16 @@ impl<'a> Token<'a> {
                     }
                 }
                 comment if !comment.starts_with('#') => {
-                    unsafe {
-                        // SAFETY: All ptr is from the str in the cursor.
-                        // TEST: TODO!
-                        // Why do this? Because could not change the cursor when keeping the str.
-                        let remaining = c.next_line_remaining();
-                        let start_ptr = comment.as_ptr();
-                        let end_ptr = remaining.as_ptr().add(remaining.len());
-                        let new_str = str::from_utf8_unchecked(std::slice::from_raw_parts(
-                            start_ptr,
-                            end_ptr.offset_from(start_ptr) as usize,
-                        ));
-                        Self::NotACommand(new_str)
-                    }
+                    let remaining = c.next_line_remaining();
+                    Self::NotACommand(if remaining.is_empty() {
+                        comment.to_string()
+                    } else {
+                        let mut string = String::with_capacity(comment.len() + 1 + remaining.len());
+                        string.push_str(comment);
+                        string.push(' ');
+                        string.push_str(remaining);
+                        string
+                    })
                 }
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);

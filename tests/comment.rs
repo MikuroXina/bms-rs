@@ -14,15 +14,15 @@ fn test_comment() {
     assert_eq!(ts_iter.next().unwrap(), Token::Comment("This is a comment"));
     assert_eq!(
         ts_iter.next().unwrap(),
-        Token::NotACommand("This is another comment")
+        Token::NotACommand("This is another comment".to_string())
     );
     assert_eq!(
         ts_iter.next().unwrap(),
-        Token::NotACommand("This is the third comment💖")
+        Token::NotACommand("This is the third comment💖".to_string())
     );
     assert_eq!(
         ts_iter.next().unwrap(),
-        Token::NotACommand("This is the fourth comment")
+        Token::NotACommand("This is the fourth comment".to_string())
     );
     assert_eq!(ts_iter.next(), None);
 }

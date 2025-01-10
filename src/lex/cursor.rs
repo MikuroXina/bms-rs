@@ -99,14 +99,6 @@ impl<'a> Cursor<'a> {
             message,
         }
     }
-
-    /// This method would not move the cursor. Just returns the entire current line.
-    #[allow(unused)]
-    pub(crate) fn current_line_readonly(&self) -> &str {
-        let line_start_index = self.index - (self.col() - 1);
-        let mut c = Cursor::new(&self.source[line_start_index..]);
-        c.next_line_remaining()
-    }
 }
 
 #[test]
