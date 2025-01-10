@@ -1,9 +1,13 @@
 use super::LexError;
 
 pub(crate) struct Cursor<'a> {
+    /// The line position, starts with 1.
     line: usize,
+    /// The column position of char count, starts with 1. It is NOT byte count.
     col: usize,
+    /// The index position.
     index: usize,
+    /// The source str.
     source: &'a str,
 }
 
@@ -18,10 +22,10 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn is_end(&self) -> bool {
-        self.peek_token().is_none()
+        self.peek_next_token().is_none()
     }
 
-    fn get_token(&self) -> std::ops::Range<usize> {
+    fn peek_next_token_range(&self) -> std::ops::Range<usize> {
         fn is_separator(c: char) -> bool {
             c.is_whitespace() || c == '\n'
         }
@@ -35,16 +39,17 @@ impl<'a> Cursor<'a> {
         next_token_start..next_token_end
     }
 
-    pub(crate) fn peek_token(&self) -> Option<&'a str> {
-        let ret = self.get_token();
+    pub(crate) fn peek_next_token(&self) -> Option<&'a str> {
+        let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
         }
         Some(&self.source[ret])
     }
 
+    /// Move cursor, through and return the next token.
     pub(crate) fn next_token(&mut self) -> Option<&'a str> {
-        let ret = self.get_token();
+        let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
         }
@@ -66,10 +71,11 @@ impl<'a> Cursor<'a> {
         Some(&self.source[ret])
     }
 
+    /// Move cursor, through and return the remaining part of this line.
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source.len());
+            .unwrap_or(self.source[self.index..].len());
         let ret = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
@@ -92,7 +98,7 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn err_expected_token(&self, message: &'static str) -> LexError {
+    pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexError {
         LexError::ExpectedToken {
             line: self.line(),
             col: self.col(),
