@@ -20,7 +20,7 @@ impl PlayerMode {
             Some("1") => Self::Single,
             Some("2") => Self::Two,
             Some("3") => Self::Double,
-            _ => return Err(c.err_expected_token("one of 1, 2 or 3")),
+            _ => return Err(c.make_err_expected_token("one of 1, 2 or 3")),
         })
     }
 }
@@ -46,7 +46,7 @@ impl JudgeLevel {
             Some("1") => Self::Hard,
             Some("2") => Self::Normal,
             Some("3") => Self::Easy,
-            _ => return Err(c.err_expected_token("one of 0, 1, 2 or 3")),
+            _ => return Err(c.make_err_expected_token("one of 0, 1, 2 or 3")),
         })
     }
 }
@@ -153,7 +153,7 @@ impl ObjId {
 
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
         id.try_into()
-            .map_err(|_| c.err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
+            .map_err(|_| c.make_err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
     }
 
     /// Converts the object id into an `u16` value.
@@ -294,7 +294,7 @@ impl Key {
             "7" => FreeZone,
             "8" => Key6,
             "9" => Key7,
-            _ => return Err(c.err_expected_token("[1-9]")),
+            _ => return Err(c.make_err_expected_token("[1-9]")),
         })
     }
 }
