@@ -75,7 +75,7 @@ impl<'a> Cursor<'a> {
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source.len());
+            .unwrap_or(self.source[self.index..].len());
         let ret = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
