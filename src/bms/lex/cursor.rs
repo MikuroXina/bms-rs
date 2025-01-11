@@ -73,21 +73,50 @@ impl<'a> Cursor<'a> {
 
     /// Move cursor, through and return the remaining part of this line.
     pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        // Get remaining
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or(self.source[self.index..].len());
-        let ret = if self
+        let ret_line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
             == Some("\r\n")
         {
-            &self.source[self.index..self.index + remaining_end - 1]
+            self.index + remaining_end - 1
         } else {
-            &self.source[self.index..self.index + remaining_end]
+            self.index + remaining_end
         };
-        self.col += ret.chars().count();
+        let ret_remaining = &self.source[self.index..ret_line_end_index];
+        // Record from remaining
+        self.col += ret_remaining.chars().count();
         self.index += remaining_end;
-        ret.trim()
+        // Return remaining
+        ret_remaining.trim()
+    }
+
+    /// Move cursor, through and return the entire line.
+    pub(crate) fn next_line_entire(&mut self) -> &'a str {
+        // Get remaining
+        let remaining_end = self.source[self.index..]
+            .find('\n')
+            .unwrap_or(self.source[self.index..].len());
+        let ret_line_end_index = if self
+            .source
+            .get(self.index + remaining_end - 1..=self.index + remaining_end)
+            == Some("\r\n")
+        {
+            self.index + remaining_end - 1
+        } else {
+            self.index + remaining_end
+        };
+        let ret_remaining = &self.source[self.index..ret_line_end_index];
+        // Get line start index
+        let line_start_index = self.source[..self.index].rfind('\n').unwrap_or(0);
+        // Record from remaining
+        self.col += ret_remaining.chars().count();
+        self.index += remaining_end;
+        // Return entire line
+        self.source[line_start_index..ret_line_end_index].trim()
     }
 
     pub(crate) fn line(&self) -> usize {
