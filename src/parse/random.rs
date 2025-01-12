@@ -303,6 +303,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(result)
             }
             Token::Skip => {
+                let this_floor_match = self.is_this_floor_match();
                 let Some(Switch { skipping, .. }) = self
                     .stack
                     .iter_mut()
@@ -310,7 +311,7 @@ impl<R: Rng> RandomParser<R> {
                 else {
                     return CasesInSwitchBlock.into();
                 };
-                *skipping = true;
+                *skipping |= this_floor_match;
                 Break(Ok(()))
             }
             Token::Def => {
