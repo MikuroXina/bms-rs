@@ -1,10 +1,7 @@
-mod block;
-
 use std::ops::ControlFlow::{self, *};
 
 use thiserror::Error;
 
-use self::block::{ControlFlowBlock, RandomBlock, SwitchBlock};
 use super::{rng::Rng, ParseError, Result};
 use crate::lex::token::Token;
 
@@ -41,6 +38,37 @@ impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum ControlFlowBlock {
+    Random {
+        /// It can be used for warning unreachable branch
+        rand_max: u32,
+        /// If the parent part cannot pass, this will be None,
+        chosen_value: Option<u32>,
+        /// If there is any branch has been matched. Use for #ELSE.
+        matched: bool,
+    },
+    IfBranch {
+        /// It can be used for warning unreachable `#ELESIF`
+        /// If the parent part cannot pass, this will be None,
+        matching_value: u32,
+    },
+    ElseBranch,
+    Switch {
+        /// It can be used for warning unreachable branch
+        rand_max: u32,
+        /// If the parent part cannot pass, this will be None,
+        chosen_value: Option<u32>,
+        /// Whether skipping tokens until `#ENDSW`
+        skipping: bool,
+    },
+    CaseBranch {
+        /// It can be used for warning unreachable `#CASE`
+        matching_value: u32,
+    },
+    DefaultBranch,
+}
+
 pub struct RandomParser<R> {
     rng: R,
     stack: Vec<ControlFlowBlock>,
@@ -51,158 +79,119 @@ impl<R: Rng> RandomParser<R> {
         Self { rng, stack: vec![] }
     }
 
+    fn is_this_floor_match(&self) -> bool {
+        use ControlFlowBlock::*;
+        let Some((root_index, root)) = self
+            .stack
+            .iter()
+            .enumerate()
+            .rfind(|(_i, block)| matches!(block, Random { .. } | Switch { .. }))
+        else {
+            return true;
+        };
+        if matches!(
+            root,
+            Random {
+                chosen_value: None,
+                ..
+            } | Switch {
+                chosen_value: None,
+                ..
+            }
+        ) {
+            return false;
+        }
+        let flow_result = self
+            .stack
+            .iter()
+            .skip(root_index + 1)
+            .try_for_each(|block| match (root, block) {
+                (
+                    Random {
+                        chosen_value: Some(chosen_value),
+                        ..
+                    },
+                    IfBranch { matching_value },
+                ) => Break(chosen_value == matching_value),
+                (
+                    Switch {
+                        chosen_value: Some(chosen_value),
+                        ..
+                    },
+                    CaseBranch { matching_value },
+                ) => {
+                    if chosen_value == matching_value {
+                        Break(true)
+                    } else {
+                        Continue(())
+                    }
+                }
+                _ => Continue(()),
+            });
+        matches!(flow_result, Break(true))
+    }
+
     pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
+        use ControlFlowBlock::*;
+        use ControlFlowRule::*;
         match *token {
             // Part: Random
             Token::Random(rand_max) => {
-                let Some(parent_block) = self.stack.last() else {
-                    // The First Random Level?
-                    let rand_value = self.rng.gen(1..=rand_max);
-                    self.stack.push(RandomBlock::new(Some(rand_value)).into());
-                    return Break(Ok(()));
-                };
-                if !parent_block.is_in_if_block() {
-                    return ControlFlowRule::RandomsInIfsBlock.into();
-                }
-                let rand_value = self.rng.gen(1..=rand_max);
-                self.stack.push(
-                    RandomBlock::new(Some(rand_value).filter(|_| parent_block.pass())).into(),
-                );
+                todo!();
                 Break(Ok(()))
             }
             Token::SetRandom(rand_value) => {
-                // The First Random Level
-                let Some(parent_block) = self.stack.last() else {
-                    self.stack.push(RandomBlock::new(Some(rand_value)).into());
-                    return Break(Ok(()));
-                };
-                if !parent_block.is_in_if_block() {
-                    return ControlFlowRule::RandomsInIfsBlock.into();
-                }
-                self.stack.push(
-                    RandomBlock::new(Some(rand_value).filter(|_| parent_block.pass())).into(),
-                );
+                todo!();
                 Break(Ok(()))
             }
             Token::If(if_value) => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::IfsInRandomBlock.into();
-                };
-                if !random_block.check_clear_and_add_if_value(if_value) {
-                    return ControlFlowRule::OnlyOneIfInRandomBlock.into();
-                }
+                todo!();
                 Break(Ok(()))
             }
             Token::ElseIf(if_value) => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::IfsInRandomBlock.into();
-                };
-                if random_block.is_if_value_empty() {
-                    random_block.add_if_value(if_value);
-                    return ControlFlowRule::ElseIfAfterIf.into();
-                }
-                random_block.clear_if_values();
-                if !random_block.add_if_value(if_value) {
-                    unreachable!()
-                }
+                todo!();
                 Break(Ok(()))
             }
             Token::Else => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::IfsInRandomBlock.into();
-                };
-                if !random_block.add_else() {
-                    return ControlFlowRule::OnlyOneElseInRandomBlock.into();
-                }
+                todo!();
                 Break(Ok(()))
             }
             Token::EndIf => {
-                let Some(ControlFlowBlock::Random(random_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::IfsInRandomBlock.into();
-                };
-                if !random_block.is_in_if_block() {
-                    return ControlFlowRule::EndIfAfterIfs.into();
-                }
-                random_block.reset_if();
+                todo!();
                 Break(Ok(()))
             }
             Token::EndRandom => {
-                let Some(ControlFlowBlock::Random(_random_block)) = self.stack.last() else {
-                    return ControlFlowRule::EndRandomAfterRandomBlock.into();
-                };
-                if let Some(random_block) = self.stack.pop() {
-                    if random_block.is_in_if_block() {
-                        return ControlFlowRule::EndRandomAfterEndif.into();
-                    }
-                }
+                todo!();
                 Break(Ok(()))
             }
             // Part: Switch
             Token::Switch(switch_max) => {
-                let Some(parent_block) = self.stack.last() else {
-                    // The First Random Level?
-                    let switch_value = self.rng.gen(1..=switch_max);
-                    self.stack.push(SwitchBlock::new(Some(switch_value)).into());
-                    return Break(Ok(()));
-                };
-                if !parent_block.is_in_if_block() {
-                    return ControlFlowRule::RandomsInIfsBlock.into();
-                }
-                let switch_value = self.rng.gen(1..=switch_max);
-                self.stack.push(
-                    SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
-                );
+                todo!();
                 Break(Ok(()))
             }
             Token::SetSwitch(switch_value) => {
-                let Some(parent_block) = self.stack.last() else {
-                    // The First Random Level?
-                    self.stack.push(SwitchBlock::new(Some(switch_value)).into());
-                    return Break(Ok(()));
-                };
-                if !parent_block.is_in_if_block() {
-                    return ControlFlowRule::RandomsInIfsBlock.into();
-                }
-                self.stack.push(
-                    SwitchBlock::new(Some(switch_value).filter(|_| parent_block.pass())).into(),
-                );
+                todo!();
                 Break(Ok(()))
             }
             Token::Case(case_value) => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::CasesInSwitchBlock.into();
-                };
-                if !switch_block.add_case_value(case_value) {
-                    // Pass
-                }
+                todo!();
                 Break(Ok(()))
             }
             Token::Skip => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::CasesInSwitchBlock.into();
-                };
-                switch_block.clear_case_values();
+                todo!();
                 Break(Ok(()))
             }
             Token::Def => {
-                let Some(ControlFlowBlock::Switch(switch_block)) = self.stack.last_mut() else {
-                    return ControlFlowRule::CasesInSwitchBlock.into();
-                };
-                if !switch_block.add_default() {
-                    return ControlFlowRule::OnlyOneDefaultInSwitchBlock.into();
-                }
+                todo!();
                 Break(Ok(()))
             }
             Token::EndSwitch => {
-                let Some(ControlFlowBlock::Switch(_switch_block)) = self.stack.last() else {
-                    return ControlFlowRule::EndSwitchAfterSwitchBlock.into();
-                };
-                self.stack.pop();
+                todo!();
                 Break(Ok(()))
             }
             // Part: Non ControlFlow command
             _ => {
-                if self.stack.last().is_none_or(|block| block.pass()) {
+                if self.is_this_floor_match() {
                     Continue(())
                 } else {
                     Break(Ok(()))
