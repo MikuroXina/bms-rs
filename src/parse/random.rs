@@ -215,7 +215,8 @@ impl<R: Rng> RandomParser<R> {
             }
             Token::Else => {
                 let Some(
-                    [Random { .. }, IfBranch {
+                    [Random { chosen_value, .. }, IfBranch {
+                        matching_value,
                         group_previous_matched,
                         ..
                     }],
@@ -223,6 +224,8 @@ impl<R: Rng> RandomParser<R> {
                 else {
                     return ElseAfterIfOrElseIf.into();
                 };
+                let group_previous_matched = group_previous_matched
+                    | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
                 let else_activate = !group_previous_matched;
                 self.stack.pop();
                 self.stack.push(ElseBranch { else_activate });
