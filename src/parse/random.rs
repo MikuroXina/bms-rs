@@ -153,8 +153,9 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Random {
                     rand_max,
-                    chosen_value: Some(self.rng.gen(1..=rand_max))
-                        .filter(|_| self.is_this_floor_match()),
+                    chosen_value: self
+                        .is_this_floor_match()
+                        .then(|| self.rng.gen(1..=rand_max)),
                 });
                 Break(Ok(()))
             }
@@ -250,8 +251,9 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Switch {
                     switch_max,
-                    chosen_value: Some(self.rng.gen(1..=switch_max))
-                        .filter(|_| self.is_this_floor_match()),
+                    chosen_value: self
+                        .is_this_floor_match()
+                        .then(|| self.rng.gen(1..=switch_max)),
                     skipping: false,
                 });
                 Break(Ok(()))
