@@ -290,7 +290,7 @@ impl<'a> Token<'a> {
                     Self::Case(case_value)
                 }
                 "#SKIP" => Self::Skip,
-                "#DEF" => Self::Def,
+                "#DEFAULT" | "#DEF" => Self::Def,
                 "#ENDSWITCH" | "#ENDSW" => Self::EndSwitch,
                 // Part: Normal 2
                 "#STAGEFILE" => Self::StageFile(
