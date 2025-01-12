@@ -38,8 +38,10 @@ pub enum ControlFlowRule {
     EndRandomAfterEndif,
     #[error("#ENDSWITCH command must come after #SWITCH block")]
     EndSwitchAfterSwitchBlock,
+    #[error("#DEF command must come after #CASE")]
+    DefaultAfterCase,
     #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
-    IfsValueOutOfRange,
+    ValueOutOfRange,
     #[error("Values in #IF/#ELSEIF/#ELSE group should be unique")]
     ValuesInIfGroupShouldBeUnique,
 }
@@ -96,6 +98,17 @@ enum ControlFlowBlock {
         matching_value: u32,
     },
     DefaultBranch,
+}
+
+impl ControlFlowBlock {
+    pub fn is_type_random(&self) -> bool {
+        use ControlFlowBlock::*;
+        matches!(self, Random { .. } | IfBranch { .. } | ElseBranch { .. })
+    }
+    pub fn is_type_switch(&self) -> bool {
+        use ControlFlowBlock::*;
+        matches!(self, Switch { .. } | CaseBranch { .. } | DefaultBranch)
+    }
 }
 
 pub struct RandomParser<R> {
@@ -185,7 +198,10 @@ impl<R: Rng> RandomParser<R> {
                         });
                         ElseAfterIfs.into()
                     }
-                    None => Ok(()),
+                    None => return IfsInRandomBlock.into(),
+                    Some(block) if !block.is_type_random() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
                     _ => Ok(()),
                 };
                 let Some(Random { rand_max, .. }) = self.stack.last() else {
@@ -194,7 +210,7 @@ impl<R: Rng> RandomParser<R> {
                 let result_range = (1..=*rand_max)
                     .contains(&if_value)
                     .then_some(())
-                    .ok_or(IfsValueOutOfRange.into());
+                    .ok_or(ValueOutOfRange.into());
                 self.stack.push(IfBranch {
                     matching_value: if_value,
                     group_previously_matched: false,
@@ -218,7 +234,10 @@ impl<R: Rng> RandomParser<R> {
                         });
                         Err(ElseAfterIfs.into())
                     }
-                    None => Ok(()),
+                    None => return IfsInRandomBlock.into(),
+                    Some(block) if !block.is_type_random() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
                     _ => Ok(()),
                 };
                 let Some(
@@ -239,7 +258,7 @@ impl<R: Rng> RandomParser<R> {
                 let result_range = (1..=*rand_max)
                     .contains(&if_value)
                     .then_some(())
-                    .ok_or(IfsValueOutOfRange.into());
+                    .ok_or(ValueOutOfRange.into());
                 let group_previously_matched = group_previously_matched
                     | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
                 self.stack.pop();
@@ -318,6 +337,13 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::Case(case_value) => {
+                let result_check_last = match self.stack.last_mut() {
+                    None => return CasesInSwitchBlock.into(),
+                    Some(block) if !block.is_type_switch() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
+                    _ => Ok(()),
+                };
                 let Some((
                     switch_index,
                     Switch {
@@ -340,18 +366,17 @@ impl<R: Rng> RandomParser<R> {
                 {
                     return RandomAndSwitchCommandNotMix.into();
                 }
-                let result = if !(1..=*switch_max).contains(&case_value) {
-                    Err(IfsValueOutOfRange.into())
-                } else {
-                    Ok(())
-                };
+                let result_range = (1..=*switch_max)
+                    .contains(&case_value)
+                    .then_some(())
+                    .ok_or(ValueOutOfRange.into());
                 self.stack.push(CaseBranch {
                     matching_value: case_value,
                 });
-                Break(result)
+                Break(result_check_last.and(result_range))
             }
             Token::Skip => {
-                let this_floor_match = self.is_all_match();
+                let activate_skip = self.is_all_match();
                 let Some(Switch { skipping, .. }) = self
                     .stack
                     .iter_mut()
@@ -359,10 +384,19 @@ impl<R: Rng> RandomParser<R> {
                 else {
                     return CasesInSwitchBlock.into();
                 };
-                *skipping |= this_floor_match;
+                *skipping |= activate_skip;
                 Break(Ok(()))
             }
             Token::Def => {
+                let result_check_last = match self.stack.last() {
+                    None => return CasesInSwitchBlock.into(),
+                    Some(Switch { .. }) => DefaultAfterCase.into(),
+                    Some(DefaultBranch) => OnlyOneDefaultInSwitchBlock.into(),
+                    Some(block) if !block.is_type_switch() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
+                    _ => Ok(()),
+                };
                 let Some((switch_index, Switch { .. })) = self
                     .stack
                     .iter()
@@ -373,7 +407,7 @@ impl<R: Rng> RandomParser<R> {
                 };
                 self.stack.resize(switch_index + 1, DefaultBranch);
                 self.stack.push(DefaultBranch);
-                Break(Ok(()))
+                Break(result_check_last)
             }
             Token::EndSwitch => {
                 let Some((switch_index, Switch { .. })) = self
