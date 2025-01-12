@@ -15,7 +15,7 @@ pub enum ControlFlowRule {
     #[error("#RANDOM block and #SWITCH block commands should not mixed.")]
     RandomAndSwitchCommandNotMix,
     #[error("#RANDOM/#SETRANDOM(#SWITCH/#SETSWITCH) command must come in root of #IF/#ELSEIF/#ELSE(#CASE/#DEFAULT) block")]
-    RandomsInIfsBlock,
+    RandomsInRootOrIfsBlock,
     #[error("#IF/#ELSEIF/#ELSE/#ENDIF command must be in #RANDOM - #ENDRANDOM block")]
     IfsInRandomBlock,
     #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSWITCH block")]
@@ -166,7 +166,7 @@ impl<R: Rng> RandomParser<R> {
             // Part: Random
             Token::Random(rand_max) => {
                 if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
-                    return RandomsInIfsBlock.into();
+                    return RandomsInRootOrIfsBlock.into();
                 }
                 self.stack.push(Random {
                     rand_max,
@@ -176,7 +176,7 @@ impl<R: Rng> RandomParser<R> {
             }
             Token::SetRandom(rand_value) => {
                 if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
-                    return RandomsInIfsBlock.into();
+                    return RandomsInRootOrIfsBlock.into();
                 }
                 self.stack.push(Random {
                     rand_max: u32::MAX,
@@ -277,7 +277,10 @@ impl<R: Rng> RandomParser<R> {
                         });
                         ElseAfterIfs.into()
                     }
-                    None => Ok(()),
+                    None => return IfsInRandomBlock.into(),
+                    Some(block) if !block.is_type_random() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
                     _ => Ok(()),
                 };
                 let Some(
@@ -316,7 +319,7 @@ impl<R: Rng> RandomParser<R> {
             // Part: Switch
             Token::Switch(switch_max) => {
                 if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
-                    return RandomsInIfsBlock.into();
+                    return RandomsInRootOrIfsBlock.into();
                 }
                 self.stack.push(Switch {
                     switch_max,
@@ -327,7 +330,7 @@ impl<R: Rng> RandomParser<R> {
             }
             Token::SetSwitch(switch_value) => {
                 if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
-                    return RandomsInIfsBlock.into();
+                    return RandomsInRootOrIfsBlock.into();
                 }
                 self.stack.push(Switch {
                     switch_max: u32::MAX,
@@ -376,6 +379,13 @@ impl<R: Rng> RandomParser<R> {
                 Break(result_check_last.and(result_range))
             }
             Token::Skip => {
+                let result_check_last = match self.stack.last_mut() {
+                    None => return CasesInSwitchBlock.into(),
+                    Some(block) if !block.is_type_switch() => {
+                        return RandomAndSwitchCommandNotMix.into()
+                    }
+                    _ => Ok(()),
+                };
                 let activate_skip = self.is_all_match();
                 let Some(Switch { skipping, .. }) = self
                     .stack
@@ -385,7 +395,7 @@ impl<R: Rng> RandomParser<R> {
                     return CasesInSwitchBlock.into();
                 };
                 *skipping |= activate_skip;
-                Break(Ok(()))
+                Break(result_check_last)
             }
             Token::Def => {
                 let result_check_last = match self.stack.last() {
