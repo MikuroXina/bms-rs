@@ -8,7 +8,13 @@ use crate::lex::token::Token;
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
-    #[error("#RANDOM/#SETRANDOM/#SWITCH/#SETSWITCH command must come in root of #IF/#ELSEIF/#ELSE/#CASE/#DEFAULT block")]
+    #[error(
+        "Other command should be in a #RANDOM(#SWITCH) and its #IF/#ELSE/#ELSE(#CASE/#DEFAULT) block"
+    )]
+    CommandInRandomBlockAndIfBlock,
+    #[error("#RANDOM block and #SWITCH block commands should not mixed.")]
+    RandomAndSwitchCommandNotMix,
+    #[error("#RANDOM/#SETRANDOM(#SWITCH/#SETSWITCH) command must come in root of #IF/#ELSEIF/#ELSE(#CASE/#DEFAULT) block")]
     RandomsInIfsBlock,
     #[error("#IF/#ELSEIF/#ELSE/#ENDIF command must be in #RANDOM - #ENDRANDOM block")]
     IfsInRandomBlock,
@@ -22,6 +28,8 @@ pub enum ControlFlowRule {
     OnlyOneDefaultInSwitchBlock,
     #[error("#ELSEIF command must come after #IF block")]
     ElseIfAfterIf,
+    #[error("#ELSE command must come after #IF/#ELESIF block")]
+    ElseAfterIfOrElseIf,
     #[error("#ENDIF command must come after #IF/#ELSEIF/#ELSE block")]
     EndIfAfterIfs,
     #[error("#ENDRANDOM command must come after #RANDOM block")]
@@ -30,33 +38,52 @@ pub enum ControlFlowRule {
     EndRandomAfterEndif,
     #[error("#ENDSWITCH command must come after #SWITCH block")]
     EndSwitchAfterSwitchBlock,
+    #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
+    IfsValueOutOfRange,
+    #[error("Values in #IF/#ELSEIF/#ELSE group should be unique")]
+    ValuesInIfGroupShouldBeUnique,
+}
+
+impl From<ControlFlowRule> for ParseError {
+    fn from(rule: ControlFlowRule) -> Self {
+        ParseError::ViolateControlFlowRule(rule)
+    }
+}
+
+impl<T> From<ControlFlowRule> for Result<T> {
+    fn from(rule: ControlFlowRule) -> Self {
+        Err(ParseError::from(rule))
+    }
 }
 
 impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
     fn from(rule: ControlFlowRule) -> Self {
-        Break(Err(ParseError::ViolateControlFlowRule(rule)))
+        Break(<std::result::Result<T, ParseError>>::from(rule))
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum ControlFlowBlock {
+enum ControlFlowBlock {
     Random {
         /// It can be used for warning unreachable branch
         rand_max: u32,
         /// If the parent part cannot pass, this will be None,
         chosen_value: Option<u32>,
-        /// If there is any branch has been matched. Use for #ELSE.
-        matched: bool,
     },
     IfBranch {
         /// It can be used for warning unreachable `#ELESIF`
         /// If the parent part cannot pass, this will be None,
         matching_value: u32,
+        /// If there is any if/elseif branch has been matched in this #IF group. Used by #ELSE.
+        group_previous_matched: bool,
     },
-    ElseBranch,
+    ElseBranch {
+        /// Passed in this else
+        else_activate: bool,
+    },
     Switch {
         /// It can be used for warning unreachable branch
-        rand_max: u32,
+        switch_max: u32,
         /// If the parent part cannot pass, this will be None,
         chosen_value: Option<u32>,
         /// Whether skipping tokens until `#ENDSW`
@@ -89,46 +116,30 @@ impl<R: Rng> RandomParser<R> {
         else {
             return true;
         };
-        if matches!(
-            root,
+        let (_former_part, latter_part) = self.stack.split_at(root_index + 1);
+        match root {
             Random {
-                chosen_value: None,
+                chosen_value: Some(chosen_value),
                 ..
-            } | Switch {
-                chosen_value: None,
+            } => latter_part.iter().any(|block| match block {
+                IfBranch {
+                    matching_value,
+                    group_previous_matched,
+                } => !group_previous_matched && matching_value == chosen_value,
+                ElseBranch { else_activate } => *else_activate,
+                _ => false,
+            }),
+            Switch {
+                chosen_value: Some(chosen_value),
+                skipping,
                 ..
-            }
-        ) {
-            return false;
+            } => latter_part.iter().any(|block| match block {
+                CaseBranch { matching_value } => !skipping && matching_value == chosen_value,
+                DefaultBranch => !skipping,
+                _ => false,
+            }),
+            _ => false,
         }
-        let flow_result = self
-            .stack
-            .iter()
-            .skip(root_index + 1)
-            .try_for_each(|block| match (root, block) {
-                (
-                    Random {
-                        chosen_value: Some(chosen_value),
-                        ..
-                    },
-                    IfBranch { matching_value },
-                ) => Break(chosen_value == matching_value),
-                (
-                    Switch {
-                        chosen_value: Some(chosen_value),
-                        ..
-                    },
-                    CaseBranch { matching_value },
-                ) => {
-                    if chosen_value == matching_value {
-                        Break(true)
-                    } else {
-                        Continue(())
-                    }
-                }
-                _ => Continue(()),
-            });
-        matches!(flow_result, Break(true))
     }
 
     pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
@@ -137,61 +148,199 @@ impl<R: Rng> RandomParser<R> {
         match *token {
             // Part: Random
             Token::Random(rand_max) => {
-                todo!();
+                if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
+                    return RandomsInIfsBlock.into();
+                }
+                self.stack.push(Random {
+                    rand_max,
+                    chosen_value: Some(self.rng.gen(1..=rand_max))
+                        .filter(|_| self.is_this_floor_match()),
+                });
                 Break(Ok(()))
             }
             Token::SetRandom(rand_value) => {
-                todo!();
+                if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
+                    return RandomsInIfsBlock.into();
+                }
+                self.stack.push(Random {
+                    rand_max: u32::MAX,
+                    chosen_value: Some(rand_value).filter(|_| self.is_this_floor_match()),
+                });
                 Break(Ok(()))
             }
             Token::If(if_value) => {
-                todo!();
-                Break(Ok(()))
+                let Some(Random { rand_max, .. }) = self.stack.last() else {
+                    return IfsInRandomBlock.into();
+                };
+                let result = if !(1..=*rand_max).contains(&if_value) {
+                    Err(IfsValueOutOfRange.into())
+                } else {
+                    Ok(())
+                };
+                self.stack.push(IfBranch {
+                    matching_value: if_value,
+                    group_previous_matched: false,
+                });
+                Break(result)
             }
             Token::ElseIf(if_value) => {
-                todo!();
-                Break(Ok(()))
+                let Some(
+                    [Random {
+                        rand_max,
+                        chosen_value,
+                    }, IfBranch {
+                        matching_value,
+                        group_previous_matched,
+                    }],
+                ) = self.stack.last_chunk()
+                else {
+                    return ElseIfAfterIf.into();
+                };
+                let result = if if_value == *matching_value {
+                    Err(ValuesInIfGroupShouldBeUnique.into())
+                } else if !(1..=*rand_max).contains(&if_value) {
+                    Err(IfsValueOutOfRange.into())
+                } else {
+                    Ok(())
+                };
+                let group_previous_matched = group_previous_matched
+                    | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
+                self.stack.pop();
+                self.stack.push(IfBranch {
+                    matching_value: if_value,
+                    group_previous_matched,
+                });
+                Break(result)
             }
             Token::Else => {
-                todo!();
+                let Some(
+                    [Random { .. }, IfBranch {
+                        group_previous_matched,
+                        ..
+                    }],
+                ) = self.stack.last_chunk()
+                else {
+                    return ElseAfterIfOrElseIf.into();
+                };
+                let else_activate = !group_previous_matched;
+                self.stack.pop();
+                self.stack.push(ElseBranch { else_activate });
                 Break(Ok(()))
             }
             Token::EndIf => {
-                todo!();
+                let Some([Random { .. }, IfBranch { .. } | ElseBranch { .. }]) =
+                    self.stack.last_chunk()
+                else {
+                    return EndIfAfterIfs.into();
+                };
+                self.stack.pop();
                 Break(Ok(()))
             }
             Token::EndRandom => {
-                todo!();
+                let Some(Random { .. }) = self.stack.last() else {
+                    return EndRandomAfterRandomBlock.into();
+                };
+                self.stack.pop();
                 Break(Ok(()))
             }
             // Part: Switch
             Token::Switch(switch_max) => {
-                todo!();
+                if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
+                    return RandomsInIfsBlock.into();
+                }
+                self.stack.push(Switch {
+                    switch_max,
+                    chosen_value: Some(self.rng.gen(1..=switch_max))
+                        .filter(|_| self.is_this_floor_match()),
+                    skipping: false,
+                });
                 Break(Ok(()))
             }
             Token::SetSwitch(switch_value) => {
-                todo!();
+                if matches!(self.stack.last(), Some(Random { .. }) | Some(Switch { .. }),) {
+                    return RandomsInIfsBlock.into();
+                }
+                self.stack.push(Switch {
+                    switch_max: u32::MAX,
+                    chosen_value: Some(switch_value).filter(|_| self.is_this_floor_match()),
+                    skipping: false,
+                });
                 Break(Ok(()))
             }
             Token::Case(case_value) => {
-                todo!();
-                Break(Ok(()))
+                let Some((
+                    switch_index,
+                    Switch {
+                        switch_max,
+                        skipping: _,
+                        ..
+                    },
+                )) = self
+                    .stack
+                    .iter()
+                    .enumerate()
+                    .rfind(|(_, block)| matches!(block, Switch { .. }))
+                else {
+                    return CasesInSwitchBlock.into();
+                };
+                let (_, cases_before) = self.stack.split_at(switch_index + 1);
+                if cases_before
+                    .iter()
+                    .any(|block| !matches!(block, CaseBranch { .. }))
+                {
+                    return RandomAndSwitchCommandNotMix.into();
+                }
+                let result = if !(1..=*switch_max).contains(&case_value) {
+                    Err(IfsValueOutOfRange.into())
+                } else {
+                    Ok(())
+                };
+                self.stack.push(CaseBranch {
+                    matching_value: case_value,
+                });
+                Break(result)
             }
             Token::Skip => {
-                todo!();
+                let Some(Switch { skipping, .. }) = self
+                    .stack
+                    .iter_mut()
+                    .rfind(|block| matches!(block, Switch { .. }))
+                else {
+                    return CasesInSwitchBlock.into();
+                };
+                *skipping = true;
                 Break(Ok(()))
             }
             Token::Def => {
-                todo!();
+                let Some((switch_index, Switch { .. })) = self
+                    .stack
+                    .iter()
+                    .enumerate()
+                    .rfind(|(_, block)| matches!(block, Switch { .. }))
+                else {
+                    return CasesInSwitchBlock.into();
+                };
+                self.stack.resize(switch_index + 1, DefaultBranch);
+                self.stack.push(DefaultBranch);
                 Break(Ok(()))
             }
             Token::EndSwitch => {
-                todo!();
+                let Some((switch_index, Switch { .. })) = self
+                    .stack
+                    .iter()
+                    .enumerate()
+                    .rfind(|(_, block)| matches!(block, Switch { .. }))
+                else {
+                    return EndSwitchAfterSwitchBlock.into();
+                };
+                self.stack.resize(switch_index, DefaultBranch);
                 Break(Ok(()))
             }
             // Part: Non ControlFlow command
             _ => {
-                if self.is_this_floor_match() {
+                if matches!(self.stack.last(), Some(Random { .. } | Switch { .. })) {
+                    CommandInRandomBlockAndIfBlock.into()
+                } else if self.is_this_floor_match() {
                     Continue(())
                 } else {
                     Break(Ok(()))
@@ -234,10 +383,10 @@ fn test_switch() {
     use super::rng::RngMock;
     use Token::*;
     #[rustfmt::skip]
-    const TOKENS: [Token; 17] = [
+    const TOKENS: [Token; 16] = [
         Title("Outside Title"),
         Switch(2),
-            Title("Illegal Title"),
+            // Title("Illegal Title"),
         Case(1),
             Title("Title 1"),
         Case(2),
@@ -292,10 +441,10 @@ fn test_random_in_switch() {
     use super::rng::RngMock;
     use Token::*;
     #[rustfmt::skip]
-    const TOKENS: [Token; 26] = [
+    const TOKENS: [Token; 25] = [
         Title("Outside Title"),
         Switch(2),
-            Title("Illegal Title"),
+            // Title("Illegal Title"),
         Case(1),
             Title("Title 1"),
             Random(2),
@@ -359,10 +508,10 @@ fn test_switch_in_random() {
     use super::rng::RngMock;
     use Token::*;
     #[rustfmt::skip]
-    const TOKENS: [Token; 15] = [
+    const TOKENS: [Token; 14] = [
         Title("Outside Title"),
         Random(2),
-        Title("Illegal Title"),
+            // Title("Illegal Title"),
         If(1),
             Title("Title 1"),
         Else,
