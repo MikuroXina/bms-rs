@@ -74,8 +74,10 @@ enum ControlFlowBlock {
         /// It can be used for warning unreachable `#ELESIF`
         /// If the parent part cannot pass, this will be None,
         matching_value: u32,
-        /// If there is any if/elseif branch has been matched in this #IF group. Used by #ELSE.
-        group_previous_matched: bool,
+        /// If there is any #IF/#ELSEIF branch has been matched previously in this #IF - (#ELSEIF/#ELSE) -
+        /// #ENDIF block list (called #IF group). Used by #ELSE.
+        /// One #RANDOM - #ENDRANDOM block can contain more than 1 #IF group.
+        group_previously_matched: bool,
     },
     ElseBranch {
         /// Passed in this else
@@ -106,7 +108,9 @@ impl<R: Rng> RandomParser<R> {
         Self { rng, stack: vec![] }
     }
 
-    fn is_this_floor_match(&self) -> bool {
+    /// Because in the parse(), if the last floor not match, this Random/Switch's chosen_value will
+    /// be none. So just check this floor.
+    fn is_all_match(&self) -> bool {
         use ControlFlowBlock::*;
         let Some((root_index, root)) = self
             .stack
@@ -124,8 +128,8 @@ impl<R: Rng> RandomParser<R> {
             } => latter_part.iter().any(|block| match block {
                 IfBranch {
                     matching_value,
-                    group_previous_matched,
-                } => !group_previous_matched && matching_value == chosen_value,
+                    group_previously_matched,
+                } => !group_previously_matched && matching_value == chosen_value,
                 ElseBranch { else_activate } => *else_activate,
                 _ => false,
             }),
@@ -153,9 +157,7 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Random {
                     rand_max,
-                    chosen_value: self
-                        .is_this_floor_match()
-                        .then(|| self.rng.gen(1..=rand_max)),
+                    chosen_value: self.is_all_match().then(|| self.rng.gen(1..=rand_max)),
                 });
                 Break(Ok(()))
             }
@@ -165,7 +167,7 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Random {
                     rand_max: u32::MAX,
-                    chosen_value: Some(rand_value).filter(|_| self.is_this_floor_match()),
+                    chosen_value: Some(rand_value).filter(|_| self.is_all_match()),
                 });
                 Break(Ok(()))
             }
@@ -180,7 +182,7 @@ impl<R: Rng> RandomParser<R> {
                 };
                 self.stack.push(IfBranch {
                     matching_value: if_value,
-                    group_previous_matched: false,
+                    group_previously_matched: false,
                 });
                 Break(result)
             }
@@ -191,7 +193,7 @@ impl<R: Rng> RandomParser<R> {
                         chosen_value,
                     }, IfBranch {
                         matching_value,
-                        group_previous_matched,
+                        group_previously_matched,
                     }],
                 ) = self.stack.last_chunk()
                 else {
@@ -204,12 +206,12 @@ impl<R: Rng> RandomParser<R> {
                 } else {
                     Ok(())
                 };
-                let group_previous_matched = group_previous_matched
+                let group_previously_matched = group_previously_matched
                     | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
                 self.stack.pop();
                 self.stack.push(IfBranch {
                     matching_value: if_value,
-                    group_previous_matched,
+                    group_previously_matched,
                 });
                 Break(result)
             }
@@ -217,16 +219,16 @@ impl<R: Rng> RandomParser<R> {
                 let Some(
                     [Random { chosen_value, .. }, IfBranch {
                         matching_value,
-                        group_previous_matched,
+                        group_previously_matched,
                         ..
                     }],
                 ) = self.stack.last_chunk()
                 else {
                     return ElseAfterIfOrElseIf.into();
                 };
-                let group_previous_matched = group_previous_matched
+                let group_previously_matched = group_previously_matched
                     | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
-                let else_activate = !group_previous_matched;
+                let else_activate = !group_previously_matched;
                 self.stack.pop();
                 self.stack.push(ElseBranch { else_activate });
                 Break(Ok(()))
@@ -254,9 +256,7 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Switch {
                     switch_max,
-                    chosen_value: self
-                        .is_this_floor_match()
-                        .then(|| self.rng.gen(1..=switch_max)),
+                    chosen_value: self.is_all_match().then(|| self.rng.gen(1..=switch_max)),
                     skipping: false,
                 });
                 Break(Ok(()))
@@ -267,7 +267,7 @@ impl<R: Rng> RandomParser<R> {
                 }
                 self.stack.push(Switch {
                     switch_max: u32::MAX,
-                    chosen_value: Some(switch_value).filter(|_| self.is_this_floor_match()),
+                    chosen_value: Some(switch_value).filter(|_| self.is_all_match()),
                     skipping: false,
                 });
                 Break(Ok(()))
@@ -306,7 +306,7 @@ impl<R: Rng> RandomParser<R> {
                 Break(result)
             }
             Token::Skip => {
-                let this_floor_match = self.is_this_floor_match();
+                let this_floor_match = self.is_all_match();
                 let Some(Switch { skipping, .. }) = self
                     .stack
                     .iter_mut()
@@ -346,7 +346,7 @@ impl<R: Rng> RandomParser<R> {
             _ => {
                 if matches!(self.stack.last(), Some(Random { .. } | Switch { .. })) {
                     CommandInRandomBlockAndIfBlock.into()
-                } else if self.is_this_floor_match() {
+                } else if self.is_all_match() {
                     Continue(())
                 } else {
                     Break(Ok(()))
