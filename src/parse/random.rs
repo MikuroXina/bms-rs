@@ -29,7 +29,7 @@ pub enum ControlFlowRule {
     #[error("#ELSEIF command must come after #IF block")]
     ElseIfAfterIf,
     #[error("#ELSE command must come after #IF/#ELESIF block")]
-    ElseAfterIfOrElseIf,
+    ElseAfterIfs,
     #[error("#ENDIF command must come after #IF/#ELSEIF/#ELSE block")]
     EndIfAfterIfs,
     #[error("#ENDRANDOM command must come after #RANDOM block")]
@@ -172,21 +172,55 @@ impl<R: Rng> RandomParser<R> {
                 Break(Ok(()))
             }
             Token::If(if_value) => {
+                let result_check_last = match self.stack.last_mut() {
+                    Some(IfBranch { .. }) => {
+                        self.stack.pop();
+                        OnlyOneIfInRandomBlock.into()
+                    }
+                    Some(ElseBranch { .. }) => {
+                        self.stack.pop();
+                        self.stack.push(IfBranch {
+                            matching_value: u32::MAX,
+                            group_previously_matched: false,
+                        });
+                        ElseAfterIfs.into()
+                    }
+                    None => Ok(()),
+                    _ => Ok(()),
+                };
                 let Some(Random { rand_max, .. }) = self.stack.last() else {
                     return IfsInRandomBlock.into();
                 };
-                let result = if !(1..=*rand_max).contains(&if_value) {
-                    Err(IfsValueOutOfRange.into())
-                } else {
-                    Ok(())
-                };
+                let result_range = (1..=*rand_max)
+                    .contains(&if_value)
+                    .then_some(())
+                    .ok_or(IfsValueOutOfRange.into());
                 self.stack.push(IfBranch {
                     matching_value: if_value,
                     group_previously_matched: false,
                 });
-                Break(result)
+                Break(result_check_last.and(result_range))
             }
             Token::ElseIf(if_value) => {
+                let result_check_last = match self.stack.last() {
+                    Some(Random { .. }) => {
+                        self.stack.push(IfBranch {
+                            matching_value: u32::MAX,
+                            group_previously_matched: false,
+                        });
+                        Err(ElseIfAfterIf.into())
+                    }
+                    Some(ElseBranch { .. }) => {
+                        self.stack.pop();
+                        self.stack.push(IfBranch {
+                            matching_value: u32::MAX,
+                            group_previously_matched: false,
+                        });
+                        Err(ElseAfterIfs.into())
+                    }
+                    None => Ok(()),
+                    _ => Ok(()),
+                };
                 let Some(
                     [Random {
                         rand_max,
@@ -197,15 +231,15 @@ impl<R: Rng> RandomParser<R> {
                     }],
                 ) = self.stack.last_chunk()
                 else {
-                    return ElseIfAfterIf.into();
+                    return IfsInRandomBlock.into();
                 };
-                let result = if if_value == *matching_value {
-                    Err(ValuesInIfGroupShouldBeUnique.into())
-                } else if !(1..=*rand_max).contains(&if_value) {
-                    Err(IfsValueOutOfRange.into())
-                } else {
-                    Ok(())
-                };
+                let result_unique = (if_value != *matching_value)
+                    .then_some(())
+                    .ok_or(ValuesInIfGroupShouldBeUnique.into());
+                let result_range = (1..=*rand_max)
+                    .contains(&if_value)
+                    .then_some(())
+                    .ok_or(IfsValueOutOfRange.into());
                 let group_previously_matched = group_previously_matched
                     | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
                 self.stack.pop();
@@ -213,9 +247,20 @@ impl<R: Rng> RandomParser<R> {
                     matching_value: if_value,
                     group_previously_matched,
                 });
-                Break(result)
+                Break(result_check_last.and(result_unique).and(result_range))
             }
             Token::Else => {
+                let result_check_last = match self.stack.last() {
+                    Some(Random { .. }) => {
+                        self.stack.push(IfBranch {
+                            matching_value: u32::MAX,
+                            group_previously_matched: false,
+                        });
+                        ElseAfterIfs.into()
+                    }
+                    None => Ok(()),
+                    _ => Ok(()),
+                };
                 let Some(
                     [Random { chosen_value, .. }, IfBranch {
                         matching_value,
@@ -224,14 +269,14 @@ impl<R: Rng> RandomParser<R> {
                     }],
                 ) = self.stack.last_chunk()
                 else {
-                    return ElseAfterIfOrElseIf.into();
+                    return IfsInRandomBlock.into();
                 };
                 let group_previously_matched = group_previously_matched
                     | matches!(chosen_value, Some(chosen_value) if chosen_value == matching_value);
                 let else_activate = !group_previously_matched;
                 self.stack.pop();
                 self.stack.push(ElseBranch { else_activate });
-                Break(Ok(()))
+                Break(result_check_last)
             }
             Token::EndIf => {
                 let Some([Random { .. }, IfBranch { .. } | ElseBranch { .. }]) =
