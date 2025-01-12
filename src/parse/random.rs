@@ -404,6 +404,7 @@ fn test_switch() {
             Title("Default Title"),
         EndSwitch,
     ];
+    // 1: Find Err
     let rng = RngMock([2]);
     let mut parser = RandomParser::new(rng);
     let err_tokens: Vec<_> = TOKENS
@@ -425,6 +426,7 @@ fn test_switch() {
         .collect();
     dbg!(&err_tokens);
     assert!(err_tokens.is_empty());
+    // 2. Check filter
     let rng = RngMock([2]);
     let mut parser = RandomParser::new(rng);
     let accepted_tokens: Vec<_> = TOKENS
@@ -435,7 +437,83 @@ fn test_switch() {
     assert_eq!(
         accepted_tokens,
         vec![Title("Outside Title"), Title("Title 2"), Title("Title 2 2")]
-    )
+    );
+    // 3. Test rng situation
+    let rng = RngMock([2, 1]);
+    let mut parser = RandomParser::new(rng);
+    let accepted_tokens: Vec<_> = TOKENS
+        .iter()
+        .filter(|token| parser.parse(token).is_continue())
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        accepted_tokens,
+        vec![
+            Title("Outside Title"),
+            Title("Title 2"),
+            Title("Title 2 1"),
+            Title("Title 2 2")
+        ]
+    );
+}
+
+#[test]
+fn test_switch_from_nested_switch() {
+    use super::rng::RngMock;
+    use Token::*;
+    // From tests/nested_switch.rs
+    #[rustfmt::skip]
+    const TOKENS: [Token; 20] = [
+        Title("Outside Title"),
+        Switch(2),
+        Case(1),
+            Title("Title 1"),
+            Switch(2),
+            Case(1),
+                Title("Title 1 1"),
+            Skip,
+            Case(2),
+                Title("Title 1 2"),
+            Skip,
+            EndSwitch,
+        Skip,
+        Case(2),
+            Title("Title 2"),
+        Skip,
+        Def,
+            Title("Default Title"),
+        EndSwitch,
+        Title("End Title"),
+    ];
+    let rng = RngMock([1, 2]);
+    let mut parser = RandomParser::new(rng);
+    let parse_results: Vec<_> = TOKENS
+        .iter()
+        .map(|token| {
+            (
+                token,
+                parser.parse(token),
+                (parser.stack.len(), parser.stack.last().cloned()),
+            )
+        })
+        .collect();
+    let accepted_tokens: Vec<_> = parse_results
+        .iter()
+        .filter(|(_, result, _)| matches!(result, ControlFlow::Continue(())))
+        .map(|(token, _, _)| token)
+        .map(ToOwned::to_owned)
+        .map(ToOwned::to_owned)
+        .collect();
+    if accepted_tokens
+        != vec![
+            Title("Outside Title"),
+            Title("Title 1"),
+            Title("Title 1 2"),
+            Title("End Title"),
+        ]
+    {
+        panic!("{:#?}", parse_results)
+    }
 }
 
 #[test]
