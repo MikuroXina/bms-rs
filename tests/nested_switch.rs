@@ -22,7 +22,7 @@ fn switch() {
             #00113:00003300
         #SKIP
 
-        #ENDSWITCH
+        #ENDSW
 
         #00114:00000044
     ";
@@ -45,7 +45,7 @@ fn nested_switch_simpler() {
 
             #SKIP
 
-            #ENDSWITCH
+            #ENDSW
 
         #SKIP
 
@@ -53,7 +53,7 @@ fn nested_switch_simpler() {
 
         #SKIP
 
-        #ENDSWITCH
+        #ENDSW
     ";
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
@@ -81,7 +81,7 @@ fn nested_switch() {
                 #00116:00006600
             #SKIP
 
-            #ENDSWITCH
+            #ENDSW
 
         #SKIP
 
@@ -89,7 +89,7 @@ fn nested_switch() {
             #00113:00003300
         #SKIP
 
-        #ENDSWITCH
+        #ENDSW
 
         #00114:00000044
     ";
@@ -231,7 +231,7 @@ fn nested_random_in_switch() {
             #00113:00003300
         #SKIP
 
-        #ENDSWITCH
+        #ENDSW
 
         #00114:00000044
     ";
@@ -367,7 +367,7 @@ fn nested_switch_in_random() {
                 #00116:00006600
             #SKIP
 
-            #ENDSWITCH
+            #ENDSW
 
         #ELSE
             #00113:00003300

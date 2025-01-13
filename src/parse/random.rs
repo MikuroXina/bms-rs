@@ -9,22 +9,22 @@ use crate::lex::token::Token;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
     #[error(
-        "Other command should be in a #RANDOM(#SWITCH) and its #IF/#ELSE/#ELSE(#CASE/#DEFAULT) block"
+        "Other command should be in a #RANDOM(#SWITCH) and its #IF/#ELSE/#ELSE(#CASE/#DEF) block"
     )]
     CommandInRandomBlockAndIfBlock,
     #[error("#RANDOM block and #SWITCH block commands should not mixed.")]
     RandomAndSwitchCommandNotMix,
-    #[error("#RANDOM/#SETRANDOM(#SWITCH/#SETSWITCH) command must come in root of #IF/#ELSEIF/#ELSE(#CASE/#DEFAULT) block")]
+    #[error("#RANDOM/#SETRANDOM(#SWITCH/#SETSWITCH) command must come in root of #IF/#ELSEIF/#ELSE(#CASE/#DEF) block")]
     RandomsInRootOrIfsBlock,
     #[error("#IF/#ELSEIF/#ELSE/#ENDIF command must be in #RANDOM - #ENDRANDOM block")]
     IfsInRandomBlock,
-    #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSWITCH block")]
+    #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSW block")]
     CasesInSwitchBlock,
     #[error("Only 1 #IF command is allowed in a #RANDOM - #ENDRANDOM block")]
     OnlyOneIfInRandomBlock,
     #[error("Only 1 #ELSE command is allowed in a #RANDOM - #ENDRANDOM block")]
     OnlyOneElseInRandomBlock,
-    #[error("Only 1 #DEFAULT command is allowed in a #SWITCH - #ENDSWITCH block")]
+    #[error("Only 1 #DEF command is allowed in a #SWITCH - #ENDSW block")]
     OnlyOneDefaultInSwitchBlock,
     #[error("#ELSEIF command must come after #IF block")]
     ElseIfAfterIf,
@@ -36,7 +36,7 @@ pub enum ControlFlowRule {
     EndRandomAfterRandomBlock,
     #[error("#ENDRANDOM command must come after #ENDIF")]
     EndRandomAfterEndif,
-    #[error("#ENDSWITCH command must come after #SWITCH block")]
+    #[error("#ENDSW command must come after #SWITCH block")]
     EndSwitchAfterSwitchBlock,
     #[error("#DEF command must come after #CASE")]
     DefaultAfterCase,

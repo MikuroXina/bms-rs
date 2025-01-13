@@ -76,7 +76,7 @@ pub enum Token<'a> {
     EndIf,
     /// `#ENDRANDOM`. Closes the random scope. See [Token::Random].
     EndRandom,
-    /// `#ENDSWITCH`. Closes the random scope. See [Token::Switch].
+    /// `#ENDSW`. Closes the random scope. See [Token::Switch].
     EndSwitch,
     /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
     ExtendedMessage {
@@ -290,8 +290,8 @@ impl<'a> Token<'a> {
                     Self::Case(case_value)
                 }
                 "#SKIP" => Self::Skip,
-                "#DEFAULT" | "#DEF" => Self::Def,
-                "#ENDSWITCH" | "#ENDSW" => Self::EndSwitch,
+                "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
+                "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
                 // Part: Normal 2
                 "#STAGEFILE" => Self::StageFile(
                     c.next_token()
