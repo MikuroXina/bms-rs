@@ -1,3 +1,5 @@
+//! The parser module of BMS(.bms/.bme/.bml/.pms) file.
+
 pub mod lex;
 pub mod parse;
 pub mod time;
