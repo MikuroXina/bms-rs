@@ -76,7 +76,7 @@ pub enum Token<'a> {
     EndIf,
     /// `#ENDRANDOM`. Closes the random scope. See [Token::Random].
     EndRandom,
-    /// `#ENDSWITCH`. Closes the random scope. See [Token::Switch].
+    /// `#ENDSW`. Closes the random scope. See [Token::Switch].
     EndSwitch,
     /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
     ExtendedMessage {
@@ -178,6 +178,7 @@ impl<'a> Token<'a> {
                 .ok_or_else(|| c.make_err_expected_token("command"))?;
 
             break Ok(match command.to_uppercase().as_str() {
+                // Part: Normal
                 "#PLAYER" => Self::Player(PlayerMode::from(c)?),
                 "#GENRE" => Self::Genre(c.next_line_remaining()),
                 "#TITLE" => Self::Title(c.next_line_remaining()),
@@ -227,6 +228,7 @@ impl<'a> Token<'a> {
                         Self::LnTypeRdm
                     }
                 }
+                // Part: ControlFlow/Random
                 "#RANDOM" => {
                     let rand_max = c
                         .next_token()
@@ -235,7 +237,14 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::Random(rand_max)
                 }
-                "#ENDRANDOM" => Self::EndRandom,
+                "#SETRANDOM" => {
+                    let rand_value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("random value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::SetRandom(rand_value)
+                }
                 "#IF" => {
                     let rand_target = c
                         .next_token()
@@ -244,7 +253,46 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::If(rand_target)
                 }
+                "#ELSEIF" => {
+                    let rand_target = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::ElseIf(rand_target)
+                }
+                "#ELSE" => Self::Else,
                 "#ENDIF" => Self::EndIf,
+                "#ENDRANDOM" => Self::EndRandom,
+                // Part: ControlFlow/Switch
+                "#SWITCH" => {
+                    let switch_max = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("switch max"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::Switch(switch_max)
+                }
+                "#SETSWITCH" => {
+                    let switch_value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("switch value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::SetSwitch(switch_value)
+                }
+                "#CASE" => {
+                    let case_value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::Case(case_value)
+                }
+                "#SKIP" => Self::Skip,
+                "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
+                "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
+                // Part: Normal 2
                 "#STAGEFILE" => Self::StageFile(
                     c.next_token()
                         .map(Path::new)
@@ -272,6 +320,7 @@ impl<'a> Token<'a> {
                     let comment = c.next_line_remaining();
                     Self::Comment(comment)
                 }
+                // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
                     let str = c.next_line_remaining();
