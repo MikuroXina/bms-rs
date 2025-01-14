@@ -10,6 +10,10 @@ categories = ["parsing"]
 repository = "https://github.com/MikuroXina/bms-rs"
 documentation = "https://docs.rs/bms-rs/latest/bms_rs/"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = ["bmson"]
 serde = ["dep:serde"]
