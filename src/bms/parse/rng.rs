@@ -11,6 +11,7 @@ pub trait Rng {
 }
 
 /// A random generator for mocking. This generates the number from the array in rotation.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RngMock<const N: usize>(pub [u32; N]);
 
 impl<const N: usize> Rng for RngMock<N> {
