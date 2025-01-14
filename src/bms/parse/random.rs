@@ -8,24 +8,10 @@ use crate::lex::token::Token;
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
-    #[error(
-        "Other command should be in a #RANDOM(#SWITCH) and its #IF/#ELSE/#ELSE(#CASE/#DEF) block"
-    )]
-    CommandInRandomBlockAndIfBlock,
-    #[error("#RANDOM block and #SWITCH block commands should not mixed.")]
-    RandomAndSwitchCommandNotMix,
-    #[error("#RANDOM/#SETRANDOM(#SWITCH/#SETSWITCH) command must come in root of #IF/#ELSEIF/#ELSE(#CASE/#DEF) block")]
-    RandomsInRootOrIfsBlock,
-    #[error("#IF/#ELSEIF/#ELSE/#ENDIF command must be in #RANDOM - #ENDRANDOM block")]
-    IfsInRandomBlock,
+    #[error("In an #RANDOM - #ENDRANDOM block, there must be an #IF at the start.")]
+    IfMustAtStartOfRandom,
     #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSW block")]
     CasesInSwitchBlock,
-    #[error("Only 1 #IF command is allowed in a #RANDOM - #ENDRANDOM block")]
-    OnlyOneIfInRandomBlock,
-    #[error("Only 1 #ELSE command is allowed in a #RANDOM - #ENDRANDOM block")]
-    OnlyOneElseInRandomBlock,
-    #[error("Only 1 #DEF command is allowed in a #SWITCH - #ENDSW block")]
-    OnlyOneDefaultInSwitchBlock,
     #[error("#ELSEIF command must come after #IF block")]
     ElseIfAfterIf,
     #[error("#ELSE command must come after #IF/#ELESIF block")]
@@ -34,16 +20,10 @@ pub enum ControlFlowRule {
     EndIfAfterIfs,
     #[error("#ENDRANDOM command must come after #RANDOM block")]
     EndRandomAfterRandomBlock,
-    #[error("#ENDRANDOM command must come after #ENDIF")]
-    EndRandomAfterEndif,
     #[error("#ENDSW command must come after #SWITCH block")]
     EndSwitchAfterSwitchBlock,
-    #[error("#DEF command must come after #CASE")]
-    DefaultAfterCase,
     #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
     ValueOutOfRange,
-    #[error("Values in #IF/#ELSEIF/#ELSE group should be unique")]
-    ValuesInIfGroupShouldBeUnique,
 }
 
 impl From<ControlFlowRule> for ParseError {
@@ -120,7 +100,7 @@ impl<R: Rng> RandomParser<R> {
                 return Break(Ok(()));
             }
             let &Token::If(matching_value) = token else {
-                return IfsInRandomBlock.into();
+                return IfMustAtStartOfRandom.into();
             };
             if matching_value > rand_max {
                 return ValueOutOfRange.into();
@@ -224,8 +204,8 @@ impl<R: Rng> RandomParser<R> {
             };
 
         if let Some(&ControlFlowBlock::ElseBranch { else_activate }) = self.stack.last() {
-            if let Token::ElseIf(_) = token {
-                return ElseIfAfterIf.into();
+            if let Token::If(_) | Token::ElseIf(_) = token {
+                return ElseAfterIfs.into();
             }
             if *token == Token::EndIf {
                 self.stack.pop();
@@ -272,14 +252,29 @@ impl<R: Rng> RandomParser<R> {
             return Break(Ok(()));
         }
 
-        if matches!(
-            token,
-            Token::If(_) | Token::ElseIf(_) | Token::Else | Token::EndIf
-        ) {
-            return IfsInRandomBlock.into();
-        }
-        if matches!(token, Token::Case(_) | Token::Def) {
-            return CasesInSwitchBlock.into();
+        match token {
+            Token::If(_) => {
+                return IfMustAtStartOfRandom.into();
+            }
+            Token::ElseIf(_) => {
+                return ElseIfAfterIf.into();
+            }
+            Token::Else => {
+                return ElseAfterIfs.into();
+            }
+            Token::EndIf => {
+                return EndIfAfterIfs.into();
+            }
+            Token::EndRandom => {
+                return EndRandomAfterRandomBlock.into();
+            }
+            Token::Case(_) | Token::Def => {
+                return CasesInSwitchBlock.into();
+            }
+            Token::EndSwitch => {
+                return EndSwitchAfterSwitchBlock.into();
+            }
+            _ => {}
         }
 
         if flow_enabled {
