@@ -9,7 +9,7 @@ use crate::{
     time::{ObjTime, Track},
 };
 
-/// Note position for the chart [`Bmson`].
+/// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PulseNumber(pub u32);
 
