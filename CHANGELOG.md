@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/MikuroXina/bms-rs/compare/v0.5.0...v0.6.0) (2025-01-14)
+
+
+### Features
+
+* **bms:** Deal with comment/non-command, tested ([#104](https://github.com/MikuroXina/bms-rs/issues/104)) ([6fe1f21](https://github.com/MikuroXina/bms-rs/commit/6fe1f21ba15592a5bc4746f5dbfd1d9cbcc11301))
+* **bms:** Full random/switch support ([#109](https://github.com/MikuroXina/bms-rs/issues/109)) ([6357d56](https://github.com/MikuroXina/bms-rs/commit/6357d56ac1f40e5340bcd4be2d400595ecc15bc1))
+* Derive some traits for RngMock ([#110](https://github.com/MikuroXina/bms-rs/issues/110)) ([15facc9](https://github.com/MikuroXina/bms-rs/commit/15facc995135619481caf0faf64cb6498385fa03))
+* replace todo!() with returning Error ([#101](https://github.com/MikuroXina/bms-rs/issues/101)) ([76846d6](https://github.com/MikuroXina/bms-rs/commit/76846d68e25fb44d4fcdfdb1dd9e8863127f0c03))
+
+
+### Bug Fixes
+
+* **bms/lex:** use Cow&lt;'a, str&gt;, for performance? ([#99](https://github.com/MikuroXina/bms-rs/issues/99)) ([44fa2bd](https://github.com/MikuroXina/bms-rs/commit/44fa2bd08451bc9dd2ad38c0617d930f28dd341b))
+* Fix Errors about Cursor when parsing source with no "\r\n" in the end. ([#106](https://github.com/MikuroXina/bms-rs/issues/106)) ([4b07f2d](https://github.com/MikuroXina/bms-rs/commit/4b07f2dae42676c7625de12cf84965a7b44ef1db))
+
 ## [0.5.0](https://github.com/MikuroXina/bms-rs/compare/v0.4.4...v0.5.0) (2025-01-06)
 
 
