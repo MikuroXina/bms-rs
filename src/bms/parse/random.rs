@@ -221,7 +221,7 @@ impl<R: Rng> RandomParser<R> {
         if let &Token::Random(max) = token {
             self.stack.push(ControlFlowBlock::Random {
                 rand_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.gen(1..=max)),
+                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
             });
             return Break(Ok(()));
         }
@@ -236,7 +236,7 @@ impl<R: Rng> RandomParser<R> {
         if let &Token::Switch(max) = token {
             self.stack.push(ControlFlowBlock::Switch {
                 switch_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.gen(1..=max)),
+                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
                 matched: false,
                 skipping: false,
             });
