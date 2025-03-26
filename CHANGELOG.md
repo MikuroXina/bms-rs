@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.6.0...v1.0.0) (2025-03-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* Bump edition to 2024 ([#113](https://github.com/MikuroXina/bms-rs/issues/113))
+
+### Features
+
+* Bump edition to 2024 ([#113](https://github.com/MikuroXina/bms-rs/issues/113)) ([3bd2d8f](https://github.com/MikuroXina/bms-rs/commit/3bd2d8f9dfcad2563151bf7e934c3a4ebd5256d2))
+
 ## [0.6.0](https://github.com/MikuroXina/bms-rs/compare/v0.5.0...v0.6.0) (2025-01-14)
 
 
