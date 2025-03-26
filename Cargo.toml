@@ -2,7 +2,7 @@
 name = "bms-rs"
 version = "0.6.0"
 authors = ["MikuroXina <ryosukadnak@gmail.com>"]
-edition = "2021"
+edition = "2024"
 description = "The BMS format parser."
 license = "Apache-2.0"
 keywords = ["bms", "parser"]
