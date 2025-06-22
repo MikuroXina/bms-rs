@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0](https://github.com/MikuroXina/bms-rs/compare/v0.6.0...v0.7.0) (2025-06-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add prompting interface ([#119](https://github.com/MikuroXina/bms-rs/issues/119))
+* Bump edition to 2024 ([#113](https://github.com/MikuroXina/bms-rs/issues/113))
+
+### Features
+
+* Add prompting interface ([#119](https://github.com/MikuroXina/bms-rs/issues/119)) ([aa50d15](https://github.com/MikuroXina/bms-rs/commit/aa50d154ac8610c056830f882d62d4e37f513f86))
+* Bump edition to 2024 ([#113](https://github.com/MikuroXina/bms-rs/issues/113)) ([3bd2d8f](https://github.com/MikuroXina/bms-rs/commit/3bd2d8f9dfcad2563151bf7e934c3a4ebd5256d2))
+
+
+### Miscellaneous Chores
+
+* release 0.7.0 ([#121](https://github.com/MikuroXina/bms-rs/issues/121)) ([4aa0b27](https://github.com/MikuroXina/bms-rs/commit/4aa0b2767281c56241d8691a8efe7355a0758b50))
+
 ## [0.6.0](https://github.com/MikuroXina/bms-rs/compare/v0.5.0...v0.6.0) (2025-01-14)
 
 
