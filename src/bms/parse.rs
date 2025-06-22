@@ -3,6 +3,7 @@
 pub mod header;
 pub mod notes;
 pub mod obj;
+pub mod prompt;
 mod random;
 pub mod rng;
 
@@ -13,6 +14,7 @@ use thiserror::Error;
 use self::{
     header::Header,
     notes::Notes,
+    prompt::PromptHandler,
     random::{ControlFlowRule, RandomParser},
     rng::Rng,
 };
@@ -36,6 +38,9 @@ pub enum ParseError {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
+    /// Parsing is halted because `prompt_handler` returned [`PromptChoice::Halt`].
+    #[error("parsing is halted by prompt handler")]
+    Halted,
 }
 
 /// A custom result type for parsing.
@@ -55,7 +60,11 @@ pub struct Bms {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream(token_stream: &TokenStream, rng: impl Rng) -> Result<Self> {
+    pub fn from_token_stream(
+        token_stream: &TokenStream,
+        rng: impl Rng,
+        mut prompt_handler: impl PromptHandler,
+    ) -> Result<Self> {
         let mut random_parser = RandomParser::new(rng);
         let mut notes = Notes::default();
         let mut header = Header::default();
@@ -68,7 +77,7 @@ impl Bms {
                 ControlFlow::Break(Err(e)) => return Err(e),
             }
             notes.parse(token, &header)?;
-            header.parse(token)?;
+            header.parse(token, &mut prompt_handler)?;
             if let Token::NotACommand(comment) = token {
                 non_command_lines.push(comment.to_string())
             }

@@ -9,13 +9,13 @@
 //! ```
 //! use bms_rs::{
 //!     lex::parse,
-//!     parse::{rng::RngMock, Bms},
+//!     parse::{prompt::AlwaysHalt, rng::RngMock, Bms},
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
 //! let token_stream = parse(&source).expect("must be parsed");
 //! let rng = RngMock([1]);
-//! let bms = Bms::from_token_stream(&token_stream, rng).expect("must be parsed");
+//! let bms = Bms::from_token_stream(&token_stream, rng, AlwaysHalt).expect("must be parsed");
 //! ```
 //!
 //! # About the format

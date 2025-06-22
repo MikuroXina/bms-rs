@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use super::{ParseError, Result};
+use super::{
+    ParseError, Result,
+    prompt::{PromptHandler, PromptingDuplication},
+};
 use crate::lex::{command::*, token::Token};
 
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
@@ -108,7 +111,11 @@ pub struct Header {
 }
 
 impl Header {
-    pub(crate) fn parse(&mut self, token: &Token) -> Result<()> {
+    pub(crate) fn parse(
+        &mut self,
+        token: &Token,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
             Token::AtBga { .. } => todo!(),
@@ -121,22 +128,20 @@ impl Header {
                     return Ok(());
                 }
                 let id = id.unwrap();
-                if self
-                    .bmp_files
-                    .insert(
-                        id,
-                        Bmp {
-                            file: path.into(),
-                            transparent_color: Argb::default(),
-                        },
-                    )
-                    .is_some()
-                {
-                    eprintln!(
-                        "duplicated bmp definition found: {:?} {:?}",
-                        id,
-                        path.display()
-                    );
+                let to_insert = Bmp {
+                    file: path.into(),
+                    transparent_color: Argb::default(),
+                };
+                if let Some(older) = self.bmp_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bmp {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bmp_files.insert(id, to_insert);
                 }
             }
             Token::Bpm(bpm) => {
@@ -157,16 +162,29 @@ impl Header {
                 if parsed <= 0.0 || !parsed.is_finite() {
                     return Err(ParseError::BpmParseError(bpm.into()));
                 }
-                if self.bpm_changes.insert(id, parsed).is_some() {
-                    eprintln!("duplicated bpm change definition found: {:?} {:?}", id, bpm);
+                if let Some(older) = self.bpm_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::BpmChange {
+                            id,
+                            older: *older,
+                            newer: parsed,
+                        })
+                        .apply(older, parsed)?;
+                } else {
+                    self.bpm_changes.insert(id, parsed);
                 }
             }
             Token::ChangeOption(id, option) => {
-                if self.change_options.insert(id, option.into()).is_some() {
-                    eprintln!(
-                        "duplicated change option definition found: {:?} {}",
-                        id, option
-                    );
+                if let Some(older) = self.change_options.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ChangeOption {
+                            id,
+                            older,
+                            newer: option,
+                        })
+                        .apply(older, option.into())?;
+                } else {
+                    self.change_options.insert(id, option.into());
                 }
             }
             Token::Comment(comment) => self
@@ -176,22 +194,20 @@ impl Header {
             Token::Difficulty(diff) => self.difficulty = Some(diff),
             Token::Email(email) => self.email = Some(email.into()),
             Token::ExBmp(id, transparent_color, path) => {
-                if self
-                    .bmp_files
-                    .insert(
-                        id,
-                        Bmp {
-                            file: path.into(),
-                            transparent_color,
-                        },
-                    )
-                    .is_some()
-                {
-                    eprintln!(
-                        "duplicated bmp definition found: {:?} {:?}",
-                        id,
-                        path.display()
-                    );
+                let to_insert = Bmp {
+                    file: path.into(),
+                    transparent_color,
+                };
+                if let Some(older) = self.bmp_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bmp {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bmp_files.insert(id, to_insert);
                 }
             }
             Token::ExRank(_, _) => todo!(),
@@ -222,11 +238,16 @@ impl Header {
                 if parsed <= 0.0 || !parsed.is_finite() {
                     return Err(ParseError::BpmParseError(factor.into()));
                 }
-                if self.scrolling_factor_changes.insert(id, parsed).is_some() {
-                    eprintln!(
-                        "duplicated bpm change definition found: {:?} {:?}",
-                        id, factor
-                    );
+                if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ScrollingFactorChange {
+                            id,
+                            older: *older,
+                            newer: parsed,
+                        })
+                        .apply(older, parsed)?;
+                } else {
+                    self.scrolling_factor_changes.insert(id, parsed);
                 }
             }
             Token::Speed(id, factor) => {
@@ -236,11 +257,16 @@ impl Header {
                 if parsed <= 0.0 || !parsed.is_finite() {
                     return Err(ParseError::BpmParseError(factor.into()));
                 }
-                if self.spacing_factor_changes.insert(id, parsed).is_some() {
-                    eprintln!(
-                        "duplicated bpm change definition found: {:?} {:?}",
-                        id, factor
-                    );
+                if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SpacingFactorChange {
+                            id,
+                            older: *older,
+                            newer: parsed,
+                        })
+                        .apply(older, parsed)?;
+                } else {
+                    self.spacing_factor_changes.insert(id, parsed);
                 }
             }
             Token::StageFile(file) => self.stage_file = Some(file.into()),
@@ -253,8 +279,16 @@ impl Header {
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
             Token::Text(id, text) => {
-                if self.texts.insert(id, text.into()).is_some() {
-                    eprintln!("duplicated text definition found: {:?} {}", id, text);
+                if let Some(older) = self.texts.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Text {
+                            id,
+                            older,
+                            newer: text,
+                        })
+                        .apply(older, text.into())?;
+                } else {
+                    self.texts.insert(id, text.into());
                 }
             }
             Token::Title(title) => self.title = Some(title.into()),
@@ -269,12 +303,16 @@ impl Header {
             Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
             Token::VolWav(volume) => self.volume = volume,
             Token::Wav(id, path) => {
-                if self.wav_files.insert(id, path.into()).is_some() {
-                    eprintln!(
-                        "duplicated wav definition found: {:?} {:?}",
-                        id,
-                        path.display()
-                    );
+                if let Some(older) = self.wav_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Wav {
+                            id,
+                            older,
+                            newer: path,
+                        })
+                        .apply(older, path.into())?;
+                } else {
+                    self.wav_files.insert(id, path.into());
                 }
             }
             _ => {}

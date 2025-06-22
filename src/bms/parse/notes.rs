@@ -7,7 +7,7 @@ use std::{
     ops::Bound,
 };
 
-use super::{header::Header, obj::Obj, ParseError, Result};
+use super::{ParseError, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
         command::{self, Channel, Key, NoteKind, ObjId},

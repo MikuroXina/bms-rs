@@ -1,6 +1,6 @@
 use bms_rs::{
     lex::parse,
-    parse::{rng::RngMock, Bms},
+    parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
 };
 
 #[test]
@@ -12,7 +12,7 @@ fn test_not_base_62() {
     ",
     )
     .expect("must be parsed");
-    let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
+    let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysUseNewer).expect("must be parsed");
     eprintln!("{:?}", bms);
     assert_eq!(bms.header.wav_files.len(), 1);
     assert_eq!(
@@ -32,7 +32,7 @@ fn test_base_62() {
     ",
     )
     .expect("must be parsed");
-    let bms = Bms::from_token_stream(&ts, RngMock([1])).expect("must be parsed");
+    let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysUseNewer).expect("must be parsed");
     eprintln!("{:?}", bms);
     assert_eq!(bms.header.wav_files.len(), 2);
 }

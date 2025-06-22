@@ -3,7 +3,7 @@ use bms_rs::{
         command::{Key, NoteKind},
         parse,
     },
-    parse::{obj::Obj, rng::RngMock, Bms},
+    parse::{Bms, obj::Obj, prompt::AlwaysHalt, rng::RngMock},
     time::ObjTime,
 };
 
@@ -29,7 +29,7 @@ fn switch() {
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
     let rng = RngMock([1]);
-    let _bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let _bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn nested_switch_simpler() {
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
     let rng = RngMock([1]);
-    let _bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let _bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn nested_switch() {
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
     let rng = RngMock([1]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -140,7 +140,7 @@ fn nested_switch() {
     );
 
     let rng = RngMock([1, 2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -176,7 +176,7 @@ fn nested_switch() {
     );
 
     let rng = RngMock([2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -246,7 +246,7 @@ fn nested_random_in_switch() {
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
     let rng = RngMock([1]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -282,7 +282,7 @@ fn nested_random_in_switch() {
     );
 
     let rng = RngMock([1, 2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -318,7 +318,7 @@ fn nested_random_in_switch() {
     );
 
     let rng = RngMock([2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -388,7 +388,7 @@ fn nested_switch_in_random() {
     let tokens = parse(SRC).expect("must be parsed");
     dbg!(tokens.iter());
     let rng = RngMock([1]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -424,7 +424,7 @@ fn nested_switch_in_random() {
     );
 
     let rng = RngMock([1, 2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -460,7 +460,7 @@ fn nested_switch_in_random() {
     );
 
     let rng = RngMock([2]);
-    let bms = Bms::from_token_stream(&tokens, rng).expect("must be parsed");
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
