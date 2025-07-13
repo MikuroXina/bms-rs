@@ -41,16 +41,39 @@ pub enum JudgeLevel {
     VeryEasy,
 }
 
+impl TryFrom<u8> for JudgeLevel {
+    type Error = u8;
+    fn try_from(value: u8) -> std::result::Result<Self, u8> {
+        Ok(match value {
+            0 => Self::VeryHard,
+            1 => Self::Hard,
+            2 => Self::Normal,
+            3 => Self::Easy,
+            4 => Self::VeryEasy,
+            _ => {
+                return Err(value);
+            }
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a str> for JudgeLevel {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> std::result::Result<Self, &'a str> {
+        Some(value)
+            .filter(|v| v.is_ascii() && v.bytes().all(|b| b.is_ascii_digit()))
+            .and_then(|v| v.parse::<u8>().ok())
+            .and_then(|v| <Self as TryFrom<u8>>::try_from(v).ok())
+            .ok_or(value)
+    }
+}
+
 impl JudgeLevel {
     pub(crate) fn try_from(c: &mut Cursor) -> Result<Self> {
-        Ok(match c.next_token() {
-            Some("0") => Self::VeryHard,
-            Some("1") => Self::Hard,
-            Some("2") => Self::Normal,
-            Some("3") => Self::Easy,
-            Some("4") => Self::VeryEasy,
-            _ => return Err(c.make_err_expected_token("one of 0, 1, 2 or 3")),
-        })
+        c.next_token()
+            .ok_or(c.make_err_expected_token("one of [0,4]"))?
+            .try_into()
+            .map_err(|_| c.make_err_expected_token("one of [0,4]"))
     }
 }
 

@@ -444,7 +444,9 @@ impl<'a> Token<'a> {
                         "3" => JudgeLevel::Easy,
                         "4" => JudgeLevel::VeryEasy,
                         _ => {
-                            return Err(c.make_err_expected_token("expected one of 0, 1, 2, 3 or 4"));
+                            return Err(
+                                c.make_err_expected_token("expected one of 0, 1, 2, 3 or 4")
+                            );
                         }
                     };
 
