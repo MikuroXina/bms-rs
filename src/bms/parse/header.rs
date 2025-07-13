@@ -183,16 +183,24 @@ impl Header {
                 trim_size,
                 draw_point,
             } => {
-                self.atbga_defs.insert(
+                let to_insert = AtBgaDef {
                     id,
-                    AtBgaDef {
-                        id,
-                        source_bmp,
-                        trim_top_left,
-                        trim_size,
-                        draw_point,
-                    },
-                );
+                    source_bmp,
+                    trim_top_left,
+                    trim_size,
+                    draw_point,
+                };
+                if let Some(older) = self.atbga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::AtBga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.atbga_defs.insert(id, to_insert);
+                }
             }
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
@@ -203,16 +211,24 @@ impl Header {
                 trim_bottom_right,
                 draw_point,
             } => {
-                self.bga_defs.insert(
+                let to_insert = BgaDef {
                     id,
-                    BgaDef {
-                        id,
-                        source_bmp,
-                        trim_top_left,
-                        trim_bottom_right,
-                        draw_point,
-                    },
-                );
+                    source_bmp,
+                    trim_top_left,
+                    trim_bottom_right,
+                    draw_point,
+                };
+                if let Some(older) = self.bga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bga_defs.insert(id, to_insert);
+                }
             }
             Token::Bmp(id, path) => {
                 if id.is_none() {
@@ -267,7 +283,17 @@ impl Header {
                 }
             }
             Token::ChangeOption(id, option) => {
-                self.change_options.insert(id, option.into());
+                if let Some(older) = self.change_options.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ChangeOption {
+                            id,
+                            older,
+                            newer: option,
+                        })
+                        .apply(older, option.into())?;
+                } else {
+                    self.change_options.insert(id, option.into());
+                }
             }
             Token::Comment(comment) => self
                 .comment
@@ -293,22 +319,41 @@ impl Header {
                 }
             }
             Token::ExRank(id, judge_level) => {
-                self.exrank_defs.insert(id, ExRankDef { id, judge_level });
+                let to_insert = ExRankDef { id, judge_level };
+                if let Some(older) = self.exrank_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExRank {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exrank_defs.insert(id, to_insert);
+                }
             }
             Token::ExWav(id, params, path) => {
-                self.exwav_defs.insert(
+                let to_insert = ExWavDef {
                     id,
-                    ExWavDef {
-                        id,
-                        params: [
-                            params[0].to_string(),
-                            params[1].to_string(),
-                            params[2].to_string(),
-                            params[3].to_string(),
-                        ],
-                        path: path.into(),
-                    },
-                );
+                    params: [
+                        params[0].to_string(),
+                        params[1].to_string(),
+                        params[2].to_string(),
+                        params[3].to_string(),
+                    ],
+                    path: path.into(),
+                };
+                if let Some(older) = self.exwav_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExWav {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exwav_defs.insert(id, to_insert);
+                }
             }
             Token::Genre(genre) => self.genre = Some(genre.to_owned()),
             Token::LnTypeRdm => {
@@ -377,7 +422,17 @@ impl Header {
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
             Token::Text(id, text) => {
-                self.texts.insert(id, text.into());
+                if let Some(older) = self.texts.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Text {
+                            id,
+                            older,
+                            newer: text,
+                        })
+                        .apply(older, text.into())?;
+                } else {
+                    self.texts.insert(id, text.into());
+                }
             }
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
