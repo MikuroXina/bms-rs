@@ -33,10 +33,12 @@ pub enum JudgeLevel {
     VeryHard,
     /// Rank 1, the harder rank.
     Hard,
-    /// Rank 2, the easier rank.
+    /// Rank 2, the normal rank.
     Normal,
-    /// Rank 3, the easiest rank.
+    /// Rank 3, the easier rank.
     Easy,
+    /// Rank 4, the easiest rank.
+    VeryEasy,
 }
 
 impl JudgeLevel {
@@ -47,25 +49,6 @@ impl JudgeLevel {
             Some("2") => Self::Normal,
             Some("3") => Self::Easy,
             _ => return Err(c.make_err_expected_token("one of 0, 1, 2 or 3")),
-        })
-    }
-}
-
-impl std::str::FromStr for JudgeLevel {
-    type Err = LexError;
-    fn from_str(s: &str) -> Result<Self> {
-        Ok(match s {
-            "0" => Self::VeryHard,
-            "1" => Self::Hard,
-            "2" => Self::Normal,
-            "3" => Self::Easy,
-            _ => {
-                return Err(LexError::ExpectedToken {
-                    line: 1,
-                    col: 1,
-                    message: "expected one of 0, 1, 2 or 3",
-                });
-            }
         })
     }
 }
@@ -235,46 +218,6 @@ impl Default for Argb {
             green: 0,
             blue: 0,
         }
-    }
-}
-
-impl std::str::FromStr for Argb {
-    type Err = LexError;
-    fn from_str(s: &str) -> Result<Self> {
-        let parts: Vec<&str> = s.split(',').collect();
-        if parts.len() != 4 {
-            return Err(LexError::ExpectedToken {
-                line: 1,
-                col: 1,
-                message: "expected 4 comma-separated values",
-            });
-        }
-        let alpha = parts[0].parse().map_err(|_| LexError::ExpectedToken {
-            line: 1,
-            col: 1,
-            message: "invalid alpha value",
-        })?;
-        let red = parts[1].parse().map_err(|_| LexError::ExpectedToken {
-            line: 1,
-            col: 1,
-            message: "invalid red value",
-        })?;
-        let green = parts[2].parse().map_err(|_| LexError::ExpectedToken {
-            line: 1,
-            col: 1,
-            message: "invalid green value",
-        })?;
-        let blue = parts[3].parse().map_err(|_| LexError::ExpectedToken {
-            line: 1,
-            col: 1,
-            message: "invalid blue value",
-        })?;
-        Ok(Self {
-            alpha,
-            red,
-            green,
-            blue,
-        })
     }
 }
 
