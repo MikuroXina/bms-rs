@@ -443,7 +443,9 @@ impl<'a> Token<'a> {
                         "2" => JudgeLevel::Normal,
                         "3" => JudgeLevel::Easy,
                         "4" => JudgeLevel::VeryEasy,
-                        _ => return Err(c.make_err_expected_token("expected one of 0, 1, 2, 3 or 4")),
+                        _ => {
+                            return Err(c.make_err_expected_token("expected one of 0, 1, 2, 3 or 4"));
+                        }
                     };
 
                     Self::ExRank(ObjId::from(id, c)?, judge_level)
