@@ -418,10 +418,11 @@ impl Header {
             | Token::SetRandom(_)
             | Token::SetSwitch(_)
             | Token::Skip
-            | Token::Switch(_) => {
-                // These tokens don't need to be processed in Header::parse
+            | Token::Switch(_)
+            | Token::ExtendedMessage { .. }
+            | Token::Message { .. } => {
+                // These Token should not be handled in Header::parse.
             }
-            _ => {}
         }
         Ok(())
     }
