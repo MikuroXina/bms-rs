@@ -696,18 +696,15 @@ mod tests {
 
     #[test]
     fn test_exbmp() {
-        let t = parse_token("#EXBMP01 255,0,0,0 exbmp.png");
-        match t {
-            Token::ExBmp(id, argb, path) => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(argb.alpha, 255);
-                assert_eq!(argb.red, 0);
-                assert_eq!(argb.green, 0);
-                assert_eq!(argb.blue, 0);
-                assert_eq!(path, Path::new("exbmp.png"));
-            }
-            _ => panic!("Not ExBmp"),
-        }
+        let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png") else {
+            panic!("Not ExBmp");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(argb.alpha, 255);
+        assert_eq!(argb.red, 0);
+        assert_eq!(argb.green, 0);
+        assert_eq!(argb.blue, 0);
+        assert_eq!(path, Path::new("exbmp.png"));
     }
 
     #[test]
