@@ -158,13 +158,13 @@ pub struct Header {
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id.
     pub stops: HashMap<ObjId, u32>,
-    /// 存储#@BGA定义
+    /// Storage for #@BGA definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
-    /// 存储#BGA定义
+    /// Storage for #BGA definitions
     pub bga_defs: HashMap<ObjId, BgaDef>,
-    /// 存储#EXRANK定义
+    /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
-    /// 存储#EXWAV定义
+    /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
 }
 
@@ -419,7 +419,7 @@ impl Header {
             | Token::SetSwitch(_)
             | Token::Skip
             | Token::Switch(_) => {
-                // 这些 Token 在 Header::parse 中不需要处理
+                // These tokens don't need to be processed in Header::parse
             }
             _ => {}
         }

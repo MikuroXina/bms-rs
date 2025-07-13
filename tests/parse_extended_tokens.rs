@@ -12,7 +12,7 @@ fn test_atbga_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #@BGA 被正确解析
+    // Verify that #@BGA is parsed correctly
     assert!(
         bms.header
             .atbga_defs
@@ -38,7 +38,7 @@ fn test_bga_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #BGA 被正确解析
+    // Verify that #BGA is parsed correctly
     assert!(
         bms.header
             .bga_defs
@@ -64,7 +64,7 @@ fn test_exrank_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #EXRANK 被正确解析
+    // Verify that #EXRANK is parsed correctly
     assert!(
         bms.header
             .exrank_defs
@@ -87,7 +87,7 @@ fn test_exwav_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #EXWAV 被正确解析
+    // Verify that #EXWAV is parsed correctly
     assert!(
         bms.header
             .exwav_defs
@@ -108,7 +108,7 @@ fn test_changeoption_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #CHANGEOPTION 被正确解析
+    // Verify that #CHANGEOPTION is parsed correctly
     assert!(
         bms.header
             .change_options
@@ -128,7 +128,7 @@ fn test_text_parsing() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 #TEXT 被正确解析
+    // Verify that #TEXT is parsed correctly
     assert!(
         bms.header
             .texts
@@ -150,7 +150,7 @@ fn test_notes_parse_extended_tokens() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证 Notes 中的扩展字段被正确解析
+    // Verify that extended fields in Notes are parsed correctly
     assert!(
         bms.notes
             .exrank_defs
@@ -196,7 +196,7 @@ fn test_token_parsing_comprehensive() {
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
 
-    // 验证所有新增的 Token 都被正确解析
+    // Verify that all new tokens are parsed correctly
     assert_eq!(bms.header.artist, Some("Test Artist".to_string()));
     assert_eq!(bms.header.email, Some("test@example.com".to_string()));
     assert_eq!(bms.header.url, Some("http://example.com".to_string()));
@@ -219,7 +219,7 @@ fn test_token_parsing_comprehensive() {
         Some(std::path::PathBuf::from("wav/"))
     );
 
-    // 验证新的定义结构
+    // Verify new definition structures
     assert!(
         bms.header
             .atbga_defs

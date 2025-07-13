@@ -260,13 +260,13 @@ pub struct Notes {
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
     extended_messages: Vec<ExtendedMessageObj>,
-    /// 存储#EXRANK定义
+    /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
-    /// 存储#EXWAV定义
+    /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
-    /// 存储#CHANGEOPTION定义
+    /// Storage for #CHANGEOPTION definitions
     pub change_options: HashMap<ObjId, String>,
-    /// 存储#TEXT定义
+    /// Storage for #TEXT definitions
     pub texts: HashMap<ObjId, String>,
 }
 
@@ -507,8 +507,8 @@ impl Notes {
                         .change_options
                         .get(&obj)
                         .ok_or(ParseError::UndefinedObject(obj))?;
-                    // 这里可以添加对 ChangeOption 的处理逻辑
-                    // 目前只是忽略，因为 change_options 已经在 header 中存储
+                    // Here we can add logic to handle ChangeOption
+                    // Currently just ignored because change_options are already stored in header
                 }
             }
             Token::Message {
@@ -696,7 +696,7 @@ impl Notes {
             | Token::Total(_)
             | Token::VolWav(_)
             | Token::Wav(_, _) => {
-                // 这些 Token 在 Notes::parse 中不需要处理，它们应该在 Header::parse 中处理
+                // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
             }
         }
         Ok(())
