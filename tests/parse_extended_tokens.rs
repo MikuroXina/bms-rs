@@ -11,11 +11,19 @@ fn test_atbga_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #@BGA 被正确解析
-    assert!(bms.header.atbga_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    let atbga_def = &bms.header.atbga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(atbga_def.source_bmp, bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap());
+    assert!(
+        bms.header
+            .atbga_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    let atbga_def =
+        &bms.header.atbga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    assert_eq!(
+        atbga_def.source_bmp,
+        bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
+    );
     assert_eq!(atbga_def.trim_top_left, (10, 20));
     assert_eq!(atbga_def.trim_size, (100, 200));
     assert_eq!(atbga_def.draw_point, (30, 40));
@@ -29,11 +37,19 @@ fn test_bga_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #BGA 被正确解析
-    assert!(bms.header.bga_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    let bga_def = &bms.header.bga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(bga_def.source_bmp, bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap());
+    assert!(
+        bms.header
+            .bga_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    let bga_def =
+        &bms.header.bga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    assert_eq!(
+        bga_def.source_bmp,
+        bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
+    );
     assert_eq!(bga_def.trim_top_left, (10, 20));
     assert_eq!(bga_def.trim_bottom_right, (110, 220));
     assert_eq!(bga_def.draw_point, (30, 40));
@@ -47,11 +63,19 @@ fn test_exrank_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #EXRANK 被正确解析
-    assert!(bms.header.exrank_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    let exrank_def = &bms.header.exrank_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(exrank_def.judge_level, bms_rs::lex::command::JudgeLevel::Normal);
+    assert!(
+        bms.header
+            .exrank_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    let exrank_def =
+        &bms.header.exrank_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    assert_eq!(
+        exrank_def.judge_level,
+        bms_rs::lex::command::JudgeLevel::Normal
+    );
 }
 
 #[test]
@@ -62,10 +86,15 @@ fn test_exwav_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #EXWAV 被正确解析
-    assert!(bms.header.exwav_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    let exwav_def = &bms.header.exwav_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    assert!(
+        bms.header
+            .exwav_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    let exwav_def =
+        &bms.header.exwav_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
     assert_eq!(exwav_def.params, ["param1", "param2", "param3", "test.wav"]);
     assert_eq!(exwav_def.path.to_string_lossy(), "test.wav");
 }
@@ -78,10 +107,15 @@ fn test_changeoption_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #CHANGEOPTION 被正确解析
-    assert!(bms.header.change_options.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    let option = &bms.header.change_options[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    assert!(
+        bms.header
+            .change_options
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    let option =
+        &bms.header.change_options[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -93,9 +127,13 @@ fn test_text_parsing() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 #TEXT 被正确解析
-    assert!(bms.header.texts.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
+    assert!(
+        bms.header
+            .texts
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
     let text = &bms.header.texts[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
     assert_eq!(text, "test_text");
 }
@@ -111,12 +149,28 @@ fn test_notes_parse_extended_tokens() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证 Notes 中的扩展字段被正确解析
-    assert!(bms.notes.exrank_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.notes.exwav_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.notes.change_options.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.notes.texts.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
+    assert!(
+        bms.notes
+            .exrank_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.notes
+            .exwav_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.notes
+            .change_options
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.notes
+            .texts
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
 }
 
 #[test]
@@ -141,23 +195,59 @@ fn test_token_parsing_comprehensive() {
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
-    
+
     // 验证所有新增的 Token 都被正确解析
     assert_eq!(bms.header.artist, Some("Test Artist".to_string()));
     assert_eq!(bms.header.email, Some("test@example.com".to_string()));
     assert_eq!(bms.header.url, Some("http://example.com".to_string()));
     assert_eq!(bms.header.maker, Some("Test Maker".to_string()));
-    assert_eq!(bms.header.midi_file, Some(std::path::PathBuf::from("test.mid")));
-    assert_eq!(bms.header.video_file, Some(std::path::PathBuf::from("test.mp4")));
-    assert_eq!(bms.header.poor_bga_mode, bms_rs::lex::command::PoorMode::Overlay);
+    assert_eq!(
+        bms.header.midi_file,
+        Some(std::path::PathBuf::from("test.mid"))
+    );
+    assert_eq!(
+        bms.header.video_file,
+        Some(std::path::PathBuf::from("test.mp4"))
+    );
+    assert_eq!(
+        bms.header.poor_bga_mode,
+        bms_rs::lex::command::PoorMode::Overlay
+    );
     assert!(bms.header.is_octave);
-    assert_eq!(bms.header.wav_path_root, Some(std::path::PathBuf::from("wav/")));
-    
+    assert_eq!(
+        bms.header.wav_path_root,
+        Some(std::path::PathBuf::from("wav/"))
+    );
+
     // 验证新的定义结构
-    assert!(bms.header.atbga_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.header.bga_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()));
-    assert!(bms.header.exrank_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.header.exwav_defs.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.header.change_options.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-    assert!(bms.header.texts.contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()));
-} 
+    assert!(
+        bms.header
+            .atbga_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.header
+            .bga_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap())
+    );
+    assert!(
+        bms.header
+            .exrank_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.header
+            .exwav_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.header
+            .change_options
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.header
+            .texts
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+}
