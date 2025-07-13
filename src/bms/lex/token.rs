@@ -1,8 +1,8 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::Path, str::FromStr};
 
-use super::{command::*, cursor::Cursor, Result};
+use super::{Result, command::*, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -320,6 +320,27 @@ impl<'a> Token<'a> {
                     let comment = c.next_line_remaining();
                     Self::Comment(comment)
                 }
+                "#EMAIL" => Self::Email(c.next_line_remaining()),
+                "#URL" => Self::Url(c.next_line_remaining()),
+                "#OCT/FP" => Self::OctFp,
+                "#OPTION" => Self::Option(c.next_line_remaining()),
+                "#PATH_WAV" => Self::PathWav(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("wav root path"))?,
+                ),
+                "#MAKER" => Self::Maker(c.next_line_remaining()),
+                "#MIDIFILE" => Self::MidiFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("midi filename"))?,
+                ),
+                "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
+                "#VIDEOFILE" | "#MOVIE" => Self::VideoFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("video filename"))?,
+                ),
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -372,6 +393,147 @@ impl<'a> Token<'a> {
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
                     Self::Speed(ObjId::from(id, c)?, scroll)
+                }
+                exbmp if exbmp.starts_with("#EXBMP") => {
+                    let id = exbmp.trim_start_matches("#EXBMP");
+                    let argb = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("argb"))?;
+                    let filename = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
+                    Self::ExBmp(
+                        ObjId::from(id, c)?,
+                        Argb::from_str(argb)?,
+                        Path::new(filename),
+                    )
+                }
+                exrank if exrank.starts_with("#EXRANK") => {
+                    let id = exrank.trim_start_matches("#EXRANK");
+                    let level = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("judge level"))?;
+                    Self::ExRank(ObjId::from(id, c)?, JudgeLevel::from_str(level)?)
+                }
+                exwav if exwav.starts_with("#EXWAV") => {
+                    let id = exwav.trim_start_matches("#EXWAV");
+                    let p1 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("param1"))?;
+                    let p2 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("param2"))?;
+                    let p3 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("param3"))?;
+                    let filename = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
+                    Self::ExWav(
+                        ObjId::from(id, c)?,
+                        [p1, p2, p3, filename],
+                        Path::new(filename),
+                    )
+                }
+                text if text.starts_with("#TEXT") => {
+                    let id = text.trim_start_matches("#TEXT");
+                    let content = c.next_line_remaining();
+                    Self::Text(ObjId::from(id, c)?, content)
+                }
+                atbga if atbga.starts_with("#@BGA") => {
+                    let id = atbga.trim_start_matches("#@BGA");
+                    let source_bmp = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                    let sx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("sx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let sy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("sy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let w = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("w"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let h = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("h"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::AtBga {
+                        id: ObjId::from(id, c)?,
+                        source_bmp: ObjId::from(source_bmp, c)?,
+                        trim_top_left: (sx, sy),
+                        trim_size: (w, h),
+                        draw_point: (dx, dy),
+                    }
+                }
+                bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
+                    let id = bga.trim_start_matches("#BGA");
+                    let source_bmp = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                    let x1 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("x1"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let y1 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("y1"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let x2 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("x2"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let y2 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("y2"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::Bga {
+                        id: ObjId::from(id, c)?,
+                        source_bmp: ObjId::from(source_bmp, c)?,
+                        trim_top_left: (x1, y1),
+                        trim_bottom_right: (x2, y2),
+                        draw_point: (dx, dy),
+                    }
+                }
+                changeoption if changeoption.starts_with("#CHANGEOPTION") => {
+                    let id = changeoption.trim_start_matches("#CHANGEOPTION");
+                    let option = c.next_line_remaining();
+                    Self::ChangeOption(ObjId::from(id, c)?, option)
+                }
+                lnobj if lnobj.starts_with("#LNOBJ") => {
+                    let id = lnobj.trim_start_matches("#LNOBJ");
+                    Self::LnObj(ObjId::from(id, c)?)
                 }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
@@ -520,5 +682,133 @@ impl<'t, 'a> Iterator for TokenStreamIter<'t, 'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_token(input: &str) -> Token {
+        let mut cursor = Cursor::new(input);
+        Token::parse(&mut cursor).unwrap()
+    }
+
+    #[test]
+    fn test_exbmp() {
+        let t = parse_token("#EXBMP01 255,0,0,0 exbmp.png");
+        match t {
+            Token::ExBmp(id, argb, path) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(argb.alpha, 255);
+                assert_eq!(argb.red, 0);
+                assert_eq!(argb.green, 0);
+                assert_eq!(argb.blue, 0);
+                assert_eq!(path, Path::new("exbmp.png"));
+            }
+            _ => panic!("Not ExBmp"),
+        }
+    }
+
+    #[test]
+    fn test_exrank() {
+        let t = parse_token("#EXRANK01 2");
+        match t {
+            Token::ExRank(id, level) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(level as u8, 2);
+            }
+            _ => panic!("Not ExRank"),
+        }
+    }
+
+    #[test]
+    fn test_exwav() {
+        let t = parse_token("#EXWAV01 p1 p2 p3 ex.wav");
+        match t {
+            Token::ExWav(id, arr, path) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(arr, ["p1", "p2", "p3", "ex.wav"]);
+                assert_eq!(path, Path::new("ex.wav"));
+            }
+            _ => panic!("Not ExWav"),
+        }
+    }
+
+    #[test]
+    fn test_text() {
+        let t = parse_token("#TEXT01 hello world");
+        match t {
+            Token::Text(id, text) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(text, "hello world");
+            }
+            _ => panic!("Not Text"),
+        }
+    }
+
+    #[test]
+    fn test_atbga() {
+        let t = parse_token("#@BGA01 02 1 2 3 4 5 6");
+        match t {
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+                assert_eq!(trim_top_left, (1, 2));
+                assert_eq!(trim_size, (3, 4));
+                assert_eq!(draw_point, (5, 6));
+            }
+            _ => panic!("Not AtBga"),
+        }
+    }
+
+    #[test]
+    fn test_bga() {
+        let t = parse_token("#BGA01 02 1 2 3 4 5 6");
+        match t {
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+                assert_eq!(trim_top_left, (1, 2));
+                assert_eq!(trim_bottom_right, (3, 4));
+                assert_eq!(draw_point, (5, 6));
+            }
+            _ => panic!("Not Bga"),
+        }
+    }
+
+    #[test]
+    fn test_changeoption() {
+        let t = parse_token("#CHANGEOPTION01 opt");
+        match t {
+            Token::ChangeOption(id, opt) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(opt, "opt");
+            }
+            _ => panic!("Not ChangeOption"),
+        }
+    }
+
+    #[test]
+    fn test_lnobj() {
+        let t = parse_token("#LNOBJ01");
+        match t {
+            Token::LnObj(id) => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+            }
+            _ => panic!("Not LnObj"),
+        }
     }
 }

@@ -34,6 +34,56 @@ pub struct Bmp {
     pub transparent_color: Argb,
 }
 
+/// A definition for #@BGA command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtBgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming.
+    pub trim_top_left: (i16, i16),
+    /// The size for trimming.
+    pub trim_size: (u16, u16),
+    /// The draw point position.
+    pub draw_point: (i16, i16),
+}
+
+/// A definition for #BGA command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming.
+    pub trim_top_left: (i16, i16),
+    /// The bottom-right position for trimming.
+    pub trim_bottom_right: (i16, i16),
+    /// The draw point position.
+    pub draw_point: (i16, i16),
+}
+
+/// A definition for #EXRANK command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExRankDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The judge level.
+    pub judge_level: JudgeLevel,
+}
+
+/// A definition for #EXWAV command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExWavDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The parameters array.
+    pub params: [String; 4],
+    /// The file path.
+    pub path: std::path::PathBuf,
+}
+
 /// A header parsed from [`TokenStream`](crate::lex::token::TokenStream).
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -108,6 +158,14 @@ pub struct Header {
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id.
     pub stops: HashMap<ObjId, u32>,
+    /// 存储#@BGA定义
+    pub atbga_defs: HashMap<ObjId, AtBgaDef>,
+    /// 存储#BGA定义
+    pub bga_defs: HashMap<ObjId, BgaDef>,
+    /// 存储#EXRANK定义
+    pub exrank_defs: HashMap<ObjId, ExRankDef>,
+    /// 存储#EXWAV定义
+    pub exwav_defs: HashMap<ObjId, ExWavDef>,
 }
 
 impl Header {
@@ -118,10 +176,44 @@ impl Header {
     ) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
-            Token::AtBga { .. } => todo!(),
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                self.atbga_defs.insert(
+                    id,
+                    AtBgaDef {
+                        id,
+                        source_bmp,
+                        trim_top_left,
+                        trim_size,
+                        draw_point,
+                    },
+                );
+            }
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
-            Token::Bga { .. } => todo!(),
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                self.bga_defs.insert(
+                    id,
+                    BgaDef {
+                        id,
+                        source_bmp,
+                        trim_top_left,
+                        trim_bottom_right,
+                        draw_point,
+                    },
+                );
+            }
             Token::Bmp(id, path) => {
                 if id.is_none() {
                     self.poor_bmp = Some(path.into());
@@ -175,17 +267,7 @@ impl Header {
                 }
             }
             Token::ChangeOption(id, option) => {
-                if let Some(older) = self.change_options.get_mut(&id) {
-                    prompt_handler
-                        .handle_duplication(PromptingDuplication::ChangeOption {
-                            id,
-                            older,
-                            newer: option,
-                        })
-                        .apply(older, option.into())?;
-                } else {
-                    self.change_options.insert(id, option.into());
-                }
+                self.change_options.insert(id, option.into());
             }
             Token::Comment(comment) => self
                 .comment
@@ -210,8 +292,24 @@ impl Header {
                     self.bmp_files.insert(id, to_insert);
                 }
             }
-            Token::ExRank(_, _) => todo!(),
-            Token::ExWav(_, _, _) => todo!(),
+            Token::ExRank(id, judge_level) => {
+                self.exrank_defs.insert(id, ExRankDef { id, judge_level });
+            }
+            Token::ExWav(id, params, path) => {
+                self.exwav_defs.insert(
+                    id,
+                    ExWavDef {
+                        id,
+                        params: [
+                            params[0].to_string(),
+                            params[1].to_string(),
+                            params[2].to_string(),
+                            params[3].to_string(),
+                        ],
+                        path: path.into(),
+                    },
+                );
+            }
             Token::Genre(genre) => self.genre = Some(genre.to_owned()),
             Token::LnTypeRdm => {
                 self.ln_type = LnType::Rdm;
@@ -279,17 +377,7 @@ impl Header {
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
             Token::Text(id, text) => {
-                if let Some(older) = self.texts.get_mut(&id) {
-                    prompt_handler
-                        .handle_duplication(PromptingDuplication::Text {
-                            id,
-                            older,
-                            newer: text,
-                        })
-                        .apply(older, text.into())?;
-                } else {
-                    self.texts.insert(id, text.into());
-                }
+                self.texts.insert(id, text.into());
             }
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
@@ -314,6 +402,24 @@ impl Header {
                 } else {
                     self.wav_files.insert(id, path.into());
                 }
+            }
+            Token::Base62
+            | Token::Case(_)
+            | Token::Def
+            | Token::Else
+            | Token::ElseIf(_)
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::EndSwitch
+            | Token::If(_)
+            | Token::LnObj(_)
+            | Token::NotACommand(_)
+            | Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::SetSwitch(_)
+            | Token::Skip
+            | Token::Switch(_) => {
+                // 这些 Token 在 Header::parse 中不需要处理
             }
             _ => {}
         }

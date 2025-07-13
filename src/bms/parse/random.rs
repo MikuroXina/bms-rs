@@ -2,7 +2,7 @@ use std::ops::ControlFlow::{self, *};
 
 use thiserror::Error;
 
-use super::{rng::Rng, ParseError, Result};
+use super::{ParseError, Result, rng::Rng};
 use crate::lex::token::Token;
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -157,13 +157,16 @@ impl<R: Rng> RandomParser<R> {
 
         let flow_enabled = flow_enabled
             && if let Some(
-                [ControlFlowBlock::Random {
-                    rand_max,
-                    chosen_value,
-                }, ControlFlowBlock::IfBranch {
-                    matching_value,
-                    group_previously_matched,
-                }],
+                [
+                    ControlFlowBlock::Random {
+                        rand_max,
+                        chosen_value,
+                    },
+                    ControlFlowBlock::IfBranch {
+                        matching_value,
+                        group_previously_matched,
+                    },
+                ],
             ) = self.stack.last_chunk_mut()
             {
                 // expected else if, else, end if and other commands

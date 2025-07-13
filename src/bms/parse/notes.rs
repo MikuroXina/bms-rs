@@ -13,6 +13,7 @@ use crate::{
         command::{self, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
+    parse::header::{ExRankDef, ExWavDef},
     time::{ObjTime, Track},
 };
 
@@ -259,6 +260,14 @@ pub struct Notes {
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
     extended_messages: Vec<ExtendedMessageObj>,
+    /// 存储#EXRANK定义
+    pub exrank_defs: HashMap<ObjId, ExRankDef>,
+    /// 存储#EXWAV定义
+    pub exwav_defs: HashMap<ObjId, ExWavDef>,
+    /// 存储#CHANGEOPTION定义
+    pub change_options: HashMap<ObjId, String>,
+    /// 存储#TEXT定义
+    pub texts: HashMap<ObjId, String>,
 }
 
 impl Notes {
@@ -490,6 +499,20 @@ impl Notes {
             }
             Token::Message {
                 track,
+                channel: Channel::ChangeOption,
+                message,
+            } => {
+                for (_time, obj) in ids_from_message(*track, message) {
+                    let _option = header
+                        .change_options
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    // 这里可以添加对 ChangeOption 的处理逻辑
+                    // 目前只是忽略，因为 change_options 已经在 header 中存储
+                }
+            }
+            Token::Message {
+                track,
                 channel: Channel::SectionLen,
                 message,
             } => {
@@ -592,7 +615,89 @@ impl Notes {
                 self.push_note(begin_note);
                 self.push_note(end_note);
             }
-            _ => {}
+            Token::ExRank(id, judge_level) => {
+                self.exrank_defs.insert(
+                    *id,
+                    ExRankDef {
+                        id: *id,
+                        judge_level: *judge_level,
+                    },
+                );
+            }
+            Token::ExWav(id, params, path) => {
+                self.exwav_defs.insert(
+                    *id,
+                    ExWavDef {
+                        id: *id,
+                        params: [
+                            params[0].to_string(),
+                            params[1].to_string(),
+                            params[2].to_string(),
+                            params[3].to_string(),
+                        ],
+                        path: path.into(),
+                    },
+                );
+            }
+            Token::ChangeOption(id, option) => {
+                self.change_options.insert(*id, (*option).to_string());
+            }
+            Token::Text(id, text) => {
+                self.texts.insert(*id, (*text).to_string());
+            }
+            Token::Email(_)
+            | Token::Url(_)
+            | Token::OctFp
+            | Token::Option(_)
+            | Token::PathWav(_)
+            | Token::Maker(_)
+            | Token::MidiFile(_)
+            | Token::PoorBga(_)
+            | Token::VideoFile(_)
+            | Token::Artist(_)
+            | Token::AtBga { .. }
+            | Token::Banner(_)
+            | Token::BackBmp(_)
+            | Token::Base62
+            | Token::Bga { .. }
+            | Token::Bmp(_, _)
+            | Token::Bpm(_)
+            | Token::BpmChange(_, _)
+            | Token::Case(_)
+            | Token::Comment(_)
+            | Token::Def
+            | Token::Difficulty(_)
+            | Token::Else
+            | Token::ElseIf(_)
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::EndSwitch
+            | Token::ExBmp(_, _, _)
+            | Token::Genre(_)
+            | Token::If(_)
+            | Token::LnTypeRdm
+            | Token::LnTypeMgq
+            | Token::NotACommand(_)
+            | Token::Player(_)
+            | Token::PlayLevel(_)
+            | Token::Random(_)
+            | Token::Rank(_)
+            | Token::Scroll(_, _)
+            | Token::SetRandom(_)
+            | Token::SetSwitch(_)
+            | Token::Skip
+            | Token::Speed(_, _)
+            | Token::StageFile(_)
+            | Token::Stop(_, _)
+            | Token::SubArtist(_)
+            | Token::SubTitle(_)
+            | Token::Switch(_)
+            | Token::Title(_)
+            | Token::Total(_)
+            | Token::VolWav(_)
+            | Token::Wav(_, _) => {
+                // 这些 Token 在 Notes::parse 中不需要处理，它们应该在 Header::parse 中处理
+            }
         }
         Ok(())
     }
@@ -784,6 +889,10 @@ impl<'de> serde::Deserialize<'de> for Notes {
             scrolling_factor_changes,
             spacing_factor_changes,
             extended_messages,
+            exrank_defs: HashMap::new(),
+            exwav_defs: HashMap::new(),
+            change_options: HashMap::new(),
+            texts: HashMap::new(),
         })
     }
 }
