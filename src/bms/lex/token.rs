@@ -1,6 +1,6 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path, str::FromStr};
+use std::{borrow::Cow, path::Path};
 
 use super::{Result, command::*, cursor::Cursor};
 
@@ -220,7 +220,7 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
-                "#RANK" => Self::Rank(JudgeLevel::from(c)?),
+                "#RANK" => Self::Rank(JudgeLevel::try_from(c)?),
                 "#LNTYPE" => {
                     if c.next_token() == Some("2") {
                         Self::LnTypeMgq
@@ -402,9 +402,32 @@ impl<'a> Token<'a> {
                     let filename = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("filename"))?;
+
+                    let parts: Vec<&str> = argb.split(',').collect();
+                    if parts.len() != 4 {
+                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
+                    }
+                    let alpha = parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                    let red = parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                    let green = parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                    let blue = parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+
                     Self::ExBmp(
                         ObjId::from(id, c)?,
-                        Argb::from_str(argb)?,
+                        Argb {
+                            alpha,
+                            red,
+                            green,
+                            blue,
+                        },
                         Path::new(filename),
                     )
                 }
@@ -413,7 +436,17 @@ impl<'a> Token<'a> {
                     let level = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("judge level"))?;
-                    Self::ExRank(ObjId::from(id, c)?, JudgeLevel::from_str(level)?)
+
+                    let judge_level = match level {
+                        "0" => JudgeLevel::VeryHard,
+                        "1" => JudgeLevel::Hard,
+                        "2" => JudgeLevel::Normal,
+                        "3" => JudgeLevel::Easy,
+                        "4" => JudgeLevel::VeryEasy,
+                        _ => return Err(c.make_err_expected_token("expected one of 0, 1, 2, 3 or 4")),
+                    };
+
+                    Self::ExRank(ObjId::from(id, c)?, judge_level)
                 }
                 exwav if exwav.starts_with("#EXWAV") => {
                     let id = exwav.trim_start_matches("#EXWAV");

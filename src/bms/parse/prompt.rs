@@ -6,7 +6,10 @@ use std::path::Path;
 
 use crate::lex::command::ObjId;
 
-use super::{ParseError, Result, header::{Bmp, AtBgaDef, BgaDef, ExRankDef, ExWavDef}};
+use super::{
+    ParseError, Result,
+    header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
+};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {

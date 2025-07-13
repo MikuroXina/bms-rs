@@ -42,12 +42,13 @@ pub enum JudgeLevel {
 }
 
 impl JudgeLevel {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
+    pub(crate) fn try_from(c: &mut Cursor) -> Result<Self> {
         Ok(match c.next_token() {
             Some("0") => Self::VeryHard,
             Some("1") => Self::Hard,
             Some("2") => Self::Normal,
             Some("3") => Self::Easy,
+            Some("4") => Self::VeryEasy,
             _ => return Err(c.make_err_expected_token("one of 0, 1, 2 or 3")),
         })
     }
