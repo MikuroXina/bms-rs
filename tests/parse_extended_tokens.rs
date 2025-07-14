@@ -95,9 +95,9 @@ fn test_exwav_parsing() {
     );
     let exwav_def =
         &bms.header.exwav_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(exwav_def.pan, 10000);
-    assert_eq!(exwav_def.volume, 0);
-    assert_eq!(exwav_def.frequency, Some(48000));
+    assert_eq!(exwav_def.pan.value(), 10000);
+    assert_eq!(exwav_def.volume.value(), 0);
+    assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
     assert_eq!(exwav_def.path.to_string_lossy(), "test.wav");
 }
 

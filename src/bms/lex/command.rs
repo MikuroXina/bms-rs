@@ -473,3 +473,114 @@ impl Channel {
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Track(pub u32);
+
+/// Pan value for ExWav sound effect.
+/// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+/// Default: 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavPan(i64);
+
+impl ExWavPan {
+    /// Creates a new ExWavPan value.
+    /// Returns `None` if the value is out of range [-10000, 10000].
+    pub fn new(value: i64) -> Option<Self> {
+        (-10000..=10000).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> i64 {
+        self.0
+    }
+
+    /// Returns the default value (0).
+    pub const fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl Default for ExWavPan {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl From<i64> for ExWavPan {
+    fn from(value: i64) -> Self {
+        Self::new(value).unwrap_or_else(|| {
+            // Clamp to valid range
+            let clamped = value.clamp(-10000, 10000);
+            Self(clamped)
+        })
+    }
+}
+
+/// Volume value for ExWav sound effect.
+/// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+/// Default: 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavVolume(i64);
+
+impl ExWavVolume {
+    /// Creates a new ExWavVolume value.
+    /// Returns `None` if the value is out of range [-10000, 0].
+    pub fn new(value: i64) -> Option<Self> {
+        (-10000..=0).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> i64 {
+        self.0
+    }
+
+    /// Returns the default value (0).
+    pub const fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl Default for ExWavVolume {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl From<i64> for ExWavVolume {
+    fn from(value: i64) -> Self {
+        Self::new(value).unwrap_or_else(|| {
+            // Clamp to valid range
+            let clamped = value.clamp(-10000, 0);
+            Self(clamped)
+        })
+    }
+}
+
+/// Frequency value for ExWav sound effect.
+/// Range: [100, 100000]. Unit: Hz.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavFrequency(u64);
+
+impl ExWavFrequency {
+    /// Creates a new ExWavFrequency value.
+    /// Returns `None` if the value is out of range [100, 100000].
+    pub fn new(value: u64) -> Option<Self> {
+        (100..=100000).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<u64> for ExWavFrequency {
+    fn from(value: u64) -> Self {
+        Self::new(value).unwrap_or_else(|| {
+            // Clamp to valid range
+            let clamped = value.clamp(100, 100000);
+            Self(clamped)
+        })
+    }
+}

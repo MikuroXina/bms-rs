@@ -98,15 +98,15 @@ pub enum Token<'a> {
         /// The pan of the sound. Also called volume balance.
         /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
         /// Default: 0.
-        pan: i64,
+        pan: ExWavPan,
         /// The volume of the sound.
         /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
         /// Default: 0.
-        volume: i64,
+        volume: ExWavVolume,
         /// The frequency of the sound. Unit: Hz.
         /// Range: [100, 100000].
         /// Default: None.
-        frequency: Option<u64>,
+        frequency: Option<ExWavFrequency>,
         /// The relative file path of the sound.
         path: &'a Path,
     },
@@ -480,28 +480,28 @@ impl<'a> Token<'a> {
                     for param in pvf_params.bytes() {
                         match param {
                             b'p' => {
-                                pan = Some(
-                                    c.next_token()
-                                        .ok_or_else(|| c.make_err_expected_token("pan"))?
-                                        .parse()
-                                        .map_err(|_| c.make_err_expected_token("integer"))?,
-                                )
+                                let pan_value: i64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("pan"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                pan = Some(ExWavPan::from(pan_value))
                             }
                             b'v' => {
-                                volume = Some(
-                                    c.next_token()
-                                        .ok_or_else(|| c.make_err_expected_token("volume"))?
-                                        .parse()
-                                        .map_err(|_| c.make_err_expected_token("integer"))?,
-                                )
+                                let volume_value: i64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("volume"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                volume = Some(ExWavVolume::from(volume_value))
                             }
                             b'f' => {
-                                frequency = Some(
-                                    c.next_token()
-                                        .ok_or_else(|| c.make_err_expected_token("frequency"))?
-                                        .parse()
-                                        .map_err(|_| c.make_err_expected_token("integer"))?,
-                                )
+                                let frequency_value: u64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("frequency"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                frequency = Some(ExWavFrequency::from(frequency_value))
                             }
                             _ => return Err(c.make_err_expected_token("expected p, v or f")),
                         }
@@ -511,8 +511,8 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("filename"))?;
                     Self::ExWav {
                         id: ObjId::from(id, c)?,
-                        pan: pan.unwrap_or(0),
-                        volume: volume.unwrap_or(0),
+                        pan: pan.unwrap_or_default(),
+                        volume: volume.unwrap_or_default(),
                         frequency,
                         path: Path::new(filename),
                     }
@@ -813,9 +813,9 @@ mod tests {
                 path: file,
             } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan, 10000);
-                assert_eq!(volume, 0);
-                assert_eq!(frequency, Some(48000));
+                assert_eq!(pan.value(), 10000);
+                assert_eq!(volume.value(), 0);
+                assert_eq!(frequency.map(|f| f.value()), Some(48000));
                 assert_eq!(file, Path::new("ex.wav"));
             }
             _ => panic!("Not ExWav"),
@@ -834,9 +834,9 @@ mod tests {
                 path: file,
             } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan, 10000);
-                assert_eq!(volume, 0);
-                assert_eq!(frequency, Some(48000));
+                assert_eq!(pan.value(), 10000);
+                assert_eq!(volume.value(), 0);
+                assert_eq!(frequency.map(|f| f.value()), Some(48000));
                 assert_eq!(file, Path::new("ex.wav"));
             }
             _ => panic!("Not ExWav"),
@@ -855,9 +855,9 @@ mod tests {
                 path: file,
             } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan, 0);
-                assert_eq!(volume, 0);
-                assert_eq!(frequency, Some(48000));
+                assert_eq!(pan.value(), 0);
+                assert_eq!(volume.value(), 0);
+                assert_eq!(frequency.map(|f| f.value()), Some(48000));
                 assert_eq!(file, Path::new("ex.wav"));
             }
             _ => panic!("Not ExWav"),
