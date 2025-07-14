@@ -265,6 +265,7 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::Normal) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
+            Some(JudgeLevel::OtherInt(_)) => 1.0, // TODO
         })
         .unwrap();
 

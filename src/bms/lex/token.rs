@@ -795,7 +795,7 @@ mod tests {
         match t {
             Token::ExRank(id, level) => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(level as u8, 2);
+                assert_eq!(level, JudgeLevel::Normal);
             }
             _ => panic!("Not ExRank"),
         }

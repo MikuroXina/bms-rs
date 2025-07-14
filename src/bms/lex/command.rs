@@ -39,21 +39,21 @@ pub enum JudgeLevel {
     Easy,
     /// Rank 4, the easiest rank.
     VeryEasy,
+    /// Other integer value.
+    /// TODO: what about `#RANK 6` or `#RANK -1`
+    OtherInt(i64),
 }
 
-impl TryFrom<u8> for JudgeLevel {
-    type Error = u8;
-    fn try_from(value: u8) -> std::result::Result<Self, u8> {
-        Ok(match value {
+impl From<i64> for JudgeLevel {
+    fn from(value: i64) -> Self {
+        match value {
             0 => Self::VeryHard,
             1 => Self::Hard,
             2 => Self::Normal,
             3 => Self::Easy,
             4 => Self::VeryEasy,
-            _ => {
-                return Err(value);
-            }
-        })
+            val => Self::OtherInt(val),
+        }
     }
 }
 
@@ -61,9 +61,8 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
     fn try_from(value: &'a str) -> std::result::Result<Self, &'a str> {
         Some(value)
-            .filter(|v| v.is_ascii() && v.bytes().all(|b| b.is_ascii_digit()))
-            .and_then(|v| v.parse::<u8>().ok())
-            .and_then(|v| <Self as TryFrom<u8>>::try_from(v).ok())
+            .and_then(|v| v.parse::<i64>().ok())
+            .map(|v| JudgeLevel::from(v))
             .ok_or(value)
     }
 }
