@@ -524,13 +524,7 @@ fn test_switch_unimpl() {
     #ENDSW
     ";
 
-    let id02 = "02".try_into().unwrap();
-    let id03 = "03".try_into().unwrap();
-    let id04 = "04".try_into().unwrap();
-    let id05 = "05".try_into().unwrap();
-    let id11 = "11".try_into().unwrap();
-    let id22 = "22".try_into().unwrap();
-    let id55 = "55".try_into().unwrap();
+
 
     let tokens = bms_rs::lex::parse(SRC).expect("must be parsed");
 
@@ -546,14 +540,14 @@ fn test_switch_unimpl() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id55,
+                obj: "55".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key4,
-                obj: id04,
+                obj: "04".try_into().unwrap(),
             },
         ]
     );
@@ -570,14 +564,14 @@ fn test_switch_unimpl() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id02,
+                obj: "55".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key4,
-                obj: id05,
+                obj: "05".try_into().unwrap(),
             },
         ]
     );
@@ -594,7 +588,7 @@ fn test_switch_unimpl() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id02,
+                obj: "02".try_into().unwrap(),
             },
         ]
     );
@@ -611,21 +605,21 @@ fn test_switch_unimpl() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id03,
+                obj: "03".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Scratch,
-                obj: id11,
+                obj: "11".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Scratch,
-                obj: id11,
+                obj: "11".try_into().unwrap(),
             },
         ]
     );
@@ -642,21 +636,21 @@ fn test_switch_unimpl() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id03,
+                obj: "03".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Scratch,
-                obj: id22,
+                obj: "22".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Scratch,
-                obj: id22,
+                obj: "22".try_into().unwrap(),
             },
         ]
     );
