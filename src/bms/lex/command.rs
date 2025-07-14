@@ -148,6 +148,13 @@ impl TryFrom<[char; 2]> for ObjId {
     }
 }
 
+impl TryFrom<[u8; 2]> for ObjId {
+    type Error = LexError;
+    fn try_from(value: [u8; 2]) -> Result<Self> {
+        Self::from_bytes(value)
+    }
+}
+
 impl From<ObjId> for u16 {
     fn from(value: ObjId) -> Self {
         base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
@@ -175,6 +182,11 @@ impl ObjId {
     /// Converts 2-digit of base-62 numeric characters into an object id.
     pub fn from_chars(chars: [char; 2]) -> Result<Self> {
         Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
+    }
+
+    /// Converts 2-digit of base-62 numeric characters into an object id.
+    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self> {
+        Ok(Self([char_to_base62(bytes[0] as char)?, char_to_base62(bytes[1] as char)?]))
     }
 
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
