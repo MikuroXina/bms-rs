@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, path::Path};
 
-use super::{command::*, cursor::Cursor, Result};
+use super::{Result, command::*, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

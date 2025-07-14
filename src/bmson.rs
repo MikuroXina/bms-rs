@@ -31,7 +31,7 @@ use thiserror::Error;
 
 use crate::{
     lex::command::{JudgeLevel, Key},
-    parse::{notes::BgaLayer, Bms},
+    parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
 

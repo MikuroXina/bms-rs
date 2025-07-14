@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 
-use super::{cursor::Cursor, LexError, Result};
+use super::{LexError, Result, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -413,7 +413,7 @@ impl Channel {
                 return Err(LexError::UnknownCommand {
                     line: c.line(),
                     col: c.col(),
-                })
+                });
             }
         })
     }
