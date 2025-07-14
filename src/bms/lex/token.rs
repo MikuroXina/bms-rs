@@ -98,14 +98,14 @@ pub enum Token<'a> {
         /// The pan of the sound. Also called volume balance.
         /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
         /// Default: 0.
-        pan: Option<i64>,
+        pan: i64,
         /// The volume of the sound.
         /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
         /// Default: 0.
-        volume: Option<i64>,
+        volume: i64,
         /// The frequency of the sound. Unit: Hz.
         /// Range: [100, 100000].
-        /// Default: 0.
+        /// Default: None.
         frequency: Option<u64>,
         /// The relative file path of the sound.
         path: &'a Path,
@@ -511,8 +511,8 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("filename"))?;
                     Self::ExWav {
                         id: ObjId::from(id, c)?,
-                        pan,
-                        volume,
+                        pan: pan.unwrap_or(0),
+                        volume: volume.unwrap_or(0),
                         frequency,
                         path: Path::new(filename),
                     }
@@ -813,8 +813,8 @@ mod tests {
                 path: file,
             } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan, Some(10000));
-                assert_eq!(volume, Some(0));
+                assert_eq!(pan, 10000);
+                assert_eq!(volume, 0);
                 assert_eq!(frequency, Some(48000));
                 assert_eq!(file, Path::new("ex.wav"));
             }
@@ -834,8 +834,8 @@ mod tests {
                 path: file,
             } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan, Some(10000));
-                assert_eq!(volume, Some(0));
+                assert_eq!(pan, 10000);
+                assert_eq!(volume, 0);
                 assert_eq!(frequency, Some(48000));
                 assert_eq!(file, Path::new("ex.wav"));
             }
