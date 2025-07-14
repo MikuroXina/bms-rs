@@ -3,7 +3,24 @@ use std::ops::ControlFlow::{self, *};
 use thiserror::Error;
 
 use super::{ParseError, Result, rng::Rng};
-use crate::lex::token::Token;
+use crate::bms::lex::token::{Token, TokenStream};
+
+/// Parses the control flow of the token.
+pub(super) fn parse_control_flow<'a>(
+    token_stream: &'a TokenStream<'a>,
+    rng: impl Rng,
+) -> Result<Vec<&'a Token<'a>>> {
+    let mut random_parser = RandomParser::new(rng);
+    let mut continue_tokens = vec![];
+    for token in token_stream.iter() {
+        match random_parser.parse(token) {
+            ControlFlow::Continue(_) => continue_tokens.push(token),
+            ControlFlow::Break(Ok(_)) => continue,
+            ControlFlow::Break(Err(e)) => return Err(e),
+        }
+    }
+    Ok(continue_tokens)
+}
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

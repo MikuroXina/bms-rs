@@ -7,20 +7,17 @@ pub mod prompt;
 mod random;
 pub mod rng;
 
-use std::ops::ControlFlow;
-
 use thiserror::Error;
 
 use self::{
-    header::Header,
-    notes::Notes,
-    prompt::PromptHandler,
-    random::{ControlFlowRule, RandomParser},
-    rng::Rng,
+    header::Header, notes::Notes, prompt::PromptHandler, random::ControlFlowRule, rng::Rng,
 };
-use crate::lex::{
-    command::ObjId,
-    token::{Token, TokenStream},
+use crate::bms::{
+    lex::{
+        command::ObjId,
+        token::{Token, TokenStream},
+    },
+    parse::random::parse_control_flow,
 };
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -65,7 +62,7 @@ impl Bms {
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> Result<Self> {
-        let continue_tokens = Self::parse_control_flow(token_stream, rng)?;
+        let continue_tokens = parse_control_flow(token_stream, rng)?;
         let mut notes = Notes::default();
         let mut header = Header::default();
         let mut non_command_lines: Vec<String> = Vec::new();
@@ -82,23 +79,5 @@ impl Bms {
             notes,
             non_command_lines,
         })
-    }
-
-    /// Parses the control flow of the token.
-    fn parse_control_flow<'a>(
-        token_stream: &'a TokenStream<'a>,
-        rng: impl Rng,
-    ) -> Result<Vec<&'a Token<'a>>> {
-        let mut random_parser = RandomParser::new(rng);
-        let mut continue_tokens = vec![];
-        for token in token_stream.iter() {
-            match random_parser.parse(token) {
-                ControlFlow::Continue(_) => continue_tokens.push(token),
-                ControlFlow::Break(Ok(_)) => continue,
-                ControlFlow::Break(Err(e)) => return Err(e),
-            }
-        }
-        // 修复类型不匹配：continue_tokens 是 Vec<&Token<'a>>，但期望 Vec<Token<'a>>
-        Ok(continue_tokens)
     }
 }
