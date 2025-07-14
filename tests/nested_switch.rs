@@ -524,8 +524,6 @@ fn test_switch_unimpl() {
     #ENDSW
     ";
 
-
-
     let tokens = bms_rs::lex::parse(SRC).expect("must be parsed");
 
     // CASE 1, RANDOM 1
@@ -653,5 +651,19 @@ fn test_switch_unimpl() {
                 obj: "22".try_into().unwrap(),
             },
         ]
+    );
+
+    // CASE 4 (DEFAULT)
+    let rng = RngMock([4]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![Obj {
+            offset: ObjTime::new(0, 1, 2),
+            kind: NoteKind::Visible,
+            is_player1: true,
+            key: Key::Key3,
+            obj: "55".try_into().unwrap(),
+        },]
     );
 }
