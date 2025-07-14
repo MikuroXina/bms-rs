@@ -493,7 +493,6 @@ fn nested_switch_in_random() {
 ///
 /// TODO: This example cannot be resolved for now. It cannot be parsed by just scanning by line order.
 #[test]
-#[ignore]
 fn test_switch_unimpl() {
     const SRC: &str = r"
     #SWITCH 5
@@ -525,12 +524,13 @@ fn test_switch_unimpl() {
     #ENDSW
     ";
 
-    let id13 = "13".try_into().unwrap();
-    let id16 = "16".try_into().unwrap();
+    let id02 = "02".try_into().unwrap();
+    let id03 = "03".try_into().unwrap();
     let id04 = "04".try_into().unwrap();
     let id05 = "05".try_into().unwrap();
     let id11 = "11".try_into().unwrap();
     let id22 = "22".try_into().unwrap();
+    let id55 = "55".try_into().unwrap();
 
     let tokens = bms_rs::lex::parse(SRC).expect("must be parsed");
 
@@ -542,11 +542,11 @@ fn test_switch_unimpl() {
         vec![
             // #CASE 1, #RANDOM 1, #IF 1
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id13,
+                obj: id55,
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),
@@ -566,11 +566,11 @@ fn test_switch_unimpl() {
         vec![
             // #CASE 1, #RANDOM 2, #ELSE
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id13,
+                obj: id02,
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),
@@ -590,18 +590,11 @@ fn test_switch_unimpl() {
         vec![
             // #CASE 2
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id13,
-            },
-            Obj {
-                offset: ObjTime::new(0, 0, 1),
-                kind: NoteKind::Visible,
-                is_player1: true,
-                key: Key::Key2,
-                obj: id22,
+                obj: id02,
             },
         ]
     );
@@ -614,24 +607,24 @@ fn test_switch_unimpl() {
         vec![
             // #CASE 3, #SWITCH 1
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id13,
+                obj: id03,
             },
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
-                key: Key::Key6,
-                obj: id16,
+                key: Key::Scratch,
+                obj: id11,
             },
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
-                key: Key::Key1,
+                key: Key::Scratch,
                 obj: id11,
             },
         ]
@@ -645,24 +638,24 @@ fn test_switch_unimpl() {
         vec![
             // #CASE 3, #SWITCH 2
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: id13,
+                obj: id03,
             },
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
-                key: Key::Key6,
-                obj: id16,
+                key: Key::Scratch,
+                obj: id22,
             },
             Obj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 is_player1: true,
-                key: Key::Key2,
+                key: Key::Scratch,
                 obj: id22,
             },
         ]
