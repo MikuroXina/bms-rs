@@ -82,7 +82,7 @@ fn test_exrank_parsing() {
 fn test_exwav_parsing() {
     let source = r#"
 #TITLE Test BMS
-#EXWAV01 param1 param2 param3 test.wav
+#EXWAV01 pvf 10000 0 48000 test.wav
 "#;
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
@@ -95,7 +95,9 @@ fn test_exwav_parsing() {
     );
     let exwav_def =
         &bms.header.exwav_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(exwav_def.params, ["param1", "param2", "param3", "test.wav"]);
+    assert_eq!(exwav_def.pan, Some(10000));
+    assert_eq!(exwav_def.volume, Some(0));
+    assert_eq!(exwav_def.frequency, Some(48000));
     assert_eq!(exwav_def.path.to_string_lossy(), "test.wav");
 }
 
@@ -143,7 +145,8 @@ fn test_notes_parse_extended_tokens() {
     let source = r#"
 #TITLE Test BMS
 #EXRANK01 2
-#EXWAV01 param1 param2 param3 test.wav
+#EXWAV01 pvf 10000 0 48000 test.wav
+#EXWAV02 vpf 0 10000 48000 test2.wav
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;
@@ -160,6 +163,11 @@ fn test_notes_parse_extended_tokens() {
         bms.notes
             .exwav_defs
             .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+    );
+    assert!(
+        bms.notes
+            .exwav_defs
+            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap())
     );
     assert!(
         bms.notes
@@ -189,7 +197,7 @@ fn test_token_parsing_comprehensive() {
 #@BGA01 02 10 20 100 200 30 40
 #BGA02 03 15 25 150 250 35 45
 #EXRANK01 2
-#EXWAV01 param1 param2 param3 test.wav
+#EXWAV01 pvf 10000 0 48000 test.wav
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;

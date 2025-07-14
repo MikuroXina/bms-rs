@@ -186,7 +186,10 @@ impl ObjId {
 
     /// Converts 2-digit of base-62 numeric characters into an object id.
     pub fn from_bytes(bytes: [u8; 2]) -> Result<Self> {
-        Ok(Self([char_to_base62(bytes[0] as char)?, char_to_base62(bytes[1] as char)?]))
+        Ok(Self([
+            char_to_base62(bytes[0] as char)?,
+            char_to_base62(bytes[1] as char)?,
+        ]))
     }
 
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {

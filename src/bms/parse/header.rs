@@ -78,8 +78,18 @@ pub struct ExRankDef {
 pub struct ExWavDef {
     /// The object ID.
     pub id: ObjId,
-    /// The parameters array.
-    pub params: [String; 4],
+    /// The pan of the sound. Also called volume balance.
+    /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+    /// Default: 0.
+    pub pan: Option<i64>,
+    /// The volume of the sound.
+    /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+    /// Default: 0.
+    pub volume: Option<i64>,
+    /// The frequency of the sound. Unit: Hz.
+    /// Range: [100, 100000].
+    /// Default: 0.
+    pub frequency: Option<u64>,
     /// The file path.
     pub path: std::path::PathBuf,
 }
@@ -332,15 +342,18 @@ impl Header {
                     self.exrank_defs.insert(id, to_insert);
                 }
             }
-            Token::ExWav(id, params, path) => {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
                 let to_insert = ExWavDef {
                     id,
-                    params: [
-                        params[0].to_string(),
-                        params[1].to_string(),
-                        params[2].to_string(),
-                        params[3].to_string(),
-                    ],
+                    pan,
+                    volume,
+                    frequency,
                     path: path.into(),
                 };
                 if let Some(older) = self.exwav_defs.get_mut(&id) {

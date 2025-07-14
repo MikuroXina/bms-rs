@@ -624,17 +624,20 @@ impl Notes {
                     },
                 );
             }
-            Token::ExWav(id, params, path) => {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
                 self.exwav_defs.insert(
                     *id,
                     ExWavDef {
                         id: *id,
-                        params: [
-                            params[0].to_string(),
-                            params[1].to_string(),
-                            params[2].to_string(),
-                            params[3].to_string(),
-                        ],
+                        pan: *pan,
+                        volume: *volume,
+                        frequency: *frequency,
                         path: path.into(),
                     },
                 );

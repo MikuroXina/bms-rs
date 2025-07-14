@@ -92,7 +92,24 @@ pub enum Token<'a> {
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
     ExRank(ObjId, JudgeLevel),
     /// `#EXWAV[01-ZZ] [parameter order] [pan or volume or frequency; 1-3] [filename]`. Defines the key sound object with the effect of pan, volume and frequency.
-    ExWav(ObjId, [&'a str; 4], &'a Path),
+    ExWav {
+        /// The id of the object to define.
+        id: ObjId,
+        /// The pan of the sound. Also called volume balance.
+        /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+        /// Default: 0.
+        pan: Option<i64>,
+        /// The volume of the sound.
+        /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+        /// Default: 0.
+        volume: Option<i64>,
+        /// The frequency of the sound. Unit: Hz.
+        /// Range: [100, 100000].
+        /// Default: 0.
+        frequency: Option<u64>,
+        /// The relative file path of the sound.
+        path: &'a Path,
+    },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
@@ -454,23 +471,51 @@ impl<'a> Token<'a> {
                 }
                 exwav if exwav.starts_with("#EXWAV") => {
                     let id = exwav.trim_start_matches("#EXWAV");
-                    let p1 = c
+                    let pvf_params = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("param1"))?;
-                    let p2 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("param2"))?;
-                    let p3 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("param3"))?;
+                    let mut pan = None;
+                    let mut volume = None;
+                    let mut frequency = None;
+                    for param in pvf_params.bytes() {
+                        match param {
+                            b'p' => {
+                                pan = Some(
+                                    c.next_token()
+                                        .ok_or_else(|| c.make_err_expected_token("pan"))?
+                                        .parse()
+                                        .map_err(|_| c.make_err_expected_token("integer"))?,
+                                )
+                            }
+                            b'v' => {
+                                volume = Some(
+                                    c.next_token()
+                                        .ok_or_else(|| c.make_err_expected_token("volume"))?
+                                        .parse()
+                                        .map_err(|_| c.make_err_expected_token("integer"))?,
+                                )
+                            }
+                            b'f' => {
+                                frequency = Some(
+                                    c.next_token()
+                                        .ok_or_else(|| c.make_err_expected_token("frequency"))?
+                                        .parse()
+                                        .map_err(|_| c.make_err_expected_token("integer"))?,
+                                )
+                            }
+                            _ => return Err(c.make_err_expected_token("expected p, v or f")),
+                        }
+                    }
                     let filename = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("filename"))?;
-                    Self::ExWav(
-                        ObjId::from(id, c)?,
-                        [p1, p2, p3, filename],
-                        Path::new(filename),
-                    )
+                    Self::ExWav {
+                        id: ObjId::from(id, c)?,
+                        pan,
+                        volume,
+                        frequency,
+                        path: Path::new(filename),
+                    }
                 }
                 text if text.starts_with("#TEXT") => {
                     let id = text.trim_start_matches("#TEXT");
@@ -650,7 +695,7 @@ impl<'a> Token<'a> {
             ExRank(id, _) => {
                 id.make_uppercase();
             }
-            ExWav(id, _, _) => {
+            ExWav { id, .. } => {
                 id.make_uppercase();
             }
             LnObj(id) => {
@@ -758,12 +803,41 @@ mod tests {
 
     #[test]
     fn test_exwav() {
-        let t = parse_token("#EXWAV01 p1 p2 p3 ex.wav");
+        let t = parse_token("#EXWAV01 pvf 10000 0 48000 ex.wav");
         match t {
-            Token::ExWav(id, arr, path) => {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path: file,
+            } => {
                 assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(arr, ["p1", "p2", "p3", "ex.wav"]);
-                assert_eq!(path, Path::new("ex.wav"));
+                assert_eq!(pan, Some(10000));
+                assert_eq!(volume, Some(0));
+                assert_eq!(frequency, Some(48000));
+                assert_eq!(file, Path::new("ex.wav"));
+            }
+            _ => panic!("Not ExWav"),
+        }
+    }
+
+    #[test]
+    fn test_exwav_2() {
+        let t = parse_token("#EXWAV01 vpf 0 10000 48000 ex.wav");
+        match t {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path: file,
+            } => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(pan, Some(10000));
+                assert_eq!(volume, Some(0));
+                assert_eq!(frequency, Some(48000));
+                assert_eq!(file, Path::new("ex.wav"));
             }
             _ => panic!("Not ExWav"),
         }
