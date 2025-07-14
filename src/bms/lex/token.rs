@@ -844,6 +844,27 @@ mod tests {
     }
 
     #[test]
+    fn test_exwav_default() {
+        let t = parse_token("#EXWAV01 f 48000 ex.wav");
+        match t {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path: file,
+            } => {
+                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+                assert_eq!(pan, 0);
+                assert_eq!(volume, 0);
+                assert_eq!(frequency, Some(48000));
+                assert_eq!(file, Path::new("ex.wav"));
+            }
+            _ => panic!("Not ExWav"),
+        }
+    }
+
+    #[test]
     fn test_text() {
         let t = parse_token("#TEXT01 hello world");
         match t {
