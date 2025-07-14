@@ -485,7 +485,11 @@ impl<'a> Token<'a> {
                                     .ok_or_else(|| c.make_err_expected_token("pan"))?
                                     .parse()
                                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                                pan = Some(ExWavPan::from(pan_value))
+                                pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
+                                    c.make_err_expected_token(
+                                        "pan value out of range [-10000, 10000]",
+                                    )
+                                })?)
                             }
                             b'v' => {
                                 let volume_value: i64 = c
@@ -493,7 +497,12 @@ impl<'a> Token<'a> {
                                     .ok_or_else(|| c.make_err_expected_token("volume"))?
                                     .parse()
                                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                                volume = Some(ExWavVolume::from(volume_value))
+                                volume =
+                                    Some(ExWavVolume::try_from(volume_value).map_err(|_| {
+                                        c.make_err_expected_token(
+                                            "volume value out of range [-10000, 0]",
+                                        )
+                                    })?)
                             }
                             b'f' => {
                                 let frequency_value: u64 = c
@@ -501,7 +510,13 @@ impl<'a> Token<'a> {
                                     .ok_or_else(|| c.make_err_expected_token("frequency"))?
                                     .parse()
                                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                                frequency = Some(ExWavFrequency::from(frequency_value))
+                                frequency = Some(
+                                    ExWavFrequency::try_from(frequency_value).map_err(|_| {
+                                        c.make_err_expected_token(
+                                            "frequency value out of range [100, 100000]",
+                                        )
+                                    })?,
+                                )
                             }
                             _ => return Err(c.make_err_expected_token("expected p, v or f")),
                         }

@@ -505,13 +505,11 @@ impl Default for ExWavPan {
     }
 }
 
-impl From<i64> for ExWavPan {
-    fn from(value: i64) -> Self {
-        Self::new(value).unwrap_or_else(|| {
-            // Clamp to valid range
-            let clamped = value.clamp(-10000, 10000);
-            Self(clamped)
-        })
+impl TryFrom<i64> for ExWavPan {
+    type Error = i64;
+
+    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(-10000, 10000))
     }
 }
 
@@ -546,13 +544,11 @@ impl Default for ExWavVolume {
     }
 }
 
-impl From<i64> for ExWavVolume {
-    fn from(value: i64) -> Self {
-        Self::new(value).unwrap_or_else(|| {
-            // Clamp to valid range
-            let clamped = value.clamp(-10000, 0);
-            Self(clamped)
-        })
+impl TryFrom<i64> for ExWavVolume {
+    type Error = i64;
+
+    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(-10000, 0))
     }
 }
 
@@ -575,12 +571,78 @@ impl ExWavFrequency {
     }
 }
 
-impl From<u64> for ExWavFrequency {
-    fn from(value: u64) -> Self {
-        Self::new(value).unwrap_or_else(|| {
-            // Clamp to valid range
-            let clamped = value.clamp(100, 100000);
-            Self(clamped)
-        })
+impl TryFrom<u64> for ExWavFrequency {
+    type Error = u64;
+
+    fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(100, 100000))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exwav_pan_try_from() {
+        // Valid values
+        assert!(ExWavPan::try_from(0).is_ok());
+        assert!(ExWavPan::try_from(10000).is_ok());
+        assert!(ExWavPan::try_from(-10000).is_ok());
+        assert!(ExWavPan::try_from(5000).is_ok());
+        assert!(ExWavPan::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavPan::try_from(10001).is_err());
+        assert!(ExWavPan::try_from(-10001).is_err());
+        assert!(ExWavPan::try_from(i64::MAX).is_err());
+        assert!(ExWavPan::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    fn test_exwav_volume_try_from() {
+        // Valid values
+        assert!(ExWavVolume::try_from(0).is_ok());
+        assert!(ExWavVolume::try_from(-10000).is_ok());
+        assert!(ExWavVolume::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavVolume::try_from(1).is_err());
+        assert!(ExWavVolume::try_from(-10001).is_err());
+        assert!(ExWavVolume::try_from(i64::MAX).is_err());
+        assert!(ExWavVolume::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    fn test_exwav_frequency_try_from() {
+        // Valid values
+        assert!(ExWavFrequency::try_from(100).is_ok());
+        assert!(ExWavFrequency::try_from(100000).is_ok());
+        assert!(ExWavFrequency::try_from(50000).is_ok());
+
+        // Invalid values
+        assert!(ExWavFrequency::try_from(99).is_err());
+        assert!(ExWavFrequency::try_from(100001).is_err());
+        assert!(ExWavFrequency::try_from(0).is_err());
+        assert!(ExWavFrequency::try_from(u64::MAX).is_err());
+    }
+
+    #[test]
+    fn test_exwav_values() {
+        // Test value() method
+        let pan = ExWavPan::try_from(5000).unwrap();
+        assert_eq!(pan.value(), 5000);
+
+        let volume = ExWavVolume::try_from(-5000).unwrap();
+        assert_eq!(volume.value(), -5000);
+
+        let frequency = ExWavFrequency::try_from(48000).unwrap();
+        assert_eq!(frequency.value(), 48000);
+    }
+
+    #[test]
+    fn test_exwav_defaults() {
+        assert_eq!(ExWavPan::default().value(), 0);
+        assert_eq!(ExWavVolume::default().value(), 0);
     }
 }

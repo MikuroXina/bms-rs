@@ -259,3 +259,30 @@ fn test_token_parsing_comprehensive() {
             .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
     );
 }
+
+#[test]
+fn test_exwav_out_of_range_values() {
+    // Test pan value out of range
+    let source = r#"
+#TITLE Test BMS
+#EXWAV01 p 10001 test.wav
+"#;
+    let ts = parse(source);
+    assert!(ts.is_err());
+
+    // Test volume value out of range
+    let source = r#"
+#TITLE Test BMS
+#EXWAV01 v 1 test.wav
+"#;
+    let ts = parse(source);
+    assert!(ts.is_err());
+
+    // Test frequency value out of range
+    let source = r#"
+#TITLE Test BMS
+#EXWAV01 f 99 test.wav
+"#;
+    let ts = parse(source);
+    assert!(ts.is_err());
+}
