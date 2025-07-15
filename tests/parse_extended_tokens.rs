@@ -24,9 +24,18 @@ fn test_atbga_parsing() {
         atbga_def.source_bmp,
         bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
     );
-    assert_eq!(atbga_def.trim_top_left, (10, 20));
-    assert_eq!(atbga_def.trim_size, (100, 200));
-    assert_eq!(atbga_def.draw_point, (30, 40));
+    assert_eq!(
+        atbga_def.trim_top_left,
+        bms_rs::parse::header::PixelPoint::new(10, 20)
+    );
+    assert_eq!(
+        atbga_def.trim_size,
+        bms_rs::parse::header::PixelSize::new(100, 200)
+    );
+    assert_eq!(
+        atbga_def.draw_point,
+        bms_rs::parse::header::PixelPoint::new(30, 40)
+    );
 }
 
 #[test]
@@ -50,9 +59,18 @@ fn test_bga_parsing() {
         bga_def.source_bmp,
         bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
     );
-    assert_eq!(bga_def.trim_top_left, (10, 20));
-    assert_eq!(bga_def.trim_bottom_right, (110, 220));
-    assert_eq!(bga_def.draw_point, (30, 40));
+    assert_eq!(
+        bga_def.trim_top_left,
+        bms_rs::parse::header::PixelPoint::new(10, 20)
+    );
+    assert_eq!(
+        bga_def.trim_bottom_right,
+        bms_rs::parse::header::PixelPoint::new(110, 220)
+    );
+    assert_eq!(
+        bga_def.draw_point,
+        bms_rs::parse::header::PixelPoint::new(30, 40)
+    );
 }
 
 #[test]
