@@ -31,7 +31,7 @@ use thiserror::Error;
 
 use crate::{
     lex::command::{JudgeLevel, Key},
-    parse::{notes::BgaLayer, Bms},
+    parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
 
@@ -255,14 +255,17 @@ impl TryFrom<Bms> for Bmson {
             .any(|note| note.key.is_extended_key());
 
         const EASY_WIDTH: f64 = 21.0;
+        const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
         let judge_rank = FinF64::new(match value.header.rank {
+            Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::Normal) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
+            Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
         .unwrap();
 

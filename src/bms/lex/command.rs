@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 
-use super::{cursor::Cursor, LexError, Result};
+use super::{LexError, Result, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,6 +26,12 @@ impl PlayerMode {
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
+/// 
+/// IIDX/LR2/beatoraja judge windows: https://iidx.org/misc/iidx_lr2_beatoraja_diff
+/// 
+/// Note: VeryEasy is not Implemented.
+/// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
+/// See: https://github.com/MikuroXina/bms-rs/pull/122
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
@@ -33,21 +39,42 @@ pub enum JudgeLevel {
     VeryHard,
     /// Rank 1, the harder rank.
     Hard,
-    /// Rank 2, the easier rank.
+    /// Rank 2, the normal rank.
     Normal,
-    /// Rank 3, the easiest rank.
+    /// Rank 3, the easier rank.
     Easy,
+    /// Other integer value. Please See `JudgeLevel` for more details.
+    OtherInt(i64),
+}
+
+impl From<i64> for JudgeLevel {
+    fn from(value: i64) -> Self {
+        match value {
+            0 => Self::VeryHard,
+            1 => Self::Hard,
+            2 => Self::Normal,
+            3 => Self::Easy,
+            val => Self::OtherInt(val),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a str> for JudgeLevel {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> std::result::Result<Self, &'a str> {
+        Some(value)
+            .and_then(|v| v.parse::<i64>().ok())
+            .map(|v| JudgeLevel::from(v))
+            .ok_or(value)
+    }
 }
 
 impl JudgeLevel {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
-        Ok(match c.next_token() {
-            Some("0") => Self::VeryHard,
-            Some("1") => Self::Hard,
-            Some("2") => Self::Normal,
-            Some("3") => Self::Easy,
-            _ => return Err(c.make_err_expected_token("one of 0, 1, 2 or 3")),
-        })
+    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
+        c.next_token()
+            .ok_or(c.make_err_expected_token("one of [0,4]"))?
+            .try_into()
+            .map_err(|_| c.make_err_expected_token("one of [0,4]"))
     }
 }
 
@@ -122,6 +149,13 @@ impl TryFrom<[char; 2]> for ObjId {
     }
 }
 
+impl TryFrom<[u8; 2]> for ObjId {
+    type Error = LexError;
+    fn try_from(value: [u8; 2]) -> Result<Self> {
+        Self::from_bytes(value)
+    }
+}
+
 impl From<ObjId> for u16 {
     fn from(value: ObjId) -> Self {
         base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
@@ -149,6 +183,14 @@ impl ObjId {
     /// Converts 2-digit of base-62 numeric characters into an object id.
     pub fn from_chars(chars: [char; 2]) -> Result<Self> {
         Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
+    }
+
+    /// Converts 2-digit of base-62 numeric characters into an object id.
+    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self> {
+        Ok(Self([
+            char_to_base62(bytes[0] as char)?,
+            char_to_base62(bytes[1] as char)?,
+        ]))
     }
 
     pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
@@ -317,6 +359,17 @@ impl Default for PoorMode {
     }
 }
 
+impl PoorMode {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
+        Ok(match c.next_token() {
+            Some("0") => Self::Interrupt,
+            Some("1") => Self::Overlay,
+            Some("2") => Self::Hidden,
+            _ => return Err(c.make_err_expected_token("one of 0, 1 or 2")),
+        })
+    }
+}
+
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -413,7 +466,7 @@ impl Channel {
                 return Err(LexError::UnknownCommand {
                     line: c.line(),
                     col: c.col(),
-                })
+                });
             }
         })
     }
@@ -422,3 +475,176 @@ impl Channel {
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Track(pub u32);
+
+/// Pan value for ExWav sound effect.
+/// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+/// Default: 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavPan(i64);
+
+impl ExWavPan {
+    /// Creates a new ExWavPan value.
+    /// Returns `None` if the value is out of range [-10000, 10000].
+    pub fn new(value: i64) -> Option<Self> {
+        (-10000..=10000).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> i64 {
+        self.0
+    }
+
+    /// Returns the default value (0).
+    pub const fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl Default for ExWavPan {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl TryFrom<i64> for ExWavPan {
+    type Error = i64;
+
+    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(-10000, 10000))
+    }
+}
+
+/// Volume value for ExWav sound effect.
+/// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+/// Default: 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavVolume(i64);
+
+impl ExWavVolume {
+    /// Creates a new ExWavVolume value.
+    /// Returns `None` if the value is out of range [-10000, 0].
+    pub fn new(value: i64) -> Option<Self> {
+        (-10000..=0).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> i64 {
+        self.0
+    }
+
+    /// Returns the default value (0).
+    pub const fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl Default for ExWavVolume {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
+impl TryFrom<i64> for ExWavVolume {
+    type Error = i64;
+
+    fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(-10000, 0))
+    }
+}
+
+/// Frequency value for ExWav sound effect.
+/// Range: [100, 100000]. Unit: Hz.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExWavFrequency(u64);
+
+impl ExWavFrequency {
+    /// Creates a new ExWavFrequency value.
+    /// Returns `None` if the value is out of range [100, 100000].
+    pub fn new(value: u64) -> Option<Self> {
+        (100..=100000).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the underlying value.
+    pub fn value(self) -> u64 {
+        self.0
+    }
+}
+
+impl TryFrom<u64> for ExWavFrequency {
+    type Error = u64;
+
+    fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value.clamp(100, 100000))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exwav_pan_try_from() {
+        // Valid values
+        assert!(ExWavPan::try_from(0).is_ok());
+        assert!(ExWavPan::try_from(10000).is_ok());
+        assert!(ExWavPan::try_from(-10000).is_ok());
+        assert!(ExWavPan::try_from(5000).is_ok());
+        assert!(ExWavPan::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavPan::try_from(10001).is_err());
+        assert!(ExWavPan::try_from(-10001).is_err());
+        assert!(ExWavPan::try_from(i64::MAX).is_err());
+        assert!(ExWavPan::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    fn test_exwav_volume_try_from() {
+        // Valid values
+        assert!(ExWavVolume::try_from(0).is_ok());
+        assert!(ExWavVolume::try_from(-10000).is_ok());
+        assert!(ExWavVolume::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavVolume::try_from(1).is_err());
+        assert!(ExWavVolume::try_from(-10001).is_err());
+        assert!(ExWavVolume::try_from(i64::MAX).is_err());
+        assert!(ExWavVolume::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    fn test_exwav_frequency_try_from() {
+        // Valid values
+        assert!(ExWavFrequency::try_from(100).is_ok());
+        assert!(ExWavFrequency::try_from(100000).is_ok());
+        assert!(ExWavFrequency::try_from(50000).is_ok());
+
+        // Invalid values
+        assert!(ExWavFrequency::try_from(99).is_err());
+        assert!(ExWavFrequency::try_from(100001).is_err());
+        assert!(ExWavFrequency::try_from(0).is_err());
+        assert!(ExWavFrequency::try_from(u64::MAX).is_err());
+    }
+
+    #[test]
+    fn test_exwav_values() {
+        // Test value() method
+        let pan = ExWavPan::try_from(5000).unwrap();
+        assert_eq!(pan.value(), 5000);
+
+        let volume = ExWavVolume::try_from(-5000).unwrap();
+        assert_eq!(volume.value(), -5000);
+
+        let frequency = ExWavFrequency::try_from(48000).unwrap();
+        assert_eq!(frequency.value(), 48000);
+    }
+
+    #[test]
+    fn test_exwav_defaults() {
+        assert_eq!(ExWavPan::default().value(), 0);
+        assert_eq!(ExWavVolume::default().value(), 0);
+    }
+}

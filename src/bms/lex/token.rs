@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, path::Path};
 
-use super::{command::*, cursor::Cursor, Result};
+use super::{Result, command::*, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -92,7 +92,18 @@ pub enum Token<'a> {
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
     ExRank(ObjId, JudgeLevel),
     /// `#EXWAV[01-ZZ] [parameter order] [pan or volume or frequency; 1-3] [filename]`. Defines the key sound object with the effect of pan, volume and frequency.
-    ExWav(ObjId, [&'a str; 4], &'a Path),
+    ExWav {
+        /// The id of the object to define.
+        id: ObjId,
+        /// The pan decay of the sound. Also called volume balance.
+        pan: ExWavPan,
+        /// The volume decay of the sound.
+        volume: ExWavVolume,
+        /// The pitch frequency of the sound.
+        frequency: Option<ExWavFrequency>,
+        /// The relative file path of the sound.
+        path: &'a Path,
+    },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
@@ -220,7 +231,7 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
-                "#RANK" => Self::Rank(JudgeLevel::from(c)?),
+                "#RANK" => Self::Rank(JudgeLevel::try_read(c)?),
                 "#LNTYPE" => {
                     if c.next_token() == Some("2") {
                         Self::LnTypeMgq
@@ -320,6 +331,27 @@ impl<'a> Token<'a> {
                     let comment = c.next_line_remaining();
                     Self::Comment(comment)
                 }
+                "#EMAIL" => Self::Email(c.next_line_remaining()),
+                "#URL" => Self::Url(c.next_line_remaining()),
+                "#OCT/FP" => Self::OctFp,
+                "#OPTION" => Self::Option(c.next_line_remaining()),
+                "#PATH_WAV" => Self::PathWav(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("wav root path"))?,
+                ),
+                "#MAKER" => Self::Maker(c.next_line_remaining()),
+                "#MIDIFILE" => Self::MidiFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("midi filename"))?,
+                ),
+                "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
+                "#VIDEOFILE" | "#MOVIE" => Self::VideoFile(
+                    c.next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("video filename"))?,
+                ),
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -372,6 +404,211 @@ impl<'a> Token<'a> {
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
                     Self::Speed(ObjId::from(id, c)?, scroll)
+                }
+                exbmp if exbmp.starts_with("#EXBMP") => {
+                    let id = exbmp.trim_start_matches("#EXBMP");
+                    let argb = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("argb"))?;
+                    let filename = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
+
+                    let parts: Vec<&str> = argb.split(',').collect();
+                    if parts.len() != 4 {
+                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
+                    }
+                    let alpha = parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                    let red = parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                    let green = parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                    let blue = parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+
+                    Self::ExBmp(
+                        ObjId::from(id, c)?,
+                        Argb {
+                            alpha,
+                            red,
+                            green,
+                            blue,
+                        },
+                        Path::new(filename),
+                    )
+                }
+                exrank if exrank.starts_with("#EXRANK") => {
+                    let id = exrank.trim_start_matches("#EXRANK");
+                    let judge_level = JudgeLevel::try_read(c)?;
+                    Self::ExRank(ObjId::from(id, c)?, judge_level)
+                }
+                exwav if exwav.starts_with("#EXWAV") => {
+                    let id = exwav.trim_start_matches("#EXWAV");
+                    let pvf_params = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("param1"))?;
+                    let mut pan = None;
+                    let mut volume = None;
+                    let mut frequency = None;
+                    for param in pvf_params.bytes() {
+                        match param {
+                            b'p' => {
+                                let pan_value: i64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("pan"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
+                                    c.make_err_expected_token(
+                                        "pan value out of range [-10000, 10000]",
+                                    )
+                                })?)
+                            }
+                            b'v' => {
+                                let volume_value: i64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("volume"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                volume =
+                                    Some(ExWavVolume::try_from(volume_value).map_err(|_| {
+                                        c.make_err_expected_token(
+                                            "volume value out of range [-10000, 0]",
+                                        )
+                                    })?)
+                            }
+                            b'f' => {
+                                let frequency_value: u64 = c
+                                    .next_token()
+                                    .ok_or_else(|| c.make_err_expected_token("frequency"))?
+                                    .parse()
+                                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                                frequency = Some(
+                                    ExWavFrequency::try_from(frequency_value).map_err(|_| {
+                                        c.make_err_expected_token(
+                                            "frequency value out of range [100, 100000]",
+                                        )
+                                    })?,
+                                )
+                            }
+                            _ => return Err(c.make_err_expected_token("expected p, v or f")),
+                        }
+                    }
+                    let filename = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
+                    Self::ExWav {
+                        id: ObjId::from(id, c)?,
+                        pan: pan.unwrap_or_default(),
+                        volume: volume.unwrap_or_default(),
+                        frequency,
+                        path: Path::new(filename),
+                    }
+                }
+                text if text.starts_with("#TEXT") => {
+                    let id = text.trim_start_matches("#TEXT");
+                    let content = c.next_line_remaining();
+                    Self::Text(ObjId::from(id, c)?, content)
+                }
+                atbga if atbga.starts_with("#@BGA") => {
+                    let id = atbga.trim_start_matches("#@BGA");
+                    let source_bmp = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                    let sx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("sx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let sy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("sy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let w = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("w"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let h = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("h"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::AtBga {
+                        id: ObjId::from(id, c)?,
+                        source_bmp: ObjId::from(source_bmp, c)?,
+                        trim_top_left: (sx, sy),
+                        trim_size: (w, h),
+                        draw_point: (dx, dy),
+                    }
+                }
+                bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
+                    let id = bga.trim_start_matches("#BGA");
+                    let source_bmp = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                    let x1 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("x1"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let y1 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("y1"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let x2 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("x2"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let y2 = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("y2"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dx = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dx"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let dy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("dy"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::Bga {
+                        id: ObjId::from(id, c)?,
+                        source_bmp: ObjId::from(source_bmp, c)?,
+                        trim_top_left: (x1, y1),
+                        trim_bottom_right: (x2, y2),
+                        draw_point: (dx, dy),
+                    }
+                }
+                changeoption if changeoption.starts_with("#CHANGEOPTION") => {
+                    let id = changeoption.trim_start_matches("#CHANGEOPTION");
+                    let option = c.next_line_remaining();
+                    Self::ChangeOption(ObjId::from(id, c)?, option)
+                }
+                lnobj if lnobj.starts_with("#LNOBJ") => {
+                    let id = lnobj.trim_start_matches("#LNOBJ");
+                    Self::LnObj(ObjId::from(id, c)?)
                 }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
@@ -451,7 +688,7 @@ impl<'a> Token<'a> {
             ExRank(id, _) => {
                 id.make_uppercase();
             }
-            ExWav(id, _, _) => {
+            ExWav { id, .. } => {
                 id.make_uppercase();
             }
             LnObj(id) => {
@@ -520,5 +757,158 @@ impl<'t, 'a> Iterator for TokenStreamIter<'t, 'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_token(input: &str) -> Token {
+        let mut cursor = Cursor::new(input);
+        Token::parse(&mut cursor).unwrap()
+    }
+
+    #[test]
+    fn test_exbmp() {
+        let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png") else {
+            panic!("Not ExBmp");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(argb.alpha, 255);
+        assert_eq!(argb.red, 0);
+        assert_eq!(argb.green, 0);
+        assert_eq!(argb.blue, 0);
+        assert_eq!(path, Path::new("exbmp.png"));
+    }
+
+    #[test]
+    fn test_exrank() {
+        let Token::ExRank(id, level) = parse_token("#EXRANK01 2") else {
+            panic!("Not ExRank");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(level, JudgeLevel::Normal);
+    }
+
+    #[test]
+    fn test_exwav() {
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = parse_token("#EXWAV01 pvf 10000 0 48000 ex.wav")
+        else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
+    }
+
+    #[test]
+    fn test_exwav_2() {
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = parse_token("#EXWAV01 vpf 0 10000 48000 ex.wav")
+        else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
+    }
+
+    #[test]
+    fn test_exwav_default() {
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = parse_token("#EXWAV01 f 48000 ex.wav")
+        else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 0);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
+    }
+
+    #[test]
+    fn test_text() {
+        let Token::Text(id, text) = parse_token("#TEXT01 hello world") else {
+            panic!("Not Text");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(text, "hello world");
+    }
+
+    #[test]
+    fn test_atbga() {
+        let Token::AtBga {
+            id,
+            source_bmp,
+            trim_top_left,
+            trim_size,
+            draw_point,
+        } = parse_token("#@BGA01 02 1 2 3 4 5 6")
+        else {
+            panic!("Not AtBga");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(trim_top_left, (1, 2));
+        assert_eq!(trim_size, (3, 4));
+        assert_eq!(draw_point, (5, 6));
+    }
+
+    #[test]
+    fn test_bga() {
+        let Token::Bga {
+            id,
+            source_bmp,
+            trim_top_left,
+            trim_bottom_right,
+            draw_point,
+        } = parse_token("#BGA01 02 1 2 3 4 5 6")
+        else {
+            panic!("Not Bga");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(trim_top_left, (1, 2));
+        assert_eq!(trim_bottom_right, (3, 4));
+        assert_eq!(draw_point, (5, 6));
+    }
+
+    #[test]
+    fn test_changeoption() {
+        let Token::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
+            panic!("Not ChangeOption");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(opt, "opt");
+    }
+
+    #[test]
+    fn test_lnobj() {
+        let Token::LnObj(id) = parse_token("#LNOBJ01") else {
+            panic!("Not LnObj");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
     }
 }

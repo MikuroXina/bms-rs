@@ -6,7 +6,10 @@ use std::path::Path;
 
 use crate::lex::command::ObjId;
 
-use super::{ParseError, Result, header::Bmp};
+use super::{
+    ParseError, Result,
+    header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
+};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
@@ -80,6 +83,42 @@ pub enum PromptingDuplication<'a> {
         older: &'a Path,
         /// Incoming definition.
         newer: &'a Path,
+    },
+    /// @BGA definition is duplicated.
+    AtBga {
+        /// Duplicated @BGA object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a AtBgaDef,
+        /// Incoming definition.
+        newer: &'a AtBgaDef,
+    },
+    /// BGA definition is duplicated.
+    Bga {
+        /// Duplicated BGA object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a BgaDef,
+        /// Incoming definition.
+        newer: &'a BgaDef,
+    },
+    /// EXRANK definition is duplicated.
+    ExRank {
+        /// Duplicated EXRANK object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a ExRankDef,
+        /// Incoming definition.
+        newer: &'a ExRankDef,
+    },
+    /// EXWAV definition is duplicated.
+    ExWav {
+        /// Duplicated EXWAV object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a ExWavDef,
+        /// Incoming definition.
+        newer: &'a ExWavDef,
     },
 }
 
