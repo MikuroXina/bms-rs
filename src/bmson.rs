@@ -260,12 +260,12 @@ impl TryFrom<Bms> for Bmson {
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
         let judge_rank = FinF64::new(match value.header.rank {
-            Some(JudgeLevel::VeryEasy) => VERY_EASY_WIDTH / NORMAL_WIDTH,
+            Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::Normal) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::OtherInt(_)) => 1.0, // TODO
+            Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
         .unwrap();
 

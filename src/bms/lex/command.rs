@@ -26,6 +26,12 @@ impl PlayerMode {
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
+/// 
+/// IIDX/LR2/beatoraja judge windows: https://iidx.org/misc/iidx_lr2_beatoraja_diff
+/// 
+/// Note: VeryEasy is not Implemented.
+/// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
+/// See: https://github.com/MikuroXina/bms-rs/pull/122
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
@@ -37,10 +43,7 @@ pub enum JudgeLevel {
     Normal,
     /// Rank 3, the easier rank.
     Easy,
-    /// Rank 4, the easiest rank.
-    VeryEasy,
-    /// Other integer value.
-    /// TODO: what about `#RANK 6` or `#RANK -1`
+    /// Other integer value. Please See `JudgeLevel` for more details.
     OtherInt(i64),
 }
 
@@ -51,7 +54,6 @@ impl From<i64> for JudgeLevel {
             1 => Self::Hard,
             2 => Self::Normal,
             3 => Self::Easy,
-            4 => Self::VeryEasy,
             val => Self::OtherInt(val),
         }
     }
@@ -68,7 +70,7 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
 }
 
 impl JudgeLevel {
-    pub(crate) fn try_from(c: &mut Cursor) -> Result<Self> {
+    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
         c.next_token()
             .ok_or(c.make_err_expected_token("one of [0,4]"))?
             .try_into()
