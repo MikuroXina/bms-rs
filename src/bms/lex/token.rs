@@ -95,17 +95,11 @@ pub enum Token<'a> {
     ExWav {
         /// The id of the object to define.
         id: ObjId,
-        /// The pan of the sound. Also called volume balance.
-        /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
-        /// Default: 0.
+        /// The pan decay of the sound. Also called volume balance.
         pan: ExWavPan,
-        /// The volume of the sound.
-        /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
-        /// Default: 0.
+        /// The volume decay of the sound.
         volume: ExWavVolume,
-        /// The frequency of the sound. Unit: Hz.
-        /// Range: [100, 100000].
-        /// Default: None.
+        /// The pitch frequency of the sound.
         frequency: Option<ExWavFrequency>,
         /// The relative file path of the sound.
         path: &'a Path,
