@@ -801,152 +801,134 @@ mod tests {
     #[test]
     fn test_exrank() {
         let t = parse_token("#EXRANK01 2");
-        match t {
-            Token::ExRank(id, level) => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(level, JudgeLevel::Normal);
-            }
-            _ => panic!("Not ExRank"),
-        }
+        let Token::ExRank(id, level) = t else {
+            panic!("Not ExRank");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(level, JudgeLevel::Normal);
     }
 
     #[test]
     fn test_exwav() {
         let t = parse_token("#EXWAV01 pvf 10000 0 48000 ex.wav");
-        match t {
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path: file,
-            } => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan.value(), 10000);
-                assert_eq!(volume.value(), 0);
-                assert_eq!(frequency.map(|f| f.value()), Some(48000));
-                assert_eq!(file, Path::new("ex.wav"));
-            }
-            _ => panic!("Not ExWav"),
-        }
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = t else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
     }
 
     #[test]
     fn test_exwav_2() {
         let t = parse_token("#EXWAV01 vpf 0 10000 48000 ex.wav");
-        match t {
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path: file,
-            } => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan.value(), 10000);
-                assert_eq!(volume.value(), 0);
-                assert_eq!(frequency.map(|f| f.value()), Some(48000));
-                assert_eq!(file, Path::new("ex.wav"));
-            }
-            _ => panic!("Not ExWav"),
-        }
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = t else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
     }
 
     #[test]
     fn test_exwav_default() {
         let t = parse_token("#EXWAV01 f 48000 ex.wav");
-        match t {
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path: file,
-            } => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(pan.value(), 0);
-                assert_eq!(volume.value(), 0);
-                assert_eq!(frequency.map(|f| f.value()), Some(48000));
-                assert_eq!(file, Path::new("ex.wav"));
-            }
-            _ => panic!("Not ExWav"),
-        }
+        let Token::ExWav {
+            id,
+            pan,
+            volume,
+            frequency,
+            path: file,
+        } = t else {
+            panic!("Not ExWav");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(pan.value(), 0);
+        assert_eq!(volume.value(), 0);
+        assert_eq!(frequency.map(|f| f.value()), Some(48000));
+        assert_eq!(file, Path::new("ex.wav"));
     }
 
     #[test]
     fn test_text() {
         let t = parse_token("#TEXT01 hello world");
-        match t {
-            Token::Text(id, text) => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(text, "hello world");
-            }
-            _ => panic!("Not Text"),
-        }
+        let Token::Text(id, text) = t else {
+            panic!("Not Text");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(text, "hello world");
     }
 
     #[test]
     fn test_atbga() {
         let t = parse_token("#@BGA01 02 1 2 3 4 5 6");
-        match t {
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
-                assert_eq!(trim_top_left, (1, 2));
-                assert_eq!(trim_size, (3, 4));
-                assert_eq!(draw_point, (5, 6));
-            }
-            _ => panic!("Not AtBga"),
-        }
+        let Token::AtBga {
+            id,
+            source_bmp,
+            trim_top_left,
+            trim_size,
+            draw_point,
+        } = t else {
+            panic!("Not AtBga");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(trim_top_left, (1, 2));
+        assert_eq!(trim_size, (3, 4));
+        assert_eq!(draw_point, (5, 6));
     }
 
     #[test]
     fn test_bga() {
         let t = parse_token("#BGA01 02 1 2 3 4 5 6");
-        match t {
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
-                assert_eq!(trim_top_left, (1, 2));
-                assert_eq!(trim_bottom_right, (3, 4));
-                assert_eq!(draw_point, (5, 6));
-            }
-            _ => panic!("Not Bga"),
-        }
+        let Token::Bga {
+            id,
+            source_bmp,
+            trim_top_left,
+            trim_bottom_right,
+            draw_point,
+        } = t else {
+            panic!("Not Bga");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(trim_top_left, (1, 2));
+        assert_eq!(trim_bottom_right, (3, 4));
+        assert_eq!(draw_point, (5, 6));
     }
 
     #[test]
     fn test_changeoption() {
         let t = parse_token("#CHANGEOPTION01 opt");
-        match t {
-            Token::ChangeOption(id, opt) => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-                assert_eq!(opt, "opt");
-            }
-            _ => panic!("Not ChangeOption"),
-        }
+        let Token::ChangeOption(id, opt) = t else {
+            panic!("Not ChangeOption");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(opt, "opt");
     }
 
     #[test]
     fn test_lnobj() {
         let t = parse_token("#LNOBJ01");
-        match t {
-            Token::LnObj(id) => {
-                assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-            }
-            _ => panic!("Not LnObj"),
-        }
+        let Token::LnObj(id) = t else {
+            panic!("Not LnObj");
+        };
+        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
     }
 }
