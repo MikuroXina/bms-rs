@@ -493,7 +493,7 @@ fn nested_switch_in_random() {
 ///
 /// TODO: This example cannot be resolved for now. It cannot be parsed by just scanning by line order.
 #[test]
-fn test_switch_unimpl() {
+fn test_switch_def_ahead() {
     const SRC: &str = r"
     #SWITCH 5
         #DEF

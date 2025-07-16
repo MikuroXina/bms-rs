@@ -239,6 +239,9 @@ where
             Token::SetSwitch(_) | Token::Switch(_) => {
                 result.push(parse_switch_block(iter, error_list));
             }
+            Token::Random(_) | Token::SetRandom(_) => {
+                result.push(parse_random_block(iter, error_list));
+            }
             Token::EndIf => {
                 error_list.push(ControlFlowRule::UnmatchedEndIf);
                 iter.next();
@@ -904,75 +907,93 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
+        use Token::*;
         let tokens = vec![
-            Token::Title("111"),
-            Token::Switch(2),
-            Token::Case(1),
-            Token::Title("112"),
-            Token::Switch(2),
-            Token::Case(1),
-            Token::Title("115"),
-            Token::Skip,
-            Token::Case(2),
-            Token::Title("116"),
-            Token::Skip,
-            Token::EndSwitch,
-            Token::Skip,
-            Token::Case(2),
-            Token::Title("113"),
-            Token::Skip,
-            Token::EndSwitch,
-            Token::Title("114"),
+            Title("11000000"),
+            Switch(2),
+            Case(1),
+            Title("00220000"),
+            Random(2),
+            If(1),
+            Title("00550000"),
+            ElseIf(2),
+            Title("00006600"),
+            EndIf,
+            EndRandom,
+            Skip,
+            Case(2),
+            Title("00003300"),
+            Skip,
+            EndSwitch,
+            Title("00000044"),
         ];
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
         // 检查AST结构
-        assert!(matches!(&ast[0], Unit::Token(_))); // 111
+        assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
-        assert!(matches!(&ast[2], Unit::Token(_))); // 114
+        assert!(matches!(&ast[2], Unit::Token(_))); // 00000044
         // 检查SwitchBlock嵌套结构
         if let Unit::SwitchBlock { cases, .. } = &ast[1] {
             // case 1 嵌套Switch
-            if let Some(CaseBranch { tokens, .. }) = cases.iter().find(|c| matches!(c.value, CaseBranchValue::Case(1))) {
-                // tokens: 112, SwitchBlock
-                assert!(matches!(&tokens[0], Unit::Token(_))); // 112
-                assert!(matches!(&tokens[1], Unit::SwitchBlock { .. }));
-                if let Unit::SwitchBlock { cases: inner_cases, .. } = &tokens[1] {
-                    // case 1: 115
-                    let case1 = inner_cases.iter().find(|c| matches!(c.value, CaseBranchValue::Case(1))).unwrap();
-                    assert!(matches!(&case1.tokens[0], Unit::Token(_))); // 115
-                    // case 2: 116
-                    let case2 = inner_cases.iter().find(|c| matches!(c.value, CaseBranchValue::Case(2))).unwrap();
-                    assert!(matches!(&case2.tokens[0], Unit::Token(_))); // 116
+            if let Some(CaseBranch { tokens, .. }) = cases
+                .iter()
+                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            {
+                // tokens: 00220000, SwitchBlock
+                assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
+                assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
+                if let Unit::RandomBlock { if_blocks, .. } = &tokens[1] {
+                    // 只检查第一个if_block
+                    let if_block = &if_blocks[0];
+                    // if 1: 00550000
+                    assert!(if_block
+                        .branches
+                        .get(&1)
+                        .unwrap()
+                        .tokens
+                        .iter()
+                        .any(|u| matches!(u, Unit::Token(Title("00550000")))));
+                    // elseif 2: 00006600
+                    assert!(if_block
+                        .branches
+                        .get(&2)
+                        .unwrap()
+                        .tokens
+                        .iter()
+                        .any(|u| matches!(u, Unit::Token(Title("00006600")))));
                 }
             }
-            // case 2: 113
-            if let Some(CaseBranch { tokens, .. }) = cases.iter().find(|c| matches!(c.value, CaseBranchValue::Case(2))) {
-                assert!(matches!(&tokens[0], Unit::Token(_))); // 113
+            // case 2: 00003300
+            if let Some(CaseBranch { tokens, .. }) = cases
+                .iter()
+                .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
+            {
+                assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
             }
         } else {
             panic!("AST结构错误");
         }
-        assert_eq!(errors, vec![]);
         // 检查最终解析出的Token序列
         let mut rng = DummyRng;
         let mut errors2 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
         // 由于DummyRng总是返回最大值，Switch(2)会选Case(2)
-        // 外层Switch: Case(2) -> 113
-        // 114
-        let expected = ["111", "113", "114"];
+        // 外层Switch: Case(2) -> 00003300
+        // 00000044
+        let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
             match t {
-                Token::Title(s) => {
+                Title(s) => {
                     assert_eq!(s, &expected[i], "Title内容不符");
                 }
                 _ => panic!("Token类型不符"),
             }
         }
+        assert_eq!(errors, vec![]);
         assert_eq!(errors2, vec![]);
     }
 }
