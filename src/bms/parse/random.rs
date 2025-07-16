@@ -17,7 +17,8 @@ pub(super) fn parse_control_flow<'a>(
     let _val = rng.generate(0..=100);
     let mut error_list = Vec::new();
     let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(ast, &mut rng, &mut error_list);
+    let mut ast_iter = ast.into_iter().peekable();
+    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
     Some(tokens)
         .filter(|_| error_list.len() == 0)
         .ok_or(error_list.into_iter().next().unwrap().into())
@@ -378,7 +379,7 @@ where
 
 #[allow(unused)]
 fn parse_control_flow_ast<'a>(
-    ast: Vec<Unit<'a>>,
+    iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
     error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<&'a Token<'a>> {
