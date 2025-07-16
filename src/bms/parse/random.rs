@@ -11,6 +11,8 @@ pub(super) fn parse_control_flow<'a>(
     token_stream: &'a TokenStream<'a>,
     mut rng: impl Rng,
 ) -> Result<Vec<&'a Token<'a>>, ParseError> {
+    // The usage of token_stream.
+    let _token_stream = TokenStream::from_tokens(vec![]);
     // The usage of rng.
     let _val = rng.generate(0..=100);
     let mut error_list = Vec::new();
