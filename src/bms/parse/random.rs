@@ -689,21 +689,19 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
-        // 检查SwitchBlock结构
         assert!(matches!(&ast[0], Unit::SwitchBlock { .. }));
         let Unit::SwitchBlock {
             value: BlockValue::Set { value: _ },
             cases,
         } = &ast[0]
         else {
-            panic!("AST结构错误");
+            panic!("AST structure error");
         };
         assert_eq!(cases.len(), 4);
         assert!(matches!(cases[0].value, CaseBranchValue::Def));
         assert!(matches!(cases[1].value, CaseBranchValue::Case(2)));
         assert!(matches!(cases[2].value, CaseBranchValue::Case(1)));
         assert!(matches!(cases[3].value, CaseBranchValue::Case(3)));
-        // 检查每个分支的Token内容
         assert!(matches!(
             cases[0].tokens[0],
             Unit::Token(Token::Title("Out"))
@@ -729,7 +727,6 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&stream, &mut errors);
-        // 应该有错误
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndRandom));
     }
 
@@ -740,7 +737,6 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&stream, &mut errors);
-        // 应该有错误
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndIf));
     }
 
@@ -761,30 +757,29 @@ mod tests {
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
         assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
-        if let Unit::RandomBlock {
+        let Unit::RandomBlock {
             value: _,
             if_blocks,
         } = &ast[0]
-        {
-            assert_eq!(if_blocks.len(), 2);
-            let all_titles: Vec<_> = if_blocks
+        else {
+            panic!("AST structure error");
+        };
+        assert_eq!(if_blocks.len(), 2);
+        let all_titles: Vec<_> = if_blocks
+            .iter()
+            .flat_map(|blk| blk.branches.values())
+            .flat_map(|b| &b.tokens)
+            .collect();
+        assert!(
+            all_titles
                 .iter()
-                .flat_map(|blk| blk.branches.values())
-                .flat_map(|b| &b.tokens)
-                .collect();
-            assert!(
-                all_titles
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("A"))))
-            );
-            assert!(
-                all_titles
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("B"))))
-            );
-        } else {
-            panic!("AST结构错误");
-        }
+                .any(|u| matches!(u, Unit::Token(Token::Title("A"))))
+        );
+        assert!(
+            all_titles
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("B"))))
+        );
     }
 
     #[test]
@@ -806,27 +801,26 @@ mod tests {
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
         assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
-        if let Unit::RandomBlock {
+        let Unit::RandomBlock {
             value: _,
             if_blocks,
         } = &ast[0]
-        {
-            let mut found_nested = false;
-            for blk in if_blocks {
-                for branch in blk.branches.values() {
-                    if branch
-                        .tokens
-                        .iter()
-                        .any(|u| matches!(u, Unit::RandomBlock { .. }))
-                    {
-                        found_nested = true;
-                    }
+        else {
+            panic!("AST structure error");
+        };
+        let mut found_nested = false;
+        for blk in if_blocks {
+            for branch in blk.branches.values() {
+                if branch
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::RandomBlock { .. }))
+                {
+                    found_nested = true;
                 }
             }
-            assert!(found_nested, "未找到嵌套RandomBlock");
-        } else {
-            panic!("AST结构错误");
         }
+        assert!(found_nested, "Nested RandomBlock not found");
     }
 
     #[test]
@@ -854,65 +848,64 @@ mod tests {
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
         assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
-        if let Unit::RandomBlock {
+        let Unit::RandomBlock {
             value: _,
             if_blocks,
         } = &ast[0]
-        {
-            assert_eq!(if_blocks.len(), 2);
-            let branches1 = &if_blocks[0].branches;
-            assert!(
-                branches1
-                    .get(&1)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("A1"))))
-            );
-            assert!(
-                branches1
-                    .get(&2)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("A2"))))
-            );
-            assert!(
-                branches1
-                    .get(&0)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("Aelse"))))
-            );
-            let branches2 = &if_blocks[1].branches;
-            assert!(
-                branches2
-                    .get(&1)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("B1"))))
-            );
-            assert!(
-                branches2
-                    .get(&2)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("B2"))))
-            );
-            assert!(
-                branches2
-                    .get(&0)
-                    .unwrap()
-                    .tokens
-                    .iter()
-                    .any(|u| matches!(u, Unit::Token(Token::Title("Belse"))))
-            );
-        } else {
-            panic!("AST结构错误");
-        }
+        else {
+            panic!("AST structure error");
+        };
+        assert_eq!(if_blocks.len(), 2);
+        let branches1 = &if_blocks[0].branches;
+        assert!(
+            branches1
+                .get(&1)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("A1"))))
+        );
+        assert!(
+            branches1
+                .get(&2)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("A2"))))
+        );
+        assert!(
+            branches1
+                .get(&0)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("Aelse"))))
+        );
+        let branches2 = &if_blocks[1].branches;
+        assert!(
+            branches2
+                .get(&1)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("B1"))))
+        );
+        assert!(
+            branches2
+                .get(&2)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("B2"))))
+        );
+        assert!(
+            branches2
+                .get(&0)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Token::Title("Belse"))))
+        );
     }
 
     #[test]
@@ -940,84 +933,75 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
-        println!("AST结构: {:#?}", ast);
-        // 打印Case(1)分支tokens
-        if let Some(Unit::SwitchBlock { cases, .. }) =
+        println!("AST structure: {:#?}", ast);
+        let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
-        {
-            if let Some(case1) = cases
-                .iter()
-                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-            {
-                println!("Case(1) tokens: {:#?}", case1.tokens);
-            }
-        }
+        else {
+            panic!("AST structure error");
+        };
+        let Some(case1) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        println!("Case(1) tokens: {:#?}", case1.tokens);
         assert_eq!(errors, vec![]);
-        // 检查AST结构
         assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
         assert!(matches!(&ast[2], Unit::Token(_))); // 00000044
-        // 检查SwitchBlock嵌套结构
-        if let Unit::SwitchBlock { cases, .. } = &ast[1] {
-            // case 1 嵌套Switch
-            if let Some(CaseBranch { tokens, .. }) = cases
+        let Unit::SwitchBlock { cases, .. } = &ast[1] else {
+            panic!("AST structure error");
+        };
+        let Some(CaseBranch { tokens, .. }) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
+        assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
+        let Unit::RandomBlock { if_blocks, .. } = &tokens[1] else {
+            panic!("RandomBlock not found");
+        };
+        let if_block = &if_blocks[0];
+        assert!(
+            if_block
+                .branches
+                .get(&1)
+                .unwrap()
+                .tokens
                 .iter()
-                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-            {
-                // tokens: 00220000, SwitchBlock
-                assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
-                assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
-                if let Unit::RandomBlock { if_blocks, .. } = &tokens[1] {
-                    // 只检查第一个if_block
-                    let if_block = &if_blocks[0];
-                    // if 1: 00550000
-                    assert!(
-                        if_block
-                            .branches
-                            .get(&1)
-                            .unwrap()
-                            .tokens
-                            .iter()
-                            .any(|u| matches!(u, Unit::Token(Title("00550000"))))
-                    );
-                    // elseif 2: 00006600
-                    assert!(
-                        if_block
-                            .branches
-                            .get(&2)
-                            .unwrap()
-                            .tokens
-                            .iter()
-                            .any(|u| matches!(u, Unit::Token(Title("00006600"))))
-                    );
-                }
-            }
-            // case 2: 00003300
-            if let Some(CaseBranch { tokens, .. }) = cases
+                .any(|u| matches!(u, Unit::Token(Title("00550000"))))
+        );
+        assert!(
+            if_block
+                .branches
+                .get(&2)
+                .unwrap()
+                .tokens
                 .iter()
-                .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
-            {
-                assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
-            }
-        } else {
-            panic!("AST结构错误");
-        }
-        // 检查最终解析出的Token序列
+                .any(|u| matches!(u, Unit::Token(Title("00006600"))))
+        );
+        let Some(CaseBranch { tokens, .. }) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
+        else {
+            panic!("Case(2) not found");
+        };
+        assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
         let mut rng = DummyRng;
         let mut errors2 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
-        // 由于DummyRng总是返回最大值，Switch(2)会选Case(2)
-        // 外层Switch: Case(2) -> 00003300
-        // 00000044
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
             match t {
                 Title(s) => {
-                    assert_eq!(s, &expected[i], "Title内容不符");
+                    assert_eq!(s, &expected[i], "Title content mismatch");
                 }
-                _ => panic!("Token类型不符"),
+                _ => panic!("Token type mismatch"),
             }
         }
         assert_eq!(errors, vec![]);
@@ -1060,18 +1044,19 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
-        println!("AST结构: {:#?}", ast);
-        // 打印Case(1)分支tokens
-        if let Some(Unit::SwitchBlock { cases, .. }) =
+        println!("AST structure: {:#?}", ast);
+        let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
-        {
-            if let Some(case1) = cases
-                .iter()
-                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-            {
-                println!("Case(1) tokens: {:#?}", case1.tokens);
-            }
-        }
+        else {
+            panic!("AST structure error");
+        };
+        let Some(case1) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        println!("Case(1) tokens: {:#?}", case1.tokens);
         let mut rng = DummyRng;
         let mut errors2 = Vec::new();
         let mut ast_iter = ast.clone().into_iter().peekable();
