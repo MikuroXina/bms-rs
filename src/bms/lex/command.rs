@@ -26,9 +26,9 @@ impl PlayerMode {
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
-/// 
+///
 /// IIDX/LR2/beatoraja judge windows: https://iidx.org/misc/iidx_lr2_beatoraja_diff
-/// 
+///
 /// Note: VeryEasy is not Implemented.
 /// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
 /// See: https://github.com/MikuroXina/bms-rs/pull/122

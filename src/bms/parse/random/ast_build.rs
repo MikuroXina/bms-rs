@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{bms::lex::token::{Token, TokenStream}, parse::random::ControlFlowRule};
+use crate::{
+    bms::lex::token::{Token, TokenStream},
+    parse::random::ControlFlowRule,
+};
 
 /// A unit of AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,7 +161,7 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndRandom);
                 iter.next();
             }
-            // 自动补全EndSwitch：遇到Random/SetRandom/If/EndRandom/EndIf时自动break
+            // Automatically complete EndSwitch: break when encountering Random/SetRandom/If/EndRandom/EndIf
             Token::Random(_) | Token::SetRandom(_) | Token::If(_) => {
                 break;
             }
@@ -167,7 +170,7 @@ where
             }
         }
     }
-    // 如果迭代器已经结束，也自动break（即自动补全EndSwitch）
+    // If the iterator has ended, also break (i.e., automatically complete EndSwitch)
     Unit::SwitchBlock {
         value: block_value,
         cases,
@@ -288,7 +291,7 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndSwitch);
                 iter.next();
             }
-            // 自动补全EndRandom：遇到Switch/SetSwitch/Case/Def/EndSwitch时自动break
+            // Automatically complete EndRandom: break when encountering Switch/SetSwitch/Case/Def/EndSwitch
             Token::SetSwitch(_) | Token::Switch(_) | Token::Case(_) | Token::Def | Token::Skip => {
                 break;
             }
@@ -297,7 +300,7 @@ where
             }
         }
     }
-    // 如果迭代器已经结束，也自动break（即自动补全EndRandom）
+    // If the iterator has ended, also break (i.e., automatically complete EndRandom)
     Unit::RandomBlock {
         value: block_value,
         if_blocks,

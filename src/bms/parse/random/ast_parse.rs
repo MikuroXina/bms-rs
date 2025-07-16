@@ -1,7 +1,7 @@
 use crate::bms::{lex::token::Token, parse::rng::Rng};
 
-use super::ast_build::*;
 use super::ControlFlowRule;
+use super::ast_build::*;
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
@@ -103,7 +103,7 @@ mod tests {
     struct DummyRng;
     impl Rng for DummyRng {
         fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-            // 总是返回最大值
+            // Always return the maximum value
             *_range.end()
         }
     }

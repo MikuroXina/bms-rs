@@ -1,7 +1,6 @@
 mod ast_build;
 mod ast_parse;
 
-
 use thiserror::Error;
 
 use super::{ParseError, rng::Rng};
@@ -42,7 +41,6 @@ pub enum ControlFlowRule {
     UnmatchedElse,
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -52,7 +50,7 @@ mod tests {
     struct DummyRng;
     impl Rng for DummyRng {
         fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-            // 总是返回最大值
+            // Always return the maximum value
             *_range.end()
         }
     }
