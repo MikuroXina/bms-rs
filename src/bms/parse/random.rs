@@ -930,6 +930,19 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
+        println!("AST结构: {:#?}", ast);
+        // 打印Case(1)分支tokens
+        if let Some(Unit::SwitchBlock { cases, .. }) =
+            ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
+        {
+            if let Some(case1) = cases
+                .iter()
+                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            {
+                println!("Case(1) tokens: {:#?}", case1.tokens);
+            }
+        }
+        assert_eq!(errors, vec![]);
         // 检查AST结构
         assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
@@ -948,21 +961,25 @@ mod tests {
                     // 只检查第一个if_block
                     let if_block = &if_blocks[0];
                     // if 1: 00550000
-                    assert!(if_block
-                        .branches
-                        .get(&1)
-                        .unwrap()
-                        .tokens
-                        .iter()
-                        .any(|u| matches!(u, Unit::Token(Title("00550000")))));
+                    assert!(
+                        if_block
+                            .branches
+                            .get(&1)
+                            .unwrap()
+                            .tokens
+                            .iter()
+                            .any(|u| matches!(u, Unit::Token(Title("00550000"))))
+                    );
                     // elseif 2: 00006600
-                    assert!(if_block
-                        .branches
-                        .get(&2)
-                        .unwrap()
-                        .tokens
-                        .iter()
-                        .any(|u| matches!(u, Unit::Token(Title("00006600")))));
+                    assert!(
+                        if_block
+                            .branches
+                            .get(&2)
+                            .unwrap()
+                            .tokens
+                            .iter()
+                            .any(|u| matches!(u, Unit::Token(Title("00006600"))))
+                    );
                 }
             }
             // case 2: 00003300
@@ -995,5 +1012,67 @@ mod tests {
         }
         assert_eq!(errors, vec![]);
         assert_eq!(errors2, vec![]);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_switch_def_ahead_tokenized() {
+        use Token::*;
+        let tokens = vec![
+            Switch(5),
+            Def,
+            Title("0055"),
+            Skip,
+            Case(1),
+            Title("0100000000000000"),
+            Random(2),
+            If(1),
+            Title("04"),
+            Else,
+            Title("05"),
+            EndIf,
+            // Missing EndRandom!!!
+            Case(2),
+            Title("0200000000000000"),
+            Skip,
+            Case(3),
+            Title("0300000000000000"),
+            Switch(2),
+            Case(1),
+            Title("1111"),
+            Skip,
+            Case(2),
+            Title("2222"),
+            Skip,
+            EndSwitch,
+            Skip,
+            EndSwitch,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        println!("AST结构: {:#?}", ast);
+        // 打印Case(1)分支tokens
+        if let Some(Unit::SwitchBlock { cases, .. }) =
+            ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
+        {
+            if let Some(case1) = cases
+                .iter()
+                .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            {
+                println!("Case(1) tokens: {:#?}", case1.tokens);
+            }
+        }
+        let mut rng = DummyRng;
+        let mut errors2 = Vec::new();
+        let mut ast_iter = ast.clone().into_iter().peekable();
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let mut rng = DummyRng;
+        let mut errors3 = Vec::new();
+        let mut ast_iter = ast.into_iter().peekable();
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors3);
+        assert_eq!(errors, vec![]);
+        assert_eq!(errors2, vec![]);
+        assert_eq!(errors3, vec![]);
     }
 }
