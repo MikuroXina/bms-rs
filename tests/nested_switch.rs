@@ -490,11 +490,8 @@ fn nested_switch_in_random() {
 }
 
 /// https://hitkey.bms.ms/cmds.htm#TEST-CASES
-///
-/// TODO: This example cannot be resolved for now. It cannot be parsed by just scanning by line order.
 #[test]
-#[ignore]
-fn test_switch_def_ahead() {
+fn test_switch_insane() {
     const SRC: &str = r"
     #SWITCH 5
         #DEF
@@ -539,7 +536,7 @@ fn test_switch_def_ahead() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: "55".try_into().unwrap(),
+                obj: "01".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),
@@ -563,7 +560,7 @@ fn test_switch_def_ahead() {
                 kind: NoteKind::Visible,
                 is_player1: true,
                 key: Key::Key3,
-                obj: "55".try_into().unwrap(),
+                obj: "01".try_into().unwrap(),
             },
             Obj {
                 offset: ObjTime::new(0, 0, 1),

@@ -213,11 +213,16 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndRandom);
                 iter.next();
             }
+            // 自动补全EndSwitch：遇到Random/SetRandom/If/EndRandom/EndIf时自动break
+            Token::Random(_) | Token::SetRandom(_) | Token::If(_) => {
+                break;
+            }
             _ => {
                 iter.next();
             }
         }
     }
+    // 如果迭代器已经结束，也自动break（即自动补全EndSwitch）
     Unit::SwitchBlock {
         value: block_value,
         cases,
@@ -338,11 +343,16 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndSwitch);
                 iter.next();
             }
+            // 自动补全EndRandom：遇到Switch/SetSwitch/Case/Def/EndSwitch时自动break
+            Token::SetSwitch(_) | Token::Switch(_) | Token::Case(_) | Token::Def | Token::Skip => {
+                break;
+            }
             _ => {
                 iter.next();
             }
         }
     }
+    // 如果迭代器已经结束，也自动break（即自动补全EndRandom）
     Unit::RandomBlock {
         value: block_value,
         if_blocks,
@@ -1015,8 +1025,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn test_switch_def_ahead_tokenized() {
+    fn test_switch_insane_tokenized() {
         use Token::*;
         let tokens = vec![
             Switch(5),
