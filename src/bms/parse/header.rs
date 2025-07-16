@@ -8,6 +8,64 @@ use super::{
 };
 use crate::lex::{command::*, token::Token};
 
+/// A 2D point in pixel coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PixelPoint {
+    /// X coordinate in pixels.
+    pub x: i16,
+    /// Y coordinate in pixels.
+    pub y: i16,
+}
+
+impl PixelPoint {
+    /// Creates a new pixel point.
+    pub fn new(x: i16, y: i16) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<(i16, i16)> for PixelPoint {
+    fn from((x, y): (i16, i16)) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<PixelPoint> for (i16, i16) {
+    fn from(point: PixelPoint) -> Self {
+        (point.x, point.y)
+    }
+}
+
+/// A 2D size in pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PixelSize {
+    /// Width in pixels.
+    pub width: u16,
+    /// Height in pixels.
+    pub height: u16,
+}
+
+impl PixelSize {
+    /// Creates a new pixel size.
+    pub fn new(width: u16, height: u16) -> Self {
+        Self { width, height }
+    }
+}
+
+impl From<(u16, u16)> for PixelSize {
+    fn from((width, height): (u16, u16)) -> Self {
+        Self { width, height }
+    }
+}
+
+impl From<PixelSize> for (u16, u16) {
+    fn from(size: PixelSize) -> Self {
+        (size.width, size.height)
+    }
+}
+
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -32,6 +90,66 @@ pub struct Bmp {
     pub file: PathBuf,
     /// The color which should to be treated as transparent. It should be used only if `file` is an image.
     pub transparent_color: Argb,
+}
+
+/// A definition for #@BGA command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtBgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming in pixels.
+    pub trim_top_left: PixelPoint,
+    /// The size for trimming in pixels.
+    pub trim_size: PixelSize,
+    /// The draw point position in pixels.
+    pub draw_point: PixelPoint,
+}
+
+/// A definition for #BGA command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming in pixels.
+    pub trim_top_left: PixelPoint,
+    /// The bottom-right position for trimming in pixels.
+    pub trim_bottom_right: PixelPoint,
+    /// The draw point position in pixels.
+    pub draw_point: PixelPoint,
+}
+
+/// A definition for #EXRANK command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExRankDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The judge level.
+    pub judge_level: JudgeLevel,
+}
+
+/// A definition for #EXWAV command.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExWavDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The pan of the sound. Also called volume balance.
+    /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+    /// Default: 0.
+    pub pan: ExWavPan,
+    /// The volume of the sound.
+    /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+    /// Default: 0.
+    pub volume: ExWavVolume,
+    /// The frequency of the sound. Unit: Hz.
+    /// Range: [100, 100000].
+    /// Default: None.
+    pub frequency: Option<ExWavFrequency>,
+    /// The file path.
+    pub path: std::path::PathBuf,
 }
 
 /// A header parsed from [`TokenStream`](crate::lex::token::TokenStream).
@@ -108,6 +226,14 @@ pub struct Header {
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id.
     pub stops: HashMap<ObjId, u32>,
+    /// Storage for #@BGA definitions
+    pub atbga_defs: HashMap<ObjId, AtBgaDef>,
+    /// Storage for #BGA definitions
+    pub bga_defs: HashMap<ObjId, BgaDef>,
+    /// Storage for #EXRANK definitions
+    pub exrank_defs: HashMap<ObjId, ExRankDef>,
+    /// Storage for #EXWAV definitions
+    pub exwav_defs: HashMap<ObjId, ExWavDef>,
 }
 
 impl Header {
@@ -118,10 +244,60 @@ impl Header {
     ) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
-            Token::AtBga { .. } => todo!(),
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                let to_insert = AtBgaDef {
+                    id,
+                    source_bmp,
+                    trim_top_left: trim_top_left.into(),
+                    trim_size: trim_size.into(),
+                    draw_point: draw_point.into(),
+                };
+                if let Some(older) = self.atbga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::AtBga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.atbga_defs.insert(id, to_insert);
+                }
+            }
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
-            Token::Bga { .. } => todo!(),
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                let to_insert = BgaDef {
+                    id,
+                    source_bmp,
+                    trim_top_left: trim_top_left.into(),
+                    trim_bottom_right: trim_bottom_right.into(),
+                    draw_point: draw_point.into(),
+                };
+                if let Some(older) = self.bga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bga_defs.insert(id, to_insert);
+                }
+            }
             Token::Bmp(id, path) => {
                 if id.is_none() {
                     self.poor_bmp = Some(path.into());
@@ -210,8 +386,46 @@ impl Header {
                     self.bmp_files.insert(id, to_insert);
                 }
             }
-            Token::ExRank(_, _) => todo!(),
-            Token::ExWav(_, _, _) => todo!(),
+            Token::ExRank(id, judge_level) => {
+                let to_insert = ExRankDef { id, judge_level };
+                if let Some(older) = self.exrank_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExRank {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exrank_defs.insert(id, to_insert);
+                }
+            }
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
+                let to_insert = ExWavDef {
+                    id,
+                    pan,
+                    volume,
+                    frequency,
+                    path: path.into(),
+                };
+                if let Some(older) = self.exwav_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExWav {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exwav_defs.insert(id, to_insert);
+                }
+            }
             Token::Genre(genre) => self.genre = Some(genre.to_owned()),
             Token::LnTypeRdm => {
                 self.ln_type = LnType::Rdm;
@@ -315,7 +529,26 @@ impl Header {
                     self.wav_files.insert(id, path.into());
                 }
             }
-            _ => {}
+            Token::Base62
+            | Token::Case(_)
+            | Token::Def
+            | Token::Else
+            | Token::ElseIf(_)
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::EndSwitch
+            | Token::If(_)
+            | Token::LnObj(_)
+            | Token::NotACommand(_)
+            | Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::SetSwitch(_)
+            | Token::Skip
+            | Token::Switch(_)
+            | Token::ExtendedMessage { .. }
+            | Token::Message { .. } => {
+                // These Token should not be handled in Header::parse.
+            }
         }
         Ok(())
     }

@@ -13,6 +13,7 @@ use crate::{
         command::{self, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
+    parse::header::{ExRankDef, ExWavDef},
     time::{ObjTime, Track},
 };
 
@@ -259,6 +260,14 @@ pub struct Notes {
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
     extended_messages: Vec<ExtendedMessageObj>,
+    /// Storage for #EXRANK definitions
+    pub exrank_defs: HashMap<ObjId, ExRankDef>,
+    /// Storage for #EXWAV definitions
+    pub exwav_defs: HashMap<ObjId, ExWavDef>,
+    /// Storage for #CHANGEOPTION definitions
+    pub change_options: HashMap<ObjId, String>,
+    /// Storage for #TEXT definitions
+    pub texts: HashMap<ObjId, String>,
 }
 
 impl Notes {
@@ -490,6 +499,20 @@ impl Notes {
             }
             Token::Message {
                 track,
+                channel: Channel::ChangeOption,
+                message,
+            } => {
+                for (_time, obj) in ids_from_message(*track, message) {
+                    let _option = header
+                        .change_options
+                        .get(&obj)
+                        .ok_or(ParseError::UndefinedObject(obj))?;
+                    // Here we can add logic to handle ChangeOption
+                    // Currently just ignored because change_options are already stored in header
+                }
+            }
+            Token::Message {
+                track,
                 channel: Channel::SectionLen,
                 message,
             } => {
@@ -592,7 +615,92 @@ impl Notes {
                 self.push_note(begin_note);
                 self.push_note(end_note);
             }
-            _ => {}
+            Token::ExRank(id, judge_level) => {
+                self.exrank_defs.insert(
+                    *id,
+                    ExRankDef {
+                        id: *id,
+                        judge_level: *judge_level,
+                    },
+                );
+            }
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
+                self.exwav_defs.insert(
+                    *id,
+                    ExWavDef {
+                        id: *id,
+                        pan: *pan,
+                        volume: *volume,
+                        frequency: *frequency,
+                        path: path.into(),
+                    },
+                );
+            }
+            Token::ChangeOption(id, option) => {
+                self.change_options.insert(*id, (*option).to_string());
+            }
+            Token::Text(id, text) => {
+                self.texts.insert(*id, (*text).to_string());
+            }
+            Token::Email(_)
+            | Token::Url(_)
+            | Token::OctFp
+            | Token::Option(_)
+            | Token::PathWav(_)
+            | Token::Maker(_)
+            | Token::MidiFile(_)
+            | Token::PoorBga(_)
+            | Token::VideoFile(_)
+            | Token::Artist(_)
+            | Token::AtBga { .. }
+            | Token::Banner(_)
+            | Token::BackBmp(_)
+            | Token::Base62
+            | Token::Bga { .. }
+            | Token::Bmp(_, _)
+            | Token::Bpm(_)
+            | Token::BpmChange(_, _)
+            | Token::Case(_)
+            | Token::Comment(_)
+            | Token::Def
+            | Token::Difficulty(_)
+            | Token::Else
+            | Token::ElseIf(_)
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::EndSwitch
+            | Token::ExBmp(_, _, _)
+            | Token::Genre(_)
+            | Token::If(_)
+            | Token::LnTypeRdm
+            | Token::LnTypeMgq
+            | Token::NotACommand(_)
+            | Token::Player(_)
+            | Token::PlayLevel(_)
+            | Token::Random(_)
+            | Token::Rank(_)
+            | Token::Scroll(_, _)
+            | Token::SetRandom(_)
+            | Token::SetSwitch(_)
+            | Token::Skip
+            | Token::Speed(_, _)
+            | Token::StageFile(_)
+            | Token::Stop(_, _)
+            | Token::SubArtist(_)
+            | Token::SubTitle(_)
+            | Token::Switch(_)
+            | Token::Title(_)
+            | Token::Total(_)
+            | Token::VolWav(_)
+            | Token::Wav(_, _) => {
+                // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
+            }
         }
         Ok(())
     }
@@ -784,6 +892,10 @@ impl<'de> serde::Deserialize<'de> for Notes {
             scrolling_factor_changes,
             spacing_factor_changes,
             extended_messages,
+            exrank_defs: HashMap::new(),
+            exwav_defs: HashMap::new(),
+            change_options: HashMap::new(),
+            texts: HashMap::new(),
         })
     }
 }
