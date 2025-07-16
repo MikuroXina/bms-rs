@@ -11,14 +11,11 @@ pub(super) fn parse_control_flow<'a>(
     token_stream: &'a TokenStream<'a>,
     mut rng: impl Rng,
 ) -> Result<Vec<&'a Token<'a>>, ParseError> {
-    // The usage of token_stream.
-    let _token_stream = TokenStream::from_tokens(vec![]);
-    // The usage of rng.
-    let _val = rng.generate(0..=100);
     let mut error_list = Vec::new();
     let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
+    let tokens: Vec<&'a Token<'a>> =
+        parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
     Some(tokens)
         .filter(|_| error_list.len() == 0)
         .ok_or(error_list.into_iter().next().unwrap().into())
@@ -377,7 +374,6 @@ where
     (result, has_endif)
 }
 
-#[allow(unused)]
 fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
@@ -414,9 +410,14 @@ fn parse_control_flow_ast<'a>(
                 // 如果没有找到，尝试找0（else）分支
                 if !found {
                     for if_block in &if_blocks {
+                        #[allow(unused_assignments)]
                         if let Some(branch) = if_block.branches.get(&0) {
                             let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
+                            result.extend(parse_control_flow_ast(
+                                &mut branch_iter,
+                                rng,
+                                error_list,
+                            ));
                             found = true;
                             break;
                         }
@@ -484,11 +485,19 @@ mod tests {
         let t_if = Token::Title("LARGE_IF");
         let t_case = Token::Title("LARGE_CASE");
         let mut if_branches = HashMap::new();
-        if_branches.insert(u64::MAX, IfBranch { value: u64::MAX, tokens: vec![Unit::Token(&t_if)] });
+        if_branches.insert(
+            u64::MAX,
+            IfBranch {
+                value: u64::MAX,
+                tokens: vec![Unit::Token(&t_if)],
+            },
+        );
         let units = vec![
             Unit::RandomBlock {
                 value: BlockValue::Set { value: u64::MAX },
-                if_blocks: vec![IfBlock { branches: if_branches.clone() }],
+                if_blocks: vec![IfBlock {
+                    branches: if_branches.clone(),
+                }],
             },
             Unit::SwitchBlock {
                 value: BlockValue::Set { value: u64::MAX },
@@ -502,7 +511,13 @@ mod tests {
         let mut errors = Vec::new();
         let mut iter = units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
-        let titles: Vec<_> = tokens.iter().filter_map(|t| match t { Token::Title(s) => Some(*s), _ => None }).collect();
+        let titles: Vec<_> = tokens
+            .iter()
+            .filter_map(|t| match t {
+                Token::Title(s) => Some(*s),
+                _ => None,
+            })
+            .collect();
         assert!(titles.contains(&"LARGE_IF"));
         assert!(titles.contains(&"LARGE_CASE"));
     }
@@ -515,25 +530,34 @@ mod tests {
         // Random外层，Switch内层
         let t_switch_in_random = Token::Title("SWITCH_IN_RANDOM");
         let mut if_branches = HashMap::new();
-        if_branches.insert(1, IfBranch {
-            value: 1,
-            tokens: vec![Unit::SwitchBlock {
-                value: BlockValue::Set { value: 2 },
-                cases: vec![
-                    CaseBranch {
+        if_branches.insert(
+            1,
+            IfBranch {
+                value: 1,
+                tokens: vec![Unit::SwitchBlock {
+                    value: BlockValue::Set { value: 2 },
+                    cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(2),
                         tokens: vec![Unit::Token(&t_switch_in_random)],
-                    },
-                ],
-            }],
-        });
+                    }],
+                }],
+            },
+        );
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set { value: 1 },
-            if_blocks: vec![IfBlock { branches: if_branches }],
+            if_blocks: vec![IfBlock {
+                branches: if_branches,
+            }],
         }];
         let mut iter = units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
-        let titles: Vec<_> = tokens.iter().filter_map(|t| match t { Token::Title(s) => Some(*s), _ => None }).collect();
+        let titles: Vec<_> = tokens
+            .iter()
+            .filter_map(|t| match t {
+                Token::Title(s) => Some(*s),
+                _ => None,
+            })
+            .collect();
         assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
         // Switch外层，Random内层
@@ -544,7 +568,13 @@ mod tests {
                 value: BlockValue::Set { value: 2 },
                 if_blocks: vec![{
                     let mut b = HashMap::new();
-                    b.insert(2, IfBranch { value: 2, tokens: vec![Unit::Token(&t_random_in_switch)] });
+                    b.insert(
+                        2,
+                        IfBranch {
+                            value: 2,
+                            tokens: vec![Unit::Token(&t_random_in_switch)],
+                        },
+                    );
                     IfBlock { branches: b }
                 }],
             }],
@@ -555,7 +585,13 @@ mod tests {
         }];
         let mut iter2 = units2.into_iter().peekable();
         let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng, &mut errors);
-        let titles2: Vec<_> = tokens2.iter().filter_map(|t| match t { Token::Title(s) => Some(*s), _ => None }).collect();
+        let titles2: Vec<_> = tokens2
+            .iter()
+            .filter_map(|t| match t {
+                Token::Title(s) => Some(*s),
+                _ => None,
+            })
+            .collect();
         assert!(titles2.contains(&"RANDOM_IN_SWITCH"));
     }
 
@@ -566,30 +602,47 @@ mod tests {
         let mut errors = Vec::new();
         let t_deep_nested = Token::Title("DEEP_NESTED");
         let mut if_branches = HashMap::new();
-        if_branches.insert(1, IfBranch {
-            value: 1,
-            tokens: vec![Unit::SwitchBlock {
-                value: BlockValue::Set { value: 1 },
-                cases: vec![CaseBranch {
-                    value: CaseBranchValue::Case(1),
-                    tokens: vec![Unit::RandomBlock {
-                        value: BlockValue::Set { value: 1 },
-                        if_blocks: vec![{
-                            let mut b = HashMap::new();
-                            b.insert(1, IfBranch { value: 1, tokens: vec![Unit::Token(&t_deep_nested)] });
-                            IfBlock { branches: b }
+        if_branches.insert(
+            1,
+            IfBranch {
+                value: 1,
+                tokens: vec![Unit::SwitchBlock {
+                    value: BlockValue::Set { value: 1 },
+                    cases: vec![CaseBranch {
+                        value: CaseBranchValue::Case(1),
+                        tokens: vec![Unit::RandomBlock {
+                            value: BlockValue::Set { value: 1 },
+                            if_blocks: vec![{
+                                let mut b = HashMap::new();
+                                b.insert(
+                                    1,
+                                    IfBranch {
+                                        value: 1,
+                                        tokens: vec![Unit::Token(&t_deep_nested)],
+                                    },
+                                );
+                                IfBlock { branches: b }
+                            }],
                         }],
                     }],
                 }],
-            }],
-        });
+            },
+        );
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set { value: 1 },
-            if_blocks: vec![IfBlock { branches: if_branches }],
+            if_blocks: vec![IfBlock {
+                branches: if_branches,
+            }],
         }];
         let mut iter = units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
-        let titles: Vec<_> = tokens.iter().filter_map(|t| match t { Token::Title(s) => Some(*s), _ => None }).collect();
+        let titles: Vec<_> = tokens
+            .iter()
+            .filter_map(|t| match t {
+                Token::Title(s) => Some(*s),
+                _ => None,
+            })
+            .collect();
         assert!(titles.contains(&"DEEP_NESTED"));
     }
 
