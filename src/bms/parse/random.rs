@@ -14,48 +14,6 @@ pub(super) fn parse_control_flow<'a>(
     todo!()
 }
 
-/// An error occurred when parsing the [`TokenStream`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum ControlFlowRule {
-    #[error("In an #RANDOM - #ENDRANDOM block, there must be an #IF at the start.")]
-    IfMustAtStartOfRandom,
-    #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSW block")]
-    CasesInSwitchBlock,
-    #[error("#ELSEIF command must come after #IF block")]
-    ElseIfAfterIf,
-    #[error("#ELSE command must come after #IF/#ELESIF block")]
-    ElseAfterIfs,
-    #[error("#ENDIF command must come after #IF/#ELSEIF/#ELSE block")]
-    EndIfAfterIfs,
-    #[error("#ENDRANDOM command must come after #RANDOM block")]
-    EndRandomAfterRandomBlock,
-    #[error("#ENDSW command must come after #SWITCH block")]
-    EndSwitchAfterSwitchBlock,
-    #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
-    ValueOutOfRange,
-    #[error("Unexpected token inside control flow")]
-    UnexpectedTokenInFlow,
-}
-
-impl From<ControlFlowRule> for ParseError {
-    fn from(rule: ControlFlowRule) -> Self {
-        ParseError::ViolateControlFlowRule(rule)
-    }
-}
-
-impl<T> From<ControlFlowRule> for Result<T> {
-    fn from(rule: ControlFlowRule) -> Self {
-        Err(ParseError::from(rule))
-    }
-}
-
-impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
-    fn from(rule: ControlFlowRule) -> Self {
-        Break(<std::result::Result<T, ParseError>>::from(rule))
-    }
-}
-
-
 fn is_control_flow_token(token: &Token) -> bool {
     matches!(
         token,
