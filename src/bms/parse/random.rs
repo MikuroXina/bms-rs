@@ -1,4 +1,4 @@
-use std::ops::ControlFlow::{self, *};
+use std::{collections::HashMap, ops::ControlFlow::{self, *}};
 
 use thiserror::Error;
 
@@ -10,16 +10,8 @@ pub(super) fn parse_control_flow<'a>(
     token_stream: &'a TokenStream<'a>,
     rng: impl Rng,
 ) -> Result<Vec<&'a Token<'a>>> {
-    let mut random_parser = RandomParser::new(rng);
-    let mut continue_tokens = vec![];
-    for token in token_stream.iter() {
-        match random_parser.parse(token) {
-            ControlFlow::Continue(_) => continue_tokens.push(token),
-            ControlFlow::Break(Ok(_)) => continue,
-            ControlFlow::Break(Err(e)) => return Err(e),
-        }
-    }
-    Ok(continue_tokens)
+    let mut units: Vec<Unit<'a>> = Vec::new();
+    todo!()
 }
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -41,6 +33,8 @@ pub enum ControlFlowRule {
     EndSwitchAfterSwitchBlock,
     #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
     ValueOutOfRange,
+    #[error("Unexpected token inside control flow")]
+    UnexpectedTokenInFlow,
 }
 
 impl From<ControlFlowRule> for ParseError {
@@ -61,246 +55,57 @@ impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ControlFlowBlock {
-    Random {
-        /// It can be used for warning unreachable branch
-        rand_max: u32,
-        /// If the parent part cannot pass, this will be None,
-        chosen_value: Option<u32>,
+
+fn is_control_flow_token(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Unit<'a> {
+    Token(Token<'a>),
+    RandomBlock {
+        max: u64,
+        if_blocks: Vec<IfBlock<'a>>,
     },
-    IfBranch {
-        /// It can be used for warning unreachable `#ELESIF`
-        /// If the parent part cannot pass, this will be None,
-        matching_value: u32,
-        /// If there is any #IF/#ELSEIF branch has been matched previously in this #IF - (#ELSEIF/#ELSE) -
-        /// #ENDIF block list (called #IF group). Used by #ELSE.
-        /// One #RANDOM - #ENDRANDOM block can contain more than 1 #IF group.
-        group_previously_matched: bool,
-    },
-    ElseBranch {
-        /// Passed in this else
-        else_activate: bool,
-    },
-    Switch {
-        /// It can be used for warning unreachable branch
-        switch_max: u32,
-        /// If the parent part cannot pass, this will be None,
-        chosen_value: Option<u32>,
-        /// Whether found matching case or default
-        matched: bool,
-        /// Whether skipping tokens until `#ENDSW`
-        skipping: bool,
+    SwitchBlock {
+        cases: Vec<CaseBranch<'a>>,
     },
 }
 
-pub struct RandomParser<R> {
-    rng: R,
-    stack: Vec<ControlFlowBlock>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IfBlock<'a> {
+    branches: HashMap<u64, IfBranch<'a>>,
 }
 
-impl<R: Rng> RandomParser<R> {
-    pub fn new(rng: R) -> Self {
-        Self { rng, stack: vec![] }
-    }
-    pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
-        use ControlFlowRule::*;
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IfBranch<'a> {
+    value: u64,
+    tokens: Vec<Unit<'a>>,
+}
 
-        if let Some(&ControlFlowBlock::Random {
-            rand_max,
-            chosen_value,
-        }) = self.stack.last()
-        {
-            // expected only if blocks and end random
-            if *token == Token::EndRandom {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            let &Token::If(matching_value) = token else {
-                return IfMustAtStartOfRandom.into();
-            };
-            if matching_value > rand_max {
-                return ValueOutOfRange.into();
-            }
-            self.stack.push(ControlFlowBlock::IfBranch {
-                matching_value,
-                group_previously_matched: chosen_value == Some(matching_value),
-            });
-            return Break(Ok(()));
-        }
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CaseBranch<'a> {
+    value: CaseBranchValue,
+    tokens: Vec<Unit<'a>>,
+}
 
-        let flow_enabled = if let Some(ControlFlowBlock::Switch {
-            chosen_value,
-            switch_max,
-            matched,
-            skipping,
-        }) = self.stack.last_mut()
-        {
-            // expected cases, default and other commands
-            if *token == Token::EndSwitch {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            if *skipping {
-                // skipping until end of switch
-                return Break(Ok(()));
-            }
-            if !*matched {
-                // ignoring until matching case or default
-                if let Token::Case(matching_value) = token {
-                    if matching_value > switch_max {
-                        return ValueOutOfRange.into();
-                    }
-                    if Some(matching_value) == chosen_value.as_ref() {
-                        *matched = true;
-                    }
-                }
-                if *token == Token::Def {
-                    *matched = true;
-                }
-            } else if *token == Token::Skip {
-                // skip only if matched
-                *skipping = true;
-                return Break(Ok(()));
-            }
-            if matches!(token, Token::Case(_) | Token::Def) {
-                return Break(Ok(()));
-            }
-            *matched
-        } else {
-            // another control flow
-            true
-        };
-
-        let flow_enabled = flow_enabled
-            && if let Some(
-                [
-                    ControlFlowBlock::Random {
-                        rand_max,
-                        chosen_value,
-                    },
-                    ControlFlowBlock::IfBranch {
-                        matching_value,
-                        group_previously_matched,
-                    },
-                ],
-            ) = self.stack.last_chunk_mut()
-            {
-                // expected else if, else, end if and other commands
-                if *token == Token::EndIf {
-                    self.stack.pop();
-                    return Break(Ok(()));
-                }
-                let matched = *group_previously_matched;
-                if let &Token::ElseIf(else_matching_value) = token {
-                    if &else_matching_value > rand_max {
-                        return ValueOutOfRange.into();
-                    }
-                    self.stack.pop();
-                    self.stack.push(ControlFlowBlock::IfBranch {
-                        matching_value: else_matching_value,
-                        group_previously_matched: matched,
-                    });
-                    return Break(Ok(()));
-                }
-                if *token == Token::Else {
-                    self.stack.pop();
-                    self.stack.push(ControlFlowBlock::ElseBranch {
-                        else_activate: !matched,
-                    });
-                    return Break(Ok(()));
-                }
-                if chosen_value.is_some_and(|chosen| &chosen == matching_value) {
-                    // activate only this matched branch
-                    *group_previously_matched = true;
-                    true
-                } else {
-                    // the control flow is disabled
-                    false
-                }
-            } else {
-                // another control flow
-                true
-            };
-
-        if let Some(&ControlFlowBlock::ElseBranch { else_activate }) = self.stack.last() {
-            if let Token::If(_) | Token::ElseIf(_) = token {
-                return ElseAfterIfs.into();
-            }
-            if *token == Token::EndIf {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            if !else_activate {
-                return Break(Ok(()));
-            }
-        }
-
-        // expected block starting commands below
-
-        if let &Token::Random(max) = token {
-            self.stack.push(ControlFlowBlock::Random {
-                rand_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
-            });
-            return Break(Ok(()));
-        }
-        if let &Token::SetRandom(chosen) = token {
-            self.stack.push(ControlFlowBlock::Random {
-                rand_max: u32::MAX,
-                chosen_value: flow_enabled.then_some(chosen),
-            });
-            return Break(Ok(()));
-        }
-
-        if let &Token::Switch(max) = token {
-            self.stack.push(ControlFlowBlock::Switch {
-                switch_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
-                matched: false,
-                skipping: false,
-            });
-            return Break(Ok(()));
-        }
-        if let &Token::SetSwitch(chosen) = token {
-            self.stack.push(ControlFlowBlock::Switch {
-                switch_max: u32::MAX,
-                chosen_value: flow_enabled.then_some(chosen),
-                matched: false,
-                skipping: false,
-            });
-            return Break(Ok(()));
-        }
-
-        match token {
-            Token::If(_) => {
-                return IfMustAtStartOfRandom.into();
-            }
-            Token::ElseIf(_) => {
-                return ElseIfAfterIf.into();
-            }
-            Token::Else => {
-                return ElseAfterIfs.into();
-            }
-            Token::EndIf => {
-                return EndIfAfterIfs.into();
-            }
-            Token::EndRandom => {
-                return EndRandomAfterRandomBlock.into();
-            }
-            Token::Case(_) | Token::Def => {
-                return CasesInSwitchBlock.into();
-            }
-            Token::EndSwitch => {
-                return EndSwitchAfterSwitchBlock.into();
-            }
-            _ => {}
-        }
-
-        if flow_enabled {
-            Continue(())
-        } else {
-            Break(Ok(()))
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CaseBranchValue {
+    Case(u64),
+    Def,
 }
