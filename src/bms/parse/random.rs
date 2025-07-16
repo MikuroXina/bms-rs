@@ -2,23 +2,23 @@ use std::{collections::HashMap, ops::ControlFlow::{self, *}};
 
 use thiserror::Error;
 
-use super::{ParseError, Result, rng::Rng};
+use super::{ParseError, rng::Rng};
 use crate::bms::lex::token::{Token, TokenStream};
 
 /// Parses the control flow of the token.
 pub(super) fn parse_control_flow<'a>(
     token_stream: &'a TokenStream<'a>,
     mut rng: impl Rng,
-) -> std::result::Result<Vec<&'a Token<'a>>, ParseError> {
-    let mut units: Vec<Unit<'a>> = Vec::new();
-    let val = rng.generate(0..=100);
+) -> Result<Vec<&'a Token<'a>>, ParseError> {
+    // The usage of rng.
+    let _val = rng.generate(0..=100);
     let mut error_list = Vec::new();
     let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(ast, &mut error_list);
-    Some(tokens).filter(|_| error_list.len() == 0).ok_or(error_list.into_iter().next().unwrap())
+    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(ast, &mut rng, &mut error_list);
+    Some(tokens).filter(|_| error_list.len() == 0).ok_or(error_list.into_iter().next().unwrap().into())
 }
 
-fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<ParseError>) -> Vec<Unit<'a>> {
+fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<ControlFlowRule>) -> Vec<Unit<'a>> {
     let mut units: Vec<Unit<'a>> = Vec::new();
     for token in tokens.iter() {
         let unit = build_control_flow_ast_step(token);
@@ -31,19 +31,20 @@ fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<
     units
 }
 
-fn build_control_flow_ast_step<'a>(token: &'a Token<'a>) -> std::result::Result<Option<Unit<'a>>, ParseError> {
+fn build_control_flow_ast_step<'a>(token: &'a Token<'a>) -> Result<Option<Unit<'a>>, ControlFlowRule> {
     todo!()
 }
 
 
-fn parse_control_flow_ast<'a>(ast: Vec<Unit<'a>>, error_list: &mut Vec<ParseError>) -> Vec<&'a Token<'a>> {
+fn parse_control_flow_ast<'a>(ast: Vec<Unit<'a>>, rng: &mut impl Rng, error_list: &mut Vec<ControlFlowRule>) -> Vec<&'a Token<'a>> {
     todo!()
 }
 
-fn parse_control_flow_ast_step<'a>(ast: Unit<'a>) -> std::result::Result<Vec<&'a Token<'a>>, ParseError> {
+fn parse_control_flow_ast_step<'a>(ast: Unit<'a>, rng: &mut impl Rng) -> Result<Vec<&'a Token<'a>>, ControlFlowRule> {
     todo!()
 }
 
+/// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
     #[error("unmatched end if")]
@@ -64,6 +65,7 @@ impl From<ControlFlowRule> for ParseError {
     }
 }
 
+/// Checks if a token is a control flow token.
 fn is_control_flow_token(token: &Token) -> bool {
     matches!(
         token,
@@ -83,15 +85,35 @@ fn is_control_flow_token(token: &Token) -> bool {
     )
 }
 
+/// A unit of AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Unit<'a> {
+    /// A token that is not a control flow token.
     Token(&'a Token<'a>),
+    /// A Random block.
     RandomBlock {
-        max: u64,
+        value: BlockValue,
         if_blocks: Vec<IfBlock<'a>>,
     },
+    /// A Switch block.
     SwitchBlock {
+        value: BlockValue,
         cases: Vec<CaseBranch<'a>>,
+    },
+}
+
+/// The value of a Random/Switch block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BlockValue {
+    /// For Random/Switch, value ranges in [1, max].
+    /// IfBranch value must ranges in [1, max].
+    Random {
+        max: u64,
+    },
+    /// For SetRandom/SetSwitch.
+    /// IfBranch value has no limit.
+    Set {
+        value: u64,
     },
 }
 
