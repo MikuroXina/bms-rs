@@ -16,9 +16,10 @@ pub(super) fn parse_control_flow<'a>(
     let mut ast_iter = ast.into_iter().peekable();
     let tokens: Vec<&'a Token<'a>> =
         parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
-    Some(tokens)
-        .filter(|_| error_list.len() == 0)
-        .ok_or(error_list.into_iter().next().unwrap().into())
+    match error_list.into_iter().next() {
+        Some(error) => Err(error.into()),
+        None => Ok(tokens),
+    }
 }
 
 /// Control flow rules.
