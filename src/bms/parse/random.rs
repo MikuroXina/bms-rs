@@ -6,6 +6,7 @@ use super::{ParseError, rng::Rng};
 use crate::bms::lex::token::{Token, TokenStream};
 
 /// Parses the control flow of the token.
+/// Returns the tokens that will be executed, and not contains control flow tokens.
 pub(super) fn parse_control_flow<'a>(
     token_stream: &'a TokenStream<'a>,
     mut rng: impl Rng,
@@ -38,12 +39,15 @@ pub enum ControlFlowRule {
 enum Unit<'a> {
     /// A token that is not a control flow token.
     Token(&'a Token<'a>),
-    /// A Random block.
+    /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         value: BlockValue,
         if_blocks: Vec<IfBlock<'a>>,
     },
     /// A Switch block.
+    /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
+    /// If there is no other Case branch activated, Def branch will be activated.
+    /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
     SwitchBlock {
         value: BlockValue,
         cases: Vec<CaseBranch<'a>>,
@@ -65,23 +69,29 @@ enum BlockValue {
     },
 }
 
+/// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct IfBlock<'a> {
     branches: HashMap<u64, IfBranch<'a>>,
 }
 
+/// The If branch of a If block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct IfBranch<'a> {
     value: u64,
     tokens: Vec<Unit<'a>>,
 }
 
+/// The define of a Case/Def branch in a Switch block.
+/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CaseBranch<'a> {
     value: CaseBranchValue,
     tokens: Vec<Unit<'a>>,
 }
 
+/// The type note of a Case/Def branch.
+/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum CaseBranchValue {
     Case(u64),
