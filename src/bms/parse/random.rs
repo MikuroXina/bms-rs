@@ -97,26 +97,6 @@ enum CaseBranchValue {
     Def,
 }
 
-/// Checks if a token is a control flow token.
-fn is_control_flow_token(token: &Token) -> bool {
-    matches!(
-        token,
-        Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::If(_)
-            | Token::ElseIf(_)
-            | Token::Else
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::Switch(_)
-            | Token::SetSwitch(_)
-            | Token::Case(_)
-            | Token::Def
-            | Token::Skip
-            | Token::EndSwitch
-    )
-}
-
 fn build_control_flow_ast<'a>(
     tokens: &'a TokenStream<'a>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -152,7 +132,7 @@ where
             }
             _ => {
                 // Directly collect non-control-flow tokens
-                if !is_control_flow_token(token) {
+                if !token.is_control_flow_token() {
                     result.push(Unit::Token(*token));
                 }
                 iter.next();
@@ -257,7 +237,7 @@ where
             }
             _ => {
                 // Directly collect non-control-flow tokens
-                if !is_control_flow_token(token) {
+                if !token.is_control_flow_token() {
                     result.push(Unit::Token(*token));
                 }
                 iter.next();
@@ -388,7 +368,7 @@ where
                 result.push(parse_random_block(iter, error_list));
             }
             _ => {
-                if !is_control_flow_token(token) {
+                if !token.is_control_flow_token() {
                     result.push(Unit::Token(*token));
                 }
                 iter.next();

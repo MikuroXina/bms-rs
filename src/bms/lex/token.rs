@@ -480,6 +480,26 @@ impl<'a> Token<'a> {
             _ => {}
         }
     }
+
+    /// Checks if a token is a control flow token.
+    pub fn is_control_flow_token(&self) -> bool {
+        matches!(
+            self,
+            Token::Random(_)
+                | Token::SetRandom(_)
+                | Token::If(_)
+                | Token::ElseIf(_)
+                | Token::Else
+                | Token::EndIf
+                | Token::EndRandom
+                | Token::Switch(_)
+                | Token::SetSwitch(_)
+                | Token::Case(_)
+                | Token::Def
+                | Token::Skip
+                | Token::EndSwitch
+        )
+    }
 }
 
 /// A sequence of the [`Token`]. It can be used to run [`crate::parse::Bms::from_token_stream`].
