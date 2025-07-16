@@ -255,7 +255,7 @@ where
                         },
                     );
                 }
-                // 检查未匹配的ElseIf
+                // Check for unmatched ElseIf
                 if let Some(Token::ElseIf(_)) = iter.peek() {
                     error_list.push(ControlFlowRule::UnmatchedElseIf);
                     iter.next();
@@ -272,7 +272,7 @@ where
                         },
                     );
                 }
-                // 检查未匹配的Else
+                // Check for unmatched Else
                 if let Some(Token::Else) = iter.peek() {
                     error_list.push(ControlFlowRule::UnmatchedElse);
                     iter.next();

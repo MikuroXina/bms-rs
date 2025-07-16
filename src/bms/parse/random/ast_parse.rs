@@ -15,7 +15,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 result.push(token);
             }
             Unit::RandomBlock { value, if_blocks } => {
-                // 选择分支
+                // Select branch
                 let branch_val = match value {
                     BlockValue::Random { max } => {
                         if max == 0 {
@@ -26,7 +26,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                     }
                     BlockValue::Set { value } => value,
                 };
-                // 查找第一个if_block中包含该分支的分支
+                // Find the branch in the first if_block that contains this branch value
                 let mut found = false;
                 for if_block in &if_blocks {
                     if let Some(branch) = if_block.branches.get(&branch_val) {
@@ -36,7 +36,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         break;
                     }
                 }
-                // 如果没有找到，尝试找0（else）分支
+                // If not found, try to find the 0 (else) branch
                 if !found {
                     for if_block in &if_blocks {
                         #[allow(unused_assignments)]
@@ -52,7 +52,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         }
                     }
                 }
-                // 如果都没有，什么都不做
+                // If none found, do nothing
             }
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
@@ -65,7 +65,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                     }
                     BlockValue::Set { value } => value,
                 };
-                // 查找Case分支
+                // Find Case branch
                 let mut found = false;
                 for case in &cases {
                     match &case.value {
@@ -78,7 +78,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         _ => {}
                     }
                 }
-                // 如果没有Case匹配，找Def分支
+                // If no Case matches, find the Def branch
                 if !found {
                     for case in &cases {
                         if let CaseBranchValue::Def = case.value {
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_setrandom_setwitch_large_value() {
-        // SetRandom/SetSwitch下If/Case值超大
+        // If/Case value is very large under SetRandom/SetSwitch
         let t_if = Token::Title("LARGE_IF");
         let t_case = Token::Title("LARGE_CASE");
         let mut if_branches = HashMap::new();
@@ -153,10 +153,10 @@ mod tests {
 
     #[test]
     fn test_nested_random_switch() {
-        // 嵌套Random和Switch，互相嵌套
+        // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         let mut errors = Vec::new();
-        // Random外层，Switch内层
+        // Random outer, Switch inner
         let t_switch_in_random = Token::Title("SWITCH_IN_RANDOM");
         let mut if_branches = HashMap::new();
         if_branches.insert(
@@ -189,7 +189,7 @@ mod tests {
             .collect();
         assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
-        // Switch外层，Random内层
+        // Switch outer, Random inner
         let t_random_in_switch = Token::Title("RANDOM_IN_SWITCH");
         let cases = vec![CaseBranch {
             value: CaseBranchValue::Case(1),
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_random_switch() {
-        // 多层嵌套Random和Switch
+        // Deeply nested Random and Switch
         let mut rng = DummyRng;
         let mut errors = Vec::new();
         let t_deep_nested = Token::Title("DEEP_NESTED");
