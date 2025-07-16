@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::ControlFlow::{self, *},
-};
+use std::collections::HashMap;
 
 use thiserror::Error;
 
@@ -125,128 +122,261 @@ fn build_control_flow_ast<'a>(
     tokens: &'a TokenStream<'a>,
     error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<Unit<'a>> {
-    let tokens: Vec<&'a Token<'a>> = tokens.iter().collect();
-    build_control_flow_ast_slice(&tokens, 0, tokens.len(), error_list).0
+    let mut iter = tokens.iter().peekable();
+    parse_units(&mut iter, error_list)
 }
 
-fn build_control_flow_ast_slice<'a>(
-    tokens: &[&'a Token<'a>],
-    mut i: usize,
-    end: usize,
+/// Recursively parse the token stream into a list of AST nodes
+fn parse_units<'a, I>(
+    iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
-) -> (Vec<Unit<'a>>, usize) {
-    use Token::*;
+) -> Vec<Unit<'a>>
+where
+    I: Iterator<Item = &'a Token<'a>>,
+{
     let mut result = Vec::new();
-    while i < end {
-        let token = tokens[i];
+    while let Some(token) = iter.peek() {
         match token {
-            SetSwitch(val) | Switch(val) => {
-                let mut cases = Vec::new();
-                let block_value = match token {
-                    SetSwitch(val) => BlockValue::Set { value: *val as u64 },
-                    Switch(val) => BlockValue::Random { max: *val as u64 },
-                    _ => unreachable!(),
-                };
-                i += 1;
-                while i < end {
-                    match tokens[i] {
-                        Case(case_val) => {
-                            i += 1;
-                            let (case_tokens, new_i) =
-                                build_case_or_def_body(tokens, i, end, error_list);
-                            i = new_i;
-                            cases.push(CaseBranch {
-                                value: CaseBranchValue::Case(*case_val as u64),
-                                tokens: case_tokens,
-                            });
-                            if i < end {
-                                if let Skip = tokens[i] {
-                                    i += 1;
-                                }
-                            }
-                        }
-                        Def => {
-                            i += 1;
-                            let (def_tokens, new_i) =
-                                build_case_or_def_body(tokens, i, end, error_list);
-                            i = new_i;
-                            cases.push(CaseBranch {
-                                value: CaseBranchValue::Def,
-                                tokens: def_tokens,
-                            });
-                            if i < end {
-                                if let Skip = tokens[i] {
-                                    i += 1;
-                                }
-                            }
-                        }
-                        EndSwitch => {
-                            i += 1;
-                            break;
-                        }
-                        EndIf => {
-                            error_list.push(ControlFlowRule::UnmatchedEndIf);
-                            i += 1;
-                        }
-                        EndRandom => {
-                            error_list.push(ControlFlowRule::UnmatchedEndRandom);
-                            i += 1;
-                        }
-                        _ => {
-                            i += 1;
-                        }
-                    }
-                }
-                result.push(Unit::SwitchBlock {
-                    value: block_value,
-                    cases,
-                });
+            Token::SetSwitch(_val) | Token::Switch(_val) => {
+                result.push(parse_switch_block(iter, error_list));
             }
-            EndIf => {
+            Token::Random(_val) | Token::SetRandom(_val) => {
+                result.push(parse_random_block(iter, error_list));
+            }
+            Token::EndIf => {
                 error_list.push(ControlFlowRule::UnmatchedEndIf);
-                i += 1;
+                iter.next();
             }
-            EndRandom => {
+            Token::EndRandom => {
                 error_list.push(ControlFlowRule::UnmatchedEndRandom);
-                i += 1;
+                iter.next();
+            }
+            _ => {
+                // Directly collect non-control-flow tokens
+                if !is_control_flow_token(token) {
+                    result.push(Unit::Token(*token));
+                }
+                iter.next();
+            }
+        }
+    }
+    result
+}
+
+/// Parse a Switch/SetSwitch block until EndSwitch
+fn parse_switch_block<'a, I>(
+    iter: &mut std::iter::Peekable<I>,
+    error_list: &mut Vec<ControlFlowRule>,
+) -> Unit<'a>
+where
+    I: Iterator<Item = &'a Token<'a>>,
+{
+    let token = iter.next().unwrap();
+    let block_value = match token {
+        Token::SetSwitch(val) => BlockValue::Set { value: *val as u64 },
+        Token::Switch(val) => BlockValue::Random { max: *val as u64 },
+        _ => unreachable!(),
+    };
+    let mut cases = Vec::new();
+    while let Some(next) = iter.peek() {
+        match next {
+            Token::Case(case_val) => {
+                iter.next();
+                let tokens = parse_case_or_def_body(iter, error_list);
+                cases.push(CaseBranch {
+                    value: CaseBranchValue::Case(*case_val as u64),
+                    tokens,
+                });
+                if let Some(Token::Skip) = iter.peek() {
+                    iter.next();
+                }
+            }
+            Token::Def => {
+                iter.next();
+                let tokens = parse_case_or_def_body(iter, error_list);
+                cases.push(CaseBranch {
+                    value: CaseBranchValue::Def,
+                    tokens,
+                });
+                if let Some(Token::Skip) = iter.peek() {
+                    iter.next();
+                }
+            }
+            Token::EndSwitch => {
+                iter.next();
+                break;
+            }
+            Token::EndIf => {
+                error_list.push(ControlFlowRule::UnmatchedEndIf);
+                iter.next();
+            }
+            Token::EndRandom => {
+                error_list.push(ControlFlowRule::UnmatchedEndRandom);
+                iter.next();
+            }
+            _ => {
+                iter.next();
+            }
+        }
+    }
+    Unit::SwitchBlock {
+        value: block_value,
+        cases,
+    }
+}
+
+/// Parse the body of a Case/Def branch until a control-flow boundary is encountered
+fn parse_case_or_def_body<'a, I>(
+    iter: &mut std::iter::Peekable<I>,
+    error_list: &mut Vec<ControlFlowRule>,
+) -> Vec<Unit<'a>>
+where
+    I: Iterator<Item = &'a Token<'a>>,
+{
+    let mut result = Vec::new();
+    while let Some(token) = iter.peek() {
+        match token {
+            Token::Skip | Token::EndSwitch | Token::Case(_) | Token::Def => break,
+            Token::SetSwitch(_) | Token::Switch(_) => {
+                result.push(parse_switch_block(iter, error_list));
+            }
+            Token::EndIf => {
+                error_list.push(ControlFlowRule::UnmatchedEndIf);
+                iter.next();
+            }
+            Token::EndRandom => {
+                error_list.push(ControlFlowRule::UnmatchedEndRandom);
+                iter.next();
+            }
+            _ => {
+                // Directly collect non-control-flow tokens
+                if !is_control_flow_token(token) {
+                    result.push(Unit::Token(*token));
+                }
+                iter.next();
+            }
+        }
+    }
+    result
+}
+
+/// Parse a Random/SetRandom block until EndRandom
+fn parse_random_block<'a, I>(
+    iter: &mut std::iter::Peekable<I>,
+    error_list: &mut Vec<ControlFlowRule>,
+) -> Unit<'a>
+where
+    I: Iterator<Item = &'a Token<'a>>,
+{
+    let token = iter.next().unwrap();
+    let block_value = match token {
+        Token::Random(val) => BlockValue::Random { max: *val as u64 },
+        Token::SetRandom(val) => BlockValue::Set { value: *val as u64 },
+        _ => unreachable!(),
+    };
+    let mut if_blocks = Vec::new();
+    while let Some(next) = iter.peek() {
+        match next {
+            Token::If(if_val) => {
+                iter.next();
+                let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                let mut branches = HashMap::new();
+                branches.insert(
+                    *if_val as u64,
+                    IfBranch {
+                        value: *if_val as u64,
+                        tokens,
+                    },
+                );
+                // Parse ElseIf branches
+                while let Some(Token::ElseIf(elif_val)) = iter.peek() {
+                    iter.next();
+                    let (elif_tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    branches.insert(
+                        *elif_val as u64,
+                        IfBranch {
+                            value: *elif_val as u64,
+                            tokens: elif_tokens,
+                        },
+                    );
+                }
+                // Parse Else branch
+                if let Some(Token::Else) = iter.peek() {
+                    iter.next();
+                    let (etokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    branches.insert(
+                        0,
+                        IfBranch {
+                            value: 0,
+                            tokens: etokens,
+                        },
+                    );
+                }
+                if_blocks.push(IfBlock { branches });
+            }
+            Token::EndRandom => {
+                iter.next();
+                break;
+            }
+            Token::EndIf => {
+                error_list.push(ControlFlowRule::UnmatchedEndIf);
+                iter.next();
+            }
+            Token::EndSwitch => {
+                error_list.push(ControlFlowRule::UnmatchedEndSwitch);
+                iter.next();
+            }
+            _ => {
+                iter.next();
+            }
+        }
+    }
+    Unit::RandomBlock {
+        value: block_value,
+        if_blocks,
+    }
+}
+
+/// Parse the body of an If/ElseIf/Else block until EndIf/ElseIf/Else/EndRandom/EndSwitch
+fn parse_if_block_body<'a, I>(
+    iter: &mut std::iter::Peekable<I>,
+    error_list: &mut Vec<ControlFlowRule>,
+) -> (Vec<Unit<'a>>, bool)
+where
+    I: Iterator<Item = &'a Token<'a>>,
+{
+    let mut result = Vec::new();
+    let mut has_endif = false;
+    while let Some(token) = iter.peek() {
+        match token {
+            Token::ElseIf(_) | Token::Else | Token::EndIf | Token::EndRandom | Token::EndSwitch => {
+                if let Token::EndIf = token {
+                    has_endif = true;
+                    iter.next();
+                }
+                break;
+            }
+            Token::If(_) => {
+                result.push(parse_random_block(iter, error_list));
+            }
+            Token::SetSwitch(_) | Token::Switch(_) => {
+                result.push(parse_switch_block(iter, error_list));
+            }
+            Token::Random(_) | Token::SetRandom(_) => {
+                result.push(parse_random_block(iter, error_list));
             }
             _ => {
                 if !is_control_flow_token(token) {
-                    result.push(Unit::Token(token));
+                    result.push(Unit::Token(*token));
                 }
-                i += 1;
+                iter.next();
             }
         }
     }
-    (result, i)
+    (result, has_endif)
 }
 
-fn build_case_or_def_body<'a>(
-    tokens: &[&'a Token<'a>],
-    mut i: usize,
-    end: usize,
-    error_list: &mut Vec<ControlFlowRule>,
-) -> (Vec<Unit<'a>>, usize) {
-    use Token::*;
-    let mut result = Vec::new();
-    while i < end {
-        match tokens[i] {
-            Skip | EndSwitch | Case(_) | Def => break,
-            SetSwitch(_) | Switch(_) => {
-                // 嵌套Switch，递归直到EndSwitch
-                let (sub_ast, new_i) = build_control_flow_ast_slice(tokens, i, end, error_list);
-                result.extend(sub_ast);
-                i = new_i;
-            }
-            _ => {
-                result.push(Unit::Token(tokens[i]));
-                i += 1;
-            }
-        }
-    }
-    (result, i)
-}
-
+#[allow(unused)]
 fn parse_control_flow_ast<'a>(
     ast: Vec<Unit<'a>>,
     rng: &mut impl Rng,
@@ -278,9 +408,13 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
-        // 只检查SwitchBlock结构
+        // 检查SwitchBlock结构
         assert!(matches!(&ast[0], Unit::SwitchBlock { .. }));
-        let Unit::SwitchBlock { value, cases } = &ast[0] else {
+        let Unit::SwitchBlock {
+            value: BlockValue::Set { value: _ },
+            cases,
+        } = &ast[0]
+        else {
             panic!("AST结构错误");
         };
         assert_eq!(cases.len(), 4);
@@ -308,48 +442,6 @@ mod tests {
     }
 
     #[test]
-    fn test_random_nested() {
-        use Token::*;
-        let tokens = vec![
-            Random(2),
-            If(1),
-            Title("A"),
-            Random(2),
-            If(2),
-            Title("B"),
-            EndIf,
-            EndRandom,
-            EndIf,
-            EndRandom,
-        ];
-        let stream = TokenStream::from_tokens(tokens);
-        let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
-        // 顶层是RandomBlock
-        assert!(matches!(&ast[0], Unit::RandomBlock { .. }) || matches!(&ast[0], Unit::Token(_))); // 目前未实现RandomBlock分支，允许Token
-    }
-
-    #[test]
-    fn test_random_with_if() {
-        use Token::*;
-        let tokens = vec![
-            Random(2),
-            If(1),
-            Title("A"),
-            EndIf,
-            If(2),
-            Title("B"),
-            EndIf,
-            EndRandom,
-        ];
-        let stream = TokenStream::from_tokens(tokens);
-        let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
-        // 只要能正确分组即可
-        assert!(ast.len() > 0);
-    }
-
-    #[test]
     fn test_unmatched_endrandom_error() {
         use Token::*;
         let tokens = vec![Title("A"), EndRandom];
@@ -369,5 +461,176 @@ mod tests {
         let _ = build_control_flow_ast(&stream, &mut errors);
         // 应该有错误
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndIf));
+    }
+
+    #[test]
+    fn test_random_ast() {
+        use Token::*;
+        let tokens = vec![
+            Random(2),
+            If(1),
+            Title("A"),
+            EndIf,
+            If(2),
+            Title("B"),
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
+        if let Unit::RandomBlock {
+            value: _,
+            if_blocks,
+        } = &ast[0]
+        {
+            assert_eq!(if_blocks.len(), 2);
+            let all_titles: Vec<_> = if_blocks
+                .iter()
+                .flat_map(|blk| blk.branches.values())
+                .flat_map(|b| &b.tokens)
+                .collect();
+            assert!(
+                all_titles
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("A"))))
+            );
+            assert!(
+                all_titles
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("B"))))
+            );
+        } else {
+            panic!("AST结构错误");
+        }
+    }
+
+    #[test]
+    fn test_random_nested_ast() {
+        use Token::*;
+        let tokens = vec![
+            Random(2),
+            If(1),
+            Title("A"),
+            Random(2),
+            If(2),
+            Title("B"),
+            EndIf,
+            EndRandom,
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
+        if let Unit::RandomBlock {
+            value: _,
+            if_blocks,
+        } = &ast[0]
+        {
+            let mut found_nested = false;
+            for blk in if_blocks {
+                for branch in blk.branches.values() {
+                    if branch
+                        .tokens
+                        .iter()
+                        .any(|u| matches!(u, Unit::RandomBlock { .. }))
+                    {
+                        found_nested = true;
+                    }
+                }
+            }
+            assert!(found_nested, "未找到嵌套RandomBlock");
+        } else {
+            panic!("AST结构错误");
+        }
+    }
+
+    #[test]
+    fn test_random_multiple_if_elseif_else() {
+        use Token::*;
+        let tokens = vec![
+            Random(3),
+            If(1),
+            Title("A1"),
+            ElseIf(2),
+            Title("A2"),
+            Else,
+            Title("Aelse"),
+            EndIf,
+            If(1),
+            Title("B1"),
+            ElseIf(2),
+            Title("B2"),
+            Else,
+            Title("Belse"),
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
+        if let Unit::RandomBlock {
+            value: _,
+            if_blocks,
+        } = &ast[0]
+        {
+            assert_eq!(if_blocks.len(), 2);
+            let branches1 = &if_blocks[0].branches;
+            assert!(
+                branches1
+                    .get(&1)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("A1"))))
+            );
+            assert!(
+                branches1
+                    .get(&2)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("A2"))))
+            );
+            assert!(
+                branches1
+                    .get(&0)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("Aelse"))))
+            );
+            let branches2 = &if_blocks[1].branches;
+            assert!(
+                branches2
+                    .get(&1)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("B1"))))
+            );
+            assert!(
+                branches2
+                    .get(&2)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("B2"))))
+            );
+            assert!(
+                branches2
+                    .get(&0)
+                    .unwrap()
+                    .tokens
+                    .iter()
+                    .any(|u| matches!(u, Unit::Token(Token::Title("Belse"))))
+            );
+        } else {
+            panic!("AST结构错误");
+        }
     }
 }
