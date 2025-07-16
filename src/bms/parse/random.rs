@@ -121,36 +121,9 @@ fn is_control_flow_token(token: &Token) -> bool {
 }
 
 fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<ControlFlowRule>) -> Vec<Unit<'a>> {
-    let mut units: Vec<Unit<'a>> = Vec::new();
-    for token in tokens.iter() {
-        let unit = build_control_flow_ast_step(token);
-        match unit {
-            Ok(Some(unit)) => units.push(unit), 
-            Ok(None) => (),
-            Err(e) => error_list.push(e),
-        }
-    }
-    units
-}
-
-fn build_control_flow_ast_step<'a>(token: &'a Token<'a>) -> Result<Option<Unit<'a>>, ControlFlowRule> {
     todo!()
 }
 
-
 fn parse_control_flow_ast<'a>(ast: Vec<Unit<'a>>, rng: &mut impl Rng, error_list: &mut Vec<ControlFlowRule>) -> Vec<&'a Token<'a>> {
-    let mut tokens: Vec<&'a Token<'a>> = Vec::new();
-    for unit in ast.iter() {
-        let token = parse_control_flow_ast_step(unit, rng);
-        match token {
-            Ok(Some(unit)) => tokens.extend(unit.into_iter()), 
-            Ok(None) => (),
-            Err(e) => error_list.push(e),
-        }
-    }
-    tokens
-}
-
-fn parse_control_flow_ast_step<'a>(ast: &Unit<'a>, rng: &mut impl Rng) -> Result<Option<Vec<&'a Token<'a>>>, ControlFlowRule> {
     todo!()
 }
