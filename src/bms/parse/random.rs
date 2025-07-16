@@ -18,32 +18,6 @@ pub(super) fn parse_control_flow<'a>(
     Some(tokens).filter(|_| error_list.len() == 0).ok_or(error_list.into_iter().next().unwrap().into())
 }
 
-fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<ControlFlowRule>) -> Vec<Unit<'a>> {
-    let mut units: Vec<Unit<'a>> = Vec::new();
-    for token in tokens.iter() {
-        let unit = build_control_flow_ast_step(token);
-        match unit {
-            Ok(Some(unit)) => units.push(unit), 
-            Ok(None) => (),
-            Err(e) => error_list.push(e),
-        }
-    }
-    units
-}
-
-fn build_control_flow_ast_step<'a>(token: &'a Token<'a>) -> Result<Option<Unit<'a>>, ControlFlowRule> {
-    todo!()
-}
-
-
-fn parse_control_flow_ast<'a>(ast: Vec<Unit<'a>>, rng: &mut impl Rng, error_list: &mut Vec<ControlFlowRule>) -> Vec<&'a Token<'a>> {
-    todo!()
-}
-
-fn parse_control_flow_ast_step<'a>(ast: Unit<'a>, rng: &mut impl Rng) -> Result<Vec<&'a Token<'a>>, ControlFlowRule> {
-    todo!()
-}
-
 /// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
@@ -57,32 +31,6 @@ pub enum ControlFlowRule {
     UnmatchedElseIf,
     #[error("unmatched else")]
     UnmatchedElse,
-}
-
-impl From<ControlFlowRule> for ParseError {
-    fn from(rule: ControlFlowRule) -> Self {
-        ParseError::ViolateControlFlowRule(rule)
-    }
-}
-
-/// Checks if a token is a control flow token.
-fn is_control_flow_token(token: &Token) -> bool {
-    matches!(
-        token,
-        Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::If(_)
-            | Token::ElseIf(_)
-            | Token::Else
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::Switch(_)
-            | Token::SetSwitch(_)
-            | Token::Case(_)
-            | Token::Def
-            | Token::Skip
-            | Token::EndSwitch
-    )
 }
 
 /// A unit of AST.
@@ -138,4 +86,59 @@ struct CaseBranch<'a> {
 enum CaseBranchValue {
     Case(u64),
     Def,
+}
+
+/// Checks if a token is a control flow token.
+fn is_control_flow_token(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch
+    )
+}
+
+fn build_control_flow_ast<'a>(tokens: &'a TokenStream<'a>, error_list: &mut Vec<ControlFlowRule>) -> Vec<Unit<'a>> {
+    let mut units: Vec<Unit<'a>> = Vec::new();
+    for token in tokens.iter() {
+        let unit = build_control_flow_ast_step(token);
+        match unit {
+            Ok(Some(unit)) => units.push(unit), 
+            Ok(None) => (),
+            Err(e) => error_list.push(e),
+        }
+    }
+    units
+}
+
+fn build_control_flow_ast_step<'a>(token: &'a Token<'a>) -> Result<Option<Unit<'a>>, ControlFlowRule> {
+    todo!()
+}
+
+
+fn parse_control_flow_ast<'a>(ast: Vec<Unit<'a>>, rng: &mut impl Rng, error_list: &mut Vec<ControlFlowRule>) -> Vec<&'a Token<'a>> {
+    let mut tokens: Vec<&'a Token<'a>> = Vec::new();
+    for unit in ast.iter() {
+        let token = parse_control_flow_ast_step(unit, rng);
+        match token {
+            Ok(Some(unit)) => tokens.extend(unit.into_iter()), 
+            Ok(None) => (),
+            Err(e) => error_list.push(e),
+        }
+    }
+    tokens
+}
+
+fn parse_control_flow_ast_step<'a>(ast: &Unit<'a>, rng: &mut impl Rng) -> Result<Option<Vec<&'a Token<'a>>>, ControlFlowRule> {
+    todo!()
 }

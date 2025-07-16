@@ -28,7 +28,7 @@ pub enum ParseError {
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(ControlFlowRule),
+    ViolateControlFlowRule(#[from] ControlFlowRule),
     /// The invalid real number for the BPM.
     #[error("not a number bpm: {0}")]
     BpmParseError(String),
