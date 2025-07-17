@@ -80,3 +80,6 @@ pub mod bms;
 #[cfg(feature = "bmson")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bmson")))]
 pub mod bmson;
+
+#[deprecated(since = "0.8.0", note = "Use `bms_rs::bms::{lex, parse}` instead")]
+pub use self::bms::{lex, parse};
