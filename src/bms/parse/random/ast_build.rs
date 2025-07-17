@@ -71,11 +71,10 @@ pub(super) fn build_control_flow_ast<'a>(
     tokens: &'a TokenStream<'a>,
     error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<Unit<'a>> {
-    let mut token_iter = tokens.iter().peekable();
-    let iter = &mut token_iter;
+    let mut iter = tokens.iter().peekable();
     let mut result = Vec::new();
-    while let Some(_) = iter.peek() {
-        if let Some(unit) = parse_unit_or_block(iter, error_list) {
+    while iter.peek().is_some() {
+        if let Some(unit) = parse_unit_or_block(&mut iter, error_list) {
             result.push(unit);
             continue;
         }
