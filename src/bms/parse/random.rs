@@ -1,577 +1,239 @@
-use std::ops::ControlFlow::{self, *};
+mod ast_build;
+mod ast_parse;
 
 use thiserror::Error;
 
-use super::{ParseError, Result, rng::Rng};
-use crate::bms::lex::token::Token;
+use super::{ParseError, rng::Rng};
+use crate::bms::lex::token::{Token, TokenStream};
 
-/// An error occurred when parsing the [`TokenStream`].
+use self::ast_build::*;
+use self::ast_parse::*;
+
+/// Parses the control flow of the token.
+/// Returns the tokens that will be executed, and not contains control flow tokens.
+pub(super) fn parse_control_flow<'a>(
+    token_stream: &'a TokenStream<'a>,
+    mut rng: impl Rng,
+) -> Result<Vec<&'a Token<'a>>, ParseError> {
+    let mut error_list = Vec::new();
+    let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
+    let mut ast_iter = ast.into_iter().peekable();
+    let tokens: Vec<&'a Token<'a>> =
+        parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
+    match error_list.into_iter().next() {
+        Some(error) => Err(error.into()),
+        None => Ok(tokens),
+    }
+}
+
+/// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
-    #[error("In an #RANDOM - #ENDRANDOM block, there must be an #IF at the start.")]
-    IfMustAtStartOfRandom,
-    #[error("#CASE/#SKIP/#DEF command must be in #SWITCH - #ENDSW block")]
-    CasesInSwitchBlock,
-    #[error("#ELSEIF command must come after #IF block")]
-    ElseIfAfterIf,
-    #[error("#ELSE command must come after #IF/#ELESIF block")]
-    ElseAfterIfs,
-    #[error("#ENDIF command must come after #IF/#ELSEIF/#ELSE block")]
-    EndIfAfterIfs,
-    #[error("#ENDRANDOM command must come after #RANDOM block")]
-    EndRandomAfterRandomBlock,
-    #[error("#ENDSW command must come after #SWITCH block")]
-    EndSwitchAfterSwitchBlock,
-    #[error("#IF/#ELSEIF(#CASE) command's value is out of the range of [1, max]")]
-    ValueOutOfRange,
-}
-
-impl From<ControlFlowRule> for ParseError {
-    fn from(rule: ControlFlowRule) -> Self {
-        ParseError::ViolateControlFlowRule(rule)
-    }
-}
-
-impl<T> From<ControlFlowRule> for Result<T> {
-    fn from(rule: ControlFlowRule) -> Self {
-        Err(ParseError::from(rule))
-    }
-}
-
-impl<T> From<ControlFlowRule> for ControlFlow<Result<T>> {
-    fn from(rule: ControlFlowRule) -> Self {
-        Break(<std::result::Result<T, ParseError>>::from(rule))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ControlFlowBlock {
-    Random {
-        /// It can be used for warning unreachable branch
-        rand_max: u32,
-        /// If the parent part cannot pass, this will be None,
-        chosen_value: Option<u32>,
-    },
-    IfBranch {
-        /// It can be used for warning unreachable `#ELESIF`
-        /// If the parent part cannot pass, this will be None,
-        matching_value: u32,
-        /// If there is any #IF/#ELSEIF branch has been matched previously in this #IF - (#ELSEIF/#ELSE) -
-        /// #ENDIF block list (called #IF group). Used by #ELSE.
-        /// One #RANDOM - #ENDRANDOM block can contain more than 1 #IF group.
-        group_previously_matched: bool,
-    },
-    ElseBranch {
-        /// Passed in this else
-        else_activate: bool,
-    },
-    Switch {
-        /// It can be used for warning unreachable branch
-        switch_max: u32,
-        /// If the parent part cannot pass, this will be None,
-        chosen_value: Option<u32>,
-        /// Whether found matching case or default
-        matched: bool,
-        /// Whether skipping tokens until `#ENDSW`
-        skipping: bool,
-    },
-}
-
-pub struct RandomParser<R> {
-    rng: R,
-    stack: Vec<ControlFlowBlock>,
-}
-
-impl<R: Rng> RandomParser<R> {
-    pub fn new(rng: R) -> Self {
-        Self { rng, stack: vec![] }
-    }
-    pub fn parse(&mut self, token: &Token) -> ControlFlow<Result<()>> {
-        use ControlFlowRule::*;
-
-        if let Some(&ControlFlowBlock::Random {
-            rand_max,
-            chosen_value,
-        }) = self.stack.last()
-        {
-            // expected only if blocks and end random
-            if *token == Token::EndRandom {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            let &Token::If(matching_value) = token else {
-                return IfMustAtStartOfRandom.into();
-            };
-            if matching_value > rand_max {
-                return ValueOutOfRange.into();
-            }
-            self.stack.push(ControlFlowBlock::IfBranch {
-                matching_value,
-                group_previously_matched: chosen_value == Some(matching_value),
-            });
-            return Break(Ok(()));
-        }
-
-        let flow_enabled = if let Some(ControlFlowBlock::Switch {
-            chosen_value,
-            switch_max,
-            matched,
-            skipping,
-        }) = self.stack.last_mut()
-        {
-            // expected cases, default and other commands
-            if *token == Token::EndSwitch {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            if *skipping {
-                // skipping until end of switch
-                return Break(Ok(()));
-            }
-            if !*matched {
-                // ignoring until matching case or default
-                if let Token::Case(matching_value) = token {
-                    if matching_value > switch_max {
-                        return ValueOutOfRange.into();
-                    }
-                    if Some(matching_value) == chosen_value.as_ref() {
-                        *matched = true;
-                    }
-                }
-                if *token == Token::Def {
-                    *matched = true;
-                }
-            } else if *token == Token::Skip {
-                // skip only if matched
-                *skipping = true;
-                return Break(Ok(()));
-            }
-            if matches!(token, Token::Case(_) | Token::Def) {
-                return Break(Ok(()));
-            }
-            *matched
-        } else {
-            // another control flow
-            true
-        };
-
-        let flow_enabled = flow_enabled
-            && if let Some(
-                [
-                    ControlFlowBlock::Random {
-                        rand_max,
-                        chosen_value,
-                    },
-                    ControlFlowBlock::IfBranch {
-                        matching_value,
-                        group_previously_matched,
-                    },
-                ],
-            ) = self.stack.last_chunk_mut()
-            {
-                // expected else if, else, end if and other commands
-                if *token == Token::EndIf {
-                    self.stack.pop();
-                    return Break(Ok(()));
-                }
-                let matched = *group_previously_matched;
-                if let &Token::ElseIf(else_matching_value) = token {
-                    if &else_matching_value > rand_max {
-                        return ValueOutOfRange.into();
-                    }
-                    self.stack.pop();
-                    self.stack.push(ControlFlowBlock::IfBranch {
-                        matching_value: else_matching_value,
-                        group_previously_matched: matched,
-                    });
-                    return Break(Ok(()));
-                }
-                if *token == Token::Else {
-                    self.stack.pop();
-                    self.stack.push(ControlFlowBlock::ElseBranch {
-                        else_activate: !matched,
-                    });
-                    return Break(Ok(()));
-                }
-                if chosen_value.is_some_and(|chosen| &chosen == matching_value) {
-                    // activate only this matched branch
-                    *group_previously_matched = true;
-                    true
-                } else {
-                    // the control flow is disabled
-                    false
-                }
-            } else {
-                // another control flow
-                true
-            };
-
-        if let Some(&ControlFlowBlock::ElseBranch { else_activate }) = self.stack.last() {
-            if let Token::If(_) | Token::ElseIf(_) = token {
-                return ElseAfterIfs.into();
-            }
-            if *token == Token::EndIf {
-                self.stack.pop();
-                return Break(Ok(()));
-            }
-            if !else_activate {
-                return Break(Ok(()));
-            }
-        }
-
-        // expected block starting commands below
-
-        if let &Token::Random(max) = token {
-            self.stack.push(ControlFlowBlock::Random {
-                rand_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
-            });
-            return Break(Ok(()));
-        }
-        if let &Token::SetRandom(chosen) = token {
-            self.stack.push(ControlFlowBlock::Random {
-                rand_max: u32::MAX,
-                chosen_value: flow_enabled.then_some(chosen),
-            });
-            return Break(Ok(()));
-        }
-
-        if let &Token::Switch(max) = token {
-            self.stack.push(ControlFlowBlock::Switch {
-                switch_max: max,
-                chosen_value: flow_enabled.then(|| self.rng.generate(1..=max)),
-                matched: false,
-                skipping: false,
-            });
-            return Break(Ok(()));
-        }
-        if let &Token::SetSwitch(chosen) = token {
-            self.stack.push(ControlFlowBlock::Switch {
-                switch_max: u32::MAX,
-                chosen_value: flow_enabled.then_some(chosen),
-                matched: false,
-                skipping: false,
-            });
-            return Break(Ok(()));
-        }
-
-        match token {
-            Token::If(_) => {
-                return IfMustAtStartOfRandom.into();
-            }
-            Token::ElseIf(_) => {
-                return ElseIfAfterIf.into();
-            }
-            Token::Else => {
-                return ElseAfterIfs.into();
-            }
-            Token::EndIf => {
-                return EndIfAfterIfs.into();
-            }
-            Token::EndRandom => {
-                return EndRandomAfterRandomBlock.into();
-            }
-            Token::Case(_) | Token::Def => {
-                return CasesInSwitchBlock.into();
-            }
-            Token::EndSwitch => {
-                return EndSwitchAfterSwitchBlock.into();
-            }
-            _ => {}
-        }
-
-        if flow_enabled {
-            Continue(())
-        } else {
-            Break(Ok(()))
-        }
-    }
+    // Random related
+    #[error("unmatched end if")]
+    UnmatchedEndIf,
+    #[error("unmatched end random")]
+    UnmatchedEndRandom,
+    #[error("unmatched end switch")]
+    UnmatchedEndSwitch,
+    #[error("unmatched else if")]
+    UnmatchedElseIf,
+    #[error("unmatched else")]
+    UnmatchedElse,
+    #[error("duplicate if branch value in random block")]
+    RandomDuplicateIfBranchValue,
+    #[error("if branch value out of range in random block")]
+    RandomIfBranchValueOutOfRange,
+    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
+    UnmatchedTokenInRandomBlock,
+    // Switch related
+    #[error("duplicate case value in switch block")]
+    SwitchDuplicateCaseValue,
+    #[error("case value out of range in switch block")]
+    SwitchCaseValueOutOfRange,
+    #[error("duplicate def branch in switch block")]
+    SwitchDuplicateDef,
+    #[error("unmatched skip")]
+    UnmatchedSkip,
+    #[error("unmatched case")]
+    UnmatchedCase,
+    #[error("unmatched def")]
+    UnmatchedDef,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::rng::RngMock;
+
     use super::*;
+    use crate::bms::lex::token::Token;
 
-    #[test]
-    fn test_random() {
-        use Token::*;
-        const TOKENS: [Token; 9] = [
-            Title("Outside Title"),
-            Random(2),
-            Title("Illegal Title"),
-            If(1),
-            Title("Title 1"),
-            ElseIf(2),
-            Title("Title 2"),
-            EndIf,
-            EndRandom,
-        ];
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let accepted_tokens: Vec<_> = TOKENS
-            .iter()
-            .filter(|token| parser.parse(token).is_continue())
-            .map(ToOwned::to_owned)
-            .collect();
-        assert_eq!(
-            accepted_tokens,
-            vec![Title("Outside Title"), Title("Title 2")]
-        )
-    }
-
-    #[test]
-    fn test_switch() {
-        use Token::*;
-        #[rustfmt::skip]
-    const TOKENS: [Token; 16] = [
-        Title("Outside Title"),
-        Switch(2),
-            // Title("Illegal Title"),
-        Case(1),
-            Title("Title 1"),
-        Case(2),
-            Title("Title 2"),
-            Switch(2),
-            Case(1),
-                Title("Title 2 1"),
-            Case(2),
-                Title("Title 2 2"),
-            EndSwitch,
-        Skip,
-        Def,
-            Title("Default Title"),
-        EndSwitch,
-    ];
-        // 1: Find Err
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let err_tokens: Vec<_> = TOKENS
-            .iter()
-            .enumerate()
-            .filter_map(|(i, token)| {
-                if let ControlFlow::Break(Err(error)) = parser.parse(token) {
-                    Some((
-                        i,
-                        token.to_owned(),
-                        error,
-                        parser.stack.len(),
-                        parser.stack.last().cloned(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        dbg!(&err_tokens);
-        assert!(err_tokens.is_empty());
-        // 2. Check filter
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let accepted_tokens: Vec<_> = TOKENS
-            .iter()
-            .filter(|token| parser.parse(token).is_continue())
-            .map(ToOwned::to_owned)
-            .collect();
-        assert_eq!(
-            accepted_tokens,
-            vec![Title("Outside Title"), Title("Title 2"), Title("Title 2 2")]
-        );
-        // 3. Test rng situation
-        let rng = RngMock([2, 1]);
-        let mut parser = RandomParser::new(rng);
-        let accepted_tokens: Vec<_> = TOKENS
-            .iter()
-            .filter(|token| parser.parse(token).is_continue())
-            .map(ToOwned::to_owned)
-            .collect();
-        assert_eq!(
-            accepted_tokens,
-            vec![
-                Title("Outside Title"),
-                Title("Title 2"),
-                Title("Title 2 1"),
-                Title("Title 2 2")
-            ]
-        );
-    }
-
-    #[test]
-    fn test_switch_from_nested_switch() {
-        use Token::*;
-        // From tests/nested_switch.rs
-        #[rustfmt::skip]
-    const TOKENS: [Token; 20] = [
-        Title("Outside Title"),
-        Switch(2),
-        Case(1),
-            Title("Title 1"),
-            Switch(2),
-            Case(1),
-                Title("Title 1 1"),
-            Skip,
-            Case(2),
-                Title("Title 1 2"),
-            Skip,
-            EndSwitch,
-        Skip,
-        Case(2),
-            Title("Title 2"),
-        Skip,
-        Def,
-            Title("Default Title"),
-        EndSwitch,
-        Title("End Title"),
-    ];
-        let rng = RngMock([1, 2]);
-        let mut parser = RandomParser::new(rng);
-        let parse_results: Vec<_> = TOKENS
-            .iter()
-            .map(|token| {
-                (
-                    token,
-                    parser.parse(token),
-                    (parser.stack.len(), parser.stack.last().cloned()),
-                )
-            })
-            .collect();
-        let accepted_tokens: Vec<_> = parse_results
-            .iter()
-            .filter(|(_, result, _)| matches!(result, ControlFlow::Continue(())))
-            .map(|(token, _, _)| token)
-            .map(ToOwned::to_owned)
-            .map(ToOwned::to_owned)
-            .collect();
-        if accepted_tokens
-            != vec![
-                Title("Outside Title"),
-                Title("Title 1"),
-                Title("Title 1 2"),
-                Title("End Title"),
-            ]
-        {
-            panic!("{:#?}", parse_results)
+    struct DummyRng;
+    impl Rng for DummyRng {
+        fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
+            // Always return the maximum value
+            *_range.end()
         }
     }
 
     #[test]
-    fn test_random_in_switch() {
+    fn test_switch_nested_switch_case() {
         use Token::*;
-        #[rustfmt::skip]
-    const TOKENS: [Token; 25] = [
-        Title("Outside Title"),
-        Switch(2),
-            // Title("Illegal Title"),
-        Case(1),
-            Title("Title 1"),
+        let tokens = vec![
+            Title("11000000"),
+            Switch(2),
+            Case(1),
+            Title("00220000"),
             Random(2),
             If(1),
-                Title("Title 1 1"),
+            Title("00550000"),
             ElseIf(2),
-                Title("Title 1 2"),
+            Title("00006600"),
             EndIf,
             EndRandom,
-        Skip,
-        Case(2),
-            Title("Title 2"),
-            Random(2),
-            If(1),
-                Title("Title 2 1"),
-            ElseIf(2),
-                Title("Title 2 2"),
-            EndIf,
-            EndRandom,
-        Skip,
-        Def,
-            Title("Default Title"),
-        EndSwitch,
-    ];
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let err_tokens: Vec<_> = TOKENS
+            Skip,
+            Case(2),
+            Title("00003300"),
+            Skip,
+            EndSwitch,
+            Title("00000044"),
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        println!("AST structure: {:#?}", ast);
+        let Some(Unit::SwitchBlock { cases, .. }) =
+            ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
+        else {
+            panic!("AST structure error");
+        };
+        let Some(case1) = cases
             .iter()
-            .enumerate()
-            .filter_map(|(i, token)| {
-                if let ControlFlow::Break(Err(error)) = parser.parse(token) {
-                    Some((
-                        i,
-                        token.to_owned(),
-                        error,
-                        parser.stack.len(),
-                        parser.stack.last().cloned(),
-                    ))
-                } else {
-                    None
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        println!("Case(1) tokens: {:#?}", case1.tokens);
+        assert_eq!(errors, vec![]);
+        assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
+        assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
+        assert!(matches!(&ast[2], Unit::Token(_))); // 00000044
+        let Unit::SwitchBlock { cases, .. } = &ast[1] else {
+            panic!("AST structure error");
+        };
+        let Some(CaseBranch { tokens, .. }) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
+        assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
+        let Unit::RandomBlock { if_blocks, .. } = &tokens[1] else {
+            panic!("RandomBlock not found");
+        };
+        let if_block = &if_blocks[0];
+        assert!(
+            if_block
+                .branches
+                .get(&1)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Title("00550000"))))
+        );
+        assert!(
+            if_block
+                .branches
+                .get(&2)
+                .unwrap()
+                .tokens
+                .iter()
+                .any(|u| matches!(u, Unit::Token(Title("00006600"))))
+        );
+        let Some(CaseBranch { tokens, .. }) = cases
+            .iter()
+            .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
+        else {
+            panic!("Case(2) not found");
+        };
+        assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
+        let mut rng = DummyRng;
+        let mut errors2 = Vec::new();
+        let mut ast_iter = ast.into_iter().peekable();
+        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let expected = ["11000000", "00003300", "00000044"];
+        assert_eq!(tokens.len(), 3);
+        for (i, t) in tokens.iter().enumerate() {
+            match t {
+                Title(s) => {
+                    assert_eq!(s, &expected[i], "Title content mismatch");
                 }
-            })
-            .collect();
-        dbg!(&err_tokens);
-        assert!(err_tokens.is_empty());
-        let rng = RngMock([1, 2]);
-        let mut parser = RandomParser::new(rng);
-        let accepted_tokens: Vec<_> = TOKENS
-            .iter()
-            .filter(|token| parser.parse(token).is_continue())
-            .map(ToOwned::to_owned)
-            .collect();
-        assert_eq!(
-            accepted_tokens,
-            vec![Title("Outside Title"), Title("Title 1"), Title("Title 1 2")]
-        )
+                _ => panic!("Token type mismatch"),
+            }
+        }
+        assert_eq!(errors, vec![]);
+        assert_eq!(errors2, vec![]);
     }
 
     #[test]
-    fn test_switch_in_random() {
+    fn test_switch_insane_tokenized() {
         use Token::*;
-        #[rustfmt::skip]
-    const TOKENS: [Token; 14] = [
-        Title("Outside Title"),
-        Random(2),
-            // Title("Illegal Title"),
-        If(1),
-            Title("Title 1"),
-        Else,
-            Title("Title 2"),
+        let tokens = vec![
+            Switch(5),
+            Def,
+            Title("0055"),
+            Skip,
+            Case(1),
+            Title("0100000000000000"),
+            Random(2),
+            If(1),
+            Title("04"),
+            Else,
+            Title("05"),
+            EndIf,
+            // Missing EndRandom!!!
+            Case(2),
+            Title("0200000000000000"),
+            Skip,
+            Case(3),
+            Title("0300000000000000"),
             Switch(2),
             Case(1),
-                Title("Title 2 1"),
+            Title("1111"),
+            Skip,
             Case(2),
-                Title("Title 2 2"),
+            Title("2222"),
+            Skip,
             EndSwitch,
-        EndIf,
-        EndRandom
-    ];
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let err_tokens: Vec<_> = TOKENS
+            Skip,
+            EndSwitch,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let ast = build_control_flow_ast(&stream, &mut errors);
+        println!("AST structure: {:#?}", ast);
+        let Some(Unit::SwitchBlock { cases, .. }) =
+            ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
+        else {
+            panic!("AST structure error");
+        };
+        let Some(case1) = cases
             .iter()
-            .enumerate()
-            .filter_map(|(i, token)| {
-                if let ControlFlow::Break(Err(error)) = parser.parse(token) {
-                    Some((
-                        i,
-                        token.to_owned(),
-                        error,
-                        parser.stack.len(),
-                        parser.stack.last().cloned(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .collect();
-        dbg!(&err_tokens);
-        assert!(err_tokens.is_empty());
-        let rng = RngMock([2]);
-        let mut parser = RandomParser::new(rng);
-        let accepted_tokens: Vec<_> = TOKENS
-            .iter()
-            .filter(|token| parser.parse(token).is_continue())
-            .map(ToOwned::to_owned)
-            .collect();
-        assert_eq!(
-            accepted_tokens,
-            vec![Title("Outside Title"), Title("Title 2"), Title("Title 2 2")]
-        )
+            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+        else {
+            panic!("Case(1) not found");
+        };
+        println!("Case(1) tokens: {:#?}", case1.tokens);
+        let mut rng = DummyRng;
+        let mut errors2 = Vec::new();
+        let mut ast_iter = ast.clone().into_iter().peekable();
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let mut rng = DummyRng;
+        let mut errors3 = Vec::new();
+        let mut ast_iter = ast.into_iter().peekable();
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors3);
+        assert_eq!(errors, vec![]);
+        assert_eq!(errors2, vec![]);
+        assert_eq!(errors3, vec![]);
     }
 }

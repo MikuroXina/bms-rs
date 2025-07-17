@@ -7,20 +7,17 @@ pub mod prompt;
 mod random;
 pub mod rng;
 
-use std::ops::ControlFlow;
-
 use thiserror::Error;
 
 use self::{
-    header::Header,
-    notes::Notes,
-    prompt::PromptHandler,
-    random::{ControlFlowRule, RandomParser},
-    rng::Rng,
+    header::Header, notes::Notes, prompt::PromptHandler, random::ControlFlowRule, rng::Rng,
 };
-use crate::bms::lex::{
-    command::ObjId,
-    token::{Token, TokenStream},
+use crate::bms::{
+    lex::{
+        command::ObjId,
+        token::{Token, TokenStream},
+    },
+    parse::random::parse_control_flow,
 };
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -31,7 +28,7 @@ pub enum ParseError {
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(ControlFlowRule),
+    ViolateControlFlowRule(#[from] ControlFlowRule),
     /// The invalid real number for the BPM.
     #[error("not a number bpm: {0}")]
     BpmParseError(String),
@@ -65,17 +62,11 @@ impl Bms {
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> Result<Self> {
-        let mut random_parser = RandomParser::new(rng);
+        let continue_tokens = parse_control_flow(token_stream, rng)?;
         let mut notes = Notes::default();
         let mut header = Header::default();
         let mut non_command_lines: Vec<String> = Vec::new();
-
-        for token in token_stream.iter() {
-            match random_parser.parse(token) {
-                ControlFlow::Continue(_) => {}
-                ControlFlow::Break(Ok(_)) => continue,
-                ControlFlow::Break(Err(e)) => return Err(e),
-            }
+        for &token in continue_tokens.iter() {
             notes.parse(token, &header)?;
             header.parse(token, &mut prompt_handler)?;
             if let Token::NotACommand(comment) = token {
