@@ -9,7 +9,7 @@ Be-Music Source, called BMS for short, is a file format devised by Urao Yane in 
 At first, you can get the tokens stream with `lex::parse`. Then pass it and the random generator to `parse::Bms::from_token_stream` to get the notes data. Because BMS format has some randomized syntax.
 
 ```rs
-use bms_rs::{
+use bms_rs::bms::{
     lex::parse,
     parse::{rng::RngMock, Bms},
 };
