@@ -38,18 +38,13 @@ pub(super) fn parse_control_flow_ast<'a>(
                 }
                 // If not found, try to find the 0 (else) branch
                 if !found {
-                    for if_block in &if_blocks {
-                        #[allow(unused_assignments)]
-                        if let Some(branch) = if_block.branches.get(&0) {
-                            let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(
-                                &mut branch_iter,
-                                rng,
-                                error_list,
-                            ));
-                            found = true;
-                            break;
-                        }
+                    if let Some(else_branch) = if_blocks
+                        .iter()
+                        .flat_map(|if_block| if_block.branches.get(&0))
+                        .next()
+                    {
+                        let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
+                        result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
                     }
                 }
                 // If none found, do nothing
