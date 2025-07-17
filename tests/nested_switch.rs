@@ -522,7 +522,7 @@ fn test_switch_insane() {
     #ENDSW
     ";
 
-    let tokens = bms_rs::lex::parse(SRC).expect("must be parsed");
+    let tokens = parse(SRC).expect("must be parsed");
 
     // CASE 1, RANDOM 1
     let rng = RngMock([1]);

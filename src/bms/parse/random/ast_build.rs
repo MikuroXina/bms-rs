@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::{
-    bms::lex::token::{Token, TokenStream},
+use crate::bms::{
+    lex::token::{Token, TokenStream},
     parse::random::ControlFlowRule,
 };
 
