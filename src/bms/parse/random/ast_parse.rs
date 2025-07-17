@@ -28,13 +28,14 @@ pub(super) fn parse_control_flow_ast<'a>(
                 };
                 // Find the branch in the first if_block that contains this branch value
                 let mut found = false;
-                for if_block in &if_blocks {
-                    if let Some(branch) = if_block.branches.get(&branch_val) {
-                        let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                        result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
-                        found = true;
-                        break;
-                    }
+                if let Some(branch) = if_blocks
+                    .iter()
+                    .flat_map(|if_block| if_block.branches.get(&branch_val))
+                    .next()
+                {
+                    let mut branch_iter = branch.tokens.clone().into_iter().peekable();
+                    result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
+                    found = true;
                 }
                 // If not found, try to find the 0 (else) branch
                 if !found {
