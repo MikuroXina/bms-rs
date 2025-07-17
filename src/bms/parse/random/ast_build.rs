@@ -230,27 +230,72 @@ where
         _ => unreachable!(),
     };
     let mut if_blocks = Vec::new();
+    let max_value = match &block_value {
+        BlockValue::Random { max } => Some(*max),
+        BlockValue::Set { .. } => None,
+    };
     while let Some(next) = iter.peek() {
         match next {
             Token::If(if_val) => {
                 iter.next();
-                let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
                 let mut branches = HashMap::new();
-                branches.insert(
-                    *if_val as u64,
-                    IfBranch {
-                        value: *if_val as u64,
-                        tokens,
-                    },
-                );
+                let mut seen_if_values = std::collections::HashSet::new();
+                let if_val_u64 = *if_val as u64;
+                // 检查是否重复
+                if seen_if_values.contains(&if_val_u64) {
+                    error_list.push(ControlFlowRule::DuplicateIfBranchValue);
+                    let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                } else if let Some(max) = max_value {
+                    // 检查是否超出范围
+                    if if_val_u64 < 1 || if_val_u64 > max {
+                        error_list.push(ControlFlowRule::IfBranchValueOutOfRange);
+                        let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                    } else {
+                        seen_if_values.insert(if_val_u64);
+                        let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                        branches.insert(
+                            if_val_u64,
+                            IfBranch {
+                                value: if_val_u64,
+                                tokens,
+                            },
+                        );
+                    }
+                } else {
+                    seen_if_values.insert(if_val_u64);
+                    let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    branches.insert(
+                        if_val_u64,
+                        IfBranch {
+                            value: if_val_u64,
+                            tokens,
+                        },
+                    );
+                }
                 // Parse ElseIf branches
                 while let Some(Token::ElseIf(elif_val)) = iter.peek() {
+                    let elif_val_u64 = *elif_val as u64;
+                    if seen_if_values.contains(&elif_val_u64) {
+                        error_list.push(ControlFlowRule::DuplicateIfBranchValue);
+                        iter.next();
+                        let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                        continue;
+                    }
+                    if let Some(max) = max_value {
+                        if elif_val_u64 < 1 || elif_val_u64 > max {
+                            error_list.push(ControlFlowRule::IfBranchValueOutOfRange);
+                            iter.next();
+                            let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                            continue;
+                        }
+                    }
                     iter.next();
+                    seen_if_values.insert(elif_val_u64);
                     let (elif_tokens, _has_endif) = parse_if_block_body(iter, error_list);
                     branches.insert(
-                        *elif_val as u64,
+                        elif_val_u64,
                         IfBranch {
-                            value: *elif_val as u64,
+                            value: elif_val_u64,
                             tokens: elif_tokens,
                         },
                     );
@@ -528,7 +573,6 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let ast = build_control_flow_ast(&stream, &mut errors);
-        assert!(matches!(&ast[0], Unit::RandomBlock { .. }));
         let Unit::RandomBlock {
             value: _,
             if_blocks,
@@ -538,54 +582,100 @@ mod tests {
         };
         assert_eq!(if_blocks.len(), 2);
         let branches1 = &if_blocks[0].branches;
-        assert!(
-            branches1
-                .get(&1)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("A1"))))
-        );
-        assert!(
-            branches1
-                .get(&2)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("A2"))))
-        );
-        assert!(
-            branches1
-                .get(&0)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("Aelse"))))
-        );
+        let Some(b1) = branches1.get(&1) else {
+            panic!("branch 1 missing");
+        };
+        let Some(_) = b1
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("A1"))))
+        else {
+            panic!("A1 missing");
+        };
+        let Some(b2) = branches1.get(&2) else {
+            panic!("branch 2 missing");
+        };
+        let Some(_) = b2
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("A2"))))
+        else {
+            panic!("A2 missing");
+        };
+        let Some(belse) = branches1.get(&0) else {
+            panic!("branch else missing");
+        };
+        let Some(_) = belse
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("Aelse"))))
+        else {
+            panic!("Aelse missing");
+        };
         let branches2 = &if_blocks[1].branches;
-        assert!(
-            branches2
-                .get(&1)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("B1"))))
-        );
-        assert!(
-            branches2
-                .get(&2)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("B2"))))
-        );
-        assert!(
-            branches2
-                .get(&0)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Token::Title("Belse"))))
-        );
+        let Some(b1) = branches2.get(&1) else {
+            panic!("branch 1 missing");
+        };
+        let Some(_) = b1
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("B1"))))
+        else {
+            panic!("B1 missing");
+        };
+        let Some(b2) = branches2.get(&2) else {
+            panic!("branch 2 missing");
+        };
+        let Some(_) = b2
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("B2"))))
+        else {
+            panic!("B2 missing");
+        };
+        let Some(belse) = branches2.get(&0) else {
+            panic!("branch else missing");
+        };
+        let Some(_) = belse
+            .tokens
+            .iter()
+            .find(|u| matches!(u, Unit::Token(Token::Title("Belse"))))
+        else {
+            panic!("Belse missing");
+        };
+    }
+
+    #[test]
+    fn test_random_duplicate_ifbranch() {
+        use Token::*;
+        let tokens = vec![
+            Random(2),
+            If(1),
+            Title("A"),
+            ElseIf(1), // 重复
+            Title("B"),
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(errors, vec![ControlFlowRule::DuplicateIfBranchValue]);
+    }
+
+    #[test]
+    fn test_random_ifbranch_value_out_of_range() {
+        use Token::*;
+        let tokens = vec![
+            Random(2),
+            If(3), // 超出范围
+            Title("A"),
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(errors, vec![ControlFlowRule::IfBranchValueOutOfRange]);
     }
 }

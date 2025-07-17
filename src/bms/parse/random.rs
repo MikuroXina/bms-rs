@@ -39,6 +39,10 @@ pub enum ControlFlowRule {
     UnmatchedElseIf,
     #[error("unmatched else")]
     UnmatchedElse,
+    #[error("duplicate if branch value")]
+    DuplicateIfBranchValue,
+    #[error("if branch value out of range")]
+    IfBranchValueOutOfRange,
 }
 
 #[cfg(test)]
