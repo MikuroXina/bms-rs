@@ -125,13 +125,42 @@ where
         _ => unreachable!(),
     };
     let mut cases = Vec::new();
+    let mut seen_case_values = std::collections::HashSet::new();
+    let max_value = match &block_value {
+        BlockValue::Random { max } => Some(*max),
+        BlockValue::Set { value: _ } => None,
+    };
     while let Some(next) = iter.peek() {
         match next {
             Token::Case(case_val) => {
+                let case_val_u64 = *case_val as u64;
+                // 检查是否重复
+                if seen_case_values.contains(&case_val_u64) {
+                    error_list.push(ControlFlowRule::SwitchDuplicateCaseValue);
+                    iter.next();
+                    let _ = parse_case_or_def_body(iter, error_list);
+                    if let Some(Token::Skip) = iter.peek() {
+                        iter.next();
+                    }
+                    continue;
+                }
+                // 检查是否越界
+                if let Some(max) = max_value {
+                    if case_val_u64 < 1 || case_val_u64 > max {
+                        error_list.push(ControlFlowRule::SwitchCaseValueOutOfRange);
+                        iter.next();
+                        let _ = parse_case_or_def_body(iter, error_list);
+                        if let Some(Token::Skip) = iter.peek() {
+                            iter.next();
+                        }
+                        continue;
+                    }
+                }
                 iter.next();
+                seen_case_values.insert(case_val_u64);
                 let tokens = parse_case_or_def_body(iter, error_list);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Case(*case_val as u64),
+                    value: CaseBranchValue::Case(case_val_u64),
                     tokens,
                 });
                 if let Some(Token::Skip) = iter.peek() {
@@ -243,12 +272,12 @@ where
                 let if_val_u64 = *if_val as u64;
                 // 检查是否重复
                 if seen_if_values.contains(&if_val_u64) {
-                    error_list.push(ControlFlowRule::DuplicateIfBranchValue);
+                    error_list.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                     let (_, _has_endif) = parse_if_block_body(iter, error_list);
                 } else if let Some(max) = max_value {
                     // 检查是否超出范围
                     if if_val_u64 < 1 || if_val_u64 > max {
-                        error_list.push(ControlFlowRule::IfBranchValueOutOfRange);
+                        error_list.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                         let (_, _has_endif) = parse_if_block_body(iter, error_list);
                     } else {
                         seen_if_values.insert(if_val_u64);
@@ -276,14 +305,14 @@ where
                 while let Some(Token::ElseIf(elif_val)) = iter.peek() {
                     let elif_val_u64 = *elif_val as u64;
                     if seen_if_values.contains(&elif_val_u64) {
-                        error_list.push(ControlFlowRule::DuplicateIfBranchValue);
+                        error_list.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                         iter.next();
                         let (_, _has_endif) = parse_if_block_body(iter, error_list);
                         continue;
                     }
                     if let Some(max) = max_value {
                         if elif_val_u64 < 1 || elif_val_u64 > max {
-                            error_list.push(ControlFlowRule::IfBranchValueOutOfRange);
+                            error_list.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                             iter.next();
                             let (_, _has_endif) = parse_if_block_body(iter, error_list);
                             continue;
@@ -656,7 +685,7 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&stream, &mut errors);
-        assert_eq!(errors, vec![ControlFlowRule::DuplicateIfBranchValue]);
+        assert_eq!(errors, vec![ControlFlowRule::RandomDuplicateIfBranchValue]);
     }
 
     #[test]
@@ -672,6 +701,38 @@ mod tests {
         let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&stream, &mut errors);
-        assert_eq!(errors, vec![ControlFlowRule::IfBranchValueOutOfRange]);
+        assert_eq!(errors, vec![ControlFlowRule::RandomIfBranchValueOutOfRange]);
+    }
+
+    #[test]
+    fn test_switch_duplicate_case() {
+        use Token::*;
+        let tokens = vec![
+            Switch(2),
+            Case(1),
+            Title("A"),
+            Case(1), // 重复
+            Title("B"),
+            EndSwitch,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(errors, vec![ControlFlowRule::SwitchDuplicateCaseValue]);
+    }
+
+    #[test]
+    fn test_switch_case_value_out_of_range() {
+        use Token::*;
+        let tokens = vec![
+            Switch(2),
+            Case(3), // 超出范围
+            Title("A"),
+            EndSwitch,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(errors, vec![ControlFlowRule::SwitchCaseValueOutOfRange]);
     }
 }
