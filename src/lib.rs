@@ -82,4 +82,4 @@ pub mod bms;
 pub mod bmson;
 
 #[deprecated(since = "0.8.0", note = "Use `bms_rs::bms::{lex, parse}` instead")]
-pub use self::bms::{lex, parse};
+pub use self::bms::{lex, parse, time};
