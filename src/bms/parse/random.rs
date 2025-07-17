@@ -29,6 +29,7 @@ pub(super) fn parse_control_flow<'a>(
 /// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ControlFlowRule {
+    // Random related
     #[error("unmatched end if")]
     UnmatchedEndIf,
     #[error("unmatched end random")]
@@ -39,12 +40,13 @@ pub enum ControlFlowRule {
     UnmatchedElseIf,
     #[error("unmatched else")]
     UnmatchedElse,
-    // Random相关
     #[error("duplicate if branch value in random block")]
     RandomDuplicateIfBranchValue,
     #[error("if branch value out of range in random block")]
     RandomIfBranchValueOutOfRange,
-    // Switch相关
+    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
+    UnmatchedTokenInRandomBlock,
+    // Switch related
     #[error("duplicate case value in switch block")]
     SwitchDuplicateCaseValue,
     #[error("case value out of range in switch block")]
@@ -57,8 +59,6 @@ pub enum ControlFlowRule {
     UnmatchedCase,
     #[error("unmatched def")]
     UnmatchedDef,
-    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
-    UnmatchedTokenInRandomBlock,
 }
 
 #[cfg(test)]

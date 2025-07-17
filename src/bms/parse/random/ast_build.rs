@@ -507,7 +507,7 @@ mod tests {
         else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
-        // 由于tokens只包含Token类型，这里不再查找RandomBlock，相关断言已在上方覆盖。
+        // Since tokens only contain Token type, do not search for RandomBlock here. Related assertions are already covered above.
     }
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
             Random(2),
             If(1),
             Title("A"),
-            ElseIf(1), // 重复
+            ElseIf(1), // duplicate
             Title("B"),
             EndIf,
             EndRandom,
@@ -734,7 +734,7 @@ mod tests {
         use Token::*;
         let tokens = vec![
             Random(2),
-            If(3), // 超出范围
+            If(3), // out of range
             Title("A"),
             EndIf,
             EndRandom,
@@ -752,7 +752,7 @@ mod tests {
             Switch(2),
             Case(1),
             Title("A"),
-            Case(1), // 重复
+            Case(1), // duplicate
             Title("B"),
             EndSwitch,
         ];
@@ -767,7 +767,7 @@ mod tests {
         use Token::*;
         let tokens = vec![
             Switch(2),
-            Case(3), // 超出范围
+            Case(3), // out of range
             Title("A"),
             EndSwitch,
         ];
@@ -784,9 +784,9 @@ mod tests {
             Switch(2),
             Def,
             Title("A"),
-            Def, // 多余
+            Def, // redundant
             Title("B"),
-            Def, // 多余
+            Def, // redundant
             Title("C"),
             EndSwitch,
         ];
@@ -807,7 +807,7 @@ mod tests {
         use Token::*;
         let tokens = vec![
             Random(2),
-            Title("A"), // 不在任何IfBlock内
+            Title("A"), // Not in any IfBlock
             If(1),
             Title("B"),
             EndIf,
