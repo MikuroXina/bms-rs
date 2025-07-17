@@ -65,6 +65,8 @@ pub(super) enum CaseBranchValue {
     Def,
 }
 
+/// The main entry for building the control flow AST. Traverses the Token stream and recursively parses all control flow blocks.
+/// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
     tokens: &'a TokenStream<'a>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -94,13 +96,13 @@ pub(super) fn build_control_flow_ast<'a>(
         if let Some(rule) = rule {
             error_list.push(rule);
         }
-        // 跳转到下一个Token
+        // Jump to the next Token
         iter.next();
     }
     result
 }
 
-/// 处理单个Token：如果是块开头则递归调用块解析，否则返回Token节点。
+/// Handle a single Token: if it is the start of a block, recursively call the block parser, otherwise return a Token node.
 fn parse_unit_or_block<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -121,7 +123,8 @@ where
     }
 }
 
-/// Parse a Switch/SetSwitch block until EndSwitch
+/// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
+/// Supports Case/Def branches, error detection, and nested structures.
 fn parse_switch_block<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -146,7 +149,7 @@ where
         match next {
             Token::Case(case_val) => {
                 let case_val_u64 = *case_val as u64;
-                // 检查是否重复
+                // Check for duplicates
                 if seen_case_values.contains(&case_val_u64) {
                     error_list.push(ControlFlowRule::SwitchDuplicateCaseValue);
                     iter.next();
@@ -156,7 +159,7 @@ where
                     }
                     continue;
                 }
-                // 检查是否越界
+                // Check for out-of-range
                 if let Some(max) = max_value
                     && !(1..=max).contains(&case_val_u64)
                 {
@@ -228,7 +231,8 @@ where
     }
 }
 
-/// 修改parse_case_or_def_body，优先调用parse_unit_or_block
+/// Parse the body of a Case/Def branch until a branch-terminating Token is encountered.
+/// Supports nested blocks, prioritizing parse_unit_or_block.
 fn parse_case_or_def_body<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -260,13 +264,19 @@ where
         if let Some(rule) = rule {
             error_list.push(rule);
         }
-        // 跳转到下一个Token
+        // Jump to the next Token
         iter.next();
     }
     result
 }
 
-/// Parse a Random/SetRandom block until EndRandom
+/// Parse a Random/SetRandom block until EndRandom or auto-completion termination.
+/// Supports nesting, error detection, and records errors when non-control-flow Tokens appear outside IfBlock.
+/// Design:
+/// - After entering Random/SetRandom, loop through Tokens.
+/// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
+/// - If encountering a non-control-flow Token, prioritize parse_unit_or_block; if not in any IfBlock, report error.
+/// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -274,6 +284,7 @@ fn parse_random_block<'a, I>(
 where
     I: Iterator<Item = &'a Token<'a>>,
 {
+    // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     let block_value = match token {
         Token::Random(val) => BlockValue::Random { max: *val as u64 },
@@ -285,19 +296,21 @@ where
         BlockValue::Random { max } => Some(*max),
         BlockValue::Set { .. } => None,
     };
+    // 2. Main loop, process the contents inside the Random block
     while let Some(next) = iter.peek() {
         match next {
+            // 2.1 Handle If branch
             Token::If(if_val) => {
                 iter.next();
                 let mut branches = HashMap::new();
                 let mut seen_if_values = std::collections::HashSet::new();
                 let if_val_u64 = *if_val as u64;
-                // 检查是否重复
+                // Check if If branch value is duplicated
                 if seen_if_values.contains(&if_val_u64) {
                     error_list.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                     let _ = parse_if_block_body(iter, error_list);
                 } else if let Some(max) = max_value {
-                    // 检查是否超出范围
+                    // Check if If branch value is out-of-range
                     if if_val_u64 < 1 || if_val_u64 > max {
                         error_list.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                         let _ = parse_if_block_body(iter, error_list);
@@ -313,6 +326,7 @@ where
                         );
                     }
                 } else {
+                    // SetRandom branch has no range limit
                     seen_if_values.insert(if_val_u64);
                     let tokens = parse_if_block_body(iter, error_list);
                     branches.insert(
@@ -323,7 +337,7 @@ where
                         },
                     );
                 }
-                // Parse ElseIf branches
+                // 2.2 Handle ElseIf branches, same logic as If
                 while let Some(Token::ElseIf(elif_val)) = iter.peek() {
                     let elif_val_u64 = *elif_val as u64;
                     if seen_if_values.contains(&elif_val_u64) {
@@ -351,12 +365,12 @@ where
                         },
                     );
                 }
-                // Check for unmatched ElseIf
+                // 2.3 Check for redundant ElseIf
                 if let Some(Token::ElseIf(_)) = iter.peek() {
                     error_list.push(ControlFlowRule::UnmatchedElseIf);
                     iter.next();
                 }
-                // Parse Else branch
+                // 2.4 Handle Else branch, branch value is 0
                 if let Some(Token::Else) = iter.peek() {
                     iter.next();
                     let etokens = parse_if_block_body(iter, error_list);
@@ -368,17 +382,20 @@ where
                         },
                     );
                 }
-                // Check for unmatched Else
+                // 2.5 Check for redundant Else
                 if let Some(Token::Else) = iter.peek() {
                     error_list.push(ControlFlowRule::UnmatchedElse);
                     iter.next();
                 }
+                // 2.6 Collect this IfBlock
                 if_blocks.push(IfBlock { branches });
             }
+            // 3.1 Termination: EndRandom encountered, block ends
             Token::EndRandom => {
                 iter.next();
                 break;
             }
+            // 3.2 Error: EndIf/EndSwitch encountered, record error and skip
             Token::EndIf => {
                 error_list.push(ControlFlowRule::UnmatchedEndIf);
                 iter.next();
@@ -387,14 +404,14 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndSwitch);
                 iter.next();
             }
-            // 自动补全EndRandom: 遇到Switch/SetSwitch/Case/Def/EndSwitch/Skip时break
+            // 3.3 Auto-completion termination: break early when encountering other block headers or Case/Def/Skip
             Token::SetSwitch(_) | Token::Switch(_) | Token::Case(_) | Token::Def | Token::Skip => {
                 break;
             }
+            // 4. Handle non-control-flow Token: prioritize parse_unit_or_block; if not in any IfBlock, report error
             _ => {
-                // 允许非控制流Token，优先parse_unit_or_block
                 if let Some(_unit) = parse_unit_or_block(iter, error_list) {
-                    // 这里的Token不属于任何IfBlock，直接丢弃，并记录错误
+                    // This Token does not belong to any IfBlock, discard directly and record error
                     error_list.push(ControlFlowRule::UnmatchedTokenInRandomBlock);
                 } else {
                     iter.next();
@@ -402,13 +419,18 @@ where
             }
         }
     }
+    // 5. Return AST node
     Unit::RandomBlock {
         value: block_value,
         if_blocks,
     }
 }
 
-/// 重构后的parse_if_block_body，允许出现非控制流Token时优先parse_unit_or_block
+/// Parse the body of an If/ElseIf/Else branch until a branch-terminating Token is encountered.
+/// Design:
+/// - Supports nested blocks, prioritizing parse_unit_or_block.
+/// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
+/// - If EndIf is encountered, consume it automatically.
 fn parse_if_block_body<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -419,12 +441,14 @@ where
     let mut result = Vec::new();
     while let Some(token) = iter.peek() {
         match token {
+            // 1. Branch-terminating Token, break
             Token::ElseIf(_) | Token::Else | Token::EndIf | Token::EndRandom | Token::EndSwitch => {
                 if let Token::EndIf = token {
-                    iter.next();
+                    iter.next(); // Automatically consume EndIf
                 }
                 break;
             }
+            // 2. Other content, prioritize parse_unit_or_block (supports nesting)
             _ => {
                 if let Some(unit) = parse_unit_or_block(iter, error_list) {
                     result.push(unit);
