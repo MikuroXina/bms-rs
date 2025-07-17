@@ -490,11 +490,9 @@ fn nested_switch_in_random() {
 }
 
 /// https://hitkey.bms.ms/cmds.htm#TEST-CASES
-///
-/// TODO: This example cannot be resolved for now. It cannot be parsed by just scanning by line order.
 #[test]
-fn test_switch_unimpl() {
-    const _SRC: &str = r"
+fn test_switch_insane() {
+    const SRC: &str = r"
     #SWITCH 5
         #DEF
             #00013:0055
@@ -523,4 +521,147 @@ fn test_switch_unimpl() {
             #SKIP
     #ENDSW
     ";
+
+    let tokens = bms_rs::lex::parse(SRC).expect("must be parsed");
+
+    // CASE 1, RANDOM 1
+    let rng = RngMock([1]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![
+            // #CASE 1, #RANDOM 1, #IF 1
+            Obj {
+                offset: ObjTime::new(0, 0, 8),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
+                obj: "01".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 0, 1),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key4,
+                obj: "04".try_into().unwrap(),
+            },
+        ]
+    );
+
+    // CASE 1, RANDOM 2
+    let rng = RngMock([1, 2]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![
+            // #CASE 1, #RANDOM 2, #ELSE
+            Obj {
+                offset: ObjTime::new(0, 0, 8),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
+                obj: "01".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 0, 1),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key4,
+                obj: "05".try_into().unwrap(),
+            },
+        ]
+    );
+
+    // CASE 2
+    let rng = RngMock([2]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![
+            // #CASE 2
+            Obj {
+                offset: ObjTime::new(0, 0, 8),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
+                obj: "02".try_into().unwrap(),
+            },
+        ]
+    );
+
+    // CASE 3, SWITCH 1
+    let rng = RngMock([3, 1]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![
+            // #CASE 3, #SWITCH 1
+            Obj {
+                offset: ObjTime::new(0, 0, 8),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
+                obj: "03".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 0, 2),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Scratch,
+                obj: "11".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 1, 2),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Scratch,
+                obj: "11".try_into().unwrap(),
+            },
+        ]
+    );
+
+    // CASE 3, SWITCH 2
+    let rng = RngMock([3, 2]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![
+            // #CASE 3, #SWITCH 2
+            Obj {
+                offset: ObjTime::new(0, 0, 8),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Key3,
+                obj: "03".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 0, 2),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Scratch,
+                obj: "22".try_into().unwrap(),
+            },
+            Obj {
+                offset: ObjTime::new(0, 1, 2),
+                kind: NoteKind::Visible,
+                is_player1: true,
+                key: Key::Scratch,
+                obj: "22".try_into().unwrap(),
+            },
+        ]
+    );
+
+    // CASE 4 (DEFAULT)
+    let rng = RngMock([4]);
+    let bms = Bms::from_token_stream(&tokens, rng, AlwaysHalt).expect("must be parsed");
+    assert_eq!(
+        bms.notes.into_all_notes(),
+        vec![Obj {
+            offset: ObjTime::new(0, 1, 2),
+            kind: NoteKind::Visible,
+            is_player1: true,
+            key: Key::Key3,
+            obj: "55".try_into().unwrap(),
+        },]
+    );
 }
