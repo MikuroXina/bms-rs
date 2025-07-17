@@ -5,7 +5,7 @@ use crate::{
     parse::random::ControlFlowRule,
 };
 
-/// A unit of AST.
+/// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Unit<'a> {
     /// A token that is not a control flow token.
