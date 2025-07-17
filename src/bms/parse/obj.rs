@@ -1,6 +1,6 @@
 //! Definitions of the note object.
 
-use crate::{
+use crate::bms::{
     lex::command::{Key, NoteKind, ObjId},
     time::ObjTime,
 };

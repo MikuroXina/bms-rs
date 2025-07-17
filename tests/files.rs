@@ -1,4 +1,4 @@
-use bms_rs::{
+use bms_rs::bms::{
     lex::{LexError, parse},
     parse::{Bms, prompt::AlwaysHalt, rng::RngMock},
 };

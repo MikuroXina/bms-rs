@@ -1,4 +1,4 @@
-use bms_rs::{
+use bms_rs::bms::{
     lex::parse,
     parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
 };

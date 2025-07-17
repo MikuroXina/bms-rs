@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use crate::lex::command::ObjId;
+use crate::bms::lex::command::ObjId;
 
 use super::{
     ParseError, Result,

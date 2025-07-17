@@ -3,7 +3,7 @@ use std::ops::ControlFlow::{self, *};
 use thiserror::Error;
 
 use super::{ParseError, Result, rng::Rng};
-use crate::lex::token::Token;
+use crate::bms::lex::token::Token;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

@@ -6,7 +6,7 @@ use super::{
     ParseError, Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
-use crate::lex::{command::*, token::Token};
+use crate::bms::lex::{command::*, token::Token};
 
 /// A 2D point in pixel coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
+use crate::bms::{
     parse::notes::Notes,
     time::{ObjTime, Track},
 };
@@ -83,7 +83,7 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::parse::notes::SectionLenChangeObj;
+    use crate::bms::parse::notes::SectionLenChangeObj;
 
     // Source BMS:
     // ```

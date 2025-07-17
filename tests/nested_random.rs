@@ -1,4 +1,4 @@
-use bms_rs::{
+use bms_rs::bms::{
     lex::{
         command::{Key, NoteKind},
         parse,

@@ -7,7 +7,7 @@
 //! At first, you can get the tokens stream with [`lex::parse`]. Then pass it and the random generator to [`parse::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```
-//! use bms_rs::{
+//! use bms_rs::bms::{
 //!     lex::parse,
 //!     parse::{prompt::AlwaysHalt, rng::RngMock, Bms},
 //! };
@@ -80,5 +80,3 @@ pub mod bms;
 #[cfg(feature = "bmson")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bmson")))]
 pub mod bmson;
-
-pub use bms::{lex, parse, time};

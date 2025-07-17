@@ -8,7 +8,7 @@ use std::{
 };
 
 use super::{ParseError, Result, header::Header, obj::Obj};
-use crate::{
+use crate::bms::{
     lex::{
         command::{self, Channel, Key, NoteKind, ObjId},
         token::Token,

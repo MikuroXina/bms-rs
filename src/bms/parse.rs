@@ -18,7 +18,7 @@ use self::{
     random::{ControlFlowRule, RandomParser},
     rng::Rng,
 };
-use crate::lex::{
+use crate::bms::lex::{
     command::ObjId,
     token::{Token, TokenStream},
 };

@@ -29,7 +29,7 @@ use std::{collections::HashMap, num::NonZeroU8};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
+use crate::bms::{
     lex::command::{JudgeLevel, Key},
     parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},

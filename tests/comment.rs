@@ -1,4 +1,4 @@
-use bms_rs::lex::{parse, token::Token};
+use bms_rs::bms::lex::{parse, token::Token};
 
 #[test]
 fn test_comment() {
