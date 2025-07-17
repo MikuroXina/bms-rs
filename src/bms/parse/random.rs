@@ -49,6 +49,8 @@ pub enum ControlFlowRule {
     SwitchDuplicateCaseValue,
     #[error("case value out of range in switch block")]
     SwitchCaseValueOutOfRange,
+    #[error("duplicate def branch in switch block")]
+    SwitchDuplicateDef,
 }
 
 #[cfg(test)]

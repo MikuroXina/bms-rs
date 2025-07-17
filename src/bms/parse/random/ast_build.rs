@@ -130,6 +130,7 @@ where
         BlockValue::Random { max } => Some(*max),
         BlockValue::Set { value: _ } => None,
     };
+    let mut def_count = 0;
     while let Some(next) = iter.peek() {
         match next {
             Token::Case(case_val) => {
@@ -168,6 +169,16 @@ where
                 }
             }
             Token::Def => {
+                def_count += 1;
+                if def_count > 1 {
+                    error_list.push(ControlFlowRule::SwitchDuplicateDef);
+                    iter.next();
+                    let _ = parse_case_or_def_body(iter, error_list);
+                    if let Some(Token::Skip) = iter.peek() {
+                        iter.next();
+                    }
+                    continue;
+                }
                 iter.next();
                 let tokens = parse_case_or_def_body(iter, error_list);
                 cases.push(CaseBranch {
@@ -734,5 +745,30 @@ mod tests {
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&stream, &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::SwitchCaseValueOutOfRange]);
+    }
+
+    #[test]
+    fn test_switch_duplicate_def() {
+        use Token::*;
+        let tokens = vec![
+            Switch(2),
+            Def,
+            Title("A"),
+            Def, // 多余
+            Title("B"),
+            Def, // 多余
+            Title("C"),
+            EndSwitch,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(
+            errors,
+            vec![
+                ControlFlowRule::SwitchDuplicateDef,
+                ControlFlowRule::SwitchDuplicateDef,
+            ]
+        );
     }
 }
