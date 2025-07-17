@@ -143,7 +143,7 @@ where
         BlockValue::Random { max } => Some(*max),
         BlockValue::Set { value: _ } => None,
     };
-    let mut def_count = 0;
+    let mut seen_def = false;
     while let Some(next) = iter.peek() {
         match next {
             Token::Case(case_val) => {
@@ -182,8 +182,7 @@ where
                 }
             }
             Token::Def => {
-                def_count += 1;
-                if def_count > 1 {
+                if seen_def {
                     error_list.push(ControlFlowRule::SwitchDuplicateDef);
                     iter.next();
                     let _ = parse_case_or_def_body(iter, error_list);
@@ -192,6 +191,7 @@ where
                     }
                     continue;
                 }
+                seen_def = true;
                 iter.next();
                 let tokens = parse_case_or_def_body(iter, error_list);
                 cases.push(CaseBranch {
