@@ -238,7 +238,10 @@ where
 {
     let mut result = Vec::new();
     while let Some(&token) = iter.peek() {
-        if matches!(token, Token::Skip | Token::EndSwitch | Token::Case(_) | Token::Def) {
+        if matches!(
+            token,
+            Token::Skip | Token::EndSwitch | Token::Case(_) | Token::Def
+        ) {
             break;
         }
         if let Some(unit) = parse_unit_or_block(iter, error_list) {
@@ -292,15 +295,15 @@ where
                 // 检查是否重复
                 if seen_if_values.contains(&if_val_u64) {
                     error_list.push(ControlFlowRule::RandomDuplicateIfBranchValue);
-                    let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                    let _ = parse_if_block_body(iter, error_list);
                 } else if let Some(max) = max_value {
                     // 检查是否超出范围
                     if if_val_u64 < 1 || if_val_u64 > max {
                         error_list.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
-                        let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                        let _ = parse_if_block_body(iter, error_list);
                     } else {
                         seen_if_values.insert(if_val_u64);
-                        let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                        let tokens = parse_if_block_body(iter, error_list);
                         branches.insert(
                             if_val_u64,
                             IfBranch {
@@ -311,7 +314,7 @@ where
                     }
                 } else {
                     seen_if_values.insert(if_val_u64);
-                    let (tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    let tokens = parse_if_block_body(iter, error_list);
                     branches.insert(
                         if_val_u64,
                         IfBranch {
@@ -326,20 +329,20 @@ where
                     if seen_if_values.contains(&elif_val_u64) {
                         error_list.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                         iter.next();
-                        let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                        let _ = parse_if_block_body(iter, error_list);
                         continue;
                     }
                     if let Some(max) = max_value {
                         if elif_val_u64 < 1 || elif_val_u64 > max {
                             error_list.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                             iter.next();
-                            let (_, _has_endif) = parse_if_block_body(iter, error_list);
+                            let _ = parse_if_block_body(iter, error_list);
                             continue;
                         }
                     }
                     iter.next();
                     seen_if_values.insert(elif_val_u64);
-                    let (elif_tokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    let elif_tokens = parse_if_block_body(iter, error_list);
                     branches.insert(
                         elif_val_u64,
                         IfBranch {
@@ -356,7 +359,7 @@ where
                 // Parse Else branch
                 if let Some(Token::Else) = iter.peek() {
                     iter.next();
-                    let (etokens, _has_endif) = parse_if_block_body(iter, error_list);
+                    let etokens = parse_if_block_body(iter, error_list);
                     branches.insert(
                         0,
                         IfBranch {
@@ -384,59 +387,54 @@ where
                 error_list.push(ControlFlowRule::UnmatchedEndSwitch);
                 iter.next();
             }
-            // Automatically complete EndRandom: break when encountering Switch/SetSwitch/Case/Def/EndSwitch
+            // 自动补全EndRandom: 遇到Switch/SetSwitch/Case/Def/EndSwitch/Skip时break
             Token::SetSwitch(_) | Token::Switch(_) | Token::Case(_) | Token::Def | Token::Skip => {
                 break;
             }
             _ => {
-                iter.next();
+                // 允许非控制流Token，优先parse_unit_or_block
+                if let Some(_unit) = parse_unit_or_block(iter, error_list) {
+                    // 这里的Token不属于任何IfBlock，直接丢弃，并记录错误
+                    error_list.push(ControlFlowRule::UnmatchedTokenInRandomBlock);
+                } else {
+                    iter.next();
+                }
             }
         }
     }
-    // If the iterator has ended, also break (i.e., automatically complete EndRandom)
     Unit::RandomBlock {
         value: block_value,
         if_blocks,
     }
 }
 
-/// Parse the body of an If/ElseIf/Else block until EndIf/ElseIf/Else/EndRandom/EndSwitch
+/// 重构后的parse_if_block_body，允许出现非控制流Token时优先parse_unit_or_block
 fn parse_if_block_body<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
-) -> (Vec<Unit<'a>>, bool)
+) -> Vec<Unit<'a>>
 where
     I: Iterator<Item = &'a Token<'a>>,
 {
     let mut result = Vec::new();
-    let mut has_endif = false;
     while let Some(token) = iter.peek() {
         match token {
             Token::ElseIf(_) | Token::Else | Token::EndIf | Token::EndRandom | Token::EndSwitch => {
                 if let Token::EndIf = token {
-                    has_endif = true;
                     iter.next();
                 }
                 break;
             }
-            Token::If(_) => {
-                result.push(parse_random_block(iter, error_list));
-            }
-            Token::SetSwitch(_) | Token::Switch(_) => {
-                result.push(parse_switch_block(iter, error_list));
-            }
-            Token::Random(_) | Token::SetRandom(_) => {
-                result.push(parse_random_block(iter, error_list));
-            }
             _ => {
-                if !token.is_control_flow_token() {
-                    result.push(Unit::Token(*token));
+                if let Some(unit) = parse_unit_or_block(iter, error_list) {
+                    result.push(unit);
+                } else {
+                    iter.next();
                 }
-                iter.next();
             }
         }
     }
-    (result, has_endif)
+    result
 }
 
 #[cfg(test)]
@@ -778,5 +776,22 @@ mod tests {
                 ControlFlowRule::SwitchDuplicateDef,
             ]
         );
+    }
+
+    #[test]
+    fn test_unmatched_token_in_random_block() {
+        use Token::*;
+        let tokens = vec![
+            Random(2),
+            Title("A"), // 不在任何IfBlock内
+            If(1),
+            Title("B"),
+            EndIf,
+            EndRandom,
+        ];
+        let stream = TokenStream::from_tokens(tokens);
+        let mut errors = Vec::new();
+        let _ = build_control_flow_ast(&stream, &mut errors);
+        assert_eq!(errors, vec![ControlFlowRule::UnmatchedTokenInRandomBlock]);
     }
 }

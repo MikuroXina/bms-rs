@@ -57,6 +57,8 @@ pub enum ControlFlowRule {
     UnmatchedCase,
     #[error("unmatched def")]
     UnmatchedDef,
+    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
+    UnmatchedTokenInRandomBlock,
 }
 
 #[cfg(test)]
