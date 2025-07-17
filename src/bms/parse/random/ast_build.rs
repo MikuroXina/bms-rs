@@ -69,45 +69,56 @@ pub(super) fn build_control_flow_ast<'a>(
     tokens: &'a TokenStream<'a>,
     error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<Unit<'a>> {
-    let mut iter = tokens.iter().peekable();
-    parse_units(&mut iter, error_list)
+    let mut token_iter = tokens.iter().peekable();
+    let iter = &mut token_iter;
+    let mut result = Vec::new();
+    while let Some(_) = iter.peek() {
+        if let Some(unit) = parse_unit_or_block(iter, error_list) {
+            result.push(unit);
+            continue;
+        }
+        let Some(token) = iter.peek() else {
+            break;
+        };
+        let rule = match token {
+            Token::EndIf => Some(ControlFlowRule::UnmatchedEndIf),
+            Token::EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
+            Token::EndSwitch => Some(ControlFlowRule::UnmatchedEndSwitch),
+            Token::ElseIf(_) => Some(ControlFlowRule::UnmatchedElseIf),
+            Token::Else => Some(ControlFlowRule::UnmatchedElse),
+            Token::Skip => Some(ControlFlowRule::UnmatchedSkip),
+            Token::Case(_) => Some(ControlFlowRule::UnmatchedCase),
+            Token::Def => Some(ControlFlowRule::UnmatchedDef),
+            _ => None,
+        };
+        if let Some(rule) = rule {
+            error_list.push(rule);
+        }
+        // 跳转到下一个Token
+        iter.next();
+    }
+    result
 }
 
-/// Recursively parse the token stream into a list of AST nodes
-fn parse_units<'a, I>(
+/// 处理单个Token：如果是块开头则递归调用块解析，否则返回Token节点。
+fn parse_unit_or_block<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
-) -> Vec<Unit<'a>>
+) -> Option<Unit<'a>>
 where
     I: Iterator<Item = &'a Token<'a>>,
 {
-    let mut result = Vec::new();
-    while let Some(token) = iter.peek() {
-        match token {
-            Token::SetSwitch(_val) | Token::Switch(_val) => {
-                result.push(parse_switch_block(iter, error_list));
-            }
-            Token::Random(_val) | Token::SetRandom(_val) => {
-                result.push(parse_random_block(iter, error_list));
-            }
-            Token::EndIf => {
-                error_list.push(ControlFlowRule::UnmatchedEndIf);
-                iter.next();
-            }
-            Token::EndRandom => {
-                error_list.push(ControlFlowRule::UnmatchedEndRandom);
-                iter.next();
-            }
-            _ => {
-                // Directly collect non-control-flow tokens
-                if !token.is_control_flow_token() {
-                    result.push(Unit::Token(*token));
-                }
-                iter.next();
-            }
+    let token = iter.peek()?;
+    match token {
+        Token::SetSwitch(_) | Token::Switch(_) => Some(parse_switch_block(iter, error_list)),
+        Token::Random(_) | Token::SetRandom(_) => Some(parse_random_block(iter, error_list)),
+        token if !token.is_control_flow_token() => {
+            let t = *token;
+            iter.next();
+            Some(Unit::Token(t))
         }
+        _ => None,
     }
-    result
 }
 
 /// Parse a Switch/SetSwitch block until EndSwitch
@@ -146,16 +157,16 @@ where
                     continue;
                 }
                 // 检查是否越界
-                if let Some(max) = max_value {
-                    if case_val_u64 < 1 || case_val_u64 > max {
-                        error_list.push(ControlFlowRule::SwitchCaseValueOutOfRange);
+                if let Some(max) = max_value
+                    && !(1..=max).contains(&case_val_u64)
+                {
+                    error_list.push(ControlFlowRule::SwitchCaseValueOutOfRange);
+                    iter.next();
+                    let _ = parse_case_or_def_body(iter, error_list);
+                    if let Some(Token::Skip) = iter.peek() {
                         iter.next();
-                        let _ = parse_case_or_def_body(iter, error_list);
-                        if let Some(Token::Skip) = iter.peek() {
-                            iter.next();
-                        }
-                        continue;
                     }
+                    continue;
                 }
                 iter.next();
                 seen_case_values.insert(case_val_u64);
@@ -217,7 +228,7 @@ where
     }
 }
 
-/// Parse the body of a Case/Def branch until a control-flow boundary is encountered
+/// 修改parse_case_or_def_body，优先调用parse_unit_or_block
 fn parse_case_or_def_body<'a, I>(
     iter: &mut std::iter::Peekable<I>,
     error_list: &mut Vec<ControlFlowRule>,
@@ -226,31 +237,28 @@ where
     I: Iterator<Item = &'a Token<'a>>,
 {
     let mut result = Vec::new();
-    while let Some(token) = iter.peek() {
-        match token {
-            Token::Skip | Token::EndSwitch | Token::Case(_) | Token::Def => break,
-            Token::SetSwitch(_) | Token::Switch(_) => {
-                result.push(parse_switch_block(iter, error_list));
-            }
-            Token::Random(_) | Token::SetRandom(_) => {
-                result.push(parse_random_block(iter, error_list));
-            }
-            Token::EndIf => {
-                error_list.push(ControlFlowRule::UnmatchedEndIf);
-                iter.next();
-            }
-            Token::EndRandom => {
-                error_list.push(ControlFlowRule::UnmatchedEndRandom);
-                iter.next();
-            }
-            _ => {
-                // Directly collect non-control-flow tokens
-                if !token.is_control_flow_token() {
-                    result.push(Unit::Token(*token));
-                }
-                iter.next();
-            }
+    while let Some(&token) = iter.peek() {
+        if matches!(token, Token::Skip | Token::EndSwitch | Token::Case(_) | Token::Def) {
+            break;
         }
+        if let Some(unit) = parse_unit_or_block(iter, error_list) {
+            result.push(unit);
+            continue;
+        }
+        let rule = match token {
+            Token::EndIf => Some(ControlFlowRule::UnmatchedEndIf),
+            Token::EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
+            Token::EndSwitch => Some(ControlFlowRule::UnmatchedEndSwitch),
+            Token::ElseIf(_) => Some(ControlFlowRule::UnmatchedElseIf),
+            Token::Else => Some(ControlFlowRule::UnmatchedElse),
+            Token::Skip => Some(ControlFlowRule::UnmatchedSkip),
+            _ => None,
+        };
+        if let Some(rule) = rule {
+            error_list.push(rule);
+        }
+        // 跳转到下一个Token
+        iter.next();
     }
     result
 }
