@@ -1,4 +1,4 @@
-use bms_rs::lex::{parse, token::Token};
+use bms_rs::lex::{BmsLexOutput, parse, token::Token};
 
 #[test]
 fn test_comment() {
@@ -9,8 +9,9 @@ fn test_comment() {
 
     This is the fourth comment";
 
-    let ts = parse(text).expect("must be parsed");
-    let mut ts_iter = ts.into_iter();
+    let BmsLexOutput { tokens, warnings } = parse(text);
+    assert_eq!(warnings, vec![]);
+    let mut ts_iter = tokens.into_iter();
     assert_eq!(ts_iter.next(), Some(Token::Comment("This is a comment")));
     assert_eq!(
         ts_iter.next(),

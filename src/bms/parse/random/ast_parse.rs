@@ -148,7 +148,6 @@ mod tests {
     fn test_nested_random_switch() {
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
-        let mut errors = Vec::new();
         // Random outer, Switch inner
         let t_switch_in_random = Token::Title("SWITCH_IN_RANDOM");
         let mut if_branches = HashMap::new();
@@ -172,7 +171,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
+        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {
@@ -206,7 +205,7 @@ mod tests {
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
-        let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng, &mut errors);
+        let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match t {
@@ -221,7 +220,6 @@ mod tests {
     fn test_deeply_nested_random_switch() {
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
-        let mut errors = Vec::new();
         let t_deep_nested = Token::Title("DEEP_NESTED");
         let mut if_branches = HashMap::new();
         if_branches.insert(
@@ -257,7 +255,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
+        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {

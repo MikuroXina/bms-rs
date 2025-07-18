@@ -99,9 +99,8 @@ mod tests {
             EndSwitch,
             Title("00000044"),
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -160,9 +159,8 @@ mod tests {
         };
         assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
         let mut rng = DummyRng;
-        let mut errors2 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
@@ -174,7 +172,6 @@ mod tests {
             }
         }
         assert_eq!(errors, vec![]);
-        assert_eq!(errors2, vec![]);
     }
 
     #[test]
@@ -210,9 +207,8 @@ mod tests {
             Skip,
             EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -227,15 +223,11 @@ mod tests {
         };
         println!("Case(1) tokens: {:#?}", case1.tokens);
         let mut rng = DummyRng;
-        let mut errors2 = Vec::new();
         let mut ast_iter = ast.clone().into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         let mut rng = DummyRng;
-        let mut errors3 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors3);
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         assert_eq!(errors, vec![]);
-        assert_eq!(errors2, vec![]);
-        assert_eq!(errors3, vec![]);
     }
 }

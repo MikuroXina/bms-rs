@@ -11,6 +11,7 @@ use self::{cursor::Cursor, token::Token};
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
     /// An unknown command detected.
     #[error("unknown command found at line {line}, col {col}")]
@@ -37,6 +38,7 @@ pub enum LexWarning {
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: Vec<Token<'a>>,

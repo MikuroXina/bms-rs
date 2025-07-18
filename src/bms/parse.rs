@@ -51,6 +51,7 @@ pub struct Bms {
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,

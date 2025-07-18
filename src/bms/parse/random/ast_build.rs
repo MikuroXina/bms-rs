@@ -474,9 +474,8 @@ mod tests {
             Token::Skip,
             Token::EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
         else {
@@ -506,9 +505,8 @@ mod tests {
     fn test_unmatched_endrandom_error() {
         use Token::*;
         let tokens = vec![Title("A"), EndRandom];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndRandom));
     }
 
@@ -516,9 +514,8 @@ mod tests {
     fn test_unmatched_endif_error() {
         use Token::*;
         let tokens = vec![Title("A"), EndIf];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndIf));
     }
 
@@ -535,9 +532,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
@@ -580,9 +576,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
@@ -628,9 +623,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
@@ -715,9 +709,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::RandomDuplicateIfBranchValue]);
     }
 
@@ -731,9 +724,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::RandomIfBranchValueOutOfRange]);
     }
 
@@ -748,9 +740,8 @@ mod tests {
             Title("B"),
             EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::SwitchDuplicateCaseValue]);
     }
 
@@ -763,9 +754,8 @@ mod tests {
             Title("A"),
             EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::SwitchCaseValueOutOfRange]);
     }
 
@@ -782,9 +772,8 @@ mod tests {
             Title("C"),
             EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(
             errors,
             vec![
@@ -805,9 +794,8 @@ mod tests {
             EndIf,
             EndRandom,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let _ = build_control_flow_ast(&stream, &mut errors);
+        let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert_eq!(errors, vec![ControlFlowRule::UnmatchedTokenInRandomBlock]);
     }
 }
