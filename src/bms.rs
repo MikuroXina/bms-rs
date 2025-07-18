@@ -21,7 +21,7 @@ pub mod time;
 
 use thiserror::Error;
 
-use self::{lex::LexError, parse::ParseError};
+use self::{lex::LexWarning, parse::ParseError};
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
@@ -29,14 +29,14 @@ use self::{lex::LexError, parse::ParseError};
 pub enum BmsError {
     /// An error comes from lexical analyzer.
     #[error("lex error: {0}")]
-    LexError(LexError),
+    LexError(LexWarning),
     /// An error comes from syntax parser.
     #[error("parse error: {0}")]
     ParseError(ParseError),
 }
 
-impl From<LexError> for BmsError {
-    fn from(e: LexError) -> Self {
+impl From<LexWarning> for BmsError {
+    fn from(e: LexWarning) -> Self {
         Self::LexError(e)
     }
 }

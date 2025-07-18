@@ -14,7 +14,7 @@ use self::{
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum LexError {
+pub enum LexWarning {
     /// An unknown command detected.
     #[error("unknown command found at line {line}, col {col}")]
     UnknownCommand {
@@ -38,21 +38,32 @@ pub enum LexError {
     OutOfBase62,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LexList<'a> {
+    tokens: Vec<Token<'a>>,
+    warnings: Vec<LexWarning>,
+}
+
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> Result<TokenStream, LexError> {
+pub fn parse(source: &str) -> LexList {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
+    let mut warnings = vec![];
     while !cursor.is_end() {
-        tokens.push(Token::parse(&mut cursor)?);
+        match Token::parse(&mut cursor) {
+            Ok(token) => tokens.push(token),
+            Err(warning) => warnings.push(warning),
+        };
     }
+
     let case_sensitive = tokens.contains(&Token::Base62);
     if !case_sensitive {
         for token in &mut tokens {
             token.make_id_uppercase();
         }
     }
-    Ok(TokenStream::from_tokens(tokens))
+    LexList { tokens, warnings }
 }
 
 #[cfg(test)]

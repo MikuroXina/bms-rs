@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 
-use super::{LexError, cursor::Cursor};
+use super::{LexWarning, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,7 +15,7 @@ pub enum PlayerMode {
 }
 
 impl PlayerMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexWarning> {
         Ok(match c.next_token() {
             Some("1") => Self::Single,
             Some("2") => Self::Two,
@@ -70,7 +70,7 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
 }
 
 impl JudgeLevel {
-    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self, LexWarning> {
         c.next_token()
             .ok_or(c.make_err_expected_token("one of [0,4]"))?
             .try_into()
@@ -78,10 +78,10 @@ impl JudgeLevel {
     }
 }
 
-fn char_to_base62(ch: char) -> Result<u8, LexError> {
+fn char_to_base62(ch: char) -> Result<u8, LexWarning> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Ok(ch as u32 as u8),
-        _ => Err(LexError::OutOfBase62),
+        _ => Err(LexWarning::OutOfBase62),
     }
 }
 
@@ -96,18 +96,18 @@ fn base62_to_byte(base62: u8) -> u8 {
 
 #[test]
 fn test_base62() {
-    assert_eq!(char_to_base62('/'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('/'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('0'), Ok(b'0'));
     assert_eq!(char_to_base62('9'), Ok(b'9'));
-    assert_eq!(char_to_base62(':'), Err(LexError::OutOfBase62));
-    assert_eq!(char_to_base62('@'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62(':'), Err(LexWarning::OutOfBase62));
+    assert_eq!(char_to_base62('@'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('A'), Ok(b'A'));
     assert_eq!(char_to_base62('Z'), Ok(b'Z'));
-    assert_eq!(char_to_base62('['), Err(LexError::OutOfBase62));
-    assert_eq!(char_to_base62('`'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('['), Err(LexWarning::OutOfBase62));
+    assert_eq!(char_to_base62('`'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('a'), Ok(b'a'));
     assert_eq!(char_to_base62('z'), Ok(b'z'));
-    assert_eq!(char_to_base62('{'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('{'), Err(LexWarning::OutOfBase62));
 }
 
 /// An object id. Its meaning is determined by the channel belonged to.
@@ -126,10 +126,10 @@ impl std::fmt::Debug for ObjId {
 }
 
 impl TryFrom<&str> for ObjId {
-    type Error = LexError;
-    fn try_from(value: &str) -> Result<Self, LexError> {
+    type Error = LexWarning;
+    fn try_from(value: &str) -> Result<Self, LexWarning> {
         if value.len() != 2 {
-            return Err(LexError::ExpectedToken {
+            return Err(LexWarning::ExpectedToken {
                 line: 1,
                 col: 1,
                 message: "`0-9A-Za-z` was expected",
@@ -143,15 +143,15 @@ impl TryFrom<&str> for ObjId {
 }
 
 impl TryFrom<[char; 2]> for ObjId {
-    type Error = LexError;
-    fn try_from(value: [char; 2]) -> Result<Self, LexError> {
+    type Error = LexWarning;
+    fn try_from(value: [char; 2]) -> Result<Self, LexWarning> {
         Self::from_chars(value)
     }
 }
 
 impl TryFrom<[u8; 2]> for ObjId {
-    type Error = LexError;
-    fn try_from(value: [u8; 2]) -> Result<Self, LexError> {
+    type Error = LexWarning;
+    fn try_from(value: [u8; 2]) -> Result<Self, LexWarning> {
         Self::from_bytes(value)
     }
 }
@@ -181,19 +181,19 @@ impl ObjId {
     }
 
     /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_chars(chars: [char; 2]) -> Result<Self, LexError> {
+    pub fn from_chars(chars: [char; 2]) -> Result<Self, LexWarning> {
         Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
     }
 
     /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self, LexError> {
+    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self, LexWarning> {
         Ok(Self([
             char_to_base62(bytes[0] as char)?,
             char_to_base62(bytes[1] as char)?,
         ]))
     }
 
-    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
         id.try_into()
             .map_err(|_| c.make_err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
     }
@@ -324,7 +324,7 @@ impl Key {
         matches!(self, Self::Key6 | Self::Key7)
     }
 
-    pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
         use Key::*;
         Ok(match key {
             "1" => Key1,
@@ -360,7 +360,7 @@ impl Default for PoorMode {
 }
 
 impl PoorMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexWarning> {
         Ok(match c.next_token() {
             Some("0") => Self::Interrupt,
             Some("1") => Self::Overlay,
@@ -409,7 +409,7 @@ pub enum Channel {
 }
 
 impl Channel {
-    pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self, LexError> {
+    pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
         use Channel::*;
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
@@ -463,7 +463,7 @@ impl Channel {
                 key: Key::from(&channel[1..], c)?,
             },
             _ => {
-                return Err(LexError::UnknownCommand {
+                return Err(LexWarning::UnknownCommand {
                     line: c.line(),
                     col: c.col(),
                 });

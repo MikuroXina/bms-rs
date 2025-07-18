@@ -1,4 +1,4 @@
-use super::LexError;
+use super::LexWarning;
 
 pub(crate) struct Cursor<'a> {
     /// The line position, starts with 1.
@@ -127,8 +127,8 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexError {
-        LexError::ExpectedToken {
+    pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexWarning {
+        LexWarning::ExpectedToken {
             line: self.line(),
             col: self.col(),
             message,

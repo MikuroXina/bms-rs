@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, path::Path};
 
-use crate::lex::LexError;
+use crate::lex::LexWarning;
 
 use super::{command::*, cursor::Cursor};
 
@@ -173,6 +173,8 @@ pub enum Token<'a> {
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
     Total(&'a str),
+    /// Unknown Part. Includes all the line that not be parsed.
+    UnknownLine(&'a str),
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
@@ -184,7 +186,7 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self, LexError> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self, LexWarning> {
         loop {
             let command = c
                 .next_token()
@@ -655,7 +657,7 @@ impl<'a> Token<'a> {
                 comment if !comment.starts_with('#') => Self::NotACommand(c.next_line_entire()),
                 unknown => {
                     eprintln!("unknown command found: {:?}", unknown);
-                    break Err(super::LexError::UnknownCommand {
+                    break Err(super::LexWarning::UnknownCommand {
                         line: c.line(),
                         col: c.col(),
                     });
@@ -738,47 +740,6 @@ impl<'a> Token<'a> {
                 | Token::Skip
                 | Token::EndSwitch
         )
-    }
-}
-
-/// A sequence of the [`Token`]. It can be used to run [`crate::parse::Bms::from_token_stream`].
-pub struct TokenStream<'a> {
-    tokens: Vec<Token<'a>>,
-}
-
-impl<'a> TokenStream<'a> {
-    pub(crate) fn from_tokens(tokens: Vec<Token<'a>>) -> Self {
-        Self { tokens }
-    }
-
-    /// Returns the borrowed iterator of the tokens.
-    pub fn iter(&self) -> TokenStreamIter<'_, 'a> {
-        TokenStreamIter {
-            iter: self.tokens.iter(),
-        }
-    }
-}
-
-impl<'a> IntoIterator for TokenStream<'a> {
-    type Item = Token<'a>;
-    type IntoIter = <Vec<Token<'a>> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.tokens.into_iter()
-    }
-}
-
-/// An iterator of the [`TokenStream`].
-#[derive(Debug)]
-pub struct TokenStreamIter<'t, 'a> {
-    iter: std::slice::Iter<'t, Token<'a>>,
-}
-
-impl<'t, 'a> Iterator for TokenStreamIter<'t, 'a> {
-    type Item = &'t Token<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
     }
 }
 
