@@ -605,8 +605,7 @@ impl Notes {
                 let (_, &begin_id) =
                     self.ids_by_key[key].range(..offset).last().ok_or_else(|| {
                         ParseError::SyntaxError(format!(
-                            "expected preceding object for #LNOBJ {:?}",
-                            end_id
+                            "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
                 let mut begin_note = self.remove_latest_note(begin_id).unwrap();
