@@ -38,11 +38,8 @@ pub enum LexError {
     OutOfBase62,
 }
 
-/// An error occurred when lexical analyzing the BMS format file.
-pub type Result<T> = std::result::Result<T, LexError>;
-
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> Result<TokenStream> {
+pub fn parse(source: &str) -> Result<TokenStream, LexError> {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];

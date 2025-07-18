@@ -2,7 +2,9 @@
 
 use std::{borrow::Cow, path::Path};
 
-use super::{Result, command::*, cursor::Cursor};
+use crate::lex::LexError;
+
+use super::{command::*, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -182,7 +184,7 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self, LexError> {
         loop {
             let command = c
                 .next_token()
