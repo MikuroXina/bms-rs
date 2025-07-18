@@ -1,6 +1,5 @@
-use bms_rs::bms::lex::BmsLexOutput;
-use bms_rs::bms::parse::BmsParseOutput;
 use bms_rs::{
+    bms::{lex::BmsLexOutput, parse::BmsParseOutput},
     lex::parse,
     parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
 };

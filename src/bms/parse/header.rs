@@ -533,27 +533,29 @@ impl Header {
                     self.wav_files.insert(id, path.into());
                 }
             }
-            Token::Base62
-            | Token::Case(_)
-            | Token::Def
-            | Token::Else
+            // Control flow
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
             | Token::ElseIf(_)
+            | Token::Else
             | Token::EndIf
             | Token::EndRandom
-            | Token::EndSwitch
-            | Token::If(_)
-            | Token::LnObj(_)
-            | Token::NotACommand(_)
-            | Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::SetSwitch(_)
-            | Token::Skip
             | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
+                unreachable!()
+            }
+            Token::Base62
+            | Token::LnObj(_)
             | Token::ExtendedMessage { .. }
             | Token::Message { .. } => {
                 // These Token should not be handled in Header::parse.
             }
-            Token::UnknownCommand(_) => {
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should not be handled.
             }
         }

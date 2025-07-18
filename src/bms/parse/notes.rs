@@ -647,6 +647,22 @@ impl Notes {
             Token::Text(id, text) => {
                 self.texts.insert(*id, (*text).to_string());
             }
+            // Control flow
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
+                unreachable!()
+            }
             Token::Email(_)
             | Token::Url(_)
             | Token::OctFp
@@ -665,41 +681,29 @@ impl Notes {
             | Token::Bmp(_, _)
             | Token::Bpm(_)
             | Token::BpmChange(_, _)
-            | Token::Case(_)
             | Token::Comment(_)
-            | Token::Def
             | Token::Difficulty(_)
-            | Token::Else
-            | Token::ElseIf(_)
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::EndSwitch
             | Token::ExBmp(_, _, _)
             | Token::Genre(_)
-            | Token::If(_)
             | Token::LnTypeRdm
             | Token::LnTypeMgq
-            | Token::NotACommand(_)
             | Token::Player(_)
             | Token::PlayLevel(_)
-            | Token::Random(_)
             | Token::Rank(_)
             | Token::Scroll(_, _)
-            | Token::SetRandom(_)
-            | Token::SetSwitch(_)
-            | Token::Skip
             | Token::Speed(_, _)
             | Token::StageFile(_)
             | Token::Stop(_, _)
             | Token::SubArtist(_)
             | Token::SubTitle(_)
-            | Token::Switch(_)
             | Token::Title(_)
             | Token::Total(_)
-            | Token::UnknownCommand(_)
             | Token::VolWav(_)
             | Token::Wav(_, _) => {
                 // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
+            }
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
+                // this token should not be handled.
             }
         }
         Ok(())
