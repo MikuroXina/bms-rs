@@ -7,7 +7,7 @@ use std::{
     ops::Bound,
 };
 
-use super::{ParseWarning, header::Header, obj::Obj};
+use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
         command::{self, Channel, Key, NoteKind, ObjId},
@@ -438,7 +438,7 @@ impl Notes {
         self.extended_messages.push(message);
     }
 
-    pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<(), ParseWarning> {
+    pub(crate) fn parse(&mut self, token: &Token, header: &Header) -> Result<()> {
         match token {
             Token::Message {
                 track,

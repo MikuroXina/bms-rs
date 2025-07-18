@@ -42,6 +42,9 @@ pub enum ParseWarning {
     Halted,
 }
 
+/// type alias of core::result::Result<T, ParseWarning>
+pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
+
 /// A score data of BMS format.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

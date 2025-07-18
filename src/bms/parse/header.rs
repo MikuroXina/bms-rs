@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use super::{
-    ParseWarning,
+    ParseWarning, Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
@@ -245,7 +245,7 @@ impl Header {
         &mut self,
         token: &Token,
         prompt_handler: &mut impl PromptHandler,
-    ) -> Result<(), ParseWarning> {
+    ) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
             Token::AtBga {

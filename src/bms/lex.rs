@@ -36,6 +36,9 @@ pub enum LexWarning {
     OutOfBase62,
 }
 
+/// type alias of core::result::Result<T, LexWarning>
+pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
+
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]

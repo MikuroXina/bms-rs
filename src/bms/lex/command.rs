@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 
-use super::{LexWarning, cursor::Cursor};
+use super::{LexWarning, Result, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,7 +15,7 @@ pub enum PlayerMode {
 }
 
 impl PlayerMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
         Ok(match c.next_token() {
             Some("1") => Self::Single,
             Some("2") => Self::Two,
@@ -61,7 +61,7 @@ impl From<i64> for JudgeLevel {
 
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
-    fn try_from(value: &'a str) -> Result<Self, &'a str> {
+    fn try_from(value: &'a str) -> core::result::Result<Self, &'a str> {
         Some(value)
             .and_then(|v| v.parse::<i64>().ok())
             .map(JudgeLevel::from)
@@ -70,7 +70,7 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
 }
 
 impl JudgeLevel {
-    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
         c.next_token()
             .ok_or(c.make_err_expected_token("one of [0,4]"))?
             .try_into()
@@ -78,7 +78,7 @@ impl JudgeLevel {
     }
 }
 
-fn char_to_base62(ch: char) -> Result<u8, LexWarning> {
+fn char_to_base62(ch: char) -> Result<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Ok(ch as u32 as u8),
         _ => Err(LexWarning::OutOfBase62),
@@ -127,7 +127,7 @@ impl std::fmt::Debug for ObjId {
 
 impl TryFrom<&str> for ObjId {
     type Error = LexWarning;
-    fn try_from(value: &str) -> Result<Self, LexWarning> {
+    fn try_from(value: &str) -> Result<Self> {
         if value.len() != 2 {
             return Err(LexWarning::ExpectedToken {
                 line: 1,
@@ -144,14 +144,14 @@ impl TryFrom<&str> for ObjId {
 
 impl TryFrom<[char; 2]> for ObjId {
     type Error = LexWarning;
-    fn try_from(value: [char; 2]) -> Result<Self, LexWarning> {
+    fn try_from(value: [char; 2]) -> Result<Self> {
         Self::from_chars(value)
     }
 }
 
 impl TryFrom<[u8; 2]> for ObjId {
     type Error = LexWarning;
-    fn try_from(value: [u8; 2]) -> Result<Self, LexWarning> {
+    fn try_from(value: [u8; 2]) -> Result<Self> {
         Self::from_bytes(value)
     }
 }
@@ -181,19 +181,19 @@ impl ObjId {
     }
 
     /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_chars(chars: [char; 2]) -> Result<Self, LexWarning> {
+    pub fn from_chars(chars: [char; 2]) -> Result<Self> {
         Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
     }
 
     /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self, LexWarning> {
+    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self> {
         Ok(Self([
             char_to_base62(bytes[0] as char)?,
             char_to_base62(bytes[1] as char)?,
         ]))
     }
 
-    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
         id.try_into()
             .map_err(|_| c.make_err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
     }
@@ -324,7 +324,7 @@ impl Key {
         matches!(self, Self::Key6 | Self::Key7)
     }
 
-    pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self> {
         use Key::*;
         Ok(match key {
             "1" => Key1,
@@ -360,7 +360,7 @@ impl Default for PoorMode {
 }
 
 impl PoorMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
         Ok(match c.next_token() {
             Some("0") => Self::Interrupt,
             Some("1") => Self::Overlay,
@@ -409,7 +409,7 @@ pub enum Channel {
 }
 
 impl Channel {
-    pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self, LexWarning> {
+    pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self> {
         use Channel::*;
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
