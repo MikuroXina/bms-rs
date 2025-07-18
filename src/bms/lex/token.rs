@@ -8,6 +8,7 @@ use super::{command::*, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
     /// `#ARTIST [string]`. Defines the artist name of the music.

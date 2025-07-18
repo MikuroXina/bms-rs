@@ -30,6 +30,7 @@ pub(super) fn parse_control_flow<'a>(
 
 /// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowRule {
     // Random related
     #[error("unmatched end if")]

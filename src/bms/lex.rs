@@ -38,7 +38,7 @@ pub enum LexWarning {
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: Vec<Token<'a>>,

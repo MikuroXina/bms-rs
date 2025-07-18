@@ -19,6 +19,7 @@ use crate::bms::{
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
