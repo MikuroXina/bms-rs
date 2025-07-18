@@ -13,16 +13,13 @@ use self::{
     header::Header, notes::Notes, prompt::PromptHandler, random::ControlFlowRule, rng::Rng,
 };
 use crate::bms::{
-    lex::{
-        command::ObjId,
-        token::{Token, TokenStream},
-    },
+    lex::{command::ObjId, token::Token},
     parse::random::parse_control_flow,
 };
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum ParseError {
+pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
@@ -40,11 +37,8 @@ pub enum ParseError {
     Halted,
 }
 
-/// A custom result type for parsing.
-pub type Result<T> = std::result::Result<T, ParseError>;
-
 /// A score data of BMS format.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// The header data in the score.
@@ -55,29 +49,45 @@ pub struct Bms {
     pub non_command_lines: Vec<String>,
 }
 
+/// Bms Parse Output
+#[derive(Debug, Clone, PartialEq)]
+pub struct BmsParseOutput {
+    /// The output Bms.
+    pub bms: Bms,
+    /// Errors
+    pub warnings: Vec<ParseWarning>,
+}
+
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream(
-        token_stream: &TokenStream,
+    pub fn from_token_stream<'a>(
+        token_iter: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
-    ) -> Result<Self> {
-        let continue_tokens = parse_control_flow(token_stream, rng)?;
+    ) -> BmsParseOutput {
+        let (continue_tokens, mut errors) = parse_control_flow(token_iter, rng);
         let mut notes = Notes::default();
         let mut header = Header::default();
         let mut non_command_lines: Vec<String> = Vec::new();
         for &token in continue_tokens.iter() {
-            notes.parse(token, &header)?;
-            header.parse(token, &mut prompt_handler)?;
+            if let Err(error) = notes.parse(token, &header) {
+                errors.push(error);
+            }
+            if let Err(error) = header.parse(token, &mut prompt_handler) {
+                errors.push(error);
+            }
             if let Token::NotACommand(comment) = token {
                 non_command_lines.push(comment.to_string())
             }
         }
-
-        Ok(Self {
+        let bms = Self {
             header,
             notes,
             non_command_lines,
-        })
+        };
+        BmsParseOutput {
+            bms,
+            warnings: errors,
+        }
     }
 }

@@ -1,19 +1,23 @@
 use bms_rs::{
-    lex::{LexError, parse},
-    parse::{Bms, prompt::AlwaysHalt, rng::RngMock},
+    lex::{BmsLexOutput, parse},
+    parse::{Bms, BmsParseOutput, prompt::AlwaysHalt, rng::RngMock},
 };
 
 #[test]
 fn test_lal() {
     let source = include_str!("lilith_mx.bms");
-    let ts = parse(source).expect("must be parsed");
-    let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
+    let BmsLexOutput { tokens, warnings } = parse(source);
+    assert_eq!(warnings, vec![]);
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&mut tokens.iter().peekable(), RngMock([1]), AlwaysHalt);
+    assert_eq!(warnings, vec![]);
     eprintln!("{:?}", bms);
 }
 
 #[test]
 fn test_nc() {
     let source = include_str!("nc_mx.bme");
+    let BmsLexOutput { tokens, warnings } = parse(source);
     let ts = parse(source).expect("must be parsed");
     let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysHalt).expect("must be parsed");
     eprintln!("{:?}", bms);

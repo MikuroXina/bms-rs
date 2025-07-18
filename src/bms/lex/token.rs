@@ -129,7 +129,7 @@ pub enum Token<'a> {
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
-    /// Non-empty lines that not starts in # in bms file.
+    /// Non-empty lines that not starts in `['#', '%']` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
     OctFp,
@@ -174,7 +174,7 @@ pub enum Token<'a> {
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
     Total(&'a str),
     /// Unknown Part. Includes all the line that not be parsed.
-    UnknownLine(&'a str),
+    UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
@@ -335,8 +335,8 @@ impl<'a> Token<'a> {
                     let comment = c.next_line_remaining();
                     Self::Comment(comment)
                 }
-                "#EMAIL" => Self::Email(c.next_line_remaining()),
-                "#URL" => Self::Url(c.next_line_remaining()),
+                "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
+                "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
                 "#OCT/FP" => Self::OctFp,
                 "#OPTION" => Self::Option(c.next_line_remaining()),
                 "#PATH_WAV" => Self::PathWav(
@@ -654,14 +654,10 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
-                comment if !comment.starts_with('#') => Self::NotACommand(c.next_line_entire()),
-                unknown => {
-                    eprintln!("unknown command found: {unknown:?}");
-                    break Err(super::LexError::UnknownCommand {
-                        line: c.line(),
-                        col: c.col(),
-                    });
+                command if command.starts_with(['#', '%']) => {
+                    Self::UnknownCommand(c.next_line_entire())
                 }
+                _not_command => Self::NotACommand(c.next_line_entire()),
             });
         }
     }

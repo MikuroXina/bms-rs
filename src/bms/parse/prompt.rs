@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::lex::command::ObjId;
 
 use super::{
-    ParseError, Result,
+    ParseWarning,
     header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
 };
 
@@ -135,14 +135,14 @@ pub enum DuplicationWorkaround {
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply<T>(self, target: &mut T, newer: T) -> Result<()> {
+    pub(crate) fn apply<T>(self, target: &mut T, newer: T) -> Result<(), ParseWarning> {
         match self {
             DuplicationWorkaround::UseOlder => Ok(()),
             DuplicationWorkaround::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::Halt => Err(ParseError::Halted),
+            DuplicationWorkaround::Halt => Err(ParseWarning::Halted),
         }
     }
 }

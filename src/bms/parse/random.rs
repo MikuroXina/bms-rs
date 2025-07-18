@@ -3,8 +3,8 @@ mod ast_parse;
 
 use thiserror::Error;
 
-use super::{ParseError, rng::Rng};
-use crate::bms::lex::token::{Token, TokenStream};
+use super::{ParseWarning, rng::Rng};
+use crate::bms::lex::token::Token;
 
 use self::ast_build::*;
 use self::ast_parse::*;
@@ -12,18 +12,20 @@ use self::ast_parse::*;
 /// Parses the control flow of the token.
 /// Returns the tokens that will be executed, and not contains control flow tokens.
 pub(super) fn parse_control_flow<'a>(
-    token_stream: &'a TokenStream<'a>,
+    token_stream: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
     mut rng: impl Rng,
-) -> Result<Vec<&'a Token<'a>>, ParseError> {
+) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
     let mut error_list = Vec::new();
     let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> =
-        parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
-    match error_list.into_iter().next() {
-        Some(error) => Err(error.into()),
-        None => Ok(tokens),
-    }
+    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
+    (
+        tokens,
+        error_list
+            .into_iter()
+            .map(ParseWarning::ViolateControlFlowRule)
+            .collect(),
+    )
 }
 
 /// Control flow rules.

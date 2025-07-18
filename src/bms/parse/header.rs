@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use super::{
-    ParseError, Result,
+    ParseWarning,
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
@@ -245,7 +245,7 @@ impl Header {
         &mut self,
         token: &Token,
         prompt_handler: &mut impl PromptHandler,
-    ) -> Result<()> {
+    ) -> Result<(), ParseWarning> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
             Token::AtBga {
@@ -338,9 +338,9 @@ impl Header {
             Token::BpmChange(id, bpm) => {
                 let parsed: f64 = bpm
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(bpm.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(bpm.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(bpm.into()));
+                    return Err(ParseWarning::BpmParseError(bpm.into()));
                 }
                 if let Some(older) = self.bpm_changes.get_mut(&id) {
                     prompt_handler
@@ -452,9 +452,9 @@ impl Header {
             Token::Scroll(id, factor) => {
                 let parsed: f64 = factor
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(factor.into()));
+                    return Err(ParseWarning::BpmParseError(factor.into()));
                 }
                 if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
                     prompt_handler
@@ -471,9 +471,9 @@ impl Header {
             Token::Speed(id, factor) => {
                 let parsed: f64 = factor
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(factor.into()));
+                    return Err(ParseWarning::BpmParseError(factor.into()));
                 }
                 if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
                     prompt_handler
@@ -552,6 +552,9 @@ impl Header {
             | Token::ExtendedMessage { .. }
             | Token::Message { .. } => {
                 // These Token should not be handled in Header::parse.
+            }
+            Token::UnknownCommand(_) => {
+                // this token should not be handled.
             }
         }
         Ok(())

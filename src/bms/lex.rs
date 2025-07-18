@@ -6,10 +6,7 @@ pub mod token;
 
 use thiserror::Error;
 
-use self::{
-    cursor::Cursor,
-    token::{Token, TokenStream},
-};
+use self::{cursor::Cursor, token::Token};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -38,14 +35,17 @@ pub enum LexWarning {
     OutOfBase62,
 }
 
+/// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LexList<'a> {
-    tokens: Vec<Token<'a>>,
-    warnings: Vec<LexWarning>,
+pub struct BmsLexOutput<'a> {
+    /// tokens
+    pub tokens: Vec<Token<'a>>,
+    /// warnings
+    pub warnings: Vec<LexWarning>,
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> LexList {
+pub fn parse(source: &str) -> BmsLexOutput {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
@@ -63,12 +63,14 @@ pub fn parse(source: &str) -> LexList {
             token.make_id_uppercase();
         }
     }
-    LexList { tokens, warnings }
+    BmsLexOutput { tokens, warnings }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    use crate::lex::BmsLexOutput;
 
     use super::{command::*, parse, token::Token::*};
 
@@ -96,12 +98,9 @@ mod tests {
 #00211:00020202
 ";
 
-        let ts = parse(SRC).expect("SRC must be parsed");
+        let BmsLexOutput { tokens, warnings } = parse(SRC);
 
-        let id1 = "01".try_into().unwrap();
-        let id2 = "02".try_into().unwrap();
-        let id3 = "03".try_into().unwrap();
-        let tokens: Vec<_> = ts.into_iter().collect();
+        assert_eq!(warnings, vec![]);
         assert_eq!(
             tokens,
             vec![
@@ -113,9 +112,9 @@ mod tests {
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 BackBmp(Path::new("boon.jpg")),
-                Wav(id1, Path::new("hoge.WAV")),
-                Wav(id2, Path::new("foo.WAV")),
-                Wav(id3, Path::new("bar.WAV")),
+                Wav("01".try_into().unwrap(), Path::new("hoge.WAV")),
+                Wav("02".try_into().unwrap(), Path::new("foo.WAV")),
+                Wav("03".try_into().unwrap(), Path::new("bar.WAV")),
                 Message {
                     track: Track(2),
                     channel: Channel::Note {

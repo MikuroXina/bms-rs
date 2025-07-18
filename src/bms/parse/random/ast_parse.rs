@@ -1,15 +1,13 @@
 use crate::bms::{lex::token::Token, parse::rng::Rng};
 
-use super::ControlFlowRule;
 use super::ast_build::*;
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-    error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<&'a Token<'a>> {
     let mut result = Vec::new();
-    while let Some(unit) = iter.next() {
+    for unit in iter.by_ref() {
         match unit {
             Unit::Token(token) => {
                 result.push(token);
@@ -34,7 +32,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                     .next()
                 {
                     let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                    result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
+                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
                     found = true;
                 }
                 // If not found, try to find the 0 (else) branch
@@ -45,7 +43,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         .next()
                     {
                         let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
-                        result.extend(parse_control_flow_ast(&mut branch_iter, rng, error_list));
+                        result.extend(parse_control_flow_ast(&mut branch_iter, rng));
                     }
                 }
                 // If none found, do nothing
@@ -67,7 +65,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                     match &case.value {
                         CaseBranchValue::Case(val) if *val == switch_val => {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng, error_list));
+                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
                             found = true;
                             break;
                         }
@@ -79,7 +77,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                     for case in &cases {
                         if let CaseBranchValue::Def = case.value {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng, error_list));
+                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
                             break;
                         }
                     }
@@ -133,9 +131,8 @@ mod tests {
             },
         ];
         let mut rng = DummyRng;
-        let mut errors = Vec::new();
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng, &mut errors);
+        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {

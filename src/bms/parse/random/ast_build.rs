@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    bms::lex::token::{Token, TokenStream},
-    parse::random::ControlFlowRule,
-};
+use crate::{bms::lex::token::Token, parse::random::ControlFlowRule};
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,17 +65,16 @@ pub(super) enum CaseBranchValue {
 /// The main entry for building the control flow AST. Traverses the Token stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
-    tokens: &'a TokenStream<'a>,
+    tokens_iter: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
     error_list: &mut Vec<ControlFlowRule>,
 ) -> Vec<Unit<'a>> {
-    let mut iter = tokens.iter().peekable();
     let mut result = Vec::new();
-    while iter.peek().is_some() {
-        if let Some(unit) = parse_unit_or_block(&mut iter, error_list) {
+    while tokens_iter.peek().is_some() {
+        if let Some(unit) = parse_unit_or_block(tokens_iter, error_list) {
             result.push(unit);
             continue;
         }
-        let Some(token) = iter.peek() else {
+        let Some(token) = tokens_iter.peek() else {
             break;
         };
         let rule = match token {
@@ -96,19 +92,16 @@ pub(super) fn build_control_flow_ast<'a>(
             error_list.push(rule);
         }
         // Jump to the next Token
-        iter.next();
+        tokens_iter.next();
     }
     result
 }
 
 /// Handle a single Token: if it is the start of a block, recursively call the block parser, otherwise return a Token node.
-fn parse_unit_or_block<'a, I>(
-    iter: &mut std::iter::Peekable<I>,
+fn parse_unit_or_block<'a>(
+    iter: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
     error_list: &mut Vec<ControlFlowRule>,
-) -> Option<Unit<'a>>
-where
-    I: Iterator<Item = &'a Token<'a>>,
-{
+) -> Option<Unit<'a>> {
     let token = iter.peek()?;
     match token {
         Token::SetSwitch(_) | Token::Switch(_) => Some(parse_switch_block(iter, error_list)),
