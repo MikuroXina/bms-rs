@@ -64,7 +64,7 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
     fn try_from(value: &'a str) -> Result<Self, &'a str> {
         Some(value)
             .and_then(|v| v.parse::<i64>().ok())
-            .map(|v| JudgeLevel::from(v))
+            .map(JudgeLevel::from)
             .ok_or(value)
     }
 }
@@ -481,6 +481,7 @@ pub struct Track(pub u32);
 /// Default: 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Default)]
 pub struct ExWavPan(i64);
 
 impl ExWavPan {
@@ -501,12 +502,6 @@ impl ExWavPan {
     }
 }
 
-impl Default for ExWavPan {
-    fn default() -> Self {
-        Self(0)
-    }
-}
-
 impl TryFrom<i64> for ExWavPan {
     type Error = i64;
 
@@ -520,6 +515,7 @@ impl TryFrom<i64> for ExWavPan {
 /// Default: 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Default)]
 pub struct ExWavVolume(i64);
 
 impl ExWavVolume {
@@ -536,12 +532,6 @@ impl ExWavVolume {
 
     /// Returns the default value (0).
     pub const fn default() -> Self {
-        Self(0)
-    }
-}
-
-impl Default for ExWavVolume {
-    fn default() -> Self {
         Self(0)
     }
 }

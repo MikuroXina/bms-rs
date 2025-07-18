@@ -329,10 +329,10 @@ impl Header {
                     if 0.0 < parsed {
                         self.bpm = Some(parsed);
                     } else {
-                        eprintln!("not positive bpm found: {:?}", parsed);
+                        eprintln!("not positive bpm found: {parsed}");
                     }
                 } else {
-                    eprintln!("not number bpm found: {:?}", bpm);
+                    eprintln!("not number bpm found: {bpm}");
                 }
             }
             Token::BpmChange(id, bpm) => {
@@ -514,7 +514,7 @@ impl Header {
                 if let Ok(parsed) = total.parse() {
                     self.total = Some(parsed);
                 } else {
-                    eprintln!("not number total found: {:?}", total);
+                    eprintln!("not number total found: {total}");
                 }
             }
             Token::Url(url) => self.url = Some(url.into()),

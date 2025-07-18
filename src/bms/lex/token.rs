@@ -326,7 +326,7 @@ impl<'a> Token<'a> {
                 "#BASE" => {
                     let base = c.next_line_remaining();
                     if base != "62" {
-                        eprintln!("unknown base declared: {:?}", base);
+                        eprintln!("unknown base declared: {base:?}");
                         continue;
                     }
                     Self::Base62
@@ -622,7 +622,7 @@ impl<'a> Token<'a> {
                         && message.chars().nth(6) == Some(':')
                         && 8 <= message.len())
                     {
-                        eprintln!("unknown #EXT format: {:?}", message);
+                        eprintln!("unknown #EXT format: {message:?}");
                         continue;
                     }
 
@@ -656,8 +656,8 @@ impl<'a> Token<'a> {
                 }
                 comment if !comment.starts_with('#') => Self::NotACommand(c.next_line_entire()),
                 unknown => {
-                    eprintln!("unknown command found: {:?}", unknown);
-                    break Err(super::LexWarning::UnknownCommand {
+                    eprintln!("unknown command found: {unknown:?}");
+                    break Err(super::LexError::UnknownCommand {
                         line: c.line(),
                         col: c.col(),
                     });
@@ -757,7 +757,7 @@ mod tests {
         let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png") else {
             panic!("Not ExBmp");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(argb.alpha, 255);
         assert_eq!(argb.red, 0);
         assert_eq!(argb.green, 0);
@@ -770,7 +770,7 @@ mod tests {
         let Token::ExRank(id, level) = parse_token("#EXRANK01 2") else {
             panic!("Not ExRank");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(level, JudgeLevel::Normal);
     }
 
@@ -786,7 +786,7 @@ mod tests {
         else {
             panic!("Not ExWav");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(pan.value(), 10000);
         assert_eq!(volume.value(), 0);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
@@ -805,7 +805,7 @@ mod tests {
         else {
             panic!("Not ExWav");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(pan.value(), 10000);
         assert_eq!(volume.value(), 0);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
@@ -824,7 +824,7 @@ mod tests {
         else {
             panic!("Not ExWav");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(pan.value(), 0);
         assert_eq!(volume.value(), 0);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
@@ -836,7 +836,7 @@ mod tests {
         let Token::Text(id, text) = parse_token("#TEXT01 hello world") else {
             panic!("Not Text");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(text, "hello world");
     }
 
@@ -852,8 +852,8 @@ mod tests {
         else {
             panic!("Not AtBga");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
+        assert_eq!(format!("{source_bmp:?}"), "ObjId(\"02\")");
         assert_eq!(trim_top_left, (1, 2));
         assert_eq!(trim_size, (3, 4));
         assert_eq!(draw_point, (5, 6));
@@ -871,8 +871,8 @@ mod tests {
         else {
             panic!("Not Bga");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
-        assert_eq!(format!("{:?}", source_bmp), "ObjId(\"02\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
+        assert_eq!(format!("{source_bmp:?}"), "ObjId(\"02\")");
         assert_eq!(trim_top_left, (1, 2));
         assert_eq!(trim_bottom_right, (3, 4));
         assert_eq!(draw_point, (5, 6));
@@ -883,7 +883,7 @@ mod tests {
         let Token::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
             panic!("Not ChangeOption");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
         assert_eq!(opt, "opt");
     }
 
@@ -892,6 +892,6 @@ mod tests {
         let Token::LnObj(id) = parse_token("#LNOBJ01") else {
             panic!("Not LnObj");
         };
-        assert_eq!(format!("{:?}", id), "ObjId(\"01\")");
+        assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
     }
 }
