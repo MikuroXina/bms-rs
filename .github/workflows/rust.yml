@@ -30,7 +30,7 @@ jobs:
       - name: Clippy Check
         run: cargo clippy --verbose
       - name: Test crate
-        run: cargo test --verbose
+        run: cargo test --verbose --features serde,bmson
 
       - if: matrix.os == 'ubuntu-latest'
         name: cargo-deny
