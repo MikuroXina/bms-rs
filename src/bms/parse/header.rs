@@ -94,6 +94,7 @@ pub struct Bmp {
 
 /// A definition for #@BGA command.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AtBgaDef {
     /// The object ID.
     pub id: ObjId,
@@ -109,6 +110,7 @@ pub struct AtBgaDef {
 
 /// A definition for #BGA command.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaDef {
     /// The object ID.
     pub id: ObjId,
@@ -124,6 +126,7 @@ pub struct BgaDef {
 
 /// A definition for #EXRANK command.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExRankDef {
     /// The object ID.
     pub id: ObjId,
@@ -133,6 +136,7 @@ pub struct ExRankDef {
 
 /// A definition for #EXWAV command.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavDef {
     /// The object ID.
     pub id: ObjId,
@@ -325,10 +329,10 @@ impl Header {
                     if 0.0 < parsed {
                         self.bpm = Some(parsed);
                     } else {
-                        eprintln!("not positive bpm found: {:?}", parsed);
+                        eprintln!("not positive bpm found: {parsed}");
                     }
                 } else {
-                    eprintln!("not number bpm found: {:?}", bpm);
+                    eprintln!("not number bpm found: {bpm}");
                 }
             }
             Token::BpmChange(id, bpm) => {
@@ -510,7 +514,7 @@ impl Header {
                 if let Ok(parsed) = total.parse() {
                     self.total = Some(parsed);
                 } else {
-                    eprintln!("not number total found: {:?}", total);
+                    eprintln!("not number total found: {total}");
                 }
             }
             Token::Url(url) => self.url = Some(url.into()),
