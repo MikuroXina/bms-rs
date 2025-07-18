@@ -504,7 +504,7 @@ mod tests {
     #[test]
     fn test_unmatched_endrandom_error() {
         use Token::*;
-        let tokens = vec![Title("A"), EndRandom];
+        let tokens = [Title("A"), EndRandom];
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndRandom));
@@ -513,7 +513,7 @@ mod tests {
     #[test]
     fn test_unmatched_endif_error() {
         use Token::*;
-        let tokens = vec![Title("A"), EndIf];
+        let tokens = [Title("A"), EndIf];
         let mut errors = Vec::new();
         let _ = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         assert!(errors.contains(&ControlFlowRule::UnmatchedEndIf));
@@ -539,7 +539,7 @@ mod tests {
             if_blocks,
         } = &ast[0]
         else {
-            panic!("AST structure error, ast: {:?}", ast);
+            panic!("AST structure error, ast: {ast:?}");
         };
         assert_eq!(if_blocks.len(), 2);
         let all_titles: Vec<_> = if_blocks
@@ -551,13 +551,13 @@ mod tests {
             .iter()
             .find(|u| matches!(u, Unit::Token(Token::Title("A"))))
         else {
-            panic!("A missing, all_titles: {:?}", all_titles);
+            panic!("A missing, all_titles: {all_titles:?}");
         };
         let Some(_) = all_titles
             .iter()
             .find(|u| matches!(u, Unit::Token(Token::Title("B"))))
         else {
-            panic!("B missing, all_titles: {:?}", all_titles);
+            panic!("B missing, all_titles: {all_titles:?}");
         };
     }
 
@@ -583,22 +583,22 @@ mod tests {
             if_blocks,
         } = &ast[0]
         else {
-            panic!("AST structure error, ast: {:?}", ast);
+            panic!("AST structure error, ast: {ast:?}");
         };
         let mut found_nested = false;
         for blk in if_blocks {
             for branch in blk.branches.values() {
-                if let Some(_) = branch
+                if branch
                     .tokens
                     .iter()
-                    .find(|u| matches!(u, Unit::RandomBlock { .. }))
+                    .any(|u| matches!(&u, Unit::RandomBlock { .. }))
                 {
                     found_nested = true;
                 }
             }
         }
         if !found_nested {
-            panic!("Nested RandomBlock not found, if_blocks: {:?}", if_blocks);
+            panic!("Nested RandomBlock not found, if_blocks: {if_blocks:?}");
         }
     }
 
