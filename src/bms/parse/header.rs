@@ -556,7 +556,7 @@ impl Header {
                 // These Token should not be handled in Header::parse.
             }
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
-                // this token should not be handled.
+                // this token should be handled outside.
             }
         }
         Ok(())

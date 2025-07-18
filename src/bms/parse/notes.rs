@@ -703,7 +703,7 @@ impl Notes {
                 // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
             }
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
-                // this token should not be handled.
+                // this token should be handled outside.
             }
         }
         Ok(())

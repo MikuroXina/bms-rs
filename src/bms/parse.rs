@@ -46,8 +46,10 @@ pub struct Bms {
     pub header: Header,
     /// The objects in the score.
     pub notes: Notes,
-    /// Lines that not starts with #.
+    /// Lines that not starts with ['#', '%'].
     pub non_command_lines: Vec<String>,
+    /// Lines that starts with ['#', '%'], but not recognized as vaild command.
+    pub unknown_command_lines: Vec<String>,
 }
 
 /// Bms Parse Output
@@ -71,6 +73,7 @@ impl Bms {
         let mut notes = Notes::default();
         let mut header = Header::default();
         let mut non_command_lines: Vec<String> = Vec::new();
+        let mut unknown_command_lines: Vec<String> = Vec::new();
         for &token in continue_tokens.iter() {
             if let Err(error) = notes.parse(token, &header) {
                 errors.push(error);
@@ -78,17 +81,19 @@ impl Bms {
             if let Err(error) = header.parse(token, &mut prompt_handler) {
                 errors.push(error);
             }
-            if let Token::NotACommand(comment) = token {
-                non_command_lines.push(comment.to_string())
+            match token {
+                Token::NotACommand(comment) => non_command_lines.push(comment.to_string()),
+                Token::UnknownCommand(comment) => unknown_command_lines.push(comment.to_string()),
+                _ => (),
             }
         }
-        let bms = Self {
-            header,
-            notes,
-            non_command_lines,
-        };
         BmsParseOutput {
-            bms,
+            bms: Self {
+                header,
+                notes,
+                non_command_lines,
+                unknown_command_lines,
+            },
             warnings: errors,
         }
     }
