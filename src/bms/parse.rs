@@ -46,9 +46,9 @@ pub struct Bms {
     pub header: Header,
     /// The objects in the score.
     pub notes: Notes,
-    /// Lines that not starts with ['#', '%'].
+    /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
-    /// Lines that starts with ['#', '%'], but not recognized as vaild command.
+    /// Lines that starts with `'#'`, but not recognized as vaild command.
     pub unknown_command_lines: Vec<String>,
 }
 

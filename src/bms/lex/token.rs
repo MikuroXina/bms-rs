@@ -130,7 +130,7 @@ pub enum Token<'a> {
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     MidiFile(&'a Path),
-    /// Non-empty lines that not starts in `['#', '%']` in bms file.
+    /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
     OctFp,
@@ -655,9 +655,7 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
-                command if command.starts_with(['#', '%']) => {
-                    Self::UnknownCommand(c.next_line_entire())
-                }
+                command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
                 _not_command => Self::NotACommand(c.next_line_entire()),
             });
         }
