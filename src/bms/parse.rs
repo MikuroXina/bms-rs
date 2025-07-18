@@ -7,6 +7,8 @@ pub mod prompt;
 mod random;
 pub mod rng;
 
+use std::ops::{Deref, DerefMut};
+
 use thiserror::Error;
 
 use self::{
@@ -16,6 +18,8 @@ use crate::bms::{
     lex::{command::ObjId, token::Token},
     parse::random::parse_control_flow,
 };
+
+use super::lex::BmsLexOutput;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -62,10 +66,37 @@ pub struct BmsParseOutput {
     pub warnings: Vec<ParseWarning>,
 }
 
+/// The type of parsing tokens iter.
+pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>);
+
+impl<'a> BmsParseTokenIter<'a> {
+    /// Create iter from BmsLexOutput reference.
+    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
+        Self(value.tokens.iter().as_slice().iter().peekable())
+    }
+    /// Create iter from Token list reference.
+    pub fn from_tokens(value: &'a [Token<'a>]) -> Self {
+        Self(value.iter().peekable())
+    }
+}
+
+impl<'a> Deref for BmsParseTokenIter<'a> {
+    type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for BmsParseTokenIter<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
+        token_iter: &mut BmsParseTokenIter<'a>,
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
