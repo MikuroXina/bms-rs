@@ -15,6 +15,7 @@
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
 //! let BmsLexOutput { tokens, lex_warnings } = parse(&source);
 //! assert_eq!(lex_warnings, vec![]);
+//! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let rng = RngMock([1]);
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
