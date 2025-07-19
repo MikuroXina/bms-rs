@@ -1,5 +1,3 @@
-use crate::lex::SourcePosition;
-
 use super::LexWarning;
 
 pub(crate) struct Cursor<'a> {
@@ -129,30 +127,27 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn make_err_expected_token(
-        &self,
-        message: impl Into<String>,
-    ) -> LexWarning {
+    pub(crate) fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarning {
         LexWarning::ExpectedToken {
-            position: SourcePosition::new(self.line(), self.col()),
+            line: self.line(),
+            col: self.col(),
             message: message.into(),
         }
     }
 
     pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarning {
         LexWarning::UnknownObject {
-            position: SourcePosition::new(self.line(), self.col()),
             object: object.into(),
+            line: self.line(),
+            col: self.col(),
         }
     }
 
-    pub(crate) fn make_err_unknown_channel(
-        &self,
-        channel: impl Into<String>,
-    ) -> LexWarning {
+    pub(crate) fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarning {
         LexWarning::UnknownChannel {
-            position: SourcePosition::new(self.line(), self.col()),
             channel: channel.into(),
+            line: self.line(),
+            col: self.col(),
         }
     }
 }

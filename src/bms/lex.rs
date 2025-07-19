@@ -10,64 +10,40 @@ use crate::lex::command::channel::{Channel, read_channel_beat};
 
 use self::{cursor::Cursor, token::Token};
 
-/// A position in the text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SourcePosition {
-    /// The line number of the position.
-    /// It starts from 1.
-    pub line: usize,
-    /// The column number of the position.
-    /// It starts from 1.
-    pub col: usize,
-}
-
-impl SourcePosition {
-    /// Creates a new [`TextPosition`].
-    pub const fn new(line: usize, col: usize) -> Self {
-        Self { line, col }
-    }
-}
-
-impl std::fmt::Display for SourcePosition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "line {line}, col {col}",
-            line = self.line,
-            col = self.col
-        )
-    }
-}
-
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
     /// The token was expected but not found.
-    #[error("expected {message}, but not found at {position}")]
+    #[error("expected {message}, but not found at line {line}, col {col}")]
     ExpectedToken {
-        /// The position of the token expected.
-        position: SourcePosition,
+        /// The line number of the token expected.
+        line: usize,
+        /// The column number of the token expected.
+        col: usize,
         /// What the expected is.
         message: String,
     },
     /// The channel was not recognized.
-    #[error("channel `{channel}` not recognized at {position}")]
+    #[error("channel `{channel}` not recognized at line {line}, col {col}")]
     UnknownChannel {
         /// The channel that was not recognized.
         channel: String,
-        /// The position of the channel that was not recognized.
-        position: SourcePosition,
+        /// The line number.
+        line: usize,
+        /// The column number.
+        col: usize,
     },
-    /// The object was not recognized.
-    #[error("object `{object}` not recognized at {position}")]
+    /// The object id was not recognized.
+    #[error("object `{object}` not recognized at line {line}, col {col}")]
     UnknownObject {
-        /// The object that was not recognized.
+        /// The object id that was not recognized.
         object: String,
-        /// The position of the object that was not recognized.
-        position: SourcePosition,
+        /// The line number.
+        line: usize,
+        /// The column number.
+        col: usize,
     },
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
