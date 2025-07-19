@@ -4,8 +4,8 @@ The BMS format parser.
 
 Be-Music Source, called BMS for short, is a file format devised by Urao Yane in 1998 for a simulator of the game Beatmania by KONAMI. This describes what and when notes are arranged and its music metadata. It is a plain text file with some “command” lines starting with `#` character.
 
-For usage of latest release version, see [docs.rs#lib.rs#usage](https://docs.rs/bms-rs/latest/bms_rs/index.html#usage)
-For usage of latest commit version, see [lib.rs](./src/lib.rs)
+For usage of the latest release version, see [docs.rs#lib.rs#usage](https://docs.rs/bms-rs/latest/bms_rs/index.html#usage)
+For usage of the latest commit version, see [lib.rs](./src/lib.rs)
 
 ## About the format
 
