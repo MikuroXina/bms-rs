@@ -63,6 +63,7 @@ pub struct Bmson {
     /// Note data.
     pub sound_channels: Vec<SoundChannel>,
     /// BGA data.
+    #[serde(default)]
     pub bga: Bga,
 }
 
@@ -108,14 +109,19 @@ pub struct BmsonInfo {
     #[serde(default = "default_percentage")]
     pub total: FinF64,
     /// Background image file name. This should be displayed during the game play.
+    #[serde(default)]
     pub back_image: Option<String>,
     /// Eyecatch image file name. This should be displayed during the chart is loading.
+    #[serde(default)]
     pub eyecatch_image: Option<String>,
     /// Title image file name. This should be displayed before the game starts instead of title of the music.
+    #[serde(default)]
     pub title_image: Option<String>,
     /// Banner image file name. This should be displayed in music select or result scene. The aspect ratio of image is usually 15:4.
+    #[serde(default)]
     pub banner_image: Option<String>,
     /// Preview music file name. This should be played when this chart is selected in a music select scene.
+    #[serde(default)]
     pub preview_music: Option<String>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
@@ -197,15 +203,19 @@ pub struct StopEvent {
 }
 
 /// BGA data.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Bga {
     /// Pictures data for playing BGA.
+    #[serde(default)]
     pub bga_header: Vec<BgaHeader>,
     /// Base picture sequence.
+    #[serde(default)]
     pub bga_events: Vec<BgaEvent>,
     /// Layered picture sequence.
+    #[serde(default)]
     pub layer_events: Vec<BgaEvent>,
     /// Picture sequence displayed when missed.
+    #[serde(default)]
     pub poor_events: Vec<BgaEvent>,
 }
 

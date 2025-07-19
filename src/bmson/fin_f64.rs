@@ -25,6 +25,13 @@ impl From<FinF64> for f64 {
     }
 }
 
+impl TryFrom<f64> for FinF64 {
+    type Error = ();
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        value.is_finite().then_some(Self(value)).ok_or(())
+    }
+}
+
 impl AsRef<f64> for FinF64 {
     fn as_ref(&self) -> &f64 {
         &self.0
@@ -35,11 +42,7 @@ impl FinF64 {
     /// Creates a new `FinF64` from `f64` if `float` is finite, otherwise returns `None`.
     #[inline]
     pub fn new(float: f64) -> Option<Self> {
-        if float.is_finite() {
-            Some(Self(float))
-        } else {
-            None
-        }
+        float.is_finite().then_some(Self(float))
     }
 
     /// Gets the internal value.
