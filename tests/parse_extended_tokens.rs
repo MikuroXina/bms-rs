@@ -11,11 +11,17 @@ fn test_atbga_parsing() {
 #TITLE Test BMS
 #@BGA01 02 10 20 100 200 30 40
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
         bms.header
@@ -48,11 +54,17 @@ fn test_bga_parsing() {
 #TITLE Test BMS
 #BGA01 02 10 20 110 220 30 40
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that #BGA is parsed correctly
     assert!(
@@ -86,11 +98,17 @@ fn test_exrank_parsing() {
 #TITLE Test BMS
 #EXRANK01 2
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXRANK is parsed correctly
     assert!(
@@ -112,11 +130,17 @@ fn test_exwav_parsing() {
 #TITLE Test BMS
 #EXWAV01 pvf 10000 0 48000 test.wav
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXWAV is parsed correctly
     assert!(
@@ -138,11 +162,17 @@ fn test_changeoption_parsing() {
 #TITLE Test BMS
 #CHANGEOPTION01 test_option
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
     assert!(
@@ -161,11 +191,17 @@ fn test_text_parsing() {
 #TITLE Test BMS
 #TEXT01 test_text
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that #TEXT is parsed correctly
     assert!(
@@ -187,11 +223,17 @@ fn test_notes_parse_extended_tokens() {
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
     assert!(
@@ -241,11 +283,17 @@ fn test_token_parsing_comprehensive() {
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Verify that all new tokens are parsed correctly
     assert_eq!(bms.header.artist, Some("Test Artist".to_string()));
@@ -310,7 +358,10 @@ fn test_exwav_out_of_range_values() {
 #TITLE Test BMS
 #EXWAV01 p 10001 test.wav
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };
@@ -319,16 +370,22 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("pan value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput { bms: _, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms: _,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Test volume value out of range
     let source = r#"
 #TITLE Test BMS
 #EXWAV01 v 1 test.wav
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };
@@ -337,16 +394,22 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("volume value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput { bms: _, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms: _,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 
     // Test frequency value out of range
     let source = r#"
 #TITLE Test BMS
 #EXWAV01 f 99 test.wav
 "#;
-    let BmsLexOutput { tokens, warnings } = parse(source);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };
@@ -355,7 +418,10 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("frequency value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput { bms: _, warnings } =
-        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms: _,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 }

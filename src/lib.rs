@@ -13,14 +13,16 @@
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
-//! let BmsLexOutput { tokens, warnings } = parse(&source);
-//! assert_eq!(warnings, vec![]); // Check if there are any warnings.
+//! let BmsLexOutput { tokens, lex_warnings } = parse(&source);
+//! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
-//! let rng = RngMock([1]); // You can use your own random generator.
-//! let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
+//! let rng = RngMock([1]);
+//! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
 //!     );
-//! assert_eq!(warnings, vec![]); // Check if there are any warnings.
+//! assert_eq!(parse_warnings, vec![]);
+//! assert_eq!(playing_warnings, vec![]);
+//! assert_eq!(playing_errors, vec![]);
 //! ```
 //!
 //! # Features
