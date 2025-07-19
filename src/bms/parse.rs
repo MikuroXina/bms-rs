@@ -139,7 +139,7 @@ impl Bms {
             errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.all_notes().any(|note| {
+            let has_displayable = self.notes.all_notes().any(|note| {
                 matches!(
                     note.kind,
                     NoteKind::Visible | NoteKind::Long | NoteKind::Landmine
@@ -150,7 +150,7 @@ impl Bms {
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.all_notes().any(|note| note.kind.is_playable());
+            let has_playable = self.notes.all_notes().any(|note| note.kind.is_playable());
             if !has_playable {
                 warnings.push(PlayingWarning::NoPlayableNotes);
             }
