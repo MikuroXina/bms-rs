@@ -103,7 +103,7 @@ pub fn parse_with_channel_parser<'a>(
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match Token::parse(&mut cursor, &channel_parser) {
+        match Token::parse(&mut cursor, channel_parser) {
             Ok(token) => tokens.push(token),
             Err(warning) => warnings.push(warning),
         };

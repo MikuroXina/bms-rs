@@ -160,7 +160,7 @@ impl<'a> TryFrom<&'a str> for ObjId {
     }
 }
 
-impl<'a> ObjId {
+impl ObjId {
     pub(crate) fn try_load(value: &str, c: &mut Cursor) -> Result<Self> {
         Self::try_from(value).map_err(|_| c.make_err_object_id(value.to_string()))
     }
