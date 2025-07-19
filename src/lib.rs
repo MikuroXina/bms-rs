@@ -8,14 +8,18 @@
 //!
 //! ```
 //! use bms_rs::{
-//!     lex::parse,
-//!     parse::{prompt::AlwaysHalt, rng::RngMock, Bms},
+//!     lex::{parse, BmsLexOutput},
+//!     parse::{prompt::AlwaysWarn, rng::RngMock, Bms, BmsParseOutput},
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
-//! let token_stream = parse(&source).expect("must be parsed");
+//! let BmsLexOutput { tokens, warnings } = parse(&source);
+//! assert_eq!(warnings, vec![]);
 //! let rng = RngMock([1]);
-//! let bms = Bms::from_token_stream(&token_stream, rng, AlwaysHalt).expect("must be parsed");
+//! let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
+//!     &tokens, rng, AlwaysWarn
+//!     );
+//! assert_eq!(warnings, vec![]);
 //! ```
 //!
 //! # About the format

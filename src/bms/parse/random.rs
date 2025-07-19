@@ -3,8 +3,8 @@ mod ast_parse;
 
 use thiserror::Error;
 
-use super::{ParseError, rng::Rng};
-use crate::bms::lex::token::{Token, TokenStream};
+use super::{ParseWarning, rng::Rng};
+use crate::bms::lex::token::Token;
 
 use self::ast_build::*;
 use self::ast_parse::*;
@@ -12,22 +12,25 @@ use self::ast_parse::*;
 /// Parses the control flow of the token.
 /// Returns the tokens that will be executed, and not contains control flow tokens.
 pub(super) fn parse_control_flow<'a>(
-    token_stream: &'a TokenStream<'a>,
+    token_stream: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
     mut rng: impl Rng,
-) -> Result<Vec<&'a Token<'a>>, ParseError> {
+) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
     let mut error_list = Vec::new();
     let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> =
-        parse_control_flow_ast(&mut ast_iter, &mut rng, &mut error_list);
-    match error_list.into_iter().next() {
-        Some(error) => Err(error.into()),
-        None => Ok(tokens),
-    }
+    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
+    (
+        tokens,
+        error_list
+            .into_iter()
+            .map(ParseWarning::ViolateControlFlowRule)
+            .collect(),
+    )
 }
 
 /// Control flow rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowRule {
     // Random related
     #[error("unmatched end if")]
@@ -97,9 +100,8 @@ mod tests {
             EndSwitch,
             Title("00000044"),
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -158,9 +160,8 @@ mod tests {
         };
         assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
         let mut rng = DummyRng;
-        let mut errors2 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
@@ -172,7 +173,6 @@ mod tests {
             }
         }
         assert_eq!(errors, vec![]);
-        assert_eq!(errors2, vec![]);
     }
 
     #[test]
@@ -208,9 +208,8 @@ mod tests {
             Skip,
             EndSwitch,
         ];
-        let stream = TokenStream::from_tokens(tokens);
         let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&stream, &mut errors);
+        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -225,15 +224,11 @@ mod tests {
         };
         println!("Case(1) tokens: {:#?}", case1.tokens);
         let mut rng = DummyRng;
-        let mut errors2 = Vec::new();
         let mut ast_iter = ast.clone().into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors2);
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         let mut rng = DummyRng;
-        let mut errors3 = Vec::new();
         let mut ast_iter = ast.into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng, &mut errors3);
+        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         assert_eq!(errors, vec![]);
-        assert_eq!(errors2, vec![]);
-        assert_eq!(errors3, vec![]);
     }
 }

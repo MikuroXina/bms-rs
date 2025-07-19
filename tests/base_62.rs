@@ -1,19 +1,22 @@
 use bms_rs::{
+    bms::{lex::BmsLexOutput, parse::BmsParseOutput},
     lex::parse,
     parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
 };
 
 #[test]
 fn test_not_base_62() {
-    let ts = parse(
+    let BmsLexOutput { tokens, warnings } = parse(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
-    )
-    .expect("must be parsed");
-    let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysUseNewer).expect("must be parsed");
-    eprintln!("{:?}", bms);
+    );
+    assert_eq!(warnings, vec![]);
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysUseNewer);
+    assert_eq!(warnings, vec![]);
+    eprintln!("{bms:?}");
     assert_eq!(bms.header.wav_files.len(), 1);
     assert_eq!(
         bms.header.wav_files.iter().next().unwrap().1,
@@ -23,16 +26,18 @@ fn test_not_base_62() {
 
 #[test]
 fn test_base_62() {
-    let ts = parse(
+    let BmsLexOutput { tokens, warnings } = parse(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
 
         #BASE 62
     ",
-    )
-    .expect("must be parsed");
-    let bms = Bms::from_token_stream(&ts, RngMock([1]), AlwaysUseNewer).expect("must be parsed");
-    eprintln!("{:?}", bms);
+    );
+    assert_eq!(warnings, vec![]);
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysUseNewer);
+    assert_eq!(warnings, vec![]);
+    eprintln!("{bms:?}");
     assert_eq!(bms.header.wav_files.len(), 2);
 }

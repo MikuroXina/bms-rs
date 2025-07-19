@@ -1,9 +1,11 @@
+use bms_rs::lex::BmsLexOutput;
+use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
     lex::{
         command::{Key, NoteKind},
         parse,
     },
-    parse::{Bms, obj::Obj, prompt::AlwaysHalt, rng::RngMock},
+    parse::{Bms, obj::Obj, prompt::AlwaysWarn, rng::RngMock},
     time::ObjTime,
 };
 
@@ -47,9 +49,11 @@ fn nested_random() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let ts = parse(SRC).expect("must be parsed");
+    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let bms = Bms::from_token_stream(&ts, rng, AlwaysHalt).expect("must be parsed");
+    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -85,7 +89,8 @@ fn nested_random() {
     );
 
     let rng = RngMock([1, 2]);
-    let bms = Bms::from_token_stream(&ts, rng, AlwaysHalt).expect("must be parsed");
+    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -121,7 +126,8 @@ fn nested_random() {
     );
 
     let rng = RngMock([2]);
-    let bms = Bms::from_token_stream(&ts, rng, AlwaysHalt).expect("must be parsed");
+    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![

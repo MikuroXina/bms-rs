@@ -7,7 +7,7 @@ use std::{
     ops::Bound,
 };
 
-use super::{ParseError, Result, header::Header, obj::Obj};
+use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
         command::{self, Channel, Key, NoteKind, ObjId},
@@ -247,7 +247,7 @@ impl Ord for ExtendedMessageObj {
 }
 
 /// The objects set for querying by lane or time.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Notes {
     // objects stored in obj is sorted, so it can be searched by bisection method
     objs: HashMap<ObjId, Vec<Obj>>,
@@ -449,7 +449,7 @@ impl Notes {
                     let &bpm = header
                         .bpm_changes
                         .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                        .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_bpm_change(BpmChangeObj { time, bpm });
                 }
             }
@@ -480,7 +480,7 @@ impl Notes {
                     let &factor = header
                         .scrolling_factor_changes
                         .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                        .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_scrolling_factor_change(ScrollingFactorObj { time, factor });
                 }
             }
@@ -493,7 +493,7 @@ impl Notes {
                     let &factor = header
                         .spacing_factor_changes
                         .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                        .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_spacing_factor_change(SpacingFactorObj { time, factor });
                 }
             }
@@ -506,7 +506,7 @@ impl Notes {
                     let _option = header
                         .change_options
                         .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                        .ok_or(ParseWarning::UndefinedObject(obj))?;
                     // Here we can add logic to handle ChangeOption
                     // Currently just ignored because change_options are already stored in header
                 }
@@ -530,7 +530,7 @@ impl Notes {
                     let &duration = header
                         .stops
                         .get(&obj)
-                        .ok_or(ParseError::UndefinedObject(obj))?;
+                        .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_stop(StopObj { time, duration })
                 }
             }
@@ -541,7 +541,7 @@ impl Notes {
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
                     if !header.bmp_files.contains_key(&obj) {
-                        return Err(ParseError::UndefinedObject(obj));
+                        return Err(ParseWarning::UndefinedObject(obj));
                     }
                     let layer = match channel {
                         Channel::BgaBase => BgaLayer::Base,
@@ -600,11 +600,11 @@ impl Notes {
             &Token::LnObj(end_id) => {
                 let mut end_note = self
                     .remove_latest_note(end_id)
-                    .ok_or(ParseError::UndefinedObject(end_id))?;
+                    .ok_or(ParseWarning::UndefinedObject(end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) =
                     self.ids_by_key[key].range(..offset).last().ok_or_else(|| {
-                        ParseError::SyntaxError(format!(
+                        ParseWarning::SyntaxError(format!(
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
@@ -647,6 +647,22 @@ impl Notes {
             Token::Text(id, text) => {
                 self.texts.insert(*id, (*text).to_string());
             }
+            // Control flow
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
+                unreachable!()
+            }
             Token::Email(_)
             | Token::Url(_)
             | Token::OctFp
@@ -665,40 +681,29 @@ impl Notes {
             | Token::Bmp(_, _)
             | Token::Bpm(_)
             | Token::BpmChange(_, _)
-            | Token::Case(_)
             | Token::Comment(_)
-            | Token::Def
             | Token::Difficulty(_)
-            | Token::Else
-            | Token::ElseIf(_)
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::EndSwitch
             | Token::ExBmp(_, _, _)
             | Token::Genre(_)
-            | Token::If(_)
             | Token::LnTypeRdm
             | Token::LnTypeMgq
-            | Token::NotACommand(_)
             | Token::Player(_)
             | Token::PlayLevel(_)
-            | Token::Random(_)
             | Token::Rank(_)
             | Token::Scroll(_, _)
-            | Token::SetRandom(_)
-            | Token::SetSwitch(_)
-            | Token::Skip
             | Token::Speed(_, _)
             | Token::StageFile(_)
             | Token::Stop(_, _)
             | Token::SubArtist(_)
             | Token::SubTitle(_)
-            | Token::Switch(_)
             | Token::Title(_)
             | Token::Total(_)
             | Token::VolWav(_)
             | Token::Wav(_, _) => {
                 // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
+            }
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
+                // this token should be handled outside.
             }
         }
         Ok(())

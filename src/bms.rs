@@ -21,30 +21,30 @@ pub mod time;
 
 use thiserror::Error;
 
-use self::{lex::LexError, parse::ParseError};
+use self::{lex::LexWarning, parse::ParseWarning};
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum BmsError {
+pub enum BmsWarning {
     /// An error comes from lexical analyzer.
-    #[error("lex error: {0}")]
-    LexError(LexError),
+    #[error("Warn: lex: {0}")]
+    LexWarning(LexWarning),
     /// An error comes from syntax parser.
-    #[error("parse error: {0}")]
-    ParseError(ParseError),
+    #[error("Warn: parse: {0}")]
+    ParseWarning(ParseWarning),
 }
 
-impl From<LexError> for BmsError {
-    fn from(e: LexError) -> Self {
-        Self::LexError(e)
+impl From<LexWarning> for BmsWarning {
+    fn from(e: LexWarning) -> Self {
+        Self::LexWarning(e)
     }
 }
-impl From<ParseError> for BmsError {
-    fn from(e: ParseError) -> Self {
-        Self::ParseError(e)
+impl From<ParseWarning> for BmsWarning {
+    fn from(e: ParseWarning) -> Self {
+        Self::ParseWarning(e)
     }
 }
 
 /// A custom result type for bms-rs.
-pub type Result<T> = std::result::Result<T, BmsError>;
+pub type Result<T> = std::result::Result<T, BmsWarning>;

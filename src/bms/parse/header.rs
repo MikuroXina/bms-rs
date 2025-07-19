@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use super::{
-    ParseError, Result,
+    ParseWarning, Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
@@ -338,9 +338,9 @@ impl Header {
             Token::BpmChange(id, bpm) => {
                 let parsed: f64 = bpm
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(bpm.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(bpm.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(bpm.into()));
+                    return Err(ParseWarning::BpmParseError(bpm.into()));
                 }
                 if let Some(older) = self.bpm_changes.get_mut(&id) {
                     prompt_handler
@@ -452,9 +452,9 @@ impl Header {
             Token::Scroll(id, factor) => {
                 let parsed: f64 = factor
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(factor.into()));
+                    return Err(ParseWarning::BpmParseError(factor.into()));
                 }
                 if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
                     prompt_handler
@@ -471,9 +471,9 @@ impl Header {
             Token::Speed(id, factor) => {
                 let parsed: f64 = factor
                     .parse()
-                    .map_err(|_| ParseError::BpmParseError(factor.into()))?;
+                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
                 if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseError::BpmParseError(factor.into()));
+                    return Err(ParseWarning::BpmParseError(factor.into()));
                 }
                 if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
                     prompt_handler
@@ -533,25 +533,30 @@ impl Header {
                     self.wav_files.insert(id, path.into());
                 }
             }
-            Token::Base62
-            | Token::Case(_)
-            | Token::Def
-            | Token::Else
+            // Control flow
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
             | Token::ElseIf(_)
+            | Token::Else
             | Token::EndIf
             | Token::EndRandom
-            | Token::EndSwitch
-            | Token::If(_)
-            | Token::LnObj(_)
-            | Token::NotACommand(_)
-            | Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::SetSwitch(_)
-            | Token::Skip
             | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
+                unreachable!()
+            }
+            Token::Base62
+            | Token::LnObj(_)
             | Token::ExtendedMessage { .. }
             | Token::Message { .. } => {
                 // These Token should not be handled in Header::parse.
+            }
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
+                // this token should be handled outside.
             }
         }
         Ok(())

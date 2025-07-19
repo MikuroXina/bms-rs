@@ -6,15 +6,13 @@ pub mod token;
 
 use thiserror::Error;
 
-use self::{
-    cursor::Cursor,
-    token::{Token, TokenStream},
-};
+use self::{cursor::Cursor, token::Token};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum LexError {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum LexWarning {
     /// An unknown command detected.
     #[error("unknown command found at line {line}, col {col}")]
     UnknownCommand {
@@ -38,29 +36,46 @@ pub enum LexError {
     OutOfBase62,
 }
 
-/// An error occurred when lexical analyzing the BMS format file.
-pub type Result<T> = std::result::Result<T, LexError>;
+/// type alias of core::result::Result<T, LexWarning>
+pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
+
+/// Lex Parsing Results, includes tokens and warnings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct BmsLexOutput<'a> {
+    /// tokens
+    pub tokens: Vec<Token<'a>>,
+    /// warnings
+    pub warnings: Vec<LexWarning>,
+}
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> Result<TokenStream> {
+pub fn parse(source: &str) -> BmsLexOutput {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
+    let mut warnings = vec![];
     while !cursor.is_end() {
-        tokens.push(Token::parse(&mut cursor)?);
+        match Token::parse(&mut cursor) {
+            Ok(token) => tokens.push(token),
+            Err(warning) => warnings.push(warning),
+        };
     }
+
     let case_sensitive = tokens.contains(&Token::Base62);
     if !case_sensitive {
         for token in &mut tokens {
             token.make_id_uppercase();
         }
     }
-    Ok(TokenStream::from_tokens(tokens))
+    BmsLexOutput { tokens, warnings }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::Path;
+
+    use crate::lex::BmsLexOutput;
 
     use super::{command::*, parse, token::Token::*};
 
@@ -88,12 +103,9 @@ mod tests {
 #00211:00020202
 ";
 
-        let ts = parse(SRC).expect("SRC must be parsed");
+        let BmsLexOutput { tokens, warnings } = parse(SRC);
 
-        let id1 = "01".try_into().unwrap();
-        let id2 = "02".try_into().unwrap();
-        let id3 = "03".try_into().unwrap();
-        let tokens: Vec<_> = ts.into_iter().collect();
+        assert_eq!(warnings, vec![]);
         assert_eq!(
             tokens,
             vec![
@@ -105,9 +117,9 @@ mod tests {
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 BackBmp(Path::new("boon.jpg")),
-                Wav(id1, Path::new("hoge.WAV")),
-                Wav(id2, Path::new("foo.WAV")),
-                Wav(id3, Path::new("bar.WAV")),
+                Wav("01".try_into().unwrap(), Path::new("hoge.WAV")),
+                Wav("02".try_into().unwrap(), Path::new("foo.WAV")),
+                Wav("03".try_into().unwrap(), Path::new("bar.WAV")),
                 Message {
                     track: Track(2),
                     channel: Channel::Note {

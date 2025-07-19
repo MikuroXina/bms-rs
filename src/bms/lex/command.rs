@@ -1,6 +1,6 @@
 //! Definitions of command argument data.
 
-use super::{LexError, Result, cursor::Cursor};
+use super::{LexWarning, Result, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -61,7 +61,7 @@ impl From<i64> for JudgeLevel {
 
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
-    fn try_from(value: &'a str) -> std::result::Result<Self, &'a str> {
+    fn try_from(value: &'a str) -> core::result::Result<Self, &'a str> {
         Some(value)
             .and_then(|v| v.parse::<i64>().ok())
             .map(JudgeLevel::from)
@@ -81,7 +81,7 @@ impl JudgeLevel {
 fn char_to_base62(ch: char) -> Result<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Ok(ch as u32 as u8),
-        _ => Err(LexError::OutOfBase62),
+        _ => Err(LexWarning::OutOfBase62),
     }
 }
 
@@ -96,18 +96,18 @@ fn base62_to_byte(base62: u8) -> u8 {
 
 #[test]
 fn test_base62() {
-    assert_eq!(char_to_base62('/'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('/'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('0'), Ok(b'0'));
     assert_eq!(char_to_base62('9'), Ok(b'9'));
-    assert_eq!(char_to_base62(':'), Err(LexError::OutOfBase62));
-    assert_eq!(char_to_base62('@'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62(':'), Err(LexWarning::OutOfBase62));
+    assert_eq!(char_to_base62('@'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('A'), Ok(b'A'));
     assert_eq!(char_to_base62('Z'), Ok(b'Z'));
-    assert_eq!(char_to_base62('['), Err(LexError::OutOfBase62));
-    assert_eq!(char_to_base62('`'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('['), Err(LexWarning::OutOfBase62));
+    assert_eq!(char_to_base62('`'), Err(LexWarning::OutOfBase62));
     assert_eq!(char_to_base62('a'), Ok(b'a'));
     assert_eq!(char_to_base62('z'), Ok(b'z'));
-    assert_eq!(char_to_base62('{'), Err(LexError::OutOfBase62));
+    assert_eq!(char_to_base62('{'), Err(LexWarning::OutOfBase62));
 }
 
 /// An object id. Its meaning is determined by the channel belonged to.
@@ -126,10 +126,10 @@ impl std::fmt::Debug for ObjId {
 }
 
 impl TryFrom<&str> for ObjId {
-    type Error = LexError;
+    type Error = LexWarning;
     fn try_from(value: &str) -> Result<Self> {
         if value.len() != 2 {
-            return Err(LexError::ExpectedToken {
+            return Err(LexWarning::ExpectedToken {
                 line: 1,
                 col: 1,
                 message: "`0-9A-Za-z` was expected",
@@ -143,14 +143,14 @@ impl TryFrom<&str> for ObjId {
 }
 
 impl TryFrom<[char; 2]> for ObjId {
-    type Error = LexError;
+    type Error = LexWarning;
     fn try_from(value: [char; 2]) -> Result<Self> {
         Self::from_chars(value)
     }
 }
 
 impl TryFrom<[u8; 2]> for ObjId {
-    type Error = LexError;
+    type Error = LexWarning;
     fn try_from(value: [u8; 2]) -> Result<Self> {
         Self::from_bytes(value)
     }
@@ -463,7 +463,7 @@ impl Channel {
                 key: Key::from(&channel[1..], c)?,
             },
             _ => {
-                return Err(LexError::UnknownCommand {
+                return Err(LexWarning::UnknownCommand {
                     line: c.line(),
                     col: c.col(),
                 });
@@ -474,6 +474,7 @@ impl Channel {
 
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Track(pub u32);
 
 /// Pan value for ExWav sound effect.
