@@ -4,21 +4,8 @@ The BMS format parser.
 
 Be-Music Source, called BMS for short, is a file format devised by Urao Yane in 1998 for a simulator of the game Beatmania by KONAMI. This describes what and when notes are arranged and its music metadata. It is a plain text file with some “command” lines starting with `#` character.
 
-## Usage
-
-At first, you can get the tokens stream with `lex::parse`. Then pass it and the random generator to `parse::Bms::from_token_stream` to get the notes data. Because BMS format has some randomized syntax.
-
-```rs
-use bms_rs::{
-    lex::parse,
-    parse::{rng::RngMock, Bms},
-};
-
-let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
-let token_stream = parse(&source).expect("must be parsed");
-let rng = RngMock([1]);
-let bms = Bms::from_token_stream(&token_stream, rng).expect("must be parsed");
-```
+For usage of the latest release version, see [docs.rs#lib.rs#usage](https://docs.rs/bms-rs/latest/bms_rs/index.html#usage)
+For usage of the latest commit version, see [lib.rs](./src/lib.rs)
 
 ## About the format
 

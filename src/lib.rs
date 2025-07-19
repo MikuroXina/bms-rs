@@ -14,13 +14,19 @@
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
 //! let BmsLexOutput { tokens, warnings } = parse(&source);
-//! assert_eq!(warnings, vec![]);
-//! let rng = RngMock([1]);
+//! assert_eq!(warnings, vec![]); // Check if there are any warnings.
+//! // You can modify the tokens before parsing, for some commands that this library does not warpped.
+//! let rng = RngMock([1]); // You can use your own random generator.
 //! let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
 //!     );
-//! assert_eq!(warnings, vec![]);
+//! assert_eq!(warnings, vec![]); // Check if there are any warnings.
 //! ```
+//!
+//! # Features
+//!
+//! - `bmson` feature enables the BMSON format support.
+//! - `serde` feature enables the `serde` support. It supports `Serialize` for all the definications in this crate, and `Deserialize` for all the result types.
 //!
 //! # About the format
 //!
