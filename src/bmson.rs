@@ -249,11 +249,6 @@ impl TryFrom<Bms> for Bmson {
     fn try_from(value: Bms) -> Result<Self, Self::Error> {
         let converter = PulseConverter::new(&value.notes);
 
-        let has_7keys = value
-            .notes
-            .all_notes()
-            .any(|note| note.key.is_extended_key());
-
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
@@ -309,10 +304,22 @@ impl TryFrom<Bms> for Bmson {
             artist: value.header.artist.unwrap_or_default(),
             subartists: vec![value.header.sub_artist.unwrap_or_default()],
             genre: value.header.genre.unwrap_or_default(),
-            mode_hint: if has_7keys {
-                "beat-7k".into()
-            } else {
-                "beat-5k".into()
+            mode_hint: {
+                // TODO: Support other modes
+                let is_7keys = value
+                    .notes
+                    .all_notes()
+                    .any(|note| note.key == Key::Key6 || note.key == Key::Key7);
+                let is_dp = value
+                    .notes
+                    .all_notes()
+                    .any(|note| note.side == PlayerSide::Player2);
+                match (is_dp, is_7keys) {
+                    (true, true) => "beat-14k".into(),
+                    (true, false) => "beat-10k".into(),
+                    (false, true) => "beat-7k".into(),
+                    (false, false) => "beat-5k".into(),
+                }
             },
             chart_name: "".into(),
             level: value.header.play_level.unwrap_or_default() as u32,

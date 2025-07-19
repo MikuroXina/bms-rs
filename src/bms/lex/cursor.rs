@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+
+use crate::lex::TextPosition;
+
 use super::LexWarning;
 
 pub(crate) struct Cursor<'a> {
@@ -129,9 +133,8 @@ impl<'a> Cursor<'a> {
 
     pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexWarning {
         LexWarning::ExpectedToken {
-            line: self.line(),
-            col: self.col(),
-            message,
+            position: TextPosition::new(self.line(), self.col()),
+            message: Cow::Borrowed(message),
         }
     }
 }

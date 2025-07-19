@@ -4,32 +4,68 @@ pub mod command;
 mod cursor;
 pub mod token;
 
+use std::borrow::Cow;
+
 use thiserror::Error;
 
 use self::{cursor::Cursor, token::Token};
+
+/// A position in the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TextPosition {
+    /// The line number of the position.
+    pub line: usize,
+    /// The column number of the position.
+    pub col: usize,
+}
+
+impl TextPosition {
+    /// Creates a new [`TextPosition`].
+    pub(crate) fn new(line: usize, col: usize) -> Self {
+        Self { line, col }
+    }
+}
+
+impl std::fmt::Display for TextPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "line {line}, col {col}",
+            line = self.line,
+            col = self.col
+        )
+    }
+}
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
-    /// An unknown command detected.
-    #[error("unknown command found at line {line}, col {col}")]
-    UnknownCommand {
-        /// The line number of the command detected.
-        line: usize,
-        /// The column number of the command detected.
-        col: usize,
-    },
     /// The token was expected but not found.
-    #[error("expected {message}, but not found at line {line}, col {col}")]
+    #[error("expected {message}, but not found at {position}")]
     ExpectedToken {
-        /// The line number of the token expected.
-        line: usize,
-        /// The column number of the token expected.
-        col: usize,
+        /// The position of the token expected.
+        position: TextPosition,
         /// What the expected is.
-        message: &'static str,
+        message: Cow<'static, str>,
+    },
+    /// The channel was not recognized.
+    #[error("channel `{channel}` not recognized at {position}")]
+    UnknownChannel {
+        /// The channel that was not recognized.
+        channel: Cow<'static, str>,
+        /// The position of the channel that was not recognized.
+        position: TextPosition,
+    },
+    /// The object was not recognized.
+    #[error("object `{object}` not recognized at {position}")]
+    UnknownObject {
+        /// The object that was not recognized.
+        object: Cow<'static, str>,
+        /// The position of the object that was not recognized.
+        position: TextPosition,
     },
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]

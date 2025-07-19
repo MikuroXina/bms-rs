@@ -780,7 +780,7 @@ fn ids_from_message(
                 break (i, c1, c2);
             }
         };
-        let obj = ObjId::from_chars([c1, c2]).expect("invalid object id");
+        let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
         let time = ObjTime::new(track.0, i as u32, denominator);
         Some((time, obj))
     })
