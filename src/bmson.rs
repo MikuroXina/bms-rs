@@ -26,7 +26,7 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
@@ -147,7 +147,7 @@ pub fn default_mode_hint() -> String {
 
 /// Default relative percentage, 100%.
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).unwrap()
+    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
@@ -186,10 +186,11 @@ pub struct SoundChannel {
 /// Sound note to ring a sound file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Note {
-    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
-    pub x: Option<NonZeroU8>,
     /// Position to be placed.
     pub y: PulseNumber,
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
     /// Length of pulses of the note. It will be a normal note if zero, otherwise a long note.
     pub l: u32,
     /// Continuation flag. It will continue to ring rest of the file when play if `true`, otherwise it will play from start.
@@ -201,6 +202,18 @@ pub struct Note {
     /// If it is true and configured at the end position of a long note, then this position will become the ending note of the long note.
     #[serde(default)]
     pub up: bool,
+}
+
+fn deserialize_x_none_if_zero<'de, D>(deserializer: D) -> Result<Option<NonZeroU8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<u8>::deserialize(deserializer)?;
+    Ok(match opt {
+        Some(0) => None,
+        Some(v) => NonZeroU8::new(v),
+        None => None,
+    })
 }
 
 /// BPM change note.
@@ -356,7 +369,7 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
-        .unwrap();
+        .expect("Internal error: judge rank is invalid");
 
         let resolution = value.notes.resolution_for_pulses();
 
@@ -485,10 +498,11 @@ impl TryFrom<Bms> for Bmson {
                     Key::Key7 => 7,
                     Key::Scratch | Key::FreeZone => 8,
                 } + if note.is_player1 { 0 } else { 8 };
-                let x_nz = NonZeroU8::new(x).unwrap();
+                let x_nz = NonZeroU8::new(x).expect("Internal error: x is 0");
                 match note.kind {
                     NoteKind::Landmine => {
-                        let damage = FinF64::new(100.0).unwrap();
+                        let damage = FinF64::new(100.0)
+                            .expect("Internal error: 100.0 is not a valid FinF64");
                         mine_map.entry(note.obj).or_default().push(MineEvent {
                             x: x_nz,
                             y: pulses,
