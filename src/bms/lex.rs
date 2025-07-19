@@ -4,8 +4,6 @@ pub mod command;
 mod cursor;
 pub mod token;
 
-use std::borrow::Cow;
-
 use thiserror::Error;
 
 use crate::lex::command::channel::{Channel, read_channel_beat};
@@ -53,13 +51,13 @@ pub enum LexWarning {
         /// The position of the token expected.
         position: SourcePosition,
         /// What the expected is.
-        message: Cow<'static, str>,
+        message: String,
     },
     /// The channel was not recognized.
     #[error("channel `{channel}` not recognized at {position}")]
     UnknownChannel {
         /// The channel that was not recognized.
-        channel: Cow<'static, str>,
+        channel: String,
         /// The position of the channel that was not recognized.
         position: SourcePosition,
     },
@@ -67,7 +65,7 @@ pub enum LexWarning {
     #[error("object `{object}` not recognized at {position}")]
     UnknownObject {
         /// The object that was not recognized.
-        object: Cow<'static, str>,
+        object: String,
         /// The position of the object that was not recognized.
         position: SourcePosition,
     },

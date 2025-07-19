@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::lex::SourcePosition;
 
 use super::LexWarning;
@@ -133,7 +131,7 @@ impl<'a> Cursor<'a> {
 
     pub(crate) fn make_err_expected_token(
         &self,
-        message: impl Into<Cow<'static, str>>,
+        message: impl Into<String>,
     ) -> LexWarning {
         LexWarning::ExpectedToken {
             position: SourcePosition::new(self.line(), self.col()),
@@ -141,7 +139,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub(crate) fn make_err_object_id(&self, object: impl Into<Cow<'static, str>>) -> LexWarning {
+    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarning {
         LexWarning::UnknownObject {
             position: SourcePosition::new(self.line(), self.col()),
             object: object.into(),
@@ -150,7 +148,7 @@ impl<'a> Cursor<'a> {
 
     pub(crate) fn make_err_unknown_channel(
         &self,
-        channel: impl Into<Cow<'static, str>>,
+        channel: impl Into<String>,
     ) -> LexWarning {
         LexWarning::UnknownChannel {
             position: SourcePosition::new(self.line(), self.col()),
