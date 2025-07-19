@@ -9,7 +9,10 @@ fn test_comment() {
 
     This is the fourth comment";
 
-    let BmsLexOutput { tokens, warnings } = parse(text);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(text);
     assert_eq!(warnings, vec![]);
     let mut ts_iter = tokens.into_iter();
     assert_eq!(ts_iter.next(), Some(Token::Comment("This is a comment")));

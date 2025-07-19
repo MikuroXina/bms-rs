@@ -46,7 +46,7 @@ pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: Vec<Token<'a>>,
     /// warnings
-    pub warnings: Vec<LexWarning>,
+    pub lex_warnings: Vec<LexWarning>,
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
@@ -68,7 +68,10 @@ pub fn parse(source: &str) -> BmsLexOutput {
             token.make_id_uppercase();
         }
     }
-    BmsLexOutput { tokens, warnings }
+    BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    }
 }
 
 #[cfg(test)]
@@ -103,7 +106,10 @@ mod tests {
 #00211:00020202
 ";
 
-        let BmsLexOutput { tokens, warnings } = parse(SRC);
+        let BmsLexOutput {
+            tokens,
+            lex_warnings: warnings,
+        } = parse(SRC);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

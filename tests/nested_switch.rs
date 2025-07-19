@@ -28,11 +28,18 @@ fn switch() {
 
         #00114:00000044
     ";
-    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let BmsParseOutput { bms: _, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms: _,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -58,11 +65,18 @@ fn nested_switch_simpler() {
 
         #ENDSW
     ";
-    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let BmsParseOutput { bms: _, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms: _,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -105,11 +119,18 @@ fn nested_switch() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -145,8 +166,12 @@ fn nested_switch() {
     );
 
     let rng = RngMock([1, 2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -182,8 +207,12 @@ fn nested_switch() {
     );
 
     let rng = RngMock([2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -250,11 +279,18 @@ fn nested_random_in_switch() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -290,8 +326,12 @@ fn nested_random_in_switch() {
     );
 
     let rng = RngMock([1, 2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -327,8 +367,12 @@ fn nested_random_in_switch() {
     );
 
     let rng = RngMock([2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -395,11 +439,18 @@ fn nested_switch_in_random() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput { tokens, warnings } = parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = parse(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -435,8 +486,12 @@ fn nested_switch_in_random() {
     );
 
     let rng = RngMock([1, 2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -472,8 +527,12 @@ fn nested_switch_in_random() {
     );
 
     let rng = RngMock([2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -535,13 +594,20 @@ fn test_switch_insane() {
     #ENDSW
     ";
 
-    let BmsLexOutput { tokens, warnings } = bms_rs::lex::parse(SRC);
+    let BmsLexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = bms_rs::lex::parse(SRC);
     assert_eq!(warnings, vec![]);
 
     // CASE 1, RANDOM 1
     let rng = RngMock([1]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -565,8 +631,12 @@ fn test_switch_insane() {
 
     // CASE 1, RANDOM 2
     let rng = RngMock([1, 2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -590,8 +660,12 @@ fn test_switch_insane() {
 
     // CASE 2
     let rng = RngMock([2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -608,8 +682,12 @@ fn test_switch_insane() {
 
     // CASE 3, SWITCH 1
     let rng = RngMock([3, 1]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -640,8 +718,12 @@ fn test_switch_insane() {
 
     // CASE 3, SWITCH 2
     let rng = RngMock([3, 2]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -672,8 +754,12 @@ fn test_switch_insane() {
 
     // CASE 4 (DEFAULT)
     let rng = RngMock([4]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
-    assert_eq!(warnings, vec![]);
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![Obj {

@@ -13,13 +13,15 @@
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
-//! let BmsLexOutput { tokens, warnings } = parse(&source);
-//! assert_eq!(warnings, vec![]);
+//! let BmsLexOutput { tokens, lex_warnings } = parse(&source);
+//! assert_eq!(lex_warnings, vec![]);
 //! let rng = RngMock([1]);
-//! let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
+//! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
 //!     );
-//! assert_eq!(warnings, vec![]);
+//! assert_eq!(parse_warnings, vec![]);
+//! assert_eq!(playing_warnings, vec![]);
+//! assert_eq!(playing_errors, vec![]);
 //! ```
 //!
 //! # About the format

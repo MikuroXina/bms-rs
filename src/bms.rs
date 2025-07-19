@@ -21,6 +21,8 @@ pub mod time;
 
 use thiserror::Error;
 
+use crate::parse::{PlayingError, PlayingWarning};
+
 use self::{lex::LexWarning, parse::ParseWarning};
 
 /// An error occurred when parsing the BMS format file.
@@ -29,22 +31,14 @@ use self::{lex::LexWarning, parse::ParseWarning};
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    LexWarning(LexWarning),
+    LexWarning(#[from] LexWarning),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(ParseWarning),
+    ParseWarning(#[from] ParseWarning),
+    /// A warning for playing.
+    #[error("Warn: playing: {0}")]
+    PlayingWarning(#[from] PlayingWarning),
+    /// An error for playing.
+    #[error("Error: playing: {0}")]
+    PlayingError(#[from] PlayingError),
 }
-
-impl From<LexWarning> for BmsWarning {
-    fn from(e: LexWarning) -> Self {
-        Self::LexWarning(e)
-    }
-}
-impl From<ParseWarning> for BmsWarning {
-    fn from(e: ParseWarning) -> Self {
-        Self::ParseWarning(e)
-    }
-}
-
-/// A custom result type for bms-rs.
-pub type Result<T> = std::result::Result<T, BmsWarning>;
