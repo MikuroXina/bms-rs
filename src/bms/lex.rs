@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
-use crate::lex::command::channel::{read_channel_beat, Channel};
+use crate::lex::command::channel::{Channel, read_channel_beat};
 
 use self::{cursor::Cursor, token::Token};
 

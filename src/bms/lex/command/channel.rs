@@ -1,5 +1,5 @@
 //! Definitions of channel command argument data.
-use super::{NoteKind, PlayerSide, Key};
+use super::{Key, NoteKind, PlayerSide};
 
 /// The channel reading functions.
 /// You can use functions in this array to parse a channel string, or write your own `impl Fn(&str) -> Option<Channel>` function.
@@ -109,11 +109,7 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     let mut channel_chars = channel.chars();
     let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
     let key = get_key_beat(channel_chars.next()?)?;
-    Some(Channel::Note {
-        kind,
-        side,
-        key,
-    })
+    Some(Channel::Note { kind, side, key })
 }
 
 /// Reads a key from a character. (For PMS)
@@ -141,11 +137,7 @@ pub fn read_channel_pms_bme_type(channel: &str) -> Option<Channel> {
     let mut channel_chars = channel.chars();
     let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
     let key = get_key_pms_bme_type(channel_chars.next()?)?;
-    Some(Channel::Note {
-        kind,
-        side,
-        key,
-    })
+    Some(Channel::Note { kind, side, key })
 }
 
 /// Reads a channel from a string. (For PMS)
@@ -157,8 +149,8 @@ pub fn read_channel_pms(channel: &str) -> Option<Channel> {
     let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
     let bme_key = get_key_pms_bme_type(channel_chars.next()?)?;
     // Translate BME type to PMS type.
-    use PlayerSide::*;
     use Key::*;
+    use PlayerSide::*;
     let key = match (side, bme_key) {
         (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => bme_key,
         (Player2, Key2) => Key6,

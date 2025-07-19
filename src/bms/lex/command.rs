@@ -64,11 +64,11 @@ impl From<i64> for JudgeLevel {
 
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
-    fn try_from(value: &'a str) -> core::result::Result<Self, &'a str> {
-        Some(value)
-            .and_then(|v| v.parse::<i64>().ok())
+    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
+        value
+            .parse::<i64>()
             .map(JudgeLevel::from)
-            .ok_or(value)
+            .map_err(|_| value)
     }
 }
 
@@ -129,33 +129,34 @@ impl std::fmt::Debug for ObjId {
 }
 
 impl TryFrom<[char; 2]> for ObjId {
-    type Error = ();
-    fn try_from(value: [char; 2]) -> core::result::Result<Self, ()> {
+    type Error = [char; 2];
+    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
         Ok(Self([
-            char_to_base62(value[0]).ok_or(())?,
-            char_to_base62(value[1]).ok_or(())?,
+            char_to_base62(value[0]).ok_or(value)?,
+            char_to_base62(value[1]).ok_or(value)?,
         ]))
     }
 }
 
 impl TryFrom<[u8; 2]> for ObjId {
-    type Error = ();
-    fn try_from(value: [u8; 2]) -> core::result::Result<Self, ()> {
+    type Error = [u8; 2];
+    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
         <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
+            .map_err(|_| value)
     }
 }
 
-impl TryFrom<&str> for ObjId {
-    type Error = ();
-    fn try_from(value: &str) -> core::result::Result<Self, ()> {
+impl<'a> TryFrom<&'a str> for ObjId {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
         if value.len() != 2 {
-            return Err(());
+            return Err(value);
         }
         let mut chars = value.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(());
+            return Err(value);
         };
-        Self::try_from([ch1, ch2])
+        Self::try_from([ch1, ch2]).map_err(|_| value)
     }
 }
 
