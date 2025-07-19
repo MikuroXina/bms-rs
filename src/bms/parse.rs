@@ -135,12 +135,11 @@ impl Bms {
         }
 
         // Check for notes
-        let all_notes: Vec<_> = self.notes.all_notes().collect();
-        if all_notes.is_empty() {
+        if self.notes.all_notes().next().is_none() {
             errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = all_notes.iter().any(|note| {
+            let has_displayable = self.all_notes().any(|note| {
                 matches!(
                     note.kind,
                     NoteKind::Visible | NoteKind::Long | NoteKind::Landmine
@@ -151,7 +150,7 @@ impl Bms {
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = all_notes.iter().any(|note| note.kind.is_playable());
+            let has_playable = self.all_notes().any(|note| note.kind.is_playable());
             if !has_playable {
                 warnings.push(PlayingWarning::NoPlayableNotes);
             }
