@@ -216,10 +216,10 @@ pub enum PlayingWarning {
     /// There is no playable notes.
     #[error("There is no playable notes.")]
     NoPlayableNotes,
-    /// The `#STARTBPM` is not specified. If there are other bpm changes, the first one will be used.
+    /// The `#BPM` is not specified. If there are other bpm changes, the first one will be used.
     /// If there are no bpm changes, there will be an [`PlayingError::BpmUndefined`].
     #[error(
-        "The `#STARTBPM` is not specified. If there are other bpm changes, the first one will be used. If there are no bpm changes, there will be an [`PlayingError::BpmUndefined`]."
+        "The `#BPM` is not specified. If there are other bpm changes, the first one will be used. If there are no bpm changes, there will be an [`PlayingError::BpmUndefined`]."
     )]
     StartBpmUndefined,
 }
