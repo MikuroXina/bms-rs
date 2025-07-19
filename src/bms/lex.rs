@@ -130,7 +130,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "0303030303".into(),
@@ -139,7 +139,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "0303000303".into(),
@@ -148,7 +148,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "010101".into(),
@@ -157,7 +157,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "00020202".into(),

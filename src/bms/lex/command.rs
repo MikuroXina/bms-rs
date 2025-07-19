@@ -289,11 +289,20 @@ impl NoteKind {
 
 /// A key of the controller or keyboard.
 ///
+/// - Beat 5K/7K/10K/14K:
 /// ```text
 /// |---------|----------------------|
 /// |         |   [K2]  [K4]  [K6]   |
 /// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
 /// |---------|----------------------|
+/// ```
+///
+/// - PMS:
+/// ```text
+/// |----------------------------|
+/// |   [K2]  [K4]  [K6]  [K8]   |
+/// |[K1]  [K3]  [K5]  [K7]  [K9]|
+/// |----------------------------|
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -312,8 +321,28 @@ pub enum Key {
     Key6,
     /// The rightmost white key.
     Key7,
+    /// The extra black key. Used in PMS or other modes.
+    Key8,
+    /// The extra white key. Used in PMS or other modes.
+    Key9,
+    /// The extra key for OCT/FP.
+    Key10,
+    /// The extra key for OCT/FP.
+    Key11,
+    /// The extra key for OCT/FP.
+    Key12,
+    /// The extra key for OCT/FP.
+    Key13,
+    /// The extra key for OCT/FP.
+    Key14,
     /// The scratch disk.
     Scratch,
+    /// The extra scratch disk on the right. Used in DSC mode.
+    ScratchExtra,
+    /// The foot pedal.
+    FootPedal,
+    /// The extra foot pedal on the right. Used in DSC mode.
+    FootPedalExtra,
     /// The zone that the user can scratch disk freely.
     FreeZone,
 }
@@ -393,8 +422,8 @@ pub enum Channel {
     Note {
         /// The kind of the note.
         kind: NoteKind,
-        /// The note for the player 1.
-        is_player1: bool,
+        /// The note for the player side.
+        side: PlayerSide,
         /// The key which corresponds to the note.
         key: Key,
     },
@@ -411,6 +440,7 @@ pub enum Channel {
 impl Channel {
     pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self> {
         use Channel::*;
+        use PlayerSide::*;
         Ok(match channel.to_uppercase().as_str() {
             "01" => Bgm,
             "02" => SectionLen,
@@ -424,42 +454,42 @@ impl Channel {
             "SP" => Speed,
             player1 if player1.starts_with('1') => Note {
                 kind: NoteKind::Visible,
-                is_player1: true,
+                side: Player1,
                 key: Key::from(&channel[1..], c)?,
             },
             player2 if player2.starts_with('2') => Note {
                 kind: NoteKind::Visible,
-                is_player1: false,
+                side: Player2,
                 key: Key::from(&channel[1..], c)?,
             },
             player1 if player1.starts_with('3') => Note {
                 kind: NoteKind::Invisible,
-                is_player1: true,
+                side: Player1,
                 key: Key::from(&channel[1..], c)?,
             },
             player2 if player2.starts_with('4') => Note {
                 kind: NoteKind::Invisible,
-                is_player1: false,
+                side: Player2,
                 key: Key::from(&channel[1..], c)?,
             },
             player1 if player1.starts_with('5') => Note {
                 kind: NoteKind::Long,
-                is_player1: true,
+                side: Player1,
                 key: Key::from(&channel[1..], c)?,
             },
             player2 if player2.starts_with('6') => Note {
                 kind: NoteKind::Long,
-                is_player1: false,
+                side: Player2,
                 key: Key::from(&channel[1..], c)?,
             },
             player1 if player1.starts_with('D') => Note {
                 kind: NoteKind::Landmine,
-                is_player1: true,
+                side: Player1,
                 key: Key::from(&channel[1..], c)?,
             },
             player2 if player2.starts_with('E') => Note {
                 kind: NoteKind::Landmine,
-                is_player1: false,
+                side: Player2,
                 key: Key::from(&channel[1..], c)?,
             },
             _ => {
@@ -638,4 +668,15 @@ mod tests {
         assert_eq!(ExWavPan::default().value(), 0);
         assert_eq!(ExWavVolume::default().value(), 0);
     }
+}
+
+/// A side of the player.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PlayerSide {
+    /// The player 1 side.
+    #[default]
+    Player1,
+    /// The player 2 side.
+    Player2,
 }

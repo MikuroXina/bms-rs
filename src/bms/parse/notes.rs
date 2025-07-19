@@ -567,19 +567,14 @@ impl Notes {
             }
             Token::Message {
                 track,
-                channel:
-                    Channel::Note {
-                        kind,
-                        is_player1,
-                        key,
-                    },
+                channel: Channel::Note { kind, side, key },
                 message,
             } => {
                 for (offset, obj) in ids_from_message(*track, message) {
                     self.push_note(Obj {
                         offset,
                         kind: *kind,
-                        is_player1: *is_player1,
+                        side: *side,
                         key: *key,
                         obj,
                     });

@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    lex::command::{JudgeLevel, Key},
+    lex::command::{JudgeLevel, Key, PlayerSide},
     parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
@@ -354,7 +354,21 @@ impl TryFrom<Bms> for Bmson {
                             Key::Key6 => 6,
                             Key::Key7 => 7,
                             Key::Scratch | Key::FreeZone => 8,
-                        } + if note.is_player1 { 0 } else { 8 },
+                            // TODO: Extra key convertion
+                            Key::Key8
+                            | Key::Key9
+                            | Key::Key10
+                            | Key::Key11
+                            | Key::Key12
+                            | Key::Key13
+                            | Key::Key14
+                            | Key::ScratchExtra
+                            | Key::FootPedal
+                            | Key::FootPedalExtra => 0,
+                        } + match note.side {
+                            PlayerSide::Player1 => 0,
+                            PlayerSide::Player2 => 8,
+                        },
                     )
                     .map(|num| NonZeroU8::new(num).unwrap());
                 let pulses = converter.get_pulses_at(note.offset);
