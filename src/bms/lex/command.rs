@@ -1,4 +1,8 @@
 //! Definitions of command argument data.
+pub mod channel;
+
+pub use channel::Channel;
+
 use super::{Result, cursor::Cursor};
 
 /// A play style of the score.
@@ -359,120 +363,6 @@ impl PoorMode {
             Some("1") => Self::Overlay,
             Some("2") => Self::Hidden,
             _ => return Err(c.make_err_expected_token("one of 0, 1 or 2")),
-        })
-    }
-}
-
-/// The channel, or lane, where the note will be on.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
-pub enum Channel {
-    /// The BGA channel.
-    BgaBase,
-    /// The BGA channel but overlay to [`Channel::BgaBase`] channel.
-    BgaLayer,
-    /// The POOR BGA channel.
-    BgaPoor,
-    /// For the note which will be auto-played.
-    Bgm,
-    /// For the bpm change by an [`u8`] integer.
-    BpmChangeU8,
-    /// For the bpm change object.
-    BpmChange,
-    /// For the change option object.
-    ChangeOption,
-    /// For the note which the user can interact.
-    Note {
-        /// The kind of the note.
-        kind: NoteKind,
-        /// The note for the player side.
-        side: PlayerSide,
-        /// The key which corresponds to the note.
-        key: Key,
-    },
-    /// For the section length change object.
-    SectionLen,
-    /// For the stop object.
-    Stop,
-    /// For the scroll speed change object.
-    Scroll,
-    /// For the note spacing change object.
-    Speed,
-}
-
-impl Channel {
-    pub(crate) fn from(channel: &str) -> core::result::Result<Self, &str> {
-        use Channel::*;
-        use PlayerSide::*;
-
-        fn get_key<'a>(key: &'a str) -> core::result::Result<Key, &'a str> {
-            use Key::*;
-            Ok(match key {
-                "1" => Key1,
-                "2" => Key2,
-                "3" => Key3,
-                "4" => Key4,
-                "5" => Key5,
-                "6" => Scratch,
-                "7" => FreeZone,
-                "8" => Key6,
-                "9" => Key7,
-                k => return Err(k),
-            })
-        }
-        Ok(match channel.to_uppercase().as_str() {
-            "01" => Bgm,
-            "02" => SectionLen,
-            "03" => BpmChangeU8,
-            "08" => BpmChange,
-            "04" => BgaBase,
-            "06" => BgaPoor,
-            "07" => BgaLayer,
-            "09" => Stop,
-            "SC" => Scroll,
-            "SP" => Speed,
-            player1 if player1.starts_with('1') => Note {
-                kind: NoteKind::Visible,
-                side: Player1,
-                key: get_key(&channel[1..])?,
-            },
-            player2 if player2.starts_with('2') => Note {
-                kind: NoteKind::Visible,
-                side: Player2,
-                key: get_key(&channel[1..])?,
-            },
-            player1 if player1.starts_with('3') => Note {
-                kind: NoteKind::Invisible,
-                side: Player1,
-                key: get_key(&channel[1..])?,
-            },
-            player2 if player2.starts_with('4') => Note {
-                kind: NoteKind::Invisible,
-                side: Player2,
-                key: get_key(&channel[1..])?,
-            },
-            player1 if player1.starts_with('5') => Note {
-                kind: NoteKind::Long,
-                side: Player1,
-                key: get_key(&channel[1..])?,
-            },
-            player2 if player2.starts_with('6') => Note {
-                kind: NoteKind::Long,
-                side: Player2,
-                key: get_key(&channel[1..])?,
-            },
-            player1 if player1.starts_with('D') => Note {
-                kind: NoteKind::Landmine,
-                side: Player1,
-                key: get_key(&channel[1..])?,
-            },
-            player2 if player2.starts_with('E') => Note {
-                kind: NoteKind::Landmine,
-                side: Player2,
-                key: get_key(&channel[1..])?,
-            },
-            _ => return Err(channel),
         })
     }
 }

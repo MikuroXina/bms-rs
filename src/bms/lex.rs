@@ -8,6 +8,8 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
+use crate::lex::command::channel::{read_channel_beat, Channel};
+
 use self::{cursor::Cursor, token::Token};
 
 /// A position in the text.
@@ -86,13 +88,22 @@ pub struct BmsLexOutput<'a> {
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> BmsLexOutput {
+pub fn parse<'a>(source: &'a str) -> BmsLexOutput<'a> {
+    parse_with_channel_parser(source, &read_channel_beat)
+}
+
+/// Analyzes and converts the BMS format text into [`TokenStream`].
+/// Use this function when you want to parse the BMS format text with a custom channel parser.
+pub fn parse_with_channel_parser<'a>(
+    source: &'a str,
+    channel_parser: &'a impl Fn(&str) -> Option<Channel>,
+) -> BmsLexOutput<'a> {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match Token::parse(&mut cursor) {
+        match Token::parse(&mut cursor, &channel_parser) {
             Ok(token) => tokens.push(token),
             Err(warning) => warnings.push(warning),
         };

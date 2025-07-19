@@ -185,7 +185,10 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+    pub(crate) fn parse(
+        c: &mut Cursor<'a>,
+        channel_parser: impl Fn(&str) -> Option<Channel>,
+    ) -> Result<Self> {
         loop {
             let command = c
                 .next_token()
@@ -632,8 +635,8 @@ impl<'a> Token<'a> {
                     let message = &message[7..];
                     Self::ExtendedMessage {
                         track: Track(track),
-                        channel: Channel::from(channel)
-                            .map_err(|_| c.make_err_unknown_channel(channel.to_string()))?,
+                        channel: channel_parser(channel)
+                            .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
                         message,
                     }
                 }
@@ -650,8 +653,8 @@ impl<'a> Token<'a> {
                     let message = &command[7..];
                     Self::Message {
                         track: Track(track),
-                        channel: Channel::from(channel)
-                            .map_err(|_| c.make_err_unknown_channel(channel.to_string()))?,
+                        channel: channel_parser(channel)
+                            .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
                         message: Cow::Borrowed(message),
                     }
                 }
@@ -740,11 +743,13 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::lex::command::channel::read_channel_beat;
+
     use super::*;
 
     fn parse_token(input: &str) -> Token {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor).unwrap()
+        Token::parse(&mut cursor, read_channel_beat).unwrap()
     }
 
     #[test]
