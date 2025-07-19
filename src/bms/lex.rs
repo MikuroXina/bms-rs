@@ -22,7 +22,7 @@ pub struct TextPosition {
 
 impl TextPosition {
     /// Creates a new [`TextPosition`].
-    pub(crate) fn new(line: usize, col: usize) -> Self {
+    pub const fn new(line: usize, col: usize) -> Self {
         Self { line, col }
     }
 }

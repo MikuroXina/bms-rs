@@ -363,7 +363,7 @@ impl<'a> Token<'a> {
                         return Err(c.make_err_expected_token("key audio filename"));
                     }
                     let filename = Path::new(str);
-                    Self::Wav(ObjId::from(id, c)?, filename)
+                    Self::Wav(ObjId::try_load(id, c)?, filename)
                 }
                 bmp if bmp.starts_with("#BMP") => {
                     let id = command.trim_start_matches("#BMP");
@@ -375,7 +375,7 @@ impl<'a> Token<'a> {
                     if id == "00" {
                         Self::Bmp(None, filename)
                     } else {
-                        Self::Bmp(Some(ObjId::from(id, c)?), filename)
+                        Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
                     }
                 }
                 bpm if bpm.starts_with("#BPM") => {
@@ -383,7 +383,7 @@ impl<'a> Token<'a> {
                     let bpm = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    Self::BpmChange(ObjId::from(id, c)?, bpm)
+                    Self::BpmChange(ObjId::try_load(id, c)?, bpm)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
@@ -392,21 +392,21 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("stop beats"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Stop(ObjId::from(id, c)?, stop)
+                    Self::Stop(ObjId::try_load(id, c)?, stop)
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
                     let scroll = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
-                    Self::Scroll(ObjId::from(id, c)?, scroll)
+                    Self::Scroll(ObjId::try_load(id, c)?, scroll)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
                     let scroll = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    Self::Speed(ObjId::from(id, c)?, scroll)
+                    Self::Speed(ObjId::try_load(id, c)?, scroll)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
                     let id = exbmp.trim_start_matches("#EXBMP");
@@ -435,7 +435,7 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
 
                     Self::ExBmp(
-                        ObjId::from(id, c)?,
+                        ObjId::try_load(id, c)?,
                         Argb {
                             alpha,
                             red,
@@ -448,7 +448,7 @@ impl<'a> Token<'a> {
                 exrank if exrank.starts_with("#EXRANK") => {
                     let id = exrank.trim_start_matches("#EXRANK");
                     let judge_level = JudgeLevel::try_read(c)?;
-                    Self::ExRank(ObjId::from(id, c)?, judge_level)
+                    Self::ExRank(ObjId::try_load(id, c)?, judge_level)
                 }
                 exwav if exwav.starts_with("#EXWAV") => {
                     let id = exwav.trim_start_matches("#EXWAV");
@@ -506,7 +506,7 @@ impl<'a> Token<'a> {
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("filename"))?;
                     Self::ExWav {
-                        id: ObjId::from(id, c)?,
+                        id: ObjId::try_load(id, c)?,
                         pan: pan.unwrap_or_default(),
                         volume: volume.unwrap_or_default(),
                         frequency,
@@ -516,7 +516,7 @@ impl<'a> Token<'a> {
                 text if text.starts_with("#TEXT") => {
                     let id = text.trim_start_matches("#TEXT");
                     let content = c.next_line_remaining();
-                    Self::Text(ObjId::from(id, c)?, content)
+                    Self::Text(ObjId::try_load(id, c)?, content)
                 }
                 atbga if atbga.starts_with("#@BGA") => {
                     let id = atbga.trim_start_matches("#@BGA");
@@ -554,8 +554,8 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::AtBga {
-                        id: ObjId::from(id, c)?,
-                        source_bmp: ObjId::from(source_bmp, c)?,
+                        id: ObjId::try_load(id, c)?,
+                        source_bmp: ObjId::try_load(source_bmp, c)?,
                         trim_top_left: (sx, sy),
                         trim_size: (w, h),
                         draw_point: (dx, dy),
@@ -597,8 +597,8 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?;
                     Self::Bga {
-                        id: ObjId::from(id, c)?,
-                        source_bmp: ObjId::from(source_bmp, c)?,
+                        id: ObjId::try_load(id, c)?,
+                        source_bmp: ObjId::try_load(source_bmp, c)?,
                         trim_top_left: (x1, y1),
                         trim_bottom_right: (x2, y2),
                         draw_point: (dx, dy),
@@ -607,11 +607,11 @@ impl<'a> Token<'a> {
                 changeoption if changeoption.starts_with("#CHANGEOPTION") => {
                     let id = changeoption.trim_start_matches("#CHANGEOPTION");
                     let option = c.next_line_remaining();
-                    Self::ChangeOption(ObjId::from(id, c)?, option)
+                    Self::ChangeOption(ObjId::try_load(id, c)?, option)
                 }
                 lnobj if lnobj.starts_with("#LNOBJ") => {
                     let id = lnobj.trim_start_matches("#LNOBJ");
-                    Self::LnObj(ObjId::from(id, c)?)
+                    Self::LnObj(ObjId::try_load(id, c)?)
                 }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
@@ -632,7 +632,8 @@ impl<'a> Token<'a> {
                     let message = &message[7..];
                     Self::ExtendedMessage {
                         track: Track(track),
-                        channel: Channel::from(channel, c)?,
+                        channel: Channel::from(channel)
+                            .map_err(|_| c.make_err_unknown_channel(channel.to_string()))?,
                         message,
                     }
                 }
@@ -649,7 +650,8 @@ impl<'a> Token<'a> {
                     let message = &command[7..];
                     Self::Message {
                         track: Track(track),
-                        channel: Channel::from(channel, c)?,
+                        channel: Channel::from(channel)
+                            .map_err(|_| c.make_err_unknown_channel(channel.to_string()))?,
                         message: Cow::Borrowed(message),
                     }
                 }
