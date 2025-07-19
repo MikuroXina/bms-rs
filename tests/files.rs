@@ -1,6 +1,6 @@
 use bms_rs::{
     lex::{BmsLexOutput, LexWarning, parse},
-    parse::{Bms, BmsParseOutput, prompt::AlwaysHalt, rng::RngMock},
+    parse::{Bms, BmsParseOutput, prompt::AlwaysWarn, rng::RngMock},
 };
 
 #[test]
@@ -8,11 +8,8 @@ fn test_lal() {
     let source = include_str!("lilith_mx.bms");
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysHalt,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -22,11 +19,8 @@ fn test_nc() {
     let source = include_str!("nc_mx.bme");
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysHalt,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -36,11 +30,8 @@ fn test_j219() {
     let source = include_str!("J219_7key.bms");
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysHalt,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -74,11 +65,8 @@ fn test_bemuse_ext() {
     let source = include_str!("bemuse_ext.bms");
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysHalt,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
 }

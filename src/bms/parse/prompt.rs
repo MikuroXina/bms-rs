@@ -130,8 +130,8 @@ pub enum DuplicationWorkaround {
     UseOlder,
     /// Choose to use the incoming one.
     UseNewer,
-    /// Choose to interrupt this parsing.
-    Halt,
+    /// Choose to warn.
+    Warn,
 }
 
 impl DuplicationWorkaround {
@@ -142,7 +142,7 @@ impl DuplicationWorkaround {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::Halt => Err(ParseWarning::Halted),
+            DuplicationWorkaround::Warn => Err(ParseWarning::PromptHandlerWarning),
         }
     }
 }
@@ -167,12 +167,12 @@ impl PromptHandler for AlwaysUseNewer {
     }
 }
 
-/// The strategy that always halts parsing.
+/// The strategy that always warns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AlwaysHalt;
+pub struct AlwaysWarn;
 
-impl PromptHandler for AlwaysHalt {
+impl PromptHandler for AlwaysWarn {
     fn handle_duplication(&mut self, _: PromptingDuplication) -> DuplicationWorkaround {
-        DuplicationWorkaround::Halt
+        DuplicationWorkaround::Warn
     }
 }

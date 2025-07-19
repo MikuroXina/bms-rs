@@ -9,7 +9,7 @@
 //! ```
 //! use bms_rs::{
 //!     lex::{parse, BmsLexOutput},
-//!     parse::{prompt::AlwaysHalt, rng::RngMock, Bms, BmsParseOutput},
+//!     parse::{prompt::AlwaysWarn, rng::RngMock, Bms, BmsParseOutput},
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
@@ -17,7 +17,7 @@
 //! assert_eq!(warnings, vec![]);
 //! let rng = RngMock([1]);
 //! let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-//!     &tokens, rng, AlwaysHalt
+//!     &tokens, rng, AlwaysWarn
 //!     );
 //! assert_eq!(warnings, vec![]);
 //! ```

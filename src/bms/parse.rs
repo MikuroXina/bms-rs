@@ -37,9 +37,9 @@ pub enum ParseWarning {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
-    /// Parsing is halted because `prompt_handler` returned [`PromptChoice::Halt`].
-    #[error("parsing is halted by prompt handler")]
-    Halted,
+    /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("parsing is warned by prompt handler")]
+    PromptHandlerWarning,
 }
 
 /// type alias of core::result::Result<T, ParseWarning>

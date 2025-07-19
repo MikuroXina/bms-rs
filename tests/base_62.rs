@@ -13,11 +13,8 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysUseNewer,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysUseNewer);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.header.wav_files.len(), 1);
@@ -38,11 +35,8 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &tokens,
-        RngMock([1]),
-        AlwaysUseNewer,
-    );
+    let BmsParseOutput { bms, warnings } =
+        Bms::from_token_stream(&tokens, RngMock([1]), AlwaysUseNewer);
     assert_eq!(warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.header.wav_files.len(), 2);
