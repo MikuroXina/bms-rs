@@ -15,21 +15,23 @@ use self::{cursor::Cursor, token::Token};
 /// A position in the text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TextPosition {
+pub struct SourcePosition {
     /// The line number of the position.
+    /// It starts from 1.
     pub line: usize,
     /// The column number of the position.
+    /// It starts from 1.
     pub col: usize,
 }
 
-impl TextPosition {
+impl SourcePosition {
     /// Creates a new [`TextPosition`].
     pub const fn new(line: usize, col: usize) -> Self {
         Self { line, col }
     }
 }
 
-impl std::fmt::Display for TextPosition {
+impl std::fmt::Display for SourcePosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -49,7 +51,7 @@ pub enum LexWarning {
     #[error("expected {message}, but not found at {position}")]
     ExpectedToken {
         /// The position of the token expected.
-        position: TextPosition,
+        position: SourcePosition,
         /// What the expected is.
         message: Cow<'static, str>,
     },
@@ -59,7 +61,7 @@ pub enum LexWarning {
         /// The channel that was not recognized.
         channel: Cow<'static, str>,
         /// The position of the channel that was not recognized.
-        position: TextPosition,
+        position: SourcePosition,
     },
     /// The object was not recognized.
     #[error("object `{object}` not recognized at {position}")]
@@ -67,7 +69,7 @@ pub enum LexWarning {
         /// The object that was not recognized.
         object: Cow<'static, str>,
         /// The position of the object that was not recognized.
-        position: TextPosition,
+        position: SourcePosition,
     },
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
