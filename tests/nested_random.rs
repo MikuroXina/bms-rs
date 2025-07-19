@@ -1,5 +1,5 @@
 use bms_rs::lex::BmsLexOutput;
-use bms_rs::parse::{BmsParseOutput, BmsParseTokenIter};
+use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
     lex::{
         command::{Key, NoteKind},
@@ -53,7 +53,7 @@ fn nested_random() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -94,7 +94,7 @@ fn nested_random() {
 
     let rng = RngMock([1, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -135,7 +135,7 @@ fn nested_random() {
 
     let rng = RngMock([2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );

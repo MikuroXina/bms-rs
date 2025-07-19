@@ -1,7 +1,7 @@
 use bms_rs::{
     bms::{lex::BmsLexOutput, parse::BmsParseOutput},
     lex::parse,
-    parse::{Bms, BmsParseTokenIter, prompt::AlwaysUseNewer, rng::RngMock},
+    parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
 };
 
 #[test]
@@ -14,7 +14,7 @@ fn test_not_base_62() {
     );
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysUseNewer,
     );
@@ -39,7 +39,7 @@ fn test_base_62() {
     );
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysUseNewer,
     );

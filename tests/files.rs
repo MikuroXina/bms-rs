@@ -1,6 +1,6 @@
 use bms_rs::{
     lex::{BmsLexOutput, LexWarning, parse},
-    parse::{Bms, BmsParseOutput, BmsParseTokenIter, prompt::AlwaysHalt, rng::RngMock},
+    parse::{Bms, BmsParseOutput, prompt::AlwaysHalt, rng::RngMock},
 };
 
 #[test]
@@ -9,7 +9,7 @@ fn test_lal() {
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysHalt,
     );
@@ -23,7 +23,7 @@ fn test_nc() {
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysHalt,
     );
@@ -37,7 +37,7 @@ fn test_j219() {
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysHalt,
     );
@@ -75,7 +75,7 @@ fn test_bemuse_ext() {
     let BmsLexOutput { tokens, warnings } = parse(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         RngMock([1]),
         AlwaysHalt,
     );

@@ -83,6 +83,18 @@ impl<'a> BmsParseTokenIter<'a> {
     }
 }
 
+impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
+    fn from(value: &'a BmsLexOutput<'a>) -> Self {
+        Self(value.tokens.iter().peekable())
+    }
+}
+
+impl<'a, T: AsRef<[Token<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
+    fn from(value: &'a T) -> Self {
+        Self(value.as_ref().iter().peekable())
+    }
+}
+
 impl<'a> Deref for BmsParseTokenIter<'a> {
     type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
     fn deref(&self) -> &Self::Target {
@@ -99,11 +111,11 @@ impl<'a> DerefMut for BmsParseTokenIter<'a> {
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: &mut BmsParseTokenIter<'a>,
+        token_iter: impl Into<BmsParseTokenIter<'a>>,
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
-        let (continue_tokens, mut errors) = parse_control_flow(token_iter, rng);
+        let (continue_tokens, mut errors) = parse_control_flow(&mut token_iter.into(), rng);
         let mut notes = Notes::default();
         let mut header = Header::default();
         let mut non_command_lines: Vec<String> = Vec::new();

@@ -1,5 +1,5 @@
 use bms_rs::lex::BmsLexOutput;
-use bms_rs::parse::{BmsParseOutput, BmsParseTokenIter};
+use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
     lex::{
         command::{Key, NoteKind},
@@ -32,7 +32,7 @@ fn switch() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms: _, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -66,7 +66,7 @@ fn nested_switch_simpler() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms: _, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -117,7 +117,7 @@ fn nested_switch() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -158,7 +158,7 @@ fn nested_switch() {
 
     let rng = RngMock([1, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -199,7 +199,7 @@ fn nested_switch() {
 
     let rng = RngMock([2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -274,7 +274,7 @@ fn nested_random_in_switch() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -315,7 +315,7 @@ fn nested_random_in_switch() {
 
     let rng = RngMock([1, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -356,7 +356,7 @@ fn nested_random_in_switch() {
 
     let rng = RngMock([2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -431,7 +431,7 @@ fn nested_switch_in_random() {
     assert_eq!(warnings, vec![]);
     let rng = RngMock([1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -472,7 +472,7 @@ fn nested_switch_in_random() {
 
     let rng = RngMock([1, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -513,7 +513,7 @@ fn nested_switch_in_random() {
 
     let rng = RngMock([2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -585,7 +585,7 @@ fn test_switch_insane() {
     // CASE 1, RANDOM 1
     let rng = RngMock([1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -614,7 +614,7 @@ fn test_switch_insane() {
     // CASE 1, RANDOM 2
     let rng = RngMock([1, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -643,7 +643,7 @@ fn test_switch_insane() {
     // CASE 2
     let rng = RngMock([2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -665,7 +665,7 @@ fn test_switch_insane() {
     // CASE 3, SWITCH 1
     let rng = RngMock([3, 1]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -701,7 +701,7 @@ fn test_switch_insane() {
     // CASE 3, SWITCH 2
     let rng = RngMock([3, 2]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
@@ -737,7 +737,7 @@ fn test_switch_insane() {
     // CASE 4 (DEFAULT)
     let rng = RngMock([4]);
     let BmsParseOutput { bms, warnings } = Bms::from_token_stream(
-        &mut BmsParseTokenIter::from_tokens(&tokens),
+        &tokens,
         rng,
         AlwaysHalt,
     );
