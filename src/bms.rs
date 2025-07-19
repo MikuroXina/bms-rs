@@ -28,6 +28,7 @@ use self::{lex::LexWarning, parse::ParseWarning};
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]

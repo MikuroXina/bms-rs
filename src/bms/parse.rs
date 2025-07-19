@@ -205,6 +205,7 @@ impl Bms {
 /// Simpifies the warnings for playing, which would not make this chart unplayable.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PlayingWarning {
     /// The `#TOTAL` is not specified.
     #[error("The `#TOTAL` is not specified.")]
@@ -226,6 +227,7 @@ pub enum PlayingWarning {
 /// Simpifies the warnings for playing, which will make this chart unplayable.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PlayingError {
     /// There is no bpm defined.
     #[error("There is no bpm defined.")]
