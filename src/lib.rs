@@ -24,6 +24,11 @@
 //! assert_eq!(playing_errors, vec![]);
 //! ```
 //!
+//! # Features
+//!
+//! - `bmson` feature enables the BMSON format support.
+//! - `serde` feature enables the `serde` support. It supports `Serialize` for all the definications in this crate, and `Deserialize` for all the result types.
+//!
 //! # About the format
 //!
 //! ## Command
