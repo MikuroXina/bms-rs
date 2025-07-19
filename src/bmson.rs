@@ -261,7 +261,9 @@ pub struct BgaEvent {
 pub struct BgaId(pub u32);
 
 /// Beatoraja implementation of long note type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 #[repr(u8)]
 pub enum LongNoteType {
     /// Normal long note.
@@ -437,9 +439,11 @@ impl TryFrom<Bms> for Bmson {
             ln_type: LongNoteType::LN,
         };
 
-        let sound_channels = {
-            let path_root = value.header.wav_path_root.unwrap_or_default();
-            let mut sound_channels = HashMap::new();
+        let (sound_channels, mine_channels, key_channels) = {
+            let path_root = value.header.wav_path_root.clone().unwrap_or_default();
+            let mut sound_map: HashMap<_, Vec<Note>> = HashMap::new();
+            let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
+            let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in value.notes.all_notes() {
                 let note_lane = note
                     .kind
@@ -471,40 +475,104 @@ impl TryFrom<Bms> for Bmson {
                     )
                     .map(|num| NonZeroU8::new(num).unwrap());
                 let pulses = converter.get_pulses_at(note.offset);
-                let duration =
-                    if let Some(next_note) = value.notes.next_obj_by_key(note.key, note.offset) {
-                        pulses.abs_diff(converter.get_pulses_at(next_note.offset))
-                    } else {
-                        0
-                    };
-                let to_insert = Note {
-                    x: note_lane,
-                    y: pulses,
-                    l: duration,
-                    c: false,
-                    t: LongNoteType::LN,
-                    up: false,
-                };
-
-                sound_channels
-                    .entry(note.obj)
-                    .and_modify(|channel: &mut SoundChannel| channel.notes.push(to_insert.clone()))
-                    .or_insert_with(|| {
-                        let sound_path = path_root.join(
-                            value
-                                .header
-                                .wav_files
-                                .get(&note.obj)
-                                .cloned()
-                                .unwrap_or_default(),
-                        );
-                        SoundChannel {
-                            name: sound_path.display().to_string(),
-                            notes: vec![to_insert],
-                        }
-                    });
+                let x = match note.key {
+                    Key::Key1 => 1,
+                    Key::Key2 => 2,
+                    Key::Key3 => 3,
+                    Key::Key4 => 4,
+                    Key::Key5 => 5,
+                    Key::Key6 => 6,
+                    Key::Key7 => 7,
+                    Key::Scratch | Key::FreeZone => 8,
+                } + if note.is_player1 { 0 } else { 8 };
+                let x_nz = NonZeroU8::new(x).unwrap();
+                match note.kind {
+                    NoteKind::Landmine => {
+                        let damage = FinF64::new(100.0).unwrap();
+                        mine_map.entry(note.obj).or_default().push(MineEvent {
+                            x: x_nz,
+                            y: pulses,
+                            damage,
+                        });
+                    }
+                    NoteKind::Invisible => {
+                        key_map
+                            .entry(note.obj)
+                            .or_default()
+                            .push(KeyEvent { x: x_nz, y: pulses });
+                    }
+                    _ => {
+                        // 普通音符
+                        let duration = if let Some(next_note) =
+                            value.notes.next_obj_by_key(note.key, note.offset)
+                        {
+                            pulses.abs_diff(converter.get_pulses_at(next_note.offset))
+                        } else {
+                            0
+                        };
+                        sound_map.entry(note.obj).or_default().push(Note {
+                            x: Some(x_nz),
+                            y: pulses,
+                            l: duration,
+                            c: false,
+                            t: LongNoteType::LN,
+                            up: false,
+                        });
+                    }
+                }
             }
-            sound_channels.into_values().collect()
+            let sound_channels = sound_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    SoundChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            let mine_channels = mine_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    MineChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            let key_channels = key_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    KeyChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            (sound_channels, mine_channels, key_channels)
         };
 
         let bga = {
@@ -549,13 +617,13 @@ impl TryFrom<Bms> for Bmson {
                 .map(|scroll| {
                     Ok(ScrollEvent {
                         y: converter.get_pulses_at(scroll.time),
-                        rate: FinF64::new(scroll.factor).ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                        rate: FinF64::new(scroll.factor)
+                            .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
                     })
                 })
                 .collect::<Result<Vec<_>, BmsonConvertError>>()?,
-            // TODO: Implement mine and key channels.
-            mine_channels: vec![],
-            key_channels: vec![],
+            mine_channels,
+            key_channels,
         })
     }
 }
