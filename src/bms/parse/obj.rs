@@ -1,7 +1,7 @@
 //! Definitions of the note object.
 
 use crate::{
-    lex::command::{Key, NoteKind, ObjId},
+    lex::command::{Key, NoteKind, ObjId, PlayerSide},
     time::ObjTime,
 };
 
@@ -13,8 +13,8 @@ pub struct Obj {
     pub offset: ObjTime,
     /// THe note kind of the the object.
     pub kind: NoteKind,
-    /// Whether the note is for player 1.
-    pub is_player1: bool,
+    /// The side of the player.
+    pub side: PlayerSide,
     /// The key, or lane, where the object is placed.
     pub key: Key,
     /// The id of the object.

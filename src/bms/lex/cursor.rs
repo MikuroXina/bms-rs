@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+
+use crate::lex::TextPosition;
+
 use super::LexWarning;
 
 pub(crate) struct Cursor<'a> {
@@ -127,11 +131,30 @@ impl<'a> Cursor<'a> {
         self.col
     }
 
-    pub(crate) fn make_err_expected_token(&self, message: &'static str) -> LexWarning {
+    pub(crate) fn make_err_expected_token(
+        &self,
+        message: impl Into<Cow<'static, str>>,
+    ) -> LexWarning {
         LexWarning::ExpectedToken {
-            line: self.line(),
-            col: self.col(),
-            message,
+            position: TextPosition::new(self.line(), self.col()),
+            message: message.into(),
+        }
+    }
+
+    pub(crate) fn make_err_object_id(&self, object: impl Into<Cow<'static, str>>) -> LexWarning {
+        LexWarning::UnknownObject {
+            position: TextPosition::new(self.line(), self.col()),
+            object: object.into(),
+        }
+    }
+
+    pub(crate) fn make_err_unknown_channel(
+        &self,
+        channel: impl Into<Cow<'static, str>>,
+    ) -> LexWarning {
+        LexWarning::UnknownChannel {
+            position: TextPosition::new(self.line(), self.col()),
+            channel: channel.into(),
         }
     }
 }

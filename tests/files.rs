@@ -1,5 +1,7 @@
+use std::borrow::Cow;
+
 use bms_rs::{
-    lex::{BmsLexOutput, LexWarning, parse},
+    lex::{BmsLexOutput, LexWarning, TextPosition, parse},
     parse::{Bms, BmsParseOutput, prompt::AlwaysWarn, rng::RngMock},
 };
 
@@ -65,14 +67,12 @@ fn test_blank() {
         warnings,
         vec![
             LexWarning::ExpectedToken {
-                line: 19,
-                col: 8,
-                message: "key audio filename"
+                position: TextPosition::new(19, 8),
+                message: Cow::Borrowed("key audio filename")
             },
             LexWarning::ExpectedToken {
-                line: 22,
-                col: 7,
-                message: "key audio filename"
+                position: TextPosition::new(22, 7),
+                message: Cow::Borrowed("key audio filename")
             }
         ]
     );
