@@ -129,7 +129,8 @@ pub fn get_key_pms_bme_type(key: char) -> Option<Key> {
     })
 }
 
-/// Reads a channel from a string. (For PMS)
+/// Reads a channel from a string. (For PMS BME-type)
+/// This preset supports 9K with 2-players.
 pub fn read_channel_pms_bme_type(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
