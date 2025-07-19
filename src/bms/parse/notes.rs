@@ -296,6 +296,16 @@ impl Notes {
         &self.bpm_changes
     }
 
+    /// Returns the scrolling factor change objects.
+    pub fn scrolling_factor_changes(&self) -> &BTreeMap<ObjTime, ScrollingFactorObj> {
+        &self.scrolling_factor_changes
+    }
+
+    /// Returns the spacing factor change objects.
+    pub fn spacing_factor_changes(&self) -> &BTreeMap<ObjTime, SpacingFactorObj> {
+        &self.spacing_factor_changes
+    }
+
     /// Returns the section len change objects.
     pub fn section_len_changes(&self) -> &BTreeMap<Track, SectionLenChangeObj> {
         &self.section_len_changes

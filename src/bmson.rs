@@ -65,6 +65,15 @@ pub struct Bmson {
     /// BGA data.
     #[serde(default)]
     pub bga: Bga,
+    /// Beatoraja implementation of scroll events.
+    #[serde(default)]
+    pub scroll_events: Vec<ScrollEvent>,
+    /// Beatoraja implementation of mine channel.
+    #[serde(default)]
+    pub mine_channels: Vec<MineChannel>,
+    /// Beatoraja implementation of invisible key channel.
+    #[serde(default)]
+    pub key_channels: Vec<KeyChannel>,
 }
 
 /// Header metadata of chart.
@@ -126,6 +135,9 @@ pub struct BmsonInfo {
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
     pub resolution: u32,
+    /// Beatoraja implementation of long note type.
+    #[serde(default)]
+    pub ln_type: LongNoteType,
 }
 
 /// Default mode hint, beatmania 7 keys.
@@ -182,6 +194,13 @@ pub struct Note {
     pub l: u32,
     /// Continuation flag. It will continue to ring rest of the file when play if `true`, otherwise it will play from start.
     pub c: bool,
+    /// Beatoraja implementation of long note type.
+    #[serde(default)]
+    pub t: LongNoteType,
+    /// Beatoraja implementation of long note up flag.
+    /// If it is true and configured at the end position of a long note, then this position will become the ending note of the long note.
+    #[serde(default)]
+    pub up: bool,
 }
 
 /// BPM change note.
@@ -241,6 +260,66 @@ pub struct BgaEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BgaId(pub u32);
 
+/// Beatoraja implementation of long note type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[repr(u8)]
+pub enum LongNoteType {
+    /// Normal long note.
+    #[default]
+    LN = 1,
+    /// Continuous long note.
+    CN = 2,
+    /// Hell continuous long note.
+    HCN = 3,
+}
+
+/// Beatoraja implementation of scroll event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScrollEvent {
+    /// Position to scroll.
+    pub y: PulseNumber,
+    /// Scroll rate.
+    pub rate: FinF64,
+}
+
+/// Beatoraja implementation of mine channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MineEvent {
+    /// Lane information.
+    pub x: NonZeroU8,
+    /// Position to be placed.
+    pub y: PulseNumber,
+    /// Damage of the mine.
+    pub damage: FinF64,
+}
+
+/// Beatoraja implementation of mine channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MineChannel {
+    /// Name of the mine sound file.
+    pub name: String,
+    /// Mine notes.
+    pub notes: Vec<MineEvent>,
+}
+
+/// Beatoraja implementation of invisible key event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyEvent {
+    /// Lane information.
+    pub x: NonZeroU8,
+    /// Position to be placed.
+    pub y: PulseNumber,
+}
+
+/// Beatoraja implementation of invisible key channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyChannel {
+    /// Name of the key sound file.
+    pub name: String,
+    /// Invisible key notes.
+    pub notes: Vec<KeyEvent>,
+}
+
 /// Errors on converting from `Bms` into `Bmson`.
 #[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -251,6 +330,9 @@ pub enum BmsonConvertError {
     /// The total percentage was infinity or NaN.
     #[error("header total was invalid value")]
     InvalidTotal,
+    /// The scrolling factor was infinity or NaN.
+    #[error("scrolling factor was invalid value")]
+    InvalidScrollingFactor,
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -352,6 +434,7 @@ impl TryFrom<Bms> for Bmson {
             banner_image: value.header.banner.map(|path| path.display().to_string()),
             preview_music: None,
             resolution,
+            ln_type: LongNoteType::LN,
         };
 
         let sound_channels = {
@@ -399,6 +482,8 @@ impl TryFrom<Bms> for Bmson {
                     y: pulses,
                     l: duration,
                     c: false,
+                    t: LongNoteType::LN,
+                    up: false,
                 };
 
                 sound_channels
@@ -457,6 +542,20 @@ impl TryFrom<Bms> for Bmson {
             stop_events,
             sound_channels,
             bga,
+            scroll_events: value
+                .notes
+                .scrolling_factor_changes()
+                .values()
+                .map(|scroll| {
+                    Ok(ScrollEvent {
+                        y: converter.get_pulses_at(scroll.time),
+                        rate: FinF64::new(scroll.factor).ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, BmsonConvertError>>()?,
+            // TODO: Implement mine and key channels.
+            mine_channels: vec![],
+            key_channels: vec![],
         })
     }
 }
