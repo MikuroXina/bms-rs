@@ -11,11 +11,11 @@ use crate::{
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct PulseNumber(pub u32);
+pub struct PulseNumber(pub u64);
 
 impl PulseNumber {
     /// Calculates an absolute difference of two pulses.
-    pub const fn abs_diff(self, other: Self) -> u32 {
+    pub const fn abs_diff(self, other: Self) -> u64 {
         self.0.abs_diff(other.0)
     }
 }
@@ -23,8 +23,8 @@ impl PulseNumber {
 /// Converter from [`ObjTime`] into pulses, which split one quarter note evenly.
 #[derive(Debug, Clone)]
 pub struct PulseConverter {
-    pulses_at_track_start: BTreeMap<Track, u32>,
-    resolution: u32,
+    pulses_at_track_start: BTreeMap<Track, u64>,
+    resolution: u64,
 }
 
 impl PulseConverter {
@@ -42,7 +42,7 @@ impl PulseConverter {
                 .section_len_changes()
                 .get(&Track(current_track))
                 .map_or(1.0, |section| section.length);
-            current_pulses += (section_len * (4 * resolution) as f64) as u32;
+            current_pulses += (section_len * (4 * resolution) as f64) as u64;
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
             if last_track < current_track {
@@ -76,7 +76,7 @@ impl PulseConverter {
         PulseNumber(
             track_base
                 + ((4 * self.resolution) as f64 * time.numerator as f64 / time.denominator as f64)
-                    as u32,
+                    as u64,
         )
     }
 }

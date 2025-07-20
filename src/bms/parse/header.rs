@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use super::{
-    ParseWarning, Result,
+    Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
@@ -183,7 +183,7 @@ pub struct Header {
     /// The message for overriding options of some BMS player.
     pub options: Option<Vec<String>>,
     /// The initial BPM of the score.
-    pub bpm: Option<f64>,
+    pub bpm: Option<PositiveFiniteF64>,
     /// The play level of the score.
     pub play_level: Option<u8>,
     /// The judgement level of the score.
@@ -191,7 +191,7 @@ pub struct Header {
     /// The difficulty of the score.
     pub difficulty: Option<u8>,
     /// The total gauge percentage when all notes is got as PERFECT.
-    pub total: Option<f64>,
+    pub total: Option<PositiveFiniteF64>,
     /// The volume of the score.
     pub volume: Volume,
     /// The LN notation type of the score.
@@ -219,17 +219,17 @@ pub struct Header {
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// The BPMs corresponding to the id of the BPM change object.
-    pub bpm_changes: HashMap<ObjId, f64>,
+    pub bpm_changes: HashMap<ObjId, PositiveFiniteF64>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
-    pub scrolling_factor_changes: HashMap<ObjId, f64>,
+    pub scrolling_factor_changes: HashMap<ObjId, FiniteF64>,
     /// The spacing factors corresponding to the id of the spacing change object.
-    pub spacing_factor_changes: HashMap<ObjId, f64>,
+    pub spacing_factor_changes: HashMap<ObjId, PositiveFiniteF64>,
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id.
-    pub stops: HashMap<ObjId, u32>,
+    pub stops: HashMap<ObjId, u64>,
     /// Storage for #@BGA definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
     /// Storage for #BGA definitions
@@ -325,33 +325,19 @@ impl Header {
                 }
             }
             Token::Bpm(bpm) => {
-                if let Ok(parsed) = bpm.parse() {
-                    if 0.0 < parsed {
-                        self.bpm = Some(parsed);
-                    } else {
-                        eprintln!("not positive bpm found: {parsed}");
-                    }
-                } else {
-                    eprintln!("not number bpm found: {bpm}");
-                }
+                self.bpm = Some(bpm);
             }
             Token::BpmChange(id, bpm) => {
-                let parsed: f64 = bpm
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(bpm.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(bpm.into()));
-                }
                 if let Some(older) = self.bpm_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BpmChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.get(),
+                            newer: bpm.get(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, bpm)?;
                 } else {
-                    self.bpm_changes.insert(id, parsed);
+                    self.bpm_changes.insert(id, bpm);
                 }
             }
             Token::ChangeOption(id, option) => {
@@ -450,41 +436,29 @@ impl Header {
             Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(rank),
             Token::Scroll(id, factor) => {
-                let parsed: f64 = factor
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(factor.into()));
-                }
                 if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ScrollingFactorChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.get(),
+                            newer: factor.get(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, factor)?;
                 } else {
-                    self.scrolling_factor_changes.insert(id, parsed);
+                    self.scrolling_factor_changes.insert(id, factor);
                 }
             }
             Token::Speed(id, factor) => {
-                let parsed: f64 = factor
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(factor.into()));
-                }
                 if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SpacingFactorChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.get(),
+                            newer: factor.get(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, factor)?;
                 } else {
-                    self.spacing_factor_changes.insert(id, parsed);
+                    self.spacing_factor_changes.insert(id, factor);
                 }
             }
             Token::StageFile(file) => self.stage_file = Some(file.into()),
@@ -511,11 +485,7 @@ impl Header {
             }
             Token::Title(title) => self.title = Some(title.into()),
             Token::Total(total) => {
-                if let Ok(parsed) = total.parse() {
-                    self.total = Some(parsed);
-                } else {
-                    eprintln!("not number total found: {total}");
-                }
+                self.total = Some(total);
             }
             Token::Url(url) => self.url = Some(url.into()),
             Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
@@ -533,7 +503,6 @@ impl Header {
                     self.wav_files.insert(id, path.into());
                 }
             }
-            // Control flow
             Token::Random(_)
             | Token::SetRandom(_)
             | Token::If(_)
@@ -558,6 +527,27 @@ impl Header {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
+            Token::CharFile(path) => todo!(),
+            Token::Song(obj_id, _) => todo!(),
+            Token::ExBpm(obj_id, _) => todo!(),
+            Token::BaseBpm(_) => todo!(),
+            Token::Stp(obj_id, _) => todo!(),
+            Token::WavCmd(obj_id, _) => todo!(),
+            Token::Cdda(path) => todo!(),
+            Token::Swbga(obj_id, path) => todo!(),
+            Token::Argb(obj_id, argb) => todo!(),
+            Token::VideoFs(path) => todo!(),
+            Token::VideoColors(rgb) => todo!(),
+            Token::VideoDly(_) => todo!(),
+            Token::Seek(obj_id, _) => todo!(),
+            Token::ExtChr(_) => todo!(),
+            Token::MaterialsWav(_) => todo!(),
+            Token::MaterialsBmp(_) => todo!(),
+            Token::DivideProp(_) => todo!(),
+            Token::Charset(_) => todo!(),
+            Token::DefExRank(_) => todo!(),
+            Token::Preview(path) => todo!(),
+            Token::LnMode(ln_mode_type) => todo!(),
         }
         Ok(())
     }

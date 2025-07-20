@@ -86,7 +86,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: u32,
+    pub duration: u64,
 }
 
 impl PartialEq for StopObj {
@@ -460,7 +460,10 @@ impl Notes {
                         .bpm_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_bpm_change(BpmChangeObj { time, bpm });
+                    self.push_bpm_change(BpmChangeObj {
+                        time,
+                        bpm: bpm.get(),
+                    });
                 }
             }
             Token::Message {
@@ -468,13 +471,13 @@ impl Notes {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
+                let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
                     if bpm == 0 {
                         continue;
                     }
-                    let time = ObjTime::new(track.0, i as u32, denominator);
+                    let time = ObjTime::new(track.0, i as u64, denominator);
                     self.push_bpm_change(BpmChangeObj {
                         time,
                         bpm: bpm as f64,
@@ -491,7 +494,10 @@ impl Notes {
                         .scrolling_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_scrolling_factor_change(ScrollingFactorObj { time, factor });
+                    self.push_scrolling_factor_change(ScrollingFactorObj {
+                        time,
+                        factor: factor.get(),
+                    });
                 }
             }
             Token::Message {
@@ -504,7 +510,10 @@ impl Notes {
                         .spacing_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_spacing_factor_change(SpacingFactorObj { time, factor });
+                    self.push_spacing_factor_change(SpacingFactorObj {
+                        time,
+                        factor: factor.get(),
+                    });
                 }
             }
             Token::Message {
@@ -602,10 +611,10 @@ impl Notes {
                     message: (*message).to_owned(),
                 });
             }
-            &Token::LnObj(end_id) => {
+            Token::LnObj(end_id) => {
                 let mut end_note = self
-                    .remove_latest_note(end_id)
-                    .ok_or(ParseWarning::UndefinedObject(end_id))?;
+                    .remove_latest_note(*end_id)
+                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) =
                     self.ids_by_key[key].range(..offset).last().ok_or_else(|| {
@@ -652,7 +661,6 @@ impl Notes {
             Token::Text(id, text) => {
                 self.texts.insert(*id, (*text).to_string());
             }
-            // Control flow
             Token::Random(_)
             | Token::SetRandom(_)
             | Token::If(_)
@@ -710,6 +718,28 @@ impl Notes {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
+            Token::LnObj(obj_id) => todo!(),
+            Token::CharFile(path) => todo!(),
+            Token::Song(obj_id, _) => todo!(),
+            Token::ExBpm(obj_id, _) => todo!(),
+            Token::BaseBpm(_) => todo!(),
+            Token::Stp(obj_id, _) => todo!(),
+            Token::WavCmd(obj_id, _) => todo!(),
+            Token::Cdda(path) => todo!(),
+            Token::Swbga(obj_id, path) => todo!(),
+            Token::Argb(obj_id, argb) => todo!(),
+            Token::VideoFs(path) => todo!(),
+            Token::VideoColors(rgb) => todo!(),
+            Token::VideoDly(_) => todo!(),
+            Token::Seek(obj_id, _) => todo!(),
+            Token::ExtChr(_) => todo!(),
+            Token::MaterialsWav(_) => todo!(),
+            Token::MaterialsBmp(_) => todo!(),
+            Token::DivideProp(_) => todo!(),
+            Token::Charset(_) => todo!(),
+            Token::DefExRank(_) => todo!(),
+            Token::Preview(path) => todo!(),
+            Token::LnMode(ln_mode_type) => todo!(),
         }
         Ok(())
     }
@@ -763,7 +793,7 @@ impl Notes {
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
-    pub fn resolution_for_pulses(&self) -> u32 {
+    pub fn resolution_for_pulses(&self) -> u64 {
         use num::Integer;
 
         let mut hyp_resolution = 1;
@@ -781,7 +811,7 @@ fn ids_from_message(
     track: command::Track,
     message: &'_ str,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
-    let denominator = message.len() as u32 / 2;
+    let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
         let (i, c1, c2) = loop {
@@ -791,7 +821,7 @@ fn ids_from_message(
             }
         };
         let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
-        let time = ObjTime::new(track.0, i as u32, denominator);
+        let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })
 }

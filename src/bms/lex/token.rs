@@ -5,7 +5,7 @@ use std::{borrow::Cow, path::Path};
 use super::{Result, command::*, cursor::Cursor};
 
 /// A token of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
@@ -46,11 +46,11 @@ pub enum Token<'a> {
     /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
     Bmp(Option<ObjId>, &'a Path),
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
-    Bpm(&'a str),
+    Bpm(PositiveFiniteF64),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
-    BpmChange(ObjId, &'a str),
-    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
-    Case(u32),
+    BpmChange(ObjId, PositiveFiniteF64),
+    /// `#CASE [u64]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
+    Case(u64),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
     ChangeOption(ObjId, &'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
@@ -59,9 +59,9 @@ pub enum Token<'a> {
     Def,
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
     Difficulty(u8),
-    /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
+    /// `#ELSE`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
     Else,
-    /// `#ELSEIF [u32]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
+    /// `#ELSEIF [u64]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
     ///
     /// ```text
     /// #ELSE
@@ -70,7 +70,7 @@ pub enum Token<'a> {
     ///   #ENDIF
     /// #ENDIF
     /// ```
-    ElseIf(u32),
+    ElseIf(u64),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
     /// `#ENDIF`. Closes the if scope. See [Token::If].
@@ -107,8 +107,8 @@ pub enum Token<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(u32),
+    /// `#IF [u64]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
+    If(u64),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -142,46 +142,95 @@ pub enum Token<'a> {
     PlayLevel(u8),
     /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
     PoorBga(PoorMode),
-    /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(u32),
+    /// `#RANDOM [u64]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
+    Random(u64),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
-    Scroll(ObjId, &'a str),
-    /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(u32),
-    /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(u32),
+    Scroll(ObjId, FiniteF64),
+    /// `#SETRANDOM [u64]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetRandom(u64),
+    /// `#SETSWITCH [u64]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetSwitch(u64),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
     /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
-    Speed(ObjId, &'a str),
+    Speed(ObjId, PositiveFiniteF64),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
-    Stop(ObjId, u32),
+    Stop(ObjId, u64),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
-    /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(u32),
+    /// `#SWITCH [u64]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
+    Switch(u64),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
     Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
-    Total(&'a str),
+    Total(PositiveFiniteF64),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
     VideoFile(&'a Path),
-    /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
+    /// `#VOLWAV [u64]`.
+    /// Defines the relative volume percentage of the sound in the score.
+    /// In beatoraja, max value is 100 (100%).
     VolWav(Volume),
     /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
     Wav(ObjId, &'a Path),
+    /// `#CHARFILE [filename]` 角色图片文件，部分播放器支持。
+    CharFile(&'a Path),
+    /// `#SONG[01-ZZ] [string]` 多重歌曲名定义。
+    Song(ObjId, &'a str),
+    /// `#EXBPM[01-ZZ] [f64]` 扩展BPM定义。
+    ExBpm(ObjId, PositiveFiniteF64),
+    /// `#BASEBPM [f64]` 基础BPM。
+    BaseBpm(PositiveFiniteF64),
+    /// `#STP[01-ZZ] [f64]` bemaniaDX扩展STOP序列。
+    Stp(ObjId, PositiveFiniteF64),
+    /// `#WAVCMD[01-ZZ] [params]` MacBeat扩展，伪MOD效果。
+    WavCmd(ObjId, &'a str),
+    /// `#CDDA [filename]` CD-DA音轨文件。
+    Cdda(&'a Path),
+    /// `#SWBGA[01-ZZ] [filename]` 扩展Poor BGA。
+    Swbga(ObjId, &'a Path),
+    /// `#ARGB[01-ZZ] [A],[R],[G],[B]` 扩展透明色定义。
+    Argb(ObjId, Argb),
+    /// `#VIDEOF/S [filename]` 视频文件扩展。
+    VideoFs(&'a Path),
+    /// `#VIDEOCOLORS [R],[G],[B]` 视频色彩扩展。
+    VideoColors(Rgb),
+    /// `#VIDEODLY [f64]` 视频延迟扩展。
+    VideoDly(FiniteF64),
+    /// `#SEEK[01-ZZ] [f64]` 视频跳转扩展。
+    Seek(ObjId, FiniteF64),
+    /// `#ExtChr [params]` BM98扩展对象。
+    ExtChr(&'a str),
+    /// `#MATERIALSWAV [filename]` 物料WAV扩展。
+    /// 已经不推荐使用。
+    MaterialsWav(&'a Path),
+    /// `#MATERIALSBMP [filename]` 物料BMP扩展。
+    /// 已经不推荐使用。
+    MaterialsBmp(&'a Path),
+    /// `#DIVIDEPROP [string]` 分割属性扩展。
+    /// 已经不推荐使用。
+    DivideProp(&'a str),
+    /// `#CHARSET [string]` 字符集声明。
+    Charset(&'a str),
+    /// `#DEFEXRANK [u64]` 扩展判定等级定义，定义为原先的百分之n（n%）。
+    /// 以NORMAL判定为基准，100为NORMAL判定。
+    /// 会覆盖`#RANK`定义。
+    DefExRank(u64),
+    /// `#PREVIEW [filename]` 选曲时自动播放的预览音源文件。
+    Preview(&'a Path),
+    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` 明示指定本谱面长按类型。
+    LnMode(LnModeType),
 }
 
 impl<'a> Token<'a> {
@@ -223,14 +272,26 @@ impl<'a> Token<'a> {
                         .map(Path::new)
                         .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
                 ),
-                "#TOTAL" => Self::Total(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
-                ),
-                "#BPM" => Self::Bpm(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?,
-                ),
+                "#TOTAL" => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::Total(v)
+                }
+                "#BPM" => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::Bpm(v)
+                }
                 "#PLAYLEVEL" => Self::PlayLevel(
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("play level"))?
@@ -383,10 +444,14 @@ impl<'a> Token<'a> {
                 }
                 bpm if bpm.starts_with("#BPM") => {
                     let id = command.trim_start_matches("#BPM");
-                    let bpm = c
+                    let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    Self::BpmChange(ObjId::try_load(id, c)?, bpm)
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
@@ -399,17 +464,25 @@ impl<'a> Token<'a> {
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
-                    let scroll = c
+                    let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
-                    Self::Scroll(ObjId::try_load(id, c)?, scroll)
+                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v =
+                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
-                    let scroll = c
+                    let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    Self::Speed(ObjId::try_load(id, c)?, scroll)
+                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::Speed(ObjId::try_load(id, c)?, v)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
                     let id = exbmp.trim_start_matches("#EXBMP");
@@ -658,6 +731,207 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
+                // 新增命令解析
+                charfile if charfile.starts_with("#CHARFILE") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
+                    Self::CharFile(path)
+                }
+                song if song.starts_with("#SONG") => {
+                    let id = song.trim_start_matches("#SONG");
+                    let content = c.next_line_remaining();
+                    Self::Song(ObjId::try_load(id, c)?, content)
+                }
+                exbpm if exbpm.starts_with("#EXBPM") => {
+                    let id = exbpm.trim_start_matches("#EXBPM");
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("exbpm value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::ExBpm(ObjId::try_load(id, c)?, v)
+                }
+                "#BASEBPM" => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("basebpm value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::BaseBpm(v)
+                }
+                stp if stp.starts_with("#STP") => {
+                    let id = stp.trim_start_matches("#STP");
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("stp value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::Stp(ObjId::try_load(id, c)?, v)
+                }
+                wavcmd if wavcmd.starts_with("#WAVCMD") => {
+                    let id = wavcmd.trim_start_matches("#WAVCMD");
+                    let params = c.next_line_remaining();
+                    Self::WavCmd(ObjId::try_load(id, c)?, params)
+                }
+                "#CDDA" => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("cdda filename"))?;
+                    Self::Cdda(path)
+                }
+                swbga if swbga.starts_with("#SWBGA") => {
+                    let id = swbga.trim_start_matches("#SWBGA");
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("swbga filename"))?;
+                    Self::Swbga(ObjId::try_load(id, c)?, path)
+                }
+                argb if argb.starts_with("#ARGB") => {
+                    let id = argb.trim_start_matches("#ARGB");
+                    let argb_str = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("argb value"))?;
+                    let parts: Vec<&str> = argb_str.split(',').collect();
+                    if parts.len() != 4 {
+                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
+                    }
+                    let alpha = parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                    let red = parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                    let green = parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                    let blue = parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+                    Self::Argb(
+                        ObjId::try_load(id, c)?,
+                        Argb {
+                            alpha,
+                            red,
+                            green,
+                            blue,
+                        },
+                    )
+                }
+                videofs if videofs.starts_with("#VIDEOF/S") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("videofs filename"))?;
+                    Self::VideoFs(path)
+                }
+                videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
+                    let rgb_str = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
+                    let parts: Vec<&str> = rgb_str.split(',').collect();
+                    if parts.len() != 3 {
+                        return Err(c.make_err_expected_token("expected 3 comma-separated values"));
+                    }
+                    let r = parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid r value"))?;
+                    let g = parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid g value"))?;
+                    let b = parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid b value"))?;
+                    Self::VideoColors(Rgb { r, g, b })
+                }
+                videodly if videodly.starts_with("#VIDEODLY") => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("videodly value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v =
+                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    Self::VideoDly(v)
+                }
+                seek if seek.starts_with("#SEEK") => {
+                    let id = seek.trim_start_matches("#SEEK");
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("seek value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v =
+                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    Self::Seek(ObjId::try_load(id, c)?, v)
+                }
+                extchr if extchr.starts_with("#EXTCHR") || extchr.starts_with("#EXTCHR") => {
+                    let params = c.next_line_remaining();
+                    Self::ExtChr(params)
+                }
+                materialswav if materialswav.starts_with("#MATERIALSWAV") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
+                    Self::MaterialsWav(path)
+                }
+                materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
+                    Self::MaterialsBmp(path)
+                }
+                divideprop if divideprop.starts_with("#DIVIDEPROP") => {
+                    let s = c.next_line_remaining();
+                    Self::DivideProp(s)
+                }
+                charset if charset.starts_with("#CHARSET") => {
+                    let s = c.next_line_remaining();
+                    Self::Charset(s)
+                }
+                defexrank if defexrank.starts_with("#DEFEXRANK") => {
+                    let value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
+                    let value: u64 = value
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    Self::DefExRank(value)
+                }
+                preview if preview.starts_with("#PREVIEW") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("preview filename"))?;
+                    Self::Preview(path)
+                }
+                lnmode if lnmode.starts_with("#LNMODE") => {
+                    let mode = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("lnmode value"))?;
+                    let mode: u8 = mode
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
+                    let mode = match mode {
+                        1 => LnModeType::Ln,
+                        2 => LnModeType::Cn,
+                        3 => LnModeType::Hcn,
+                        _ => return Err(c.make_err_expected_token("lnmode 1-3")),
+                    };
+                    Self::LnMode(mode)
+                }
+                // Unknown command & Not a command
                 command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
                 _not_command => Self::NotACommand(c.next_line_entire()),
             });

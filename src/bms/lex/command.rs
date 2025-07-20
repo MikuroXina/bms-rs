@@ -1,6 +1,8 @@
 //! Definitions of command argument data.
 pub mod channel;
 
+use std::ops::Deref;
+
 pub use channel::Channel;
 
 use super::{Result, cursor::Cursor};
@@ -217,7 +219,7 @@ impl ObjId {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Volume {
     /// A play volume percentage of the sound.
-    pub relative_percent: u8,
+    pub relative_percent: u64,
 }
 
 impl Default for Volume {
@@ -375,10 +377,11 @@ impl PoorMode {
     }
 }
 
-/// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
+/// A track, or bar, in the score.
+/// It is recommended to be greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Track(pub u32);
+pub struct Track(pub u64);
 
 /// Pan value for ExWav sound effect.
 /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
@@ -552,4 +555,162 @@ pub enum PlayerSide {
     Player1,
     /// The player 2 side.
     Player2,
+}
+
+/// RGB结构体，用于#VIDEOCOLORS等命令。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Rgb {
+    /// 红色分量
+    pub r: u8,
+    /// 绿色分量
+    pub g: u8,
+    /// 蓝色分量
+    pub b: u8,
+}
+
+/// 只要求finite的f64包装类型（如Scroll等）。
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct FiniteF64(f64);
+
+impl FiniteF64 {
+    /// 创建一个只要finite的包装类型。
+    pub fn new(val: f64) -> Option<Self> {
+        if val.is_finite() {
+            Some(Self(val))
+        } else {
+            None
+        }
+    }
+    /// 获取原始值
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
+
+impl TryFrom<f64> for FiniteF64 {
+    type Error = f64;
+    fn try_from(value: f64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value)
+    }
+}
+
+impl From<FiniteF64> for f64 {
+    fn from(value: FiniteF64) -> Self {
+        value.0
+    }
+}
+
+impl Eq for FiniteF64 {}
+impl Ord for FiniteF64 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+impl Deref for FiniteF64 {
+    type Target = f64;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Add for FiniteF64 {
+    type Output = Option<Self>;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for FiniteF64 {
+    type Output = Option<Self>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 - rhs.0)
+    }
+}
+
+/// 要求finite且大于0的f64包装类型（如Bpm/Stop/Speed/Total等）。
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PositiveFiniteF64(f64);
+
+impl PositiveFiniteF64 {
+    /// 创建一个finite且大于0的包装类型。
+    pub fn new(val: f64) -> Option<Self> {
+        if val.is_finite() && val > 0.0 {
+            Some(Self(val))
+        } else {
+            None
+        }
+    }
+    /// 获取原始值
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
+
+impl TryFrom<f64> for PositiveFiniteF64 {
+    type Error = f64;
+    fn try_from(value: f64) -> std::result::Result<Self, Self::Error> {
+        Self::new(value).ok_or(value)
+    }
+}
+
+impl From<PositiveFiniteF64> for f64 {
+    fn from(value: PositiveFiniteF64) -> Self {
+        value.0
+    }
+}
+
+impl Eq for PositiveFiniteF64 {}
+impl Ord for PositiveFiniteF64 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+impl Deref for PositiveFiniteF64 {
+    type Target = f64;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::Add for PositiveFiniteF64 {
+    type Output = Option<Self>;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 + rhs.0)
+    }
+}
+impl std::ops::Sub for PositiveFiniteF64 {
+    type Output = Option<Self>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.0 - rhs.0)
+    }
+}
+
+/// Long Note Mode Type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum LnModeType {
+    /// Normal Long Note (LN)
+    Ln,
+    /// Classic Long Note (CN)
+    Cn,
+    /// Hell Classic Long Note (HCN)
+    Hcn,
+}
+
+impl From<LnModeType> for u8 {
+    fn from(mode: LnModeType) -> u8 {
+        match mode {
+            LnModeType::Ln => 1,
+            LnModeType::Cn => 2,
+            LnModeType::Hcn => 3,
+        }
+    }
 }

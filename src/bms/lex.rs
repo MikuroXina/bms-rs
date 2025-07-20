@@ -54,7 +54,7 @@ pub enum LexWarning {
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 
 /// Lex Parsing Results, includes tokens and warnings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
@@ -142,7 +142,7 @@ mod tests {
                 Genre("FUGA"),
                 Title("BAR(^^)"),
                 Artist("MikuroXina"),
-                Bpm("120"),
+                Bpm(PositiveFiniteF64::new(120.0).unwrap()),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 BackBmp(Path::new("boon.jpg")),
