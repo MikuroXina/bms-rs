@@ -718,17 +718,14 @@ impl Notes {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
-            Token::LnObj(obj_id) => todo!(),
             Token::CharFile(path) => todo!(),
-            Token::Song(obj_id, _) => todo!(),
-            Token::ExBpm(obj_id, _) => todo!(),
             Token::BaseBpm(_) => todo!(),
-            Token::Stp(obj_id, _) => todo!(),
-            Token::WavCmd(obj_id, _) => todo!(),
+            Token::Stp(_) => todo!(),
+            Token::WavCmd(_) => todo!(),
             Token::Cdda(path) => todo!(),
-            Token::Swbga(obj_id, path) => todo!(),
-            Token::Argb(obj_id, argb) => todo!(),
-            Token::VideoFs(path) => todo!(),
+            Token::SwBga { .. } => todo!(),
+            Token::Argb { .. } => todo!(),
+            Token::Movie(path) => todo!(),
             Token::VideoColors(rgb) => todo!(),
             Token::VideoDly(_) => todo!(),
             Token::Seek(obj_id, _) => todo!(),
@@ -740,6 +737,7 @@ impl Notes {
             Token::DefExRank(_) => todo!(),
             Token::Preview(path) => todo!(),
             Token::LnMode(ln_mode_type) => todo!(),
+            Token::VideoFs(path) => todo!(),
         }
         Ok(())
     }

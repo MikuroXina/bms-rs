@@ -1,9 +1,11 @@
 //! Definitions of command argument data.
 pub mod channel;
 
-use std::ops::Deref;
+use std::{ops::Deref, time::Duration};
 
 pub use channel::Channel;
+
+use crate::time::ObjTime;
 
 use super::{Result, cursor::Cursor};
 
@@ -713,4 +715,14 @@ impl From<LnModeType> for u8 {
             LnModeType::Hcn => 3,
         }
     }
+}
+
+/// bemaniaDX型STP序列定义。
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StpEvent {
+    /// The time of the stop.
+    pub time: ObjTime,
+    /// The duration of the stop.
+    pub duration: Duration,
 }

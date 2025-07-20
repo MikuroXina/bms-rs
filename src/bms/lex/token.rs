@@ -1,6 +1,7 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path};
+use crate::time::ObjTime;
+use std::{borrow::Cow, path::Path, time::Duration};
 
 use super::{Result, command::*, cursor::Cursor};
 
@@ -48,6 +49,7 @@ pub enum Token<'a> {
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
     Bpm(PositiveFiniteF64),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
+    /// `#EXBPM[01-ZZ] [f64]` is equivalent to this.
     BpmChange(ObjId, PositiveFiniteF64),
     /// `#CASE [u64]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(u64),
@@ -167,6 +169,7 @@ pub enum Token<'a> {
     /// `#SWITCH [u64]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(u64),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
+    /// `#SONG[01-ZZ] [string]` is equivalent to `#TEXT[01-ZZ] [string]`, while `#SONG` is deprecated.
     Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
@@ -184,44 +187,49 @@ pub enum Token<'a> {
     VolWav(Volume),
     /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
     Wav(ObjId, &'a Path),
-    /// `#CHARFILE [filename]` 角色图片文件，部分播放器支持。
+    /// `#CHARFILE [filename]`.
+    /// The character file similar to pop'n music. It's filextension is `.chp`.
+    /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
     CharFile(&'a Path),
-    /// `#SONG[01-ZZ] [string]` 多重歌曲名定义。
-    Song(ObjId, &'a str),
-    /// `#EXBPM[01-ZZ] [f64]` 扩展BPM定义。
-    ExBpm(ObjId, PositiveFiniteF64),
-    /// `#BASEBPM [f64]` 基础BPM。
+    /// `#BASEBPM [f64]` is the base BPM.
+    /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
     BaseBpm(PositiveFiniteF64),
-    /// `#STP[01-ZZ] [f64]` bemaniaDX扩展STOP序列。
-    Stp(ObjId, PositiveFiniteF64),
-    /// `#WAVCMD[01-ZZ] [params]` MacBeat扩展，伪MOD效果。
-    WavCmd(ObjId, &'a str),
-    /// `#CDDA [filename]` CD-DA音轨文件。
-    Cdda(&'a Path),
-    /// `#SWBGA[01-ZZ] [filename]` 扩展Poor BGA。
-    Swbga(ObjId, &'a Path),
-    /// `#ARGB[01-ZZ] [A],[R],[G],[B]` 扩展透明色定义。
+    /// `#STP xxx.yyy zzzz` bemaniaDX型STOP序列。
+    Stp(StpEvent),
+    /// `#WAVCMD [param] [wav-index] [value]` MacBeat扩展，伪MOD效果。
+    WavCmd(WavCmdEvent),
+    /// `#CDDA [u64]`.
+    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    Cdda(u64),
+    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation。
+    SwBga(ObjId, SwBgaEvent),
+    /// `#ARGB[A1-A4] [A],[R],[G],[B]` 扩展透明色定义。
+    /// - A1: BGA BASE
+    /// - A2: BGA LAYER
+    /// - A3: BGA LAYER 2
+    /// - A4: BGA POOR
     Argb(ObjId, Argb),
-    /// `#VIDEOF/S [filename]` 视频文件扩展。
-    VideoFs(&'a Path),
-    /// `#VIDEOCOLORS [R],[G],[B]` 视频色彩扩展。
-    VideoColors(Rgb),
+    /// `#VIDEOF/S [f64]` 视频文件帧率。
+    VideoFs(PositiveFiniteF64),
+    /// `#VIDEOCOLORS [u8]` 视频色深，默认16Bit。
+    VideoColors(u8),
     /// `#VIDEODLY [f64]` 视频延迟扩展。
     VideoDly(FiniteF64),
     /// `#SEEK[01-ZZ] [f64]` 视频跳转扩展。
+    /// Unknown.
     Seek(ObjId, FiniteF64),
-    /// `#ExtChr [params]` BM98扩展对象。
-    ExtChr(&'a str),
+    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98扩展字符自定义。
+    ExtChr(ExtChrEvent),
     /// `#MATERIALSWAV [filename]` 物料WAV扩展。
     /// 已经不推荐使用。
     MaterialsWav(&'a Path),
     /// `#MATERIALSBMP [filename]` 物料BMP扩展。
     /// 已经不推荐使用。
     MaterialsBmp(&'a Path),
-    /// `#DIVIDEPROP [string]` 分割属性扩展。
+    /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
     /// 已经不推荐使用。
     DivideProp(&'a str),
-    /// `#CHARSET [string]` 字符集声明。
+    /// `#CHARSET [string]` 字符集声明。默认为SHIFT-JIS。
     Charset(&'a str),
     /// `#DEFEXRANK [u64]` 扩展判定等级定义，定义为原先的百分之n（n%）。
     /// 以NORMAL判定为基准，100为NORMAL判定。
@@ -231,6 +239,97 @@ pub enum Token<'a> {
     Preview(&'a Path),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` 明示指定本谱面长按类型。
     LnMode(LnModeType),
+    /// `#MOVIE [filename]` DXEmu等扩展，定义全局视频文件。
+    /// - 视频从#000开始播放。
+    /// - 优先级规则：
+    ///   - 如果#xxx04是图片文件（BMP, PNG等），则优先级给#MOVIE。
+    ///   - 如果#xxx04和#MOVIE都是视频文件，则优先级给#xxx04。
+    /// - 不循环，播放完停留在最后一帧。
+    /// - 视频内音轨不播放。
+    Movie(&'a Path),
+}
+
+/// MacBeat型WAVCMD事件。
+///
+/// 用于#WAVCMD命令，表示对指定WAV对象的音高、音量或播放时长的调整。
+/// - param: 调整类型（音高/音量/时长）
+/// - wav_index: 目标WAV对象ID
+/// - value: 调整值，含义随param不同
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WavCmdEvent {
+    pub param: WavCmdParam,
+    pub wav_index: ObjId,
+    pub value: u32,
+}
+
+/// WAVCMD参数类型。
+///
+/// - Pitch: 音高（0-127，60为C6）
+/// - Volume: 音量百分比（0-100）
+/// - Time: 播放时长（ms*0.5，0为原音长）
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum WavCmdParam {
+    Pitch,  // 00
+    Volume, // 01
+    Time,   // 02
+}
+
+/// SWBGA（Key Bind Layer Animation）事件。
+///
+/// 用于#SWBGA命令，描述按键绑定的BGA动画。
+/// - frame_rate: 帧间隔（ms），如60FPS=17
+/// - total_time: 动画总时长（ms），0表示按键持续时
+/// - line: 适用的按键通道（如11-19, 21-29）
+/// - loop_mode: 是否循环（0:不循环，1:循环）
+/// - argb: 透明色（A,R,G,B）
+/// - pattern: 动画帧序列（如01020304）
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SwBgaEvent {
+    /// 帧间隔（ms），如60FPS=17。
+    pub frame_rate: u32,
+    /// 动画总时长（ms），0表示按键持续时。
+    pub total_time: u32,
+    /// 适用的按键通道（如11-19, 21-29）。
+    pub line: u8,
+    /// 是否循环（0:不循环，1:循环）。
+    pub loop_mode: bool,
+    /// 透明色（A,R,G,B）。
+    pub argb: Argb,
+    /// 动画帧序列（如01020304）。
+    pub pattern: String,
+}
+
+/// BM98 #ExtChr 扩展字符自定义事件。
+///
+/// 用于#ExtChr命令，实现自定义UI元素的图像替换。
+/// - sprite_num: 要替换的字符索引 [0-1023]
+/// - bmp_num: BMP索引（十六进制转十进制，或-1/-257等）
+/// - start_x/start_y: 裁剪起点
+/// - end_x/end_y: 裁剪终点
+/// - offset_x/offset_y: 偏移量（可选）
+/// - abs_x/abs_y: 绝对坐标（可选）
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExtChrEvent {
+    /// 要替换的字符索引 [0-1023]
+    pub sprite_num: i32,
+    /// BMP索引（十六进制转十进制，或-1/-257等）
+    pub bmp_num: i32,
+    /// 裁剪起点
+    pub start_x: i32,
+    pub start_y: i32,
+    /// 裁剪终点
+    pub end_x: i32,
+    pub end_y: i32,
+    /// 偏移量（可选）
+    pub offset_x: Option<i32>,
+    pub offset_y: Option<i32>,
+    /// 绝对坐标（可选）
+    pub abs_x: Option<i32>,
+    pub abs_y: Option<i32>,
 }
 
 impl<'a> Token<'a> {
@@ -742,7 +841,7 @@ impl<'a> Token<'a> {
                 song if song.starts_with("#SONG") => {
                     let id = song.trim_start_matches("#SONG");
                     let content = c.next_line_remaining();
-                    Self::Song(ObjId::try_load(id, c)?, content)
+                    Self::Text(ObjId::try_load(id, c)?, content)
                 }
                 exbpm if exbpm.starts_with("#EXBPM") => {
                     let id = exbpm.trim_start_matches("#EXBPM");
@@ -753,7 +852,7 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     let v = PositiveFiniteF64::new(v)
                         .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
-                    Self::ExBpm(ObjId::try_load(id, c)?, v)
+                    Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 "#BASEBPM" => {
                     let v = c
@@ -766,35 +865,162 @@ impl<'a> Token<'a> {
                     Self::BaseBpm(v)
                 }
                 stp if stp.starts_with("#STP") => {
-                    let id = stp.trim_start_matches("#STP");
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stp value"))?
+                    let line = c.next_line_entire();
+                    let part = line.trim();
+                    if part.is_empty() {
+                        return Err(c.make_err_expected_token("stp definition"));
+                    }
+                    // 解析xxx.yyy zzzz
+                    let (xy, ms) = if let Some((xy, ms)) = part.split_once(' ') {
+                        (xy, ms)
+                    } else if let Some((xy, ms)) = part.split_once('\t') {
+                        (xy, ms)
+                    } else if let Some((xy, ms)) = part.split_once('\u{3000}') {
+                        (xy, ms)
+                    } else {
+                        return Err(c.make_err_expected_token("stp format xxx.yyy zzzz"));
+                    };
+                    let ms: u32 = ms
+                        .trim()
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
                         .parse()
-                        .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
-                    Self::Stp(ObjId::try_load(id, c)?, v)
+                        .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
+                    let (measure, pos) = if let Some((m, p)) = xy.split_once('.') {
+                        (m, p)
+                    } else {
+                        (xy, "000")
+                    };
+                    if measure.len() != 3 || pos.len() != 3 {
+                        return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
+                    }
+                    let measure: u16 = measure
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("stp measure u16"))?;
+                    let pos: u16 = pos
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
+                    let time = ObjTime::new(measure as u64, pos as u64, 1000);
+                    let duration = Duration::from_millis(ms as u64);
+                    Self::Stp(StpEvent { time, duration })
                 }
                 wavcmd if wavcmd.starts_with("#WAVCMD") => {
-                    let id = wavcmd.trim_start_matches("#WAVCMD");
-                    let params = c.next_line_remaining();
-                    Self::WavCmd(ObjId::try_load(id, c)?, params)
+                    let param = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
+                    let param = match param {
+                        "00" => WavCmdParam::Pitch,
+                        "01" => WavCmdParam::Volume,
+                        "02" => WavCmdParam::Time,
+                        _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
+                    };
+                    let wav_index = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
+                    let wav_index = ObjId::try_load(wav_index, c)?;
+                    let value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
+                    let value: u32 = value
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
+                    // 合法性校验
+                    match param {
+                        WavCmdParam::Pitch if !(0..=127).contains(&value) => {
+                            return Err(c.make_err_expected_token("pitch 0-127"));
+                        }
+                        WavCmdParam::Volume if value > 100 => {
+                            return Err(c.make_err_expected_token("volume 0-100"));
+                        }
+                        WavCmdParam::Time => { /* 0为原音长，50ms以下不可靠 */ }
+                        _ => {}
+                    }
+                    Self::WavCmd(WavCmdEvent {
+                        param,
+                        wav_index,
+                        value,
+                    })
                 }
                 "#CDDA" => {
-                    let path = c
+                    let v = c
                         .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("cdda filename"))?;
-                    Self::Cdda(path)
+                        .ok_or_else(|| c.make_err_expected_token("cdda value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("cdda value u64"))?;
+                    Self::Cdda(v)
                 }
                 swbga if swbga.starts_with("#SWBGA") => {
                     let id = swbga.trim_start_matches("#SWBGA");
-                    let path = c
+                    // 解析 fr:time:line:loop:a,r,g,b pattern
+                    let params = c
                         .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("swbga filename"))?;
-                    Self::Swbga(ObjId::try_load(id, c)?, path)
+                        .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
+                    let mut parts = params.split(':');
+                    let frame_rate = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga frame_rate"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga frame_rate u32"))?;
+                    let total_time = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga total_time"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga total_time u32"))?;
+                    let line = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga line"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga line u8"))?;
+                    let loop_mode = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga loop"))?
+                        .parse::<u8>()
+                        .map_err(|_| c.make_err_expected_token("swbga loop 0/1"))?;
+                    let loop_mode = match loop_mode {
+                        0 => false,
+                        1 => true,
+                        _ => return Err(c.make_err_expected_token("swbga loop 0/1")),
+                    };
+                    let argb_str = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga argb"))?;
+                    let argb_parts: Vec<&str> = argb_str.split(',').collect();
+                    if argb_parts.len() != 4 {
+                        return Err(c.make_err_expected_token("swbga argb 4 values"));
+                    }
+                    let alpha = argb_parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb alpha"))?;
+                    let red = argb_parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb red"))?;
+                    let green = argb_parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb green"))?;
+                    let blue = argb_parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb blue"))?;
+                    let pattern = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("swbga pattern"))?
+                        .to_string();
+                    Self::SwBga(
+                        ObjId::try_load(id, c)?,
+                        SwBgaEvent {
+                            frame_rate,
+                            total_time,
+                            line,
+                            loop_mode,
+                            argb: Argb {
+                                alpha,
+                                red,
+                                green,
+                                blue,
+                            },
+                            pattern,
+                        },
+                    )
                 }
                 argb if argb.starts_with("#ARGB") => {
                     let id = argb.trim_start_matches("#ARGB");
@@ -828,30 +1054,22 @@ impl<'a> Token<'a> {
                     )
                 }
                 videofs if videofs.starts_with("#VIDEOF/S") => {
-                    let path = c
+                    let v = c
                         .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("videofs filename"))?;
-                    Self::VideoFs(path)
+                        .ok_or_else(|| c.make_err_expected_token("videofs value"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    let v = PositiveFiniteF64::new(v)
+                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    Self::VideoFs(v)
                 }
                 videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
-                    let rgb_str = c
+                    let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
-                    let parts: Vec<&str> = rgb_str.split(',').collect();
-                    if parts.len() != 3 {
-                        return Err(c.make_err_expected_token("expected 3 comma-separated values"));
-                    }
-                    let r = parts[0]
+                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?
                         .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid r value"))?;
-                    let g = parts[1]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid g value"))?;
-                    let b = parts[2]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid b value"))?;
-                    Self::VideoColors(Rgb { r, g, b })
+                        .map_err(|_| c.make_err_expected_token("u8"))?;
+                    Self::VideoColors(v)
                 }
                 videodly if videodly.starts_with("#VIDEODLY") => {
                     let v = c
@@ -874,9 +1092,70 @@ impl<'a> Token<'a> {
                         FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
                     Self::Seek(ObjId::try_load(id, c)?, v)
                 }
-                extchr if extchr.starts_with("#EXTCHR") || extchr.starts_with("#EXTCHR") => {
-                    let params = c.next_line_remaining();
-                    Self::ExtChr(params)
+                extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
+                    // 允许参数间有多个空格
+                    let mut params = c.next_line_remaining().split_whitespace();
+                    let sprite_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
+                    let bmp_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
+                    // BMPNum 支持十六进制（如09/FF），也支持-1/-257等
+                    let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
+                        -stripped
+                            .parse::<i32>()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
+                    } else if bmp_num.starts_with("0x")
+                        || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
+                    {
+                        i32::from_str_radix(bmp_num, 16)
+                            .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
+                    } else {
+                        bmp_num
+                            .parse()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
+                    };
+                    let start_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_x i32"))?;
+                    let start_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_y i32"))?;
+                    let end_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_x i32"))?;
+                    let end_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_y i32"))?;
+                    // offsetX/offsetY 可选
+                    let offset_x = params.next().map(|v| v.parse().ok()).flatten();
+                    let offset_y = params.next().map(|v| v.parse().ok()).flatten();
+                    // x/y 可选，只有offset存在时才可出现
+                    let abs_x = params.next().map(|v| v.parse().ok()).flatten();
+                    let abs_y = params.next().map(|v| v.parse().ok()).flatten();
+                    Self::ExtChr(ExtChrEvent {
+                        sprite_num,
+                        bmp_num,
+                        start_x,
+                        start_y,
+                        end_x,
+                        end_y,
+                        offset_x,
+                        offset_y,
+                        abs_x,
+                        abs_y,
+                    })
                 }
                 materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                     let path = c
@@ -930,6 +1209,13 @@ impl<'a> Token<'a> {
                         _ => return Err(c.make_err_expected_token("lnmode 1-3")),
                     };
                     Self::LnMode(mode)
+                }
+                movie if movie.starts_with("#MOVIE") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
+                    Self::Movie(path)
                 }
                 // Unknown command & Not a command
                 command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
@@ -1017,7 +1303,7 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lex::command::channel::read_channel_beat;
+    use crate::{lex::command::channel::read_channel_beat, time::Track};
 
     use super::*;
 
@@ -1167,5 +1453,116 @@ mod tests {
             panic!("Not LnObj");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
+    }
+
+    #[test]
+    fn test_stpseq() {
+        let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
+            panic!("Not StpSeq");
+        };
+        assert_eq!(stp.time.track, Track(1));
+        assert_eq!(stp.time.numerator, 500);
+        assert_eq!(stp.time.denominator, 1000);
+        assert_eq!(stp.duration.as_millis(), 1500);
+    }
+
+    #[test]
+    fn test_wavcmd_pitch() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 00 0E 61") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Pitch);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 61);
+    }
+
+    #[test]
+    fn test_wavcmd_volume() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 01 0E 50") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Volume);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 50);
+    }
+
+    #[test]
+    fn test_wavcmd_time() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 02 0E 100") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Time);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 100);
+    }
+
+    #[test]
+    fn test_swbga() {
+        let Token::SwBga(id, ev) = parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
+        else {
+            panic!("Not SwBga");
+        };
+        assert_eq!(id, ObjId::try_from("01").unwrap());
+        assert_eq!(ev.frame_rate, 100);
+        assert_eq!(ev.total_time, 400);
+        assert_eq!(ev.line, 16);
+        assert!(!ev.loop_mode);
+        assert_eq!(
+            ev.argb,
+            Argb {
+                alpha: 255,
+                red: 255,
+                green: 255,
+                blue: 255
+            }
+        );
+        assert_eq!(ev.pattern, "01020304");
+    }
+
+    #[test]
+    fn test_movie() {
+        let Token::Movie(path) = parse_token("#MOVIE video.mp4") else {
+            panic!("Not Movie");
+        };
+        assert_eq!(path, Path::new("video.mp4"));
+    }
+
+    #[test]
+    fn test_extchr_basic() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 512 09 30 0 99 9") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.sprite_num, 512);
+        assert_eq!(ev.bmp_num, 9);
+        assert_eq!(ev.start_x, 30);
+        assert_eq!(ev.start_y, 0);
+        assert_eq!(ev.end_x, 99);
+        assert_eq!(ev.end_y, 9);
+        assert_eq!(ev.offset_x, None);
+        assert_eq!(ev.offset_y, None);
+        assert_eq!(ev.abs_x, None);
+        assert_eq!(ev.abs_y, None);
+    }
+
+    #[test]
+    fn test_extchr_offset() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 516 0 38 1 62 9 -2 -2") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.offset_x, Some(-2));
+        assert_eq!(ev.offset_y, Some(-2));
+        assert_eq!(ev.abs_x, None);
+        assert_eq!(ev.abs_y, None);
+    }
+
+    #[test]
+    fn test_extchr_abs() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 513 0 38 1 62 9 -2 -2 0 0") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.offset_x, Some(-2));
+        assert_eq!(ev.offset_y, Some(-2));
+        assert_eq!(ev.abs_x, Some(0));
+        assert_eq!(ev.abs_y, Some(0));
     }
 }

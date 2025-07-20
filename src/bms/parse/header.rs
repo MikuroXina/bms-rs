@@ -528,14 +528,11 @@ impl Header {
                 // this token should be handled outside.
             }
             Token::CharFile(path) => todo!(),
-            Token::Song(obj_id, _) => todo!(),
-            Token::ExBpm(obj_id, _) => todo!(),
             Token::BaseBpm(_) => todo!(),
-            Token::Stp(obj_id, _) => todo!(),
-            Token::WavCmd(obj_id, _) => todo!(),
-            Token::Cdda(path) => todo!(),
-            Token::Swbga(obj_id, path) => todo!(),
-            Token::Argb(obj_id, argb) => todo!(),
+            Token::Stp(_) => todo!(),
+            Token::WavCmd(_) => todo!(),
+            Token::Cdda(_) => todo!(),
+            Token::Argb { .. } => todo!(),
             Token::VideoFs(path) => todo!(),
             Token::VideoColors(rgb) => todo!(),
             Token::VideoDly(_) => todo!(),
@@ -548,6 +545,8 @@ impl Header {
             Token::DefExRank(_) => todo!(),
             Token::Preview(path) => todo!(),
             Token::LnMode(ln_mode_type) => todo!(),
+            Token::SwBga { .. } => todo!(),
+            Token::Movie(path) => todo!(),
         }
         Ok(())
     }
