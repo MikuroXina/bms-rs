@@ -275,7 +275,7 @@ pub struct BgaId(pub u32);
 
 /// Beatoraja implementation of long note type.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
 )]
 #[repr(u8)]
 pub enum LongNoteType {
