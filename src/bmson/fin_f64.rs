@@ -25,6 +25,26 @@ impl From<FinF64> for f64 {
     }
 }
 
+/// Error type for `FinF64::try_from`.
+#[derive(Debug, thiserror::Error)]
+pub struct TryFromFloatError(pub(crate) ());
+
+impl std::fmt::Display for TryFromFloatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "finite number expected")
+    }
+}
+
+impl TryFrom<f64> for FinF64 {
+    type Error = TryFromFloatError;
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        value
+            .is_finite()
+            .then_some(Self(value))
+            .ok_or(TryFromFloatError(()))
+    }
+}
+
 impl AsRef<f64> for FinF64 {
     fn as_ref(&self) -> &f64 {
         &self.0
@@ -35,11 +55,7 @@ impl FinF64 {
     /// Creates a new `FinF64` from `f64` if `float` is finite, otherwise returns `None`.
     #[inline]
     pub fn new(float: f64) -> Option<Self> {
-        if float.is_finite() {
-            Some(Self(float))
-        } else {
-            None
-        }
+        Self::try_from(float).ok()
     }
 
     /// Gets the internal value.

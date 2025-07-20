@@ -26,11 +26,11 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
-    lex::command::{JudgeLevel, Key, PlayerSide},
+    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide},
     parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
@@ -63,7 +63,17 @@ pub struct Bmson {
     /// Note data.
     pub sound_channels: Vec<SoundChannel>,
     /// BGA data.
+    #[serde(default)]
     pub bga: Bga,
+    /// Beatoraja implementation of scroll events.
+    #[serde(default)]
+    pub scroll_events: Vec<ScrollEvent>,
+    /// Beatoraja implementation of mine channel.
+    #[serde(default)]
+    pub mine_channels: Vec<MineChannel>,
+    /// Beatoraja implementation of invisible key channel.
+    #[serde(default)]
+    pub key_channels: Vec<KeyChannel>,
 }
 
 /// Header metadata of chart.
@@ -108,18 +118,26 @@ pub struct BmsonInfo {
     #[serde(default = "default_percentage")]
     pub total: FinF64,
     /// Background image file name. This should be displayed during the game play.
+    #[serde(default)]
     pub back_image: Option<String>,
     /// Eyecatch image file name. This should be displayed during the chart is loading.
+    #[serde(default)]
     pub eyecatch_image: Option<String>,
     /// Title image file name. This should be displayed before the game starts instead of title of the music.
+    #[serde(default)]
     pub title_image: Option<String>,
     /// Banner image file name. This should be displayed in music select or result scene. The aspect ratio of image is usually 15:4.
+    #[serde(default)]
     pub banner_image: Option<String>,
     /// Preview music file name. This should be played when this chart is selected in a music select scene.
+    #[serde(default)]
     pub preview_music: Option<String>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
     pub resolution: u32,
+    /// Beatoraja implementation of long note type.
+    #[serde(default)]
+    pub ln_type: LongNoteType,
 }
 
 /// Default mode hint, beatmania 7 keys.
@@ -129,7 +147,7 @@ pub fn default_mode_hint() -> String {
 
 /// Default relative percentage, 100%.
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).unwrap()
+    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
@@ -168,14 +186,34 @@ pub struct SoundChannel {
 /// Sound note to ring a sound file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Note {
-    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
-    pub x: Option<NonZeroU8>,
     /// Position to be placed.
     pub y: PulseNumber,
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
     /// Length of pulses of the note. It will be a normal note if zero, otherwise a long note.
     pub l: u32,
     /// Continuation flag. It will continue to ring rest of the file when play if `true`, otherwise it will play from start.
     pub c: bool,
+    /// Beatoraja implementation of long note type.
+    #[serde(default)]
+    pub t: LongNoteType,
+    /// Beatoraja implementation of long note up flag.
+    /// If it is true and configured at the end position of a long note, then this position will become the ending note of the long note.
+    #[serde(default)]
+    pub up: bool,
+}
+
+fn deserialize_x_none_if_zero<'de, D>(deserializer: D) -> Result<Option<NonZeroU8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<u8>::deserialize(deserializer)?;
+    Ok(match opt {
+        Some(0) => None,
+        Some(v) => NonZeroU8::new(v),
+        None => None,
+    })
 }
 
 /// BPM change note.
@@ -197,15 +235,19 @@ pub struct StopEvent {
 }
 
 /// BGA data.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Bga {
     /// Pictures data for playing BGA.
+    #[serde(default)]
     pub bga_header: Vec<BgaHeader>,
     /// Base picture sequence.
+    #[serde(default)]
     pub bga_events: Vec<BgaEvent>,
     /// Layered picture sequence.
+    #[serde(default)]
     pub layer_events: Vec<BgaEvent>,
     /// Picture sequence displayed when missed.
+    #[serde(default)]
     pub poor_events: Vec<BgaEvent>,
 }
 
@@ -231,6 +273,68 @@ pub struct BgaEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BgaId(pub u32);
 
+/// Beatoraja implementation of long note type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[repr(u8)]
+pub enum LongNoteType {
+    /// Normal long note.
+    #[default]
+    LN = 1,
+    /// Continuous long note.
+    CN = 2,
+    /// Hell continuous long note.
+    HCN = 3,
+}
+
+/// Beatoraja implementation of scroll event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScrollEvent {
+    /// Position to scroll.
+    pub y: PulseNumber,
+    /// Scroll rate.
+    pub rate: FinF64,
+}
+
+/// Beatoraja implementation of mine channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MineEvent {
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
+    /// Position to be placed.
+    pub y: PulseNumber,
+    /// Damage of the mine.
+    pub damage: FinF64,
+}
+
+/// Beatoraja implementation of mine channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MineChannel {
+    /// Name of the mine sound file.
+    pub name: String,
+    /// Mine notes.
+    pub notes: Vec<MineEvent>,
+}
+
+/// Beatoraja implementation of invisible key event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyEvent {
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
+    /// Position to be placed.
+    pub y: PulseNumber,
+}
+
+/// Beatoraja implementation of invisible key channel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyChannel {
+    /// Name of the key sound file.
+    pub name: String,
+    /// Invisible key notes.
+    pub notes: Vec<KeyEvent>,
+}
+
 /// Errors on converting from `Bms` into `Bmson`.
 #[derive(Debug, Error, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -241,6 +345,9 @@ pub enum BmsonConvertError {
     /// The total percentage was infinity or NaN.
     #[error("header total was invalid value")]
     InvalidTotal,
+    /// The scrolling factor was infinity or NaN.
+    #[error("scrolling factor was invalid value")]
+    InvalidScrollingFactor,
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -262,7 +369,7 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
-        .unwrap();
+        .expect("Internal error: judge rank is invalid");
 
         let resolution = value.notes.resolution_for_pulses();
 
@@ -342,11 +449,14 @@ impl TryFrom<Bms> for Bmson {
             banner_image: value.header.banner.map(|path| path.display().to_string()),
             preview_music: None,
             resolution,
+            ln_type: LongNoteType::LN,
         };
 
-        let sound_channels = {
-            let path_root = value.header.wav_path_root.unwrap_or_default();
-            let mut sound_channels = HashMap::new();
+        let (sound_channels, mine_channels, key_channels) = {
+            let path_root = value.header.wav_path_root.clone().unwrap_or_default();
+            let mut sound_map: HashMap<_, Vec<Note>> = HashMap::new();
+            let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
+            let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in value.notes.all_notes() {
                 let note_lane = note
                     .kind
@@ -378,38 +488,94 @@ impl TryFrom<Bms> for Bmson {
                     )
                     .map(|num| NonZeroU8::new(num).unwrap());
                 let pulses = converter.get_pulses_at(note.offset);
-                let duration =
-                    if let Some(next_note) = value.notes.next_obj_by_key(note.key, note.offset) {
-                        pulses.abs_diff(converter.get_pulses_at(next_note.offset))
-                    } else {
-                        0
-                    };
-                let to_insert = Note {
-                    x: note_lane,
-                    y: pulses,
-                    l: duration,
-                    c: false,
-                };
-
-                sound_channels
-                    .entry(note.obj)
-                    .and_modify(|channel: &mut SoundChannel| channel.notes.push(to_insert.clone()))
-                    .or_insert_with(|| {
-                        let sound_path = path_root.join(
-                            value
-                                .header
-                                .wav_files
-                                .get(&note.obj)
-                                .cloned()
-                                .unwrap_or_default(),
-                        );
-                        SoundChannel {
-                            name: sound_path.display().to_string(),
-                            notes: vec![to_insert],
-                        }
-                    });
+                match note.kind {
+                    NoteKind::Landmine => {
+                        let damage = FinF64::new(100.0)
+                            .expect("Internal error: 100.0 is not a valid FinF64");
+                        mine_map.entry(note.obj).or_default().push(MineEvent {
+                            x: note_lane,
+                            y: pulses,
+                            damage,
+                        });
+                    }
+                    NoteKind::Invisible => {
+                        key_map.entry(note.obj).or_default().push(KeyEvent {
+                            x: note_lane,
+                            y: pulses,
+                        });
+                    }
+                    _ => {
+                        // Normal note
+                        let duration = if let Some(next_note) =
+                            value.notes.next_obj_by_key(note.key, note.offset)
+                        {
+                            pulses.abs_diff(converter.get_pulses_at(next_note.offset))
+                        } else {
+                            0
+                        };
+                        sound_map.entry(note.obj).or_default().push(Note {
+                            x: note_lane,
+                            y: pulses,
+                            l: duration,
+                            c: false,
+                            t: LongNoteType::LN,
+                            up: false,
+                        });
+                    }
+                }
             }
-            sound_channels.into_values().collect()
+            let sound_channels = sound_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    SoundChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            let mine_channels = mine_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    MineChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            let key_channels = key_map
+                .into_iter()
+                .map(|(obj, notes)| {
+                    let sound_path = path_root.join(
+                        value
+                            .header
+                            .wav_files
+                            .get(&obj)
+                            .cloned()
+                            .unwrap_or_default(),
+                    );
+                    KeyChannel {
+                        name: sound_path.display().to_string(),
+                        notes,
+                    }
+                })
+                .collect();
+            (sound_channels, mine_channels, key_channels)
         };
 
         let bga = {
@@ -447,6 +613,20 @@ impl TryFrom<Bms> for Bmson {
             stop_events,
             sound_channels,
             bga,
+            scroll_events: value
+                .notes
+                .scrolling_factor_changes()
+                .values()
+                .map(|scroll| {
+                    Ok(ScrollEvent {
+                        y: converter.get_pulses_at(scroll.time),
+                        rate: FinF64::new(scroll.factor)
+                            .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                    })
+                })
+                .collect::<Result<Vec<_>, BmsonConvertError>>()?,
+            mine_channels,
+            key_channels,
         })
     }
 }
