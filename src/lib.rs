@@ -12,7 +12,7 @@
 //!     parse::{prompt::AlwaysWarn, rng::RngMock, Bms, BmsParseOutput},
 //! };
 //!
-//! let source = std::fs::read_to_string("tests/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! let BmsLexOutput { tokens: _, lex_warnings } = parse(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // Or you can use another preset.
