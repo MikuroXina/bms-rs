@@ -274,9 +274,7 @@ pub struct BgaEvent {
 pub struct BgaId(pub u32);
 
 /// Beatoraja implementation of long note type.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[repr(u8)]
 pub enum LongNoteType {
     /// Normal long note.
@@ -507,7 +505,7 @@ impl TryFrom<Bms> for Bmson {
                         });
                     }
                     _ => {
-                        // 普通音符
+                        // Normal note
                         let duration = if let Some(next_note) =
                             value.notes.next_obj_by_key(note.key, note.offset)
                         {
