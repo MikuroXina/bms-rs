@@ -30,7 +30,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
-    lex::command::{JudgeLevel, Key, PlayerSide},
+    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide},
     parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
@@ -300,8 +300,9 @@ pub struct ScrollEvent {
 /// Beatoraja implementation of mine channel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MineEvent {
-    /// Lane information.
-    pub x: NonZeroU8,
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
     /// Position to be placed.
     pub y: PulseNumber,
     /// Damage of the mine.
@@ -320,8 +321,9 @@ pub struct MineChannel {
 /// Beatoraja implementation of invisible key event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyEvent {
-    /// Lane information.
-    pub x: NonZeroU8,
+    /// Lane information. The `Some` number represents the key to play, otherwise it is not playable (BGM) note.
+    #[serde(deserialize_with = "deserialize_x_none_if_zero")]
+    pub x: Option<NonZeroU8>,
     /// Position to be placed.
     pub y: PulseNumber,
 }
@@ -488,32 +490,21 @@ impl TryFrom<Bms> for Bmson {
                     )
                     .map(|num| NonZeroU8::new(num).unwrap());
                 let pulses = converter.get_pulses_at(note.offset);
-                let x = match note.key {
-                    Key::Key1 => 1,
-                    Key::Key2 => 2,
-                    Key::Key3 => 3,
-                    Key::Key4 => 4,
-                    Key::Key5 => 5,
-                    Key::Key6 => 6,
-                    Key::Key7 => 7,
-                    Key::Scratch | Key::FreeZone => 8,
-                } + if note.is_player1 { 0 } else { 8 };
-                let x_nz = NonZeroU8::new(x).expect("Internal error: x is 0");
                 match note.kind {
                     NoteKind::Landmine => {
                         let damage = FinF64::new(100.0)
                             .expect("Internal error: 100.0 is not a valid FinF64");
                         mine_map.entry(note.obj).or_default().push(MineEvent {
-                            x: x_nz,
+                            x: note_lane,
                             y: pulses,
                             damage,
                         });
                     }
                     NoteKind::Invisible => {
-                        key_map
-                            .entry(note.obj)
-                            .or_default()
-                            .push(KeyEvent { x: x_nz, y: pulses });
+                        key_map.entry(note.obj).or_default().push(KeyEvent {
+                            x: note_lane,
+                            y: pulses,
+                        });
                     }
                     _ => {
                         // 普通音符
@@ -525,7 +516,7 @@ impl TryFrom<Bms> for Bmson {
                             0
                         };
                         sound_map.entry(note.obj).or_default().push(Note {
-                            x: Some(x_nz),
+                            x: note_lane,
                             y: pulses,
                             l: duration,
                             c: false,
