@@ -195,151 +195,150 @@ pub enum Token<'a> {
     /// `#BASEBPM [f64]` is the base BPM.
     /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
     BaseBpm(PositiveFiniteF64),
-    /// `#STP xxx.yyy zzzz` bemaniaDX型STOP序列。
+    /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
     Stp(StpEvent),
-    /// `#WAVCMD [param] [wav-index] [value]` MacBeat扩展，伪MOD效果。
+    /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     WavCmd(WavCmdEvent),
     /// `#CDDA [u64]`.
     /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
     Cdda(u64),
-    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation。
+    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
     SwBga(ObjId, SwBgaEvent),
-    /// `#ARGB[A1-A4] [A],[R],[G],[B]` 扩展透明色定义。
+    /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
     /// - A1: BGA BASE
     /// - A2: BGA LAYER
     /// - A3: BGA LAYER 2
     /// - A4: BGA POOR
     Argb(ObjId, Argb),
-    /// `#VIDEOF/S [f64]` 视频文件帧率。
+    /// `#VIDEOF/S [f64]` Video file frame rate.
     VideoFs(PositiveFiniteF64),
-    /// `#VIDEOCOLORS [u8]` 视频色深，默认16Bit。
+    /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
     VideoColors(u8),
-    /// `#VIDEODLY [f64]` 视频延迟扩展。
+    /// `#VIDEODLY [f64]` Video delay extension.
     VideoDly(FiniteF64),
-    /// `#SEEK[01-ZZ] [f64]` 视频跳转扩展。
-    /// Unknown.
+    /// `#SEEK[01-ZZ] [f64]` Video seek extension.
     Seek(ObjId, FiniteF64),
-    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98扩展字符自定义。
+    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     ExtChr(ExtChrEvent),
-    /// `#MATERIALSWAV [filename]` 物料WAV扩展。
-    /// 已经不推荐使用。
+    /// `#MATERIALSWAV [filename]` Material WAV extension.
+    /// Deprecated.
     MaterialsWav(&'a Path),
-    /// `#MATERIALSBMP [filename]` 物料BMP扩展。
-    /// 已经不推荐使用。
+    /// `#MATERIALSBMP [filename]` Material BMP extension.
+    /// Deprecated.
     MaterialsBmp(&'a Path),
     /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
-    /// 已经不推荐使用。
+    /// Deprecated.
     DivideProp(&'a str),
-    /// `#CHARSET [string]` 字符集声明。默认为SHIFT-JIS。
+    /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
     Charset(&'a str),
-    /// `#DEFEXRANK [u64]` 扩展判定等级定义，定义为原先的百分之n（n%）。
-    /// 以NORMAL判定为基准，100为NORMAL判定。
-    /// 会覆盖`#RANK`定义。
+    /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
+    /// 100 means NORMAL judge.
+    /// Overrides `#RANK` definition.
     DefExRank(u64),
-    /// `#PREVIEW [filename]` 选曲时自动播放的预览音源文件。
+    /// `#PREVIEW [filename]` Preview audio file for music selection.
     Preview(&'a Path),
-    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` 明示指定本谱面长按类型。
+    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnModeType),
-    /// `#MOVIE [filename]` DXEmu等扩展，定义全局视频文件。
-    /// - 视频从#000开始播放。
-    /// - 优先级规则：
-    ///   - 如果#xxx04是图片文件（BMP, PNG等），则优先级给#MOVIE。
-    ///   - 如果#xxx04和#MOVIE都是视频文件，则优先级给#xxx04。
-    /// - 不循环，播放完停留在最后一帧。
-    /// - 视频内音轨不播放。
+    /// `#MOVIE [filename]` DXEmu extension, defines global video file.
+    /// - Video starts from #000.
+    /// - Priority rules:
+    ///   - If #xxx04 is an image file (BMP, PNG, etc.), #MOVIE has priority.
+    ///   - If both #xxx04 and #MOVIE are video files, #xxx04 has priority.
+    /// - No loop, stays on last frame after playback.
+    /// - Audio track in video is not played.
     Movie(&'a Path),
 }
 
-/// MacBeat型WAVCMD事件。
+/// MacBeat WAVCMD event.
 ///
-/// 用于#WAVCMD命令，表示对指定WAV对象的音高、音量或播放时长的调整。
-/// - param: 调整类型（音高/音量/时长）
-/// - wav_index: 目标WAV对象ID
-/// - value: 调整值，含义随param不同
+/// Used for #WAVCMD command, represents pitch/volume/time adjustment for a specific WAV object.
+/// - param: adjustment type (pitch/volume/time)
+/// - wav_index: target WAV object ID
+/// - value: adjustment value, meaning depends on param
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavCmdEvent {
-    /// 调整类型（音高/音量/时长）
+    /// Adjustment type (pitch/volume/time)
     pub param: WavCmdParam,
-    /// 目标WAV对象ID
+    /// Target WAV object ID
     pub wav_index: ObjId,
-    /// 调整值，含义随param不同
+    /// Adjustment value, meaning depends on param
     pub value: u32,
 }
 
-/// WAVCMD参数类型。
+/// WAVCMD parameter type.
 ///
-/// - Pitch: 音高（0-127，60为C6）
-/// - Volume: 音量百分比（0-100）
-/// - Time: 播放时长（ms*0.5，0为原音长）
+/// - Pitch: pitch (0-127, 60 is C6)
+/// - Volume: volume percent (0-100)
+/// - Time: playback time (ms*0.5, 0 means original length)
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WavCmdParam {
-    /// 音高（0-127，60为C6）
+    /// Pitch (0-127, 60 is C6)
     Pitch,
-    /// 音量百分比（0-100）
+    /// Volume percent (0-100)
     Volume,
-    /// 播放时长（ms*0.5，0为原音长）
+    /// Playback time (ms*0.5, 0 means original length)
     Time,
 }
 
-/// SWBGA（Key Bind Layer Animation）事件。
+/// SWBGA (Key Bind Layer Animation) event.
 ///
-/// 用于#SWBGA命令，描述按键绑定的BGA动画。
-/// - frame_rate: 帧间隔（ms），如60FPS=17
-/// - total_time: 动画总时长（ms），0表示按键持续时
-/// - line: 适用的按键通道（如11-19, 21-29）
-/// - loop_mode: 是否循环（0:不循环，1:循环）
-/// - argb: 透明色（A,R,G,B）
-/// - pattern: 动画帧序列（如01020304）
+/// Used for #SWBGA command, describes key-bound BGA animation.
+/// - frame_rate: frame interval (ms), e.g. 60FPS=17
+/// - total_time: total animation duration (ms), 0 means while key is held
+/// - line: applicable key channel (e.g. 11-19, 21-29)
+/// - loop_mode: whether to loop (0: no loop, 1: loop)
+/// - argb: transparent color (A,R,G,B)
+/// - pattern: animation frame sequence (e.g. 01020304)
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SwBgaEvent {
-    /// 帧间隔（ms），如60FPS=17。
+    /// Frame interval (ms), e.g. 60FPS=17.
     pub frame_rate: u32,
-    /// 动画总时长（ms），0表示按键持续时。
+    /// Total animation duration (ms), 0 means while key is held.
     pub total_time: u32,
-    /// 适用的按键通道（如11-19, 21-29）。
+    /// Applicable key channel (e.g. 11-19, 21-29).
     pub line: u8,
-    /// 是否循环（0:不循环，1:循环）。
+    /// Whether to loop (0: no loop, 1: loop).
     pub loop_mode: bool,
-    /// 透明色（A,R,G,B）。
+    /// Transparent color (A,R,G,B).
     pub argb: Argb,
-    /// 动画帧序列（如01020304）。
+    /// Animation frame sequence (e.g. 01020304).
     pub pattern: String,
 }
 
-/// BM98 #ExtChr 扩展字符自定义事件。
+/// BM98 #ExtChr extended character customization event.
 ///
-/// 用于#ExtChr命令，实现自定义UI元素的图像替换。
-/// - sprite_num: 要替换的字符索引 [0-1023]
-/// - bmp_num: BMP索引（十六进制转十进制，或-1/-257等）
-/// - start_x/start_y: 裁剪起点
-/// - end_x/end_y: 裁剪终点
-/// - offset_x/offset_y: 偏移量（可选）
-/// - abs_x/abs_y: 绝对坐标（可选）
+/// Used for #ExtChr command, implements custom UI element image replacement.
+/// - sprite_num: character index to replace [0-1023]
+/// - bmp_num: BMP index (hex to decimal, or -1/-257, etc.)
+/// - start_x/start_y: crop start point
+/// - end_x/end_y: crop end point
+/// - offset_x/offset_y: offset (optional)
+/// - abs_x/abs_y: absolute coordinate (optional)
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtChrEvent {
-    /// 要替换的字符索引 [0-1023]
+    /// Character index to replace [0-1023]
     pub sprite_num: i32,
-    /// BMP索引（十六进制转十进制，或-1/-257等）
+    /// BMP index (hex to decimal, or -1/-257, etc.)
     pub bmp_num: i32,
-    /// 裁剪起点
+    /// Crop start point
     pub start_x: i32,
-    /// 裁剪起点
+    /// Crop start point
     pub start_y: i32,
-    /// 裁剪终点
+    /// Crop end point
     pub end_x: i32,
-    /// 裁剪终点
+    /// Crop end point
     pub end_y: i32,
-    /// 偏移量（可选）
+    /// Offset (optional)
     pub offset_x: Option<i32>,
-    /// 偏移量（可选）
+    /// Offset (optional)
     pub offset_y: Option<i32>,
-    /// 绝对坐标（可选）
+    /// Absolute coordinate (optional)
     pub abs_x: Option<i32>,
-    /// 绝对坐标（可选）
+    /// Absolute coordinate (optional)
     pub abs_y: Option<i32>,
 }
 
