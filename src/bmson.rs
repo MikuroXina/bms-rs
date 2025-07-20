@@ -370,8 +370,7 @@ impl TryFrom<Bms> for Bmson {
                             | Key::Key13
                             | Key::Key14
                             | Key::ScratchExtra
-                            | Key::FootPedal
-                            | Key::FootPedalExtra => 0,
+                            | Key::FootPedal => 0,
                         } + match note.side {
                             PlayerSide::Player1 => 0,
                             PlayerSide::Player2 => 8,

@@ -184,11 +184,7 @@ pub fn read_channel_beat_nanasi(channel: &str) -> Option<Channel> {
         FreeZone => FootPedal,
         _ => return None,
     };
-    Some(Channel::Note {
-        kind,
-        side,
-        key,
-    })
+    Some(Channel::Note { kind, side, key })
 }
 
 /// Reads a channel from a string. (For DSC & OCT/FP)
