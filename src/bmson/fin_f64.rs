@@ -54,7 +54,7 @@ impl FinF64 {
     /// Creates a new `FinF64` from `f64` if `float` is finite, otherwise returns `None`.
     #[inline]
     pub fn new(float: f64) -> Option<Self> {
-        float.is_finite().then_some(Self(float))
+        float.try_from().ok()
     }
 
     /// Gets the internal value.
