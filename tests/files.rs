@@ -5,7 +5,7 @@ use bms_rs::{
 
 #[test]
 fn test_lal() {
-    let source = include_str!("lilith_mx.bms");
+    let source = include_str!("files/lilith_mx.bms");
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
@@ -22,7 +22,7 @@ fn test_lal() {
 
 #[test]
 fn test_nc() {
-    let source = include_str!("nc_mx.bme");
+    let source = include_str!("files/nc_mx.bme");
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
@@ -39,7 +39,7 @@ fn test_nc() {
 
 #[test]
 fn test_j219() {
-    let source = include_str!("J219_7key.bms");
+    let source = include_str!("files/J219_7key.bms");
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
@@ -56,7 +56,7 @@ fn test_j219() {
 
 #[test]
 fn test_blank() {
-    let source = include_str!("dive_withblank.bme");
+    let source = include_str!("files/dive_withblank.bme");
     let BmsLexOutput {
         tokens: _,
         lex_warnings: warnings,
@@ -80,7 +80,7 @@ fn test_blank() {
 
 #[test]
 fn test_bemuse_ext() {
-    let source = include_str!("bemuse_ext.bms");
+    let source = include_str!("files/bemuse_ext.bms");
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
