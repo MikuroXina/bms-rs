@@ -4,7 +4,7 @@ mod ast_parse;
 use thiserror::Error;
 
 use super::{ParseWarning, rng::Rng};
-use crate::bms::lex::token::Token;
+use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
 
 use self::ast_build::*;
 use self::ast_parse::*;
@@ -12,16 +12,15 @@ use self::ast_parse::*;
 /// Parses the control flow of the token.
 /// Returns the tokens that will be executed, and not contains control flow tokens.
 pub(super) fn parse_control_flow<'a>(
-    token_stream: &mut std::iter::Peekable<impl Iterator<Item = &'a Token<'a>>>,
+    token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
 ) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
-    let mut error_list = Vec::new();
-    let ast: Vec<Unit<'a>> = build_control_flow_ast(token_stream, &mut error_list);
+    let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
     let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
     (
         tokens,
-        error_list
+        errors
             .into_iter()
             .map(ParseWarning::ViolateControlFlowRule)
             .collect(),
@@ -68,7 +67,7 @@ pub enum ControlFlowRule {
 mod tests {
 
     use super::*;
-    use crate::bms::lex::token::Token;
+    use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -100,8 +99,7 @@ mod tests {
             EndSwitch,
             Title("00000044"),
         ];
-        let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
+        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -208,8 +206,7 @@ mod tests {
             Skip,
             EndSwitch,
         ];
-        let mut errors = Vec::new();
-        let ast = build_control_flow_ast(&mut tokens.iter().peekable(), &mut errors);
+        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))

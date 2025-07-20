@@ -1,4 +1,5 @@
 use bms_rs::lex::BmsLexOutput;
+use bms_rs::lex::command::ObjId;
 use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
     lex::{LexWarning, parse},
@@ -26,14 +27,10 @@ fn test_atbga_parsing() {
     assert!(
         bms.header
             .atbga_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let atbga_def =
-        &bms.header.atbga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(
-        atbga_def.source_bmp,
-        bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
-    );
+    let atbga_def = &bms.header.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    assert_eq!(atbga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
     assert_eq!(
         atbga_def.trim_top_left,
         bms_rs::parse::header::PixelPoint::new(10, 20)
@@ -70,14 +67,10 @@ fn test_bga_parsing() {
     assert!(
         bms.header
             .bga_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let bga_def =
-        &bms.header.bga_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
-    assert_eq!(
-        bga_def.source_bmp,
-        bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap()
-    );
+    let bga_def = &bms.header.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    assert_eq!(bga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
     assert_eq!(
         bga_def.trim_top_left,
         bms_rs::parse::header::PixelPoint::new(10, 20)
@@ -114,10 +107,9 @@ fn test_exrank_parsing() {
     assert!(
         bms.header
             .exrank_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let exrank_def =
-        &bms.header.exrank_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    let exrank_def = &bms.header.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(
         exrank_def.judge_level,
         bms_rs::lex::command::JudgeLevel::Normal
@@ -146,10 +138,9 @@ fn test_exwav_parsing() {
     assert!(
         bms.header
             .exwav_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let exwav_def =
-        &bms.header.exwav_defs[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    let exwav_def = &bms.header.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(exwav_def.pan.value(), 10000);
     assert_eq!(exwav_def.volume.value(), 0);
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
@@ -178,10 +169,9 @@ fn test_changeoption_parsing() {
     assert!(
         bms.header
             .change_options
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let option =
-        &bms.header.change_options[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    let option = &bms.header.change_options[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -207,9 +197,9 @@ fn test_text_parsing() {
     assert!(
         bms.header
             .texts
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let text = &bms.header.texts[&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap()];
+    let text = &bms.header.texts[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(text, "test_text");
 }
 
@@ -239,27 +229,27 @@ fn test_notes_parse_extended_tokens() {
     assert!(
         bms.notes
             .exrank_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.notes
             .exwav_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.notes
             .exwav_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
     );
     assert!(
         bms.notes
             .change_options
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.notes
             .texts
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
 }
 
@@ -322,32 +312,32 @@ fn test_token_parsing_comprehensive() {
     assert!(
         bms.header
             .atbga_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.header
             .bga_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
     );
     assert!(
         bms.header
             .exrank_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.header
             .exwav_defs
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.header
             .change_options
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
         bms.header
             .texts
-            .contains_key(&bms_rs::lex::command::ObjId::from_chars(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
 }
 

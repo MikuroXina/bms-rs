@@ -67,12 +67,12 @@ fn test_blank() {
             LexWarning::ExpectedToken {
                 line: 19,
                 col: 8,
-                message: "key audio filename"
+                message: "key audio filename".to_string()
             },
             LexWarning::ExpectedToken {
                 line: 22,
                 col: 7,
-                message: "key audio filename"
+                message: "key audio filename".to_string()
             }
         ]
     );

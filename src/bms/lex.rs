@@ -6,6 +6,8 @@ pub mod token;
 
 use thiserror::Error;
 
+use crate::lex::command::channel::{Channel, read_channel_beat};
+
 use self::{cursor::Cursor, token::Token};
 
 /// An error occurred when lexical analysis.
@@ -13,14 +15,6 @@ use self::{cursor::Cursor, token::Token};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
-    /// An unknown command detected.
-    #[error("unknown command found at line {line}, col {col}")]
-    UnknownCommand {
-        /// The line number of the command detected.
-        line: usize,
-        /// The column number of the command detected.
-        col: usize,
-    },
     /// The token was expected but not found.
     #[error("expected {message}, but not found at line {line}, col {col}")]
     ExpectedToken {
@@ -29,7 +23,27 @@ pub enum LexWarning {
         /// The column number of the token expected.
         col: usize,
         /// What the expected is.
-        message: &'static str,
+        message: String,
+    },
+    /// The channel was not recognized.
+    #[error("channel `{channel}` not recognized at line {line}, col {col}")]
+    UnknownChannel {
+        /// The channel that was not recognized.
+        channel: String,
+        /// The line number.
+        line: usize,
+        /// The column number.
+        col: usize,
+    },
+    /// The object id was not recognized.
+    #[error("object `{object}` not recognized at line {line}, col {col}")]
+    UnknownObject {
+        /// The object id that was not recognized.
+        object: String,
+        /// The line number.
+        line: usize,
+        /// The column number.
+        col: usize,
     },
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
@@ -50,13 +64,22 @@ pub struct BmsLexOutput<'a> {
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse(source: &str) -> BmsLexOutput {
+pub fn parse<'a>(source: &'a str) -> BmsLexOutput<'a> {
+    parse_with_channel_parser(source, &read_channel_beat)
+}
+
+/// Analyzes and converts the BMS format text into [`TokenStream`].
+/// Use this function when you want to parse the BMS format text with a custom channel parser.
+pub fn parse_with_channel_parser<'a>(
+    source: &'a str,
+    channel_parser: &'a impl Fn(&str) -> Option<Channel>,
+) -> BmsLexOutput<'a> {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match Token::parse(&mut cursor) {
+        match Token::parse(&mut cursor, channel_parser) {
             Ok(token) => tokens.push(token),
             Err(warning) => warnings.push(warning),
         };
@@ -130,7 +153,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "0303030303".into(),
@@ -139,7 +162,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "0303000303".into(),
@@ -148,7 +171,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "010101".into(),
@@ -157,7 +180,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        is_player1: true,
+                        side: PlayerSide::Player1,
                         key: Key::Key1,
                     },
                     message: "00020202".into(),

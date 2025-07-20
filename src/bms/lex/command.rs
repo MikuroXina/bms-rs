@@ -1,6 +1,9 @@
 //! Definitions of command argument data.
+pub mod channel;
 
-use super::{LexWarning, Result, cursor::Cursor};
+pub use channel::Channel;
+
+use super::{Result, cursor::Cursor};
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -61,11 +64,11 @@ impl From<i64> for JudgeLevel {
 
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
-    fn try_from(value: &'a str) -> core::result::Result<Self, &'a str> {
-        Some(value)
-            .and_then(|v| v.parse::<i64>().ok())
+    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
+        value
+            .parse::<i64>()
             .map(JudgeLevel::from)
-            .ok_or(value)
+            .map_err(|_| value)
     }
 }
 
@@ -78,10 +81,10 @@ impl JudgeLevel {
     }
 }
 
-fn char_to_base62(ch: char) -> Result<u8> {
+fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
-        '0'..='9' | 'A'..='Z' | 'a'..='z' => Ok(ch as u32 as u8),
-        _ => Err(LexWarning::OutOfBase62),
+        '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
+        _ => None,
     }
 }
 
@@ -96,18 +99,18 @@ fn base62_to_byte(base62: u8) -> u8 {
 
 #[test]
 fn test_base62() {
-    assert_eq!(char_to_base62('/'), Err(LexWarning::OutOfBase62));
-    assert_eq!(char_to_base62('0'), Ok(b'0'));
-    assert_eq!(char_to_base62('9'), Ok(b'9'));
-    assert_eq!(char_to_base62(':'), Err(LexWarning::OutOfBase62));
-    assert_eq!(char_to_base62('@'), Err(LexWarning::OutOfBase62));
-    assert_eq!(char_to_base62('A'), Ok(b'A'));
-    assert_eq!(char_to_base62('Z'), Ok(b'Z'));
-    assert_eq!(char_to_base62('['), Err(LexWarning::OutOfBase62));
-    assert_eq!(char_to_base62('`'), Err(LexWarning::OutOfBase62));
-    assert_eq!(char_to_base62('a'), Ok(b'a'));
-    assert_eq!(char_to_base62('z'), Ok(b'z'));
-    assert_eq!(char_to_base62('{'), Err(LexWarning::OutOfBase62));
+    matches!(char_to_base62('/'), None);
+    matches!(char_to_base62('0'), Some(b'0'));
+    matches!(char_to_base62('9'), Some(b'9'));
+    matches!(char_to_base62(':'), None);
+    matches!(char_to_base62('@'), None);
+    matches!(char_to_base62('A'), Some(b'A'));
+    matches!(char_to_base62('Z'), Some(b'Z'));
+    matches!(char_to_base62('['), None);
+    matches!(char_to_base62('`'), None);
+    matches!(char_to_base62('a'), Some(b'a'));
+    matches!(char_to_base62('z'), Some(b'z'));
+    matches!(char_to_base62('{'), None);
 }
 
 /// An object id. Its meaning is determined by the channel belonged to.
@@ -125,34 +128,41 @@ impl std::fmt::Debug for ObjId {
     }
 }
 
-impl TryFrom<&str> for ObjId {
-    type Error = LexWarning;
-    fn try_from(value: &str) -> Result<Self> {
-        if value.len() != 2 {
-            return Err(LexWarning::ExpectedToken {
-                line: 1,
-                col: 1,
-                message: "`0-9A-Za-z` was expected",
-            });
-        }
-        let mut chars = value.chars();
-        let ch1 = chars.next().unwrap();
-        let ch2 = chars.next().unwrap();
-        Ok(Self([char_to_base62(ch1)?, char_to_base62(ch2)?]))
-    }
-}
-
 impl TryFrom<[char; 2]> for ObjId {
-    type Error = LexWarning;
-    fn try_from(value: [char; 2]) -> Result<Self> {
-        Self::from_chars(value)
+    type Error = [char; 2];
+    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
+        Ok(Self([
+            char_to_base62(value[0]).ok_or(value)?,
+            char_to_base62(value[1]).ok_or(value)?,
+        ]))
     }
 }
 
 impl TryFrom<[u8; 2]> for ObjId {
-    type Error = LexWarning;
-    fn try_from(value: [u8; 2]) -> Result<Self> {
-        Self::from_bytes(value)
+    type Error = [u8; 2];
+    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
+        <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
+            .map_err(|_| value)
+    }
+}
+
+impl<'a> TryFrom<&'a str> for ObjId {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
+        if value.len() != 2 {
+            return Err(value);
+        }
+        let mut chars = value.bytes();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(value);
+        };
+        Self::try_from([ch1, ch2]).map_err(|_| value)
+    }
+}
+
+impl ObjId {
+    pub(crate) fn try_load(value: &str, c: &mut Cursor) -> Result<Self> {
+        Self::try_from(value).map_err(|_| c.make_err_object_id(value.to_string()))
     }
 }
 
@@ -178,24 +188,6 @@ impl ObjId {
     /// Instances a special null id, which means the rest object.
     pub const fn null() -> Self {
         Self([0, 0])
-    }
-
-    /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_chars(chars: [char; 2]) -> Result<Self> {
-        Ok(Self([char_to_base62(chars[0])?, char_to_base62(chars[1])?]))
-    }
-
-    /// Converts 2-digit of base-62 numeric characters into an object id.
-    pub fn from_bytes(bytes: [u8; 2]) -> Result<Self> {
-        Ok(Self([
-            char_to_base62(bytes[0] as char)?,
-            char_to_base62(bytes[1] as char)?,
-        ]))
-    }
-
-    pub(crate) fn from(id: &str, c: &mut Cursor) -> Result<Self> {
-        id.try_into()
-            .map_err(|_| c.make_err_expected_token("[0-9A-Za-z][0-9A-Za-z]"))
     }
 
     /// Converts the object id into an `u16` value.
@@ -289,56 +281,69 @@ impl NoteKind {
 
 /// A key of the controller or keyboard.
 ///
+/// - Beat 5K/7K/10K/14K:
 /// ```text
 /// |---------|----------------------|
 /// |         |   [K2]  [K4]  [K6]   |
 /// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
 /// |---------|----------------------|
 /// ```
+///
+/// - PMS:
+/// ```text
+/// |----------------------------|
+/// |   [K2]  [K4]  [K6]  [K8]   |
+/// |[K1]  [K3]  [K5]  [K7]  [K9]|
+/// |----------------------------|
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Key {
     /// The leftmost white key.
+    /// `11` in BME-type Player1.
     Key1,
     /// The leftmost black key.
+    /// `12` in BME-type Player1.
     Key2,
     /// The second white key from the left.
+    /// `13` in BME-type Player1.
     Key3,
     /// The second black key from the left.
+    /// `14` in BME-type Player1.
     Key4,
     /// The third white key from the left.
+    /// `15` in BME-type Player1.
     Key5,
     /// The rightmost black key.
+    /// `18` in BME-type Player1.
     Key6,
     /// The rightmost white key.
+    /// `19` in BME-type Player1.
     Key7,
+    /// The extra black key. Used in PMS or other modes.
+    Key8,
+    /// The extra white key. Used in PMS or other modes.
+    Key9,
+    /// The extra key for OCT/FP.
+    Key10,
+    /// The extra key for OCT/FP.
+    Key11,
+    /// The extra key for OCT/FP.
+    Key12,
+    /// The extra key for OCT/FP.
+    Key13,
+    /// The extra key for OCT/FP.
+    Key14,
     /// The scratch disk.
+    /// `16` in BME-type Player1.
     Scratch,
+    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
+    ScratchExtra,
+    /// The foot pedal.
+    FootPedal,
     /// The zone that the user can scratch disk freely.
+    /// `17` in BMS-type Player1.
     FreeZone,
-}
-
-impl Key {
-    /// Returns whether the key appears only 7 keys.
-    pub fn is_extended_key(self) -> bool {
-        matches!(self, Self::Key6 | Self::Key7)
-    }
-
-    pub(crate) fn from(key: &str, c: &mut Cursor) -> Result<Self> {
-        use Key::*;
-        Ok(match key {
-            "1" => Key1,
-            "2" => Key2,
-            "3" => Key3,
-            "4" => Key4,
-            "5" => Key5,
-            "6" => Scratch,
-            "7" => FreeZone,
-            "8" => Key6,
-            "9" => Key7,
-            _ => return Err(c.make_err_expected_token("[1-9]")),
-        })
-    }
 }
 
 /// A POOR BGA display mode.
@@ -366,108 +371,6 @@ impl PoorMode {
             Some("1") => Self::Overlay,
             Some("2") => Self::Hidden,
             _ => return Err(c.make_err_expected_token("one of 0, 1 or 2")),
-        })
-    }
-}
-
-/// The channel, or lane, where the note will be on.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
-pub enum Channel {
-    /// The BGA channel.
-    BgaBase,
-    /// The BGA channel but overlay to [`Channel::BgaBase`] channel.
-    BgaLayer,
-    /// The POOR BGA channel.
-    BgaPoor,
-    /// For the note which will be auto-played.
-    Bgm,
-    /// For the bpm change by an [`u8`] integer.
-    BpmChangeU8,
-    /// For the bpm change object.
-    BpmChange,
-    /// For the change option object.
-    ChangeOption,
-    /// For the note which the user can interact.
-    Note {
-        /// The kind of the note.
-        kind: NoteKind,
-        /// The note for the player 1.
-        is_player1: bool,
-        /// The key which corresponds to the note.
-        key: Key,
-    },
-    /// For the section length change object.
-    SectionLen,
-    /// For the stop object.
-    Stop,
-    /// For the scroll speed change object.
-    Scroll,
-    /// For the note spacing change object.
-    Speed,
-}
-
-impl Channel {
-    pub(crate) fn from(channel: &str, c: &mut Cursor) -> Result<Self> {
-        use Channel::*;
-        Ok(match channel.to_uppercase().as_str() {
-            "01" => Bgm,
-            "02" => SectionLen,
-            "03" => BpmChangeU8,
-            "08" => BpmChange,
-            "04" => BgaBase,
-            "06" => BgaPoor,
-            "07" => BgaLayer,
-            "09" => Stop,
-            "SC" => Scroll,
-            "SP" => Speed,
-            player1 if player1.starts_with('1') => Note {
-                kind: NoteKind::Visible,
-                is_player1: true,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player2 if player2.starts_with('2') => Note {
-                kind: NoteKind::Visible,
-                is_player1: false,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player1 if player1.starts_with('3') => Note {
-                kind: NoteKind::Invisible,
-                is_player1: true,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player2 if player2.starts_with('4') => Note {
-                kind: NoteKind::Invisible,
-                is_player1: false,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player1 if player1.starts_with('5') => Note {
-                kind: NoteKind::Long,
-                is_player1: true,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player2 if player2.starts_with('6') => Note {
-                kind: NoteKind::Long,
-                is_player1: false,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player1 if player1.starts_with('D') => Note {
-                kind: NoteKind::Landmine,
-                is_player1: true,
-                key: Key::from(&channel[1..], c)?,
-            },
-            player2 if player2.starts_with('E') => Note {
-                kind: NoteKind::Landmine,
-                is_player1: false,
-                key: Key::from(&channel[1..], c)?,
-            },
-            _ => {
-                return Err(LexWarning::UnknownCommand {
-                    line: c.line(),
-                    col: c.col(),
-                });
-            }
         })
     }
 }
@@ -638,4 +541,15 @@ mod tests {
         assert_eq!(ExWavPan::default().value(), 0);
         assert_eq!(ExWavVolume::default().value(), 0);
     }
+}
+
+/// A side of the player.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PlayerSide {
+    /// The player 1 side.
+    #[default]
+    Player1,
+    /// The player 2 side.
+    Player2,
 }
