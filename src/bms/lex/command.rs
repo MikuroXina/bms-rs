@@ -572,7 +572,7 @@ pub struct Rgb {
 }
 
 /// 只要求finite的f64包装类型（如Scroll等）。
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FiniteF64(f64);
 
@@ -591,6 +591,20 @@ impl FiniteF64 {
     }
 }
 
+impl Eq for FiniteF64 {}
+impl PartialOrd for FiniteF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+impl Ord for FiniteF64 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
 impl TryFrom<f64> for FiniteF64 {
     type Error = f64;
     fn try_from(value: f64) -> std::result::Result<Self, Self::Error> {
@@ -601,15 +615,6 @@ impl TryFrom<f64> for FiniteF64 {
 impl From<FiniteF64> for f64 {
     fn from(value: FiniteF64) -> Self {
         value.0
-    }
-}
-
-impl Eq for FiniteF64 {}
-impl Ord for FiniteF64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .partial_cmp(&other.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -634,7 +639,7 @@ impl std::ops::Sub for FiniteF64 {
 }
 
 /// 要求finite且大于0的f64包装类型（如Bpm/Stop/Speed/Total等）。
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PositiveFiniteF64(f64);
 
@@ -667,6 +672,11 @@ impl From<PositiveFiniteF64> for f64 {
 }
 
 impl Eq for PositiveFiniteF64 {}
+impl PartialOrd for PositiveFiniteF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
 impl Ord for PositiveFiniteF64 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0
