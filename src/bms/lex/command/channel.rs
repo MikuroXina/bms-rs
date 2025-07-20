@@ -1,15 +1,11 @@
 //! Definitions of channel command argument data.
-use super::{Key, NoteKind, PlayerSide};
+//!
+//! - Pre-defined channel parsers:
+//!   - `read_channel_beat` for Beat 5K/7K/10K/14K
+//!   - `read_channel_pms_bme_type` for PMS BME-type
+//!   - `read_channel_pms` for PMS
 
-/// The channel reading functions.
-/// You can use functions in this array to parse a channel string, or write your own `impl Fn(&str) -> Option<Channel>` function.
-///
-/// fn("01") -> Some(Channel::Bgm)
-pub const CHANNEL_PARSERS: [fn(&str) -> Option<Channel>; 3] = [
-    read_channel_beat,
-    read_channel_pms_bme_type,
-    read_channel_pms,
-];
+use super::{Key, NoteKind, PlayerSide};
 
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -52,7 +48,7 @@ pub enum Channel {
 /// Reads a channel from a string.
 ///
 /// For general part, please call this function when using other functions.
-pub fn read_channel_general(channel: &str) -> Option<Channel> {
+fn read_channel_general(channel: &str) -> Option<Channel> {
     use Channel::*;
     Some(match channel.to_uppercase().as_str() {
         "01" => Bgm,
@@ -70,7 +66,7 @@ pub fn read_channel_general(channel: &str) -> Option<Channel> {
 }
 
 /// Reads a note kind from a character. (For general part)
-pub fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
+fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
     Some(match kind_char {
         '1' => (NoteKind::Visible, PlayerSide::Player1),
         '2' => (NoteKind::Visible, PlayerSide::Player2),
@@ -85,7 +81,7 @@ pub fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> 
 }
 
 /// Reads a key from a character. (For Beat 5K/7K/10K/14K)
-pub fn get_key_beat(key: char) -> Option<Key> {
+fn get_key_beat(key: char) -> Option<Key> {
     use Key::*;
     Some(match key {
         '1' => Key1,
@@ -113,7 +109,7 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
 }
 
 /// Reads a key from a character. (For PMS)
-pub fn get_key_pms_bme_type(key: char) -> Option<Key> {
+fn get_key_pms_bme_type(key: char) -> Option<Key> {
     use Key::*;
     Some(match key {
         '1' => Key1,
