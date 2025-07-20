@@ -25,10 +25,22 @@ impl From<FinF64> for f64 {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub struct TryFromFloatError(pub(crate) ());
+
+impl std::fmt::Display for TryFromFloatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "finite number expected")
+    }
+}
+
 impl TryFrom<f64> for FinF64 {
-    type Error = ();
+    type Error = TryFromFloatError;
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        value.is_finite().then_some(Self(value)).ok_or(())
+        value
+            .is_finite()
+            .then_some(Self(value))
+            .ok_or(TryFromFloatError(()))
     }
 }
 
