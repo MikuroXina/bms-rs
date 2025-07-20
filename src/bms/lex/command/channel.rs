@@ -1,9 +1,14 @@
 //! Definitions of channel command argument data.
 //!
+//! For more details, please see [`Channel`] enum and its related types.
+//! For documents of modes, please see [BMS command memo#KEYMAP Table](https://hitkey.bms.ms/cmds.htm#KEYMAP-TABLE)
+//!
 //! - Pre-defined channel parsers:
 //!   - `read_channel_beat` for Beat 5K/7K/10K/14K
 //!   - `read_channel_pms_bme_type` for PMS BME-type
 //!   - `read_channel_pms` for PMS
+//!   - `read_channel_beat_nanasi` for Beat nanasi/angolmois
+//!   - `read_channel_dsc_oct_fp` for DSC & OCT/FP
 
 use super::{Key, NoteKind, PlayerSide};
 
@@ -66,6 +71,7 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
 }
 
 /// Reads a note kind from a character. (For general part)
+/// Can be directly use in BMS/BME/PMS types, and be converted to other types.
 fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
     Some(match kind_char {
         '1' => (NoteKind::Visible, PlayerSide::Player1),
@@ -154,6 +160,58 @@ pub fn read_channel_pms(channel: &str) -> Option<Channel> {
         (Player2, Key3) => Key7,
         (Player2, Key4) => Key8,
         (Player2, Key5) => Key9,
+        _ => return None,
+    };
+    Some(Channel::Note {
+        kind,
+        side: PlayerSide::Player1,
+        key,
+    })
+}
+
+/// Reads a channel from a string. (For Beat nanasi/angolmois)
+pub fn read_channel_beat_nanasi(channel: &str) -> Option<Channel> {
+    if let Some(channel) = read_channel_general(channel) {
+        return Some(channel);
+    }
+    let mut channel_chars = channel.chars();
+    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
+    let bme_key = get_key_beat(channel_chars.next()?)?;
+    // Translate BME type to Beat nanasi/angolmois type.
+    use Key::*;
+    let key = match bme_key {
+        Key1 | Key2 | Key3 | Key4 | Key5 | Scratch => bme_key,
+        FreeZone => FootPedal,
+        _ => return None,
+    };
+    Some(Channel::Note {
+        kind,
+        side,
+        key,
+    })
+}
+
+/// Reads a channel from a string. (For DSC & OCT/FP)
+pub fn read_channel_dsc_oct_fp(channel: &str) -> Option<Channel> {
+    if let Some(channel) = read_channel_general(channel) {
+        return Some(channel);
+    }
+    let mut channel_chars = channel.chars();
+    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
+    let bme_key = get_key_pms_bme_type(channel_chars.next()?)?;
+    // Translate BME type to PMS type.
+    use Key::*;
+    use PlayerSide::*;
+    let key = match (side, bme_key) {
+        (Player1, Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch) => bme_key,
+        (Player2, Key1) => FootPedal,
+        (Player2, Key2) => Key8,
+        (Player2, Key3) => Key9,
+        (Player2, Key4) => Key10,
+        (Player2, Key5) => Key11,
+        (Player2, Key6) => Key12,
+        (Player2, Key7) => Key13,
+        (Player2, Scratch) => ScratchExtra,
         _ => return None,
     };
     Some(Channel::Note {

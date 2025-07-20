@@ -300,18 +300,25 @@ impl NoteKind {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Key {
     /// The leftmost white key.
+    /// `11` in BME-type Player1.
     Key1,
     /// The leftmost black key.
+    /// `12` in BME-type Player1.
     Key2,
     /// The second white key from the left.
+    /// `13` in BME-type Player1.
     Key3,
     /// The second black key from the left.
+    /// `14` in BME-type Player1.
     Key4,
     /// The third white key from the left.
+    /// `15` in BME-type Player1.
     Key5,
     /// The rightmost black key.
+    /// `18` in BME-type Player1.
     Key6,
     /// The rightmost white key.
+    /// `19` in BME-type Player1.
     Key7,
     /// The extra black key. Used in PMS or other modes.
     Key8,
@@ -328,14 +335,14 @@ pub enum Key {
     /// The extra key for OCT/FP.
     Key14,
     /// The scratch disk.
+    /// `16` in BME-type Player1.
     Scratch,
-    /// The extra scratch disk on the right. Used in DSC mode.
+    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
     ScratchExtra,
     /// The foot pedal.
     FootPedal,
-    /// The extra foot pedal on the right. Used in DSC mode.
-    FootPedalExtra,
     /// The zone that the user can scratch disk freely.
+    /// `17` in BMS-type Player1.
     FreeZone,
 }
 
