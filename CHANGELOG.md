@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-07-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add note channel preset, modify `LexWarning` ([#135](https://github.com/MikuroXina/bms-rs/issues/135))
+* add playing warning/error checking & classify lex/parse/playing warnings ([#134](https://github.com/MikuroXina/bms-rs/issues/134))
+* Change usage of `parse` and `Bms::from_token_stream`, only return warnings ([#132](https://github.com/MikuroXina/bms-rs/issues/132))
+
+### Features
+
+* Add note channel preset, modify `LexWarning` ([#135](https://github.com/MikuroXina/bms-rs/issues/135)) ([6fcd830](https://github.com/MikuroXina/bms-rs/commit/6fcd8301de65407391e1cff66da069c64020701f))
+* add playing warning/error checking & classify lex/parse/playing warnings ([#134](https://github.com/MikuroXina/bms-rs/issues/134)) ([7a9732d](https://github.com/MikuroXina/bms-rs/commit/7a9732d4702038d0c0b708e99dbe7f4593de41a6))
+* **bmson:** add beatoraja ext ([#136](https://github.com/MikuroXina/bms-rs/issues/136)) ([d76b4df](https://github.com/MikuroXina/bms-rs/commit/d76b4dfaec954c54320ae127396927ade56056e9))
+* Change usage of `parse` and `Bms::from_token_stream`, only return warnings ([#132](https://github.com/MikuroXina/bms-rs/issues/132)) ([94a8bb4](https://github.com/MikuroXina/bms-rs/commit/94a8bb4f87226a81313e8ca7e3272e651cdb3768))
+* Use AST to support more situations, pass the insane test in BMS command memo ([#126](https://github.com/MikuroXina/bms-rs/issues/126)) ([2fdaa45](https://github.com/MikuroXina/bms-rs/commit/2fdaa452537750b41a6415b9c22d5ada2d16aafe))
+
+
+### Bug Fixes
+
+* serde error & clippy warnings ([#130](https://github.com/MikuroXina/bms-rs/issues/130)) ([b62a742](https://github.com/MikuroXina/bms-rs/commit/b62a742954cf10dfbd76938647186a1042aee934))
+
+
+### Miscellaneous Chores
+
+* release 0.8.0 ([#124](https://github.com/MikuroXina/bms-rs/issues/124)) ([440c018](https://github.com/MikuroXina/bms-rs/commit/440c018e1465ec5833234d2e76f2890fa2682795))
+
 ## [0.7.0](https://github.com/MikuroXina/bms-rs/compare/v0.6.0...v0.7.0) (2025-06-22)
 
 
