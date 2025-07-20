@@ -180,6 +180,7 @@ pub enum Token<'a> {
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
+    /// `Same as #MOVIE`, but `#MOVIE` is in the same level of `04` channel, `#VIDEOFILE` is in the down level of `04` channel.
     VideoFile(&'a Path),
     /// `#VOLWAV [u64]`.
     /// Defines the relative volume percentage of the sound in the score.
@@ -258,8 +259,11 @@ pub enum Token<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavCmdEvent {
+    /// 调整类型（音高/音量/时长）
     pub param: WavCmdParam,
+    /// 目标WAV对象ID
     pub wav_index: ObjId,
+    /// 调整值，含义随param不同
     pub value: u32,
 }
 
@@ -271,9 +275,12 @@ pub struct WavCmdEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WavCmdParam {
-    Pitch,  // 00
-    Volume, // 01
-    Time,   // 02
+    /// 音高（0-127，60为C6）
+    Pitch,
+    /// 音量百分比（0-100）
+    Volume,
+    /// 播放时长（ms*0.5，0为原音长）
+    Time,
 }
 
 /// SWBGA（Key Bind Layer Animation）事件。
@@ -320,15 +327,19 @@ pub struct ExtChrEvent {
     pub bmp_num: i32,
     /// 裁剪起点
     pub start_x: i32,
+    /// 裁剪起点
     pub start_y: i32,
     /// 裁剪终点
     pub end_x: i32,
+    /// 裁剪终点
     pub end_y: i32,
     /// 偏移量（可选）
     pub offset_x: Option<i32>,
+    /// 偏移量（可选）
     pub offset_y: Option<i32>,
     /// 绝对坐标（可选）
     pub abs_x: Option<i32>,
+    /// 绝对坐标（可选）
     pub abs_y: Option<i32>,
 }
 
@@ -513,11 +524,49 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("midi filename"))?,
                 ),
                 "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
-                "#VIDEOFILE" | "#MOVIE" => Self::VideoFile(
+                "#VIDEOFILE" => Self::VideoFile(
                     c.next_token()
                         .map(Path::new)
                         .ok_or_else(|| c.make_err_expected_token("video filename"))?,
                 ),
+                // Place ahead of WAV to avoid being parsed as WAV.
+                wavcmd if wavcmd.starts_with("#WAVCMD") => {
+                    let param = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
+                    let param = match param {
+                        "00" => WavCmdParam::Pitch,
+                        "01" => WavCmdParam::Volume,
+                        "02" => WavCmdParam::Time,
+                        _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
+                    };
+                    let wav_index = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
+                    let wav_index = ObjId::try_load(wav_index, c)?;
+                    let value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
+                    let value: u32 = value
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
+                    // 合法性校验
+                    match param {
+                        WavCmdParam::Pitch if !(0..=127).contains(&value) => {
+                            return Err(c.make_err_expected_token("pitch 0-127"));
+                        }
+                        WavCmdParam::Volume if value > 100 => {
+                            return Err(c.make_err_expected_token("volume 0-100"));
+                        }
+                        WavCmdParam::Time => { /* 0为原音长，50ms以下不可靠 */ }
+                        _ => {}
+                    }
+                    Self::WavCmd(WavCmdEvent {
+                        param,
+                        wav_index,
+                        value,
+                    })
+                }
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -788,6 +837,71 @@ impl<'a> Token<'a> {
                     let id = lnobj.trim_start_matches("#LNOBJ");
                     Self::LnObj(ObjId::try_load(id, c)?)
                 }
+                extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
+                    // 允许参数间有多个空格
+                    let mut params = c.next_line_remaining().split_whitespace();
+                    let sprite_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
+                    let bmp_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
+                    // BMPNum 支持十六进制（如09/FF），也支持-1/-257等
+                    let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
+                        -stripped
+                            .parse::<i32>()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
+                    } else if bmp_num.starts_with("0x")
+                        || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
+                    {
+                        i32::from_str_radix(bmp_num, 16)
+                            .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
+                    } else {
+                        bmp_num
+                            .parse()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
+                    };
+                    let start_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_x i32"))?;
+                    let start_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_y i32"))?;
+                    let end_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_x i32"))?;
+                    let end_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_y i32"))?;
+                    // offsetX/offsetY 可选
+                    let offset_x = params.next().map(|v| v.parse().ok()).flatten();
+                    let offset_y = params.next().map(|v| v.parse().ok()).flatten();
+                    // x/y 可选，只有offset存在时才可出现
+                    let abs_x = params.next().map(|v| v.parse().ok()).flatten();
+                    let abs_y = params.next().map(|v| v.parse().ok()).flatten();
+                    Self::ExtChr(ExtChrEvent {
+                        sprite_num,
+                        bmp_num,
+                        start_x,
+                        start_y,
+                        end_x,
+                        end_y,
+                        offset_x,
+                        offset_y,
+                        abs_x,
+                        abs_y,
+                    })
+                }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
                         .next_token()
@@ -865,7 +979,7 @@ impl<'a> Token<'a> {
                     Self::BaseBpm(v)
                 }
                 stp if stp.starts_with("#STP") => {
-                    let line = c.next_line_entire();
+                    let line = c.next_line_remaining();
                     let part = line.trim();
                     if part.is_empty() {
                         return Err(c.make_err_expected_token("stp definition"));
@@ -904,43 +1018,6 @@ impl<'a> Token<'a> {
                     let time = ObjTime::new(measure as u64, pos as u64, 1000);
                     let duration = Duration::from_millis(ms as u64);
                     Self::Stp(StpEvent { time, duration })
-                }
-                wavcmd if wavcmd.starts_with("#WAVCMD") => {
-                    let param = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
-                    let param = match param {
-                        "00" => WavCmdParam::Pitch,
-                        "01" => WavCmdParam::Volume,
-                        "02" => WavCmdParam::Time,
-                        _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
-                    };
-                    let wav_index = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
-                    let wav_index = ObjId::try_load(wav_index, c)?;
-                    let value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
-                    let value: u32 = value
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
-                    // 合法性校验
-                    match param {
-                        WavCmdParam::Pitch if !(0..=127).contains(&value) => {
-                            return Err(c.make_err_expected_token("pitch 0-127"));
-                        }
-                        WavCmdParam::Volume if value > 100 => {
-                            return Err(c.make_err_expected_token("volume 0-100"));
-                        }
-                        WavCmdParam::Time => { /* 0为原音长，50ms以下不可靠 */ }
-                        _ => {}
-                    }
-                    Self::WavCmd(WavCmdEvent {
-                        param,
-                        wav_index,
-                        value,
-                    })
                 }
                 "#CDDA" => {
                     let v = c
@@ -1091,71 +1168,6 @@ impl<'a> Token<'a> {
                     let v =
                         FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
                     Self::Seek(ObjId::try_load(id, c)?, v)
-                }
-                extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
-                    // 允许参数间有多个空格
-                    let mut params = c.next_line_remaining().split_whitespace();
-                    let sprite_num = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
-                    let bmp_num = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
-                    // BMPNum 支持十六进制（如09/FF），也支持-1/-257等
-                    let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
-                        -stripped
-                            .parse::<i32>()
-                            .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
-                    } else if bmp_num.starts_with("0x")
-                        || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
-                    {
-                        i32::from_str_radix(bmp_num, 16)
-                            .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
-                    } else {
-                        bmp_num
-                            .parse()
-                            .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
-                    };
-                    let start_x = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("start_x"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("start_x i32"))?;
-                    let start_y = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("start_y"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("start_y i32"))?;
-                    let end_x = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("end_x"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("end_x i32"))?;
-                    let end_y = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("end_y"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("end_y i32"))?;
-                    // offsetX/offsetY 可选
-                    let offset_x = params.next().map(|v| v.parse().ok()).flatten();
-                    let offset_y = params.next().map(|v| v.parse().ok()).flatten();
-                    // x/y 可选，只有offset存在时才可出现
-                    let abs_x = params.next().map(|v| v.parse().ok()).flatten();
-                    let abs_y = params.next().map(|v| v.parse().ok()).flatten();
-                    Self::ExtChr(ExtChrEvent {
-                        sprite_num,
-                        bmp_num,
-                        start_x,
-                        start_y,
-                        end_x,
-                        end_y,
-                        offset_x,
-                        offset_y,
-                        abs_x,
-                        abs_y,
-                    })
                 }
                 materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                     let path = c
