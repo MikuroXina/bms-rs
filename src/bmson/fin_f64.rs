@@ -25,6 +25,7 @@ impl From<FinF64> for f64 {
     }
 }
 
+/// Error type for `FinF64::try_from`.
 #[derive(Debug, thiserror::Error)]
 pub struct TryFromFloatError(pub(crate) ());
 
@@ -54,7 +55,7 @@ impl FinF64 {
     /// Creates a new `FinF64` from `f64` if `float` is finite, otherwise returns `None`.
     #[inline]
     pub fn new(float: f64) -> Option<Self> {
-        float.try_from().ok()
+        Self::try_from(float).ok()
     }
 
     /// Gets the internal value.
