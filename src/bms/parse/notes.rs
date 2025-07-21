@@ -10,7 +10,7 @@ use std::{
 use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
-        command::{self, Channel, Key, NoteKind, ObjId},
+        command::{self, Channel, Key, NoteKind, ObjId, Argb, FiniteF64},
         token::Token,
     },
     parse::header::{ExRankDef, ExWavDef},
@@ -268,6 +268,24 @@ pub struct Notes {
     pub change_options: HashMap<ObjId, String>,
     /// Storage for #TEXT definitions
     pub texts: HashMap<ObjId, String>,
+    /// bemaniaDX STP事件
+    pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
+    /// WAVCMD事件
+    pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
+    /// CDDA事件
+    pub cdda_events: HashMap<u64, u64>,
+    /// SWBGA事件
+    pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
+    /// ARGB定义
+    pub argb_defs: HashMap<ObjId, Argb>,
+    /// Seek事件
+    pub seek_events: HashMap<ObjId, FiniteF64>,
+    /// ExtChr事件
+    pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
+    /// 材料WAV
+    pub materials_wav: Vec<std::path::PathBuf>,
+    /// 材料BMP
+    pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
 impl Notes {
@@ -718,26 +736,52 @@ impl Notes {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
-            Token::CharFile(path) => todo!(),
-            Token::BaseBpm(_) => todo!(),
-            Token::Stp(_) => todo!(),
-            Token::WavCmd(_) => todo!(),
-            Token::Cdda(path) => todo!(),
-            Token::SwBga { .. } => todo!(),
-            Token::Argb { .. } => todo!(),
-            Token::Movie(path) => todo!(),
-            Token::VideoColors(rgb) => todo!(),
-            Token::VideoDly(_) => todo!(),
-            Token::Seek(obj_id, _) => todo!(),
-            Token::ExtChr(_) => todo!(),
-            Token::MaterialsWav(_) => todo!(),
-            Token::MaterialsBmp(_) => todo!(),
-            Token::DivideProp(_) => todo!(),
-            Token::Charset(_) => todo!(),
-            Token::DefExRank(_) => todo!(),
-            Token::Preview(path) => todo!(),
-            Token::LnMode(ln_mode_type) => todo!(),
-            Token::VideoFs(path) => todo!(),
+            Token::Stp(ev) => {
+                // 以ObjTime为key存储，重复时报错
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated STP event at time {:?}", key)));
+                }
+                self.stp_events.insert(key, ev.clone());
+            }
+            Token::WavCmd(ev) => {
+                // 以wav_index为key存储，重复时报错
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated WAVCMD event for wav_index {:?}", key)));
+                }
+                self.wavcmd_events.insert(key, ev.clone());
+            }
+            Token::SwBga(id, ev) => {
+                if self.swbga_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated SWBGA event for id {:?}", id)));
+                }
+                self.swbga_events.insert(*id, ev.clone());
+            }
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated ARGB definition for id {:?}", id)));
+                }
+                self.argb_defs.insert(*id, *argb);
+            }
+            Token::Seek(id, v) => {
+                if self.seek_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated Seek event for id {:?}", id)));
+                }
+                self.seek_events.insert(*id, *v);
+            }
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(ev.clone());
+            }
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::CharFile(_) | Token::BaseBpm(_) | Token::DivideProp(_) | Token::Charset(_) | Token::DefExRank(_) | Token::Preview(_) | Token::LnMode(_) | Token::VideoFs(_) | Token::VideoColors(_) | Token::VideoDly(_) | Token::Movie(_) | Token::Cdda(_) => {
+                // 这些Token不在Notes中存储，直接忽略
+            }
         }
         Ok(())
     }
@@ -933,6 +977,15 @@ impl<'de> serde::Deserialize<'de> for Notes {
             exwav_defs: HashMap::new(),
             change_options: HashMap::new(),
             texts: HashMap::new(),
+            stp_events: HashMap::new(),
+            wavcmd_events: HashMap::new(),
+            cdda_events: HashMap::new(),
+            swbga_events: HashMap::new(),
+            argb_defs: HashMap::new(),
+            seek_events: HashMap::new(),
+            extchr_events: vec![],
+            materials_wav: vec![],
+            materials_bmp: vec![],
         })
     }
 }

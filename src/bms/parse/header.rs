@@ -238,6 +238,23 @@ pub struct Header {
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
+    /// BM98 #ExtChr扩展角色自定义事件。
+    pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
+    /// 其他扩展字段可按需添加。
+    pub char_file: Option<PathBuf>,
+    pub base_bpm: Option<PositiveFiniteF64>,
+    pub argb_defs: HashMap<ObjId, Argb>,
+    pub video_fs: Option<PositiveFiniteF64>,
+    pub video_colors: Option<u8>,
+    pub video_dly: Option<FiniteF64>,
+    pub preview: Option<PathBuf>,
+    pub ln_mode: Option<LnModeType>,
+    pub swbga_defs: HashMap<ObjId, SwBgaEvent>,
+    pub movie: Option<PathBuf>,
+    pub divide_prop: Option<String>,
+    pub charset: Option<String>,
+    pub def_exrank: Option<u64>,
+    pub cdda: Option<u64>,
 }
 
 impl Header {
@@ -527,26 +544,72 @@ impl Header {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
-            Token::CharFile(path) => todo!(),
-            Token::BaseBpm(_) => todo!(),
-            Token::Stp(_) => todo!(),
-            Token::WavCmd(_) => todo!(),
-            Token::Cdda(_) => todo!(),
-            Token::Argb { .. } => todo!(),
-            Token::VideoFs(path) => todo!(),
-            Token::VideoColors(rgb) => todo!(),
-            Token::VideoDly(_) => todo!(),
-            Token::Seek(obj_id, _) => todo!(),
-            Token::ExtChr(_) => todo!(),
-            Token::MaterialsWav(_) => todo!(),
-            Token::MaterialsBmp(_) => todo!(),
-            Token::DivideProp(_) => todo!(),
-            Token::Charset(_) => todo!(),
-            Token::DefExRank(_) => todo!(),
-            Token::Preview(path) => todo!(),
-            Token::LnMode(ln_mode_type) => todo!(),
-            Token::SwBga { .. } => todo!(),
-            Token::Movie(path) => todo!(),
+            Token::CharFile(path) => {
+                // 只存储最新值
+                self.char_file = Some(path.into());
+            }
+            Token::BaseBpm(bpm) => {
+                // 只存储最新值
+                self.base_bpm = Some(bpm);
+            }
+            Token::Argb(id, argb) => {
+                // 只存储最新值，重复时报错
+                if let Some(older) = self.argb_defs.get_mut(&id) {
+                    return Err(crate::parse::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {:?}. value {:?} is throwed.", id,older 
+                    )));
+                } else {
+                    self.argb_defs.insert(id, argb);
+                }
+            }
+            Token::VideoFs(fs) => {
+                self.video_fs = Some(fs);
+            }
+            Token::VideoColors(rgb) => {
+                self.video_colors = Some(rgb);
+            }
+            Token::VideoDly(dly) => {
+                self.video_dly = Some(dly);
+            }
+            Token::Preview(path) => {
+                self.preview = Some(path.into());
+            }
+            Token::LnMode(mode) => {
+                self.ln_mode = Some(mode);
+            }
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(ev);
+            }
+            Token::MaterialsWav(_) | Token::MaterialsBmp(_) => {
+                // 这些Token不在Header中存储，直接忽略
+            }
+            Token::DivideProp(s) => {
+                self.divide_prop = Some(s.to_string());
+            }
+            Token::Charset(s) => {
+                self.charset = Some(s.to_string());
+            }
+            Token::DefExRank(val) => {
+                self.def_exrank = Some(val);
+            }
+            Token::SwBga(id, ref ev) => {
+                if let Some(older) = self.swbga_defs.get_mut(&id) {
+                    return Err(crate::parse::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA definition for id {:?}. value {:?} is throwed.", id, older
+                    )));
+                } else {
+                    self.swbga_defs.insert(id, ev.clone());
+                }
+            }
+            Token::Movie(path) => {
+                self.movie = Some(path.into());
+            }
+            Token::Cdda(val) => {
+                self.cdda = Some(val);
+            }
+            Token::Stp(_) | Token::WavCmd(_)  | Token::Seek(_, _) => {
+                // 这些Token不在Header中存储，直接忽略
+            }
         }
         Ok(())
     }
