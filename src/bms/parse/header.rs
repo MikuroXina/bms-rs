@@ -558,18 +558,19 @@ impl Header {
                 // this token should be handled outside.
             }
             Token::CharFile(path) => {
-                // 只存储最新值
+                // Only store the latest value
                 self.char_file = Some(path.into());
             }
             Token::BaseBpm(bpm) => {
-                // 只存储最新值
+                // Only store the latest value
                 self.base_bpm = Some(bpm);
             }
             Token::Argb(id, argb) => {
-                // 只存储最新值，重复时报错
+                // Only store the latest value, report error if duplicated
                 if let Some(older) = self.argb_defs.get_mut(&id) {
                     return Err(crate::parse::ParseWarning::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {:?}. value {:?} is throwed.", id,older 
+                        "Duplicated ARGB definition for id {:?}. value {:?} is throwed.",
+                        id, older
                     )));
                 } else {
                     self.argb_defs.insert(id, argb);
@@ -594,7 +595,7 @@ impl Header {
                 self.extchr_events.push(ev);
             }
             Token::MaterialsWav(_) | Token::MaterialsBmp(_) => {
-                // 这些Token不在Header中存储，直接忽略
+                // These tokens are not stored in Header, just ignore
             }
             Token::DivideProp(s) => {
                 self.divide_prop = Some(s.to_string());
@@ -608,7 +609,8 @@ impl Header {
             Token::SwBga(id, ref ev) => {
                 if let Some(older) = self.swbga_defs.get_mut(&id) {
                     return Err(crate::parse::ParseWarning::SyntaxError(format!(
-                        "Duplicated SWBGA definition for id {:?}. value {:?} is throwed.", id, older
+                        "Duplicated SWBGA definition for id {:?}. value {:?} is throwed.",
+                        id, older
                     )));
                 } else {
                     self.swbga_defs.insert(id, ev.clone());
@@ -620,8 +622,8 @@ impl Header {
             Token::Cdda(val) => {
                 self.cdda = Some(val);
             }
-            Token::Stp(_) | Token::WavCmd(_)  | Token::Seek(_, _) => {
-                // 这些Token不在Header中存储，直接忽略
+            Token::Stp(_) | Token::WavCmd(_) | Token::Seek(_, _) => {
+                // These tokens are not stored in Header, just ignore
             }
         }
         Ok(())

@@ -559,25 +559,25 @@ pub enum PlayerSide {
     Player2,
 }
 
-/// RGB结构体，用于#VIDEOCOLORS等命令。
+/// RGB struct, used for #VIDEOCOLORS and similar commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Rgb {
-    /// 红色分量
+    /// Red component
     pub r: u8,
-    /// 绿色分量
+    /// Green component
     pub g: u8,
-    /// 蓝色分量
+    /// Blue component
     pub b: u8,
 }
 
-/// 只要求finite的f64包装类型（如Scroll等）。
+/// Wrapper type for finite f64 only (e.g. Scroll).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FiniteF64(f64);
 
 impl FiniteF64 {
-    /// 创建一个只要finite的包装类型。
+    /// Create a wrapper type that only requires finite values.
     pub fn new(val: f64) -> Option<Self> {
         if val.is_finite() {
             Some(Self(val))
@@ -585,7 +585,7 @@ impl FiniteF64 {
             None
         }
     }
-    /// 获取原始值
+    /// Get the raw value
     pub fn get(self) -> f64 {
         self.0
     }
@@ -638,13 +638,13 @@ impl std::ops::Sub for FiniteF64 {
     }
 }
 
-/// 要求finite且大于0的f64包装类型（如Bpm/Stop/Speed/Total等）。
+/// Wrapper type for finite and positive f64 (e.g. Bpm/Stop/Speed/Total).
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PositiveFiniteF64(f64);
 
 impl PositiveFiniteF64 {
-    /// 创建一个finite且大于0的包装类型。
+    /// Create a wrapper type that is finite and positive.
     pub fn new(val: f64) -> Option<Self> {
         if val.is_finite() && val > 0.0 {
             Some(Self(val))
@@ -652,7 +652,7 @@ impl PositiveFiniteF64 {
             None
         }
     }
-    /// 获取原始值
+    /// Get the raw value
     pub fn get(self) -> f64 {
         self.0
     }
@@ -727,7 +727,7 @@ impl From<LnModeType> for u8 {
     }
 }
 
-/// bemaniaDX型STP序列定义。
+/// bemaniaDX type STP sequence definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StpEvent {

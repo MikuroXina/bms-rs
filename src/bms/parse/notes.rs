@@ -10,7 +10,7 @@ use std::{
 use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
-        command::{self, Channel, Key, NoteKind, ObjId, Argb, FiniteF64},
+        command::{self, Argb, Channel, FiniteF64, Key, NoteKind, ObjId},
         token::Token,
     },
     parse::header::{ExRankDef, ExWavDef},
@@ -747,36 +747,51 @@ impl Notes {
                 // this token should be handled outside.
             }
             Token::Stp(ev) => {
-                // 以ObjTime为key存储，重复时报错
+                // Store by ObjTime as key, report error if duplicated
                 let key = ev.time;
                 if self.stp_events.contains_key(&key) {
-                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated STP event at time {:?}", key)));
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {:?}",
+                        key
+                    )));
                 }
                 self.stp_events.insert(key, ev.clone());
             }
             Token::WavCmd(ev) => {
-                // 以wav_index为key存储，重复时报错
+                // Store by wav_index as key, report error if duplicated
                 let key = ev.wav_index;
                 if self.wavcmd_events.contains_key(&key) {
-                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated WAVCMD event for wav_index {:?}", key)));
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {:?}",
+                        key
+                    )));
                 }
                 self.wavcmd_events.insert(key, ev.clone());
             }
             Token::SwBga(id, ev) => {
                 if self.swbga_events.contains_key(id) {
-                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated SWBGA event for id {:?}", id)));
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {:?}",
+                        id
+                    )));
                 }
                 self.swbga_events.insert(*id, ev.clone());
             }
             Token::Argb(id, argb) => {
                 if self.argb_defs.contains_key(id) {
-                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated ARGB definition for id {:?}", id)));
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {:?}",
+                        id
+                    )));
                 }
                 self.argb_defs.insert(*id, *argb);
             }
             Token::Seek(id, v) => {
                 if self.seek_events.contains_key(id) {
-                    return Err(super::ParseWarning::SyntaxError(format!("Duplicated Seek event for id {:?}", id)));
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {:?}",
+                        id
+                    )));
                 }
                 self.seek_events.insert(*id, *v);
             }
@@ -789,8 +804,19 @@ impl Notes {
             Token::MaterialsBmp(path) => {
                 self.materials_bmp.push(path.into());
             }
-            Token::CharFile(_) | Token::BaseBpm(_) | Token::DivideProp(_) | Token::Charset(_) | Token::DefExRank(_) | Token::Preview(_) | Token::LnMode(_) | Token::VideoFs(_) | Token::VideoColors(_) | Token::VideoDly(_) | Token::Movie(_) | Token::Cdda(_) => {
-                // 这些Token不在Notes中存储，直接忽略
+            Token::CharFile(_)
+            | Token::BaseBpm(_)
+            | Token::DivideProp(_)
+            | Token::Charset(_)
+            | Token::DefExRank(_)
+            | Token::Preview(_)
+            | Token::LnMode(_)
+            | Token::VideoFs(_)
+            | Token::VideoColors(_)
+            | Token::VideoDly(_)
+            | Token::Movie(_)
+            | Token::Cdda(_) => {
+                // These tokens are not stored in Notes, just ignore
             }
         }
         Ok(())

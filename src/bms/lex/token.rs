@@ -456,7 +456,7 @@ impl<'a> Token<'a> {
                     let value: u32 = value
                         .parse()
                         .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
-                    // 合法性校验
+                    // Validity check
                     match param {
                         WavCmdParam::Pitch if !(0..=127).contains(&value) => {
                             return Err(c.make_err_expected_token("pitch 0-127"));
@@ -464,7 +464,8 @@ impl<'a> Token<'a> {
                         WavCmdParam::Volume if value > 100 => {
                             return Err(c.make_err_expected_token("volume 0-100"));
                         }
-                        WavCmdParam::Time => { /* 0为原音长，50ms以下不可靠 */ }
+                        WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
+                        }
                         _ => {}
                     }
                     Self::WavCmd(WavCmdEvent {
@@ -744,7 +745,7 @@ impl<'a> Token<'a> {
                     Self::LnObj(ObjId::try_load(id, c)?)
                 }
                 extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
-                    // 允许参数间有多个空格
+                    // Allow multiple spaces between parameters
                     let mut params = c.next_line_remaining().split_whitespace();
                     let sprite_num = params
                         .next()
@@ -754,7 +755,7 @@ impl<'a> Token<'a> {
                     let bmp_num = params
                         .next()
                         .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
-                    // BMPNum 支持十六进制（如09/FF），也支持-1/-257等
+                    // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
                     let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
                         -stripped
                             .parse::<i32>()
@@ -789,10 +790,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("end_y"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("end_y i32"))?;
-                    // offsetX/offsetY 可选
+                    // offsetX/offsetY are optional
                     let offset_x = params.next().map(|v| v.parse().ok()).flatten();
                     let offset_y = params.next().map(|v| v.parse().ok()).flatten();
-                    // x/y 可选，只有offset存在时才可出现
+                    // x/y are optional, only present if offset exists
                     let abs_x = params.next().map(|v| v.parse().ok()).flatten();
                     let abs_y = params.next().map(|v| v.parse().ok()).flatten();
                     Self::ExtChr(ExtChrEvent {
@@ -890,7 +891,7 @@ impl<'a> Token<'a> {
                     if part.is_empty() {
                         return Err(c.make_err_expected_token("stp definition"));
                     }
-                    // 解析xxx.yyy zzzz
+                    // Parse xxx.yyy zzzz
                     let (xy, ms) = if let Some((xy, ms)) = part.split_once(' ') {
                         (xy, ms)
                     } else if let Some((xy, ms)) = part.split_once('\t') {
@@ -935,7 +936,7 @@ impl<'a> Token<'a> {
                 }
                 swbga if swbga.starts_with("#SWBGA") => {
                     let id = swbga.trim_start_matches("#SWBGA");
-                    // 解析 fr:time:line:loop:a,r,g,b pattern
+                    // Parse fr:time:line:loop:a,r,g,b pattern
                     let params = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
