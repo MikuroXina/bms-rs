@@ -160,75 +160,75 @@ pub struct ExWavDef {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Header {
-    /// The play style of the score.
+    /// The play style of the score. #PLAYER
     pub player: Option<PlayerMode>,
-    /// The genre of the score.
+    /// The genre of the score. #GENRE
     pub genre: Option<String>,
-    /// The title of the score.
+    /// The title of the score. #TITLE
     pub title: Option<String>,
-    /// The subtitle of the score.
+    /// The subtitle of the score. #SUBTITLE
     pub subtitle: Option<String>,
-    /// The artist of the music in the score.
+    /// The artist of the music in the score. #ARTIST
     pub artist: Option<String>,
-    /// The co-artist of the music in the score.
+    /// The co-artist of the music in the score. #SUBARTIST
     pub sub_artist: Option<String>,
-    /// Who placed the notes into the score.
+    /// Who placed the notes into the score. #MAKER
     pub maker: Option<String>,
-    /// The text messages of the score. It may be closed with double quotes.
+    /// The text messages of the score. It may be closed with double quotes. #COMMENT
     pub comment: Option<Vec<String>>,
-    /// The email address of the author.
+    /// The email address of the author. #EMAIL
     pub email: Option<String>,
-    /// The url of the author.
+    /// The url of the author. #URL
     pub url: Option<String>,
-    /// The message for overriding options of some BMS player.
+    /// The message for overriding options of some BMS player. #OPTION
     pub options: Option<Vec<String>>,
-    /// The initial BPM of the score.
+    /// The initial BPM of the score. #BPM
     pub bpm: Option<PositiveFiniteF64>,
-    /// The play level of the score.
+    /// The play level of the score. #PLAYLEVEL
     pub play_level: Option<u8>,
-    /// The judgement level of the score.
+    /// The judgement level of the score. #RANK
     pub rank: Option<JudgeLevel>,
-    /// The difficulty of the score.
+    /// The difficulty of the score. #DIFFICULTY
     pub difficulty: Option<u8>,
-    /// The total gauge percentage when all notes is got as PERFECT.
+    /// The total gauge percentage when all notes is got as PERFECT. #TOTAL
     pub total: Option<PositiveFiniteF64>,
-    /// The volume of the score.
+    /// The volume of the score. #VOLWAV
     pub volume: Volume,
-    /// The LN notation type of the score.
+    /// The LN notation type of the score. #LNTYPE
     pub ln_type: LnType,
-    /// The display mode for background image/video.
+    /// The display mode for background image/video. #POORBGA
     pub poor_bga_mode: PoorMode,
-    /// The path of background image, which is shown while playing the score.
+    /// The path of background image, which is shown while playing the score. #BACKBMP
     pub back_bmp: Option<PathBuf>,
-    /// The path of splash screen image, which is shown before playing the score.
+    /// The path of splash screen image, which is shown before playing the score. #STAGEFILE
     pub stage_file: Option<PathBuf>,
-    /// The path of banner image.
+    /// The path of banner image. #BANNER
     pub banner: Option<PathBuf>,
-    /// Whether the score is the octave mode.
+    /// Whether the score is the octave mode. #OCT/FP
     pub is_octave: bool,
-    /// The path of MIDI file, which is played as BGM while playing the score.
+    /// The path of MIDI file, which is played as BGM while playing the score. #MIDIFILE
     pub midi_file: Option<PathBuf>,
-    /// The path of the background video. The video should be started the playing from the section 000.
+    /// The path of the background video. The video should be started the playing from the section 000. #VIDEOFILE
     pub video_file: Option<PathBuf>,
-    /// The path to override the base path of the WAV file path.
+    /// The path to override the base path of the WAV file path. #PATH_WAV
     pub wav_path_root: Option<PathBuf>,
-    /// The WAV file paths corresponding to the id of the note object.
+    /// The WAV file paths corresponding to the id of the note object. #WAV
     pub wav_files: HashMap<ObjId, PathBuf>,
-    /// The path of image, which is shown when the player got POOR.
+    /// The path of image, which is shown when the player got POOR. #BMP00
     pub poor_bmp: Option<PathBuf>,
-    /// The BMP file paths corresponding to the id of the background image/video object.
+    /// The BMP file paths corresponding to the id of the background image/video object. #BMP
     pub bmp_files: HashMap<ObjId, Bmp>,
-    /// The BPMs corresponding to the id of the BPM change object.
+    /// The BPMs corresponding to the id of the BPM change object. #BPM[01-ZZ]
     pub bpm_changes: HashMap<ObjId, PositiveFiniteF64>,
-    /// The scrolling factors corresponding to the id of the scroll speed change object.
+    /// The scrolling factors corresponding to the id of the scroll speed change object. #SCROLL
     pub scrolling_factor_changes: HashMap<ObjId, FiniteF64>,
-    /// The spacing factors corresponding to the id of the spacing change object.
+    /// The spacing factors corresponding to the id of the spacing change object. #SPEED
     pub spacing_factor_changes: HashMap<ObjId, PositiveFiniteF64>,
-    /// The texts corresponding to the id of the text object.
+    /// The texts corresponding to the id of the text object. #TEXT
     pub texts: HashMap<ObjId, String>,
-    /// The option messages corresponding to the id of the change option object.
+    /// The option messages corresponding to the id of the change option object. #CHANGEOPTION
     pub change_options: HashMap<ObjId, String>,
-    /// Stop lengths by stop object id.
+    /// Stop lengths by stop object id. #STOP
     pub stops: HashMap<ObjId, u64>,
     /// Storage for #@BGA definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
@@ -238,22 +238,35 @@ pub struct Header {
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
-    /// BM98 #ExtChr扩展角色自定义事件。
+    /// BM98 #ExtChr extended character customization events. #ExtChr
     pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
-    /// 其他扩展字段可按需添加。
+    /// The char file path. #CHARFILE
     pub char_file: Option<PathBuf>,
+    /// The base BPM. #BASEBPM
     pub base_bpm: Option<PositiveFiniteF64>,
+    /// Extended ARGB definitions. #ARGB
     pub argb_defs: HashMap<ObjId, Argb>,
+    /// Video file frame rate. #VIDEOF/S
     pub video_fs: Option<PositiveFiniteF64>,
+    /// Video color depth. #VIDEOCOLORS
     pub video_colors: Option<u8>,
+    /// Video delay extension. #VIDEODLY
     pub video_dly: Option<FiniteF64>,
+    /// Preview audio file for music selection. #PREVIEW
     pub preview: Option<PathBuf>,
+    /// Explicitly specify LN type for this chart. #LNMODE
     pub ln_mode: Option<LnModeType>,
+    /// Key Bind Layer Animation definitions. #SWBGA
     pub swbga_defs: HashMap<ObjId, SwBgaEvent>,
+    /// Global video file. #MOVIE
     pub movie: Option<PathBuf>,
+    /// The resolution of Measure of BMS. #DIVIDEPROP
     pub divide_prop: Option<String>,
+    /// Charset declaration. #CHARSET
     pub charset: Option<String>,
+    /// Extended judge rank definition. #DEFEXRANK
     pub def_exrank: Option<u64>,
+    /// CD-DA BGM definition. #CDDA
     pub cdda: Option<u64>,
 }
 

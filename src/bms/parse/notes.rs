@@ -250,15 +250,25 @@ impl Ord for ExtendedMessageObj {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Notes {
     // objects stored in obj is sorted, so it can be searched by bisection method
+    /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
     objs: HashMap<ObjId, Vec<Obj>>,
+    /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
     bgms: BTreeMap<ObjTime, Vec<ObjId>>,
+    /// Index for fast key lookup. Used for LN/landmine logic.
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
+    /// BPM change events, indexed by time. #BPM[01-ZZ] in message
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// Section length change events, indexed by track. #SECLEN
     section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
+    /// Stop events, indexed by time. #STOP[01-ZZ] in message
     stops: BTreeMap<ObjTime, StopObj>,
+    /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
     bga_changes: BTreeMap<ObjTime, BgaObj>,
+    /// Scrolling factor change events, indexed by time. #SCROLL in message
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
+    /// Spacing factor change events, indexed by time. #SPEED in message
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
+    /// Extended message events. #EXT
     extended_messages: Vec<ExtendedMessageObj>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
@@ -268,23 +278,23 @@ pub struct Notes {
     pub change_options: HashMap<ObjId, String>,
     /// Storage for #TEXT definitions
     pub texts: HashMap<ObjId, String>,
-    /// bemaniaDX STP事件
+    /// bemaniaDX STP events, indexed by ObjTime. #STP
     pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
-    /// WAVCMD事件
+    /// WAVCMD events, indexed by wav_index. #WAVCMD
     pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
-    /// CDDA事件
+    /// CDDA events, indexed by value. #CDDA
     pub cdda_events: HashMap<u64, u64>,
-    /// SWBGA事件
+    /// SWBGA events, indexed by ObjId. #SWBGA
     pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
-    /// ARGB定义
+    /// ARGB definitions, indexed by ObjId. #ARGB
     pub argb_defs: HashMap<ObjId, Argb>,
-    /// Seek事件
+    /// Seek events, indexed by ObjId. #SEEK
     pub seek_events: HashMap<ObjId, FiniteF64>,
-    /// ExtChr事件
+    /// ExtChr events. #ExtChr
     pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
-    /// 材料WAV
+    /// Material WAV file paths. #MATERIALSWAV
     pub materials_wav: Vec<std::path::PathBuf>,
-    /// 材料BMP
+    /// Material BMP file paths. #MATERIALSBMP
     pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
