@@ -296,7 +296,7 @@ impl Header {
                     trim_size: (*trim_size).into(),
                     draw_point: (*draw_point).into(),
                 };
-                if let Some(older) = self.atbga_defs.get_mut(&id) {
+                if let Some(older) = self.atbga_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::AtBga {
                             id: *id,
@@ -324,7 +324,7 @@ impl Header {
                     trim_bottom_right: (*trim_bottom_right).into(),
                     draw_point: (*draw_point).into(),
                 };
-                if let Some(older) = self.bga_defs.get_mut(&id) {
+                if let Some(older) = self.bga_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Bga {
                             id: *id,
@@ -362,7 +362,7 @@ impl Header {
                 self.bpm = Some(bpm.clone());
             }
             Token::BpmChange(id, bpm) => {
-                if let Some(older) = self.bpm_changes.get_mut(&id) {
+                if let Some(older) = self.bpm_changes.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BpmChange {
                             id: *id,
@@ -375,7 +375,7 @@ impl Header {
                 }
             }
             Token::ChangeOption(id, option) => {
-                if let Some(older) = self.change_options.get_mut(&id) {
+                if let Some(older) = self.change_options.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ChangeOption {
                             id: *id,
@@ -398,7 +398,7 @@ impl Header {
                     file: path.into(),
                     transparent_color: *transparent_color,
                 };
-                if let Some(older) = self.bmp_files.get_mut(&id) {
+                if let Some(older) = self.bmp_files.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Bmp {
                             id: *id,
@@ -415,7 +415,7 @@ impl Header {
                     id: *id,
                     judge_level: *judge_level,
                 };
-                if let Some(older) = self.exrank_defs.get_mut(&id) {
+                if let Some(older) = self.exrank_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ExRank {
                             id: *id,
@@ -438,10 +438,10 @@ impl Header {
                     id: *id,
                     pan: *pan,
                     volume: *volume,
-                    frequency: frequency.clone(),
+                    frequency: *frequency,
                     path: path.into(),
                 };
-                if let Some(older) = self.exwav_defs.get_mut(&id) {
+                if let Some(older) = self.exwav_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ExWav {
                             id: *id,
@@ -473,7 +473,7 @@ impl Header {
             Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = *poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(*rank),
             Token::Scroll(id, factor) => {
-                if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
+                if let Some(older) = self.scrolling_factor_changes.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ScrollingFactorChange {
                             id: *id,
@@ -486,7 +486,7 @@ impl Header {
                 }
             }
             Token::Speed(id, factor) => {
-                if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
+                if let Some(older) = self.spacing_factor_changes.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SpacingFactorChange {
                             id: *id,
@@ -508,7 +508,7 @@ impl Header {
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.to_string()),
             Token::Text(id, text) => {
-                if let Some(older) = self.texts.get_mut(&id) {
+                if let Some(older) = self.texts.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Text {
                             id: *id,
@@ -528,12 +528,12 @@ impl Header {
             Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
             Token::VolWav(volume) => self.volume = *volume,
             Token::Wav(id, path) => {
-                if let Some(older) = self.wav_files.get_mut(&id) {
+                if let Some(older) = self.wav_files.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Wav {
                             id: *id,
                             older,
-                            newer: *path,
+                            newer: path,
                         })
                         .apply(older, path.into())?;
                 } else {
@@ -574,10 +574,9 @@ impl Header {
             }
             Token::Argb(id, argb) => {
                 // Only store the latest value, report error if duplicated
-                if let Some(older) = self.argb_defs.get_mut(&id) {
+                if let Some(older) = self.argb_defs.get_mut(id) {
                     return Err(crate::parse::ParseWarning::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {:?}. value {:?} is throwed.",
-                        id, older
+                        "Duplicated ARGB definition for id {id:?}. value {older:?} is throwed."
                     )));
                 } else {
                     self.argb_defs.insert(*id, *argb);
@@ -599,7 +598,7 @@ impl Header {
                 self.ln_mode = Some(*mode);
             }
             Token::ExtChr(ev) => {
-                self.extchr_events.push(ev.clone());
+                self.extchr_events.push(*ev);
             }
             Token::MaterialsWav(_) | Token::MaterialsBmp(_) => {
                 // These tokens are not stored in Header, just ignore
@@ -614,10 +613,9 @@ impl Header {
                 self.def_exrank = Some(val.clone());
             }
             Token::SwBga(id, ev) => {
-                if let Some(older) = self.swbga_defs.get_mut(&id) {
+                if let Some(older) = self.swbga_defs.get_mut(id) {
                     return Err(crate::parse::ParseWarning::SyntaxError(format!(
-                        "Duplicated SWBGA definition for id {:?}. value {:?} is throwed.",
-                        id, older
+                        "Duplicated SWBGA definition for id {id:?}. value {older:?} is throwed."
                     )));
                 } else {
                     self.swbga_defs.insert(*id, ev.clone());

@@ -10,7 +10,7 @@ fn test_playing_conditions_empty_bms() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(&source);
+    } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([1]);
@@ -38,7 +38,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(&source);
+    } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([1]);
@@ -63,7 +63,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(&source);
+    } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([1]);
@@ -89,7 +89,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(&source);
+    } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([1]);

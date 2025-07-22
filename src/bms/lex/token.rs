@@ -293,14 +293,14 @@ impl<'a> Token<'a> {
                 "#TOTAL" => {
                     let v = c
                         .next_token()
-                        .and_then(|s| GenericFraction::<BigUint>::from_str(&s).ok())
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(s).ok())
                         .ok_or_else(|| c.make_err_expected_token("f64"))?;
                     Self::Total(v)
                 }
                 "#BPM" => {
                     let v = c
                         .next_token()
-                        .and_then(|s| GenericFraction::<BigUint>::from_str(&s).ok())
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(s).ok())
                         .ok_or_else(|| c.make_err_expected_token("f64"))?;
                     Self::Bpm(v)
                 }
@@ -498,7 +498,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
@@ -519,7 +519,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
@@ -528,7 +528,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::Speed(ObjId::try_load(id, c)?, v)
                 }
@@ -784,11 +784,11 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("end_y i32"))?;
                     // offsetX/offsetY are optional
-                    let offset_x = params.next().map(|v| v.parse().ok()).flatten();
-                    let offset_y = params.next().map(|v| v.parse().ok()).flatten();
+                    let offset_x = params.next().and_then(|v| v.parse().ok());
+                    let offset_y = params.next().and_then(|v| v.parse().ok());
                     // x/y are optional, only present if offset exists
-                    let abs_x = params.next().map(|v| v.parse().ok()).flatten();
-                    let abs_y = params.next().map(|v| v.parse().ok()).flatten();
+                    let abs_x = params.next().and_then(|v| v.parse().ok());
+                    let abs_y = params.next().and_then(|v| v.parse().ok());
                     Self::ExtChr(ExtChrEvent {
                         sprite_num,
                         bmp_num,
@@ -862,7 +862,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
@@ -870,7 +870,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::BaseBpm(v)
                 }
@@ -891,7 +891,6 @@ impl<'a> Token<'a> {
                         return Err(c.make_err_expected_token("stp format xxx.yyy zzzz"));
                     };
                     let ms: u32 = ms
-                        .trim()
                         .split_whitespace()
                         .next()
                         .unwrap_or("")
@@ -1030,7 +1029,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::VideoFs(v)
                 }
@@ -1047,7 +1046,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::VideoDly(v)
                 }
@@ -1056,7 +1055,7 @@ impl<'a> Token<'a> {
                     let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("seek value"))?;
-                    let v = GenericFraction::<BigUint>::from_str(&v)
+                    let v = GenericFraction::<BigUint>::from_str(v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
                     Self::Seek(ObjId::try_load(id, c)?, v)
                 }

@@ -499,10 +499,10 @@ mod tests {
         else {
             panic!("AST structure error, ast: {ast:?}");
         };
-        let Some(_case1) = cases.iter().find(|c| match &c.value {
-            CaseBranchValue::Case(v) if v == &BigUint::one() => true,
-            _ => false,
-        }) else {
+        let Some(_case1) = cases
+            .iter()
+            .find(|c| matches!(&c.value, CaseBranchValue::Case(v) if v == &BigUint::one()))
+        else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
         let Some(Unit::SwitchBlock { cases, .. }) =
@@ -510,10 +510,10 @@ mod tests {
         else {
             panic!("AST structure error, ast: {ast:?}");
         };
-        let Some(CaseBranch { tokens: _, .. }) = cases.iter().find(|c| match &c.value {
-            CaseBranchValue::Case(v) if v == &BigUint::one() => true,
-            _ => false,
-        }) else {
+        let Some(CaseBranch { tokens: _, .. }) = cases
+            .iter()
+            .find(|c| matches!(&c.value, CaseBranchValue::Case(v) if v == &BigUint::one()))
+        else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
         // Since tokens only contain Token type, do not search for RandomBlock here. Related assertions are already covered above.

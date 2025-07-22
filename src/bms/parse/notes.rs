@@ -733,8 +733,7 @@ impl Notes {
                 let key = ev.time;
                 if self.stp_events.contains_key(&key) {
                     return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated STP event at time {:?}",
-                        key
+                        "Duplicated STP event at time {key:?}"
                     )));
                 }
                 self.stp_events.insert(key, ev.clone());
@@ -744,8 +743,7 @@ impl Notes {
                 let key = ev.wav_index;
                 if self.wavcmd_events.contains_key(&key) {
                     return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated WAVCMD event for wav_index {:?}",
-                        key
+                        "Duplicated WAVCMD event for wav_index {key:?}",
                     )));
                 }
                 self.wavcmd_events.insert(key, ev.clone());
@@ -753,8 +751,7 @@ impl Notes {
             Token::SwBga(id, ev) => {
                 if self.swbga_events.contains_key(id) {
                     return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated SWBGA event for id {:?}",
-                        id
+                        "Duplicated SWBGA event for id {id:?}",
                     )));
                 }
                 self.swbga_events.insert(*id, ev.clone());
@@ -762,8 +759,7 @@ impl Notes {
             Token::Argb(id, argb) => {
                 if self.argb_defs.contains_key(id) {
                     return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {:?}",
-                        id
+                        "Duplicated ARGB definition for id {id:?}",
                     )));
                 }
                 self.argb_defs.insert(*id, *argb);
@@ -771,14 +767,13 @@ impl Notes {
             Token::Seek(id, v) => {
                 if self.seek_events.contains_key(id) {
                     return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated Seek event for id {:?}",
-                        id
+                        "Duplicated Seek event for id {id:?}",
                     )));
                 }
                 self.seek_events.insert(*id, v.clone());
             }
             Token::ExtChr(ev) => {
-                self.extchr_events.push(ev.clone());
+                self.extchr_events.push(*ev);
             }
             Token::MaterialsWav(path) => {
                 self.materials_wav.push(path.into());
