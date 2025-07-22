@@ -10,27 +10,24 @@ use std::{
 use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
-        command::{self, Channel, Key, NoteKind, ObjId},
+        command::{self, Argb, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
     parse::header::{ExRankDef, ExWavDef},
     time::{ObjTime, Track},
 };
 
+use fraction::GenericFraction;
+use num::BigUint;
+
 /// An object to change the BPM of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: f64,
-}
-
-impl PartialEq for BpmChangeObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub bpm: GenericFraction<BigUint>,
 }
 
 impl Eq for BpmChangeObj {}
@@ -78,7 +75,7 @@ impl Ord for SectionLenChangeObj {
 }
 
 /// An object to stop scrolling of score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopObj {
     /// Time to start the stop.
@@ -86,13 +83,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: u32,
-}
-
-impl PartialEq for StopObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub duration: GenericFraction<BigUint>,
 }
 
 impl Eq for StopObj {}
@@ -155,19 +146,13 @@ pub enum BgaLayer {
 }
 
 /// An object to change scrolling factor of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The scrolling factor to be.
-    pub factor: f64,
-}
-
-impl PartialEq for ScrollingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub factor: GenericFraction<BigUint>,
 }
 
 impl Eq for ScrollingFactorObj {}
@@ -185,19 +170,13 @@ impl Ord for ScrollingFactorObj {
 }
 
 /// An object to change spacing factor between notes with linear interpolation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpacingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: f64,
-}
-
-impl PartialEq for SpacingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub factor: GenericFraction<BigUint>,
 }
 
 impl Eq for SpacingFactorObj {}
@@ -250,15 +229,25 @@ impl Ord for ExtendedMessageObj {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Notes {
     // objects stored in obj is sorted, so it can be searched by bisection method
+    /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
     objs: HashMap<ObjId, Vec<Obj>>,
+    /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
     bgms: BTreeMap<ObjTime, Vec<ObjId>>,
+    /// Index for fast key lookup. Used for LN/landmine logic.
     ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
+    /// BPM change events, indexed by time. #BPM[01-ZZ] in message
     bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// Section length change events, indexed by track. #SECLEN
     section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
+    /// Stop events, indexed by time. #STOP[01-ZZ] in message
     stops: BTreeMap<ObjTime, StopObj>,
+    /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
     bga_changes: BTreeMap<ObjTime, BgaObj>,
+    /// Scrolling factor change events, indexed by time. #SCROLL in message
     scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
+    /// Spacing factor change events, indexed by time. #SPEED in message
     spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
+    /// Extended message events. #EXT
     extended_messages: Vec<ExtendedMessageObj>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
@@ -268,6 +257,24 @@ pub struct Notes {
     pub change_options: HashMap<ObjId, String>,
     /// Storage for #TEXT definitions
     pub texts: HashMap<ObjId, String>,
+    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
+    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
+    /// CDDA events, indexed by value. #CDDA
+    pub cdda_events: HashMap<u64, u64>,
+    /// SWBGA events, indexed by ObjId. #SWBGA
+    pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
+    /// ARGB definitions, indexed by ObjId. #ARGB
+    pub argb_defs: HashMap<ObjId, Argb>,
+    /// Seek events, indexed by ObjId. #SEEK
+    pub seek_events: HashMap<ObjId, GenericFraction<BigUint>>,
+    /// ExtChr events. #ExtChr
+    pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
+    /// Material WAV file paths. #MATERIALSWAV
+    pub materials_wav: Vec<std::path::PathBuf>,
+    /// Material BMP file paths. #MATERIALSBMP
+    pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
 impl Notes {
@@ -374,7 +381,7 @@ impl Notes {
     pub fn push_bpm_change(&mut self, bpm_change: BpmChangeObj) {
         if self
             .bpm_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -388,7 +395,7 @@ impl Notes {
     pub fn push_scrolling_factor_change(&mut self, bpm_change: ScrollingFactorObj) {
         if self
             .scrolling_factor_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -402,7 +409,7 @@ impl Notes {
     pub fn push_spacing_factor_change(&mut self, bpm_change: SpacingFactorObj) {
         if self
             .spacing_factor_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -431,9 +438,9 @@ impl Notes {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = existing.duration.saturating_add(stop.duration)
+                existing.duration = existing.duration.clone() + stop.duration.clone();
             })
-            .or_insert(stop);
+            .or_insert(stop.clone());
     }
 
     /// Adds a new bga change object to the notes.
@@ -456,11 +463,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &bpm = header
+                    let bpm = header
                         .bpm_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_bpm_change(BpmChangeObj { time, bpm });
+                    self.push_bpm_change(BpmChangeObj {
+                        time,
+                        bpm: bpm.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -468,16 +478,16 @@ impl Notes {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
+                let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
                     if bpm == 0 {
                         continue;
                     }
-                    let time = ObjTime::new(track.0, i as u32, denominator);
+                    let time = ObjTime::new(track.0, i as u64, denominator);
                     self.push_bpm_change(BpmChangeObj {
                         time,
-                        bpm: bpm as f64,
+                        bpm: GenericFraction::from(bpm),
                     });
                 }
             }
@@ -487,11 +497,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .scrolling_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_scrolling_factor_change(ScrollingFactorObj { time, factor });
+                    self.push_scrolling_factor_change(ScrollingFactorObj {
+                        time,
+                        factor: factor.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -500,11 +513,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .spacing_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_spacing_factor_change(SpacingFactorObj { time, factor });
+                    self.push_spacing_factor_change(SpacingFactorObj {
+                        time,
+                        factor: factor.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -537,11 +553,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &duration = header
+                    let duration = header
                         .stops
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_stop(StopObj { time, duration })
+                    self.push_stop(StopObj {
+                        time,
+                        duration: duration.clone(),
+                    })
                 }
             }
             Token::Message {
@@ -602,10 +621,10 @@ impl Notes {
                     message: (*message).to_owned(),
                 });
             }
-            &Token::LnObj(end_id) => {
+            Token::LnObj(end_id) => {
                 let mut end_note = self
-                    .remove_latest_note(end_id)
-                    .ok_or(ParseWarning::UndefinedObject(end_id))?;
+                    .remove_latest_note(*end_id)
+                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) =
                     self.ids_by_key[key].range(..offset).last().ok_or_else(|| {
@@ -652,7 +671,6 @@ impl Notes {
             Token::Text(id, text) => {
                 self.texts.insert(*id, (*text).to_string());
             }
-            // Control flow
             Token::Random(_)
             | Token::SetRandom(_)
             | Token::If(_)
@@ -710,6 +728,73 @@ impl Notes {
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
+            Token::Stp(ev) => {
+                // Store by ObjTime as key, report error if duplicated
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {key:?}"
+                    )));
+                }
+                self.stp_events.insert(key, ev.clone());
+            }
+            Token::WavCmd(ev) => {
+                // Store by wav_index as key, report error if duplicated
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {key:?}",
+                    )));
+                }
+                self.wavcmd_events.insert(key, ev.clone());
+            }
+            Token::SwBga(id, ev) => {
+                if self.swbga_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {id:?}",
+                    )));
+                }
+                self.swbga_events.insert(*id, ev.clone());
+            }
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {id:?}",
+                    )));
+                }
+                self.argb_defs.insert(*id, *argb);
+            }
+            Token::Seek(id, v) => {
+                if self.seek_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {id:?}",
+                    )));
+                }
+                self.seek_events.insert(*id, v.clone());
+            }
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(*ev);
+            }
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::CharFile(_)
+            | Token::BaseBpm(_)
+            | Token::DivideProp(_)
+            | Token::Charset(_)
+            | Token::DefExRank(_)
+            | Token::Preview(_)
+            | Token::LnMode(_)
+            | Token::VideoFs(_)
+            | Token::VideoColors(_)
+            | Token::VideoDly(_)
+            | Token::Movie(_)
+            | Token::Cdda(_) => {
+                // These tokens are not stored in Notes, just ignore
+            }
         }
         Ok(())
     }
@@ -763,7 +848,7 @@ impl Notes {
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
-    pub fn resolution_for_pulses(&self) -> u32 {
+    pub fn resolution_for_pulses(&self) -> u64 {
         use num::Integer;
 
         let mut hyp_resolution = 1;
@@ -781,7 +866,7 @@ fn ids_from_message(
     track: command::Track,
     message: &'_ str,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
-    let denominator = message.len() as u32 / 2;
+    let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
         let (i, c1, c2) = loop {
@@ -791,7 +876,7 @@ fn ids_from_message(
             }
         };
         let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
-        let time = ObjTime::new(track.0, i as u32, denominator);
+        let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })
 }
@@ -905,6 +990,15 @@ impl<'de> serde::Deserialize<'de> for Notes {
             exwav_defs: HashMap::new(),
             change_options: HashMap::new(),
             texts: HashMap::new(),
+            stp_events: HashMap::new(),
+            wavcmd_events: HashMap::new(),
+            cdda_events: HashMap::new(),
+            swbga_events: HashMap::new(),
+            argb_defs: HashMap::new(),
+            seek_events: HashMap::new(),
+            extchr_events: vec![],
+            materials_wav: vec![],
+            materials_bmp: vec![],
         })
     }
 }

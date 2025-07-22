@@ -1,6 +1,7 @@
 //! Finite binary64 definition.
 
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 /// `f64` but it has only finite value.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -26,14 +27,9 @@ impl From<FinF64> for f64 {
 }
 
 /// Error type for `FinF64::try_from`.
-#[derive(Debug, thiserror::Error)]
-pub struct TryFromFloatError(pub(crate) ());
-
-impl std::fmt::Display for TryFromFloatError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "finite number expected")
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Error)]
+#[error("finite number expected: {0}")]
+pub struct TryFromFloatError(pub(crate) f64);
 
 impl TryFrom<f64> for FinF64 {
     type Error = TryFromFloatError;
@@ -41,7 +37,7 @@ impl TryFrom<f64> for FinF64 {
         value
             .is_finite()
             .then_some(Self(value))
-            .ok_or(TryFromFloatError(()))
+            .ok_or(TryFromFloatError(value))
     }
 }
 

@@ -54,7 +54,7 @@ pub enum LexWarning {
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 
 /// Lex Parsing Results, includes tokens and warnings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
@@ -101,6 +101,9 @@ pub fn parse_with_channel_parser<'a>(
 mod tests {
     use std::path::Path;
 
+    use fraction::GenericFraction;
+    use num::{BigUint, One};
+
     use crate::lex::BmsLexOutput;
 
     use super::{command::*, parse, token::Token::*};
@@ -142,7 +145,10 @@ mod tests {
                 Genre("FUGA"),
                 Title("BAR(^^)"),
                 Artist("MikuroXina"),
-                Bpm("120"),
+                Bpm(GenericFraction::<BigUint>::new(
+                    BigUint::from(120u64),
+                    BigUint::one()
+                )),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 BackBmp(Path::new("boon.jpg")),

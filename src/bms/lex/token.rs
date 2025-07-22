@@ -1,11 +1,14 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path};
+use crate::time::ObjTime;
+use fraction::GenericFraction;
+use num::{BigUint, One};
+use std::{borrow::Cow, path::Path, str::FromStr, time::Duration};
 
 use super::{Result, command::*, cursor::Cursor};
 
 /// A token of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
@@ -46,11 +49,12 @@ pub enum Token<'a> {
     /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
     Bmp(Option<ObjId>, &'a Path),
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
-    Bpm(&'a str),
+    Bpm(GenericFraction<BigUint>),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
-    BpmChange(ObjId, &'a str),
-    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
-    Case(u32),
+    /// `#EXBPM[01-ZZ] [f64]` is equivalent to this.
+    BpmChange(ObjId, GenericFraction<BigUint>),
+    /// `#CASE [u64]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
+    Case(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
     ChangeOption(ObjId, &'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
@@ -59,9 +63,9 @@ pub enum Token<'a> {
     Def,
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
     Difficulty(u8),
-    /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
+    /// `#ELSE`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
     Else,
-    /// `#ELSEIF [u32]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
+    /// `#ELSEIF [u64]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
     ///
     /// ```text
     /// #ELSE
@@ -70,7 +74,7 @@ pub enum Token<'a> {
     ///   #ENDIF
     /// #ENDIF
     /// ```
-    ElseIf(u32),
+    ElseIf(BigUint),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
     /// `#ENDIF`. Closes the if scope. See [Token::If].
@@ -107,8 +111,8 @@ pub enum Token<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(u32),
+    /// `#IF [u64]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
+    If(BigUint),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -142,46 +146,109 @@ pub enum Token<'a> {
     PlayLevel(u8),
     /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
     PoorBga(PoorMode),
-    /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(u32),
+    /// `#RANDOM [u64]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
+    Random(BigUint),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
-    Scroll(ObjId, &'a str),
-    /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(u32),
-    /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(u32),
+    Scroll(ObjId, GenericFraction<BigUint>),
+    /// `#SETRANDOM [u64]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetRandom(BigUint),
+    /// `#SETSWITCH [u64]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetSwitch(BigUint),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
     /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
-    Speed(ObjId, &'a str),
+    Speed(ObjId, GenericFraction<BigUint>),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
-    Stop(ObjId, u32),
+    Stop(ObjId, GenericFraction<BigUint>),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
-    /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(u32),
+    /// `#SWITCH [u64]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
+    Switch(BigUint),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
+    /// `#SONG[01-ZZ] [string]` is equivalent to `#TEXT[01-ZZ] [string]`, while `#SONG` is deprecated.
     Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
-    Total(&'a str),
+    Total(GenericFraction<BigUint>),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
-    /// `%URL [string]`. The url of this score file.
+    /// `%EMAIL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
+    /// `Same as #MOVIE`, but `#MOVIE` is in the same level of `04` channel, `#VIDEOFILE` is in the down level of `04` channel.
     VideoFile(&'a Path),
-    /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
+    /// `#VOLWAV [u64]`.
+    /// Defines the relative volume percentage of the sound in the score.
+    /// In beatoraja, max value is 100 (100%).
     VolWav(Volume),
     /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
     Wav(ObjId, &'a Path),
+    /// `#CHARFILE [filename]`.
+    /// The character file similar to pop'n music. It's filextension is `.chp`.
+    /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
+    CharFile(&'a Path),
+    /// `#BASEBPM [f64]` is the base BPM.
+    /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
+    BaseBpm(GenericFraction<BigUint>),
+    /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
+    Stp(StpEvent),
+    /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
+    WavCmd(WavCmdEvent),
+    /// `#CDDA [u64]`.
+    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    Cdda(BigUint),
+    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
+    SwBga(ObjId, SwBgaEvent),
+    /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
+    /// - A1: BGA BASE
+    /// - A2: BGA LAYER
+    /// - A3: BGA LAYER 2
+    /// - A4: BGA POOR
+    Argb(ObjId, Argb),
+    /// `#VIDEOF/S [f64]` Video file frame rate.
+    VideoFs(GenericFraction<BigUint>),
+    /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
+    VideoColors(u8),
+    /// `#VIDEODLY [f64]` Video delay extension.
+    VideoDly(GenericFraction<BigUint>),
+    /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    Seek(ObjId, GenericFraction<BigUint>),
+    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
+    ExtChr(ExtChrEvent),
+    /// `#MATERIALSWAV [filename]` Material WAV extension.
+    /// Deprecated.
+    MaterialsWav(&'a Path),
+    /// `#MATERIALSBMP [filename]` Material BMP extension.
+    /// Deprecated.
+    MaterialsBmp(&'a Path),
+    /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
+    /// Deprecated.
+    DivideProp(&'a str),
+    /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
+    Charset(&'a str),
+    /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
+    /// 100 means NORMAL judge.
+    /// Overrides `#RANK` definition.
+    DefExRank(BigUint),
+    /// `#PREVIEW [filename]` Preview audio file for music selection.
+    Preview(&'a Path),
+    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
+    LnMode(LnModeType),
+    /// `#MOVIE [filename]` DXEmu extension, defines global video file.
+    /// - Video starts from #000.
+    /// - Priority rules:
+    ///   - If #xxx04 is an image file (BMP, PNG, etc.), #MOVIE has priority.
+    ///   - If both #xxx04 and #MOVIE are video files, #xxx04 has priority.
+    /// - No loop, stays on last frame after playback.
+    /// - Audio track in video is not played.
+    Movie(&'a Path),
 }
 
 impl<'a> Token<'a> {
@@ -223,14 +290,20 @@ impl<'a> Token<'a> {
                         .map(Path::new)
                         .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
                 ),
-                "#TOTAL" => Self::Total(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
-                ),
-                "#BPM" => Self::Bpm(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?,
-                ),
+                "#TOTAL" => {
+                    let v = c
+                        .next_token()
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(s).ok())
+                        .ok_or_else(|| c.make_err_expected_token("f64"))?;
+                    Self::Total(v)
+                }
+                "#BPM" => {
+                    let v = c
+                        .next_token()
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(s).ok())
+                        .ok_or_else(|| c.make_err_expected_token("f64"))?;
+                    Self::Bpm(v)
+                }
                 "#PLAYLEVEL" => Self::PlayLevel(
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("play level"))?
@@ -249,33 +322,33 @@ impl<'a> Token<'a> {
                 "#RANDOM" => {
                     let rand_max = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random max"))?;
+                    let rand_max = BigUint::parse_bytes(rand_max.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Random(rand_max)
                 }
                 "#SETRANDOM" => {
                     let rand_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random value"))?;
+                    let rand_value = BigUint::parse_bytes(rand_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::SetRandom(rand_value)
                 }
                 "#IF" => {
                     let rand_target = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?;
+                    let rand_target = BigUint::parse_bytes(rand_target.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::If(rand_target)
                 }
                 "#ELSEIF" => {
                     let rand_target = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?;
+                    let rand_target = BigUint::parse_bytes(rand_target.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::ElseIf(rand_target)
                 }
                 "#ELSE" => Self::Else,
@@ -285,25 +358,25 @@ impl<'a> Token<'a> {
                 "#SWITCH" => {
                     let switch_max = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch max"))?;
+                    let switch_max = BigUint::parse_bytes(switch_max.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Switch(switch_max)
                 }
                 "#SETSWITCH" => {
                     let switch_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch value"))?;
+                    let switch_value = BigUint::parse_bytes(switch_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::SetSwitch(switch_value)
                 }
                 "#CASE" => {
                     let case_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?;
+                    let case_value = BigUint::parse_bytes(case_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Case(case_value)
                 }
                 "#SKIP" => Self::Skip,
@@ -353,11 +426,50 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("midi filename"))?,
                 ),
                 "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
-                "#VIDEOFILE" | "#MOVIE" => Self::VideoFile(
+                "#VIDEOFILE" => Self::VideoFile(
                     c.next_token()
                         .map(Path::new)
                         .ok_or_else(|| c.make_err_expected_token("video filename"))?,
                 ),
+                // Place ahead of WAV to avoid being parsed as WAV.
+                wavcmd if wavcmd.starts_with("#WAVCMD") => {
+                    let param = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
+                    let param = match param {
+                        "00" => WavCmdParam::Pitch,
+                        "01" => WavCmdParam::Volume,
+                        "02" => WavCmdParam::Time,
+                        _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
+                    };
+                    let wav_index = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
+                    let wav_index = ObjId::try_load(wav_index, c)?;
+                    let value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
+                    let value: u32 = value
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
+                    // Validity check
+                    match param {
+                        WavCmdParam::Pitch if !(0..=127).contains(&value) => {
+                            return Err(c.make_err_expected_token("pitch 0-127"));
+                        }
+                        WavCmdParam::Volume if value > 100 => {
+                            return Err(c.make_err_expected_token("volume 0-100"));
+                        }
+                        WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
+                        }
+                        _ => {}
+                    }
+                    Self::WavCmd(WavCmdEvent {
+                        param,
+                        wav_index,
+                        value,
+                    })
+                }
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -383,33 +495,42 @@ impl<'a> Token<'a> {
                 }
                 bpm if bpm.starts_with("#BPM") => {
                     let id = command.trim_start_matches("#BPM");
-                    let bpm = c
+                    let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    Self::BpmChange(ObjId::try_load(id, c)?, bpm)
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
                     let stop = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Stop(ObjId::try_load(id, c)?, stop)
+                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
+                    let stop = BigUint::parse_bytes(stop.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                    Self::Stop(
+                        ObjId::try_load(id, c)?,
+                        GenericFraction::<BigUint>::new(stop, BigUint::one()),
+                    )
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
-                    let scroll = c
+                    let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
-                    Self::Scroll(ObjId::try_load(id, c)?, scroll)
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
-                    let scroll = c
+                    let v = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    Self::Speed(ObjId::try_load(id, c)?, scroll)
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::Speed(ObjId::try_load(id, c)?, v)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
                     let id = exbmp.trim_start_matches("#EXBMP");
@@ -616,6 +737,71 @@ impl<'a> Token<'a> {
                     let id = lnobj.trim_start_matches("#LNOBJ");
                     Self::LnObj(ObjId::try_load(id, c)?)
                 }
+                extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
+                    // Allow multiple spaces between parameters
+                    let mut params = c.next_line_remaining().split_whitespace();
+                    let sprite_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
+                    let bmp_num = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
+                    // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
+                    let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
+                        -stripped
+                            .parse::<i32>()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
+                    } else if bmp_num.starts_with("0x")
+                        || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
+                    {
+                        i32::from_str_radix(bmp_num, 16)
+                            .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
+                    } else {
+                        bmp_num
+                            .parse()
+                            .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
+                    };
+                    let start_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_x i32"))?;
+                    let start_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("start_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("start_y i32"))?;
+                    let end_x = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_x"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_x i32"))?;
+                    let end_y = params
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("end_y"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("end_y i32"))?;
+                    // offsetX/offsetY are optional
+                    let offset_x = params.next().and_then(|v| v.parse().ok());
+                    let offset_y = params.next().and_then(|v| v.parse().ok());
+                    // x/y are optional, only present if offset exists
+                    let abs_x = params.next().and_then(|v| v.parse().ok());
+                    let abs_y = params.next().and_then(|v| v.parse().ok());
+                    Self::ExtChr(ExtChrEvent {
+                        sprite_num,
+                        bmp_num,
+                        start_x,
+                        start_y,
+                        end_x,
+                        end_y,
+                        offset_x,
+                        offset_y,
+                        abs_x,
+                        abs_y,
+                    })
+                }
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
                         .next_token()
@@ -658,6 +844,281 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
+                // New command parsing
+                charfile if charfile.starts_with("#CHARFILE") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
+                    Self::CharFile(path)
+                }
+                song if song.starts_with("#SONG") => {
+                    let id = song.trim_start_matches("#SONG");
+                    let content = c.next_line_remaining();
+                    Self::Text(ObjId::try_load(id, c)?, content)
+                }
+                exbpm if exbpm.starts_with("#EXBPM") => {
+                    let id = exbpm.trim_start_matches("#EXBPM");
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::BpmChange(ObjId::try_load(id, c)?, v)
+                }
+                "#BASEBPM" => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::BaseBpm(v)
+                }
+                stp if stp.starts_with("#STP") => {
+                    let line = c.next_line_remaining();
+                    let part = line.trim();
+                    if part.is_empty() {
+                        return Err(c.make_err_expected_token("stp definition"));
+                    }
+                    // Parse xxx.yyy zzzz
+                    let (xy, ms) = if let Some((xy, ms)) = part.split_once(' ') {
+                        (xy, ms)
+                    } else if let Some((xy, ms)) = part.split_once('\t') {
+                        (xy, ms)
+                    } else if let Some((xy, ms)) = part.split_once('\u{3000}') {
+                        (xy, ms)
+                    } else {
+                        return Err(c.make_err_expected_token("stp format xxx.yyy zzzz"));
+                    };
+                    let ms: u32 = ms
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
+                    let (measure, pos) = if let Some((m, p)) = xy.split_once('.') {
+                        (m, p)
+                    } else {
+                        (xy, "000")
+                    };
+                    if measure.len() != 3 || pos.len() != 3 {
+                        return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
+                    }
+                    let measure: u16 = measure
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("stp measure u16"))?;
+                    let pos: u16 = pos
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
+                    let time = ObjTime::new(measure as u64, pos as u64, 1000);
+                    let duration = Duration::from_millis(ms as u64);
+                    Self::Stp(StpEvent { time, duration })
+                }
+                "#CDDA" => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("cdda value"))?;
+                    let v = BigUint::parse_bytes(v.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                    Self::Cdda(v)
+                }
+                swbga if swbga.starts_with("#SWBGA") => {
+                    let id = swbga.trim_start_matches("#SWBGA");
+                    // Parse fr:time:line:loop:a,r,g,b pattern
+                    let params = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
+                    let mut parts = params.split(':');
+                    let frame_rate = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga frame_rate"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga frame_rate u32"))?;
+                    let total_time = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga total_time"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga total_time u32"))?;
+                    let line = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga line"))?
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga line u8"))?;
+                    let loop_mode = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga loop"))?
+                        .parse::<u8>()
+                        .map_err(|_| c.make_err_expected_token("swbga loop 0/1"))?;
+                    let loop_mode = match loop_mode {
+                        0 => false,
+                        1 => true,
+                        _ => return Err(c.make_err_expected_token("swbga loop 0/1")),
+                    };
+                    let argb_str = parts
+                        .next()
+                        .ok_or_else(|| c.make_err_expected_token("swbga argb"))?;
+                    let argb_parts: Vec<&str> = argb_str.split(',').collect();
+                    if argb_parts.len() != 4 {
+                        return Err(c.make_err_expected_token("swbga argb 4 values"));
+                    }
+                    let alpha = argb_parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb alpha"))?;
+                    let red = argb_parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb red"))?;
+                    let green = argb_parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb green"))?;
+                    let blue = argb_parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("swbga argb blue"))?;
+                    let pattern = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("swbga pattern"))?
+                        .to_string();
+                    Self::SwBga(
+                        ObjId::try_load(id, c)?,
+                        SwBgaEvent {
+                            frame_rate,
+                            total_time,
+                            line,
+                            loop_mode,
+                            argb: Argb {
+                                alpha,
+                                red,
+                                green,
+                                blue,
+                            },
+                            pattern,
+                        },
+                    )
+                }
+                argb if argb.starts_with("#ARGB") => {
+                    let id = argb.trim_start_matches("#ARGB");
+                    let argb_str = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("argb value"))?;
+                    let parts: Vec<&str> = argb_str.split(',').collect();
+                    if parts.len() != 4 {
+                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
+                    }
+                    let alpha = parts[0]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                    let red = parts[1]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                    let green = parts[2]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                    let blue = parts[3]
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+                    Self::Argb(
+                        ObjId::try_load(id, c)?,
+                        Argb {
+                            alpha,
+                            red,
+                            green,
+                            blue,
+                        },
+                    )
+                }
+                videofs if videofs.starts_with("#VIDEOF/S") => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::VideoFs(v)
+                }
+                videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
+                    let v = v
+                        .parse::<u8>()
+                        .map_err(|_| c.make_err_expected_token("u8"))?;
+                    Self::VideoColors(v)
+                }
+                videodly if videodly.starts_with("#VIDEODLY") => {
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::VideoDly(v)
+                }
+                seek if seek.starts_with("#SEEK") => {
+                    let id = seek.trim_start_matches("#SEEK");
+                    let v = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("seek value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?;
+                    Self::Seek(ObjId::try_load(id, c)?, v)
+                }
+                materialswav if materialswav.starts_with("#MATERIALSWAV") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
+                    Self::MaterialsWav(path)
+                }
+                materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
+                    Self::MaterialsBmp(path)
+                }
+                divideprop if divideprop.starts_with("#DIVIDEPROP") => {
+                    let s = c.next_line_remaining();
+                    Self::DivideProp(s)
+                }
+                charset if charset.starts_with("#CHARSET") => {
+                    let s = c.next_line_remaining();
+                    Self::Charset(s)
+                }
+                defexrank if defexrank.starts_with("#DEFEXRANK") => {
+                    let value = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
+                    let value = BigUint::parse_bytes(value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                    Self::DefExRank(value)
+                }
+                preview if preview.starts_with("#PREVIEW") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("preview filename"))?;
+                    Self::Preview(path)
+                }
+                lnmode if lnmode.starts_with("#LNMODE") => {
+                    let mode = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("lnmode value"))?;
+                    let mode: u8 = mode
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
+                    let mode = match mode {
+                        1 => LnModeType::Ln,
+                        2 => LnModeType::Cn,
+                        3 => LnModeType::Hcn,
+                        _ => return Err(c.make_err_expected_token("lnmode 1-3")),
+                    };
+                    Self::LnMode(mode)
+                }
+                movie if movie.starts_with("#MOVIE") => {
+                    let path = c
+                        .next_token()
+                        .map(Path::new)
+                        .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
+                    Self::Movie(path)
+                }
+                // Unknown command & Not a command
                 command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
                 _not_command => Self::NotACommand(c.next_line_entire()),
             });
@@ -743,7 +1204,7 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lex::command::channel::read_channel_beat;
+    use crate::{lex::command::channel::read_channel_beat, time::Track};
 
     use super::*;
 
@@ -893,5 +1354,116 @@ mod tests {
             panic!("Not LnObj");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
+    }
+
+    #[test]
+    fn test_stpseq() {
+        let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
+            panic!("Not StpSeq");
+        };
+        assert_eq!(stp.time.track, Track(1));
+        assert_eq!(stp.time.numerator, 500);
+        assert_eq!(stp.time.denominator, 1000);
+        assert_eq!(stp.duration.as_millis(), 1500);
+    }
+
+    #[test]
+    fn test_wavcmd_pitch() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 00 0E 61") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Pitch);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 61);
+    }
+
+    #[test]
+    fn test_wavcmd_volume() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 01 0E 50") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Volume);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 50);
+    }
+
+    #[test]
+    fn test_wavcmd_time() {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 02 0E 100") else {
+            panic!("Not WavCmd");
+        };
+        assert_eq!(ev.param, WavCmdParam::Time);
+        assert_eq!(ev.wav_index, ObjId::try_from("0E").unwrap());
+        assert_eq!(ev.value, 100);
+    }
+
+    #[test]
+    fn test_swbga() {
+        let Token::SwBga(id, ev) = parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
+        else {
+            panic!("Not SwBga");
+        };
+        assert_eq!(id, ObjId::try_from("01").unwrap());
+        assert_eq!(ev.frame_rate, 100);
+        assert_eq!(ev.total_time, 400);
+        assert_eq!(ev.line, 16);
+        assert!(!ev.loop_mode);
+        assert_eq!(
+            ev.argb,
+            Argb {
+                alpha: 255,
+                red: 255,
+                green: 255,
+                blue: 255
+            }
+        );
+        assert_eq!(ev.pattern, "01020304");
+    }
+
+    #[test]
+    fn test_movie() {
+        let Token::Movie(path) = parse_token("#MOVIE video.mp4") else {
+            panic!("Not Movie");
+        };
+        assert_eq!(path, Path::new("video.mp4"));
+    }
+
+    #[test]
+    fn test_extchr_basic() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 512 09 30 0 99 9") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.sprite_num, 512);
+        assert_eq!(ev.bmp_num, 9);
+        assert_eq!(ev.start_x, 30);
+        assert_eq!(ev.start_y, 0);
+        assert_eq!(ev.end_x, 99);
+        assert_eq!(ev.end_y, 9);
+        assert_eq!(ev.offset_x, None);
+        assert_eq!(ev.offset_y, None);
+        assert_eq!(ev.abs_x, None);
+        assert_eq!(ev.abs_y, None);
+    }
+
+    #[test]
+    fn test_extchr_offset() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 516 0 38 1 62 9 -2 -2") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.offset_x, Some(-2));
+        assert_eq!(ev.offset_y, Some(-2));
+        assert_eq!(ev.abs_x, None);
+        assert_eq!(ev.abs_y, None);
+    }
+
+    #[test]
+    fn test_extchr_abs() {
+        let Token::ExtChr(ev) = parse_token("#ExtChr 513 0 38 1 62 9 -2 -2 0 0") else {
+            panic!("Not ExtChr");
+        };
+        assert_eq!(ev.offset_x, Some(-2));
+        assert_eq!(ev.offset_y, Some(-2));
+        assert_eq!(ev.abs_x, Some(0));
+        assert_eq!(ev.abs_y, Some(0));
     }
 }
