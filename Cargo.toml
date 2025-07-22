@@ -16,7 +16,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["bmson"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "num/serde", "fraction/with-serde-support"]
 bmson = ["dep:serde", "serde_json"]
 
 [dependencies]
@@ -26,5 +26,3 @@ fraction = "0.15.3"
 serde = { version = "1.0.200", features = ["derive"], optional = true }
 serde_json = { version = "1.0.116", optional = true }
 thiserror = "2.0.0"
-num-bigint = "0.4.6"
-num-traits = "0.2.19"

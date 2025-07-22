@@ -2,9 +2,8 @@
 
 use crate::time::ObjTime;
 use fraction::GenericFraction;
-use num_bigint::BigUint;
-use num_traits::{FromPrimitive, One};
-use std::{borrow::Cow, path::Path, time::Duration};
+use num::{BigUint, One};
+use std::{borrow::Cow, path::Path, str::FromStr, time::Duration};
 
 use super::{Result, command::*, cursor::Cursor};
 
@@ -180,7 +179,7 @@ pub enum Token<'a> {
     Total(GenericFraction<BigUint>),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
-    /// `%URL [string]`. The url of this score file.
+    /// `%EMAIL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
     /// `Same as #MOVIE`, but `#MOVIE` is in the same level of `04` channel, `#VIDEOFILE` is in the down level of `04` channel.
@@ -294,25 +293,15 @@ impl<'a> Token<'a> {
                 "#TOTAL" => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(&s).ok())
+                        .ok_or_else(|| c.make_err_expected_token("f64"))?;
                     Self::Total(v)
                 }
                 "#BPM" => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
+                        .and_then(|s| GenericFraction::<BigUint>::from_str(&s).ok())
+                        .ok_or_else(|| c.make_err_expected_token("f64"))?;
                     Self::Bpm(v)
                 }
                 "#PLAYLEVEL" => Self::PlayLevel(
@@ -508,13 +497,9 @@ impl<'a> Token<'a> {
                     let id = command.trim_start_matches("#BPM");
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 stop if stop.starts_with("#STOP") => {
@@ -533,26 +518,18 @@ impl<'a> Token<'a> {
                     let id = command.trim_start_matches("#SCROLL");
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::Speed(ObjId::try_load(id, c)?, v)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
@@ -884,25 +861,17 @@ impl<'a> Token<'a> {
                     let id = exbpm.trim_start_matches("#EXBPM");
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("exbpm value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 "#BASEBPM" => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("basebpm value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::BaseBpm(v)
                 }
                 stp if stp.starts_with("#STP") => {
@@ -1060,46 +1029,35 @@ impl<'a> Token<'a> {
                 videofs if videofs.starts_with("#VIDEOF/S") => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videofs value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::VideoFs(v)
                 }
                 videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
+                    let v = v
+                        .parse::<u8>()
                         .map_err(|_| c.make_err_expected_token("u8"))?;
                     Self::VideoColors(v)
                 }
                 videodly if videodly.starts_with("#VIDEODLY") => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videodly value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::VideoDly(v)
                 }
                 seek if seek.starts_with("#SEEK") => {
                     let id = seek.trim_start_matches("#SEEK");
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("seek value"))?
-                        .parse()
+                        .ok_or_else(|| c.make_err_expected_token("seek value"))?;
+                    let v = GenericFraction::<BigUint>::from_str(&v)
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(v).unwrap(),
-                        BigUint::one(),
-                    );
                     Self::Seek(ObjId::try_load(id, c)?, v)
                 }
                 materialswav if materialswav.starts_with("#MATERIALSWAV") => {

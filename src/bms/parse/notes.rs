@@ -18,7 +18,7 @@ use crate::{
 };
 
 use fraction::GenericFraction;
-use num_bigint::BigUint;
+use num::BigUint;
 
 /// An object to change the BPM of the score.
 #[derive(Debug, Clone, PartialEq)]

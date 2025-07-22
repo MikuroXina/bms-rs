@@ -27,8 +27,7 @@
 use std::{collections::HashMap, num::NonZeroU8};
 
 use fraction::GenericFraction;
-use num_bigint::BigUint;
-use num_traits::{FromPrimitive, One, ToPrimitive};
+use num::{BigUint, FromPrimitive, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 

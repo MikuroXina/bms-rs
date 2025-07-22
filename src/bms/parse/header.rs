@@ -8,8 +8,7 @@ use super::{
 };
 use crate::lex::{command::*, token::Token};
 use fraction::GenericFraction;
-use num_bigint::BigUint;
-use num_traits::ToPrimitive;
+use num::{BigUint, ToPrimitive};
 
 /// A 2D point in pixel coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

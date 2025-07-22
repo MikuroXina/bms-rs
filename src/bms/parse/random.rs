@@ -67,8 +67,7 @@ pub enum ControlFlowRule {
 mod tests {
     use super::*;
     use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
-    use num_bigint::BigUint;
-    use num_traits::{FromPrimitive, One};
+    use num::{BigUint, One};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -81,29 +80,29 @@ mod tests {
     fn test_switch_insane_tokenized() {
         use Token::*;
         let tokens = vec![
-            Switch(BigUint::from_u32(5).unwrap()),
+            Switch(BigUint::from(5u64)),
             Def,
             Title("0055"),
             Skip,
             Case(BigUint::one()),
             Title("0100000000000000"),
-            Random(BigUint::from_u32(2).unwrap()),
+            Random(BigUint::from(2u64)),
             If(BigUint::one()),
             Title("04"),
             Else,
             Title("05"),
             EndIf,
             // Missing EndRandom!!!
-            Case(BigUint::from_u32(2).unwrap()),
+            Case(BigUint::from(2u64)),
             Title("0200000000000000"),
             Skip,
-            Case(BigUint::from_u32(3).unwrap()),
+            Case(BigUint::from(3u64)),
             Title("0300000000000000"),
-            Switch(BigUint::from_u32(2).unwrap()),
+            Switch(BigUint::from(2u64)),
             Case(BigUint::one()),
             Title("1111"),
             Skip,
-            Case(BigUint::from_u32(2).unwrap()),
+            Case(BigUint::from(2u64)),
             Title("2222"),
             Skip,
             EndSwitch,

@@ -2,7 +2,7 @@
 //!
 //! [`RngMock`] can be used for testing the parser result with some random scopes.
 
-use num_bigint::BigUint;
+use num::BigUint;
 
 /// A random generator for parsing BMS.
 pub trait Rng {
