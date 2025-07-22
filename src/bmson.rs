@@ -26,6 +26,7 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
+use fin_f64::TryFromFloatError;
 use fraction::GenericFraction;
 use num::{BigUint, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -338,7 +339,7 @@ pub struct KeyChannel {
 }
 
 /// Errors on converting from `Bms` into `Bmson`.
-#[derive(Debug, Error, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Error, PartialEq)]
 #[non_exhaustive]
 pub enum BmsonConvertError {
     /// The initial BPM was infinity or NaN.
@@ -356,6 +357,9 @@ pub enum BmsonConvertError {
     /// Invalid fraction.
     #[error("invalid fraction")]
     InvalidFraction,
+    /// Try from float error.
+    #[error("try from float error: {0}")]
+    TryFromFloatError(TryFromFloatError),
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -375,9 +379,9 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::Normal) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::OtherInt(_)) => 1.0,
+            _ => 1.0,
         })
-        .expect("Internal error: judge rank is invalid");
+        .ok_or(BmsonConvertError::TryFromFloatError(TryFromFloatError(1.0)))?;
 
         let resolution = value.notes.resolution_for_pulses();
 
@@ -459,9 +463,11 @@ impl TryFrom<Bms> for Bmson {
                         BigUint::one(),
                     ))
                     .to_f64()
-                    .expect("Internal error: bpm is invalid"),
+                    .ok_or(BmsonConvertError::InvalidFraction)?,
             )
-            .expect("Internal error: FinF64::new failed for bpm"),
+            .ok_or(BmsonConvertError::TryFromFloatError(TryFromFloatError(
+                120.0,
+            )))?,
             judge_rank,
             total: FinF64::new(
                 value
@@ -472,9 +478,11 @@ impl TryFrom<Bms> for Bmson {
                         BigUint::one(),
                     ))
                     .to_f64()
-                    .expect("Internal error: total is invalid"),
+                    .ok_or(BmsonConvertError::InvalidFraction)?,
             )
-            .expect("Internal error: FinF64::new failed for total"),
+            .ok_or(BmsonConvertError::TryFromFloatError(TryFromFloatError(
+                100.0,
+            )))?,
             back_image: value
                 .header
                 .back_bmp
@@ -535,8 +543,9 @@ impl TryFrom<Bms> for Bmson {
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
-                        let damage = FinF64::new(100.0)
-                            .expect("Internal error: 100.0 is not a valid FinF64");
+                        let damage = FinF64::new(100.0).ok_or(
+                            BmsonConvertError::TryFromFloatError(TryFromFloatError(100.0)),
+                        )?;
                         mine_map.entry(note.obj).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,
