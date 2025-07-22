@@ -27,7 +27,7 @@
 use std::{collections::HashMap, num::NonZeroU8};
 
 use fraction::GenericFraction;
-use num::{BigUint, FromPrimitive, One, ToPrimitive};
+use num::{BigUint, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -350,6 +350,12 @@ pub enum BmsonConvertError {
     /// The scrolling factor was infinity or NaN.
     #[error("scrolling factor was invalid value")]
     InvalidScrollingFactor,
+    /// Invalid NonZeroU8.
+    #[error("invalid NonZeroU8")]
+    InvalidNonZeroU8,
+    /// Invalid fraction.
+    #[error("invalid fraction")]
+    InvalidFraction,
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -392,8 +398,13 @@ impl TryFrom<Bms> for Bmson {
             .map(|bpm_change| {
                 Ok(BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
-                    bpm: FinF64::new(bpm_change.bpm.to_f64().unwrap())
-                        .ok_or(BmsonConvertError::InvalidBpm)?,
+                    bpm: FinF64::new(
+                        bpm_change
+                            .bpm
+                            .to_f64()
+                            .ok_or(BmsonConvertError::InvalidFraction)?,
+                    )
+                    .ok_or(BmsonConvertError::InvalidBpm)?,
                 })
             })
             .collect::<Result<Vec<_>, BmsonConvertError>>()?;
@@ -402,11 +413,17 @@ impl TryFrom<Bms> for Bmson {
             .notes
             .stops()
             .values()
-            .map(|stop| StopEvent {
-                y: converter.get_pulses_at(stop.time),
-                duration: stop.duration.to_f64().unwrap() as u64,
+            .map(|stop| {
+                Ok(StopEvent {
+                    y: converter.get_pulses_at(stop.time),
+                    duration: stop
+                        .duration
+                        .to_f64()
+                        .ok_or(BmsonConvertError::InvalidFraction)?
+                        as u64,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
 
         let info = BmsonInfo {
             title: value.header.title.unwrap_or_default(),
@@ -438,26 +455,26 @@ impl TryFrom<Bms> for Bmson {
                     .header
                     .bpm
                     .unwrap_or(GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(120.0).unwrap(),
+                        BigUint::from(120.0 as u64),
                         BigUint::one(),
                     ))
                     .to_f64()
-                    .unwrap(),
+                    .expect("Internal error: bpm is invalid"),
             )
-            .ok_or(BmsonConvertError::InvalidBpm)?,
+            .expect("Internal error: FinF64::new failed for bpm"),
             judge_rank,
             total: FinF64::new(
                 value
                     .header
                     .total
                     .unwrap_or(GenericFraction::<BigUint>::new(
-                        BigUint::from_f64(100.0).unwrap(),
+                        BigUint::from(100.0 as u64),
                         BigUint::one(),
                     ))
                     .to_f64()
-                    .unwrap(),
+                    .expect("Internal error: total is invalid"),
             )
-            .ok_or(BmsonConvertError::InvalidTotal)?,
+            .expect("Internal error: FinF64::new failed for total"),
             back_image: value
                 .header
                 .back_bmp
@@ -509,7 +526,12 @@ impl TryFrom<Bms> for Bmson {
                             PlayerSide::Player2 => 8,
                         },
                     )
-                    .map(|num| NonZeroU8::new(num).unwrap());
+                    .map(|num| NonZeroU8::new(num).ok_or(BmsonConvertError::InvalidNonZeroU8));
+                let note_lane = match note_lane {
+                    Some(Ok(lane)) => Some(lane),
+                    Some(Err(e)) => return Err(e),
+                    None => None,
+                };
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
@@ -643,8 +665,13 @@ impl TryFrom<Bms> for Bmson {
                 .map(|scroll| {
                     Ok(ScrollEvent {
                         y: converter.get_pulses_at(scroll.time),
-                        rate: FinF64::new(scroll.factor.to_f64().unwrap())
-                            .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                        rate: FinF64::new(
+                            scroll
+                                .factor
+                                .to_f64()
+                                .ok_or(BmsonConvertError::InvalidFraction)?,
+                        )
+                        .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
                     })
                 })
                 .collect::<Result<Vec<_>, BmsonConvertError>>()?,
