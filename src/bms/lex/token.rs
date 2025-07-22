@@ -1,6 +1,9 @@
 //! Definitions of the token in BMS format.
 
 use crate::time::ObjTime;
+use fraction::GenericFraction;
+use num_bigint::BigUint;
+use num_traits::{FromPrimitive, One};
 use std::{borrow::Cow, path::Path, time::Duration};
 
 use super::{Result, command::*, cursor::Cursor};
@@ -47,12 +50,12 @@ pub enum Token<'a> {
     /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
     Bmp(Option<ObjId>, &'a Path),
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
-    Bpm(PositiveFiniteF64),
+    Bpm(GenericFraction<BigUint>),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
     /// `#EXBPM[01-ZZ] [f64]` is equivalent to this.
-    BpmChange(ObjId, PositiveFiniteF64),
+    BpmChange(ObjId, GenericFraction<BigUint>),
     /// `#CASE [u64]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
-    Case(u64),
+    Case(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
     ChangeOption(ObjId, &'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
@@ -72,7 +75,7 @@ pub enum Token<'a> {
     ///   #ENDIF
     /// #ENDIF
     /// ```
-    ElseIf(u64),
+    ElseIf(BigUint),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
     /// `#ENDIF`. Closes the if scope. See [Token::If].
@@ -110,7 +113,7 @@ pub enum Token<'a> {
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u64]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(u64),
+    If(BigUint),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -145,36 +148,36 @@ pub enum Token<'a> {
     /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
     PoorBga(PoorMode),
     /// `#RANDOM [u64]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(u64),
+    Random(BigUint),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
-    Scroll(ObjId, FiniteF64),
+    Scroll(ObjId, GenericFraction<BigUint>),
     /// `#SETRANDOM [u64]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(u64),
+    SetRandom(BigUint),
     /// `#SETSWITCH [u64]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(u64),
+    SetSwitch(BigUint),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
     /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
-    Speed(ObjId, PositiveFiniteF64),
+    Speed(ObjId, GenericFraction<BigUint>),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
-    Stop(ObjId, u64),
+    Stop(ObjId, GenericFraction<BigUint>),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
     /// `#SWITCH [u64]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(u64),
+    Switch(BigUint),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
     /// `#SONG[01-ZZ] [string]` is equivalent to `#TEXT[01-ZZ] [string]`, while `#SONG` is deprecated.
     Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
-    Total(PositiveFiniteF64),
+    Total(GenericFraction<BigUint>),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
@@ -194,14 +197,14 @@ pub enum Token<'a> {
     CharFile(&'a Path),
     /// `#BASEBPM [f64]` is the base BPM.
     /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
-    BaseBpm(PositiveFiniteF64),
+    BaseBpm(GenericFraction<BigUint>),
     /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
     Stp(StpEvent),
     /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     WavCmd(WavCmdEvent),
     /// `#CDDA [u64]`.
     /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
-    Cdda(u64),
+    Cdda(BigUint),
     /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
     SwBga(ObjId, SwBgaEvent),
     /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
@@ -211,13 +214,13 @@ pub enum Token<'a> {
     /// - A4: BGA POOR
     Argb(ObjId, Argb),
     /// `#VIDEOF/S [f64]` Video file frame rate.
-    VideoFs(PositiveFiniteF64),
+    VideoFs(GenericFraction<BigUint>),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
     VideoColors(u8),
     /// `#VIDEODLY [f64]` Video delay extension.
-    VideoDly(FiniteF64),
+    VideoDly(GenericFraction<BigUint>),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
-    Seek(ObjId, FiniteF64),
+    Seek(ObjId, GenericFraction<BigUint>),
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     ExtChr(ExtChrEvent),
     /// `#MATERIALSWAV [filename]` Material WAV extension.
@@ -234,7 +237,7 @@ pub enum Token<'a> {
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
     /// Overrides `#RANK` definition.
-    DefExRank(u64),
+    DefExRank(BigUint),
     /// `#PREVIEW [filename]` Preview audio file for music selection.
     Preview(&'a Path),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
@@ -294,8 +297,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::Total(v)
                 }
                 "#BPM" => {
@@ -304,8 +309,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::Bpm(v)
                 }
                 "#PLAYLEVEL" => Self::PlayLevel(
@@ -326,33 +333,33 @@ impl<'a> Token<'a> {
                 "#RANDOM" => {
                     let rand_max = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random max"))?;
+                    let rand_max = BigUint::parse_bytes(rand_max.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Random(rand_max)
                 }
                 "#SETRANDOM" => {
                     let rand_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random value"))?;
+                    let rand_value = BigUint::parse_bytes(rand_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::SetRandom(rand_value)
                 }
                 "#IF" => {
                     let rand_target = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?;
+                    let rand_target = BigUint::parse_bytes(rand_target.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::If(rand_target)
                 }
                 "#ELSEIF" => {
                     let rand_target = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("random target"))?;
+                    let rand_target = BigUint::parse_bytes(rand_target.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::ElseIf(rand_target)
                 }
                 "#ELSE" => Self::Else,
@@ -362,25 +369,25 @@ impl<'a> Token<'a> {
                 "#SWITCH" => {
                     let switch_max = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch max"))?;
+                    let switch_max = BigUint::parse_bytes(switch_max.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Switch(switch_max)
                 }
                 "#SETSWITCH" => {
                     let switch_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch value"))?;
+                    let switch_value = BigUint::parse_bytes(switch_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::SetSwitch(switch_value)
                 }
                 "#CASE" => {
                     let case_value = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?;
+                    let case_value = BigUint::parse_bytes(case_value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Case(case_value)
                 }
                 "#SKIP" => Self::Skip,
@@ -504,18 +511,23 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
                     let stop = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Stop(ObjId::try_load(id, c)?, stop)
+                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
+                    let stop = BigUint::parse_bytes(stop.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                    Self::Stop(
+                        ObjId::try_load(id, c)?,
+                        GenericFraction::<BigUint>::new(stop, BigUint::one()),
+                    )
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
@@ -524,8 +536,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("scroll factor"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v =
-                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
                 speed if speed.starts_with("#SPEED") => {
@@ -535,8 +549,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::Speed(ObjId::try_load(id, c)?, v)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
@@ -871,8 +887,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("exbpm value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 "#BASEBPM" => {
@@ -881,8 +899,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("basebpm value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::BaseBpm(v)
                 }
                 stp if stp.starts_with("#STP") => {
@@ -929,9 +949,9 @@ impl<'a> Token<'a> {
                 "#CDDA" => {
                     let v = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("cdda value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("cdda value u64"))?;
+                        .ok_or_else(|| c.make_err_expected_token("cdda value"))?;
+                    let v = BigUint::parse_bytes(v.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Cdda(v)
                 }
                 swbga if swbga.starts_with("#SWBGA") => {
@@ -1043,8 +1063,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("videofs value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v = PositiveFiniteF64::new(v)
-                        .ok_or_else(|| c.make_err_expected_token("positive finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::VideoFs(v)
                 }
                 videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
@@ -1061,8 +1083,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("videodly value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v =
-                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::VideoDly(v)
                 }
                 seek if seek.starts_with("#SEEK") => {
@@ -1072,8 +1096,10 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("seek value"))?
                         .parse()
                         .map_err(|_| c.make_err_expected_token("f64"))?;
-                    let v =
-                        FiniteF64::new(v).ok_or_else(|| c.make_err_expected_token("finite f64"))?;
+                    let v = GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(v).unwrap(),
+                        BigUint::one(),
+                    );
                     Self::Seek(ObjId::try_load(id, c)?, v)
                 }
                 materialswav if materialswav.starts_with("#MATERIALSWAV") => {
@@ -1102,9 +1128,8 @@ impl<'a> Token<'a> {
                     let value = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
-                    let value: u64 = value
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
+                    let value = BigUint::parse_bytes(value.as_bytes(), 10)
+                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::DefExRank(value)
                 }
                 preview if preview.starts_with("#PREVIEW") => {

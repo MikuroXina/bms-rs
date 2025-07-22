@@ -7,6 +7,9 @@ use super::{
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
+use fraction::GenericFraction;
+use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 
 /// A 2D point in pixel coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -183,7 +186,7 @@ pub struct Header {
     /// The message for overriding options of some BMS player. #OPTION
     pub options: Option<Vec<String>>,
     /// The initial BPM of the score. #BPM
-    pub bpm: Option<PositiveFiniteF64>,
+    pub bpm: Option<GenericFraction<BigUint>>,
     /// The play level of the score. #PLAYLEVEL
     pub play_level: Option<u8>,
     /// The judgement level of the score. #RANK
@@ -191,7 +194,7 @@ pub struct Header {
     /// The difficulty of the score. #DIFFICULTY
     pub difficulty: Option<u8>,
     /// The total gauge percentage when all notes is got as PERFECT. #TOTAL
-    pub total: Option<PositiveFiniteF64>,
+    pub total: Option<GenericFraction<BigUint>>,
     /// The volume of the score. #VOLWAV
     pub volume: Volume,
     /// The LN notation type of the score. #LNTYPE
@@ -219,17 +222,17 @@ pub struct Header {
     /// The BMP file paths corresponding to the id of the background image/video object. #BMP
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// The BPMs corresponding to the id of the BPM change object. #BPM[01-ZZ]
-    pub bpm_changes: HashMap<ObjId, PositiveFiniteF64>,
+    pub bpm_changes: HashMap<ObjId, GenericFraction<BigUint>>,
     /// The scrolling factors corresponding to the id of the scroll speed change object. #SCROLL
-    pub scrolling_factor_changes: HashMap<ObjId, FiniteF64>,
+    pub scrolling_factor_changes: HashMap<ObjId, GenericFraction<BigUint>>,
     /// The spacing factors corresponding to the id of the spacing change object. #SPEED
-    pub spacing_factor_changes: HashMap<ObjId, PositiveFiniteF64>,
+    pub spacing_factor_changes: HashMap<ObjId, GenericFraction<BigUint>>,
     /// The texts corresponding to the id of the text object. #TEXT
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object. #CHANGEOPTION
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id. #STOP
-    pub stops: HashMap<ObjId, u64>,
+    pub stops: HashMap<ObjId, GenericFraction<BigUint>>,
     /// Storage for #@BGA definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
     /// Storage for #BGA definitions
@@ -243,15 +246,15 @@ pub struct Header {
     /// The char file path. #CHARFILE
     pub char_file: Option<PathBuf>,
     /// The base BPM. #BASEBPM
-    pub base_bpm: Option<PositiveFiniteF64>,
+    pub base_bpm: Option<GenericFraction<BigUint>>,
     /// Extended ARGB definitions. #ARGB
     pub argb_defs: HashMap<ObjId, Argb>,
     /// Video file frame rate. #VIDEOF/S
-    pub video_fs: Option<PositiveFiniteF64>,
+    pub video_fs: Option<GenericFraction<BigUint>>,
     /// Video color depth. #VIDEOCOLORS
     pub video_colors: Option<u8>,
     /// Video delay extension. #VIDEODLY
-    pub video_dly: Option<FiniteF64>,
+    pub video_dly: Option<GenericFraction<BigUint>>,
     /// Preview audio file for music selection. #PREVIEW
     pub preview: Option<PathBuf>,
     /// Explicitly specify LN type for this chart. #LNMODE
@@ -265,9 +268,11 @@ pub struct Header {
     /// Charset declaration. #CHARSET
     pub charset: Option<String>,
     /// Extended judge rank definition. #DEFEXRANK
-    pub def_exrank: Option<u64>,
+    pub def_exrank: Option<BigUint>,
     /// CD-DA BGM definition. #CDDA
-    pub cdda: Option<u64>,
+    pub cdda: Option<BigUint>,
+    /// Seek events. #SEEK
+    pub seek_events: HashMap<ObjId, GenericFraction<BigUint>>,
 }
 
 impl Header {
@@ -276,8 +281,8 @@ impl Header {
         token: &Token,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match *token {
-            Token::Artist(artist) => self.artist = Some(artist.into()),
+        match token {
+            Token::Artist(artist) => self.artist = Some((*artist).into()),
             Token::AtBga {
                 id,
                 source_bmp,
@@ -286,22 +291,22 @@ impl Header {
                 draw_point,
             } => {
                 let to_insert = AtBgaDef {
-                    id,
-                    source_bmp,
-                    trim_top_left: trim_top_left.into(),
-                    trim_size: trim_size.into(),
-                    draw_point: draw_point.into(),
+                    id: *id,
+                    source_bmp: *source_bmp,
+                    trim_top_left: (*trim_top_left).into(),
+                    trim_size: (*trim_size).into(),
+                    draw_point: (*draw_point).into(),
                 };
                 if let Some(older) = self.atbga_defs.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::AtBga {
-                            id,
+                            id: *id,
                             older,
                             newer: &to_insert,
                         })
                         .apply(older, to_insert)?;
                 } else {
-                    self.atbga_defs.insert(id, to_insert);
+                    self.atbga_defs.insert(*id, to_insert);
                 }
             }
             Token::Banner(file) => self.banner = Some(file.into()),
@@ -314,22 +319,22 @@ impl Header {
                 draw_point,
             } => {
                 let to_insert = BgaDef {
-                    id,
-                    source_bmp,
-                    trim_top_left: trim_top_left.into(),
-                    trim_bottom_right: trim_bottom_right.into(),
-                    draw_point: draw_point.into(),
+                    id: *id,
+                    source_bmp: *source_bmp,
+                    trim_top_left: (*trim_top_left).into(),
+                    trim_bottom_right: (*trim_bottom_right).into(),
+                    draw_point: (*draw_point).into(),
                 };
                 if let Some(older) = self.bga_defs.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Bga {
-                            id,
+                            id: *id,
                             older,
                             newer: &to_insert,
                         })
                         .apply(older, to_insert)?;
                 } else {
-                    self.bga_defs.insert(id, to_insert);
+                    self.bga_defs.insert(*id, to_insert);
                 }
             }
             Token::Bmp(id, path) => {
@@ -355,69 +360,72 @@ impl Header {
                 }
             }
             Token::Bpm(bpm) => {
-                self.bpm = Some(bpm);
+                self.bpm = Some(bpm.clone());
             }
             Token::BpmChange(id, bpm) => {
                 if let Some(older) = self.bpm_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BpmChange {
-                            id,
-                            older: older.get(),
-                            newer: bpm.get(),
+                            id: *id,
+                            older: older.to_f64().unwrap(),
+                            newer: bpm.to_f64().unwrap(),
                         })
-                        .apply(older, bpm)?;
+                        .apply(older, bpm.clone())?;
                 } else {
-                    self.bpm_changes.insert(id, bpm);
+                    self.bpm_changes.insert(*id, bpm.clone());
                 }
             }
             Token::ChangeOption(id, option) => {
                 if let Some(older) = self.change_options.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ChangeOption {
-                            id,
+                            id: *id,
                             older,
                             newer: option,
                         })
-                        .apply(older, option.into())?;
+                        .apply(older, option.to_string())?;
                 } else {
-                    self.change_options.insert(id, option.into());
+                    self.change_options.insert(*id, option.to_string());
                 }
             }
             Token::Comment(comment) => self
                 .comment
                 .get_or_insert_with(Vec::new)
-                .push(comment.into()),
-            Token::Difficulty(diff) => self.difficulty = Some(diff),
-            Token::Email(email) => self.email = Some(email.into()),
+                .push(comment.to_string()),
+            Token::Difficulty(diff) => self.difficulty = Some(*diff),
+            Token::Email(email) => self.email = Some(email.to_string()),
             Token::ExBmp(id, transparent_color, path) => {
                 let to_insert = Bmp {
                     file: path.into(),
-                    transparent_color,
+                    transparent_color: *transparent_color,
                 };
                 if let Some(older) = self.bmp_files.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Bmp {
-                            id,
+                            id: *id,
                             older,
                             newer: &to_insert,
                         })
                         .apply(older, to_insert)?;
                 } else {
-                    self.bmp_files.insert(id, to_insert);
+                    self.bmp_files.insert(*id, to_insert);
                 }
             }
             Token::ExRank(id, judge_level) => {
-                let to_insert = ExRankDef { id, judge_level };
+                let to_insert = ExRankDef {
+                    id: *id,
+                    judge_level: *judge_level,
+                };
                 if let Some(older) = self.exrank_defs.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ExRank {
-                            id,
+                            id: *id,
                             older,
                             newer: &to_insert,
                         })
                         .apply(older, to_insert)?;
                 } else {
-                    self.exrank_defs.insert(id, to_insert);
+                    self.exrank_defs.insert(*id, to_insert);
                 }
             }
             Token::ExWav {
@@ -428,109 +436,109 @@ impl Header {
                 path,
             } => {
                 let to_insert = ExWavDef {
-                    id,
-                    pan,
-                    volume,
-                    frequency,
+                    id: *id,
+                    pan: *pan,
+                    volume: *volume,
+                    frequency: frequency.clone(),
                     path: path.into(),
                 };
                 if let Some(older) = self.exwav_defs.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ExWav {
-                            id,
+                            id: *id,
                             older,
                             newer: &to_insert,
                         })
                         .apply(older, to_insert)?;
                 } else {
-                    self.exwav_defs.insert(id, to_insert);
+                    self.exwav_defs.insert(*id, to_insert);
                 }
             }
-            Token::Genre(genre) => self.genre = Some(genre.to_owned()),
+            Token::Genre(genre) => self.genre = Some(genre.to_string()),
             Token::LnTypeRdm => {
                 self.ln_type = LnType::Rdm;
             }
             Token::LnTypeMgq => {
                 self.ln_type = LnType::Mgq;
             }
-            Token::Maker(maker) => self.maker = Some(maker.into()),
+            Token::Maker(maker) => self.maker = Some(maker.to_string()),
             Token::MidiFile(midi_file) => self.midi_file = Some(midi_file.into()),
             Token::OctFp => self.is_octave = true,
             Token::Option(option) => self
                 .options
                 .get_or_insert_with(Vec::new)
-                .push(option.into()),
+                .push(option.to_string()),
             Token::PathWav(wav_path_root) => self.wav_path_root = Some(wav_path_root.into()),
-            Token::Player(player) => self.player = Some(player),
-            Token::PlayLevel(play_level) => self.play_level = Some(play_level),
-            Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
-            Token::Rank(rank) => self.rank = Some(rank),
+            Token::Player(player) => self.player = Some(*player),
+            Token::PlayLevel(play_level) => self.play_level = Some(*play_level),
+            Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = *poor_bga_mode,
+            Token::Rank(rank) => self.rank = Some(*rank),
             Token::Scroll(id, factor) => {
                 if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ScrollingFactorChange {
-                            id,
-                            older: older.get(),
-                            newer: factor.get(),
+                            id: *id,
+                            older: older.to_f64().unwrap(),
+                            newer: factor.to_f64().unwrap(),
                         })
-                        .apply(older, factor)?;
+                        .apply(older, factor.clone())?;
                 } else {
-                    self.scrolling_factor_changes.insert(id, factor);
+                    self.scrolling_factor_changes.insert(*id, factor.clone());
                 }
             }
             Token::Speed(id, factor) => {
                 if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SpacingFactorChange {
-                            id,
-                            older: older.get(),
-                            newer: factor.get(),
+                            id: *id,
+                            older: older.to_f64().unwrap(),
+                            newer: factor.to_f64().unwrap(),
                         })
-                        .apply(older, factor)?;
+                        .apply(older, factor.clone())?;
                 } else {
-                    self.spacing_factor_changes.insert(id, factor);
+                    self.spacing_factor_changes.insert(*id, factor.clone());
                 }
             }
             Token::StageFile(file) => self.stage_file = Some(file.into()),
             Token::Stop(id, len) => {
                 self.stops
-                    .entry(id)
-                    .and_modify(|current_len| *current_len += len)
-                    .or_insert(len);
+                    .entry(*id)
+                    .and_modify(|current_len| *current_len = current_len.clone() + len.clone())
+                    .or_insert(len.clone());
             }
-            Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
-            Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
+            Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.to_string()),
+            Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.to_string()),
             Token::Text(id, text) => {
                 if let Some(older) = self.texts.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Text {
-                            id,
+                            id: *id,
                             older,
                             newer: text,
                         })
-                        .apply(older, text.into())?;
+                        .apply(older, text.to_string())?;
                 } else {
-                    self.texts.insert(id, text.into());
+                    self.texts.insert(*id, text.to_string());
                 }
             }
-            Token::Title(title) => self.title = Some(title.into()),
+            Token::Title(title) => self.title = Some(title.to_string()),
             Token::Total(total) => {
-                self.total = Some(total);
+                self.total = Some(total.clone());
             }
-            Token::Url(url) => self.url = Some(url.into()),
+            Token::Url(url) => self.url = Some(url.to_string()),
             Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
-            Token::VolWav(volume) => self.volume = volume,
+            Token::VolWav(volume) => self.volume = *volume,
             Token::Wav(id, path) => {
                 if let Some(older) = self.wav_files.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Wav {
-                            id,
+                            id: *id,
                             older,
-                            newer: path,
+                            newer: *path,
                         })
                         .apply(older, path.into())?;
                 } else {
-                    self.wav_files.insert(id, path.into());
+                    self.wav_files.insert(*id, path.into());
                 }
             }
             Token::Random(_)
@@ -563,7 +571,7 @@ impl Header {
             }
             Token::BaseBpm(bpm) => {
                 // Only store the latest value
-                self.base_bpm = Some(bpm);
+                self.base_bpm = Some(bpm.clone());
             }
             Token::Argb(id, argb) => {
                 // Only store the latest value, report error if duplicated
@@ -573,26 +581,26 @@ impl Header {
                         id, older
                     )));
                 } else {
-                    self.argb_defs.insert(id, argb);
+                    self.argb_defs.insert(*id, *argb);
                 }
             }
             Token::VideoFs(fs) => {
-                self.video_fs = Some(fs);
+                self.video_fs = Some(fs.clone());
             }
             Token::VideoColors(rgb) => {
-                self.video_colors = Some(rgb);
+                self.video_colors = Some(*rgb);
             }
             Token::VideoDly(dly) => {
-                self.video_dly = Some(dly);
+                self.video_dly = Some(dly.clone());
             }
             Token::Preview(path) => {
                 self.preview = Some(path.into());
             }
             Token::LnMode(mode) => {
-                self.ln_mode = Some(mode);
+                self.ln_mode = Some(*mode);
             }
             Token::ExtChr(ev) => {
-                self.extchr_events.push(ev);
+                self.extchr_events.push(ev.clone());
             }
             Token::MaterialsWav(_) | Token::MaterialsBmp(_) => {
                 // These tokens are not stored in Header, just ignore
@@ -604,23 +612,23 @@ impl Header {
                 self.charset = Some(s.to_string());
             }
             Token::DefExRank(val) => {
-                self.def_exrank = Some(val);
+                self.def_exrank = Some(val.clone());
             }
-            Token::SwBga(id, ref ev) => {
+            Token::SwBga(id, ev) => {
                 if let Some(older) = self.swbga_defs.get_mut(&id) {
                     return Err(crate::parse::ParseWarning::SyntaxError(format!(
                         "Duplicated SWBGA definition for id {:?}. value {:?} is throwed.",
                         id, older
                     )));
                 } else {
-                    self.swbga_defs.insert(id, ev.clone());
+                    self.swbga_defs.insert(*id, ev.clone());
                 }
             }
             Token::Movie(path) => {
                 self.movie = Some(path.into());
             }
             Token::Cdda(val) => {
-                self.cdda = Some(val);
+                self.cdda = Some(val.clone());
             }
             Token::Stp(_) | Token::WavCmd(_) | Token::Seek(_, _) => {
                 // These tokens are not stored in Header, just ignore

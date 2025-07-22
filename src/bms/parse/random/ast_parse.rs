@@ -1,4 +1,6 @@
 use crate::bms::{lex::token::Token, parse::rng::Rng};
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 
 use super::ast_build::*;
 
@@ -16,13 +18,13 @@ pub(super) fn parse_control_flow_ast<'a>(
                 // Select branch
                 let branch_val = match value {
                     BlockValue::Random { max } => {
-                        if max == 0 {
-                            0
+                        if max.is_zero() {
+                            BigUint::zero()
                         } else {
-                            rng.generate(1..=(max as u32)) as u64
+                            rng.generate(BigUint::one(), max.clone())
                         }
                     }
-                    BlockValue::Set { value } => value,
+                    BlockValue::Set { value } => value.clone(),
                 };
                 // Find the branch in the first if_block that contains this branch value
                 let mut found = false;
@@ -39,7 +41,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 if !found {
                     if let Some(else_branch) = if_blocks
                         .iter()
-                        .flat_map(|if_block| if_block.branches.get(&0))
+                        .flat_map(|if_block| if_block.branches.get(&BigUint::zero()))
                         .next()
                     {
                         let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
@@ -51,19 +53,19 @@ pub(super) fn parse_control_flow_ast<'a>(
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
                     BlockValue::Random { max } => {
-                        if max == 0 {
-                            0
+                        if max.is_zero() {
+                            BigUint::zero()
                         } else {
-                            rng.generate(1..=(max as u32)) as u64
+                            rng.generate(BigUint::one(), max.clone())
                         }
                     }
-                    BlockValue::Set { value } => value,
+                    BlockValue::Set { value } => value.clone(),
                 };
                 // Find Case branch
                 let mut found = false;
                 for case in &cases {
                     match &case.value {
-                        CaseBranchValue::Case(val) if *val == switch_val => {
+                        CaseBranchValue::Case(val) if val == &switch_val => {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
                             result.extend(parse_control_flow_ast(&mut case_iter, rng));
                             found = true;
@@ -92,13 +94,13 @@ pub(super) fn parse_control_flow_ast<'a>(
 mod tests {
     use super::*;
     use crate::bms::lex::token::Token;
+    use num_traits::FromPrimitive;
     use std::collections::HashMap;
 
     struct DummyRng;
     impl Rng for DummyRng {
-        fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-            // Always return the maximum value
-            *_range.end()
+        fn generate(&mut self, min: BigUint, _max: BigUint) -> BigUint {
+            min
         }
     }
 
@@ -109,23 +111,27 @@ mod tests {
         let t_case = Token::Title("LARGE_CASE");
         let mut if_branches = HashMap::new();
         if_branches.insert(
-            u64::MAX,
+            BigUint::from_u64(u64::MAX).unwrap(),
             IfBranch {
-                value: u64::MAX,
+                value: BigUint::from_u64(u64::MAX).unwrap(),
                 tokens: vec![Unit::Token(&t_if)],
             },
         );
         let units = vec![
             Unit::RandomBlock {
-                value: BlockValue::Set { value: u64::MAX },
+                value: BlockValue::Set {
+                    value: BigUint::from_u64(u64::MAX).unwrap(),
+                },
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
                 }],
             },
             Unit::SwitchBlock {
-                value: BlockValue::Set { value: u64::MAX },
+                value: BlockValue::Set {
+                    value: BigUint::from_u64(u64::MAX).unwrap(),
+                },
                 cases: vec![CaseBranch {
-                    value: CaseBranchValue::Case(u64::MAX),
+                    value: CaseBranchValue::Case(BigUint::from_u64(u64::MAX).unwrap()),
                     tokens: vec![Unit::Token(&t_case)],
                 }],
             },
@@ -152,20 +158,24 @@ mod tests {
         let t_switch_in_random = Token::Title("SWITCH_IN_RANDOM");
         let mut if_branches = HashMap::new();
         if_branches.insert(
-            1,
+            BigUint::one(),
             IfBranch {
-                value: 1,
+                value: BigUint::one(),
                 tokens: vec![Unit::SwitchBlock {
-                    value: BlockValue::Set { value: 2 },
+                    value: BlockValue::Set {
+                        value: BigUint::from_u32(2).unwrap(),
+                    },
                     cases: vec![CaseBranch {
-                        value: CaseBranchValue::Case(2),
+                        value: CaseBranchValue::Case(BigUint::from_u32(2).unwrap()),
                         tokens: vec![Unit::Token(&t_switch_in_random)],
                     }],
                 }],
             },
         );
         let units = vec![Unit::RandomBlock {
-            value: BlockValue::Set { value: 1 },
+            value: BlockValue::Set {
+                value: BigUint::one(),
+            },
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
@@ -184,15 +194,17 @@ mod tests {
         // Switch outer, Random inner
         let t_random_in_switch = Token::Title("RANDOM_IN_SWITCH");
         let cases = vec![CaseBranch {
-            value: CaseBranchValue::Case(1),
+            value: CaseBranchValue::Case(BigUint::one()),
             tokens: vec![Unit::RandomBlock {
-                value: BlockValue::Set { value: 2 },
+                value: BlockValue::Set {
+                    value: BigUint::from_u32(2).unwrap(),
+                },
                 if_blocks: vec![{
                     let mut b = HashMap::new();
                     b.insert(
-                        2,
+                        BigUint::from_u32(2).unwrap(),
                         IfBranch {
-                            value: 2,
+                            value: BigUint::from_u32(2).unwrap(),
                             tokens: vec![Unit::Token(&t_random_in_switch)],
                         },
                     );
@@ -201,7 +213,9 @@ mod tests {
             }],
         }];
         let units2 = vec![Unit::SwitchBlock {
-            value: BlockValue::Set { value: 1 },
+            value: BlockValue::Set {
+                value: BigUint::one(),
+            },
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
@@ -223,21 +237,25 @@ mod tests {
         let t_deep_nested = Token::Title("DEEP_NESTED");
         let mut if_branches = HashMap::new();
         if_branches.insert(
-            1,
+            BigUint::one(),
             IfBranch {
-                value: 1,
+                value: BigUint::one(),
                 tokens: vec![Unit::SwitchBlock {
-                    value: BlockValue::Set { value: 1 },
+                    value: BlockValue::Set {
+                        value: BigUint::one(),
+                    },
                     cases: vec![CaseBranch {
-                        value: CaseBranchValue::Case(1),
+                        value: CaseBranchValue::Case(BigUint::one()),
                         tokens: vec![Unit::RandomBlock {
-                            value: BlockValue::Set { value: 1 },
+                            value: BlockValue::Set {
+                                value: BigUint::one(),
+                            },
                             if_blocks: vec![{
                                 let mut b = HashMap::new();
                                 b.insert(
-                                    1,
+                                    BigUint::one(),
                                     IfBranch {
-                                        value: 1,
+                                        value: BigUint::one(),
                                         tokens: vec![Unit::Token(&t_deep_nested)],
                                     },
                                 );
@@ -249,7 +267,9 @@ mod tests {
             },
         );
         let units = vec![Unit::RandomBlock {
-            value: BlockValue::Set { value: 1 },
+            value: BlockValue::Set {
+                value: BigUint::one(),
+            },
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],

@@ -10,27 +10,24 @@ use std::{
 use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     lex::{
-        command::{self, Argb, Channel, FiniteF64, Key, NoteKind, ObjId},
+        command::{self, Argb, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
     parse::header::{ExRankDef, ExWavDef},
     time::{ObjTime, Track},
 };
 
+use fraction::GenericFraction;
+use num_bigint::BigUint;
+
 /// An object to change the BPM of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: f64,
-}
-
-impl PartialEq for BpmChangeObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub bpm: GenericFraction<BigUint>,
 }
 
 impl Eq for BpmChangeObj {}
@@ -78,7 +75,7 @@ impl Ord for SectionLenChangeObj {
 }
 
 /// An object to stop scrolling of score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopObj {
     /// Time to start the stop.
@@ -86,13 +83,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: u64,
-}
-
-impl PartialEq for StopObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub duration: GenericFraction<BigUint>,
 }
 
 impl Eq for StopObj {}
@@ -155,19 +146,13 @@ pub enum BgaLayer {
 }
 
 /// An object to change scrolling factor of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The scrolling factor to be.
-    pub factor: f64,
-}
-
-impl PartialEq for ScrollingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub factor: GenericFraction<BigUint>,
 }
 
 impl Eq for ScrollingFactorObj {}
@@ -185,19 +170,13 @@ impl Ord for ScrollingFactorObj {
 }
 
 /// An object to change spacing factor between notes with linear interpolation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpacingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: f64,
-}
-
-impl PartialEq for SpacingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
+    pub factor: GenericFraction<BigUint>,
 }
 
 impl Eq for SpacingFactorObj {}
@@ -289,7 +268,7 @@ pub struct Notes {
     /// ARGB definitions, indexed by ObjId. #ARGB
     pub argb_defs: HashMap<ObjId, Argb>,
     /// Seek events, indexed by ObjId. #SEEK
-    pub seek_events: HashMap<ObjId, FiniteF64>,
+    pub seek_events: HashMap<ObjId, GenericFraction<BigUint>>,
     /// ExtChr events. #ExtChr
     pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
     /// Material WAV file paths. #MATERIALSWAV
@@ -402,7 +381,7 @@ impl Notes {
     pub fn push_bpm_change(&mut self, bpm_change: BpmChangeObj) {
         if self
             .bpm_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -416,7 +395,7 @@ impl Notes {
     pub fn push_scrolling_factor_change(&mut self, bpm_change: ScrollingFactorObj) {
         if self
             .scrolling_factor_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -430,7 +409,7 @@ impl Notes {
     pub fn push_spacing_factor_change(&mut self, bpm_change: SpacingFactorObj) {
         if self
             .spacing_factor_changes
-            .insert(bpm_change.time, bpm_change)
+            .insert(bpm_change.time, bpm_change.clone())
             .is_some()
         {
             eprintln!(
@@ -459,9 +438,9 @@ impl Notes {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = existing.duration.saturating_add(stop.duration)
+                existing.duration = existing.duration.clone() + stop.duration.clone();
             })
-            .or_insert(stop);
+            .or_insert(stop.clone());
     }
 
     /// Adds a new bga change object to the notes.
@@ -484,13 +463,13 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &bpm = header
+                    let bpm = header
                         .bpm_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_bpm_change(BpmChangeObj {
                         time,
-                        bpm: bpm.get(),
+                        bpm: bpm.clone(),
                     });
                 }
             }
@@ -508,7 +487,7 @@ impl Notes {
                     let time = ObjTime::new(track.0, i as u64, denominator);
                     self.push_bpm_change(BpmChangeObj {
                         time,
-                        bpm: bpm as f64,
+                        bpm: GenericFraction::from(bpm),
                     });
                 }
             }
@@ -518,13 +497,13 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .scrolling_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_scrolling_factor_change(ScrollingFactorObj {
                         time,
-                        factor: factor.get(),
+                        factor: factor.clone(),
                     });
                 }
             }
@@ -534,13 +513,13 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .spacing_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.push_spacing_factor_change(SpacingFactorObj {
                         time,
-                        factor: factor.get(),
+                        factor: factor.clone(),
                     });
                 }
             }
@@ -574,11 +553,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &duration = header
+                    let duration = header
                         .stops
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_stop(StopObj { time, duration })
+                    self.push_stop(StopObj {
+                        time,
+                        duration: duration.clone(),
+                    })
                 }
             }
             Token::Message {
@@ -793,7 +775,7 @@ impl Notes {
                         id
                     )));
                 }
-                self.seek_events.insert(*id, *v);
+                self.seek_events.insert(*id, v.clone());
             }
             Token::ExtChr(ev) => {
                 self.extchr_events.push(ev.clone());

@@ -1,7 +1,7 @@
 //! Definitions of command argument data.
 pub mod channel;
 
-use std::{ops::Deref, time::Duration};
+use std::time::Duration;
 
 pub use channel::Channel;
 
@@ -571,150 +571,17 @@ pub struct Rgb {
     pub b: u8,
 }
 
-/// Wrapper type for finite f64 only (e.g. Scroll).
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct FiniteF64(f64);
-
-impl FiniteF64 {
-    /// Create a wrapper type that only requires finite values.
-    pub fn new(val: f64) -> Option<Self> {
-        if val.is_finite() {
-            Some(Self(val))
-        } else {
-            None
-        }
-    }
-    /// Get the raw value
-    pub fn get(self) -> f64 {
-        self.0
-    }
-}
-
-impl Eq for FiniteF64 {}
-impl PartialOrd for FiniteF64 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-impl Ord for FiniteF64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .partial_cmp(&other.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
-
-impl TryFrom<f64> for FiniteF64 {
-    type Error = f64;
-    fn try_from(value: f64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value)
-    }
-}
-
-impl From<FiniteF64> for f64 {
-    fn from(value: FiniteF64) -> Self {
-        value.0
-    }
-}
-
-impl Deref for FiniteF64 {
-    type Target = f64;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::Add for FiniteF64 {
-    type Output = Option<Self>;
-    fn add(self, rhs: Self) -> Self::Output {
-        Self::new(self.0 + rhs.0)
-    }
-}
-impl std::ops::Sub for FiniteF64 {
-    type Output = Option<Self>;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::new(self.0 - rhs.0)
-    }
-}
-
-/// Wrapper type for finite and positive f64 (e.g. Bpm/Stop/Speed/Total).
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct PositiveFiniteF64(f64);
-
-impl PositiveFiniteF64 {
-    /// Create a wrapper type that is finite and positive.
-    pub fn new(val: f64) -> Option<Self> {
-        if val.is_finite() && val > 0.0 {
-            Some(Self(val))
-        } else {
-            None
-        }
-    }
-    /// Get the raw value
-    pub fn get(self) -> f64 {
-        self.0
-    }
-}
-
-impl TryFrom<f64> for PositiveFiniteF64 {
-    type Error = f64;
-    fn try_from(value: f64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value)
-    }
-}
-
-impl From<PositiveFiniteF64> for f64 {
-    fn from(value: PositiveFiniteF64) -> Self {
-        value.0
-    }
-}
-
-impl Eq for PositiveFiniteF64 {}
-impl PartialOrd for PositiveFiniteF64 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-impl Ord for PositiveFiniteF64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .partial_cmp(&other.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
-
-impl Deref for PositiveFiniteF64 {
-    type Target = f64;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::Add for PositiveFiniteF64 {
-    type Output = Option<Self>;
-    fn add(self, rhs: Self) -> Self::Output {
-        Self::new(self.0 + rhs.0)
-    }
-}
-impl std::ops::Sub for PositiveFiniteF64 {
-    type Output = Option<Self>;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::new(self.0 - rhs.0)
-    }
-}
-
 /// Long Note Mode Type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(u8)]
 pub enum LnModeType {
     /// Normal Long Note (LN)
-    Ln,
+    Ln = 1,
     /// Classic Long Note (CN)
-    Cn,
+    Cn = 2,
     /// Hell Classic Long Note (HCN)
-    Hcn,
+    Hcn = 3,
 }
 
 impl From<LnModeType> for u8 {
@@ -724,6 +591,18 @@ impl From<LnModeType> for u8 {
             LnModeType::Cn => 2,
             LnModeType::Hcn => 3,
         }
+    }
+}
+
+impl TryFrom<u8> for LnModeType {
+    type Error = u8;
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        Ok(match value {
+            1 => LnModeType::Ln,
+            2 => LnModeType::Cn,
+            3 => LnModeType::Hcn,
+            _ => return Err(value),
+        })
     }
 }
 

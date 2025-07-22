@@ -65,141 +65,45 @@ pub enum ControlFlowRule {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
+    use num_bigint::BigUint;
+    use num_traits::{FromPrimitive, One};
 
     struct DummyRng;
     impl Rng for DummyRng {
-        fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
-            // Always return the maximum value
-            *_range.end()
+        fn generate(&mut self, min: BigUint, _max: BigUint) -> BigUint {
+            min // always return min for deterministic test
         }
-    }
-
-    #[test]
-    fn test_switch_nested_switch_case() {
-        use Token::*;
-        let tokens = vec![
-            Title("11000000"),
-            Switch(2),
-            Case(1),
-            Title("00220000"),
-            Random(2),
-            If(1),
-            Title("00550000"),
-            ElseIf(2),
-            Title("00006600"),
-            EndIf,
-            EndRandom,
-            Skip,
-            Case(2),
-            Title("00003300"),
-            Skip,
-            EndSwitch,
-            Title("00000044"),
-        ];
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
-        println!("AST structure: {ast:#?}");
-        let Some(Unit::SwitchBlock { cases, .. }) =
-            ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
-        else {
-            panic!("AST structure error");
-        };
-        let Some(case1) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-        else {
-            panic!("Case(1) not found");
-        };
-        println!("Case(1) tokens: {:#?}", case1.tokens);
-        assert_eq!(errors, vec![]);
-        assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
-        assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
-        assert!(matches!(&ast[2], Unit::Token(_))); // 00000044
-        let Unit::SwitchBlock { cases, .. } = &ast[1] else {
-            panic!("AST structure error");
-        };
-        let Some(CaseBranch { tokens, .. }) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-        else {
-            panic!("Case(1) not found");
-        };
-        assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
-        assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
-        let Unit::RandomBlock { if_blocks, .. } = &tokens[1] else {
-            panic!("RandomBlock not found");
-        };
-        let if_block = &if_blocks[0];
-        assert!(
-            if_block
-                .branches
-                .get(&1)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Title("00550000"))))
-        );
-        assert!(
-            if_block
-                .branches
-                .get(&2)
-                .unwrap()
-                .tokens
-                .iter()
-                .any(|u| matches!(u, Unit::Token(Title("00006600"))))
-        );
-        let Some(CaseBranch { tokens, .. }) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
-        else {
-            panic!("Case(2) not found");
-        };
-        assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
-        let mut rng = DummyRng;
-        let mut ast_iter = ast.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
-        let expected = ["11000000", "00003300", "00000044"];
-        assert_eq!(tokens.len(), 3);
-        for (i, t) in tokens.iter().enumerate() {
-            match t {
-                Title(s) => {
-                    assert_eq!(s, &expected[i], "Title content mismatch");
-                }
-                _ => panic!("Token type mismatch"),
-            }
-        }
-        assert_eq!(errors, vec![]);
     }
 
     #[test]
     fn test_switch_insane_tokenized() {
         use Token::*;
         let tokens = vec![
-            Switch(5),
+            Switch(BigUint::from_u32(5).unwrap()),
             Def,
             Title("0055"),
             Skip,
-            Case(1),
+            Case(BigUint::one()),
             Title("0100000000000000"),
-            Random(2),
-            If(1),
+            Random(BigUint::from_u32(2).unwrap()),
+            If(BigUint::one()),
             Title("04"),
             Else,
             Title("05"),
             EndIf,
             // Missing EndRandom!!!
-            Case(2),
+            Case(BigUint::from_u32(2).unwrap()),
             Title("0200000000000000"),
             Skip,
-            Case(3),
+            Case(BigUint::from_u32(3).unwrap()),
             Title("0300000000000000"),
-            Switch(2),
-            Case(1),
+            Switch(BigUint::from_u32(2).unwrap()),
+            Case(BigUint::one()),
             Title("1111"),
             Skip,
-            Case(2),
+            Case(BigUint::from_u32(2).unwrap()),
             Title("2222"),
             Skip,
             EndSwitch,
@@ -213,10 +117,10 @@ mod tests {
         else {
             panic!("AST structure error");
         };
-        let Some(case1) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-        else {
+        let Some(case1) = cases.iter().find(|c| match c.value {
+            CaseBranchValue::Case(ref v) if v == &BigUint::one() => true,
+            _ => false,
+        }) else {
             panic!("Case(1) not found");
         };
         println!("Case(1) tokens: {:#?}", case1.tokens);

@@ -26,11 +26,14 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
+use fraction::GenericFraction;
+use num_bigint::BigUint;
+use num_traits::{FromPrimitive, One, ToPrimitive};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
-    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide, PositiveFiniteF64},
+    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide},
     parse::{Bms, notes::BgaLayer},
     time::{ObjTime, Track},
 };
@@ -390,7 +393,8 @@ impl TryFrom<Bms> for Bmson {
             .map(|bpm_change| {
                 Ok(BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
-                    bpm: FinF64::new(bpm_change.bpm).ok_or(BmsonConvertError::InvalidBpm)?,
+                    bpm: FinF64::new(bpm_change.bpm.to_f64().unwrap())
+                        .ok_or(BmsonConvertError::InvalidBpm)?,
                 })
             })
             .collect::<Result<Vec<_>, BmsonConvertError>>()?;
@@ -401,7 +405,7 @@ impl TryFrom<Bms> for Bmson {
             .values()
             .map(|stop| StopEvent {
                 y: converter.get_pulses_at(stop.time),
-                duration: stop.duration,
+                duration: stop.duration.to_f64().unwrap() as u64,
             })
             .collect();
 
@@ -434,8 +438,12 @@ impl TryFrom<Bms> for Bmson {
                 value
                     .header
                     .bpm
-                    .unwrap_or(PositiveFiniteF64::new(120.0).unwrap())
-                    .get(),
+                    .unwrap_or(GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(120.0).unwrap(),
+                        BigUint::one(),
+                    ))
+                    .to_f64()
+                    .unwrap(),
             )
             .ok_or(BmsonConvertError::InvalidBpm)?,
             judge_rank,
@@ -443,8 +451,12 @@ impl TryFrom<Bms> for Bmson {
                 value
                     .header
                     .total
-                    .unwrap_or(PositiveFiniteF64::new(100.0).unwrap())
-                    .get(),
+                    .unwrap_or(GenericFraction::<BigUint>::new(
+                        BigUint::from_f64(100.0).unwrap(),
+                        BigUint::one(),
+                    ))
+                    .to_f64()
+                    .unwrap(),
             )
             .ok_or(BmsonConvertError::InvalidTotal)?,
             back_image: value
@@ -632,7 +644,7 @@ impl TryFrom<Bms> for Bmson {
                 .map(|scroll| {
                     Ok(ScrollEvent {
                         y: converter.get_pulses_at(scroll.time),
-                        rate: FinF64::new(scroll.factor)
+                        rate: FinF64::new(scroll.factor.to_f64().unwrap())
                             .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
                     })
                 })
