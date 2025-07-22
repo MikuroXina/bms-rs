@@ -1,4 +1,4 @@
-use num::{BigUint, One, ToPrimitive, Zero};
+use num::{BigUint, One, Zero};
 use std::collections::HashMap;
 
 use crate::{
@@ -145,9 +145,9 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
     while let Some(next) = iter.peek() {
         match next {
             Token::Case(case_val) => {
-                let case_val_u64 = case_val.to_u64().unwrap();
+                let case_val_clone = case_val.clone();
                 // Check for duplicates
-                if seen_case_values.contains(&case_val_u64) {
+                if seen_case_values.contains(&case_val_clone) {
                     errors.push(ControlFlowRule::SwitchDuplicateCaseValue);
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
@@ -159,7 +159,7 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                 }
                 // Check for out-of-range
                 if let Some(max) = max_value {
-                    let case_val_big = BigUint::from(case_val_u64);
+                    let case_val_big = case_val_clone.clone();
                     if case_val_big < BigUint::one() || case_val_big > max.clone() {
                         errors.push(ControlFlowRule::SwitchCaseValueOutOfRange);
                         iter.next();
@@ -172,11 +172,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                     }
                 }
                 iter.next();
-                seen_case_values.insert(case_val_u64);
+                seen_case_values.insert(case_val_clone.clone());
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Case(BigUint::from(case_val_u64)),
+                    value: CaseBranchValue::Case(case_val_clone),
                     tokens,
                 });
                 if let Some(Token::Skip) = iter.peek() {
@@ -303,47 +303,47 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                 iter.next();
                 let mut branches = HashMap::new();
                 let mut seen_if_values = std::collections::HashSet::new();
-                let if_val_u64 = if_val.to_u64().unwrap();
+                let if_val_clone = if_val.clone();
                 // Check if If branch value is duplicated
-                if seen_if_values.contains(&if_val_u64) {
+                if seen_if_values.contains(&if_val_clone) {
                     errors.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                     let (_, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                 } else if let Some(max) = max_value {
                     // Check if If branch value is out-of-range
-                    if if_val_u64 < 1 || if_val_u64 > max.to_u64().unwrap() {
+                    if if_val_clone < BigUint::one() || if_val_clone > max.clone() {
                         errors.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                         let (_, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                     } else {
-                        seen_if_values.insert(if_val_u64);
+                        seen_if_values.insert(if_val_clone.clone());
                         let (tokens, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         branches.insert(
-                            BigUint::from(if_val_u64),
+                            if_val_clone.clone(),
                             IfBranch {
-                                value: BigUint::from(if_val_u64),
+                                value: if_val_clone,
                                 tokens,
                             },
                         );
                     }
                 } else {
                     // SetRandom branch has no range limit
-                    seen_if_values.insert(if_val_u64);
+                    seen_if_values.insert(if_val_clone.clone());
                     let (tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
-                        BigUint::from(if_val_u64),
+                        if_val_clone.clone(),
                         IfBranch {
-                            value: BigUint::from(if_val_u64),
+                            value: if_val_clone,
                             tokens,
                         },
                     );
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some(Token::ElseIf(elif_val)) = iter.peek() {
-                    let elif_val_u64 = elif_val.to_u64().unwrap();
-                    if seen_if_values.contains(&elif_val_u64) {
+                    let elif_val_clone = elif_val.clone();
+                    if seen_if_values.contains(&elif_val_clone) {
                         errors.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                         iter.next();
                         let (_, mut errs) = parse_if_block_body(iter);
@@ -351,7 +351,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                         continue;
                     }
                     if let Some(max) = max_value {
-                        if elif_val_u64 < 1 || elif_val_u64 > max.to_u64().unwrap() {
+                        if elif_val_clone < BigUint::one() || elif_val_clone > max.clone() {
                             errors.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                             iter.next();
                             let (_, mut errs) = parse_if_block_body(iter);
@@ -360,13 +360,13 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                         }
                     }
                     iter.next();
-                    seen_if_values.insert(elif_val_u64);
+                    seen_if_values.insert(elif_val_clone.clone());
                     let (elif_tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
-                        BigUint::from(elif_val_u64),
+                        elif_val_clone.clone(),
                         IfBranch {
-                            value: BigUint::from(elif_val_u64),
+                            value: elif_val_clone,
                             tokens: elif_tokens,
                         },
                     );
