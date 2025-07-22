@@ -844,7 +844,7 @@ impl<'a> Token<'a> {
                         message: Cow::Borrowed(message),
                     }
                 }
-                // 新增命令解析
+                // New command parsing
                 charfile if charfile.starts_with("#CHARFILE") => {
                     let path = c
                         .next_token()
