@@ -66,14 +66,16 @@ pub enum ControlFlowRule {
 #[cfg(test)]
 mod tests {
 
+    use num::BigUint;
+
     use super::*;
     use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
 
     struct DummyRng;
     impl Rng for DummyRng {
-        fn generate(&mut self, _range: std::ops::RangeInclusive<u32>) -> u32 {
+        fn generate(&mut self, _min: BigUint, _max: BigUint) -> BigUint {
             // Always return the maximum value
-            *_range.end()
+            _max
         }
     }
 
@@ -82,18 +84,18 @@ mod tests {
         use Token::*;
         let tokens = vec![
             Title("11000000"),
-            Switch(2),
-            Case(1),
+            Switch(BigUint::from(2u32)),
+            Case(BigUint::from(1u32)),
             Title("00220000"),
-            Random(2),
-            If(1),
+            Random(BigUint::from(2u32)),
+            If(BigUint::from(1u32)),
             Title("00550000"),
-            ElseIf(2),
+            ElseIf(BigUint::from(2u32)),
             Title("00006600"),
             EndIf,
             EndRandom,
             Skip,
-            Case(2),
+            Case(BigUint::from(2u32)),
             Title("00003300"),
             Skip,
             EndSwitch,
@@ -108,7 +110,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -122,7 +124,7 @@ mod tests {
         };
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -135,7 +137,7 @@ mod tests {
         assert!(
             if_block
                 .branches
-                .get(&1)
+                .get(&BigUint::from(1u64))
                 .unwrap()
                 .tokens
                 .iter()
@@ -144,7 +146,7 @@ mod tests {
         assert!(
             if_block
                 .branches
-                .get(&2)
+                .get(&BigUint::from(2u64))
                 .unwrap()
                 .tokens
                 .iter()
@@ -152,7 +154,7 @@ mod tests {
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(2)))
+            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(2u64)))
         else {
             panic!("Case(2) not found");
         };
@@ -177,29 +179,29 @@ mod tests {
     fn test_switch_insane_tokenized() {
         use Token::*;
         let tokens = vec![
-            Switch(5),
+            Switch(BigUint::from(5u32)),
             Def,
             Title("0055"),
             Skip,
-            Case(1),
+            Case(BigUint::from(1u32)),
             Title("0100000000000000"),
-            Random(2),
-            If(1),
+            Random(BigUint::from(2u32)),
+            If(BigUint::from(1u32)),
             Title("04"),
             Else,
             Title("05"),
             EndIf,
             // Missing EndRandom!!!
-            Case(2),
+            Case(BigUint::from(2u32)),
             Title("0200000000000000"),
             Skip,
-            Case(3),
+            Case(BigUint::from(3u32)),
             Title("0300000000000000"),
-            Switch(2),
-            Case(1),
+            Switch(BigUint::from(2u32)),
+            Case(BigUint::from(1u32)),
             Title("1111"),
             Skip,
-            Case(2),
+            Case(BigUint::from(2u32)),
             Title("2222"),
             Skip,
             EndSwitch,
@@ -215,7 +217,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
+            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };

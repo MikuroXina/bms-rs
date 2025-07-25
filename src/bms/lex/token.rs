@@ -1,8 +1,13 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::Path, str::FromStr};
+
+use fraction::{GenericDecimal, GenericFraction};
+use num::BigUint;
 
 use super::{Result, command::*, cursor::Cursor};
+
+type Decimal = GenericDecimal<BigUint, usize>;
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -46,11 +51,11 @@ pub enum Token<'a> {
     /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
     Bmp(Option<ObjId>, &'a Path),
     /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
-    Bpm(&'a str),
+    Bpm(Decimal),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
-    BpmChange(ObjId, &'a str),
+    BpmChange(ObjId, Decimal),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
-    Case(u32),
+    Case(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
     ChangeOption(ObjId, &'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
@@ -70,7 +75,7 @@ pub enum Token<'a> {
     ///   #ENDIF
     /// #ENDIF
     /// ```
-    ElseIf(u32),
+    ElseIf(BigUint),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
     /// `#ENDIF`. Closes the if scope. See [Token::If].
@@ -108,7 +113,7 @@ pub enum Token<'a> {
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(u32),
+    If(BigUint),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -143,35 +148,35 @@ pub enum Token<'a> {
     /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
     PoorBga(PoorMode),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(u32),
+    Random(BigUint),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
-    Scroll(ObjId, &'a str),
+    Scroll(ObjId, Decimal),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(u32),
+    SetRandom(BigUint),
     /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(u32),
+    SetSwitch(BigUint),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
     /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
-    Speed(ObjId, &'a str),
+    Speed(ObjId, Decimal),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
-    Stop(ObjId, u32),
+    Stop(ObjId, Decimal),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(u32),
+    Switch(BigUint),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
     Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
-    Total(&'a str),
+    Total(Decimal),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
@@ -223,14 +228,26 @@ impl<'a> Token<'a> {
                         .map(Path::new)
                         .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
                 ),
-                "#TOTAL" => Self::Total(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
-                ),
-                "#BPM" => Self::Bpm(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?,
-                ),
+                "#TOTAL" => {
+                    let s = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Total(v)
+                }
+                "#BPM" => {
+                    let s = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Bpm(v)
+                }
                 "#PLAYLEVEL" => Self::PlayLevel(
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("play level"))?
@@ -383,33 +400,47 @@ impl<'a> Token<'a> {
                 }
                 bpm if bpm.starts_with("#BPM") => {
                     let id = command.trim_start_matches("#BPM");
-                    let bpm = c
+                    let s_bpm = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    Self::BpmChange(ObjId::try_load(id, c)?, bpm)
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s_bpm)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
                 stop if stop.starts_with("#STOP") => {
                     let id = command.trim_start_matches("#STOP");
-                    let stop = c
+                    let s_stop = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Stop(ObjId::try_load(id, c)?, stop)
+                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s_stop)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Stop(ObjId::try_load(id, c)?, v)
                 }
                 scroll if scroll.starts_with("#SCROLL") => {
                     let id = command.trim_start_matches("#SCROLL");
-                    let scroll = c
+                    let s_scroll = c
                         .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("scroll factor"))?;
-                    Self::Scroll(ObjId::try_load(id, c)?, scroll)
+                        .ok_or_else(|| c.make_err_expected_token("scroll"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s_scroll)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Scroll(ObjId::try_load(id, c)?, v)
                 }
                 speed if speed.starts_with("#SPEED") => {
                     let id = command.trim_start_matches("#SPEED");
-                    let scroll = c
+                    let s_speed = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    Self::Speed(ObjId::try_load(id, c)?, scroll)
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s_speed)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Speed(ObjId::try_load(id, c)?, v)
                 }
                 exbmp if exbmp.starts_with("#EXBMP") => {
                     let id = exbmp.trim_start_matches("#EXBMP");

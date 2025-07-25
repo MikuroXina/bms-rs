@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use num::BigUint;
+
 use crate::{
     bms::lex::token::Token,
     parse::{BmsParseTokenIter, random::ControlFlowRule},
@@ -30,22 +32,22 @@ pub(super) enum Unit<'a> {
 pub(super) enum BlockValue {
     /// For Random/Switch, value ranges in [1, max].
     /// IfBranch value must ranges in [1, max].
-    Random { max: u64 },
+    Random { max: BigUint },
     /// For SetRandom/SetSwitch.
     /// IfBranch value has no limit.
-    Set { value: u64 },
+    Set { value: BigUint },
 }
 
 /// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct IfBlock<'a> {
-    pub branches: HashMap<u64, IfBranch<'a>>,
+    pub branches: HashMap<BigUint, IfBranch<'a>>,
 }
 
 /// The If branch of a If block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct IfBranch<'a> {
-    pub value: u64,
+    pub value: BigUint,
     pub tokens: Vec<Unit<'a>>,
 }
 
@@ -61,7 +63,7 @@ pub(super) struct CaseBranch<'a> {
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum CaseBranchValue {
-    Case(u64),
+    Case(BigUint),
     Def,
 }
 
@@ -129,14 +131,14 @@ fn parse_unit_or_block<'a>(
 fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ControlFlowRule>) {
     let token = iter.next().unwrap();
     let block_value = match token {
-        Token::SetSwitch(val) => BlockValue::Set { value: *val as u64 },
-        Token::Switch(val) => BlockValue::Random { max: *val as u64 },
+        Token::SetSwitch(val) => BlockValue::Set { value: val.clone() },
+        Token::Switch(val) => BlockValue::Random { max: val.clone() },
         _ => unreachable!(),
     };
     let mut cases = Vec::new();
     let mut seen_case_values = std::collections::HashSet::new();
     let max_value = match &block_value {
-        BlockValue::Random { max } => Some(*max),
+        BlockValue::Random { max } => Some(max.clone()),
         BlockValue::Set { value: _ } => None,
     };
     let mut seen_def = false;
@@ -144,9 +146,8 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
     while let Some(next) = iter.peek() {
         match next {
             Token::Case(case_val) => {
-                let case_val_u64 = *case_val as u64;
                 // Check for duplicates
-                if seen_case_values.contains(&case_val_u64) {
+                if seen_case_values.contains(case_val) {
                     errors.push(ControlFlowRule::SwitchDuplicateCaseValue);
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
@@ -157,8 +158,8 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                     continue;
                 }
                 // Check for out-of-range
-                if let Some(max) = max_value
-                    && !(1..=max).contains(&case_val_u64)
+                if let Some(ref max) = max_value
+                    && !(&BigUint::from(1u64)..=max).contains(&case_val)
                 {
                     errors.push(ControlFlowRule::SwitchCaseValueOutOfRange);
                     iter.next();
@@ -170,11 +171,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                     continue;
                 }
                 iter.next();
-                seen_case_values.insert(case_val_u64);
+                seen_case_values.insert(case_val);
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Case(case_val_u64),
+                    value: CaseBranchValue::Case(case_val.clone()),
                     tokens,
                 });
                 if let Some(Token::Skip) = iter.peek() {
@@ -283,13 +284,13 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     let block_value = match token {
-        Token::Random(val) => BlockValue::Random { max: *val as u64 },
-        Token::SetRandom(val) => BlockValue::Set { value: *val as u64 },
+        Token::Random(val) => BlockValue::Random { max: val.clone() },
+        Token::SetRandom(val) => BlockValue::Set { value: val.clone() },
         _ => unreachable!(),
     };
     let mut if_blocks = Vec::new();
     let max_value = match &block_value {
-        BlockValue::Random { max } => Some(*max),
+        BlockValue::Random { max } => Some(max.clone()),
         BlockValue::Set { .. } => None,
     };
     let mut errors = Vec::new();
@@ -301,55 +302,53 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                 iter.next();
                 let mut branches = HashMap::new();
                 let mut seen_if_values = std::collections::HashSet::new();
-                let if_val_u64 = *if_val as u64;
                 // Check if If branch value is duplicated
-                if seen_if_values.contains(&if_val_u64) {
+                if seen_if_values.contains(if_val) {
                     errors.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                     let (_, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                } else if let Some(max) = max_value {
+                } else if let Some(ref max) = max_value {
                     // Check if If branch value is out-of-range
-                    if if_val_u64 < 1 || if_val_u64 > max {
+                    if !(&BigUint::from(1u64)..=max).contains(&if_val) {
                         errors.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                         let (_, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                     } else {
-                        seen_if_values.insert(if_val_u64);
+                        seen_if_values.insert(if_val);
                         let (tokens, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         branches.insert(
-                            if_val_u64,
+                            if_val.clone(),
                             IfBranch {
-                                value: if_val_u64,
+                                value: if_val.clone(),
                                 tokens,
                             },
                         );
                     }
                 } else {
                     // SetRandom branch has no range limit
-                    seen_if_values.insert(if_val_u64);
+                    seen_if_values.insert(if_val);
                     let (tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
-                        if_val_u64,
+                        if_val.clone(),
                         IfBranch {
-                            value: if_val_u64,
+                            value: if_val.clone(),
                             tokens,
                         },
                     );
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some(Token::ElseIf(elif_val)) = iter.peek() {
-                    let elif_val_u64 = *elif_val as u64;
-                    if seen_if_values.contains(&elif_val_u64) {
+                    if seen_if_values.contains(elif_val) {
                         errors.push(ControlFlowRule::RandomDuplicateIfBranchValue);
                         iter.next();
                         let (_, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         continue;
                     }
-                    if let Some(max) = max_value {
-                        if elif_val_u64 < 1 || elif_val_u64 > max {
+                    if let Some(ref max) = max_value {
+                        if !(&BigUint::from(1u64)..=max).contains(&elif_val) {
                             errors.push(ControlFlowRule::RandomIfBranchValueOutOfRange);
                             iter.next();
                             let (_, mut errs) = parse_if_block_body(iter);
@@ -358,13 +357,13 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                         }
                     }
                     iter.next();
-                    seen_if_values.insert(elif_val_u64);
+                    seen_if_values.insert(&elif_val);
                     let (elif_tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
-                        elif_val_u64,
+                        elif_val.clone(),
                         IfBranch {
-                            value: elif_val_u64,
+                            value: elif_val.clone(),
                             tokens: elif_tokens,
                         },
                     );
@@ -380,9 +379,9 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                     let (etokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
-                        0,
+                        BigUint::from(0u64),
                         IfBranch {
-                            value: 0,
+                            value: BigUint::from(0u64),
                             tokens: etokens,
                         },
                     );
@@ -475,19 +474,20 @@ mod tests {
 
     #[test]
     fn test_switch_ast() {
+        use Token::*;
         let tokens = vec![
-            Token::SetSwitch(2),
-            Token::Def,
-            Token::Title("Out"),
-            Token::Case(2),
-            Token::Title("In 1"),
-            Token::Case(1),
-            Token::Title("In 2"),
-            Token::Skip,
-            Token::Case(3),
-            Token::Title("In 3"),
-            Token::Skip,
-            Token::EndSwitch,
+            SetSwitch(BigUint::from(2u64)),
+            Def,
+            Title("Out"),
+            Case(BigUint::from(2u64)),
+            Title("In 1"),
+            Case(BigUint::from(1u64)),
+            Title("In 2"),
+            Skip,
+            Case(BigUint::from(3u64)),
+            Title("In 3"),
+            Skip,
+            EndSwitch,
         ];
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         assert_eq!(errors, vec![]);
@@ -496,10 +496,9 @@ mod tests {
         else {
             panic!("AST structure error, ast: {ast:?}");
         };
-        let Some(_case1) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-        else {
+        let Some(_case1) = cases.iter().find(
+            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+        ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
         let Some(Unit::SwitchBlock { cases, .. }) =
@@ -507,10 +506,9 @@ mod tests {
         else {
             panic!("AST structure error, ast: {ast:?}");
         };
-        let Some(CaseBranch { tokens: _, .. }) = cases
-            .iter()
-            .find(|c| matches!(c.value, CaseBranchValue::Case(1)))
-        else {
+        let Some(CaseBranch { tokens: _, .. }) = cases.iter().find(
+            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+        ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
         // Since tokens only contain Token type, do not search for RandomBlock here. Related assertions are already covered above.
@@ -536,11 +534,11 @@ mod tests {
     fn test_random_ast() {
         use Token::*;
         let tokens = vec![
-            Random(2),
-            If(1),
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(1u64)),
             Title("A"),
             EndIf,
-            If(2),
+            If(BigUint::from(2u64)),
             Title("B"),
             EndIf,
             EndRandom,
@@ -578,11 +576,11 @@ mod tests {
     fn test_random_nested_ast() {
         use Token::*;
         let tokens = vec![
-            Random(2),
-            If(1),
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(1u64)),
             Title("A"),
-            Random(2),
-            If(2),
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(2u64)),
             Title("B"),
             EndIf,
             EndRandom,
@@ -619,17 +617,17 @@ mod tests {
     fn test_random_multiple_if_elseif_else() {
         use Token::*;
         let tokens = vec![
-            Random(3),
-            If(1),
+            Random(BigUint::from(3u64)),
+            If(BigUint::from(1u64)),
             Title("A1"),
-            ElseIf(2),
+            ElseIf(BigUint::from(2u64)),
             Title("A2"),
             Else,
             Title("Aelse"),
             EndIf,
-            If(1),
+            If(BigUint::from(1u64)),
             Title("B1"),
-            ElseIf(2),
+            ElseIf(BigUint::from(2u64)),
             Title("B2"),
             Else,
             Title("Belse"),
@@ -647,7 +645,7 @@ mod tests {
         };
         assert_eq!(if_blocks.len(), 2);
         let branches1 = &if_blocks[0].branches;
-        let Some(b1) = branches1.get(&1) else {
+        let Some(b1) = branches1.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
         let Some(_) = b1
@@ -657,7 +655,7 @@ mod tests {
         else {
             panic!("A1 missing");
         };
-        let Some(b2) = branches1.get(&2) else {
+        let Some(b2) = branches1.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
         let Some(_) = b2
@@ -667,7 +665,7 @@ mod tests {
         else {
             panic!("A2 missing");
         };
-        let Some(belse) = branches1.get(&0) else {
+        let Some(belse) = branches1.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
         let Some(_) = belse
@@ -678,7 +676,7 @@ mod tests {
             panic!("Aelse missing");
         };
         let branches2 = &if_blocks[1].branches;
-        let Some(b1) = branches2.get(&1) else {
+        let Some(b1) = branches2.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
         let Some(_) = b1
@@ -688,7 +686,7 @@ mod tests {
         else {
             panic!("B1 missing");
         };
-        let Some(b2) = branches2.get(&2) else {
+        let Some(b2) = branches2.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
         let Some(_) = b2
@@ -698,7 +696,7 @@ mod tests {
         else {
             panic!("B2 missing");
         };
-        let Some(belse) = branches2.get(&0) else {
+        let Some(belse) = branches2.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
         let Some(_) = belse
@@ -714,10 +712,10 @@ mod tests {
     fn test_random_duplicate_ifbranch() {
         use Token::*;
         let tokens = vec![
-            Random(2),
-            If(1),
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(1u64)),
             Title("A"),
-            ElseIf(1), // duplicate
+            ElseIf(BigUint::from(1u64)), // duplicate
             Title("B"),
             EndIf,
             EndRandom,
@@ -730,8 +728,8 @@ mod tests {
     fn test_random_ifbranch_value_out_of_range() {
         use Token::*;
         let tokens = vec![
-            Random(2),
-            If(3), // out of range
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(3u64)), // out of range
             Title("A"),
             EndIf,
             EndRandom,
@@ -744,10 +742,10 @@ mod tests {
     fn test_switch_duplicate_case() {
         use Token::*;
         let tokens = vec![
-            Switch(2),
-            Case(1),
+            Switch(BigUint::from(2u64)),
+            Case(BigUint::from(1u64)),
             Title("A"),
-            Case(1), // duplicate
+            Case(BigUint::from(1u64)), // duplicate
             Title("B"),
             EndSwitch,
         ];
@@ -759,8 +757,8 @@ mod tests {
     fn test_switch_case_value_out_of_range() {
         use Token::*;
         let tokens = vec![
-            Switch(2),
-            Case(3), // out of range
+            Switch(BigUint::from(2u64)),
+            Case(BigUint::from(3u64)), // out of range
             Title("A"),
             EndSwitch,
         ];
@@ -772,7 +770,7 @@ mod tests {
     fn test_switch_duplicate_def() {
         use Token::*;
         let tokens = vec![
-            Switch(2),
+            Switch(BigUint::from(2u64)),
             Def,
             Title("A"),
             Def, // redundant
@@ -795,9 +793,9 @@ mod tests {
     fn test_unmatched_token_in_random_block() {
         use Token::*;
         let tokens = vec![
-            Random(2),
+            Random(BigUint::from(2u64)),
             Title("A"), // Not in any IfBlock
-            If(1),
+            If(BigUint::from(1u64)),
             Title("B"),
             EndIf,
             EndRandom,

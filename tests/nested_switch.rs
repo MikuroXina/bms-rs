@@ -9,6 +9,7 @@ use bms_rs::{
     parse::{Bms, obj::Obj, prompt::AlwaysWarn, rng::RngMock},
     time::ObjTime,
 };
+use num::BigUint;
 
 #[test]
 fn switch() {
@@ -34,7 +35,7 @@ fn switch() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,
@@ -71,7 +72,7 @@ fn nested_switch_simpler() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,
@@ -125,7 +126,7 @@ fn nested_switch() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -166,7 +167,7 @@ fn nested_switch() {
         ]
     );
 
-    let rng = RngMock([1, 2]);
+    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -207,7 +208,7 @@ fn nested_switch() {
         ]
     );
 
-    let rng = RngMock([2]);
+    let rng = RngMock([BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -285,7 +286,7 @@ fn nested_random_in_switch() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -326,7 +327,7 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let rng = RngMock([1, 2]);
+    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -367,7 +368,7 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let rng = RngMock([2]);
+    let rng = RngMock([BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -445,7 +446,7 @@ fn nested_switch_in_random() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -486,7 +487,7 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let rng = RngMock([1, 2]);
+    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -527,7 +528,7 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let rng = RngMock([2]);
+    let rng = RngMock([BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -602,7 +603,7 @@ fn test_switch_insane() {
     assert_eq!(warnings, vec![]);
 
     // CASE 1, RANDOM 1
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -631,7 +632,7 @@ fn test_switch_insane() {
     );
 
     // CASE 1, RANDOM 2
-    let rng = RngMock([1, 2]);
+    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -660,7 +661,7 @@ fn test_switch_insane() {
     );
 
     // CASE 2
-    let rng = RngMock([2]);
+    let rng = RngMock([BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -682,7 +683,7 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 1
-    let rng = RngMock([3, 1]);
+    let rng = RngMock([BigUint::from(3u64), BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -718,7 +719,7 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 2
-    let rng = RngMock([3, 2]);
+    let rng = RngMock([BigUint::from(3u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -754,7 +755,7 @@ fn test_switch_insane() {
     );
 
     // CASE 4 (DEFAULT)
-    let rng = RngMock([4]);
+    let rng = RngMock([BigUint::from(4u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,

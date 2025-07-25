@@ -12,9 +12,9 @@ pub struct ObjTime {
     /// The track, or measure, where the object is in.
     pub track: Track,
     /// The time offset numerator in the track.
-    pub numerator: u32,
+    pub numerator: u64,
     /// The time offset denominator in the track.
-    pub denominator: u32,
+    pub denominator: u64,
 }
 
 impl ObjTime {
@@ -23,7 +23,7 @@ impl ObjTime {
     /// # Panics
     ///
     /// Panics if `denominator` is 0 or `numerator` is greater than or equal to `denominator`.
-    pub fn new(track: u32, numerator: u32, denominator: u32) -> Self {
+    pub fn new(track: u32, numerator: u64, denominator: u64) -> Self {
         if track == 0 {
             eprintln!("warning: track 000 detected");
         }

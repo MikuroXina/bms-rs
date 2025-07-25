@@ -7,6 +7,7 @@
 //! At first, you can get the tokens stream with [`lex::parse`]. Then pass it and the random generator to [`parse::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```
+//! use num::BigUint;
 //! use bms_rs::bms::{
 //!     lex::{parse, parse_with_channel_parser, BmsLexOutput, command::channel::read_channel_beat},
 //!     parse::{prompt::AlwaysWarn, rng::RngMock, Bms, BmsParseOutput},
@@ -22,7 +23,7 @@
 //! let BmsLexOutput { tokens, lex_warnings } = parse_with_channel_parser(&source, &read_channel_beat);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
-//! let rng = RngMock([1]);
+//! let rng = RngMock([BigUint::from(1u64)]);
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
 //!     );

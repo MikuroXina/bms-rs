@@ -4,12 +4,17 @@
 
 use std::path::Path;
 
+use fraction::GenericDecimal;
+use num::BigUint;
+
 use crate::lex::command::ObjId;
 
 use super::{
     ParseWarning, Result,
     header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
 };
+
+type Decimal = GenericDecimal<BigUint, usize>;
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
@@ -35,9 +40,9 @@ pub enum PromptingDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -53,18 +58,18 @@ pub enum PromptingDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// TEXT is duplicated.
     Text {
@@ -135,7 +140,7 @@ pub enum DuplicationWorkaround {
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply<T>(self, target: &mut T, newer: T) -> Result<()> {
+    pub(crate) fn apply<T: Clone>(self, target: &mut T, newer: T) -> Result<()> {
         match self {
             DuplicationWorkaround::UseOlder => Ok(()),
             DuplicationWorkaround::UseNewer => {

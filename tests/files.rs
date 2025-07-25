@@ -2,6 +2,7 @@ use bms_rs::{
     lex::{BmsLexOutput, LexWarning, parse},
     parse::{Bms, BmsParseOutput, prompt::AlwaysWarn, rng::RngMock},
 };
+use num::BigUint;
 
 #[test]
 fn test_lal() {
@@ -15,7 +16,7 @@ fn test_lal() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -32,7 +33,7 @@ fn test_nc() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -49,7 +50,7 @@ fn test_j219() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
 }
@@ -90,7 +91,7 @@ fn test_bemuse_ext() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([1]), AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
 }

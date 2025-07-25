@@ -1,10 +1,13 @@
 //! Note objects manager.
 
+use fraction::{GenericDecimal, GenericFraction};
 use itertools::Itertools;
+use num::BigUint;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
     ops::Bound,
+    str::FromStr,
 };
 
 use super::{ParseWarning, Result, header::Header, obj::Obj};
@@ -17,14 +20,16 @@ use crate::{
     time::{ObjTime, Track},
 };
 
+type Decimal = GenericDecimal<BigUint, usize>;
+
 /// An object to change the BPM of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: f64,
+    pub bpm: Decimal,
 }
 
 impl PartialEq for BpmChangeObj {
@@ -48,13 +53,13 @@ impl Ord for BpmChangeObj {
 }
 
 /// An object to change its section length of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SectionLenChangeObj {
     /// The target track to change.
     pub track: Track,
     /// The length to be.
-    pub length: f64,
+    pub length: Decimal,
 }
 
 impl PartialEq for SectionLenChangeObj {
@@ -78,7 +83,7 @@ impl Ord for SectionLenChangeObj {
 }
 
 /// An object to stop scrolling of score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StopObj {
     /// Time to start the stop.
@@ -86,7 +91,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: u32,
+    pub duration: Decimal,
 }
 
 impl PartialEq for StopObj {
@@ -155,13 +160,13 @@ pub enum BgaLayer {
 }
 
 /// An object to change scrolling factor of the score.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The scrolling factor to be.
-    pub factor: f64,
+    pub factor: Decimal,
 }
 
 impl PartialEq for ScrollingFactorObj {
@@ -185,13 +190,13 @@ impl Ord for ScrollingFactorObj {
 }
 
 /// An object to change spacing factor between notes with linear interpolation.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpacingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: f64,
+    pub factor: Decimal,
 }
 
 impl PartialEq for SpacingFactorObj {
@@ -372,56 +377,49 @@ impl Notes {
 
     /// Adds a new BPM change object to the notes.
     pub fn push_bpm_change(&mut self, bpm_change: BpmChangeObj) {
-        if self
-            .bpm_changes
-            .insert(bpm_change.time, bpm_change)
-            .is_some()
-        {
+        if let Some(existing) = self.bpm_changes.insert(bpm_change.time, bpm_change) {
             eprintln!(
                 "duplicate bpm change object detected at {:?}",
-                bpm_change.time
+                existing.time
             );
         }
     }
 
     /// Adds a new scrolling factor change object to the notes.
     pub fn push_scrolling_factor_change(&mut self, bpm_change: ScrollingFactorObj) {
-        if self
+        if let Some(existing) = self
             .scrolling_factor_changes
-            .insert(bpm_change.time, bpm_change)
-            .is_some()
+            .insert(bpm_change.time, bpm_change.clone())
         {
             eprintln!(
                 "duplicate scrolling factor change object detected at {:?}",
-                bpm_change.time
+                existing.time
             );
         }
     }
 
     /// Adds a new spacing factor change object to the notes.
     pub fn push_spacing_factor_change(&mut self, bpm_change: SpacingFactorObj) {
-        if self
+        if let Some(existing) = self
             .spacing_factor_changes
-            .insert(bpm_change.time, bpm_change)
-            .is_some()
+            .insert(bpm_change.time, bpm_change.clone())
         {
             eprintln!(
                 "duplicate spacing factor change object detected at {:?}",
-                bpm_change.time
+                existing.time
             );
         }
     }
 
     /// Adds a new section length change object to the notes.
     pub fn push_section_len_change(&mut self, section_len_change: SectionLenChangeObj) {
-        if self
+        if let Some(existing) = self
             .section_len_changes
-            .insert(section_len_change.track, section_len_change)
-            .is_some()
+            .insert(section_len_change.track, section_len_change.clone())
         {
             eprintln!(
                 "duplicate section length change object detected at {:?}",
-                section_len_change.track
+                existing.track
             );
         }
     }
@@ -431,15 +429,18 @@ impl Notes {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = existing.duration.saturating_add(stop.duration)
+                existing.duration = existing.duration.clone() + stop.duration.clone();
             })
-            .or_insert(stop);
+            .or_insert(stop.clone());
     }
 
     /// Adds a new bga change object to the notes.
     pub fn push_bga_change(&mut self, bga: BgaObj) {
-        if self.bga_changes.insert(bga.time, bga).is_some() {
-            eprintln!("duplicate bga change object detected at {:?}", bga.time);
+        if let Some(existing) = self.bga_changes.insert(bga.time, bga) {
+            eprintln!(
+                "duplicate bga change object detected at {:?}",
+                existing.time
+            );
         }
     }
 
@@ -456,11 +457,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &bpm = header
+                    let bpm = header
                         .bpm_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_bpm_change(BpmChangeObj { time, bpm });
+                    self.push_bpm_change(BpmChangeObj {
+                        time,
+                        bpm: bpm.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -468,16 +472,16 @@ impl Notes {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                let denominator = message.len() as u32 / 2;
+                let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
                     if bpm == 0 {
                         continue;
                     }
-                    let time = ObjTime::new(track.0, i as u32, denominator);
+                    let time = ObjTime::new(track.0, i as u64, denominator as u64);
                     self.push_bpm_change(BpmChangeObj {
                         time,
-                        bpm: bpm as f64,
+                        bpm: Decimal::from(bpm),
                     });
                 }
             }
@@ -487,11 +491,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .scrolling_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_scrolling_factor_change(ScrollingFactorObj { time, factor });
+                    self.push_scrolling_factor_change(ScrollingFactorObj {
+                        time,
+                        factor: factor.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -500,11 +507,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &factor = header
+                    let factor = header
                         .spacing_factor_changes
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_spacing_factor_change(SpacingFactorObj { time, factor });
+                    self.push_spacing_factor_change(SpacingFactorObj {
+                        time,
+                        factor: factor.clone(),
+                    });
                 }
             }
             Token::Message {
@@ -527,8 +537,13 @@ impl Notes {
                 message,
             } => {
                 let track = Track(track.0);
-                let length = message.parse().expect("f64 as section length");
-                assert!(0.0 < length, "section length must be greater than zero");
+                let length = Decimal::from(Decimal::from_fraction(
+                    GenericFraction::from_str(message).expect("f64 as section length"),
+                ));
+                assert!(
+                    length > Decimal::from(0u64),
+                    "section length must be greater than zero"
+                );
                 self.push_section_len_change(SectionLenChangeObj { track, length });
             }
             Token::Message {
@@ -537,11 +552,14 @@ impl Notes {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    let &duration = header
+                    let duration = header
                         .stops
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.push_stop(StopObj { time, duration })
+                    self.push_stop(StopObj {
+                        time,
+                        duration: duration.clone(),
+                    })
                 }
             }
             Token::Message {
@@ -763,10 +781,10 @@ impl Notes {
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
-    pub fn resolution_for_pulses(&self) -> u32 {
+    pub fn resolution_for_pulses(&self) -> u64 {
         use num::Integer;
 
-        let mut hyp_resolution = 1;
+        let mut hyp_resolution = 1u64;
         for obj in self.objs.values().flatten() {
             hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator);
         }
@@ -781,7 +799,7 @@ fn ids_from_message(
     track: command::Track,
     message: &'_ str,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
-    let denominator = message.len() as u32 / 2;
+    let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
         let (i, c1, c2) = loop {
@@ -791,7 +809,7 @@ fn ids_from_message(
             }
         };
         let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
-        let time = ObjTime::new(track.0, i as u32, denominator);
+        let time = ObjTime::new(track.0, i as u64, denominator as u64);
         Some((time, obj))
     })
 }
