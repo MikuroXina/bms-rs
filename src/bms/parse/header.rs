@@ -2,10 +2,7 @@
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use fraction::GenericDecimal;
-use num::BigUint;
-
-type Decimal = GenericDecimal<BigUint, usize>;
+use crate::bms::Decimal;
 
 use super::{
     Result,

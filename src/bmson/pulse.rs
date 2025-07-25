@@ -2,16 +2,14 @@
 
 use std::collections::BTreeMap;
 
-use fraction::GenericDecimal;
-use num::{BigUint, traits::SaturatingAdd};
+use num::traits::SaturatingAdd;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    bms::Decimal,
     parse::notes::Notes,
     time::{ObjTime, Track},
 };
-
-type Decimal = GenericDecimal<BigUint, usize>;
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

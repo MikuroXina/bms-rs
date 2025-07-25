@@ -4,17 +4,12 @@
 
 use std::path::Path;
 
-use fraction::GenericDecimal;
-use num::BigUint;
-
-use crate::lex::command::ObjId;
+use crate::{bms::Decimal, lex::command::ObjId};
 
 use super::{
     ParseWarning, Result,
     header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
 };
-
-type Decimal = GenericDecimal<BigUint, usize>;
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {

@@ -1,8 +1,7 @@
 //! Note objects manager.
 
-use fraction::{GenericDecimal, GenericFraction};
+use fraction::GenericFraction;
 use itertools::Itertools;
-use num::BigUint;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
@@ -12,6 +11,7 @@ use std::{
 
 use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
+    bms::Decimal,
     lex::{
         command::{self, Channel, Key, NoteKind, ObjId},
         token::Token,
@@ -19,8 +19,6 @@ use crate::{
     parse::header::{ExRankDef, ExWavDef},
     time::{ObjTime, Track},
 };
-
-type Decimal = GenericDecimal<BigUint, usize>;
 
 /// An object to change the BPM of the score.
 #[derive(Debug, Clone)]

@@ -26,8 +26,6 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
-use fraction::GenericDecimal;
-use num::BigUint;
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -42,7 +40,7 @@ use self::{
     pulse::{PulseConverter, PulseNumber},
 };
 
-type Decimal = GenericDecimal<BigUint, usize>;
+use crate::bms::Decimal;
 
 pub mod fin_f64;
 pub mod pulse;

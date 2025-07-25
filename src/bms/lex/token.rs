@@ -2,12 +2,11 @@
 
 use std::{borrow::Cow, path::Path, str::FromStr};
 
-use fraction::{GenericDecimal, GenericFraction};
+use fraction::GenericFraction;
 use num::BigUint;
 
 use super::{Result, command::*, cursor::Cursor};
-
-type Decimal = GenericDecimal<BigUint, usize>;
+use crate::bms::Decimal;
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
