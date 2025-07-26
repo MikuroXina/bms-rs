@@ -65,7 +65,7 @@ pub enum ControlFlowRule {
 
 #[cfg(test)]
 mod tests {
-    use core::ops::{Bound, RangeBounds, RangeInclusive};
+    use core::ops::RangeInclusive;
 
     use num::BigUint;
 
@@ -76,10 +76,7 @@ mod tests {
     impl Rng for DummyRng {
         fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
             // Always return the maximum value
-            let Bound::Included(end) = range.end_bound() else {
-                unreachable!()
-            };
-            end.clone()
+            range.end().clone()
         }
     }
 
