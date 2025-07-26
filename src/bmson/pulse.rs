@@ -36,8 +36,8 @@ impl PulseConverter {
 
         let mut pulses_at_track_start = BTreeMap::new();
         pulses_at_track_start.insert(Track(0), 0);
-        let mut current_track = 0;
-        let mut current_pulses = 0;
+        let mut current_track: u64 = 0;
+        let mut current_pulses: u64 = 0;
         loop {
             let section_len: f64 = notes
                 .section_len_changes()
@@ -45,10 +45,7 @@ impl PulseConverter {
                 .map_or(Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
-            current_pulses = u64::saturating_add(
-                current_pulses,
-                (section_len * 4.0 * resolution as f64) as u64,
-            );
+            current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
             if last_track < current_track {

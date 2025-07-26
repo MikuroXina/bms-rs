@@ -3,7 +3,7 @@
 /// A track, or measure, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Track(pub u32);
+pub struct Track(pub u64);
 
 /// A time of the object on the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -23,7 +23,7 @@ impl ObjTime {
     /// # Panics
     ///
     /// Panics if `denominator` is 0 or `numerator` is greater than or equal to `denominator`.
-    pub fn new(track: u32, numerator: u64, denominator: u64) -> Self {
+    pub fn new(track: u64, numerator: u64, denominator: u64) -> Self {
         if track == 0 {
             eprintln!("warning: track 000 detected");
         }
