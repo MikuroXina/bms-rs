@@ -65,8 +65,9 @@ pub enum ControlFlowRule {
 
 #[cfg(test)]
 mod tests {
+    use core::ops::{Bound, RangeBounds, RangeInclusive};
 
-    use num::{BigUint, iter::RangeInclusive};
+    use num::BigUint;
 
     use super::*;
     use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
@@ -74,9 +75,8 @@ mod tests {
     struct DummyRng;
     impl Rng for DummyRng {
         fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
-            use core::ops::RangeBounds;
             // Always return the maximum value
-            let core::ops::Bound::Included(end) = range.end_bound() else {
+            let Bound::Included(end) = range.end_bound() else {
                 unreachable!()
             };
             end.clone()

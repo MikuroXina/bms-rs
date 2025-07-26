@@ -5,7 +5,9 @@
 //!
 //! [`rand`]: https://crates.io/crates/rand
 
-use num::{BigUint, iter::RangeInclusive};
+use core::ops::RangeInclusive;
+
+use num::BigUint;
 
 /// A random generator for parsing BMS.
 pub trait Rng {
@@ -17,7 +19,7 @@ pub trait Rng {
     /// use num::BigUint;
     ///
     /// let mut rng = RngMock([BigUint::from(1u64)]);
-    /// let n = rng.generate(num::range_inclusive(BigUint::from(1u64), BigUint::from(10u64)));
+    /// let n = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
     /// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
     /// ```
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint;
@@ -44,7 +46,7 @@ impl<const N: usize> Rng for RngMock<N> {
 /// use num::BigUint;
 ///
 /// let mut rng = RandRng(StdRng::seed_from_u64(42));
-/// let n = rng.generate(num::range_inclusive(BigUint::from(1u64), BigUint::from(10u64)));
+/// let n = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
 /// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
 /// ```
 #[cfg(feature = "rand")]
@@ -89,7 +91,7 @@ mod tests {
         let end = BigUint::parse_bytes(b"10000000000000000000000000000000000000000000000099", 10)
             .unwrap();
         let mut rng = RandRng(StdRng::seed_from_u64(42));
-        let range = num::range_inclusive(start.clone(), end.clone());
+        let range = start.clone()..=end.clone();
         let n1 = rng.generate(range.clone());
         let n2 = rng.generate(range.clone());
         let n3 = rng.generate(range.clone());

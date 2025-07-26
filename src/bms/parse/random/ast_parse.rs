@@ -21,7 +21,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
                         } else {
-                            rng.generate(num::range_inclusive(BigUint::from(1u64), max))
+                            rng.generate(BigUint::from(1u64)..=max)
                         }
                     }
                     BlockValue::Set { value } => value,
@@ -56,7 +56,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
                         } else {
-                            rng.generate(num::range_inclusive(BigUint::from(1u64), max))
+                            rng.generate(BigUint::from(1u64)..=max)
                         }
                     }
                     BlockValue::Set { value } => value,
@@ -92,16 +92,22 @@ pub(super) fn parse_control_flow_ast<'a>(
 
 #[cfg(test)]
 mod tests {
+    use core::ops::{Bound, RangeBounds, RangeInclusive};
+    use std::collections::HashMap;
+
+    use num::BigUint;
+
     use super::*;
     use crate::bms::lex::token::Token;
-    use num::{BigUint, iter::RangeInclusive};
-    use std::collections::HashMap;
 
     struct DummyRng;
     impl Rng for DummyRng {
         fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
             // Always return the maximum value
-            range.max().unwrap()
+            let Bound::Included(end) = range.end_bound() else {
+                unreachable!()
+            };
+            end.clone()
         }
     }
 
