@@ -1,4 +1,5 @@
-use bms_rs::{
+use bms_rs::bms::{
+    Decimal,
     lex::{BmsLexOutput, LexWarning, command::ObjId, parse},
     parse::{Bms, BmsParseOutput, prompt::AlwaysWarn, rng::RngMock},
 };
@@ -29,14 +30,14 @@ fn test_lal() {
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.header.bpm, Some(151.0));
+    assert_eq!(bms.header.bpm, Some(Decimal::from(151)));
     assert_eq!(bms.header.play_level, Some(7));
     assert_eq!(
         bms.header.rank,
         Some(bms_rs::lex::command::JudgeLevel::Easy)
     );
     assert_eq!(bms.header.difficulty, Some(2));
-    assert_eq!(bms.header.total, Some(359.6));
+    assert_eq!(bms.header.total, Some(Decimal::from(359.6)));
 
     eprintln!("{bms:?}");
 }
@@ -64,14 +65,14 @@ fn test_nc() {
     );
     assert_eq!(bms.header.genre.as_deref(), Some("MOTION"));
     assert_eq!(bms.header.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.header.bpm, Some(100.0));
+    assert_eq!(bms.header.bpm, Some(Decimal::from(100)));
     assert_eq!(bms.header.play_level, Some(5));
     assert_eq!(
         bms.header.rank,
         Some(bms_rs::lex::command::JudgeLevel::Easy)
     );
     assert_eq!(bms.header.difficulty, Some(2));
-    assert_eq!(bms.header.total, Some(260.0));
+    assert_eq!(bms.header.total, Some(Decimal::from(260)));
     assert_eq!(
         bms.header.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("stagefile.png".into())
@@ -106,13 +107,13 @@ fn test_j219() {
         Some("cranky (obj: Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.header.bpm, Some(147.0));
+    assert_eq!(bms.header.bpm, Some(Decimal::from(147)));
     assert_eq!(bms.header.play_level, Some(6));
     assert_eq!(
         bms.header.rank,
         Some(bms_rs::lex::command::JudgeLevel::Easy)
     );
-    assert_eq!(bms.header.total, Some(218.0));
+    assert_eq!(bms.header.total, Some(Decimal::from(218)));
     assert_eq!(
         bms.header.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("J219title.bmp".into())
@@ -170,25 +171,25 @@ fn test_bemuse_ext() {
         bms.header
             .scrolling_factor_changes
             .get(&ObjId::try_from("01").unwrap()),
-        Some(&1.0)
+        Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.header
             .scrolling_factor_changes
             .get(&ObjId::try_from("02").unwrap()),
-        Some(&0.5)
+        Some(&Decimal::from(0.5))
     );
     assert_eq!(
         bms.header
             .spacing_factor_changes
             .get(&ObjId::try_from("01").unwrap()),
-        Some(&1.0)
+        Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.header
             .spacing_factor_changes
             .get(&ObjId::try_from("02").unwrap()),
-        Some(&0.5)
+        Some(&Decimal::from(0.5))
     );
 
     eprintln!("{bms:?}");

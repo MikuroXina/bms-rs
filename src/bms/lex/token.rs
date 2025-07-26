@@ -276,6 +276,26 @@ impl<'a> Token<'a> {
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("bpm"))?,
                 ),
+                "#TOTAL" => {
+                    let s = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Total(v)
+                }
+                "#BPM" => {
+                    let s = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
+                    let v = Decimal::from_fraction(
+                        GenericFraction::from_str(s)
+                            .map_err(|_| c.make_err_expected_token("decimal"))?,
+                    );
+                    Self::Bpm(v)
+                }
                 "#PLAYLEVEL" => Self::PlayLevel(
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("play level"))?
