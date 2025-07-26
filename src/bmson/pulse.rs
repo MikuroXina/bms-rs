@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 
-use num::traits::SaturatingAdd;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -46,8 +45,10 @@ impl PulseConverter {
                 .map_or(Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
-            current_pulses =
-                current_pulses.saturating_add(&((section_len * 4.0 * resolution as f64) as u64));
+            current_pulses = u64::saturating_add(
+                current_pulses,
+                (section_len * 4.0 * resolution as f64) as u64,
+            );
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
             if last_track < current_track {
