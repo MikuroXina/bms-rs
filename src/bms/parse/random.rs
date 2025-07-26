@@ -66,16 +66,16 @@ pub enum ControlFlowRule {
 #[cfg(test)]
 mod tests {
 
-    use num::BigUint;
+    use num::{BigUint, iter::RangeInclusive};
 
     use super::*;
     use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
 
     struct DummyRng;
     impl Rng for DummyRng {
-        fn generate(&mut self, _min: BigUint, _max: BigUint) -> BigUint {
+        fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
             // Always return the maximum value
-            _max
+            range.max().unwrap()
         }
     }
 
