@@ -208,21 +208,27 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
-                "#STAEGFILE" => Self::StageFile(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("stage filename"))?,
-                ),
-                "#BANNER" => Self::Banner(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("banner filename"))?,
-                ),
-                "#BACKBMP" => Self::BackBmp(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
-                ),
+                "#STAEGFILE" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("stage filename"));
+                    }
+                    Self::StageFile(Path::new(file_name))
+                }
+                "#BANNER" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("banner filename"));
+                    }
+                    Self::Banner(Path::new(file_name))
+                }
+                "#BACKBMP" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("backbmp filename"));
+                    }
+                    Self::BackBmp(Path::new(file_name))
+                }
                 "#TOTAL" => Self::Total(
                     c.next_token()
                         .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
@@ -310,11 +316,13 @@ impl<'a> Token<'a> {
                 "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
                 "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
                 // Part: Normal 2
-                "#STAGEFILE" => Self::StageFile(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("splashscreen imege filename"))?,
-                ),
+                "#STAGEFILE" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("splashscreen image filename"));
+                    }
+                    Self::StageFile(Path::new(file_name))
+                }
                 "#VOLWAV" => {
                     let volume = c
                         .next_token()
@@ -341,23 +349,29 @@ impl<'a> Token<'a> {
                 "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
                 "#OCT/FP" => Self::OctFp,
                 "#OPTION" => Self::Option(c.next_line_remaining()),
-                "#PATH_WAV" => Self::PathWav(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("wav root path"))?,
-                ),
+                "#PATH_WAV" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("wav root path"));
+                    }
+                    Self::PathWav(Path::new(file_name))
+                }
                 "#MAKER" => Self::Maker(c.next_line_remaining()),
-                "#MIDIFILE" => Self::MidiFile(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("midi filename"))?,
-                ),
+                "#MIDIFILE" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("midi filename"));
+                    }
+                    Self::MidiFile(Path::new(file_name))
+                }
                 "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
-                "#VIDEOFILE" | "#MOVIE" => Self::VideoFile(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("video filename"))?,
-                ),
+                "#VIDEOFILE" | "#MOVIE" => {
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("video filename"));
+                    }
+                    Self::VideoFile(Path::new(file_name))
+                }
                 // Part: Command with lane and arg
                 wav if wav.starts_with("#WAV") => {
                     let id = command.trim_start_matches("#WAV");
@@ -505,15 +519,16 @@ impl<'a> Token<'a> {
                             _ => return Err(c.make_err_expected_token("expected p, v or f")),
                         }
                     }
-                    let filename = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
+                    let file_name = c.next_line_remaining();
+                    if file_name.is_empty() {
+                        return Err(c.make_err_expected_token("filename"));
+                    }
                     Self::ExWav {
                         id: ObjId::try_load(id, c)?,
                         pan: pan.unwrap_or_default(),
                         volume: volume.unwrap_or_default(),
                         frequency,
-                        path: Path::new(filename),
+                        path: Path::new(file_name),
                     }
                 }
                 text if text.starts_with("#TEXT") => {
@@ -566,6 +581,7 @@ impl<'a> Token<'a> {
                 }
                 bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
                     let id = bga.trim_start_matches("#BGA");
+                    // Cannot use next_line_remaining here because the remaining args
                     let source_bmp = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
