@@ -48,7 +48,7 @@ impl<const N: usize> Rng for RngMock<N> {
 /// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
 /// ```
 #[cfg(feature = "rand")]
-pub struct RandRng<R: rand::RngCore>(pub R);
+pub struct RandRng<R>(pub R);
 
 #[cfg(feature = "rand")]
 impl<R: rand::RngCore> Rng for RandRng<R> {
