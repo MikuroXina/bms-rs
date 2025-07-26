@@ -2,8 +2,10 @@
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
+use crate::bms::Decimal;
+
 use super::{
-    ParseWarning, Result,
+    Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
 use crate::lex::{command::*, token::Token};
@@ -183,7 +185,7 @@ pub struct Header {
     /// The message for overriding options of some BMS player.
     pub options: Option<Vec<String>>,
     /// The initial BPM of the score.
-    pub bpm: Option<f64>,
+    pub bpm: Option<Decimal>,
     /// The play level of the score.
     pub play_level: Option<u8>,
     /// The judgement level of the score.
@@ -191,7 +193,7 @@ pub struct Header {
     /// The difficulty of the score.
     pub difficulty: Option<u8>,
     /// The total gauge percentage when all notes is got as PERFECT.
-    pub total: Option<f64>,
+    pub total: Option<Decimal>,
     /// The volume of the score.
     pub volume: Volume,
     /// The LN notation type of the score.
@@ -219,17 +221,17 @@ pub struct Header {
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// The BPMs corresponding to the id of the BPM change object.
-    pub bpm_changes: HashMap<ObjId, f64>,
+    pub bpm_changes: HashMap<ObjId, Decimal>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
-    pub scrolling_factor_changes: HashMap<ObjId, f64>,
+    pub scrolling_factor_changes: HashMap<ObjId, Decimal>,
     /// The spacing factors corresponding to the id of the spacing change object.
-    pub spacing_factor_changes: HashMap<ObjId, f64>,
+    pub spacing_factor_changes: HashMap<ObjId, Decimal>,
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
     pub change_options: HashMap<ObjId, String>,
     /// Stop lengths by stop object id.
-    pub stops: HashMap<ObjId, u32>,
+    pub stops: HashMap<ObjId, Decimal>,
     /// Storage for #@BGA definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
     /// Storage for #BGA definitions
@@ -324,34 +326,20 @@ impl Header {
                     self.bmp_files.insert(id, to_insert);
                 }
             }
-            Token::Bpm(bpm) => {
-                if let Ok(parsed) = bpm.parse() {
-                    if 0.0 < parsed {
-                        self.bpm = Some(parsed);
-                    } else {
-                        eprintln!("not positive bpm found: {parsed}");
-                    }
-                } else {
-                    eprintln!("not number bpm found: {bpm}");
-                }
+            Token::Bpm(ref bpm) => {
+                self.bpm = Some(bpm.clone());
             }
-            Token::BpmChange(id, bpm) => {
-                let parsed: f64 = bpm
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(bpm.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(bpm.into()));
-                }
+            Token::BpmChange(id, ref bpm) => {
                 if let Some(older) = self.bpm_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BpmChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.clone(),
+                            newer: bpm.clone(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, bpm.clone())?;
                 } else {
-                    self.bpm_changes.insert(id, parsed);
+                    self.bpm_changes.insert(id, bpm.clone());
                 }
             }
             Token::ChangeOption(id, option) => {
@@ -449,50 +437,38 @@ impl Header {
             Token::PlayLevel(play_level) => self.play_level = Some(play_level),
             Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
             Token::Rank(rank) => self.rank = Some(rank),
-            Token::Scroll(id, factor) => {
-                let parsed: f64 = factor
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(factor.into()));
-                }
+            Token::Scroll(id, ref factor) => {
                 if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ScrollingFactorChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.clone(),
+                            newer: factor.clone(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, factor.clone())?;
                 } else {
-                    self.scrolling_factor_changes.insert(id, parsed);
+                    self.scrolling_factor_changes.insert(id, factor.clone());
                 }
             }
-            Token::Speed(id, factor) => {
-                let parsed: f64 = factor
-                    .parse()
-                    .map_err(|_| ParseWarning::BpmParseError(factor.into()))?;
-                if parsed <= 0.0 || !parsed.is_finite() {
-                    return Err(ParseWarning::BpmParseError(factor.into()));
-                }
+            Token::Speed(id, ref factor) => {
                 if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SpacingFactorChange {
                             id,
-                            older: *older,
-                            newer: parsed,
+                            older: older.clone(),
+                            newer: factor.clone(),
                         })
-                        .apply(older, parsed)?;
+                        .apply(older, factor.clone())?;
                 } else {
-                    self.spacing_factor_changes.insert(id, parsed);
+                    self.spacing_factor_changes.insert(id, factor.clone());
                 }
             }
             Token::StageFile(file) => self.stage_file = Some(file.into()),
-            Token::Stop(id, len) => {
+            Token::Stop(id, ref len) => {
                 self.stops
                     .entry(id)
-                    .and_modify(|current_len| *current_len += len)
-                    .or_insert(len);
+                    .and_modify(|current_len| *current_len += len.clone())
+                    .or_insert(len.clone());
             }
             Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
             Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
@@ -510,12 +486,8 @@ impl Header {
                 }
             }
             Token::Title(title) => self.title = Some(title.into()),
-            Token::Total(total) => {
-                if let Ok(parsed) = total.parse() {
-                    self.total = Some(parsed);
-                } else {
-                    eprintln!("not number total found: {total}");
-                }
+            Token::Total(ref total) => {
+                self.total = Some(total.clone());
             }
             Token::Url(url) => self.url = Some(url.into()),
             Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),

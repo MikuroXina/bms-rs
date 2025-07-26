@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use crate::lex::command::ObjId;
+use crate::{bms::Decimal, lex::command::ObjId};
 
 use super::{
     ParseWarning, Result,
@@ -35,9 +35,9 @@ pub enum PromptingDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -53,18 +53,18 @@ pub enum PromptingDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: f64,
+        older: Decimal,
         /// Incoming definition.
-        newer: f64,
+        newer: Decimal,
     },
     /// TEXT is duplicated.
     Text {
@@ -135,7 +135,7 @@ pub enum DuplicationWorkaround {
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply<T>(self, target: &mut T, newer: T) -> Result<()> {
+    pub(crate) fn apply<T: Clone>(self, target: &mut T, newer: T) -> Result<()> {
         match self {
             DuplicationWorkaround::UseOlder => Ok(()),
             DuplicationWorkaround::UseNewer => {

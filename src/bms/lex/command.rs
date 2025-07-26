@@ -378,7 +378,7 @@ impl PoorMode {
 /// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Track(pub u32);
+pub struct Track(pub u64);
 
 /// Pan value for ExWav sound effect.
 /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
