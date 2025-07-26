@@ -74,8 +74,12 @@ mod tests {
     struct DummyRng;
     impl Rng for DummyRng {
         fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
+            use core::ops::RangeBounds;
             // Always return the maximum value
-            range.max().unwrap()
+            let core::ops::Bound::Included(end) = range.end_bound() else {
+                unreachable!()
+            };
+            end.clone()
         }
     }
 

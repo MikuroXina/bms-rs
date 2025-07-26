@@ -53,12 +53,15 @@ pub struct RandRng<R: rand::RngCore>(pub R);
 #[cfg(feature = "rand")]
 impl<R: rand::RngCore> Rng for RandRng<R> {
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
+        use core::ops::{Bound, RangeBounds};
         use num::One;
 
-        let (Some(start), Some(end)) = (range.clone().min(), range.max()) else {
-            return BigUint::from(0u64);
+        let (Bound::Included(start), Bound::Included(end)) =
+            (range.start_bound(), range.end_bound())
+        else {
+            unreachable!()
         };
-        let width = end - start.clone() + BigUint::one();
+        let width = end - start + BigUint::one();
         let width_bits = width.bits() as usize;
 
         loop {
