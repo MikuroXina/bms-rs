@@ -212,41 +212,6 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer"))?,
                 ),
-                "#STAEGFILE" => Self::StageFile(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("stage filename"))?,
-                ),
-                "#BANNER" => Self::Banner(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("banner filename"))?,
-                ),
-                "#BACKBMP" => Self::BackBmp(
-                    c.next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("backbmp filename"))?,
-                ),
-                "#TOTAL" => {
-                    let s = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Total(v)
-                }
-                "#BPM" => {
-                    let s = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Bpm(v)
-                }
                 "#STAEGFILE" => {
                     let file_name = c.next_line_remaining();
                     if file_name.is_empty() {
@@ -268,14 +233,6 @@ impl<'a> Token<'a> {
                     }
                     Self::BackBmp(Path::new(file_name))
                 }
-                "#TOTAL" => Self::Total(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?,
-                ),
-                "#BPM" => Self::Bpm(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?,
-                ),
                 "#TOTAL" => {
                     let s = c
                         .next_token()
