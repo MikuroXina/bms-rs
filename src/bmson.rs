@@ -356,6 +356,9 @@ pub enum BmsonConvertError {
     /// The stop duration was infinity or NaN.
     #[error("stop duration was invalid value")]
     InvalidStopDuration,
+    /// The note lane was invalid.
+    #[error("note lane was invalid value")]
+    InvalidNoteLane,
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -526,7 +529,8 @@ impl TryFrom<Bms> for Bmson {
                             PlayerSide::Player2 => 8,
                         },
                     )
-                    .map(|num| NonZeroU8::new(num).unwrap());
+                    .map(|lane| NonZeroU8::new(lane).ok_or(BmsonConvertError::InvalidNoteLane))
+                    .transpose()?;
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
