@@ -99,7 +99,9 @@ pub fn parse_with_channel_parser<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{path::Path, str::FromStr};
+
+    use fraction::{GenericDecimal, GenericFraction};
 
     use crate::lex::BmsLexOutput;
 
@@ -142,7 +144,9 @@ mod tests {
                 Genre("FUGA"),
                 Title("BAR(^^)"),
                 Artist("MikuroXina"),
-                Bpm("120"),
+                Bpm(GenericDecimal::from_fraction(
+                    GenericFraction::from_str("120").unwrap()
+                )),
                 PlayLevel(6),
                 Rank(JudgeLevel::Normal),
                 BackBmp(Path::new("boon.jpg")),

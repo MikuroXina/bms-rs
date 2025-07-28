@@ -40,6 +40,8 @@ use self::{
     pulse::{PulseConverter, PulseNumber},
 };
 
+use crate::bms::Decimal;
+
 pub mod fin_f64;
 pub mod pulse;
 
@@ -134,7 +136,7 @@ pub struct BmsonInfo {
     pub preview_music: Option<String>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
-    pub resolution: u32,
+    pub resolution: u64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
     pub ln_type: LongNoteType,
@@ -151,7 +153,7 @@ pub fn default_percentage() -> FinF64 {
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
-pub fn default_resolution() -> u32 {
+pub fn default_resolution() -> u64 {
     240
 }
 
@@ -192,7 +194,7 @@ pub struct Note {
     #[serde(deserialize_with = "deserialize_x_none_if_zero")]
     pub x: Option<NonZeroU8>,
     /// Length of pulses of the note. It will be a normal note if zero, otherwise a long note.
-    pub l: u32,
+    pub l: u64,
     /// Continuation flag. It will continue to ring rest of the file when play if `true`, otherwise it will play from start.
     pub c: bool,
     /// Beatoraja implementation of long note type.
@@ -231,7 +233,7 @@ pub struct StopEvent {
     /// Start position to scroll stop.
     pub y: PulseNumber,
     /// Stopping duration in pulses.
-    pub duration: u32,
+    pub duration: u64,
 }
 
 /// BGA data.
@@ -348,6 +350,15 @@ pub enum BmsonConvertError {
     /// The scrolling factor was infinity or NaN.
     #[error("scrolling factor was invalid value")]
     InvalidScrollingFactor,
+    /// The judge rank was infinity or NaN.
+    #[error("judge rank was invalid value")]
+    InvalidJudgeRank,
+    /// The stop duration was infinity or NaN.
+    #[error("stop duration was invalid value")]
+    InvalidStopDuration,
+    /// The note lane was invalid.
+    #[error("note lane was invalid value")]
+    InvalidNoteLane,
 }
 
 impl TryFrom<Bms> for Bmson {
@@ -390,7 +401,14 @@ impl TryFrom<Bms> for Bmson {
             .map(|bpm_change| {
                 Ok(BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
-                    bpm: FinF64::new(bpm_change.bpm).ok_or(BmsonConvertError::InvalidBpm)?,
+                    bpm: FinF64::new(
+                        bpm_change
+                            .bpm
+                            .clone()
+                            .try_into()
+                            .map_err(|_| BmsonConvertError::InvalidBpm)?,
+                    )
+                    .ok_or(BmsonConvertError::InvalidBpm)?,
                 })
             })
             .collect::<Result<Vec<_>, BmsonConvertError>>()?;
@@ -399,11 +417,17 @@ impl TryFrom<Bms> for Bmson {
             .notes
             .stops()
             .values()
-            .map(|stop| StopEvent {
-                y: converter.get_pulses_at(stop.time),
-                duration: stop.duration,
+            .map(|stop| {
+                Ok(StopEvent {
+                    y: converter.get_pulses_at(stop.time),
+                    duration: stop
+                        .duration
+                        .clone()
+                        .try_into()
+                        .map_err(|_| BmsonConvertError::InvalidStopDuration)?,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
 
         let info = BmsonInfo {
             title: value.header.title.unwrap_or_default(),
@@ -430,11 +454,30 @@ impl TryFrom<Bms> for Bmson {
             },
             chart_name: "".into(),
             level: value.header.play_level.unwrap_or_default() as u32,
-            init_bpm: FinF64::new(value.header.bpm.unwrap_or(120.0))
-                .ok_or(BmsonConvertError::InvalidBpm)?,
-            judge_rank,
-            total: FinF64::new(value.header.total.unwrap_or(100.0))
-                .ok_or(BmsonConvertError::InvalidTotal)?,
+            init_bpm: FinF64::new(
+                value
+                    .header
+                    .bpm
+                    .unwrap_or(Decimal::from(120.0))
+                    .try_into()
+                    .map_err(|_| BmsonConvertError::InvalidBpm)?,
+            )
+            .ok_or(BmsonConvertError::InvalidBpm)?,
+            judge_rank: FinF64::new(
+                judge_rank
+                    .try_into()
+                    .map_err(|_| BmsonConvertError::InvalidJudgeRank)?,
+            )
+            .ok_or(BmsonConvertError::InvalidJudgeRank)?,
+            total: FinF64::new(
+                value
+                    .header
+                    .total
+                    .unwrap_or(Decimal::from(100.0))
+                    .try_into()
+                    .map_err(|_| BmsonConvertError::InvalidTotal)?,
+            )
+            .ok_or(BmsonConvertError::InvalidTotal)?,
             back_image: value
                 .header
                 .back_bmp
@@ -486,7 +529,8 @@ impl TryFrom<Bms> for Bmson {
                             PlayerSide::Player2 => 8,
                         },
                     )
-                    .map(|num| NonZeroU8::new(num).unwrap());
+                    .map(|lane| NonZeroU8::new(lane).ok_or(BmsonConvertError::InvalidNoteLane))
+                    .transpose()?;
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
@@ -620,8 +664,14 @@ impl TryFrom<Bms> for Bmson {
                 .map(|scroll| {
                     Ok(ScrollEvent {
                         y: converter.get_pulses_at(scroll.time),
-                        rate: FinF64::new(scroll.factor)
-                            .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                        rate: FinF64::new(
+                            scroll
+                                .factor
+                                .clone()
+                                .try_into()
+                                .map_err(|_| BmsonConvertError::InvalidScrollingFactor)?,
+                        )
+                        .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
                     })
                 })
                 .collect::<Result<Vec<_>, BmsonConvertError>>()?,

@@ -2,6 +2,7 @@ use bms_rs::{
     lex::{BmsLexOutput, parse},
     parse::{BmsParseOutput, PlayingError, PlayingWarning, prompt::AlwaysWarn, rng::RngMock},
 };
+use num::BigUint;
 
 #[test]
 fn test_playing_conditions_empty_bms() {
@@ -13,7 +14,7 @@ fn test_playing_conditions_empty_bms() {
     } = parse(&source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,
@@ -41,7 +42,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     } = parse(&source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,
@@ -66,7 +67,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     } = parse(&source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,
@@ -92,7 +93,7 @@ fn test_playing_conditions_invisible_notes_only() {
     } = parse(&source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms: _,
         parse_warnings,

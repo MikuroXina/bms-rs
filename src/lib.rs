@@ -7,9 +7,10 @@
 //! At first, you can get the tokens stream with [`lex::parse`]. Then pass it and the random generator to [`parse::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```
+//! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::{
 //!     lex::{parse, parse_with_channel_parser, BmsLexOutput, command::channel::read_channel_beat},
-//!     parse::{prompt::AlwaysWarn, rng::RngMock, Bms, BmsParseOutput},
+//!     parse::{prompt::AlwaysWarn, rng::RandRng, Bms, BmsParseOutput},
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
@@ -22,7 +23,7 @@
 //! let BmsLexOutput { tokens, lex_warnings } = parse_with_channel_parser(&source, &read_channel_beat);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
-//! let rng = RngMock([1]);
+//! let rng = RandRng(StdRng::seed_from_u64(42));
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &tokens, rng, AlwaysWarn
 //!     );
@@ -35,6 +36,7 @@
 //!
 //! - `bmson` feature enables the BMSON format support.
 //! - `serde` feature enables the `serde` support. It supports `Serialize` for all the definications in this crate, and `Deserialize` for all the result types.
+//! - `rand` feature enables the random number generator support. It supports [`RandRng`].
 //!
 //! # About the format
 //!

@@ -8,6 +8,7 @@ use bms_rs::{
     parse::{Bms, obj::Obj, prompt::AlwaysWarn, rng::RngMock},
     time::ObjTime,
 };
+use num::BigUint;
 
 #[test]
 fn nested_random() {
@@ -54,7 +55,7 @@ fn nested_random() {
         lex_warnings: warnings,
     } = parse(SRC);
     assert_eq!(warnings, vec![]);
-    let rng = RngMock([1]);
+    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -95,7 +96,7 @@ fn nested_random() {
         ]
     );
 
-    let rng = RngMock([1, 2]);
+    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
@@ -136,7 +137,7 @@ fn nested_random() {
         ]
     );
 
-    let rng = RngMock([2]);
+    let rng = RngMock([BigUint::from(2u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,

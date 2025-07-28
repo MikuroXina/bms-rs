@@ -15,6 +15,9 @@
 //! - Do not support commands having ambiguous semantics.
 //! - Do not support syntax came from typo (such as `#RONDOM` or `#END IF`).
 
+use fraction::GenericDecimal;
+use num::BigUint;
+
 pub mod lex;
 pub mod parse;
 pub mod time;
@@ -24,6 +27,12 @@ use thiserror::Error;
 use crate::parse::{PlayingError, PlayingWarning};
 
 use self::{lex::LexWarning, parse::ParseWarning};
+
+/// Decimal type used throughout the BMS module.
+///
+/// This is a type alias for `GenericDecimal<BigUint, usize>` which provides
+/// arbitrary precision decimal arithmetic for BMS parsing.
+pub type Decimal = GenericDecimal<BigUint, usize>;
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
