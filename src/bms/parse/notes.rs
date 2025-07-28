@@ -13,7 +13,7 @@ use super::{ParseWarning, Result, header::Header, obj::Obj};
 use crate::{
     bms::Decimal,
     lex::{
-        command::{self, Channel, Key, NoteKind, ObjId},
+        command::{self, Argb, Channel, Key, NoteKind, ObjId},
         token::Token,
     },
     parse::header::{ExRankDef, ExWavDef},
@@ -253,16 +253,26 @@ impl Ord for ExtendedMessageObj {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Notes {
     // objects stored in obj is sorted, so it can be searched by bisection method
-    objs: HashMap<ObjId, Vec<Obj>>,
-    bgms: BTreeMap<ObjTime, Vec<ObjId>>,
-    ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
-    bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
-    section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
-    stops: BTreeMap<ObjTime, StopObj>,
-    bga_changes: BTreeMap<ObjTime, BgaObj>,
-    scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
-    spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
-    extended_messages: Vec<ExtendedMessageObj>,
+    /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
+    pub objs: HashMap<ObjId, Vec<Obj>>,
+    /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
+    pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
+    /// Index for fast key lookup. Used for LN/landmine logic.
+    pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
+    /// BPM change events, indexed by time. #BPM[01-ZZ] in message
+    pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// Section length change events, indexed by track. #SECLEN
+    pub section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
+    /// Stop events, indexed by time. #STOP[01-ZZ] in message
+    pub stops: BTreeMap<ObjTime, StopObj>,
+    /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
+    pub bga_changes: BTreeMap<ObjTime, BgaObj>,
+    /// Scrolling factor change events, indexed by time. #SCROLL in message
+    pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
+    /// Spacing factor change events, indexed by time. #SPEED in message
+    pub spacing_factor_changes: BTreeMap<ObjTime, SpacingFactorObj>,
+    /// Extended message events. #EXT
+    pub extended_messages: Vec<ExtendedMessageObj>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
@@ -271,6 +281,24 @@ pub struct Notes {
     pub change_options: HashMap<ObjId, String>,
     /// Storage for #TEXT definitions
     pub texts: HashMap<ObjId, String>,
+    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
+    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
+    /// CDDA events, indexed by value. #CDDA
+    pub cdda_events: HashMap<u64, u64>,
+    /// SWBGA events, indexed by ObjId. #SWBGA
+    pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
+    /// ARGB definitions, indexed by ObjId. #ARGB
+    pub argb_defs: HashMap<ObjId, Argb>,
+    /// Seek events, indexed by ObjId. #SEEK
+    pub seek_events: HashMap<ObjId, Decimal>,
+    /// ExtChr events. #ExtChr
+    pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
+    /// Material WAV file paths. #MATERIALSWAV
+    pub materials_wav: Vec<std::path::PathBuf>,
+    /// Material BMP file paths. #MATERIALSBMP
+    pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
 impl Notes {
@@ -476,7 +504,7 @@ impl Notes {
                     if bpm == 0 {
                         continue;
                     }
-                    let time = ObjTime::new(track.0, i as u64, denominator as u64);
+                    let time = ObjTime::new(track.0, i as u64, denominator);
                     self.push_bpm_change(BpmChangeObj {
                         time,
                         bpm: Decimal::from(bpm),
@@ -723,6 +751,73 @@ impl Notes {
             | Token::Wav(_, _) => {
                 // These tokens don't need to be processed in Notes::parse, they should be handled in Header::parse
             }
+            Token::Stp(ev) => {
+                // Store by ObjTime as key, report error if duplicated
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {key:?}"
+                    )));
+                }
+                self.stp_events.insert(key, *ev);
+            }
+            Token::WavCmd(ev) => {
+                // Store by wav_index as key, report error if duplicated
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {key:?}",
+                    )));
+                }
+                self.wavcmd_events.insert(key, *ev);
+            }
+            Token::SwBga(id, ev) => {
+                if self.swbga_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {id:?}",
+                    )));
+                }
+                self.swbga_events.insert(*id, ev.clone());
+            }
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {id:?}",
+                    )));
+                }
+                self.argb_defs.insert(*id, *argb);
+            }
+            Token::Seek(id, v) => {
+                if self.seek_events.contains_key(id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {id:?}",
+                    )));
+                }
+                self.seek_events.insert(*id, v.clone());
+            }
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(*ev);
+            }
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::CharFile(_)
+            | Token::BaseBpm(_)
+            | Token::DivideProp(_)
+            | Token::Charset(_)
+            | Token::DefExRank(_)
+            | Token::Preview(_)
+            | Token::LnMode(_)
+            | Token::VideoFs(_)
+            | Token::VideoColors(_)
+            | Token::VideoDly(_)
+            | Token::Movie(_)
+            | Token::Cdda(_) => {
+                // These tokens are not stored in Notes, just ignore
+            }
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
             }
@@ -807,7 +902,7 @@ fn ids_from_message(
             }
         };
         let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
-        let time = ObjTime::new(track.0, i as u64, denominator as u64);
+        let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })
 }
@@ -921,6 +1016,15 @@ impl<'de> serde::Deserialize<'de> for Notes {
             exwav_defs: HashMap::new(),
             change_options: HashMap::new(),
             texts: HashMap::new(),
+            stp_events: Default::default(),
+            wavcmd_events: Default::default(),
+            cdda_events: Default::default(),
+            swbga_events: Default::default(),
+            argb_defs: Default::default(),
+            seek_events: Default::default(),
+            extchr_events: Default::default(),
+            materials_wav: Default::default(),
+            materials_bmp: Default::default(),
         })
     }
 }

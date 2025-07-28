@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use crate::bms::Decimal;
+use crate::{bms::Decimal, time::ObjTime};
 
 use super::{
     Result,
@@ -240,6 +240,24 @@ pub struct Header {
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
+    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
+    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
+    /// CDDA events, indexed by value. #CDDA
+    pub cdda_events: HashMap<u64, u64>,
+    /// SWBGA events, indexed by ObjId. #SWBGA
+    pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
+    /// ARGB definitions, indexed by ObjId. #ARGB
+    pub argb_defs: HashMap<ObjId, Argb>,
+    /// Seek events, indexed by ObjId. #SEEK
+    pub seek_events: HashMap<ObjId, Decimal>,
+    /// ExtChr events. #ExtChr
+    pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
+    /// Material WAV file paths. #MATERIALSWAV
+    pub materials_wav: Vec<std::path::PathBuf>,
+    /// Material BMP file paths. #MATERIALSBMP
+    pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
 impl Header {
@@ -529,6 +547,73 @@ impl Header {
             }
             Token::UnknownCommand(_) | Token::NotACommand(_) => {
                 // this token should be handled outside.
+            }
+            Token::Stp(ev) => {
+                // Store by ObjTime as key, report error if duplicated
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {key:?}"
+                    )));
+                }
+                self.stp_events.insert(key, ev);
+            }
+            Token::WavCmd(ev) => {
+                // Store by wav_index as key, report error if duplicated
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {key:?}",
+                    )));
+                }
+                self.wavcmd_events.insert(key, ev);
+            }
+            Token::SwBga(id, ref ev) => {
+                if self.swbga_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {id:?}",
+                    )));
+                }
+                self.swbga_events.insert(id, ev.clone());
+            }
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {id:?}",
+                    )));
+                }
+                self.argb_defs.insert(id, argb);
+            }
+            Token::Seek(id, ref v) => {
+                if self.seek_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {id:?}",
+                    )));
+                }
+                self.seek_events.insert(id, v.clone());
+            }
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(ev);
+            }
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::CharFile(_)
+            | Token::BaseBpm(_)
+            | Token::DivideProp(_)
+            | Token::Charset(_)
+            | Token::DefExRank(_)
+            | Token::Preview(_)
+            | Token::LnMode(_)
+            | Token::VideoFs(_)
+            | Token::VideoColors(_)
+            | Token::VideoDly(_)
+            | Token::Movie(_)
+            | Token::Cdda(_) => {
+                // These tokens are not stored in Notes, just ignore
             }
         }
         Ok(())

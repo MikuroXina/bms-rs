@@ -1,7 +1,11 @@
 //! Definitions of command argument data.
 pub mod channel;
 
+use std::time::Duration;
+
 pub use channel::Channel;
+
+use crate::time::ObjTime;
 
 use super::{Result, cursor::Cursor};
 
@@ -99,18 +103,18 @@ fn base62_to_byte(base62: u8) -> u8 {
 
 #[test]
 fn test_base62() {
-    matches!(char_to_base62('/'), None);
-    matches!(char_to_base62('0'), Some(b'0'));
-    matches!(char_to_base62('9'), Some(b'9'));
-    matches!(char_to_base62(':'), None);
-    matches!(char_to_base62('@'), None);
-    matches!(char_to_base62('A'), Some(b'A'));
-    matches!(char_to_base62('Z'), Some(b'Z'));
-    matches!(char_to_base62('['), None);
-    matches!(char_to_base62('`'), None);
-    matches!(char_to_base62('a'), Some(b'a'));
-    matches!(char_to_base62('z'), Some(b'z'));
-    matches!(char_to_base62('{'), None);
+    assert_eq!(char_to_base62('/'), None);
+    assert_eq!(char_to_base62('0'), Some(b'0'));
+    assert_eq!(char_to_base62('9'), Some(b'9'));
+    assert_eq!(char_to_base62(':'), None);
+    assert_eq!(char_to_base62('@'), None);
+    assert_eq!(char_to_base62('A'), Some(b'A'));
+    assert_eq!(char_to_base62('Z'), Some(b'Z'));
+    assert_eq!(char_to_base62('['), None);
+    assert_eq!(char_to_base62('`'), None);
+    assert_eq!(char_to_base62('a'), Some(b'a'));
+    assert_eq!(char_to_base62('z'), Some(b'z'));
+    assert_eq!(char_to_base62('{'), None);
 }
 
 /// An object id. Its meaning is determined by the channel belonged to.
@@ -552,4 +556,154 @@ pub enum PlayerSide {
     Player1,
     /// The player 2 side.
     Player2,
+}
+
+/// RGB struct, used for #VIDEOCOLORS and similar commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Rgb {
+    /// Red component
+    pub r: u8,
+    /// Green component
+    pub g: u8,
+    /// Blue component
+    pub b: u8,
+}
+
+/// Long Note Mode Type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[repr(u8)]
+pub enum LnModeType {
+    /// Normal Long Note (LN)
+    Ln = 1,
+    /// Classic Long Note (CN)
+    Cn = 2,
+    /// Hell Classic Long Note (HCN)
+    Hcn = 3,
+}
+
+impl From<LnModeType> for u8 {
+    fn from(mode: LnModeType) -> u8 {
+        match mode {
+            LnModeType::Ln => 1,
+            LnModeType::Cn => 2,
+            LnModeType::Hcn => 3,
+        }
+    }
+}
+
+impl TryFrom<u8> for LnModeType {
+    type Error = u8;
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        Ok(match value {
+            1 => LnModeType::Ln,
+            2 => LnModeType::Cn,
+            3 => LnModeType::Hcn,
+            _ => return Err(value),
+        })
+    }
+}
+
+/// bemaniaDX type STP sequence definition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct StpEvent {
+    /// The time of the stop.
+    pub time: ObjTime,
+    /// The duration of the stop.
+    pub duration: Duration,
+}
+
+/// MacBeat WAVCMD event.
+///
+/// Used for #WAVCMD command, represents pitch/volume/time adjustment for a specific WAV object.
+/// - param: adjustment type (pitch/volume/time)
+/// - wav_index: target WAV object ID
+/// - value: adjustment value, meaning depends on param
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WavCmdEvent {
+    /// Adjustment type (pitch/volume/time)
+    pub param: WavCmdParam,
+    /// Target WAV object ID
+    pub wav_index: ObjId,
+    /// Adjustment value, meaning depends on param
+    pub value: u32,
+}
+
+/// WAVCMD parameter type.
+///
+/// - Pitch: pitch (0-127, 60 is C6)
+/// - Volume: volume percent (0-100)
+/// - Time: playback time (ms*0.5, 0 means original length)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum WavCmdParam {
+    /// Pitch (0-127, 60 is C6)
+    Pitch,
+    /// Volume percent (0-100)
+    Volume,
+    /// Playback time (ms*0.5, 0 means original length)
+    Time,
+}
+
+/// SWBGA (Key Bind Layer Animation) event.
+///
+/// Used for #SWBGA command, describes key-bound BGA animation.
+/// - frame_rate: frame interval (ms), e.g. 60FPS=17
+/// - total_time: total animation duration (ms), 0 means while key is held
+/// - line: applicable key channel (e.g. 11-19, 21-29)
+/// - loop_mode: whether to loop (0: no loop, 1: loop)
+/// - argb: transparent color (A,R,G,B)
+/// - pattern: animation frame sequence (e.g. 01020304)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SwBgaEvent {
+    /// Frame interval (ms), e.g. 60FPS=17.
+    pub frame_rate: u32,
+    /// Total animation duration (ms), 0 means while key is held.
+    pub total_time: u32,
+    /// Applicable key channel (e.g. 11-19, 21-29).
+    pub line: u8,
+    /// Whether to loop (0: no loop, 1: loop).
+    pub loop_mode: bool,
+    /// Transparent color (A,R,G,B).
+    pub argb: Argb,
+    /// Animation frame sequence (e.g. 01020304).
+    pub pattern: String,
+}
+
+/// BM98 #ExtChr extended character customization event.
+///
+/// Used for #ExtChr command, implements custom UI element image replacement.
+/// - sprite_num: character index to replace [0-1023]
+/// - bmp_num: BMP index (hex to decimal, or -1/-257, etc.)
+/// - start_x/start_y: crop start point
+/// - end_x/end_y: crop end point
+/// - offset_x/offset_y: offset (optional)
+/// - abs_x/abs_y: absolute coordinate (optional)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExtChrEvent {
+    /// Character index to replace [0-1023]
+    pub sprite_num: i32,
+    /// BMP index (hex to decimal, or -1/-257, etc.)
+    pub bmp_num: i32,
+    /// Crop start point
+    pub start_x: i32,
+    /// Crop start point
+    pub start_y: i32,
+    /// Crop end point
+    pub end_x: i32,
+    /// Crop end point
+    pub end_y: i32,
+    /// Offset (optional)
+    pub offset_x: Option<i32>,
+    /// Offset (optional)
+    pub offset_y: Option<i32>,
+    /// Absolute coordinate (optional)
+    pub abs_x: Option<i32>,
+    /// Absolute coordinate (optional)
+    pub abs_y: Option<i32>,
 }
