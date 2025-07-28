@@ -62,7 +62,7 @@ impl<R: rand::RngCore> Rng for RandRng<R> {
         let width_bits = width.bits() as usize;
 
         loop {
-            let mut bytes = vec![0u8; (width_bits + 7) / 8];
+            let mut bytes = vec![0u8; width_bits.div_ceil(8)];
             self.0.fill_bytes(&mut bytes);
             let mut n = BigUint::from_bytes_le(&bytes);
             if n < width {

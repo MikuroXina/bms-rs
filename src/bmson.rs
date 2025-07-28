@@ -463,12 +463,7 @@ impl TryFrom<Bms> for Bmson {
                     .map_err(|_| BmsonConvertError::InvalidBpm)?,
             )
             .ok_or(BmsonConvertError::InvalidBpm)?,
-            judge_rank: FinF64::new(
-                judge_rank
-                    .try_into()
-                    .map_err(|_| BmsonConvertError::InvalidJudgeRank)?,
-            )
-            .ok_or(BmsonConvertError::InvalidJudgeRank)?,
+            judge_rank,
             total: FinF64::new(
                 value
                     .header
