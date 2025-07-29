@@ -18,6 +18,13 @@ use crate::time::ObjTime;
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
+    /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
+    /// - A1: BGA BASE
+    /// - A2: BGA LAYER
+    /// - A3: BGA LAYER 2
+    /// - A4: BGA POOR
+    #[cfg(feature = "minor-command")]
+    Argb(ObjId, Argb),
     /// `#ARTIST [string]`. Defines the artist name of the music.
     Artist(&'a str),
     /// `#@BGA[01-ZZ] [01-ZZ] [sx] [sy] [w] [h] [dx] [dy]`. Defines the image object from trimming the existing image object.
@@ -40,6 +47,10 @@ pub enum Token<'a> {
     BackBmp(&'a Path),
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
+    /// `#BASEBPM [f64]` is the base BPM.
+    /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
+    #[cfg(feature = "minor-command")]
+    BaseBpm(Decimal),
     /// `#BGA[01-ZZ] [01-ZZ] [x1] [y1] [x2] [y2] [dx] [dy]`. Defines the image object from trimming the existing image object.
     #[cfg(feature = "minor-command")]
     Bga {
@@ -62,14 +73,33 @@ pub enum Token<'a> {
     BpmChange(ObjId, Decimal),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
+    /// `#CDDA [u64]`.
+    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    #[cfg(feature = "minor-command")]
+    Cdda(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
     ChangeOption(ObjId, &'a str),
+    /// `#CHARFILE [filename]`.
+    /// The character file similar to pop'n music. It's filextension is `.chp`.
+    /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
+    #[cfg(feature = "minor-command")]
+    CharFile(&'a Path),
+    /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
+    Charset(&'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
     Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
+    /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
+    /// 100 means NORMAL judge.
+    /// Overrides `#RANK` definition.
+    DefExRank(BigUint),
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
     Difficulty(u8),
+    /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
+    /// Deprecated.
+    #[cfg(feature = "minor-command")]
+    DivideProp(&'a str),
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
     Else,
     /// `#ELSEIF [u32]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
@@ -90,6 +120,9 @@ pub enum Token<'a> {
     EndRandom,
     /// `#ENDSW`. Closes the random scope. See [Token::Switch].
     EndSwitch,
+    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
+    #[cfg(feature = "minor-command")]
+    ExtChr(ExtChrEvent),
     /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
     ExtendedMessage {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
@@ -120,6 +153,8 @@ pub enum Token<'a> {
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
+    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
+    LnMode(LnModeType),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -128,6 +163,14 @@ pub enum Token<'a> {
     LnTypeMgq,
     /// `#MAKER [string]`. Defines the author name of the score.
     Maker(&'a str),
+    /// `#MATERIALSBMP [filename]` Material BMP extension.
+    /// Deprecated.
+    #[cfg(feature = "minor-command")]
+    MaterialsBmp(&'a Path),
+    /// `#MATERIALSWAV [filename]` Material WAV extension.
+    /// Deprecated.
+    #[cfg(feature = "minor-command")]
+    MaterialsWav(&'a Path),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
     Message {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
@@ -140,6 +183,14 @@ pub enum Token<'a> {
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
     #[cfg(feature = "minor-command")]
     MidiFile(&'a Path),
+    /// `#MOVIE [filename]` DXEmu extension, defines global video file.
+    /// - Video starts from #000.
+    /// - Priority rules:
+    ///   - If #xxx04 is an image file (BMP, PNG, etc.), #MOVIE has priority.
+    ///   - If both #xxx04 and #MOVIE are video files, #xxx04 has priority.
+    /// - No loop, stays on last frame after playback.
+    /// - Audio track in video is not played.
+    Movie(&'a Path),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
@@ -155,12 +206,17 @@ pub enum Token<'a> {
     PlayLevel(u8),
     /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
     PoorBga(PoorMode),
+    /// `#PREVIEW [filename]` Preview audio file for music selection.
+    Preview(&'a Path),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
     Scroll(ObjId, Decimal),
+    /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    #[cfg(feature = "minor-command")]
+    Seek(ObjId, Decimal),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
     SetRandom(BigUint),
     /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -173,10 +229,16 @@ pub enum Token<'a> {
     StageFile(&'a Path),
     /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
     Stop(ObjId, Decimal),
+    /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
+    #[cfg(feature = "minor-command")]
+    Stp(StpEvent),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
+    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
+    #[cfg(feature = "minor-command")]
+    SwBga(ObjId, SwBgaEvent),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
@@ -189,89 +251,24 @@ pub enum Token<'a> {
     UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
-    /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
-    VideoFile(&'a Path),
-    /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
-    VolWav(Volume),
-    /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
-    Wav(ObjId, &'a Path),
-    /*
-     * Extra Commands
-     */
-    /// `#CHARFILE [filename]`.
-    /// The character file similar to pop'n music. It's filextension is `.chp`.
-    /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
-    #[cfg(feature = "minor-command")]
-    CharFile(&'a Path),
-    /// `#BASEBPM [f64]` is the base BPM.
-    /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
-    #[cfg(feature = "minor-command")]
-    BaseBpm(Decimal),
-    /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
-    #[cfg(feature = "minor-command")]
-    Stp(StpEvent),
-    /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
-    #[cfg(feature = "minor-command")]
-    WavCmd(WavCmdEvent),
-    /// `#CDDA [u64]`.
-    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
-    #[cfg(feature = "minor-command")]
-    Cdda(BigUint),
-    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
-    #[cfg(feature = "minor-command")]
-    SwBga(ObjId, SwBgaEvent),
-    /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
-    /// - A1: BGA BASE
-    /// - A2: BGA LAYER
-    /// - A3: BGA LAYER 2
-    /// - A4: BGA POOR
-    #[cfg(feature = "minor-command")]
-    Argb(ObjId, Argb),
-    /// `#VIDEOF/S [f64]` Video file frame rate.
-    #[cfg(feature = "minor-command")]
-    VideoFs(Decimal),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
     #[cfg(feature = "minor-command")]
     VideoColors(u8),
     /// `#VIDEODLY [f64]` Video delay extension.
     #[cfg(feature = "minor-command")]
     VideoDly(Decimal),
-    /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
+    VideoFile(&'a Path),
+    /// `#VIDEOF/S [f64]` Video file frame rate.
     #[cfg(feature = "minor-command")]
-    Seek(ObjId, Decimal),
-    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
+    VideoFs(Decimal),
+    /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
+    VolWav(Volume),
+    /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
+    Wav(ObjId, &'a Path),
+    /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     #[cfg(feature = "minor-command")]
-    ExtChr(ExtChrEvent),
-    /// `#MATERIALSWAV [filename]` Material WAV extension.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    MaterialsWav(&'a Path),
-    /// `#MATERIALSBMP [filename]` Material BMP extension.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    MaterialsBmp(&'a Path),
-    /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    DivideProp(&'a str),
-    /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
-    Charset(&'a str),
-    /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
-    /// 100 means NORMAL judge.
-    /// Overrides `#RANK` definition.
-    DefExRank(BigUint),
-    /// `#PREVIEW [filename]` Preview audio file for music selection.
-    Preview(&'a Path),
-    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
-    LnMode(LnModeType),
-    /// `#MOVIE [filename]` DXEmu extension, defines global video file.
-    /// - Video starts from #000.
-    /// - Priority rules:
-    ///   - If #xxx04 is an image file (BMP, PNG, etc.), #MOVIE has priority.
-    ///   - If both #xxx04 and #MOVIE are video files, #xxx04 has priority.
-    /// - No loop, stays on last frame after playback.
-    /// - Audio track in video is not played.
-    Movie(&'a Path),
+    WavCmd(WavCmdEvent),
 }
 
 impl<'a> Token<'a> {
