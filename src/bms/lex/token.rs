@@ -932,32 +932,20 @@ impl<'a> Token<'a> {
                 }
                 #[cfg(feature = "minor-command")]
                 stp if stp.starts_with("#STP") => {
-                    let line = c.next_line_remaining();
-                    let part = line.trim();
-                    if part.is_empty() {
-                        return Err(c.make_err_expected_token("stp definition"));
-                    }
                     // Parse xxx.yyy zzzz
-                    let (xy, ms) = if let Some((xy, ms)) = part.split_once(' ') {
-                        (xy, ms)
-                    } else if let Some((xy, ms)) = part.split_once('\t') {
-                        (xy, ms)
-                    } else if let Some((xy, ms)) = part.split_once('\u{3000}') {
-                        (xy, ms)
-                    } else {
-                        return Err(c.make_err_expected_token("stp format xxx.yyy zzzz"));
-                    };
+                    let xy = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("stp format [xxx.yyy] zzzz"))?;
+                    let ms = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("stp format xxx.yyy [zzzz]"))?;
                     let ms: u32 = ms
                         .split_whitespace()
                         .next()
                         .unwrap_or("")
                         .parse()
                         .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
-                    let (measure, pos) = if let Some((m, p)) = xy.split_once('.') {
-                        (m, p)
-                    } else {
-                        (xy, "000")
-                    };
+                    let (measure, pos) = xy.split_once('.').unwrap_or((xy, "000"));
                     if measure.len() != 3 || pos.len() != 3 {
                         return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
                     }
