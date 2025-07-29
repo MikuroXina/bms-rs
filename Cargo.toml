@@ -15,7 +15,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["serde", "bmson", "rand"]
+default = ["bmson", "rand"]
 serde = ["dep:serde", "num/serde", "fraction/with-serde-support"]
 bmson = ["dep:serde", "serde_json"]
 rand = ["dep:rand"]
