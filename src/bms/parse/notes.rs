@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[cfg(feature = "minor-command")]
-use crate::lex::command::Argb;
+use crate::lex::command::{Argb, StpEvent, SwBgaEvent, WavCmdEvent};
 
 /// An object to change the BPM of the score.
 #[derive(Debug, Clone)]
@@ -286,16 +286,16 @@ pub struct Notes {
     pub texts: HashMap<ObjId, String>,
     /// bemaniaDX STP events, indexed by ObjTime. #STP
     #[cfg(feature = "minor-command")]
-    pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
+    pub stp_events: HashMap<ObjTime, StpEvent>,
     /// WAVCMD events, indexed by wav_index. #WAVCMD
     #[cfg(feature = "minor-command")]
-    pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
+    pub wavcmd_events: HashMap<ObjId, WavCmdEvent>,
     /// CDDA events, indexed by value. #CDDA
     #[cfg(feature = "minor-command")]
     pub cdda_events: HashMap<u64, u64>,
     /// SWBGA events, indexed by ObjId. #SWBGA
     #[cfg(feature = "minor-command")]
-    pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
+    pub swbga_events: HashMap<ObjId, SwBgaEvent>,
     /// ARGB definitions, indexed by ObjId. #ARGB
     #[cfg(feature = "minor-command")]
     pub argb_defs: HashMap<ObjId, Argb>,

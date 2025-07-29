@@ -76,9 +76,7 @@ impl PulseConverter {
     /// Gets pulses at the [`ObjTime`].
     pub fn get_pulses_at(&self, time: ObjTime) -> PulseNumber {
         let PulseNumber(track_base) = self.get_pulses_on(time.track);
-        PulseNumber(
-            track_base + (4 * self.resolution * time.numerator as u64 / time.denominator as u64),
-        )
+        PulseNumber(track_base + (4 * self.resolution * time.numerator / time.denominator))
     }
 }
 
