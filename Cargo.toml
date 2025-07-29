@@ -19,6 +19,7 @@ default = ["bmson", "rand"]
 serde = ["dep:serde", "num/serde", "fraction/with-serde-support"]
 bmson = ["dep:serde", "serde_json"]
 rand = ["dep:rand"]
+minor-command = []
 
 [dependencies]
 itertools = "0.14.0"
