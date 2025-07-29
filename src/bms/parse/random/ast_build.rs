@@ -357,7 +357,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Co
                         }
                     }
                     iter.next();
-                    seen_if_values.insert(&elif_val);
+                    seen_if_values.insert(elif_val);
                     let (elif_tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     branches.insert(
