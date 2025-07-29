@@ -28,9 +28,9 @@ jobs:
       - name: Build crate
         run: cargo build --verbose
       - name: Clippy Check
-        run: cargo clippy --verbose
+        run: cargo clippy --verbose --all-features
       - name: Test crate
-        run: cargo test --verbose --features serde,bmson
+        run: cargo test --verbose --all-features
 
       - if: matrix.os == 'ubuntu-latest'
         name: cargo-deny
