@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use crate::{bms::Decimal, time::ObjTime};
+use crate::bms::Decimal;
+
+#[cfg(feature = "minor-command")]
+use crate::time::ObjTime;
 
 use super::{
     Result,
@@ -207,8 +210,10 @@ pub struct Header {
     /// The path of banner image.
     pub banner: Option<PathBuf>,
     /// Whether the score is the octave mode.
+    #[cfg(feature = "minor-command")]
     pub is_octave: bool,
     /// The path of MIDI file, which is played as BGM while playing the score.
+    #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
     /// The path of the background video. The video should be started the playing from the section 000.
     pub video_file: Option<PathBuf>,
@@ -233,30 +238,41 @@ pub struct Header {
     /// Stop lengths by stop object id.
     pub stops: HashMap<ObjId, Decimal>,
     /// Storage for #@BGA definitions
+    #[cfg(feature = "minor-command")]
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
     /// Storage for #BGA definitions
+    #[cfg(feature = "minor-command")]
     pub bga_defs: HashMap<ObjId, BgaDef>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
     /// bemaniaDX STP events, indexed by ObjTime. #STP
+    #[cfg(feature = "minor-command")]
     pub stp_events: HashMap<ObjTime, crate::lex::command::StpEvent>,
     /// WAVCMD events, indexed by wav_index. #WAVCMD
+    #[cfg(feature = "minor-command")]
     pub wavcmd_events: HashMap<ObjId, crate::lex::command::WavCmdEvent>,
     /// CDDA events, indexed by value. #CDDA
+    #[cfg(feature = "minor-command")]
     pub cdda_events: HashMap<u64, u64>,
     /// SWBGA events, indexed by ObjId. #SWBGA
+    #[cfg(feature = "minor-command")]
     pub swbga_events: HashMap<ObjId, crate::lex::command::SwBgaEvent>,
     /// ARGB definitions, indexed by ObjId. #ARGB
+    #[cfg(feature = "minor-command")]
     pub argb_defs: HashMap<ObjId, Argb>,
     /// Seek events, indexed by ObjId. #SEEK
+    #[cfg(feature = "minor-command")]
     pub seek_events: HashMap<ObjId, Decimal>,
     /// ExtChr events. #ExtChr
+    #[cfg(feature = "minor-command")]
     pub extchr_events: Vec<crate::lex::command::ExtChrEvent>,
     /// Material WAV file paths. #MATERIALSWAV
+    #[cfg(feature = "minor-command")]
     pub materials_wav: Vec<std::path::PathBuf>,
     /// Material BMP file paths. #MATERIALSBMP
+    #[cfg(feature = "minor-command")]
     pub materials_bmp: Vec<std::path::PathBuf>,
 }
 
@@ -268,6 +284,7 @@ impl Header {
     ) -> Result<()> {
         match *token {
             Token::Artist(artist) => self.artist = Some(artist.into()),
+            #[cfg(feature = "minor-command")]
             Token::AtBga {
                 id,
                 source_bmp,
@@ -296,6 +313,7 @@ impl Header {
             }
             Token::Banner(file) => self.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
+            #[cfg(feature = "minor-command")]
             Token::Bga {
                 id,
                 source_bmp,
@@ -444,7 +462,9 @@ impl Header {
                 self.ln_type = LnType::Mgq;
             }
             Token::Maker(maker) => self.maker = Some(maker.into()),
+            #[cfg(feature = "minor-command")]
             Token::MidiFile(midi_file) => self.midi_file = Some(midi_file.into()),
+            #[cfg(feature = "minor-command")]
             Token::OctFp => self.is_octave = true,
             Token::Option(option) => self
                 .options
@@ -523,6 +543,70 @@ impl Header {
                     self.wav_files.insert(id, path.into());
                 }
             }
+            #[cfg(feature = "minor-command")]
+            Token::Stp(ev) => {
+                // Store by ObjTime as key, report error if duplicated
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {key:?}"
+                    )));
+                }
+                self.stp_events.insert(key, ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::WavCmd(ev) => {
+                // Store by wav_index as key, report error if duplicated
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {key:?}",
+                    )));
+                }
+                self.wavcmd_events.insert(key, ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::SwBga(id, ref ev) => {
+                if self.swbga_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {id:?}",
+                    )));
+                }
+                self.swbga_events.insert(id, ev.clone());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {id:?}",
+                    )));
+                }
+                self.argb_defs.insert(id, argb);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::Seek(id, ref v) => {
+                if self.seek_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {id:?}",
+                    )));
+                }
+                self.seek_events.insert(id, v.clone());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::Movie(_) | Token::LnMode(_) | Token::Preview(_) | Token::Charset(_) => {
+                // These tokens are not stored in Notes, just ignore
+            }
             // Control flow
             Token::Random(_)
             | Token::SetRandom(_)
@@ -542,78 +626,22 @@ impl Header {
             Token::Base62
             | Token::LnObj(_)
             | Token::ExtendedMessage { .. }
+            | Token::DefExRank(_)
             | Token::Message { .. } => {
                 // These Token should not be handled in Header::parse.
             }
-            Token::UnknownCommand(_) | Token::NotACommand(_) => {
-                // this token should be handled outside.
-            }
-            Token::Stp(ev) => {
-                // Store by ObjTime as key, report error if duplicated
-                let key = ev.time;
-                if self.stp_events.contains_key(&key) {
-                    return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated STP event at time {key:?}"
-                    )));
-                }
-                self.stp_events.insert(key, ev);
-            }
-            Token::WavCmd(ev) => {
-                // Store by wav_index as key, report error if duplicated
-                let key = ev.wav_index;
-                if self.wavcmd_events.contains_key(&key) {
-                    return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated WAVCMD event for wav_index {key:?}",
-                    )));
-                }
-                self.wavcmd_events.insert(key, ev);
-            }
-            Token::SwBga(id, ref ev) => {
-                if self.swbga_events.contains_key(&id) {
-                    return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated SWBGA event for id {id:?}",
-                    )));
-                }
-                self.swbga_events.insert(id, ev.clone());
-            }
-            Token::Argb(id, argb) => {
-                if self.argb_defs.contains_key(&id) {
-                    return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {id:?}",
-                    )));
-                }
-                self.argb_defs.insert(id, argb);
-            }
-            Token::Seek(id, ref v) => {
-                if self.seek_events.contains_key(&id) {
-                    return Err(super::ParseWarning::SyntaxError(format!(
-                        "Duplicated Seek event for id {id:?}",
-                    )));
-                }
-                self.seek_events.insert(id, v.clone());
-            }
-            Token::ExtChr(ev) => {
-                self.extchr_events.push(ev);
-            }
-            Token::MaterialsWav(path) => {
-                self.materials_wav.push(path.into());
-            }
-            Token::MaterialsBmp(path) => {
-                self.materials_bmp.push(path.into());
-            }
+            #[cfg(feature = "minor-command")]
             Token::CharFile(_)
             | Token::BaseBpm(_)
             | Token::DivideProp(_)
-            | Token::Charset(_)
-            | Token::DefExRank(_)
-            | Token::Preview(_)
-            | Token::LnMode(_)
             | Token::VideoFs(_)
             | Token::VideoColors(_)
             | Token::VideoDly(_)
-            | Token::Movie(_)
             | Token::Cdda(_) => {
                 // These tokens are not stored in Notes, just ignore
+            }
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
+                // this token should be handled outside.
             }
         }
         Ok(())

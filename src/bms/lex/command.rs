@@ -1,10 +1,12 @@
 //! Definitions of command argument data.
 pub mod channel;
 
+#[cfg(feature = "minor-command")]
 use std::time::Duration;
 
 pub use channel::Channel;
 
+#[cfg(feature = "minor-command")]
 use crate::time::ObjTime;
 
 use super::{Result, cursor::Cursor};
@@ -608,6 +610,7 @@ impl TryFrom<u8> for LnModeType {
 /// bemaniaDX type STP sequence definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct StpEvent {
     /// The time of the stop.
     pub time: ObjTime,
@@ -623,6 +626,7 @@ pub struct StpEvent {
 /// - value: adjustment value, meaning depends on param
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct WavCmdEvent {
     /// Adjustment type (pitch/volume/time)
     pub param: WavCmdParam,
@@ -659,6 +663,7 @@ pub enum WavCmdParam {
 /// - pattern: animation frame sequence (e.g. 01020304)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct SwBgaEvent {
     /// Frame interval (ms), e.g. 60FPS=17.
     pub frame_rate: u32,

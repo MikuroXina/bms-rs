@@ -1,12 +1,17 @@
 //! Definitions of the token in BMS format.
+use std::{borrow::Cow, path::Path, str::FromStr};
 
-use std::{borrow::Cow, path::Path, str::FromStr, time::Duration};
+#[cfg(feature = "minor-command")]
+use std::time::Duration;
 
 use fraction::GenericFraction;
 use num::BigUint;
 
 use super::{Result, command::*, cursor::Cursor};
-use crate::{bms::Decimal, time::ObjTime};
+use crate::bms::Decimal;
+
+#[cfg(feature = "minor-command")]
+use crate::time::ObjTime;
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -16,6 +21,7 @@ pub enum Token<'a> {
     /// `#ARTIST [string]`. Defines the artist name of the music.
     Artist(&'a str),
     /// `#@BGA[01-ZZ] [01-ZZ] [sx] [sy] [w] [h] [dx] [dy]`. Defines the image object from trimming the existing image object.
+    #[cfg(feature = "minor-command")]
     AtBga {
         /// The id of the object to define.
         id: ObjId,
@@ -35,6 +41,7 @@ pub enum Token<'a> {
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
     /// `#BGA[01-ZZ] [01-ZZ] [x1] [y1] [x2] [y2] [dx] [dy]`. Defines the image object from trimming the existing image object.
+    #[cfg(feature = "minor-command")]
     Bga {
         /// The id of the object to define.
         id: ObjId,
@@ -131,10 +138,12 @@ pub enum Token<'a> {
         message: Cow<'a, str>,
     },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
+    #[cfg(feature = "minor-command")]
     MidiFile(&'a Path),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
+    #[cfg(feature = "minor-command")]
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
     Option(&'a str),
@@ -192,43 +201,58 @@ pub enum Token<'a> {
     /// `#CHARFILE [filename]`.
     /// The character file similar to pop'n music. It's filextension is `.chp`.
     /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
+    #[cfg(feature = "minor-command")]
     CharFile(&'a Path),
     /// `#BASEBPM [f64]` is the base BPM.
     /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
+    #[cfg(feature = "minor-command")]
     BaseBpm(Decimal),
     /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
+    #[cfg(feature = "minor-command")]
     Stp(StpEvent),
     /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
+    #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
     /// `#CDDA [u64]`.
     /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    #[cfg(feature = "minor-command")]
     Cdda(BigUint),
     /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
+    #[cfg(feature = "minor-command")]
     SwBga(ObjId, SwBgaEvent),
     /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
     /// - A1: BGA BASE
     /// - A2: BGA LAYER
     /// - A3: BGA LAYER 2
     /// - A4: BGA POOR
+    #[cfg(feature = "minor-command")]
     Argb(ObjId, Argb),
     /// `#VIDEOF/S [f64]` Video file frame rate.
+    #[cfg(feature = "minor-command")]
     VideoFs(Decimal),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
+    #[cfg(feature = "minor-command")]
     VideoColors(u8),
     /// `#VIDEODLY [f64]` Video delay extension.
+    #[cfg(feature = "minor-command")]
     VideoDly(Decimal),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    #[cfg(feature = "minor-command")]
     Seek(ObjId, Decimal),
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
+    #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
     /// `#MATERIALSWAV [filename]` Material WAV extension.
     /// Deprecated.
+    #[cfg(feature = "minor-command")]
     MaterialsWav(&'a Path),
     /// `#MATERIALSBMP [filename]` Material BMP extension.
     /// Deprecated.
+    #[cfg(feature = "minor-command")]
     MaterialsBmp(&'a Path),
     /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
     /// Deprecated.
+    #[cfg(feature = "minor-command")]
     DivideProp(&'a str),
     /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
     Charset(&'a str),
@@ -425,6 +449,7 @@ impl<'a> Token<'a> {
                 }
                 "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
                 "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
+                #[cfg(feature = "minor-command")]
                 "#OCT/FP" => Self::OctFp,
                 "#OPTION" => Self::Option(c.next_line_remaining()),
                 "#PATH_WAV" => {
@@ -435,6 +460,7 @@ impl<'a> Token<'a> {
                     Self::PathWav(Path::new(file_name))
                 }
                 "#MAKER" => Self::Maker(c.next_line_remaining()),
+                #[cfg(feature = "minor-command")]
                 "#MIDIFILE" => {
                     let file_name = c.next_line_remaining();
                     if file_name.is_empty() {
@@ -452,6 +478,7 @@ impl<'a> Token<'a> {
                 }
                 // Part: Command with lane and arg
                 // Place ahead of WAV to avoid being parsed as WAV.
+                #[cfg(feature = "minor-command")]
                 wavcmd if wavcmd.starts_with("#WAVCMD") => {
                     let param = c
                         .next_token()
@@ -667,6 +694,7 @@ impl<'a> Token<'a> {
                     let content = c.next_line_remaining();
                     Self::Text(ObjId::try_load(id, c)?, content)
                 }
+                #[cfg(feature = "minor-command")]
                 atbga if atbga.starts_with("#@BGA") => {
                     let id = atbga.trim_start_matches("#@BGA");
                     let source_bmp = c
@@ -710,6 +738,7 @@ impl<'a> Token<'a> {
                         draw_point: (dx, dy),
                     }
                 }
+                #[cfg(feature = "minor-command")]
                 bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
                     let id = bga.trim_start_matches("#BGA");
                     // Cannot use next_line_remaining here because the remaining args
@@ -782,6 +811,7 @@ impl<'a> Token<'a> {
                     }
                 }
                 // New command parsing
+                #[cfg(feature = "minor-command")]
                 extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
                     // Allow multiple spaces between parameters
                     let mut params = c.next_line_remaining().split_whitespace();
@@ -871,6 +901,7 @@ impl<'a> Token<'a> {
                         message,
                     }
                 }
+                #[cfg(feature = "minor-command")]
                 charfile if charfile.starts_with("#CHARFILE") => {
                     let path = c
                         .next_token()
@@ -894,6 +925,7 @@ impl<'a> Token<'a> {
                     );
                     Self::BpmChange(ObjId::try_load(id, c)?, v)
                 }
+                #[cfg(feature = "minor-command")]
                 "#BASEBPM" => {
                     let v = c
                         .next_token()
@@ -904,6 +936,7 @@ impl<'a> Token<'a> {
                     );
                     Self::BaseBpm(v)
                 }
+                #[cfg(feature = "minor-command")]
                 stp if stp.starts_with("#STP") => {
                     let line = c.next_line_remaining();
                     let part = line.trim();
@@ -944,6 +977,7 @@ impl<'a> Token<'a> {
                     let duration = Duration::from_millis(ms as u64);
                     Self::Stp(StpEvent { time, duration })
                 }
+                #[cfg(feature = "minor-command")]
                 "#CDDA" => {
                     let v = c
                         .next_token()
@@ -952,6 +986,7 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                     Self::Cdda(v)
                 }
+                #[cfg(feature = "minor-command")]
                 swbga if swbga.starts_with("#SWBGA") => {
                     let id = swbga.trim_start_matches("#SWBGA");
                     // Parse fr:time:line:loop:a,r,g,b pattern
@@ -1024,6 +1059,7 @@ impl<'a> Token<'a> {
                         },
                     )
                 }
+                #[cfg(feature = "minor-command")]
                 argb if argb.starts_with("#ARGB") => {
                     let id = argb.trim_start_matches("#ARGB");
                     let argb_str = c
@@ -1055,6 +1091,7 @@ impl<'a> Token<'a> {
                         },
                     )
                 }
+                #[cfg(feature = "minor-command")]
                 videofs if videofs.starts_with("#VIDEOF/S") => {
                     let v = c
                         .next_token()
@@ -1065,6 +1102,7 @@ impl<'a> Token<'a> {
                     );
                     Self::VideoFs(v)
                 }
+                #[cfg(feature = "minor-command")]
                 videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
                     let v = c
                         .next_token()
@@ -1074,6 +1112,7 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("u8"))?;
                     Self::VideoColors(v)
                 }
+                #[cfg(feature = "minor-command")]
                 videodly if videodly.starts_with("#VIDEODLY") => {
                     let v = c
                         .next_token()
@@ -1084,6 +1123,7 @@ impl<'a> Token<'a> {
                     );
                     Self::VideoDly(v)
                 }
+                #[cfg(feature = "minor-command")]
                 seek if seek.starts_with("#SEEK") => {
                     let id = seek.trim_start_matches("#SEEK");
                     let v = c
@@ -1095,6 +1135,7 @@ impl<'a> Token<'a> {
                     );
                     Self::Seek(ObjId::try_load(id, c)?, v)
                 }
+                #[cfg(feature = "minor-command")]
                 materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                     let path = c
                         .next_token()
@@ -1102,6 +1143,7 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
                     Self::MaterialsWav(path)
                 }
+                #[cfg(feature = "minor-command")]
                 materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
                     let path = c
                         .next_token()
@@ -1109,6 +1151,7 @@ impl<'a> Token<'a> {
                         .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
                     Self::MaterialsBmp(path)
                 }
+                #[cfg(feature = "minor-command")]
                 divideprop if divideprop.starts_with("#DIVIDEPROP") => {
                     let s = c.next_line_remaining();
                     Self::DivideProp(s)
@@ -1164,10 +1207,12 @@ impl<'a> Token<'a> {
     pub(crate) fn make_id_uppercase(&mut self) {
         use Token::*;
         match self {
+            #[cfg(feature = "minor-command")]
             AtBga { id, source_bmp, .. } => {
                 id.make_uppercase();
                 source_bmp.make_uppercase();
             }
+            #[cfg(feature = "minor-command")]
             Bga { id, source_bmp, .. } => {
                 id.make_uppercase();
                 source_bmp.make_uppercase();
@@ -1338,6 +1383,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_atbga() {
         let Token::AtBga {
             id,
@@ -1357,6 +1403,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_bga() {
         let Token::Bga {
             id,
@@ -1393,6 +1440,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_stpseq() {
         let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
             panic!("Not StpSeq");
@@ -1404,6 +1452,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_wavcmd_pitch() {
         let Token::WavCmd(ev) = parse_token("#WAVCMD 00 0E 61") else {
             panic!("Not WavCmd");
@@ -1414,6 +1463,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_wavcmd_volume() {
         let Token::WavCmd(ev) = parse_token("#WAVCMD 01 0E 50") else {
             panic!("Not WavCmd");
@@ -1424,6 +1474,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_wavcmd_time() {
         let Token::WavCmd(ev) = parse_token("#WAVCMD 02 0E 100") else {
             panic!("Not WavCmd");
@@ -1434,6 +1485,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_swbga() {
         let Token::SwBga(id, ev) = parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
         else {
@@ -1465,6 +1517,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_extchr_basic() {
         let token = parse_token("#ExtChr 512 09 30 0 99 9");
         let Token::ExtChr(ev) = token else {
@@ -1483,6 +1536,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_extchr_offset() {
         let token = parse_token("#ExtChr 516 0 38 1 62 9 -2 -2");
         let Token::ExtChr(ev) = token else {
@@ -1495,6 +1549,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_extchr_abs() {
         let token = parse_token("#ExtChr 513 0 38 1 62 9 -2 -2 0 0");
         let Token::ExtChr(ev) = token else {

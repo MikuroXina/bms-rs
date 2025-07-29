@@ -1,3 +1,5 @@
+#![cfg(feature = "minor-command")]
+
 use bms_rs::lex::BmsLexOutput;
 use bms_rs::lex::command::ObjId;
 use bms_rs::parse::BmsParseOutput;
