@@ -639,14 +639,14 @@ pub struct WavCmdEvent {
 /// WAVCMD parameter type.
 ///
 /// - Pitch: pitch (0-127, 60 is C6)
-/// - Volume: volume percent (0-100)
+/// - Volume: volume percent (usually 0-100)
 /// - Time: playback time (ms*0.5, 0 means original length)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum WavCmdParam {
     /// Pitch (0-127, 60 is C6)
     Pitch,
-    /// Volume percent (0-100)
+    /// Volume percent (0-100 is recommended. Larger than 100 value is not recommended.)
     Volume,
     /// Playback time (ms*0.5, 0 means original length)
     Time,

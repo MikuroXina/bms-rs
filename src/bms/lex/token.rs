@@ -501,9 +501,6 @@ impl<'a> Token<'a> {
                         WavCmdParam::Pitch if !(0..=127).contains(&value) => {
                             return Err(c.make_err_expected_token("pitch 0-127"));
                         }
-                        WavCmdParam::Volume if value > 100 => {
-                            return Err(c.make_err_expected_token("volume 0-100"));
-                        }
                         WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
                         }
                         _ => {}
