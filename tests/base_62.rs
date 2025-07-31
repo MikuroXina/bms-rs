@@ -1,7 +1,6 @@
-use bms_rs::{
-    bms::{lex::BmsLexOutput, parse::BmsParseOutput},
-    lex::parse,
-    parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
+use bms_rs::bms::{
+    lex::{BmsLexOutput, parse},
+    parse::{BmsParseOutput, model::Bms, prompt::AlwaysUseNewer, random::rng::RngMock},
 };
 use num::BigUint;
 

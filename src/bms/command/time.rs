@@ -1,6 +1,6 @@
 //! Definitions of time in BMS.
 
-/// A track, or measure, where the object is in.
+/// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Track(pub u64);

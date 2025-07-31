@@ -1,11 +1,13 @@
 #![cfg(feature = "minor-command")]
 
-use bms_rs::lex::BmsLexOutput;
-use bms_rs::lex::command::ObjId;
-use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
-    lex::{LexWarning, parse},
-    parse::{Bms, prompt::AlwaysWarn, rng::RngMock},
+    bms::{
+        command::ObjId,
+        lex::{LexWarning, parse},
+        parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
+    },
+    command::{JudgeLevel, PixelPoint, PixelSize, PoorMode},
+    lex::BmsLexOutput,
 };
 use num::BigUint;
 
@@ -34,18 +36,9 @@ fn test_atbga_parsing() {
     );
     let atbga_def = &bms.header.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(atbga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
-    assert_eq!(
-        atbga_def.trim_top_left,
-        bms_rs::parse::header::PixelPoint::new(10, 20)
-    );
-    assert_eq!(
-        atbga_def.trim_size,
-        bms_rs::parse::header::PixelSize::new(100, 200)
-    );
-    assert_eq!(
-        atbga_def.draw_point,
-        bms_rs::parse::header::PixelPoint::new(30, 40)
-    );
+    assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
+    assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
+    assert_eq!(atbga_def.draw_point, PixelPoint::new(30, 40));
 }
 
 #[test]
@@ -74,18 +67,9 @@ fn test_bga_parsing() {
     );
     let bga_def = &bms.header.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(bga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
-    assert_eq!(
-        bga_def.trim_top_left,
-        bms_rs::parse::header::PixelPoint::new(10, 20)
-    );
-    assert_eq!(
-        bga_def.trim_bottom_right,
-        bms_rs::parse::header::PixelPoint::new(110, 220)
-    );
-    assert_eq!(
-        bga_def.draw_point,
-        bms_rs::parse::header::PixelPoint::new(30, 40)
-    );
+    assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
+    assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
+    assert_eq!(bga_def.draw_point, PixelPoint::new(30, 40));
 }
 
 #[test]
@@ -113,10 +97,7 @@ fn test_exrank_parsing() {
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     let exrank_def = &bms.header.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(
-        exrank_def.judge_level,
-        bms_rs::lex::command::JudgeLevel::Normal
-    );
+    assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
 #[test]
@@ -301,10 +282,7 @@ fn test_token_parsing_comprehensive() {
         bms.header.video_file,
         Some(std::path::PathBuf::from("test.mp4"))
     );
-    assert_eq!(
-        bms.header.poor_bga_mode,
-        bms_rs::lex::command::PoorMode::Overlay
-    );
+    assert_eq!(bms.header.poor_bga_mode, PoorMode::Overlay);
     assert!(bms.header.is_octave);
     assert_eq!(
         bms.header.wav_path_root,

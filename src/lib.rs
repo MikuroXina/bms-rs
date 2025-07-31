@@ -9,8 +9,9 @@
 //! ```
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::{
-//!     lex::{parse, parse_with_channel_parser, BmsLexOutput, command::channel::read_channel_beat},
-//!     parse::{prompt::AlwaysWarn, rng::RandRng, Bms, BmsParseOutput},
+//!     lex::{parse, parse_with_channel_parser, BmsLexOutput},
+//!     parse::{prompt::AlwaysWarn, random::rng::RandRng, model::Bms, BmsParseOutput},
+//!     command::channel::read_channel_beat
 //! };
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
@@ -101,4 +102,4 @@ pub mod bms;
 #[cfg_attr(docsrs, doc(cfg(feature = "bmson")))]
 pub mod bmson;
 
-pub use bms::{lex, parse, time};
+pub use bms::{command, lex, parse};

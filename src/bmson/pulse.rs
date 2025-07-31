@@ -4,11 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    bms::Decimal,
-    parse::notes::Notes,
-    time::{ObjTime, Track},
-};
+use crate::bms::{Decimal, command::*, parse::model::Notes};
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -82,7 +78,7 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::parse::notes::SectionLenChangeObj;
+    use crate::parse::model::obj::SectionLenChangeObj;
 
     // Source BMS:
     // ```

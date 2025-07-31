@@ -1,6 +1,9 @@
 use bms_rs::{
     lex::{BmsLexOutput, parse},
-    parse::{BmsParseOutput, PlayingError, PlayingWarning, prompt::AlwaysWarn, rng::RngMock},
+    parse::{
+        BmsParseOutput, PlayingError, PlayingWarning, model::Bms, prompt::AlwaysWarn,
+        random::rng::RngMock,
+    },
 };
 use num::BigUint;
 
@@ -20,7 +23,7 @@ fn test_playing_conditions_empty_bms() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -48,7 +51,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -73,7 +76,7 @@ fn test_playing_conditions_with_bpm_change_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -99,7 +102,7 @@ fn test_playing_conditions_invisible_notes_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 

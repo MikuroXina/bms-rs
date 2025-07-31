@@ -7,11 +7,9 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use super::{Result, command::*, cursor::Cursor};
-use crate::bms::Decimal;
+use crate::bms::{Decimal, command::*};
 
-#[cfg(feature = "minor-command")]
-use crate::time::ObjTime;
+use super::{Result, cursor::Cursor};
 
 /// A token of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -137,6 +135,7 @@ pub enum Token<'a> {
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
     ExRank(ObjId, JudgeLevel),
     /// `#EXWAV[01-ZZ] [parameter order] [pan or volume or frequency; 1-3] [filename]`. Defines the key sound object with the effect of pan, volume and frequency.
+    #[cfg(feature = "minor-command")]
     ExWav {
         /// The id of the object to define.
         id: ObjId,
@@ -619,6 +618,7 @@ impl<'a> Token<'a> {
                     let judge_level = JudgeLevel::try_read(c)?;
                     Self::ExRank(ObjId::try_load(id, c)?, judge_level)
                 }
+                #[cfg(feature = "minor-command")]
                 exwav if exwav.starts_with("#EXWAV") => {
                     let id = exwav.trim_start_matches("#EXWAV");
                     let pvf_params = c
@@ -1214,6 +1214,7 @@ impl<'a> Token<'a> {
             ExRank(id, _) => {
                 id.make_uppercase();
             }
+            #[cfg(feature = "minor-command")]
             ExWav { id, .. } => {
                 id.make_uppercase();
             }
@@ -1267,7 +1268,7 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lex::command::channel::read_channel_beat;
+    use crate::bms::command::channel::read_channel_beat;
 
     use super::*;
 
@@ -1299,6 +1300,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_exwav() {
         let Token::ExWav {
             id,
@@ -1318,6 +1320,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_exwav_2() {
         let Token::ExWav {
             id,
@@ -1337,6 +1340,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_exwav_default() {
         let Token::ExWav {
             id,
@@ -1427,7 +1431,7 @@ mod tests {
         let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
             panic!("Not StpSeq");
         };
-        assert_eq!(stp.time.track, super::super::super::time::Track(1));
+        assert_eq!(stp.time.track, crate::bms::command::Track(1));
         assert_eq!(stp.time.numerator, 500);
         assert_eq!(stp.time.denominator, 1000);
         assert_eq!(stp.duration.as_millis(), 1500);

@@ -1,255 +1,158 @@
+//! Header information from parsed BMS file.
 //! Note objects manager.
+pub mod def;
+pub mod notes_pack;
+pub mod obj;
 
-use fraction::GenericFraction;
-use itertools::Itertools;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap},
+    fmt::Debug,
     ops::Bound,
+    path::PathBuf,
     str::FromStr,
 };
 
-use super::{ParseWarning, Result, header::Header, obj::Obj};
-use crate::{
-    bms::Decimal,
-    lex::{
-        command::{self, Channel, Key, NoteKind, ObjId},
-        token::Token,
-    },
-    parse::header::{ExRankDef, ExWavDef},
-    time::{ObjTime, Track},
+use fraction::GenericFraction;
+use itertools::Itertools;
+
+use crate::bms::{Decimal, command::*, lex::token::Token};
+
+use self::def::*;
+use self::obj::*;
+use super::{
+    ParseWarning, Result,
+    prompt::{PromptHandler, PromptingDuplication},
 };
 
-#[cfg(feature = "minor-command")]
-use crate::lex::command::{Argb, StpEvent, SwBgaEvent, WavCmdEvent};
-
-/// An object to change the BPM of the score.
-#[derive(Debug, Clone)]
+/// A score data of BMS format.
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BpmChangeObj {
-    /// The time to begin the change of BPM.
-    pub time: ObjTime,
-    /// The BPM to be.
-    pub bpm: Decimal,
+pub struct Bms {
+    /// The header data in the score.
+    pub header: Header,
+    /// The objects in the score.
+    pub notes: Notes,
+    /// Lines that not starts with `'#'`.
+    pub non_command_lines: Vec<String>,
+    /// Lines that starts with `'#'`, but not recognized as vaild command.
+    pub unknown_command_lines: Vec<String>,
 }
 
-impl PartialEq for BpmChangeObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
-}
-
-impl Eq for BpmChangeObj {}
-
-impl PartialOrd for BpmChangeObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for BpmChangeObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
-    }
-}
-
-/// An object to change its section length of the score.
-#[derive(Debug, Clone)]
+/// A header parsed from [`TokenStream`](crate::lex::token::TokenStream).
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SectionLenChangeObj {
-    /// The target track to change.
-    pub track: Track,
-    /// The length to be.
-    pub length: Decimal,
-}
-
-impl PartialEq for SectionLenChangeObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.track == other.track
-    }
-}
-
-impl Eq for SectionLenChangeObj {}
-
-impl PartialOrd for SectionLenChangeObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for SectionLenChangeObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track.cmp(&other.track)
-    }
-}
-
-/// An object to stop scrolling of score.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct StopObj {
-    /// Time to start the stop.
-    pub time: ObjTime,
-    /// Object duration how long stops scrolling of score.
-    ///
-    /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: Decimal,
-}
-
-impl PartialEq for StopObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
-}
-
-impl Eq for StopObj {}
-
-impl PartialOrd for StopObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for StopObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
-    }
-}
-
-/// An object to change the image for BGA (background animation).
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BgaObj {
-    /// Time to start to display the image.
-    pub time: ObjTime,
-    /// Identifier represents the image/video file registered in [`Header`].
-    pub id: ObjId,
-    /// Layer to display.
-    pub layer: BgaLayer,
-}
-
-impl PartialEq for BgaObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
-}
-
-impl Eq for BgaObj {}
-
-impl PartialOrd for BgaObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for BgaObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
-    }
-}
-
-/// A layer where the image for BGA to be displayed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[non_exhaustive]
-pub enum BgaLayer {
-    /// The lowest layer.
-    Base,
-    /// Layer which is displayed only if a player missed to play notes.
-    Poor,
-    /// An overlaying layer.
-    Overlay,
-}
-
-/// An object to change scrolling factor of the score.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ScrollingFactorObj {
-    /// The time to begin the change of BPM.
-    pub time: ObjTime,
-    /// The scrolling factor to be.
-    pub factor: Decimal,
-}
-
-impl PartialEq for ScrollingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
-}
-
-impl Eq for ScrollingFactorObj {}
-
-impl PartialOrd for ScrollingFactorObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ScrollingFactorObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
-    }
-}
-
-/// An object to change spacing factor between notes with linear interpolation.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SpacingFactorObj {
-    /// The time to begin the change of BPM.
-    pub time: ObjTime,
-    /// The spacing factor to be.
-    pub factor: Decimal,
-}
-
-impl PartialEq for SpacingFactorObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.time == other.time
-    }
-}
-
-impl Eq for SpacingFactorObj {}
-
-impl PartialOrd for SpacingFactorObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for SpacingFactorObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.time.cmp(&other.time)
-    }
-}
-
-/// An extended object on the score.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ExtendedMessageObj {
-    /// The track which the message is on.
-    pub track: Track,
-    /// The channel which the message is on.
-    pub channel: Channel,
-    /// The extended message.
-    pub message: String,
-}
-
-impl PartialEq for ExtendedMessageObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.track == other.track
-    }
-}
-
-impl Eq for ExtendedMessageObj {}
-
-impl PartialOrd for ExtendedMessageObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ExtendedMessageObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track.cmp(&other.track)
-    }
+pub struct Header {
+    /// The play style of the score.
+    pub player: Option<PlayerMode>,
+    /// The genre of the score.
+    pub genre: Option<String>,
+    /// The title of the score.
+    pub title: Option<String>,
+    /// The subtitle of the score.
+    pub subtitle: Option<String>,
+    /// The artist of the music in the score.
+    pub artist: Option<String>,
+    /// The co-artist of the music in the score.
+    pub sub_artist: Option<String>,
+    /// Who placed the notes into the score.
+    pub maker: Option<String>,
+    /// The text messages of the score. It may be closed with double quotes.
+    pub comment: Option<Vec<String>>,
+    /// The email address of the author.
+    pub email: Option<String>,
+    /// The url of the author.
+    pub url: Option<String>,
+    /// The message for overriding options of some BMS player.
+    pub options: Option<Vec<String>>,
+    /// The initial BPM of the score.
+    pub bpm: Option<Decimal>,
+    /// The play level of the score.
+    pub play_level: Option<u8>,
+    /// The judgement level of the score.
+    pub rank: Option<JudgeLevel>,
+    /// The difficulty of the score.
+    pub difficulty: Option<u8>,
+    /// The total gauge percentage when all notes is got as PERFECT.
+    pub total: Option<Decimal>,
+    /// The volume of the score.
+    pub volume: Volume,
+    /// The LN notation type of the score.
+    pub ln_type: LnType,
+    /// The display mode for background image/video.
+    pub poor_bga_mode: PoorMode,
+    /// The path of background image, which is shown while playing the score.
+    pub back_bmp: Option<PathBuf>,
+    /// The path of splash screen image, which is shown before playing the score.
+    pub stage_file: Option<PathBuf>,
+    /// The path of banner image.
+    pub banner: Option<PathBuf>,
+    /// Whether the score is the octave mode.
+    #[cfg(feature = "minor-command")]
+    pub is_octave: bool,
+    /// The path of MIDI file, which is played as BGM while playing the score.
+    #[cfg(feature = "minor-command")]
+    pub midi_file: Option<PathBuf>,
+    /// The path of the background video. The video should be started the playing from the section 000.
+    pub video_file: Option<PathBuf>,
+    /// The path to override the base path of the WAV file path.
+    pub wav_path_root: Option<PathBuf>,
+    /// The WAV file paths corresponding to the id of the note object.
+    pub wav_files: HashMap<ObjId, PathBuf>,
+    /// The path of image, which is shown when the player got POOR.
+    pub poor_bmp: Option<PathBuf>,
+    /// The BMP file paths corresponding to the id of the background image/video object.
+    pub bmp_files: HashMap<ObjId, Bmp>,
+    /// The BPMs corresponding to the id of the BPM change object.
+    pub bpm_changes: HashMap<ObjId, Decimal>,
+    /// The scrolling factors corresponding to the id of the scroll speed change object.
+    pub scrolling_factor_changes: HashMap<ObjId, Decimal>,
+    /// The spacing factors corresponding to the id of the spacing change object.
+    pub spacing_factor_changes: HashMap<ObjId, Decimal>,
+    /// The texts corresponding to the id of the text object.
+    pub texts: HashMap<ObjId, String>,
+    /// The option messages corresponding to the id of the change option object.
+    pub change_options: HashMap<ObjId, String>,
+    /// Stop lengths by stop object id.
+    pub stops: HashMap<ObjId, Decimal>,
+    /// Storage for #@BGA definitions
+    #[cfg(feature = "minor-command")]
+    pub atbga_defs: HashMap<ObjId, AtBgaDef>,
+    /// Storage for #BGA definitions
+    #[cfg(feature = "minor-command")]
+    pub bga_defs: HashMap<ObjId, BgaDef>,
+    /// Storage for #EXRANK definitions
+    pub exrank_defs: HashMap<ObjId, ExRankDef>,
+    /// Storage for #EXWAV definitions
+    #[cfg(feature = "minor-command")]
+    pub exwav_defs: HashMap<ObjId, ExWavDef>,
+    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    #[cfg(feature = "minor-command")]
+    pub stp_events: HashMap<ObjTime, StpEvent>,
+    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    #[cfg(feature = "minor-command")]
+    pub wavcmd_events: HashMap<ObjId, WavCmdEvent>,
+    /// CDDA events, indexed by value. #CDDA
+    #[cfg(feature = "minor-command")]
+    pub cdda_events: HashMap<u64, u64>,
+    /// SWBGA events, indexed by ObjId. #SWBGA
+    #[cfg(feature = "minor-command")]
+    pub swbga_events: HashMap<ObjId, SwBgaEvent>,
+    /// ARGB definitions, indexed by ObjId. #ARGB
+    #[cfg(feature = "minor-command")]
+    pub argb_defs: HashMap<ObjId, Argb>,
+    /// Seek events, indexed by ObjId. #SEEK
+    #[cfg(feature = "minor-command")]
+    pub seek_events: HashMap<ObjId, Decimal>,
+    /// ExtChr events. #ExtChr
+    #[cfg(feature = "minor-command")]
+    pub extchr_events: Vec<ExtChrEvent>,
+    /// Material WAV file paths. #MATERIALSWAV
+    #[cfg(feature = "minor-command")]
+    pub materials_wav: Vec<PathBuf>,
+    /// Material BMP file paths. #MATERIALSBMP
+    #[cfg(feature = "minor-command")]
+    pub materials_bmp: Vec<PathBuf>,
 }
 
 /// The objects set for querying by lane or time.
@@ -279,6 +182,7 @@ pub struct Notes {
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
+    #[cfg(feature = "minor-command")]
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
     /// Storage for #CHANGEOPTION definitions
     pub change_options: HashMap<ObjId, String>,
@@ -302,6 +206,379 @@ pub struct Notes {
     /// Seek events, indexed by ObjId. #SEEK
     #[cfg(feature = "minor-command")]
     pub seek_events: HashMap<ObjId, Decimal>,
+}
+
+impl Header {
+    pub(crate) fn parse(
+        &mut self,
+        token: &Token,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match *token {
+            Token::Artist(artist) => self.artist = Some(artist.into()),
+            #[cfg(feature = "minor-command")]
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                let to_insert = AtBgaDef {
+                    id,
+                    source_bmp,
+                    trim_top_left: trim_top_left.into(),
+                    trim_size: trim_size.into(),
+                    draw_point: draw_point.into(),
+                };
+                if let Some(older) = self.atbga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::AtBga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.atbga_defs.insert(id, to_insert);
+                }
+            }
+            Token::Banner(file) => self.banner = Some(file.into()),
+            Token::BackBmp(bmp) => self.back_bmp = Some(bmp.into()),
+            #[cfg(feature = "minor-command")]
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                let to_insert = BgaDef {
+                    id,
+                    source_bmp,
+                    trim_top_left: trim_top_left.into(),
+                    trim_bottom_right: trim_bottom_right.into(),
+                    draw_point: draw_point.into(),
+                };
+                if let Some(older) = self.bga_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bga {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bga_defs.insert(id, to_insert);
+                }
+            }
+            Token::Bmp(id, path) => {
+                if id.is_none() {
+                    self.poor_bmp = Some(path.into());
+                    return Ok(());
+                }
+                let id = id.unwrap();
+                let to_insert = Bmp {
+                    file: path.into(),
+                    transparent_color: Argb::default(),
+                };
+                if let Some(older) = self.bmp_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bmp {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bmp_files.insert(id, to_insert);
+                }
+            }
+            Token::Bpm(ref bpm) => {
+                self.bpm = Some(bpm.clone());
+            }
+            Token::BpmChange(id, ref bpm) => {
+                if let Some(older) = self.bpm_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::BpmChange {
+                            id,
+                            older: older.clone(),
+                            newer: bpm.clone(),
+                        })
+                        .apply(older, bpm.clone())?;
+                } else {
+                    self.bpm_changes.insert(id, bpm.clone());
+                }
+            }
+            Token::ChangeOption(id, option) => {
+                if let Some(older) = self.change_options.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ChangeOption {
+                            id,
+                            older,
+                            newer: option,
+                        })
+                        .apply(older, option.into())?;
+                } else {
+                    self.change_options.insert(id, option.into());
+                }
+            }
+            Token::Comment(comment) => self
+                .comment
+                .get_or_insert_with(Vec::new)
+                .push(comment.into()),
+            Token::Difficulty(diff) => self.difficulty = Some(diff),
+            Token::Email(email) => self.email = Some(email.into()),
+            Token::ExBmp(id, transparent_color, path) => {
+                let to_insert = Bmp {
+                    file: path.into(),
+                    transparent_color,
+                };
+                if let Some(older) = self.bmp_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Bmp {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.bmp_files.insert(id, to_insert);
+                }
+            }
+            Token::ExRank(id, judge_level) => {
+                let to_insert = ExRankDef { id, judge_level };
+                if let Some(older) = self.exrank_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExRank {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exrank_defs.insert(id, to_insert);
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
+                let to_insert = ExWavDef {
+                    id,
+                    pan,
+                    volume,
+                    frequency,
+                    path: path.into(),
+                };
+                if let Some(older) = self.exwav_defs.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ExWav {
+                            id,
+                            older,
+                            newer: &to_insert,
+                        })
+                        .apply(older, to_insert)?;
+                } else {
+                    self.exwav_defs.insert(id, to_insert);
+                }
+            }
+            Token::Genre(genre) => self.genre = Some(genre.to_owned()),
+            Token::LnTypeRdm => {
+                self.ln_type = LnType::Rdm;
+            }
+            Token::LnTypeMgq => {
+                self.ln_type = LnType::Mgq;
+            }
+            Token::Maker(maker) => self.maker = Some(maker.into()),
+            #[cfg(feature = "minor-command")]
+            Token::MidiFile(midi_file) => self.midi_file = Some(midi_file.into()),
+            #[cfg(feature = "minor-command")]
+            Token::OctFp => self.is_octave = true,
+            Token::Option(option) => self
+                .options
+                .get_or_insert_with(Vec::new)
+                .push(option.into()),
+            Token::PathWav(wav_path_root) => self.wav_path_root = Some(wav_path_root.into()),
+            Token::Player(player) => self.player = Some(player),
+            Token::PlayLevel(play_level) => self.play_level = Some(play_level),
+            Token::PoorBga(poor_bga_mode) => self.poor_bga_mode = poor_bga_mode,
+            Token::Rank(rank) => self.rank = Some(rank),
+            Token::Scroll(id, ref factor) => {
+                if let Some(older) = self.scrolling_factor_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::ScrollingFactorChange {
+                            id,
+                            older: older.clone(),
+                            newer: factor.clone(),
+                        })
+                        .apply(older, factor.clone())?;
+                } else {
+                    self.scrolling_factor_changes.insert(id, factor.clone());
+                }
+            }
+            Token::Speed(id, ref factor) => {
+                if let Some(older) = self.spacing_factor_changes.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SpacingFactorChange {
+                            id,
+                            older: older.clone(),
+                            newer: factor.clone(),
+                        })
+                        .apply(older, factor.clone())?;
+                } else {
+                    self.spacing_factor_changes.insert(id, factor.clone());
+                }
+            }
+            Token::StageFile(file) => self.stage_file = Some(file.into()),
+            Token::Stop(id, ref len) => {
+                self.stops
+                    .entry(id)
+                    .and_modify(|current_len| *current_len += len.clone())
+                    .or_insert(len.clone());
+            }
+            Token::SubArtist(sub_artist) => self.sub_artist = Some(sub_artist.into()),
+            Token::SubTitle(subtitle) => self.subtitle = Some(subtitle.into()),
+            Token::Text(id, text) => {
+                if let Some(older) = self.texts.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Text {
+                            id,
+                            older,
+                            newer: text,
+                        })
+                        .apply(older, text.into())?;
+                } else {
+                    self.texts.insert(id, text.into());
+                }
+            }
+            Token::Title(title) => self.title = Some(title.into()),
+            Token::Total(ref total) => {
+                self.total = Some(total.clone());
+            }
+            Token::Url(url) => self.url = Some(url.into()),
+            Token::VideoFile(video_file) => self.video_file = Some(video_file.into()),
+            Token::VolWav(volume) => self.volume = volume,
+            Token::Wav(id, path) => {
+                if let Some(older) = self.wav_files.get_mut(&id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::Wav {
+                            id,
+                            older,
+                            newer: path,
+                        })
+                        .apply(older, path.into())?;
+                } else {
+                    self.wav_files.insert(id, path.into());
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            Token::Stp(ev) => {
+                // Store by ObjTime as key, report error if duplicated
+                let key = ev.time;
+                if self.stp_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated STP event at time {key:?}"
+                    )));
+                }
+                self.stp_events.insert(key, ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::WavCmd(ev) => {
+                // Store by wav_index as key, report error if duplicated
+                let key = ev.wav_index;
+                if self.wavcmd_events.contains_key(&key) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated WAVCMD event for wav_index {key:?}",
+                    )));
+                }
+                self.wavcmd_events.insert(key, ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::SwBga(id, ref ev) => {
+                if self.swbga_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated SWBGA event for id {id:?}",
+                    )));
+                }
+                self.swbga_events.insert(id, ev.clone());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::Argb(id, argb) => {
+                if self.argb_defs.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated ARGB definition for id {id:?}",
+                    )));
+                }
+                self.argb_defs.insert(id, argb);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::Seek(id, ref v) => {
+                if self.seek_events.contains_key(&id) {
+                    return Err(super::ParseWarning::SyntaxError(format!(
+                        "Duplicated Seek event for id {id:?}",
+                    )));
+                }
+                self.seek_events.insert(id, v.clone());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::ExtChr(ev) => {
+                self.extchr_events.push(ev);
+            }
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsWav(path) => {
+                self.materials_wav.push(path.into());
+            }
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsBmp(path) => {
+                self.materials_bmp.push(path.into());
+            }
+            Token::Movie(_) | Token::LnMode(_) | Token::Preview(_) | Token::Charset(_) => {
+                // These tokens are not stored in Notes, just ignore
+            }
+            // Control flow
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
+                unreachable!()
+            }
+            Token::Base62
+            | Token::LnObj(_)
+            | Token::ExtendedMessage { .. }
+            | Token::DefExRank(_)
+            | Token::Message { .. } => {
+                // These Token should not be handled in Header::parse.
+            }
+            #[cfg(feature = "minor-command")]
+            Token::CharFile(_)
+            | Token::BaseBpm(_)
+            | Token::DivideProp(_)
+            | Token::VideoFs(_)
+            | Token::VideoColors(_)
+            | Token::VideoDly(_)
+            | Token::Cdda(_) => {
+                // These tokens are not stored in Notes, just ignore
+            }
+            Token::UnknownCommand(_) | Token::NotACommand(_) => {
+                // this token should be handled outside.
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Notes {
@@ -675,6 +952,7 @@ impl Notes {
                     },
                 );
             }
+            #[cfg(feature = "minor-command")]
             Token::ExWav {
                 id,
                 pan,
@@ -893,10 +1171,7 @@ impl Notes {
     }
 }
 
-fn ids_from_message(
-    track: command::Track,
-    message: &'_ str,
-) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
+fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
     let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
@@ -910,129 +1185,4 @@ fn ids_from_message(
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })
-}
-
-#[cfg(feature = "serde")]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-/// A pack of [`Notes`] for serialize/deserialize.
-pub struct NotesPack {
-    /// Note objects, ring the sound.
-    pub objs: Vec<Obj>,
-    /// BPM change events.
-    pub bpm_changes: Vec<BpmChangeObj>,
-    /// Section length change events.
-    pub section_len_changes: Vec<SectionLenChangeObj>,
-    /// Stop events.
-    pub stops: Vec<StopObj>,
-    /// BGA change events.
-    pub bga_changes: Vec<BgaObj>,
-    /// Scrolling factor change events.
-    pub scrolling_factor_changes: Vec<ScrollingFactorObj>,
-    /// Spacing factor change events.
-    pub spacing_factor_changes: Vec<SpacingFactorObj>,
-    /// Extended message events.
-    pub extended_messages: Vec<ExtendedMessageObj>,
-}
-
-#[cfg(feature = "serde")]
-impl serde::Serialize for Notes {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        NotesPack {
-            objs: self.all_notes().cloned().collect(),
-            bpm_changes: self.bpm_changes.values().cloned().collect(),
-            section_len_changes: self.section_len_changes.values().cloned().collect(),
-            stops: self.stops.values().cloned().collect(),
-            bga_changes: self.bga_changes.values().cloned().collect(),
-            scrolling_factor_changes: self.scrolling_factor_changes.values().cloned().collect(),
-            spacing_factor_changes: self.spacing_factor_changes.values().cloned().collect(),
-            extended_messages: self.extended_messages.clone(),
-        }
-        .serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for Notes {
-    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let pack = NotesPack::deserialize(deserializer)?;
-        let mut objs = HashMap::<ObjId, Vec<Obj>>::new();
-        let mut bgms: BTreeMap<ObjTime, Vec<ObjId>> = BTreeMap::new();
-        let mut ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>> = HashMap::new();
-        for obj in pack.objs {
-            if matches!(obj.kind, NoteKind::Invisible) {
-                bgms.entry(obj.offset)
-                    .and_modify(|ids| ids.push(obj.obj))
-                    .or_default();
-            }
-            ids_by_key
-                .entry(obj.key)
-                .and_modify(|id_map| {
-                    id_map.insert(obj.offset, obj.obj);
-                })
-                .or_default();
-            objs.entry(obj.obj).or_default().push(obj);
-        }
-        let mut bpm_changes = BTreeMap::new();
-        for bpm_change in pack.bpm_changes {
-            bpm_changes.insert(bpm_change.time, bpm_change);
-        }
-        let mut section_len_changes = BTreeMap::new();
-        for section_len_change in pack.section_len_changes {
-            section_len_changes.insert(section_len_change.track, section_len_change);
-        }
-        let mut stops = BTreeMap::new();
-        for stop in pack.stops {
-            stops.insert(stop.time, stop);
-        }
-        let mut bga_changes = BTreeMap::new();
-        for bga_change in pack.bga_changes {
-            bga_changes.insert(bga_change.time, bga_change);
-        }
-        let mut scrolling_factor_changes = BTreeMap::new();
-        for scrolling_change in pack.scrolling_factor_changes {
-            scrolling_factor_changes.insert(scrolling_change.time, scrolling_change);
-        }
-        let mut spacing_factor_changes = BTreeMap::new();
-        for spacing_change in pack.spacing_factor_changes {
-            spacing_factor_changes.insert(spacing_change.time, spacing_change);
-        }
-        let mut extended_messages = vec![];
-        for extended_message in pack.extended_messages {
-            extended_messages.push(extended_message);
-        }
-        Ok(Notes {
-            objs,
-            bgms,
-            ids_by_key,
-            bpm_changes,
-            section_len_changes,
-            stops,
-            bga_changes,
-            scrolling_factor_changes,
-            spacing_factor_changes,
-            extended_messages,
-            exrank_defs: HashMap::new(),
-            exwav_defs: HashMap::new(),
-            change_options: HashMap::new(),
-            texts: HashMap::new(),
-            #[cfg(feature = "minor-command")]
-            stp_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            wavcmd_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            cdda_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            swbga_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            argb_defs: Default::default(),
-            #[cfg(feature = "minor-command")]
-            seek_events: Default::default(),
-        })
-    }
 }

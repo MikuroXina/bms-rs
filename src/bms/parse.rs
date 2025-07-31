@@ -1,27 +1,26 @@
-//! Parser for BMS format. The reason why the implementation separated into lex and parse is the score may contain some randomized elements such as `#RANDOM`. This separation make us able to parse the tokens with the custom random generator cheaply.
+//! BMS: Parse Module.
+//!
+//! Lex => [Parse]
 
-pub mod header;
-pub mod notes;
-pub mod obj;
+pub mod model;
 pub mod prompt;
-mod random;
-pub mod rng;
+pub mod random;
 
 use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use self::{
-    header::Header, notes::Notes, prompt::PromptHandler, random::ControlFlowRule, rng::Rng,
-};
 use crate::bms::{
-    lex::{
-        command::{NoteKind, ObjId},
-        token::Token,
-    },
+    command::{NoteKind, ObjId},
+    lex::token::Token,
     parse::random::parse_control_flow,
 };
 
+use self::{
+    model::{Bms, Header, Notes},
+    prompt::PromptHandler,
+    random::{ControlFlowRule, rng::Rng},
+};
 use super::lex::BmsLexOutput;
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -47,20 +46,6 @@ pub enum ParseWarning {
 
 /// type alias of core::result::Result<T, ParseWarning>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
-
-/// A score data of BMS format.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms {
-    /// The header data in the score.
-    pub header: Header,
-    /// The objects in the score.
-    pub notes: Notes,
-    /// Lines that not starts with `'#'`.
-    pub non_command_lines: Vec<String>,
-    /// Lines that starts with `'#'`, but not recognized as vaild command.
-    pub unknown_command_lines: Vec<String>,
-}
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]

@@ -1,13 +1,16 @@
+//! Random Part.
+
 mod ast_build;
 mod ast_parse;
+pub mod rng;
 
 use thiserror::Error;
 
-use super::{ParseWarning, rng::Rng};
+use super::ParseWarning;
 use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
 
-use self::ast_build::*;
-use self::ast_parse::*;
+pub use self::rng::*;
+use self::{ast_build::*, ast_parse::*};
 
 /// Parses the control flow of the token.
 /// Returns the tokens that will be executed, and not contains control flow tokens.
@@ -31,34 +34,48 @@ pub(super) fn parse_control_flow<'a>(
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowRule {
-    // Random related
+    /// See [Error].
     #[error("unmatched end if")]
+    /// See [Error].
     UnmatchedEndIf,
     #[error("unmatched end random")]
+    /// See [Error].
     UnmatchedEndRandom,
+    /// See [Error].
     #[error("unmatched end switch")]
     UnmatchedEndSwitch,
+    /// See [Error].
     #[error("unmatched else if")]
     UnmatchedElseIf,
+    /// See [Error].
     #[error("unmatched else")]
     UnmatchedElse,
+    /// See [Error].
     #[error("duplicate if branch value in random block")]
     RandomDuplicateIfBranchValue,
+    /// See [Error].
     #[error("if branch value out of range in random block")]
     RandomIfBranchValueOutOfRange,
+    /// See [Error].
     #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
     UnmatchedTokenInRandomBlock,
     // Switch related
+    /// See [Error].
     #[error("duplicate case value in switch block")]
     SwitchDuplicateCaseValue,
+    /// See [Error].
     #[error("case value out of range in switch block")]
     SwitchCaseValueOutOfRange,
+    /// See [Error].
     #[error("duplicate def branch in switch block")]
     SwitchDuplicateDef,
+    /// See [Error].
     #[error("unmatched skip")]
     UnmatchedSkip,
+    /// See [Error].
     #[error("unmatched case")]
     UnmatchedCase,
+    /// See [Error].
     #[error("unmatched def")]
     UnmatchedDef,
 }

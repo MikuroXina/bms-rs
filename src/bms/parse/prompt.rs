@@ -4,12 +4,9 @@
 
 use std::path::Path;
 
-use crate::{bms::Decimal, lex::command::ObjId};
+use crate::bms::{Decimal, command::*};
 
-use super::{
-    ParseWarning, Result,
-    header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
-};
+use super::{ParseWarning, Result, model::def::*};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
@@ -112,6 +109,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a ExRankDef,
     },
     /// EXWAV definition is duplicated.
+    #[cfg(feature = "minor-command")]
     ExWav {
         /// Duplicated EXWAV object id.
         id: ObjId,

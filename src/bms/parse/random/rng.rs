@@ -15,7 +15,7 @@ pub trait Rng {
     ///
     /// - Example:
     /// ```rust
-    /// use bms_rs::bms::parse::rng::{Rng, RngMock};
+    /// use bms_rs::bms::parse::random::rng::{Rng, RngMock};
     /// use num::BigUint;
     ///
     /// let mut rng = RngMock([BigUint::from(1u64)]);
@@ -41,7 +41,7 @@ impl<const N: usize> Rng for RngMock<N> {
 /// [`rand`]: https://crates.io/crates/rand
 /// - Example:
 /// ```rust
-/// use bms_rs::bms::parse::rng::{Rng, RandRng};
+/// use bms_rs::bms::parse::random::rng::{Rng, RandRng};
 /// use rand::{rngs::StdRng, SeedableRng};
 /// use num::BigUint;
 ///

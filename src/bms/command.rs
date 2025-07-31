@@ -1,15 +1,15 @@
 //! Definitions of command argument data.
 pub mod channel;
+pub mod graphics;
+pub mod time;
 
-#[cfg(feature = "minor-command")]
+#[allow(unused)]
 use std::time::Duration;
 
-pub use channel::Channel;
-
-#[cfg(feature = "minor-command")]
-use crate::time::ObjTime;
-
-use super::{Result, cursor::Cursor};
+/// Export defs
+pub use channel::*;
+pub use graphics::*;
+pub use time::*;
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,17 +21,6 @@ pub enum PlayerMode {
     Two,
     /// For double play, a player uses 10 or 14 keys.
     Double,
-}
-
-impl PlayerMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
-        Ok(match c.next_token() {
-            Some("1") => Self::Single,
-            Some("2") => Self::Two,
-            Some("3") => Self::Double,
-            _ => return Err(c.make_err_expected_token("one of 1, 2 or 3")),
-        })
-    }
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
@@ -75,15 +64,6 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
             .parse::<i64>()
             .map(JudgeLevel::from)
             .map_err(|_| value)
-    }
-}
-
-impl JudgeLevel {
-    pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
-        c.next_token()
-            .ok_or(c.make_err_expected_token("one of [0,4]"))?
-            .try_into()
-            .map_err(|_| c.make_err_expected_token("one of [0,4]"))
     }
 }
 
@@ -163,12 +143,6 @@ impl<'a> TryFrom<&'a str> for ObjId {
             return Err(value);
         };
         Self::try_from([ch1, ch2]).map_err(|_| value)
-    }
-}
-
-impl ObjId {
-    pub(crate) fn try_load(value: &str, c: &mut Cursor) -> Result<Self> {
-        Self::try_from(value).map_err(|_| c.make_err_object_id(value.to_string()))
     }
 }
 
@@ -259,99 +233,6 @@ impl Default for Argb {
     }
 }
 
-/// A kind of the note.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum NoteKind {
-    /// A normal note can be seen by the user.
-    Visible,
-    /// A invisible note cannot be played by the user.
-    Invisible,
-    /// A long-press note (LN), requires the user to hold pressing the key.
-    Long,
-    /// A landmine note that treated as POOR judgement when
-    Landmine,
-}
-
-impl NoteKind {
-    /// Returns whether the note is a playable.
-    pub const fn is_playable(self) -> bool {
-        !matches!(self, Self::Invisible)
-    }
-
-    /// Returns whether the note is a long-press note.
-    pub const fn is_long(self) -> bool {
-        matches!(self, Self::Long)
-    }
-}
-
-/// A key of the controller or keyboard.
-///
-/// - Beat 5K/7K/10K/14K:
-/// ```text
-/// |---------|----------------------|
-/// |         |   [K2]  [K4]  [K6]   |
-/// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
-/// |---------|----------------------|
-/// ```
-///
-/// - PMS:
-/// ```text
-/// |----------------------------|
-/// |   [K2]  [K4]  [K6]  [K8]   |
-/// |[K1]  [K3]  [K5]  [K7]  [K9]|
-/// |----------------------------|
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Key {
-    /// The leftmost white key.
-    /// `11` in BME-type Player1.
-    Key1,
-    /// The leftmost black key.
-    /// `12` in BME-type Player1.
-    Key2,
-    /// The second white key from the left.
-    /// `13` in BME-type Player1.
-    Key3,
-    /// The second black key from the left.
-    /// `14` in BME-type Player1.
-    Key4,
-    /// The third white key from the left.
-    /// `15` in BME-type Player1.
-    Key5,
-    /// The rightmost black key.
-    /// `18` in BME-type Player1.
-    Key6,
-    /// The rightmost white key.
-    /// `19` in BME-type Player1.
-    Key7,
-    /// The extra black key. Used in PMS or other modes.
-    Key8,
-    /// The extra white key. Used in PMS or other modes.
-    Key9,
-    /// The extra key for OCT/FP.
-    Key10,
-    /// The extra key for OCT/FP.
-    Key11,
-    /// The extra key for OCT/FP.
-    Key12,
-    /// The extra key for OCT/FP.
-    Key13,
-    /// The extra key for OCT/FP.
-    Key14,
-    /// The scratch disk.
-    /// `16` in BME-type Player1.
-    Scratch,
-    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra,
-    /// The foot pedal.
-    FootPedal,
-    /// The zone that the user can scratch disk freely.
-    /// `17` in BMS-type Player1.
-    FreeZone,
-}
-
 /// A POOR BGA display mode.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -365,29 +246,15 @@ pub enum PoorMode {
     Hidden,
 }
 
-impl PoorMode {
-    pub(crate) fn from(c: &mut Cursor) -> Result<Self> {
-        Ok(match c.next_token() {
-            Some("0") => Self::Interrupt,
-            Some("1") => Self::Overlay,
-            Some("2") => Self::Hidden,
-            _ => return Err(c.make_err_expected_token("one of 0, 1 or 2")),
-        })
-    }
-}
-
-/// A track, or bar, in the score. It must greater than 0, but some scores may include the 0 track.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Track(pub u64);
-
 /// Pan value for ExWav sound effect.
 /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
 /// Default: 0.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct ExWavPan(i64);
 
+#[cfg(feature = "minor-command")]
 impl ExWavPan {
     /// Creates a new ExWavPan value.
     /// Returns `None` if the value is out of range [-10000, 10000].
@@ -406,6 +273,7 @@ impl ExWavPan {
     }
 }
 
+#[cfg(feature = "minor-command")]
 impl TryFrom<i64> for ExWavPan {
     type Error = i64;
 
@@ -419,8 +287,10 @@ impl TryFrom<i64> for ExWavPan {
 /// Default: 0.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct ExWavVolume(i64);
 
+#[cfg(feature = "minor-command")]
 impl ExWavVolume {
     /// Creates a new ExWavVolume value.
     /// Returns `None` if the value is out of range [-10000, 0].
@@ -439,6 +309,7 @@ impl ExWavVolume {
     }
 }
 
+#[cfg(feature = "minor-command")]
 impl TryFrom<i64> for ExWavVolume {
     type Error = i64;
 
@@ -451,8 +322,10 @@ impl TryFrom<i64> for ExWavVolume {
 /// Range: [100, 100000]. Unit: Hz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct ExWavFrequency(u64);
 
+#[cfg(feature = "minor-command")]
 impl ExWavFrequency {
     /// Creates a new ExWavFrequency value.
     /// Returns `None` if the value is out of range [100, 100000].
@@ -466,91 +339,13 @@ impl ExWavFrequency {
     }
 }
 
+#[cfg(feature = "minor-command")]
 impl TryFrom<u64> for ExWavFrequency {
     type Error = u64;
 
     fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
         Self::new(value).ok_or(value.clamp(100, 100000))
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_exwav_pan_try_from() {
-        // Valid values
-        assert!(ExWavPan::try_from(0).is_ok());
-        assert!(ExWavPan::try_from(10000).is_ok());
-        assert!(ExWavPan::try_from(-10000).is_ok());
-        assert!(ExWavPan::try_from(5000).is_ok());
-        assert!(ExWavPan::try_from(-5000).is_ok());
-
-        // Invalid values
-        assert!(ExWavPan::try_from(10001).is_err());
-        assert!(ExWavPan::try_from(-10001).is_err());
-        assert!(ExWavPan::try_from(i64::MAX).is_err());
-        assert!(ExWavPan::try_from(i64::MIN).is_err());
-    }
-
-    #[test]
-    fn test_exwav_volume_try_from() {
-        // Valid values
-        assert!(ExWavVolume::try_from(0).is_ok());
-        assert!(ExWavVolume::try_from(-10000).is_ok());
-        assert!(ExWavVolume::try_from(-5000).is_ok());
-
-        // Invalid values
-        assert!(ExWavVolume::try_from(1).is_err());
-        assert!(ExWavVolume::try_from(-10001).is_err());
-        assert!(ExWavVolume::try_from(i64::MAX).is_err());
-        assert!(ExWavVolume::try_from(i64::MIN).is_err());
-    }
-
-    #[test]
-    fn test_exwav_frequency_try_from() {
-        // Valid values
-        assert!(ExWavFrequency::try_from(100).is_ok());
-        assert!(ExWavFrequency::try_from(100000).is_ok());
-        assert!(ExWavFrequency::try_from(50000).is_ok());
-
-        // Invalid values
-        assert!(ExWavFrequency::try_from(99).is_err());
-        assert!(ExWavFrequency::try_from(100001).is_err());
-        assert!(ExWavFrequency::try_from(0).is_err());
-        assert!(ExWavFrequency::try_from(u64::MAX).is_err());
-    }
-
-    #[test]
-    fn test_exwav_values() {
-        // Test value() method
-        let pan = ExWavPan::try_from(5000).unwrap();
-        assert_eq!(pan.value(), 5000);
-
-        let volume = ExWavVolume::try_from(-5000).unwrap();
-        assert_eq!(volume.value(), -5000);
-
-        let frequency = ExWavFrequency::try_from(48000).unwrap();
-        assert_eq!(frequency.value(), 48000);
-    }
-
-    #[test]
-    fn test_exwav_defaults() {
-        assert_eq!(ExWavPan::default().value(), 0);
-        assert_eq!(ExWavVolume::default().value(), 0);
-    }
-}
-
-/// A side of the player.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum PlayerSide {
-    /// The player 1 side.
-    #[default]
-    Player1,
-    /// The player 2 side.
-    Player2,
 }
 
 /// RGB struct, used for #VIDEOCOLORS and similar commands.
@@ -563,6 +358,17 @@ pub struct Rgb {
     pub g: u8,
     /// Blue component
     pub b: u8,
+}
+
+/// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum LnType {
+    /// The RDM type.
+    #[default]
+    Rdm,
+    /// The MGQ type.
+    Mgq,
 }
 
 /// Long Note Mode Type
@@ -704,4 +510,78 @@ pub struct ExtChrEvent {
     pub abs_x: Option<i32>,
     /// Absolute coordinate (optional)
     pub abs_y: Option<i32>,
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "minor-command")]
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_exwav_pan_try_from() {
+        // Valid values
+        assert!(ExWavPan::try_from(0).is_ok());
+        assert!(ExWavPan::try_from(10000).is_ok());
+        assert!(ExWavPan::try_from(-10000).is_ok());
+        assert!(ExWavPan::try_from(5000).is_ok());
+        assert!(ExWavPan::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavPan::try_from(10001).is_err());
+        assert!(ExWavPan::try_from(-10001).is_err());
+        assert!(ExWavPan::try_from(i64::MAX).is_err());
+        assert!(ExWavPan::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_exwav_volume_try_from() {
+        // Valid values
+        assert!(ExWavVolume::try_from(0).is_ok());
+        assert!(ExWavVolume::try_from(-10000).is_ok());
+        assert!(ExWavVolume::try_from(-5000).is_ok());
+
+        // Invalid values
+        assert!(ExWavVolume::try_from(1).is_err());
+        assert!(ExWavVolume::try_from(-10001).is_err());
+        assert!(ExWavVolume::try_from(i64::MAX).is_err());
+        assert!(ExWavVolume::try_from(i64::MIN).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_exwav_frequency_try_from() {
+        // Valid values
+        assert!(ExWavFrequency::try_from(100).is_ok());
+        assert!(ExWavFrequency::try_from(100000).is_ok());
+        assert!(ExWavFrequency::try_from(50000).is_ok());
+
+        // Invalid values
+        assert!(ExWavFrequency::try_from(99).is_err());
+        assert!(ExWavFrequency::try_from(100001).is_err());
+        assert!(ExWavFrequency::try_from(0).is_err());
+        assert!(ExWavFrequency::try_from(u64::MAX).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_exwav_values() {
+        // Test value() method
+        let pan = ExWavPan::try_from(5000).unwrap();
+        assert_eq!(pan.value(), 5000);
+
+        let volume = ExWavVolume::try_from(-5000).unwrap();
+        assert_eq!(volume.value(), -5000);
+
+        let frequency = ExWavFrequency::try_from(48000).unwrap();
+        assert_eq!(frequency.value(), 48000);
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_exwav_defaults() {
+        assert_eq!(ExWavPan::default().value(), 0);
+        assert_eq!(ExWavVolume::default().value(), 0);
+    }
 }

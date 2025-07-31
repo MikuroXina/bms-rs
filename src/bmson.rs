@@ -30,9 +30,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 use crate::{
-    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide},
-    parse::{Bms, notes::BgaLayer},
-    time::{ObjTime, Track},
+    bms::{
+        command::{JudgeLevel, Key, NoteKind, ObjTime, PlayerSide, Track},
+        parse::model::Bms,
+    },
+    parse::model::obj::BgaLayer,
 };
 
 use self::{
