@@ -72,19 +72,14 @@ impl From<PixelSize> for (u16, u16) {
 }
 
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LnType {
     /// The RDM type.
+    #[default]
     Rdm,
     /// The MGQ type.
     Mgq,
-}
-
-impl Default for LnType {
-    fn default() -> Self {
-        Self::Rdm
-    }
 }
 
 /// A background image/video data.

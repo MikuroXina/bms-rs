@@ -353,21 +353,16 @@ pub enum Key {
 }
 
 /// A POOR BGA display mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PoorMode {
     /// To hide the normal BGA and display the POOR BGA.
+    #[default]
     Interrupt,
     /// To overlap the POOR BGA onto the normal BGA.
     Overlay,
     /// Not to display the POOR BGA.
     Hidden,
-}
-
-impl Default for PoorMode {
-    fn default() -> Self {
-        Self::Interrupt
-    }
 }
 
 impl PoorMode {
@@ -389,9 +384,8 @@ pub struct Track(pub u64);
 /// Pan value for ExWav sound effect.
 /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
 /// Default: 0.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Default)]
 pub struct ExWavPan(i64);
 
 impl ExWavPan {
@@ -423,9 +417,8 @@ impl TryFrom<i64> for ExWavPan {
 /// Volume value for ExWav sound effect.
 /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
 /// Default: 0.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Default)]
 pub struct ExWavVolume(i64);
 
 impl ExWavVolume {
