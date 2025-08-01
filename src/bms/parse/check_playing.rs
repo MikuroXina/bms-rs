@@ -53,11 +53,12 @@ impl Bms {
         }
 
         // Check for BPM-related conditions
-        let has_bpm = self.header.bpm.is_some() || !self.header.bpm_changes.is_empty();
-        if !has_bpm {
-            errors.push(PlayingError::BpmUndefined);
-        } else if self.header.bpm.is_none() {
-            warnings.push(PlayingWarning::StartBpmUndefined);
+        if self.arrangers.bpm.is_none() {
+            if self.arrangers.bpm_changes.is_empty() {
+                errors.push(PlayingError::BpmUndefined);
+            } else {
+                warnings.push(PlayingWarning::StartBpmUndefined);
+            }
         }
 
         // Check for notes

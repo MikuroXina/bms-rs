@@ -51,7 +51,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a str,
     },
     /// SPEED definition is duplicated.
-    SpacingFactorChange {
+    SpeedFactorChange {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
@@ -122,6 +122,15 @@ pub enum PromptingDuplication<'a> {
         older: &'a ExWavDef,
         /// Incoming definition.
         newer: &'a ExWavDef,
+    },
+    /// STOP definition is duplicated.
+    Stop {
+        /// Duplicated STOP object id.
+        id: ObjId,
+        /// Existing definition.
+        older: Decimal,
+        /// Incoming definition.
+        newer: Decimal,
     },
 }
 

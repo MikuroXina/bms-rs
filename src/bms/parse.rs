@@ -16,7 +16,7 @@ use crate::bms::{command::ObjId, lex::token::Token, parse::random::parse_control
 
 use self::{
     check_playing::{PlayingError, PlayingWarning},
-    model::{Bms, Header, Notes},
+    model::Bms,
     prompt::PromptHandler,
     random::{ControlFlowRule, rng::Rng},
 };
@@ -107,29 +107,12 @@ impl Bms {
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let (continue_tokens, mut parse_warnings) = parse_control_flow(&mut token_iter.into(), rng);
-        let mut notes = Notes::default();
-        let mut header = Header::default();
-        let mut non_command_lines: Vec<String> = Vec::new();
-        let mut unknown_command_lines: Vec<String> = Vec::new();
+        let mut bms = Bms::default();
         for &token in continue_tokens.iter() {
-            if let Err(error) = notes.parse(token, &header) {
+            if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error);
-            }
-            if let Err(error) = header.parse(token, &mut prompt_handler) {
-                parse_warnings.push(error);
-            }
-            match token {
-                Token::NotACommand(comment) => non_command_lines.push(comment.to_string()),
-                Token::UnknownCommand(comment) => unknown_command_lines.push(comment.to_string()),
-                _ => (),
             }
         }
-        let bms = Self {
-            header,
-            notes,
-            non_command_lines,
-            unknown_command_lines,
-        };
 
         let (playing_warnings, playing_errors) = bms.check_playing();
 

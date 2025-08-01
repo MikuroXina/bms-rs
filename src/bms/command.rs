@@ -45,6 +45,7 @@ pub enum JudgeLevel {
     /// Rank 3, the easier rank.
     Easy,
     /// Other integer value. Please See `JudgeLevel` for more details.
+    /// If used for ExRank, representing precentage.
     OtherInt(i64),
 }
 
@@ -375,11 +376,12 @@ pub enum LnType {
 }
 
 /// Long Note Mode Type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum LnModeType {
     /// Normal Long Note (LN)
+    #[default]
     Ln = 1,
     /// Classic Long Note (CN)
     Cn = 2,

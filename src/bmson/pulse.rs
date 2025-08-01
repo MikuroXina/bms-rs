@@ -4,7 +4,10 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bms::{Decimal, command::*, parse::model::Notes};
+use crate::{
+    bms::{Decimal, command::*},
+    parse::model::Bms,
+};
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -26,17 +29,18 @@ pub struct PulseConverter {
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
-    pub fn new(notes: &Notes) -> Self {
-        let resolution: u64 = notes.resolution_for_pulses();
-        let last_track = notes.last_obj_time().map_or(0, |time| time.track.0);
+    pub fn new(bms: &Bms) -> Self {
+        let resolution: u64 = bms.resolution_for_pulses();
+        let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
 
         let mut pulses_at_track_start = BTreeMap::new();
         pulses_at_track_start.insert(Track(0), 0);
         let mut current_track: u64 = 0;
         let mut current_pulses: u64 = 0;
         loop {
-            let section_len: f64 = notes
-                .section_len_changes()
+            let section_len: f64 = bms
+                .arrangers
+                .section_len_changes
                 .get(&Track(current_track))
                 .map_or(Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
@@ -78,7 +82,7 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::parse::model::obj::SectionLenChangeObj;
+    use crate::bms::parse::model::{Arrangers, obj::SectionLenChangeObj};
 
     // Source BMS:
     // ```
@@ -86,7 +90,7 @@ fn pulse_conversion() {
     // #00103:1.25
     // ```
     let notes = {
-        let mut notes = Notes::default();
+        let mut notes = Arrangers::default();
         notes.push_section_len_change(SectionLenChangeObj {
             track: Track(1),
             length: Decimal::from(0.75),
@@ -97,7 +101,10 @@ fn pulse_conversion() {
         });
         notes
     };
-    let converter = PulseConverter::new(&notes);
+    let converter = PulseConverter::new(&Bms {
+        arrangers: notes,
+        ..Default::default()
+    });
 
     assert_eq!(converter.resolution, 1);
 

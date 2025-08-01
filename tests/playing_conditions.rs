@@ -1,12 +1,7 @@
 use bms_rs::{
-    bms::parse::{
-        BmsParseOutput,
-        check_playing::{PlayingError, PlayingWarning},
-        model::Bms,
-        prompt::AlwaysWarn,
-        random::rng::RngMock,
-    },
-    lex::{BmsLexOutput, parse},
+    bms::{parse::{
+        check_playing::{PlayingError, PlayingWarning}, model::Bms, prompt::AlwaysWarn, random::rng::RngMock, BmsParseOutput
+    }, Decimal}, command::ObjId, lex::{parse, token::Token, BmsLexOutput}
 };
 use num::BigUint;
 
@@ -73,9 +68,13 @@ fn test_playing_conditions_with_bpm_change_only() {
     } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
+    assert!(!tokens.iter().any(|t| matches!(t, Token::Bpm(bpm) if bpm == &Decimal::from(120))));
+    let obj_id = ObjId::try_from("08").unwrap();
+    assert!(tokens.iter().any(|t| matches!(t, Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))));
+
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
-        bms: _,
+        bms,
         parse_warnings,
         playing_warnings,
         playing_errors,
@@ -84,8 +83,11 @@ fn test_playing_conditions_with_bpm_change_only() {
     assert_eq!(parse_warnings, vec![]);
 
     // Should have StartBpmUndefined warning but no BpmUndefined error
-    assert!(playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
-    assert!(!playing_errors.contains(&PlayingError::BpmUndefined));
+    assert_eq!(bms.arrangers.bpm, None);
+    assert_eq!(bms.scope_defines.bpm_defs.len(), 1);
+    assert_eq!(bms.arrangers.bpm_changes.len(), 0);
+    assert!(playing_errors.contains(&PlayingError::BpmUndefined));
+    assert!(!playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
 }
 
 #[test]

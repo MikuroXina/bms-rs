@@ -34,7 +34,7 @@ fn test_lal() {
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(151)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(151)));
     assert_eq!(bms.header.play_level, Some(7));
     assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.difficulty, Some(2));
@@ -66,7 +66,7 @@ fn test_nc() {
     );
     assert_eq!(bms.header.genre.as_deref(), Some("MOTION"));
     assert_eq!(bms.header.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(100)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(100)));
     assert_eq!(bms.header.play_level, Some(5));
     assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.difficulty, Some(2));
@@ -105,7 +105,7 @@ fn test_j219() {
         Some("cranky (obj: Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(147)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(147)));
     assert_eq!(bms.header.play_level, Some(6));
     assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.total, Some(Decimal::from(218)));
@@ -158,31 +158,34 @@ fn test_bemuse_ext() {
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes
-    assert_eq!(bms.header.scrolling_factor_changes.len(), 2);
-    assert_eq!(bms.header.spacing_factor_changes.len(), 2);
+    assert_eq!(bms.scope_defines.scroll_defs.len(), 2);
+    assert_eq!(bms.scope_defines.speed_defs.len(), 2);
+
+    assert_eq!(bms.arrangers.scrolling_factor_changes.len(), 4);
+    assert_eq!(bms.arrangers.speed_factor_changes.len(), 4);
 
     // Check specific values
     assert_eq!(
-        bms.header
-            .scrolling_factor_changes
+        bms.scope_defines
+            .scroll_defs
             .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.header
-            .scrolling_factor_changes
+        bms.scope_defines
+            .scroll_defs
             .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );
     assert_eq!(
-        bms.header
-            .spacing_factor_changes
+        bms.scope_defines
+            .speed_defs
             .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.header
-            .spacing_factor_changes
+        bms.scope_defines
+            .speed_defs
             .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );

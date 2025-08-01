@@ -201,28 +201,28 @@ impl Ord for ScrollingFactorObj {
 /// An object to change spacing factor between notes with linear interpolation.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SpacingFactorObj {
+pub struct SpeedFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
     pub factor: Decimal,
 }
 
-impl PartialEq for SpacingFactorObj {
+impl PartialEq for SpeedFactorObj {
     fn eq(&self, other: &Self) -> bool {
         self.time == other.time
     }
 }
 
-impl Eq for SpacingFactorObj {}
+impl Eq for SpeedFactorObj {}
 
-impl PartialOrd for SpacingFactorObj {
+impl PartialOrd for SpeedFactorObj {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for SpacingFactorObj {
+impl Ord for SpeedFactorObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.time.cmp(&other.time)
     }

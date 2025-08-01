@@ -92,7 +92,7 @@ pub enum Token<'a> {
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
     /// Overrides `#RANK` definition.
-    DefExRank(BigUint),
+    DefExRank(u64),
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
     Difficulty(u8),
     /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
@@ -1147,8 +1147,9 @@ impl<'a> Token<'a> {
                     let value = c
                         .next_token()
                         .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
-                    let value = BigUint::parse_bytes(value.as_bytes(), 10)
-                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                    let value = value
+                        .parse()
+                        .map_err(|_| c.make_err_expected_token("u64"))?;
                     Self::DefExRank(value)
                 }
                 preview if preview.starts_with("#PREVIEW") => {
