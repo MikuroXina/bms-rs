@@ -1,9 +1,12 @@
 use bms_rs::{
-    lex::{BmsLexOutput, parse},
-    parse::{
-        BmsParseOutput, PlayingError, PlayingWarning, model::Bms, prompt::AlwaysWarn,
+    bms::parse::{
+        BmsParseOutput,
+        check_playing::{PlayingError, PlayingWarning},
+        model::Bms,
+        prompt::AlwaysWarn,
         random::rng::RngMock,
     },
+    lex::{BmsLexOutput, parse},
 };
 use num::BigUint;
 
