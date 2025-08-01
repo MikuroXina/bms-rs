@@ -6,7 +6,12 @@ use std::path::Path;
 
 use crate::bms::{Decimal, command::*};
 
-use super::{ParseWarning, Result, model::def::*};
+#[cfg(feature = "minor-command")]
+use super::model::def::ExWavDef;
+use super::{
+    ParseWarning, Result,
+    model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {

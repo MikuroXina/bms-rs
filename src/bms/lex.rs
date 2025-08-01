@@ -1,4 +1,7 @@
 //! Lexical analyzer of BMS format.
+//!
+//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
+//! BmsParseOutput)
 
 mod command_impl;
 mod cursor;

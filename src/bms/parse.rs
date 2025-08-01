@@ -1,6 +1,7 @@
-//! BMS: Parse Module.
+//! Parsing Bms from [TokenStream].
 //!
-//! Lex => [Parse]
+//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
+//! BmsParseOutput)
 
 pub mod model;
 pub mod prompt;

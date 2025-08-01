@@ -1,9 +1,12 @@
 //! Definitions of command argument data.
+//!
+//! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
+
 pub mod channel;
 pub mod graphics;
 pub mod time;
 
-#[allow(unused)]
+#[cfg(feature = "minor-command")]
 use std::time::Duration;
 
 /// Export defs

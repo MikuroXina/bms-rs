@@ -1,4 +1,5 @@
 //! Definitions of the token in BMS format.
+
 use std::{borrow::Cow, path::Path, str::FromStr};
 
 #[cfg(feature = "minor-command")]

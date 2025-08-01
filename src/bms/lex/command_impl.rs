@@ -1,3 +1,5 @@
+//! Some impl with [Cursor] usage for Structures in [command] module, for lex part.
+
 use crate::bms::command::*;
 
 use super::{Result, cursor::Cursor};

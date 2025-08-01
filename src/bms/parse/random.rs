@@ -4,13 +4,13 @@ mod ast_build;
 mod ast_parse;
 pub mod rng;
 
+use ast_build::build_control_flow_ast;
+use ast_parse::parse_control_flow_ast;
+use rng::Rng;
 use thiserror::Error;
 
 use super::ParseWarning;
 use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
-
-pub use self::rng::*;
-use self::{ast_build::*, ast_parse::*};
 
 /// Parses the control flow of the token.
 /// Returns the tokens that will be executed, and not contains control flow tokens.
@@ -87,7 +87,13 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{bms::lex::token::Token, parse::BmsParseTokenIter};
+    use crate::{
+        bms::lex::token::Token,
+        parse::{
+            BmsParseTokenIter,
+            random::ast_build::{CaseBranch, CaseBranchValue, Unit},
+        },
+    };
 
     struct DummyRng;
     impl Rng for DummyRng {

@@ -1,5 +1,6 @@
 //! Header information from parsed BMS file.
 //! Note objects manager.
+
 pub mod def;
 pub mod notes_pack;
 pub mod obj;
@@ -16,10 +17,26 @@ use std::{
 use fraction::GenericFraction;
 use itertools::Itertools;
 
-use crate::bms::{Decimal, command::*, lex::token::Token};
+#[cfg(feature = "minor-command")]
+use crate::bms::command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
+use crate::bms::{
+    Decimal,
+    command::{
+        Argb, Channel, JudgeLevel, Key, LnType, NoteKind, ObjId, ObjTime, PlayerMode, PoorMode,
+        Track, Volume,
+    },
+    lex::token::Token,
+};
 
-use self::def::*;
-use self::obj::*;
+#[cfg(feature = "minor-command")]
+use self::def::{AtBgaDef, BgaDef, ExWavDef};
+use self::{
+    def::{Bmp, ExRankDef},
+    obj::{
+        BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
+        SectionLenChangeObj, SpacingFactorObj, StopObj,
+    },
+};
 use super::{
     ParseWarning, Result,
     prompt::{PromptHandler, PromptingDuplication},
