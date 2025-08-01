@@ -1,7 +1,16 @@
 use bms_rs::{
-    bms::{parse::{
-        check_playing::{PlayingError, PlayingWarning}, model::Bms, prompt::AlwaysWarn, random::rng::RngMock, BmsParseOutput
-    }, Decimal}, command::ObjId, lex::{parse, token::Token, BmsLexOutput}
+    bms::{
+        Decimal,
+        parse::{
+            BmsParseOutput,
+            check_playing::{PlayingError, PlayingWarning},
+            model::Bms,
+            prompt::AlwaysWarn,
+            random::rng::RngMock,
+        },
+    },
+    command::ObjId,
+    lex::{BmsLexOutput, parse, token::Token},
 };
 use num::BigUint;
 
@@ -68,9 +77,15 @@ fn test_playing_conditions_with_bpm_change_only() {
     } = parse(source);
     assert_eq!(lex_warnings, vec![]);
 
-    assert!(!tokens.iter().any(|t| matches!(t, Token::Bpm(bpm) if bpm == &Decimal::from(120))));
+    assert!(
+        !tokens
+            .iter()
+            .any(|t| matches!(t, Token::Bpm(bpm) if bpm == &Decimal::from(120)))
+    );
     let obj_id = ObjId::try_from("08").unwrap();
-    assert!(tokens.iter().any(|t| matches!(t, Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))));
+    assert!(tokens.iter().any(
+        |t| matches!(t, Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
+    ));
 
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {

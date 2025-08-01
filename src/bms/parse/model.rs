@@ -15,6 +15,7 @@ use std::{
 
 use fraction::GenericFraction;
 use itertools::Itertools;
+#[cfg(feature = "minor-command")]
 use num::BigUint;
 
 #[cfg(feature = "minor-command")]
@@ -28,7 +29,7 @@ use crate::{
         },
         lex::token::Token,
     },
-    command::{LnModeType, PixelPoint},
+    command::LnModeType,
 };
 
 #[cfg(feature = "minor-command")]
@@ -128,8 +129,6 @@ pub struct ScopeDefines {
     pub scroll_defs: HashMap<ObjId, Decimal>,
     /// Spacing change definitions, indexed by ObjId. #SPEED[01-ZZ]
     pub speed_defs: HashMap<ObjId, Decimal>,
-    /// Storage for #CHANGEOPTION definitions
-    pub change_options: HashMap<ObjId, String>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
@@ -219,6 +218,18 @@ pub struct Graphics {
     /// Material BMP file paths. #MATERIALSBMP
     #[cfg(feature = "minor-command")]
     pub materials_bmp: Vec<PathBuf>,
+    /// Character file path. #CHARFILE
+    #[cfg(feature = "minor-command")]
+    pub char_file: Option<PathBuf>,
+    /// Video color depth. #VIDEOCOLORS
+    #[cfg(feature = "minor-command")]
+    pub video_colors: Option<u8>,
+    /// Video delay. #VIDEODLY
+    #[cfg(feature = "minor-command")]
+    pub video_dly: Option<Decimal>,
+    /// Video frame rate. #VIDEOF/S
+    #[cfg(feature = "minor-command")]
+    pub video_fs: Option<Decimal>,
 }
 
 /// The other objects that are used in the score. May be arranged in play.
@@ -248,6 +259,9 @@ pub struct Others {
     pub non_command_lines: Vec<String>,
     /// Lines that starts with `'#'`, but not recognized as vaild command.
     pub unknown_command_lines: Vec<String>,
+    /// Divide property. #DIVIDEPROP
+    #[cfg(feature = "minor-command")]
+    pub divide_prop: Option<String>,
 }
 
 impl Bms {
@@ -353,7 +367,7 @@ impl Bms {
                 }
             }
             Token::ChangeOption(id, option) => {
-                if let Some(older) = self.scope_defines.change_options.get_mut(id) {
+                if let Some(older) = self.others.change_options.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ChangeOption {
                             id: *id,
@@ -362,9 +376,7 @@ impl Bms {
                         })
                         .apply(older, option.to_string())?;
                 } else {
-                    self.scope_defines
-                        .change_options
-                        .insert(*id, option.to_string());
+                    self.others.change_options.insert(*id, option.to_string());
                 }
             }
             Token::Comment(comment) => self
@@ -670,7 +682,7 @@ impl Bms {
             } => {
                 for (_time, obj) in ids_from_message(*track, message) {
                     let _option = self
-                        .scope_defines
+                        .others
                         .change_options
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
@@ -831,15 +843,25 @@ impl Bms {
                 unreachable!()
             }
             #[cfg(feature = "minor-command")]
-            Token::CharFile(path) => todo!(),
+            Token::CharFile(path) => {
+                self.graphics.char_file = Some(path.into());
+            }
             #[cfg(feature = "minor-command")]
-            Token::DivideProp(_) => todo!(),
+            Token::DivideProp(prop) => {
+                self.others.divide_prop = Some(prop.to_string());
+            }
             #[cfg(feature = "minor-command")]
-            Token::VideoColors(_) => todo!(),
+            Token::VideoColors(colors) => {
+                self.graphics.video_colors = Some(*colors);
+            }
             #[cfg(feature = "minor-command")]
-            Token::VideoDly(generic_decimal) => todo!(),
+            Token::VideoDly(delay) => {
+                self.graphics.video_dly = Some(delay.clone());
+            }
             #[cfg(feature = "minor-command")]
-            Token::VideoFs(generic_decimal) => todo!(),
+            Token::VideoFs(frame_rate) => {
+                self.graphics.video_fs = Some(frame_rate.clone());
+            }
         }
         Ok(())
     }
