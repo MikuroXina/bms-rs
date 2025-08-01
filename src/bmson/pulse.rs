@@ -91,14 +91,25 @@ fn pulse_conversion() {
     // ```
     let notes = {
         let mut notes = Arrangers::default();
-        notes.push_section_len_change(SectionLenChangeObj {
-            track: Track(1),
-            length: Decimal::from(0.75),
-        });
-        notes.push_section_len_change(SectionLenChangeObj {
-            track: Track(2),
-            length: Decimal::from(1.25),
-        });
+        let mut prompt_handler = crate::bms::parse::prompt::AlwaysUseNewer;
+        notes
+            .push_section_len_change(
+                SectionLenChangeObj {
+                    track: Track(1),
+                    length: Decimal::from(0.75),
+                },
+                &mut prompt_handler,
+            )
+            .unwrap();
+        notes
+            .push_section_len_change(
+                SectionLenChangeObj {
+                    track: Track(2),
+                    length: Decimal::from(1.25),
+                },
+                &mut prompt_handler,
+            )
+            .unwrap();
         notes
     };
     let converter = PulseConverter::new(&Bms {

@@ -43,7 +43,7 @@ use self::{
 };
 use super::{
     ParseWarning, Result,
-    prompt::{PromptHandler, PromptingDuplication},
+    prompt::{DuplicationWorkaround, PromptHandler, PromptingDuplication},
 };
 
 /// A score data of BMS format.
@@ -333,7 +333,9 @@ impl Bms {
                     self.graphics.poor_bmp = Some(path.into());
                     return Ok(());
                 }
-                let id = id.unwrap();
+                let id = id.ok_or(ParseWarning::SyntaxError(
+                    "BMP id should not be None".to_string(),
+                ))?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: Argb::default(),
@@ -616,10 +618,13 @@ impl Bms {
                         .bpm_defs
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_bpm_change(BpmChangeObj {
-                        time,
-                        bpm: bpm.clone(),
-                    });
+                    self.arrangers.push_bpm_change(
+                        BpmChangeObj {
+                            time,
+                            bpm: bpm.clone(),
+                        },
+                        prompt_handler,
+                    )?;
                 }
             }
             Token::Message {
@@ -629,15 +634,25 @@ impl Bms {
             } => {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
-                    let bpm = c1.to_digit(16).unwrap() * 16 + c2.to_digit(16).unwrap();
+                    let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
+                        "Invalid hex digit: {}",
+                        c1
+                    )))? * 16
+                        + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
+                            "Invalid hex digit: {}",
+                            c2
+                        )))?;
                     if bpm == 0 {
                         continue;
                     }
                     let time = ObjTime::new(track.0, i as u64, denominator);
-                    self.arrangers.push_bpm_change(BpmChangeObj {
-                        time,
-                        bpm: Decimal::from(bpm),
-                    });
+                    self.arrangers.push_bpm_change(
+                        BpmChangeObj {
+                            time,
+                            bpm: Decimal::from(bpm),
+                        },
+                        prompt_handler,
+                    )?;
                 }
             }
             Token::Message {
@@ -651,11 +666,13 @@ impl Bms {
                         .scroll_defs
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers
-                        .push_scrolling_factor_change(ScrollingFactorObj {
+                    self.arrangers.push_scrolling_factor_change(
+                        ScrollingFactorObj {
                             time,
                             factor: factor.clone(),
-                        });
+                        },
+                        prompt_handler,
+                    )?;
                 }
             }
             Token::Message {
@@ -669,10 +686,13 @@ impl Bms {
                         .speed_defs
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_speed_factor_change(SpeedFactorObj {
-                        time,
-                        factor: factor.clone(),
-                    });
+                    self.arrangers.push_speed_factor_change(
+                        SpeedFactorObj {
+                            time,
+                            factor: factor.clone(),
+                        },
+                        prompt_handler,
+                    )?;
                 }
             }
             Token::Message {
@@ -696,16 +716,22 @@ impl Bms {
                 message,
             } => {
                 let length = Decimal::from(Decimal::from_fraction(
-                    GenericFraction::from_str(message).expect("f64 as section length"),
+                    GenericFraction::from_str(message).map_err(|_| {
+                        ParseWarning::SyntaxError(format!("Invalid section length: {}", message))
+                    })?,
                 ));
-                assert!(
-                    length > Decimal::from(0u64),
-                    "section length must be greater than zero"
-                );
-                self.arrangers.push_section_len_change(SectionLenChangeObj {
-                    track: *track,
-                    length,
-                });
+                if length <= Decimal::from(0u64) {
+                    return Err(ParseWarning::SyntaxError(
+                        "section length must be greater than zero".to_string(),
+                    ));
+                }
+                self.arrangers.push_section_len_change(
+                    SectionLenChangeObj {
+                        track: *track,
+                        length,
+                    },
+                    prompt_handler,
+                )?;
             }
             Token::Message {
                 track,
@@ -739,11 +765,14 @@ impl Bms {
                         Channel::BgaLayer => BgaLayer::Overlay,
                         _ => unreachable!(),
                     };
-                    self.graphics.push_bga_change(BgaObj {
-                        time,
-                        id: obj,
-                        layer,
-                    });
+                    self.graphics.push_bga_change(
+                        BgaObj {
+                            time,
+                            id: obj,
+                            layer,
+                        },
+                        prompt_handler,
+                    )?;
                 }
             }
             Token::Message {
@@ -795,7 +824,13 @@ impl Bms {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note = self.notes.remove_latest_note(begin_id).unwrap();
+                let mut begin_note =
+                    self.notes
+                        .remove_latest_note(begin_id)
+                        .ok_or(ParseWarning::SyntaxError(format!(
+                            "Cannot find begin note for LNOBJ {:?}",
+                            end_id
+                        )))?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.notes.push_note(begin_note);
@@ -804,9 +839,13 @@ impl Bms {
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
                 self.scope_defines.exrank_defs.insert(
-                    ObjId::try_from([0, 0]).unwrap(),
+                    ObjId::try_from([0, 0]).map_err(|_| {
+                        ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
+                    })?,
                     ExRankDef {
-                        id: ObjId::try_from([0, 0]).unwrap(),
+                        id: ObjId::try_from([0, 0]).map_err(|_| {
+                            ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
+                        })?,
                         judge_level,
                     },
                 );
@@ -924,52 +963,121 @@ impl Bms {
 
 impl Arrangers {
     /// Adds a new BPM change object to the notes.
-    pub fn push_bpm_change(&mut self, bpm_change: BpmChangeObj) {
-        if let Some(existing) = self.bpm_changes.insert(bpm_change.time, bpm_change) {
-            eprintln!(
-                "duplicate bpm change object detected at {:?}",
-                existing.time
-            );
+    pub fn push_bpm_change(
+        &mut self,
+        bpm_change: BpmChangeObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        if let Some(existing) = self.bpm_changes.insert(bpm_change.time, bpm_change.clone()) {
+            match prompt_handler.handle_duplication(PromptingDuplication::BpmChangeEvent {
+                time: bpm_change.time,
+                older: &existing,
+                newer: &bpm_change,
+            }) {
+                DuplicationWorkaround::UseOlder => {
+                    self.bpm_changes.insert(bpm_change.time, existing);
+                }
+                DuplicationWorkaround::UseNewer => {
+                    // Already inserted the newer one
+                }
+                DuplicationWorkaround::Warn => {
+                    return Err(ParseWarning::PromptHandlerWarning);
+                }
+            }
         }
+        Ok(())
     }
 
     /// Adds a new scrolling factor change object to the notes.
-    pub fn push_scrolling_factor_change(&mut self, bpm_change: ScrollingFactorObj) {
-        if let Some(existing) = self
-            .scrolling_factor_changes
-            .insert(bpm_change.time, bpm_change.clone())
-        {
-            eprintln!(
-                "duplicate scrolling factor change object detected at {:?}",
-                existing.time
-            );
+    pub fn push_scrolling_factor_change(
+        &mut self,
+        scrolling_factor_change: ScrollingFactorObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        if let Some(existing) = self.scrolling_factor_changes.insert(
+            scrolling_factor_change.time,
+            scrolling_factor_change.clone(),
+        ) {
+            match prompt_handler.handle_duplication(
+                PromptingDuplication::ScrollingFactorChangeEvent {
+                    time: scrolling_factor_change.time,
+                    older: &existing,
+                    newer: &scrolling_factor_change,
+                },
+            ) {
+                DuplicationWorkaround::UseOlder => {
+                    self.scrolling_factor_changes
+                        .insert(scrolling_factor_change.time, existing);
+                }
+                DuplicationWorkaround::UseNewer => {
+                    // Already inserted the newer one
+                }
+                DuplicationWorkaround::Warn => {
+                    return Err(ParseWarning::PromptHandlerWarning);
+                }
+            }
         }
+        Ok(())
     }
 
     /// Adds a new spacing factor change object to the notes.
-    pub fn push_speed_factor_change(&mut self, bpm_change: SpeedFactorObj) {
+    pub fn push_speed_factor_change(
+        &mut self,
+        speed_factor_change: SpeedFactorObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
         if let Some(existing) = self
             .speed_factor_changes
-            .insert(bpm_change.time, bpm_change.clone())
+            .insert(speed_factor_change.time, speed_factor_change.clone())
         {
-            eprintln!(
-                "duplicate spacing factor change object detected at {:?}",
-                existing.time
-            );
+            match prompt_handler.handle_duplication(PromptingDuplication::SpeedFactorChangeEvent {
+                time: speed_factor_change.time,
+                older: &existing,
+                newer: &speed_factor_change,
+            }) {
+                DuplicationWorkaround::UseOlder => {
+                    self.speed_factor_changes
+                        .insert(speed_factor_change.time, existing);
+                }
+                DuplicationWorkaround::UseNewer => {
+                    // Already inserted the newer one
+                }
+                DuplicationWorkaround::Warn => {
+                    return Err(ParseWarning::PromptHandlerWarning);
+                }
+            }
         }
+        Ok(())
     }
 
     /// Adds a new section length change object to the notes.
-    pub fn push_section_len_change(&mut self, section_len_change: SectionLenChangeObj) {
+    pub fn push_section_len_change(
+        &mut self,
+        section_len_change: SectionLenChangeObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
         if let Some(existing) = self
             .section_len_changes
             .insert(section_len_change.track, section_len_change.clone())
         {
-            eprintln!(
-                "duplicate section length change object detected at {:?}",
-                existing.track
-            );
+            match prompt_handler.handle_duplication(PromptingDuplication::SectionLenChangeEvent {
+                track: section_len_change.track,
+                older: &existing,
+                newer: &section_len_change,
+            }) {
+                DuplicationWorkaround::UseOlder => {
+                    self.section_len_changes
+                        .insert(section_len_change.track, existing);
+                }
+                DuplicationWorkaround::UseNewer => {
+                    // Already inserted the newer one
+                }
+                DuplicationWorkaround::Warn => {
+                    return Err(ParseWarning::PromptHandlerWarning);
+                }
+            }
         }
+        Ok(())
     }
 
     /// Adds a new stop object to the notes.
@@ -990,13 +1098,29 @@ impl Graphics {
     }
 
     /// Adds a new bga change object to the notes.
-    pub fn push_bga_change(&mut self, bga: BgaObj) {
-        if let Some(existing) = self.bga_changes.insert(bga.time, bga) {
-            eprintln!(
-                "duplicate bga change object detected at {:?}",
-                existing.time
-            );
+    pub fn push_bga_change(
+        &mut self,
+        bga: BgaObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        if let Some(existing) = self.bga_changes.insert(bga.time, bga.clone()) {
+            match prompt_handler.handle_duplication(PromptingDuplication::BgaChangeEvent {
+                time: bga.time,
+                older: &existing,
+                newer: &bga,
+            }) {
+                DuplicationWorkaround::UseOlder => {
+                    self.bga_changes.insert(bga.time, existing);
+                }
+                DuplicationWorkaround::UseNewer => {
+                    // Already inserted the newer one
+                }
+                DuplicationWorkaround::Warn => {
+                    return Err(ParseWarning::PromptHandlerWarning);
+                }
+            }
         }
+        Ok(())
     }
 }
 
@@ -1043,11 +1167,9 @@ impl Notes {
     /// Removes the latest note from the notes.
     pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            self.ids_by_key
-                .get_mut(&removed.key)
-                .unwrap()
-                .remove(&removed.offset)
-                .unwrap();
+            if let Some(key_map) = self.ids_by_key.get_mut(&removed.key) {
+                key_map.remove(&removed.offset);
+            }
         })
     }
 
@@ -1055,11 +1177,9 @@ impl Notes {
     pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                self.ids_by_key
-                    .get_mut(&item.key)
-                    .unwrap()
-                    .remove(&item.offset)
-                    .unwrap();
+                if let Some(key_map) = self.ids_by_key.get_mut(&item.key) {
+                    key_map.remove(&item.offset);
+                }
             }
             removed
         })
@@ -1100,7 +1220,7 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
                 break (i, c1, c2);
             }
         };
-        let obj = ObjId::try_from([c1, c2]).expect("invalid object id");
+        let obj = ObjId::try_from([c1, c2]).ok()?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })

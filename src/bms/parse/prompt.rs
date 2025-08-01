@@ -11,6 +11,7 @@ use super::model::def::ExWavDef;
 use super::{
     ParseWarning, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedFactorObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -131,6 +132,51 @@ pub enum PromptingDuplication<'a> {
         older: Decimal,
         /// Incoming definition.
         newer: Decimal,
+    },
+    /// BPM change event is duplicated.
+    BpmChangeEvent {
+        /// Duplicated BPM change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BpmChangeObj,
+        /// Incoming definition.
+        newer: &'a BpmChangeObj,
+    },
+    /// Scrolling factor change event is duplicated.
+    ScrollingFactorChangeEvent {
+        /// Duplicated scrolling factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a ScrollingFactorObj,
+        /// Incoming definition.
+        newer: &'a ScrollingFactorObj,
+    },
+    /// Speed factor change event is duplicated.
+    SpeedFactorChangeEvent {
+        /// Duplicated speed factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a SpeedFactorObj,
+        /// Incoming definition.
+        newer: &'a SpeedFactorObj,
+    },
+    /// Section length change event is duplicated.
+    SectionLenChangeEvent {
+        /// Duplicated section length change track.
+        track: Track,
+        /// Existing definition.
+        older: &'a SectionLenChangeObj,
+        /// Incoming definition.
+        newer: &'a SectionLenChangeObj,
+    },
+    /// BGA change event is duplicated.
+    BgaChangeEvent {
+        /// Duplicated BGA change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaObj,
+        /// Incoming definition.
+        newer: &'a BgaObj,
     },
 }
 

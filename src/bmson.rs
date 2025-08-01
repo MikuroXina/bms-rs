@@ -151,7 +151,10 @@ pub fn default_mode_hint() -> String {
 
 /// Default relative percentage, 100%.
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
+    FinF64::new(100.0).unwrap_or_else(|| {
+        // This should never happen as 100.0 is a valid FinF64 value
+        panic!("Internal error: 100.0 is not a valid FinF64")
+    })
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
@@ -382,7 +385,10 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
-        .expect("Internal error: judge rank is invalid");
+        .unwrap_or_else(|| {
+            // This should never happen as the values are all valid
+            panic!("Internal error: judge rank is invalid")
+        });
 
         let resolution = value.resolution_for_pulses();
 
@@ -531,8 +537,10 @@ impl TryFrom<Bms> for Bmson {
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
-                        let damage = FinF64::new(100.0)
-                            .expect("Internal error: 100.0 is not a valid FinF64");
+                        let damage = FinF64::new(100.0).unwrap_or_else(|| {
+                            // This should never happen as 100.0 is a valid FinF64 value
+                            panic!("Internal error: 100.0 is not a valid FinF64")
+                        });
                         mine_map.entry(note.obj).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,
