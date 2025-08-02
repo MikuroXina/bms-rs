@@ -64,7 +64,7 @@ impl<'a> Cursor<'a> {
         self.col += self.source[self.index..ret.end]
             .lines()
             .last()
-            .unwrap()
+            .unwrap_or("")
             .chars()
             .count();
         self.index = ret.end;

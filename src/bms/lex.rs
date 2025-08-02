@@ -1,12 +1,15 @@
 //! Lexical analyzer of BMS format.
+//!
+//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
+//! BmsParseOutput)
 
-pub mod command;
+mod command_impl;
 mod cursor;
 pub mod token;
 
 use thiserror::Error;
 
-use crate::lex::command::channel::{Channel, read_channel_beat};
+use crate::bms::command::channel::{Channel, read_channel_beat};
 
 use self::{cursor::Cursor, token::Token};
 
@@ -103,9 +106,10 @@ mod tests {
 
     use fraction::{GenericDecimal, GenericFraction};
 
-    use crate::lex::BmsLexOutput;
-
-    use super::{command::*, parse, token::Token::*};
+    use crate::bms::{
+        command::*,
+        lex::{BmsLexOutput, parse, token::Token::*},
+    };
 
     #[test]
     fn simple() {

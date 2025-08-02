@@ -18,15 +18,19 @@
 use fraction::GenericDecimal;
 use num::BigUint;
 
+pub mod command;
 pub mod lex;
 pub mod parse;
-pub mod time;
 
 use thiserror::Error;
 
-use crate::parse::{PlayingError, PlayingWarning};
-
-use self::{lex::LexWarning, parse::ParseWarning};
+use self::{
+    lex::LexWarning,
+    parse::{
+        ParseWarning,
+        check_playing::{PlayingError, PlayingWarning},
+    },
+};
 
 /// Decimal type used throughout the BMS module.
 ///

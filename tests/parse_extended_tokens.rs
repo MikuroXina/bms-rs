@@ -1,11 +1,13 @@
 #![cfg(feature = "minor-command")]
 
-use bms_rs::lex::BmsLexOutput;
-use bms_rs::lex::command::ObjId;
-use bms_rs::parse::BmsParseOutput;
 use bms_rs::{
-    lex::{LexWarning, parse},
-    parse::{Bms, prompt::AlwaysWarn, rng::RngMock},
+    bms::{
+        command::ObjId,
+        lex::{LexWarning, parse},
+        parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
+    },
+    command::{JudgeLevel, PixelPoint, PixelSize, PoorMode},
+    lex::BmsLexOutput,
 };
 use num::BigUint;
 
@@ -28,24 +30,15 @@ fn test_atbga_parsing() {
     assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
-        bms.header
+        bms.scope_defines
             .atbga_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let atbga_def = &bms.header.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(atbga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
-    assert_eq!(
-        atbga_def.trim_top_left,
-        bms_rs::parse::header::PixelPoint::new(10, 20)
-    );
-    assert_eq!(
-        atbga_def.trim_size,
-        bms_rs::parse::header::PixelSize::new(100, 200)
-    );
-    assert_eq!(
-        atbga_def.draw_point,
-        bms_rs::parse::header::PixelPoint::new(30, 40)
-    );
+    assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
+    assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
+    assert_eq!(atbga_def.draw_point, PixelPoint::new(30, 40));
 }
 
 #[test]
@@ -68,24 +61,15 @@ fn test_bga_parsing() {
 
     // Verify that #BGA is parsed correctly
     assert!(
-        bms.header
+        bms.scope_defines
             .bga_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let bga_def = &bms.header.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(bga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
-    assert_eq!(
-        bga_def.trim_top_left,
-        bms_rs::parse::header::PixelPoint::new(10, 20)
-    );
-    assert_eq!(
-        bga_def.trim_bottom_right,
-        bms_rs::parse::header::PixelPoint::new(110, 220)
-    );
-    assert_eq!(
-        bga_def.draw_point,
-        bms_rs::parse::header::PixelPoint::new(30, 40)
-    );
+    assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
+    assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
+    assert_eq!(bga_def.draw_point, PixelPoint::new(30, 40));
 }
 
 #[test]
@@ -108,15 +92,12 @@ fn test_exrank_parsing() {
 
     // Verify that #EXRANK is parsed correctly
     assert!(
-        bms.header
+        bms.scope_defines
             .exrank_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let exrank_def = &bms.header.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(
-        exrank_def.judge_level,
-        bms_rs::lex::command::JudgeLevel::Normal
-    );
+    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
 #[test]
@@ -139,11 +120,11 @@ fn test_exwav_parsing() {
 
     // Verify that #EXWAV is parsed correctly
     assert!(
-        bms.header
+        bms.scope_defines
             .exwav_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let exwav_def = &bms.header.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(exwav_def.pan.value(), 10000);
     assert_eq!(exwav_def.volume.value(), 0);
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
@@ -170,11 +151,11 @@ fn test_changeoption_parsing() {
 
     // Verify that #CHANGEOPTION is parsed correctly
     assert!(
-        bms.header
+        bms.others
             .change_options
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let option = &bms.header.change_options[&ObjId::try_from(['0', '1']).unwrap()];
+    let option = &bms.others.change_options[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -198,11 +179,11 @@ fn test_text_parsing() {
 
     // Verify that #TEXT is parsed correctly
     assert!(
-        bms.header
+        bms.others
             .texts
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
-    let text = &bms.header.texts[&ObjId::try_from(['0', '1']).unwrap()];
+    let text = &bms.others.texts[&ObjId::try_from(['0', '1']).unwrap()];
     assert_eq!(text, "test_text");
 }
 
@@ -230,27 +211,27 @@ fn test_notes_parse_extended_tokens() {
 
     // Verify that extended fields in Notes are parsed correctly
     assert!(
-        bms.notes
+        bms.scope_defines
             .exrank_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.notes
+        bms.scope_defines
             .exwav_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.notes
+        bms.scope_defines
             .exwav_defs
             .contains_key(&ObjId::try_from(['0', '2']).unwrap())
     );
     assert!(
-        bms.notes
+        bms.others
             .change_options
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01").unwrap())
     );
     assert!(
-        bms.notes
+        bms.others
             .texts
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
@@ -294,51 +275,48 @@ fn test_token_parsing_comprehensive() {
     assert_eq!(bms.header.url, Some("http://example.com".to_string()));
     assert_eq!(bms.header.maker, Some("Test Maker".to_string()));
     assert_eq!(
-        bms.header.midi_file,
+        bms.notes.midi_file,
         Some(std::path::PathBuf::from("test.mid"))
     );
     assert_eq!(
-        bms.header.video_file,
+        bms.graphics.video_file,
         Some(std::path::PathBuf::from("test.mp4"))
     );
+    assert_eq!(bms.graphics.poor_bga_mode, PoorMode::Overlay);
+    assert!(bms.others.is_octave);
     assert_eq!(
-        bms.header.poor_bga_mode,
-        bms_rs::lex::command::PoorMode::Overlay
-    );
-    assert!(bms.header.is_octave);
-    assert_eq!(
-        bms.header.wav_path_root,
+        bms.notes.wav_path_root,
         Some(std::path::PathBuf::from("wav/"))
     );
 
     // Verify new definition structures
     assert!(
-        bms.header
+        bms.scope_defines
             .atbga_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.header
+        bms.scope_defines
             .bga_defs
             .contains_key(&ObjId::try_from(['0', '2']).unwrap())
     );
     assert!(
-        bms.header
+        bms.scope_defines
             .exrank_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.header
+        bms.scope_defines
             .exwav_defs
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.header
+        bms.others
             .change_options
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     assert!(
-        bms.header
+        bms.others
             .texts
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );

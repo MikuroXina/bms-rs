@@ -1,8 +1,9 @@
 use num::BigUint;
 
-use crate::bms::{lex::token::Token, parse::rng::Rng};
+use crate::bms::lex::token::Token;
 
 use super::ast_build::*;
+use super::rng::Rng;
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,

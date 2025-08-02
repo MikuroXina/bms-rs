@@ -1,4 +1,4 @@
-use bms_rs::lex::{BmsLexOutput, parse, token::Token};
+use bms_rs::bms::lex::{BmsLexOutput, parse, token::Token};
 
 #[test]
 fn test_cursor_with_no_ending_return_and_newline() {

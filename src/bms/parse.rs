@@ -1,27 +1,25 @@
-//! Parser for BMS format. The reason why the implementation separated into lex and parse is the score may contain some randomized elements such as `#RANDOM`. This separation make us able to parse the tokens with the custom random generator cheaply.
+//! Parsing Bms from [TokenStream].
+//!
+//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
+//! BmsParseOutput)
 
-pub mod header;
-pub mod notes;
-pub mod obj;
+pub mod check_playing;
+pub mod model;
 pub mod prompt;
-mod random;
-pub mod rng;
+pub mod random;
 
 use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use self::{
-    header::Header, notes::Notes, prompt::PromptHandler, random::ControlFlowRule, rng::Rng,
-};
-use crate::bms::{
-    lex::{
-        command::{NoteKind, ObjId},
-        token::Token,
-    },
-    parse::random::parse_control_flow,
-};
+use crate::bms::{command::ObjId, lex::token::Token, parse::random::parse_control_flow};
 
+use self::{
+    check_playing::{PlayingError, PlayingWarning},
+    model::Bms,
+    prompt::PromptHandler,
+    random::{ControlFlowRule, rng::Rng},
+};
 use super::lex::BmsLexOutput;
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -47,20 +45,6 @@ pub enum ParseWarning {
 
 /// type alias of core::result::Result<T, ParseWarning>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
-
-/// A score data of BMS format.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms {
-    /// The header data in the score.
-    pub header: Header,
-    /// The objects in the score.
-    pub notes: Notes,
-    /// Lines that not starts with `'#'`.
-    pub non_command_lines: Vec<String>,
-    /// Lines that starts with `'#'`, but not recognized as vaild command.
-    pub unknown_command_lines: Vec<String>,
-}
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -116,49 +100,6 @@ impl<'a> DerefMut for BmsParseTokenIter<'a> {
 }
 
 impl Bms {
-    /// Check for playing warnings and errors based on the parsed BMS data.
-    fn check_playing_conditions(&self) -> (Vec<PlayingWarning>, Vec<PlayingError>) {
-        let mut warnings = Vec::new();
-        let mut errors = Vec::new();
-
-        // Check for TotalUndefined warning
-        if self.header.total.is_none() {
-            warnings.push(PlayingWarning::TotalUndefined);
-        }
-
-        // Check for BPM-related conditions
-        let has_bpm = self.header.bpm.is_some() || !self.header.bpm_changes.is_empty();
-        if !has_bpm {
-            errors.push(PlayingError::BpmUndefined);
-        } else if self.header.bpm.is_none() {
-            warnings.push(PlayingWarning::StartBpmUndefined);
-        }
-
-        // Check for notes
-        if self.notes.all_notes().next().is_none() {
-            errors.push(PlayingError::NoNotes);
-        } else {
-            // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.notes.all_notes().any(|note| {
-                matches!(
-                    note.kind,
-                    NoteKind::Visible | NoteKind::Long | NoteKind::Landmine
-                )
-            });
-            if !has_displayable {
-                warnings.push(PlayingWarning::NoDisplayableNotes);
-            }
-
-            // Check for playable notes (all except Invisible)
-            let has_playable = self.notes.all_notes().any(|note| note.kind.is_playable());
-            if !has_playable {
-                warnings.push(PlayingWarning::NoPlayableNotes);
-            }
-        }
-
-        (warnings, errors)
-    }
-
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
         token_iter: impl Into<BmsParseTokenIter<'a>>,
@@ -166,31 +107,14 @@ impl Bms {
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let (continue_tokens, mut parse_warnings) = parse_control_flow(&mut token_iter.into(), rng);
-        let mut notes = Notes::default();
-        let mut header = Header::default();
-        let mut non_command_lines: Vec<String> = Vec::new();
-        let mut unknown_command_lines: Vec<String> = Vec::new();
+        let mut bms = Bms::default();
         for &token in continue_tokens.iter() {
-            if let Err(error) = notes.parse(token, &header) {
+            if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error);
-            }
-            if let Err(error) = header.parse(token, &mut prompt_handler) {
-                parse_warnings.push(error);
-            }
-            match token {
-                Token::NotACommand(comment) => non_command_lines.push(comment.to_string()),
-                Token::UnknownCommand(comment) => unknown_command_lines.push(comment.to_string()),
-                _ => (),
             }
         }
-        let bms = Self {
-            header,
-            notes,
-            non_command_lines,
-            unknown_command_lines,
-        };
 
-        let (playing_warnings, playing_errors) = bms.check_playing_conditions();
+        let (playing_warnings, playing_errors) = bms.check_playing();
 
         BmsParseOutput {
             bms,
@@ -199,39 +123,4 @@ impl Bms {
             playing_errors,
         }
     }
-}
-
-/// Simpifies the warnings for playing, which would not make this chart unplayable.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum PlayingWarning {
-    /// The `#TOTAL` is not specified.
-    #[error("The `#TOTAL` is not specified.")]
-    TotalUndefined,
-    /// There is no displayable notes.
-    #[error("There is no displayable notes.")]
-    NoDisplayableNotes,
-    /// There is no playable notes.
-    #[error("There is no playable notes.")]
-    NoPlayableNotes,
-    /// The `#BPM` is not specified. If there are other bpm changes, the first one will be used.
-    /// If there are no bpm changes, there will be an [`PlayingError::BpmUndefined`].
-    #[error(
-        "The `#BPM` is not specified. If there are other bpm changes, the first one will be used. If there are no bpm changes, there will be an [`PlayingError::BpmUndefined`]."
-    )]
-    StartBpmUndefined,
-}
-
-/// Simpifies the warnings for playing, which will make this chart unplayable.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum PlayingError {
-    /// There is no bpm defined.
-    #[error("There is no bpm defined.")]
-    BpmUndefined,
-    /// There is no notes.
-    #[error("There is no notes.")]
-    NoNotes,
 }
