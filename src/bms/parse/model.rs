@@ -974,14 +974,13 @@ impl Arrangers {
                 Ok(())
             }
             std::collections::btree_map::Entry::Occupied(mut entry) => {
-                let existing = entry.get().clone();
-                let newer = bpm_change.clone();
+                let existing = entry.get();
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BpmChangeEvent {
                         time: bpm_change.time,
-                        older: &existing,
-                        newer: &newer,
+                        older: existing,
+                        newer: &bpm_change,
                     })
                     .apply(entry.get_mut(), bpm_change)
             }
@@ -1003,14 +1002,13 @@ impl Arrangers {
                 Ok(())
             }
             std::collections::btree_map::Entry::Occupied(mut entry) => {
-                let existing = entry.get().clone();
-                let newer = scrolling_factor_change.clone();
+                let existing = entry.get();
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::ScrollingFactorChangeEvent {
                         time: scrolling_factor_change.time,
-                        older: &existing,
-                        newer: &newer,
+                        older: existing,
+                        newer: &scrolling_factor_change,
                     })
                     .apply(entry.get_mut(), scrolling_factor_change)
             }
@@ -1029,14 +1027,13 @@ impl Arrangers {
                 Ok(())
             }
             std::collections::btree_map::Entry::Occupied(mut entry) => {
-                let existing = entry.get().clone();
-                let newer = speed_factor_change.clone();
+                let existing = entry.get();
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::SpeedFactorChangeEvent {
                         time: speed_factor_change.time,
-                        older: &existing,
-                        newer: &newer,
+                        older: existing,
+                        newer: &speed_factor_change,
                     })
                     .apply(entry.get_mut(), speed_factor_change)
             }
@@ -1055,14 +1052,13 @@ impl Arrangers {
                 Ok(())
             }
             std::collections::btree_map::Entry::Occupied(mut entry) => {
-                let existing = entry.get().clone();
-                let newer = section_len_change.clone();
+                let existing = entry.get();
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::SectionLenChangeEvent {
                         track: section_len_change.track,
-                        older: &existing,
-                        newer: &newer,
+                        older: existing,
+                        newer: &section_len_change,
                     })
                     .apply(entry.get_mut(), section_len_change)
             }
@@ -1074,7 +1070,7 @@ impl Arrangers {
         self.stops
             .entry(stop.time)
             .and_modify(|existing| {
-                existing.duration = existing.duration.clone() + stop.duration.clone();
+                existing.duration = &existing.duration + &stop.duration;
             })
             .or_insert(stop.clone());
     }
@@ -1098,14 +1094,13 @@ impl Graphics {
                 Ok(())
             }
             std::collections::btree_map::Entry::Occupied(mut entry) => {
-                let existing = entry.get().clone();
-                let newer = bga.clone();
+                let existing = entry.get();
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BgaChangeEvent {
                         time: bga.time,
-                        older: &existing,
-                        newer: &newer,
+                        older: existing,
+                        newer: &bga,
                     })
                     .apply(entry.get_mut(), bga)
             }
