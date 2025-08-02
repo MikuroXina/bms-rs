@@ -155,6 +155,185 @@ fn test_always_warn_various_conflicts() {
     );
 }
 
+/// Test scope_defines conflicts for various definition types
+#[test]
+fn test_scope_defines_conflicts() {
+    // Create tokens with various scope_defines conflicts
+    let tokens = vec![
+        // BPM definitions
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        // Stop definitions
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        // Scroll definitions
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        // Speed definitions
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+    ];
+
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseOlder);
+
+    // Should have no warnings since AlwaysUseOlder handles conflicts silently
+    assert_eq!(parse_warnings, vec![]);
+
+    // Check that older values are used for all scope_defines conflicts
+    assert_eq!(
+        bms.scope_defines
+            .bpm_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(120))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .stop_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(0.5))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .scroll_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.0))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .speed_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.0))
+    );
+}
+
+/// Test scope_defines conflicts with AlwaysUseNewer
+#[test]
+fn test_scope_defines_conflicts_newer() {
+    // Create tokens with various scope_defines conflicts
+    let tokens = vec![
+        // BPM definitions
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        // Stop definitions
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        // Scroll definitions
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        // Speed definitions
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+    ];
+
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+
+    // Should have no warnings since AlwaysUseNewer handles conflicts silently
+    assert_eq!(parse_warnings, vec![]);
+
+    // Check that newer values are used for all scope_defines conflicts
+    assert_eq!(
+        bms.scope_defines
+            .bpm_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(140))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .stop_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.0))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .scroll_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(2.0))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .speed_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.5))
+    );
+}
+
+/// Test scope_defines conflicts with AlwaysWarn
+#[test]
+fn test_scope_defines_conflicts_warn() {
+    // Create tokens with various scope_defines conflicts
+    let tokens = vec![
+        // BPM definitions
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        // Stop definitions
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        // Scroll definitions
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        // Speed definitions
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+    ];
+
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
+
+    // Should have warnings for each conflict (4 conflicts)
+    assert_eq!(parse_warnings.len(), 4);
+    assert!(
+        parse_warnings
+            .iter()
+            .all(|w| matches!(w, ParseWarning::PromptHandlerWarning))
+    );
+
+    // Check that older values are used for all scope_defines conflicts (AlwaysWarn uses older as preferred)
+    assert_eq!(
+        bms.scope_defines
+            .bpm_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(120))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .stop_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(0.5))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .scroll_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.0))
+    );
+
+    assert_eq!(
+        bms.scope_defines
+            .speed_defs
+            .get(&ObjId::try_from("01").unwrap()),
+        Some(&Decimal::from(1.0))
+    );
+}
+
 /// Test that AlwaysUseOlder works with event conflicts (BPM changes, etc.)
 #[test]
 fn test_always_use_older_events() {
