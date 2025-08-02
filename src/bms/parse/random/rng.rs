@@ -1,7 +1,25 @@
-//! Random generator for parsing BMS format.
+//! Random number generation for BMS control flow parsing.
 //!
-//! [`RngMock`] can be used for testing the parser result with some random scopes.
-//! [`RandRng`] can be used for generating random numbers with [`rand`] crate.
+//! This module provides the [`Rng`] trait and implementations for generating random numbers
+//! used in BMS control flow constructs like `#RANDOM` and `#SWITCH` blocks.
+//!
+//! # Overview
+//!
+//! The random number generation is essential for:
+//!
+//! - **Random Blocks**: Selecting which `#IF` branch to execute based on random values
+//! - **Switch Blocks**: Determining which `#CASE` branch to execute
+//! - **Testing**: Providing deterministic behavior for reproducible test results
+//!
+//! # Implementations
+//!
+//! ## RngMock
+//!
+//! A deterministic mock implementation for testing that returns predefined values in rotation:
+//!
+//! ## RandRng
+//!
+//! A production-ready implementation using the [`rand`] crate for true random number generation:
 //!
 //! [`rand`]: https://crates.io/crates/rand
 
@@ -9,23 +27,49 @@ use core::ops::RangeInclusive;
 
 use num::BigUint;
 
-/// A random generator for parsing BMS.
+/// A random number generator for BMS control flow parsing.
+///
+/// This trait defines the interface for generating random numbers used in BMS control flow
+/// constructs. Implementations should generate numbers within the specified range.
+///
+/// # Contract
+///
+/// - The generated number must be within the specified `range` (inclusive)
+/// - Returning a number outside the range may cause undefined behavior in the parser
+/// - The implementation should be deterministic for testing purposes when needed
 pub trait Rng {
-    /// Generates a random integer within the `range`. Returning the number outside the range will result weird.
+    /// Generates a random integer within the specified `range`.
     ///
-    /// - Example:
+    /// # Examples
+    ///
     /// ```rust
     /// use bms_rs::bms::parse::random::rng::{Rng, RngMock};
     /// use num::BigUint;
     ///
-    /// let mut rng = RngMock([BigUint::from(1u64)]);
-    /// let n = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
-    /// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
+    /// let mut rng = RngMock([BigUint::from(5u64)]);
+    /// let result = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
+    /// assert_eq!(result, BigUint::from(5u64));
     /// ```
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint;
 }
 
-/// A random generator for mocking. This generates the number from the array in rotation.
+/// A deterministic mock random number generator for testing.
+///
+/// This implementation returns values from a predefined array in rotation.
+/// It's useful for testing BMS control flow parsing with predictable results.
+///
+/// # Examples
+///
+/// ```rust
+/// use bms_rs::bms::parse::random::rng::{Rng, RngMock};
+/// use num::BigUint;
+///
+/// let mut rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
+/// 
+/// // Returns values in rotation: 1, 2, 1, 2, ...
+/// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(1u64));
+/// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(2u64));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RngMock<const N: usize>(pub [BigUint; N]);
 
@@ -36,19 +80,31 @@ impl<const N: usize> Rng for RngMock<N> {
     }
 }
 
-/// A random generator for using [`rand`] crate.
+/// A production-ready random number generator using the [`rand`] crate.
 ///
-/// [`rand`]: https://crates.io/crates/rand
-/// - Example:
+/// This implementation provides true random number generation for production use.
+/// It wraps any type implementing [`rand::RngCore`] and generates numbers within
+/// the specified range using rejection sampling.
+///
+/// # Examples
+///
 /// ```rust
+/// # #[cfg(feature = "rand")]
 /// use bms_rs::bms::parse::random::rng::{Rng, RandRng};
+/// # #[cfg(feature = "rand")]
 /// use rand::{rngs::StdRng, SeedableRng};
+/// # #[cfg(feature = "rand")]
 /// use num::BigUint;
 ///
+/// # #[cfg(feature = "rand")]
 /// let mut rng = RandRng(StdRng::seed_from_u64(42));
+/// # #[cfg(feature = "rand")]
 /// let n = rng.generate(BigUint::from(1u64)..=BigUint::from(10u64));
+/// # #[cfg(feature = "rand")]
 /// assert!(n >= BigUint::from(1u64) && n <= BigUint::from(10u64));
 /// ```
+///
+/// [`rand`]: https://crates.io/crates/rand
 #[cfg(feature = "rand")]
 pub struct RandRng<R>(pub R);
 

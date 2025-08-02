@@ -1,4 +1,19 @@
-//! Random Part.
+//! Random control flow parsing for BMS format.
+//!
+//! This module provides functionality for parsing and executing random control flow constructs
+//! in BMS (Be-Music Source) files. It handles `#RANDOM`, `#IF`, `#ELSEIF`, `#ELSE`, `#ENDIF`,
+//! `#SWITCH`, `#CASE`, `#DEF`, `#SKIP`, and `#ENDSWITCH` directives.
+//!
+//! # Overview
+//!
+//! The random module consists of three main components:
+//!
+//! - **AST Building** (`ast_build`): Converts token streams into Abstract Syntax Trees (AST)
+//! - **AST Parsing** (`ast_parse`): Executes the AST using a random number generator
+//! - **RNG** (`rng`): Provides random number generation capabilities
+//!
+//! All errors are collected as warnings and returned alongside the parsed tokens,
+//! allowing the parser to continue processing while providing detailed error information.
 
 mod ast_build;
 mod ast_parse;
@@ -12,8 +27,10 @@ use thiserror::Error;
 use super::ParseWarning;
 use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
 
-/// Parses the control flow of the token.
-/// Returns the tokens that will be executed, and not contains control flow tokens.
+/// Parses and executes control flow constructs in a BMS token stream.
+///
+/// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
+/// from control flow constructs and then executing them using the provided random number generator.
 pub(super) fn parse_control_flow<'a>(
     token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
@@ -30,52 +47,53 @@ pub(super) fn parse_control_flow<'a>(
     )
 }
 
-/// Control flow rules.
+/// Control flow parsing errors and warnings.
+///
+/// This enum defines all possible errors that can occur during BMS control flow parsing.
+/// Each variant represents a specific type of control flow violation or malformed construct.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowRule {
-    /// See [Error].
+    /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
     #[error("unmatched end if")]
-    /// See [Error].
     UnmatchedEndIf,
+    /// An `#ENDRANDOM` token was encountered without a corresponding `#RANDOM` token.
     #[error("unmatched end random")]
-    /// See [Error].
     UnmatchedEndRandom,
-    /// See [Error].
+    /// An `#ENDSWITCH` token was encountered without a corresponding `#SWITCH` token.
     #[error("unmatched end switch")]
     UnmatchedEndSwitch,
-    /// See [Error].
+    /// An `#ELSEIF` token was encountered without a corresponding `#IF` token.
     #[error("unmatched else if")]
     UnmatchedElseIf,
-    /// See [Error].
+    /// An `#ELSE` token was encountered without a corresponding `#IF` token.
     #[error("unmatched else")]
     UnmatchedElse,
-    /// See [Error].
+    /// A duplicate `#IF` branch value was found in a random block.
     #[error("duplicate if branch value in random block")]
     RandomDuplicateIfBranchValue,
-    /// See [Error].
+    /// An `#IF` branch value exceeds the maximum value of its random block.
     #[error("if branch value out of range in random block")]
     RandomIfBranchValueOutOfRange,
-    /// See [Error].
+    /// Tokens were found between `#RANDOM` and `#IF` that should not be there.
     #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
     UnmatchedTokenInRandomBlock,
-    // Switch related
-    /// See [Error].
+    /// A duplicate `#CASE` value was found in a switch block.
     #[error("duplicate case value in switch block")]
     SwitchDuplicateCaseValue,
-    /// See [Error].
+    /// A `#CASE` value exceeds the maximum value of its switch block.
     #[error("case value out of range in switch block")]
     SwitchCaseValueOutOfRange,
-    /// See [Error].
+    /// Multiple `#DEF` branches were found in the same switch block.
     #[error("duplicate def branch in switch block")]
     SwitchDuplicateDef,
-    /// See [Error].
+    /// A `#SKIP` token was encountered outside of a switch block.
     #[error("unmatched skip")]
     UnmatchedSkip,
-    /// See [Error].
+    /// A `#CASE` token was encountered outside of a switch block.
     #[error("unmatched case")]
     UnmatchedCase,
-    /// See [Error].
+    /// A `#DEF` token was encountered outside of a switch block.
     #[error("unmatched def")]
     UnmatchedDef,
 }
