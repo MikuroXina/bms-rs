@@ -43,7 +43,7 @@ use self::{
 };
 use super::{
     ParseWarning, Result,
-    prompt::{DuplicationWorkaround, PromptHandler, PromptingDuplication},
+    prompt::{PromptHandler, PromptingDuplication},
 };
 
 /// A score data of BMS format.
@@ -977,22 +977,13 @@ impl Arrangers {
                 let existing = entry.get().clone();
                 let newer = bpm_change.clone();
 
-                match prompt_handler.handle_duplication(PromptingDuplication::BpmChangeEvent {
-                    time: bpm_change.time,
-                    older: &existing,
-                    newer: &newer,
-                }) {
-                    DuplicationWorkaround::UseOlder => {
-                        // Keep the existing value, do nothing
-                    }
-                    DuplicationWorkaround::UseNewer => {
-                        entry.insert(bpm_change);
-                    }
-                    DuplicationWorkaround::Warn => {
-                        return Err(ParseWarning::PromptHandlerWarning);
-                    }
-                }
-                Ok(())
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BpmChangeEvent {
+                        time: bpm_change.time,
+                        older: &existing,
+                        newer: &newer,
+                    })
+                    .apply(entry.get_mut(), bpm_change)
             }
         }
     }
@@ -1015,24 +1006,13 @@ impl Arrangers {
                 let existing = entry.get().clone();
                 let newer = scrolling_factor_change.clone();
 
-                match prompt_handler.handle_duplication(
-                    PromptingDuplication::ScrollingFactorChangeEvent {
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::ScrollingFactorChangeEvent {
                         time: scrolling_factor_change.time,
                         older: &existing,
                         newer: &newer,
-                    },
-                ) {
-                    DuplicationWorkaround::UseOlder => {
-                        // Keep the existing value, do nothing
-                    }
-                    DuplicationWorkaround::UseNewer => {
-                        entry.insert(scrolling_factor_change);
-                    }
-                    DuplicationWorkaround::Warn => {
-                        return Err(ParseWarning::PromptHandlerWarning);
-                    }
-                }
-                Ok(())
+                    })
+                    .apply(entry.get_mut(), scrolling_factor_change)
             }
         }
     }
@@ -1052,24 +1032,13 @@ impl Arrangers {
                 let existing = entry.get().clone();
                 let newer = speed_factor_change.clone();
 
-                match prompt_handler.handle_duplication(
-                    PromptingDuplication::SpeedFactorChangeEvent {
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::SpeedFactorChangeEvent {
                         time: speed_factor_change.time,
                         older: &existing,
                         newer: &newer,
-                    },
-                ) {
-                    DuplicationWorkaround::UseOlder => {
-                        // Keep the existing value, do nothing
-                    }
-                    DuplicationWorkaround::UseNewer => {
-                        entry.insert(speed_factor_change);
-                    }
-                    DuplicationWorkaround::Warn => {
-                        return Err(ParseWarning::PromptHandlerWarning);
-                    }
-                }
-                Ok(())
+                    })
+                    .apply(entry.get_mut(), speed_factor_change)
             }
         }
     }
@@ -1089,24 +1058,13 @@ impl Arrangers {
                 let existing = entry.get().clone();
                 let newer = section_len_change.clone();
 
-                match prompt_handler.handle_duplication(
-                    PromptingDuplication::SectionLenChangeEvent {
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::SectionLenChangeEvent {
                         track: section_len_change.track,
                         older: &existing,
                         newer: &newer,
-                    },
-                ) {
-                    DuplicationWorkaround::UseOlder => {
-                        // Keep the existing value, do nothing
-                    }
-                    DuplicationWorkaround::UseNewer => {
-                        entry.insert(section_len_change);
-                    }
-                    DuplicationWorkaround::Warn => {
-                        return Err(ParseWarning::PromptHandlerWarning);
-                    }
-                }
-                Ok(())
+                    })
+                    .apply(entry.get_mut(), section_len_change)
             }
         }
     }
@@ -1143,22 +1101,13 @@ impl Graphics {
                 let existing = entry.get().clone();
                 let newer = bga.clone();
 
-                match prompt_handler.handle_duplication(PromptingDuplication::BgaChangeEvent {
-                    time: bga.time,
-                    older: &existing,
-                    newer: &newer,
-                }) {
-                    DuplicationWorkaround::UseOlder => {
-                        // Keep the existing value, do nothing
-                    }
-                    DuplicationWorkaround::UseNewer => {
-                        entry.insert(bga);
-                    }
-                    DuplicationWorkaround::Warn => {
-                        return Err(ParseWarning::PromptHandlerWarning);
-                    }
-                }
-                Ok(())
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaChangeEvent {
+                        time: bga.time,
+                        older: &existing,
+                        newer: &newer,
+                    })
+                    .apply(entry.get_mut(), bga)
             }
         }
     }
