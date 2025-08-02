@@ -65,7 +65,7 @@ pub trait Rng {
 /// use num::BigUint;
 ///
 /// let mut rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-/// 
+///
 /// // Returns values in rotation: 1, 2, 1, 2, ...
 /// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(1u64));
 /// assert_eq!(rng.generate(BigUint::from(0u64)..=BigUint::from(10u64)), BigUint::from(2u64));
