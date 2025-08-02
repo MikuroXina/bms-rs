@@ -968,28 +968,33 @@ impl Arrangers {
         bpm_change: BpmChangeObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        let Some(existing) = self.bpm_changes.insert(bpm_change.time, bpm_change.clone()) else {
-            return Ok(());
-        };
+        match self.bpm_changes.entry(bpm_change.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(bpm_change);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get().clone();
+                let newer = bpm_change.clone();
 
-        match prompt_handler.handle_duplication(PromptingDuplication::BpmChangeEvent {
-            time: bpm_change.time,
-            older: &existing,
-            newer: &bpm_change,
-        }) {
-            DuplicationWorkaround::UseOlder => {
-                let Some(_) = self.bpm_changes.insert(bpm_change.time, existing) else {
-                    unreachable!("insert should return Some when UseOlder is chosen");
-                };
-            }
-            DuplicationWorkaround::UseNewer => {
-                // Already inserted the newer one
-            }
-            DuplicationWorkaround::Warn => {
-                return Err(ParseWarning::PromptHandlerWarning);
+                match prompt_handler.handle_duplication(PromptingDuplication::BpmChangeEvent {
+                    time: bpm_change.time,
+                    older: &existing,
+                    newer: &newer,
+                }) {
+                    DuplicationWorkaround::UseOlder => {
+                        // Keep the existing value, do nothing
+                    }
+                    DuplicationWorkaround::UseNewer => {
+                        entry.insert(bpm_change);
+                    }
+                    DuplicationWorkaround::Warn => {
+                        return Err(ParseWarning::PromptHandlerWarning);
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
     }
 
     /// Adds a new scrolling factor change object to the notes.
@@ -998,34 +1003,38 @@ impl Arrangers {
         scrolling_factor_change: ScrollingFactorObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        let Some(existing) = self.scrolling_factor_changes.insert(
-            scrolling_factor_change.time,
-            scrolling_factor_change.clone(),
-        ) else {
-            return Ok(());
-        };
+        match self
+            .scrolling_factor_changes
+            .entry(scrolling_factor_change.time)
+        {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(scrolling_factor_change);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get().clone();
+                let newer = scrolling_factor_change.clone();
 
-        match prompt_handler.handle_duplication(PromptingDuplication::ScrollingFactorChangeEvent {
-            time: scrolling_factor_change.time,
-            older: &existing,
-            newer: &scrolling_factor_change,
-        }) {
-            DuplicationWorkaround::UseOlder => {
-                let Some(_) = self
-                    .scrolling_factor_changes
-                    .insert(scrolling_factor_change.time, existing)
-                else {
-                    unreachable!("insert should return Some when UseOlder is chosen");
-                };
-            }
-            DuplicationWorkaround::UseNewer => {
-                // Already inserted the newer one
-            }
-            DuplicationWorkaround::Warn => {
-                return Err(ParseWarning::PromptHandlerWarning);
+                match prompt_handler.handle_duplication(
+                    PromptingDuplication::ScrollingFactorChangeEvent {
+                        time: scrolling_factor_change.time,
+                        older: &existing,
+                        newer: &newer,
+                    },
+                ) {
+                    DuplicationWorkaround::UseOlder => {
+                        // Keep the existing value, do nothing
+                    }
+                    DuplicationWorkaround::UseNewer => {
+                        entry.insert(scrolling_factor_change);
+                    }
+                    DuplicationWorkaround::Warn => {
+                        return Err(ParseWarning::PromptHandlerWarning);
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
     }
 
     /// Adds a new spacing factor change object to the notes.
@@ -1034,34 +1043,35 @@ impl Arrangers {
         speed_factor_change: SpeedFactorObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        let Some(existing) = self
-            .speed_factor_changes
-            .insert(speed_factor_change.time, speed_factor_change.clone())
-        else {
-            return Ok(());
-        };
+        match self.speed_factor_changes.entry(speed_factor_change.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(speed_factor_change);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get().clone();
+                let newer = speed_factor_change.clone();
 
-        match prompt_handler.handle_duplication(PromptingDuplication::SpeedFactorChangeEvent {
-            time: speed_factor_change.time,
-            older: &existing,
-            newer: &speed_factor_change,
-        }) {
-            DuplicationWorkaround::UseOlder => {
-                let Some(_) = self
-                    .speed_factor_changes
-                    .insert(speed_factor_change.time, existing)
-                else {
-                    unreachable!("insert should return Some when UseOlder is chosen");
-                };
-            }
-            DuplicationWorkaround::UseNewer => {
-                // Already inserted the newer one
-            }
-            DuplicationWorkaround::Warn => {
-                return Err(ParseWarning::PromptHandlerWarning);
+                match prompt_handler.handle_duplication(
+                    PromptingDuplication::SpeedFactorChangeEvent {
+                        time: speed_factor_change.time,
+                        older: &existing,
+                        newer: &newer,
+                    },
+                ) {
+                    DuplicationWorkaround::UseOlder => {
+                        // Keep the existing value, do nothing
+                    }
+                    DuplicationWorkaround::UseNewer => {
+                        entry.insert(speed_factor_change);
+                    }
+                    DuplicationWorkaround::Warn => {
+                        return Err(ParseWarning::PromptHandlerWarning);
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
     }
 
     /// Adds a new section length change object to the notes.
@@ -1070,34 +1080,35 @@ impl Arrangers {
         section_len_change: SectionLenChangeObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        let Some(existing) = self
-            .section_len_changes
-            .insert(section_len_change.track, section_len_change.clone())
-        else {
-            return Ok(());
-        };
+        match self.section_len_changes.entry(section_len_change.track) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(section_len_change);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get().clone();
+                let newer = section_len_change.clone();
 
-        match prompt_handler.handle_duplication(PromptingDuplication::SectionLenChangeEvent {
-            track: section_len_change.track,
-            older: &existing,
-            newer: &section_len_change,
-        }) {
-            DuplicationWorkaround::UseOlder => {
-                let Some(_) = self
-                    .section_len_changes
-                    .insert(section_len_change.track, existing)
-                else {
-                    unreachable!("insert should return Some when UseOlder is chosen");
-                };
-            }
-            DuplicationWorkaround::UseNewer => {
-                // Already inserted the newer one
-            }
-            DuplicationWorkaround::Warn => {
-                return Err(ParseWarning::PromptHandlerWarning);
+                match prompt_handler.handle_duplication(
+                    PromptingDuplication::SectionLenChangeEvent {
+                        track: section_len_change.track,
+                        older: &existing,
+                        newer: &newer,
+                    },
+                ) {
+                    DuplicationWorkaround::UseOlder => {
+                        // Keep the existing value, do nothing
+                    }
+                    DuplicationWorkaround::UseNewer => {
+                        entry.insert(section_len_change);
+                    }
+                    DuplicationWorkaround::Warn => {
+                        return Err(ParseWarning::PromptHandlerWarning);
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
     }
 
     /// Adds a new stop object to the notes.
@@ -1123,28 +1134,33 @@ impl Graphics {
         bga: BgaObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        let Some(existing) = self.bga_changes.insert(bga.time, bga.clone()) else {
-            return Ok(());
-        };
+        match self.bga_changes.entry(bga.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(bga);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get().clone();
+                let newer = bga.clone();
 
-        match prompt_handler.handle_duplication(PromptingDuplication::BgaChangeEvent {
-            time: bga.time,
-            older: &existing,
-            newer: &bga,
-        }) {
-            DuplicationWorkaround::UseOlder => {
-                let Some(_) = self.bga_changes.insert(bga.time, existing) else {
-                    unreachable!("insert should return Some when UseOlder is chosen");
-                };
-            }
-            DuplicationWorkaround::UseNewer => {
-                // Already inserted the newer one
-            }
-            DuplicationWorkaround::Warn => {
-                return Err(ParseWarning::PromptHandlerWarning);
+                match prompt_handler.handle_duplication(PromptingDuplication::BgaChangeEvent {
+                    time: bga.time,
+                    older: &existing,
+                    newer: &newer,
+                }) {
+                    DuplicationWorkaround::UseOlder => {
+                        // Keep the existing value, do nothing
+                    }
+                    DuplicationWorkaround::UseNewer => {
+                        entry.insert(bga);
+                    }
+                    DuplicationWorkaround::Warn => {
+                        return Err(ParseWarning::PromptHandlerWarning);
+                    }
+                }
+                Ok(())
             }
         }
-        Ok(())
     }
 }
 
