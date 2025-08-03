@@ -205,7 +205,7 @@ impl Ord for ScrollingFactorObj {
     }
 }
 
-/// An object to change spacing factor between notes with linear interpolation.
+/// An object to change speed factor of notes (a.k.a. spacing factor between notes) with linear interpolation.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpeedObj {
