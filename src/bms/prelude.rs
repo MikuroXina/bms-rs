@@ -13,30 +13,41 @@ pub use super::command::{
 };
 
 // Re-export from command submodules
-pub use super::command::channel::{Channel, Key, NoteKind, PlayerSide};
-pub use super::command::graphics::{PixelPoint, PixelSize};
-pub use super::command::time::{ObjTime, Track};
+pub use super::command::{
+    channel::{
+        Channel, Key, NoteKind, PlayerSide, read_channel_beat, read_channel_beat_nanasi,
+        read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
+    },
+    graphics::{PixelPoint, PixelSize},
+    time::{ObjTime, Track},
+};
 
 // Re-export from lex module
-pub use super::lex::{BmsLexOutput, LexWarning};
+pub use super::lex::{BmsLexOutput, LexWarning, parse, parse_with_channel_parser};
 
 // Re-export from parse module
 pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning};
 
 // Re-export from parse submodules
-pub use super::parse::check_playing::{PlayingError, PlayingWarning};
-pub use super::parse::model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef};
-pub use super::parse::model::obj::{
-    BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-    SectionLenChangeObj, SpeedObj, StopObj,
+pub use super::parse::{
+    check_playing::{PlayingError, PlayingWarning},
+    model::{
+        Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
+        def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+        obj::{
+            BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
+            SectionLenChangeObj, SpeedObj, StopObj,
+        },
+    },
+    prompt::{
+        AlwaysUseNewer, AlwaysUseOlder, AlwaysWarn, DuplicationWorkaround, PromptHandler,
+        PromptingDuplication,
+    },
+    random::{
+        ControlFlowRule,
+        rng::{RandRng, Rng, RngMock},
+    },
 };
-pub use super::parse::model::{Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines};
-pub use super::parse::prompt::{
-    AlwaysUseNewer, AlwaysUseOlder, AlwaysWarn, DuplicationWorkaround, PromptHandler,
-    PromptingDuplication,
-};
-pub use super::parse::random::ControlFlowRule;
-pub use super::parse::random::rng::{RandRng, Rng, RngMock};
 
 // Re-export from lex submodules
 pub use super::lex::token::Token;

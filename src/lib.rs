@@ -8,11 +8,7 @@
 //!
 //! ```
 //! use rand::{rngs::StdRng, SeedableRng};
-//! use bms_rs::bms::{
-//!     lex::{parse, parse_with_channel_parser, BmsLexOutput},
-//!     parse::{prompt::AlwaysWarn, random::rng::RandRng, model::Bms, BmsParseOutput},
-//!     command::channel::read_channel_beat
-//! };
+//! use bms_rs::bms::prelude::*;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! let BmsLexOutput { tokens: _, lex_warnings } = parse(&source);
