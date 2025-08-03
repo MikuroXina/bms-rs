@@ -24,7 +24,7 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::ParseWarning;
+use super::{ParseWarning, ParseWarningContent};
 use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
 
 /// Parses and executes control flow constructs in a BMS token stream.
@@ -42,7 +42,11 @@ pub(super) fn parse_control_flow<'a>(
         tokens,
         errors
             .into_iter()
-            .map(ParseWarning::ViolateControlFlowRule)
+            .map(|error| ParseWarning {
+                content: ParseWarningContent::ViolateControlFlowRule(error),
+                row: 0, // TODO: Get actual position from token
+                col: 0, // TODO: Get actual position from token
+            })
             .collect(),
     )
 }

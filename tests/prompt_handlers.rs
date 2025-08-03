@@ -7,7 +7,7 @@ use bms_rs::bms::{
     },
     lex::token::{Token, TokenContent},
     parse::{
-        BmsParseOutput, ParseWarning,
+        BmsParseOutput, ParseWarningContent,
         model::{Bms, def::Bmp},
         prompt::{AlwaysUseNewer, AlwaysUseOlder, AlwaysWarn},
         random::rng::RngMock,
@@ -323,7 +323,7 @@ fn test_always_warn() {
     assert!(
         parse_warnings
             .iter()
-            .all(|w| matches!(w, ParseWarning::PromptHandlerWarning))
+            .all(|w| matches!(w.content, ParseWarningContent::PromptHandlerWarning))
     );
 
     // Check that older values are used for all scope_defines conflicts (AlwaysWarn uses older as preferred)
