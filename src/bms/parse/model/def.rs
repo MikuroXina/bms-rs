@@ -7,7 +7,7 @@ use crate::bms::command::{
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{ExWavFrequency, ExWavPan, ExWavVolume};
+use crate::bms::command::minor_command::{ExWavFrequency, ExWavPan, ExWavVolume};
 
 /// A definition for #@BGA command.
 #[derive(Debug, Clone, PartialEq)]

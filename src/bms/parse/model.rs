@@ -19,7 +19,7 @@ use itertools::Itertools;
 use num::BigUint;
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
+use crate::bms::command::{ExtChrEvent, minor_command::{StpEvent, SwBgaEvent, WavCmdEvent}};
 use crate::bms::{
     Decimal,
     command::{

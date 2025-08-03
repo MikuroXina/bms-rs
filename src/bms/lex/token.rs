@@ -18,7 +18,7 @@ use crate::bms::{
 
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    ExtChrEvent, minor_command::{ExWavFrequency, ExWavPan, ExWavVolume, StpEvent, SwBgaEvent, WavCmdEvent},
     WavCmdParam,
 };
 
