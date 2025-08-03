@@ -57,7 +57,11 @@ pub struct ParseWarning {
 
 impl std::fmt::Display for ParseWarning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} at line {}, column {}", self.content, self.row, self.col)
+        write!(
+            f,
+            "{} at line {}, column {}",
+            self.content, self.row, self.col
+        )
     }
 }
 

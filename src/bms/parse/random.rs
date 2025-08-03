@@ -38,17 +38,7 @@ pub(super) fn parse_control_flow<'a>(
     let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
     let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
-    (
-        tokens,
-        errors
-            .into_iter()
-            .map(|error| ParseWarning {
-                content: ParseWarningContent::ViolateControlFlowRule(error),
-                row: 0, // TODO: Get actual position from token
-                col: 0, // TODO: Get actual position from token
-            })
-            .collect(),
-    )
+    (tokens, errors)
 }
 
 /// Control flow parsing errors and warnings.
@@ -109,6 +99,19 @@ impl ControlFlowRule {
             content: ParseWarningContent::ViolateControlFlowRule(*self),
             row: token.row,
             col: token.col,
+        }
+    }
+
+    /// Convert the control flow rule to a parse warning with a given row and column.
+    pub fn to_parse_warning_manual(
+        self,
+        row: impl Into<usize>,
+        col: impl Into<usize>,
+    ) -> ParseWarning {
+        ParseWarning {
+            content: ParseWarningContent::ViolateControlFlowRule(self),
+            row: row.into(),
+            col: col.into(),
         }
     }
 }
