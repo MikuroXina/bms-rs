@@ -50,6 +50,10 @@
 //!
 //! # Features
 //!
+//! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
+//!
+//! - For supported note channels, see [docs.rs#Channel](https://docs.rs/bms-rs/latest/bms_rs/bms/command/channel/enum.Channel.html).
+//!
 //! ## Default Features
 //!
 //! - `bmson` feature enables the BMSON format support.
