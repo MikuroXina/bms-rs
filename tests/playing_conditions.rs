@@ -1,6 +1,14 @@
-use bms_rs::{
-    lex::{BmsLexOutput, parse},
-    parse::{BmsParseOutput, PlayingError, PlayingWarning, prompt::AlwaysWarn, rng::RngMock},
+use bms_rs::bms::{
+    Decimal,
+    command::ObjId,
+    lex::{BmsLexOutput, parse_lex_tokens, token::Token},
+    parse::{
+        BmsParseOutput,
+        check_playing::{PlayingError, PlayingWarning},
+        model::Bms,
+        prompt::AlwaysWarn,
+        random::rng::RngMock,
+    },
 };
 use num::BigUint;
 
@@ -11,7 +19,7 @@ fn test_playing_conditions_empty_bms() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -20,7 +28,7 @@ fn test_playing_conditions_empty_bms() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -39,7 +47,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -48,7 +56,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -64,22 +72,35 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
+
+    assert!(
+        !tokens
+            .iter()
+            .any(|t| matches!(t, Token::Bpm(bpm) if bpm == &Decimal::from(120)))
+    );
+    let obj_id = ObjId::try_from("08").unwrap();
+    assert!(tokens.iter().any(
+        |t| matches!(t, Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
+    ));
 
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
-        bms: _,
+        bms,
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 
     // Should have StartBpmUndefined warning but no BpmUndefined error
-    assert!(playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
-    assert!(!playing_errors.contains(&PlayingError::BpmUndefined));
+    assert_eq!(bms.arrangers.bpm, None);
+    assert_eq!(bms.scope_defines.bpm_defs.len(), 1);
+    assert_eq!(bms.arrangers.bpm_changes.len(), 0);
+    assert!(playing_errors.contains(&PlayingError::BpmUndefined));
+    assert!(!playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
 }
 
 #[test]
@@ -90,7 +111,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -99,7 +120,7 @@ fn test_playing_conditions_invisible_notes_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = bms_rs::parse::Bms::from_token_stream(&tokens, rng, AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarn);
 
     assert_eq!(parse_warnings, vec![]);
 

@@ -10,8 +10,6 @@
 //!   - `read_channel_beat_nanasi` for Beat nanasi/angolmois
 //!   - `read_channel_dsc_oct_fp` for DSC & OCT/FP
 
-use super::{Key, NoteKind, PlayerSide};
-
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -215,4 +213,108 @@ pub fn read_channel_dsc_oct_fp(channel: &str) -> Option<Channel> {
         side: PlayerSide::Player1,
         key,
     })
+}
+
+/// A kind of the note.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum NoteKind {
+    /// A normal note can be seen by the user.
+    Visible,
+    /// A invisible note cannot be played by the user.
+    Invisible,
+    /// A long-press note (LN), requires the user to hold pressing the key.
+    Long,
+    /// A landmine note that treated as POOR judgement when
+    Landmine,
+}
+
+impl NoteKind {
+    /// Returns whether the note is a playable.
+    pub const fn is_playable(self) -> bool {
+        !matches!(self, Self::Invisible)
+    }
+
+    /// Returns whether the note is a long-press note.
+    pub const fn is_long(self) -> bool {
+        matches!(self, Self::Long)
+    }
+}
+
+/// A side of the player.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PlayerSide {
+    /// The player 1 side.
+    #[default]
+    Player1,
+    /// The player 2 side.
+    Player2,
+}
+
+/// A key of the controller or keyboard.
+///
+/// - Beat 5K/7K/10K/14K:
+/// ```text
+/// |---------|----------------------|
+/// |         |   [K2]  [K4]  [K6]   |
+/// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
+/// |---------|----------------------|
+/// ```
+///
+/// - PMS:
+/// ```text
+/// |----------------------------|
+/// |   [K2]  [K4]  [K6]  [K8]   |
+/// |[K1]  [K3]  [K5]  [K7]  [K9]|
+/// |----------------------------|
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Key {
+    /// The leftmost white key.
+    /// `11` in BME-type Player1.
+    Key1,
+    /// The leftmost black key.
+    /// `12` in BME-type Player1.
+    Key2,
+    /// The second white key from the left.
+    /// `13` in BME-type Player1.
+    Key3,
+    /// The second black key from the left.
+    /// `14` in BME-type Player1.
+    Key4,
+    /// The third white key from the left.
+    /// `15` in BME-type Player1.
+    Key5,
+    /// The rightmost black key.
+    /// `18` in BME-type Player1.
+    Key6,
+    /// The rightmost white key.
+    /// `19` in BME-type Player1.
+    Key7,
+    /// The extra black key. Used in PMS or other modes.
+    Key8,
+    /// The extra white key. Used in PMS or other modes.
+    Key9,
+    /// The extra key for OCT/FP.
+    Key10,
+    /// The extra key for OCT/FP.
+    Key11,
+    /// The extra key for OCT/FP.
+    Key12,
+    /// The extra key for OCT/FP.
+    Key13,
+    /// The extra key for OCT/FP.
+    Key14,
+    /// The scratch disk.
+    /// `16` in BME-type Player1.
+    Scratch,
+    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
+    ScratchExtra,
+    /// The foot pedal.
+    FootPedal,
+    /// The zone that the user can scratch disk freely.
+    /// `17` in BMS-type Player1.
+    FreeZone,
 }

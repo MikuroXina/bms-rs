@@ -29,11 +29,16 @@ use std::{collections::HashMap, num::NonZeroU8};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
-use crate::{
-    lex::command::{JudgeLevel, Key, NoteKind, PlayerSide},
-    parse::{Bms, notes::BgaLayer},
-    time::{ObjTime, Track},
+use crate::bms::{
+    command::{
+        JudgeLevel,
+        channel::{Key, NoteKind, PlayerSide},
+        time::{ObjTime, Track},
+    },
+    parse::model::Bms,
 };
+
+use crate::parse::model::obj::BgaLayer;
 
 use self::{
     fin_f64::FinF64,
@@ -149,7 +154,10 @@ pub fn default_mode_hint() -> String {
 
 /// Default relative percentage, 100%.
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
+    FinF64::new(100.0).unwrap_or_else(|| {
+        // This should never happen as 100.0 is a valid FinF64 value
+        panic!("Internal error: 100.0 is not a valid FinF64")
+    })
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
@@ -365,7 +373,7 @@ impl TryFrom<Bms> for Bmson {
     type Error = BmsonConvertError;
 
     fn try_from(value: Bms) -> Result<Self, Self::Error> {
-        let converter = PulseConverter::new(&value.notes);
+        let converter = PulseConverter::new(&value);
 
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
@@ -380,12 +388,14 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
-        .expect("Internal error: judge rank is invalid");
+        .unwrap_or_else(|| {
+            // This should never happen as the values are all valid
+            panic!("Internal error: judge rank is invalid")
+        });
 
-        let resolution = value.notes.resolution_for_pulses();
+        let resolution = value.resolution_for_pulses();
 
         let last_obj_time = value
-            .notes
             .last_obj_time()
             .unwrap_or_else(|| ObjTime::new(0, 0, 4));
         let lines = (0..=last_obj_time.track.0)
@@ -395,8 +405,8 @@ impl TryFrom<Bms> for Bmson {
             .collect();
 
         let bpm_events = value
-            .notes
-            .bpm_changes()
+            .arrangers
+            .bpm_changes
             .values()
             .map(|bpm_change| {
                 Ok(BpmEvent {
@@ -414,8 +424,8 @@ impl TryFrom<Bms> for Bmson {
             .collect::<Result<Vec<_>, BmsonConvertError>>()?;
 
         let stop_events = value
-            .notes
-            .stops()
+            .arrangers
+            .stops
             .values()
             .map(|stop| {
                 Ok(StopEvent {
@@ -456,9 +466,10 @@ impl TryFrom<Bms> for Bmson {
             level: value.header.play_level.unwrap_or_default() as u32,
             init_bpm: FinF64::new(
                 value
-                    .header
+                    .arrangers
                     .bpm
-                    .unwrap_or(Decimal::from(120.0))
+                    .as_ref()
+                    .map_or(Decimal::from(120.0), |bpm| bpm.to_owned())
                     .try_into()
                     .map_err(|_| BmsonConvertError::InvalidBpm)?,
             )
@@ -491,7 +502,7 @@ impl TryFrom<Bms> for Bmson {
         };
 
         let (sound_channels, mine_channels, key_channels) = {
-            let path_root = value.header.wav_path_root.clone().unwrap_or_default();
+            let path_root = value.notes.wav_path_root.clone().unwrap_or_default();
             let mut sound_map: HashMap<_, Vec<Note>> = HashMap::new();
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
@@ -529,8 +540,10 @@ impl TryFrom<Bms> for Bmson {
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
-                        let damage = FinF64::new(100.0)
-                            .expect("Internal error: 100.0 is not a valid FinF64");
+                        let damage = FinF64::new(100.0).unwrap_or_else(|| {
+                            // This should never happen as 100.0 is a valid FinF64 value
+                            panic!("Internal error: 100.0 is not a valid FinF64")
+                        });
                         mine_map.entry(note.obj).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,
@@ -566,14 +579,8 @@ impl TryFrom<Bms> for Bmson {
             let sound_channels = sound_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root.join(
-                        value
-                            .header
-                            .wav_files
-                            .get(&obj)
-                            .cloned()
-                            .unwrap_or_default(),
-                    );
+                    let sound_path = path_root
+                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     SoundChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -583,14 +590,8 @@ impl TryFrom<Bms> for Bmson {
             let mine_channels = mine_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root.join(
-                        value
-                            .header
-                            .wav_files
-                            .get(&obj)
-                            .cloned()
-                            .unwrap_or_default(),
-                    );
+                    let sound_path = path_root
+                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     MineChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -600,14 +601,8 @@ impl TryFrom<Bms> for Bmson {
             let key_channels = key_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root.join(
-                        value
-                            .header
-                            .wav_files
-                            .get(&obj)
-                            .cloned()
-                            .unwrap_or_default(),
-                    );
+                    let sound_path = path_root
+                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     KeyChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -624,13 +619,13 @@ impl TryFrom<Bms> for Bmson {
                 layer_events: vec![],
                 poor_events: vec![],
             };
-            for (id, bmp) in &value.header.bmp_files {
+            for (id, bmp) in &value.graphics.bmp_files {
                 bga.bga_header.push(BgaHeader {
                     id: BgaId(id.as_u32()),
                     name: bmp.file.display().to_string(),
                 });
             }
-            for (&time, change) in value.notes.bga_changes() {
+            for (&time, change) in value.graphics.bga_changes() {
                 let target = match change.layer {
                     BgaLayer::Base => &mut bga.bga_events,
                     BgaLayer::Poor => &mut bga.poor_events,
@@ -644,6 +639,25 @@ impl TryFrom<Bms> for Bmson {
             bga
         };
 
+        let scroll_events = value
+            .arrangers
+            .scrolling_factor_changes
+            .values()
+            .map(|scroll| {
+                Ok(ScrollEvent {
+                    y: converter.get_pulses_at(scroll.time),
+                    rate: FinF64::new(
+                        scroll
+                            .factor
+                            .clone()
+                            .try_into()
+                            .map_err(|_| BmsonConvertError::InvalidScrollingFactor)?,
+                    )
+                    .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                })
+            })
+            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
+
         Ok(Self {
             version: "1.0.0".into(),
             info,
@@ -652,24 +666,7 @@ impl TryFrom<Bms> for Bmson {
             stop_events,
             sound_channels,
             bga,
-            scroll_events: value
-                .notes
-                .scrolling_factor_changes()
-                .values()
-                .map(|scroll| {
-                    Ok(ScrollEvent {
-                        y: converter.get_pulses_at(scroll.time),
-                        rate: FinF64::new(
-                            scroll
-                                .factor
-                                .clone()
-                                .try_into()
-                                .map_err(|_| BmsonConvertError::InvalidScrollingFactor)?,
-                        )
-                        .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
-                    })
-                })
-                .collect::<Result<Vec<_>, BmsonConvertError>>()?,
+            scroll_events,
             mine_channels,
             key_channels,
         })

@@ -4,11 +4,20 @@
 
 use std::path::Path;
 
-use crate::{bms::Decimal, lex::command::ObjId};
+use crate::bms::{
+    Decimal,
+    command::{
+        ObjId,
+        time::{ObjTime, Track},
+    },
+};
 
+#[cfg(feature = "minor-command")]
+use super::model::def::ExWavDef;
 use super::{
     ParseWarning, Result,
-    header::{AtBgaDef, BgaDef, Bmp, ExRankDef, ExWavDef},
+    model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -49,7 +58,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a str,
     },
     /// SPEED definition is duplicated.
-    SpacingFactorChange {
+    SpeedFactorChange {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
@@ -112,6 +121,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a ExRankDef,
     },
     /// EXWAV definition is duplicated.
+    #[cfg(feature = "minor-command")]
     ExWav {
         /// Duplicated EXWAV object id.
         id: ObjId,
@@ -119,6 +129,60 @@ pub enum PromptingDuplication<'a> {
         older: &'a ExWavDef,
         /// Incoming definition.
         newer: &'a ExWavDef,
+    },
+    /// STOP definition is duplicated.
+    Stop {
+        /// Duplicated STOP object id.
+        id: ObjId,
+        /// Existing definition.
+        older: Decimal,
+        /// Incoming definition.
+        newer: Decimal,
+    },
+    /// BPM change event is duplicated.
+    BpmChangeEvent {
+        /// Duplicated BPM change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BpmChangeObj,
+        /// Incoming definition.
+        newer: &'a BpmChangeObj,
+    },
+    /// Scrolling factor change event is duplicated.
+    ScrollingFactorChangeEvent {
+        /// Duplicated scrolling factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a ScrollingFactorObj,
+        /// Incoming definition.
+        newer: &'a ScrollingFactorObj,
+    },
+    /// Speed factor change event is duplicated.
+    SpeedFactorChangeEvent {
+        /// Duplicated speed factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a SpeedObj,
+        /// Incoming definition.
+        newer: &'a SpeedObj,
+    },
+    /// Section length change event is duplicated.
+    SectionLenChangeEvent {
+        /// Duplicated section length change track.
+        track: Track,
+        /// Existing definition.
+        older: &'a SectionLenChangeObj,
+        /// Incoming definition.
+        newer: &'a SectionLenChangeObj,
+    },
+    /// BGA change event is duplicated.
+    BgaChangeEvent {
+        /// Duplicated BGA change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaObj,
+        /// Incoming definition.
+        newer: &'a BgaObj,
     },
 }
 

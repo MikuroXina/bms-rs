@@ -1,12 +1,15 @@
-use bms_rs::lex::BmsLexOutput;
-use bms_rs::parse::BmsParseOutput;
-use bms_rs::{
-    lex::{
-        command::{Key, NoteKind, PlayerSide},
-        parse,
+use bms_rs::bms::{
+    command::{
+        channel::{Key, NoteKind, PlayerSide},
+        time::ObjTime,
     },
-    parse::{Bms, obj::Obj, prompt::AlwaysWarn, rng::RngMock},
-    time::ObjTime,
+    lex::{BmsLexOutput, parse_lex_tokens},
+    parse::{
+        BmsParseOutput,
+        model::{Bms, obj::Obj},
+        prompt::AlwaysWarn,
+        random::rng::RngMock,
+    },
 };
 use num::BigUint;
 
@@ -53,7 +56,7 @@ fn nested_random() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(SRC);
+    } = parse_lex_tokens(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {

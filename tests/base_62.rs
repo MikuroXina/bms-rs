@@ -1,7 +1,6 @@
-use bms_rs::{
-    bms::{lex::BmsLexOutput, parse::BmsParseOutput},
-    lex::parse,
-    parse::{Bms, prompt::AlwaysUseNewer, rng::RngMock},
+use bms_rs::bms::{
+    lex::{BmsLexOutput, parse_lex_tokens},
+    parse::{BmsParseOutput, model::Bms, prompt::AlwaysUseNewer, random::rng::RngMock},
 };
 use num::BigUint;
 
@@ -10,7 +9,7 @@ fn test_not_base_62() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(
+    } = parse_lex_tokens(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
@@ -24,9 +23,9 @@ fn test_not_base_62() {
     } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
-    assert_eq!(bms.header.wav_files.len(), 1);
+    assert_eq!(bms.notes.wav_files.len(), 1);
     assert_eq!(
-        bms.header.wav_files.iter().next().unwrap().1,
+        bms.notes.wav_files.iter().next().unwrap().1,
         &std::path::Path::new("fuga.wav").to_path_buf()
     );
 }
@@ -36,7 +35,7 @@ fn test_base_62() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(
+    } = parse_lex_tokens(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
@@ -52,5 +51,5 @@ fn test_base_62() {
     } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
-    assert_eq!(bms.header.wav_files.len(), 2);
+    assert_eq!(bms.notes.wav_files.len(), 2);
 }

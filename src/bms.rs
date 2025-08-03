@@ -18,15 +18,22 @@
 use fraction::GenericDecimal;
 use num::BigUint;
 
+pub mod command;
 pub mod lex;
 pub mod parse;
-pub mod time;
+pub mod prelude;
 
 use thiserror::Error;
 
-use crate::parse::{PlayingError, PlayingWarning};
+use crate::parse::{model::Bms, random::rng::RandRng};
 
-use self::{lex::LexWarning, parse::ParseWarning};
+use self::{
+    lex::{BmsLexOutput, LexWarning},
+    parse::{
+        BmsParseOutput, ParseWarning,
+        check_playing::{PlayingError, PlayingWarning},
+    },
+};
 
 /// Decimal type used throughout the BMS module.
 ///
@@ -37,7 +44,7 @@ pub type Decimal = GenericDecimal<BigUint, usize>;
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
@@ -51,4 +58,66 @@ pub enum BmsWarning {
     /// An error for playing.
     #[error("Error: playing: {0}")]
     PlayingError(#[from] PlayingError),
+}
+
+/// Output of parsing a BMS file.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BmsOutput {
+    /// The parsed BMS data.
+    pub bms: Bms,
+    /// Warnings that occurred during parsing.
+    pub warnings: Vec<BmsWarning>,
+}
+
+/// Parse a BMS file from source text.
+///
+/// This function provides a convenient way to parse a BMS file in one step.
+/// It uses the default channel parser and a default random number generator (from [`rand::rngs::OsRng`]).
+///
+/// # Example
+///
+/// ```
+/// use bms_rs::bms::{parse_bms, BmsOutput};
+///
+/// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
+/// let BmsOutput { bms, warnings } = parse_bms(source);
+/// println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
+/// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
+/// println!("Warnings: {:?}", warnings);
+/// ```
+pub fn parse_bms(source: &str) -> BmsOutput {
+    use rand::{SeedableRng, rngs::StdRng};
+
+    // Parse tokens using default channel parser
+    let BmsLexOutput {
+        tokens,
+        lex_warnings,
+    } = lex::parse_lex_tokens(source);
+
+    // Convert lex warnings to BmsWarning
+    let mut warnings: Vec<BmsWarning> = lex_warnings
+        .into_iter()
+        .map(BmsWarning::LexWarning)
+        .collect();
+
+    // Parse BMS using default RNG and prompt handler
+    let rng = RandRng(StdRng::from_os_rng());
+    let BmsParseOutput {
+        bms,
+        parse_warnings,
+        playing_warnings,
+        playing_errors,
+    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarn);
+
+    // Convert parse warnings to BmsWarning
+    warnings.extend(parse_warnings.into_iter().map(BmsWarning::ParseWarning));
+
+    // Convert playing warnings to BmsWarning
+    warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
+
+    // Convert playing errors to BmsWarning
+    warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
+
+    BmsOutput { bms, warnings }
 }

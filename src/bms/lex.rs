@@ -1,12 +1,15 @@
 //! Lexical analyzer of BMS format.
+//!
+//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
+//! BmsParseOutput)
 
-pub mod command;
+mod command_impl;
 mod cursor;
 pub mod token;
 
 use thiserror::Error;
 
-use crate::lex::command::channel::{Channel, read_channel_beat};
+use crate::bms::command::channel::{Channel, read_channel_beat};
 
 use self::{cursor::Cursor, token::Token};
 
@@ -64,13 +67,13 @@ pub struct BmsLexOutput<'a> {
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse<'a>(source: &'a str) -> BmsLexOutput<'a> {
-    parse_with_channel_parser(source, &read_channel_beat)
+pub fn parse_lex_tokens<'a>(source: &'a str) -> BmsLexOutput<'a> {
+    parse_lex_tokens_with_channel_parser(source, &read_channel_beat)
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
 /// Use this function when you want to parse the BMS format text with a custom channel parser.
-pub fn parse_with_channel_parser<'a>(
+pub fn parse_lex_tokens_with_channel_parser<'a>(
     source: &'a str,
     channel_parser: &'a impl Fn(&str) -> Option<Channel>,
 ) -> BmsLexOutput<'a> {
@@ -103,9 +106,17 @@ mod tests {
 
     use fraction::{GenericDecimal, GenericFraction};
 
-    use crate::lex::BmsLexOutput;
-
-    use super::{command::*, parse, token::Token::*};
+    use crate::{
+        bms::{
+            command::{
+                JudgeLevel, PlayerMode,
+                channel::{Channel, NoteKind, PlayerSide},
+                time::Track,
+            },
+            lex::{BmsLexOutput, parse_lex_tokens, token::Token::*},
+        },
+        command::channel::Key,
+    };
 
     #[test]
     fn simple() {
@@ -134,7 +145,7 @@ mod tests {
         let BmsLexOutput {
             tokens,
             lex_warnings: warnings,
-        } = parse(SRC);
+        } = parse_lex_tokens(SRC);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

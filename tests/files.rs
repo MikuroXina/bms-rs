@@ -1,7 +1,8 @@
 use bms_rs::bms::{
     Decimal,
-    lex::{BmsLexOutput, LexWarning, command::ObjId, parse},
-    parse::{Bms, BmsParseOutput, prompt::AlwaysWarn, rng::RngMock},
+    command::{JudgeLevel, ObjId},
+    lex::{BmsLexOutput, LexWarning, parse_lex_tokens},
+    parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
 };
 use num::BigUint;
 
@@ -11,7 +12,7 @@ fn test_lal() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -30,12 +31,9 @@ fn test_lal() {
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(151)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(151)));
     assert_eq!(bms.header.play_level, Some(7));
-    assert_eq!(
-        bms.header.rank,
-        Some(bms_rs::lex::command::JudgeLevel::Easy)
-    );
+    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.difficulty, Some(2));
     assert_eq!(bms.header.total, Some(Decimal::from(359.6)));
 
@@ -48,7 +46,7 @@ fn test_nc() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -65,12 +63,9 @@ fn test_nc() {
     );
     assert_eq!(bms.header.genre.as_deref(), Some("MOTION"));
     assert_eq!(bms.header.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(100)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(100)));
     assert_eq!(bms.header.play_level, Some(5));
-    assert_eq!(
-        bms.header.rank,
-        Some(bms_rs::lex::command::JudgeLevel::Easy)
-    );
+    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.difficulty, Some(2));
     assert_eq!(bms.header.total, Some(Decimal::from(260)));
     assert_eq!(
@@ -91,7 +86,7 @@ fn test_j219() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -107,12 +102,9 @@ fn test_j219() {
         Some("cranky (obj: Mikuro Xina)")
     );
     assert_eq!(bms.header.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.header.bpm, Some(Decimal::from(147)));
+    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(147)));
     assert_eq!(bms.header.play_level, Some(6));
-    assert_eq!(
-        bms.header.rank,
-        Some(bms_rs::lex::command::JudgeLevel::Easy)
-    );
+    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
     assert_eq!(bms.header.total, Some(Decimal::from(218)));
     assert_eq!(
         bms.header.stage_file.as_ref().map(|p| p.to_string_lossy()),
@@ -128,7 +120,7 @@ fn test_blank() {
     let BmsLexOutput {
         tokens: _,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(
         warnings,
         vec![
@@ -152,7 +144,7 @@ fn test_bemuse_ext() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -163,31 +155,34 @@ fn test_bemuse_ext() {
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes
-    assert_eq!(bms.header.scrolling_factor_changes.len(), 2);
-    assert_eq!(bms.header.spacing_factor_changes.len(), 2);
+    assert_eq!(bms.scope_defines.scroll_defs.len(), 2);
+    assert_eq!(bms.scope_defines.speed_defs.len(), 2);
+
+    assert_eq!(bms.arrangers.scrolling_factor_changes.len(), 4);
+    assert_eq!(bms.arrangers.speed_factor_changes.len(), 4);
 
     // Check specific values
     assert_eq!(
-        bms.header
-            .scrolling_factor_changes
+        bms.scope_defines
+            .scroll_defs
             .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.header
-            .scrolling_factor_changes
+        bms.scope_defines
+            .scroll_defs
             .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );
     assert_eq!(
-        bms.header
-            .spacing_factor_changes
+        bms.scope_defines
+            .speed_defs
             .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.header
-            .spacing_factor_changes
+        bms.scope_defines
+            .speed_defs
             .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );
