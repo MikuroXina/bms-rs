@@ -7,7 +7,7 @@ pub mod graphics;
 pub mod time;
 
 /// Minor command types and utilities.
-/// 
+///
 /// This module contains types and utilities for minor BMS commands that are only available
 /// when the `minor-command` feature is enabled.
 #[cfg(feature = "minor-command")]
@@ -249,8 +249,6 @@ pub enum PoorMode {
     Hidden,
 }
 
-
-
 /// RGB struct, used for #VIDEOCOLORS and similar commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -310,8 +308,6 @@ impl TryFrom<u8> for LnModeType {
     }
 }
 
-
-
 /// WAVCMD parameter type.
 ///
 /// - Pitch: pitch (0-127, 60 is C6)
@@ -327,8 +323,6 @@ pub enum WavCmdParam {
     /// Playback time (ms*0.5, 0 means original length)
     Time,
 }
-
-
 
 /// BM98 #ExtChr extended character customization event.
 ///
@@ -363,5 +357,3 @@ pub struct ExtChrEvent {
     /// Absolute coordinate (optional)
     pub abs_y: Option<i32>,
 }
-
-

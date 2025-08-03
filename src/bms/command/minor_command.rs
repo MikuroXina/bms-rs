@@ -217,4 +217,4 @@ mod tests {
         assert_eq!(ExWavPan::default().value(), 0);
         assert_eq!(ExWavVolume::default().value(), 0);
     }
-} 
+}
