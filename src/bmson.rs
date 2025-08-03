@@ -862,7 +862,7 @@ impl From<Bmson> for Bms {
 fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
     // Simple conversion: assume 4/4 time signature and convert pulses to track/time
     let pulses_per_measure = resolution * 4; // 4 quarter notes per measure
-    let track = (pulse.0 / pulses_per_measure) as u64;
+    let track = pulse.0 / pulses_per_measure;
     let remaining_pulses = pulse.0 % pulses_per_measure;
 
     // Convert remaining pulses to fraction
