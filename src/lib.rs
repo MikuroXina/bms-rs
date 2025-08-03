@@ -53,6 +53,7 @@
 //! - `bmson` feature enables the BMSON format support.
 //! - `serde` feature enables the `serde` support. It supports [`serde::Serialize`] for all the definications in this crate, and [`serde::Deserialize`] for all the result types.
 //! - `rand` feature enables the random number generator support. It supports [`bms::parse::random::rng::RandRng`].
+//! - `minor-command` feature enables the commands that are almost never used in modern BMS Players.
 //!
 //! # About the format
 //!
