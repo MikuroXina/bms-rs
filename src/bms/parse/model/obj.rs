@@ -8,7 +8,7 @@ use crate::bms::{
     },
 };
 
-/// An object on the score.
+/// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Obj {
