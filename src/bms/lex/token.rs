@@ -8,7 +8,19 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::bms::{Decimal, command::*};
+use crate::bms::{
+    Decimal,
+    command::{
+        Argb, JudgeLevel, LnModeType, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        time::Track,
+    },
+};
+
+#[cfg(feature = "minor-command")]
+use crate::bms::command::{
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    WavCmdParam,
+};
 
 use super::{Result, cursor::Cursor};
 
@@ -956,7 +968,8 @@ impl<'a> Token<'a> {
                     let pos: u16 = pos
                         .parse()
                         .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
-                    let time = ObjTime::new(measure as u64, pos as u64, 1000);
+                    let time =
+                        crate::bms::command::time::ObjTime::new(measure as u64, pos as u64, 1000);
                     let duration = Duration::from_millis(ms as u64);
                     Self::Stp(StpEvent { time, duration })
                 }
@@ -1271,6 +1284,8 @@ impl<'a> Token<'a> {
 #[cfg(test)]
 mod tests {
     use crate::bms::command::channel::read_channel_beat;
+    #[cfg(feature = "minor-command")]
+    use crate::bms::command::time::Track;
 
     use super::*;
 
@@ -1433,7 +1448,7 @@ mod tests {
         let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
             panic!("Not StpSeq");
         };
-        assert_eq!(stp.time.track, crate::bms::command::Track(1));
+        assert_eq!(stp.time.track, Track(1));
         assert_eq!(stp.time.numerator, 500);
         assert_eq!(stp.time.denominator, 1000);
         assert_eq!(stp.duration.as_millis(), 1500);

@@ -1,5 +1,8 @@
-use bms_rs::{
-    command::{Key, NoteKind, ObjTime, PlayerSide},
+use bms_rs::bms::{
+    command::{
+        channel::{Key, NoteKind, PlayerSide},
+        time::ObjTime,
+    },
     lex::{BmsLexOutput, parse},
     parse::{
         BmsParseOutput,

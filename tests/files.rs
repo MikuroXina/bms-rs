@@ -1,11 +1,8 @@
-use bms_rs::{
-    bms::{
-        Decimal,
-        command::ObjId,
-        lex::{BmsLexOutput, LexWarning, parse},
-        parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
-    },
-    command::JudgeLevel,
+use bms_rs::bms::{
+    Decimal,
+    command::{JudgeLevel, ObjId},
+    lex::{BmsLexOutput, LexWarning, parse},
+    parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
 };
 use num::BigUint;
 

@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    bms::{Decimal, command::*},
-    parse::model::Bms,
+use crate::bms::{
+    Decimal,
+    command::time::{ObjTime, Track},
 };
 
 /// Note position for the chart [`super::Bmson`].
@@ -29,7 +29,7 @@ pub struct PulseConverter {
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
-    pub fn new(bms: &Bms) -> Self {
+    pub fn new(bms: &crate::bms::parse::model::Bms) -> Self {
         let resolution: u64 = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
 
@@ -112,7 +112,7 @@ fn pulse_conversion() {
             .unwrap();
         notes
     };
-    let converter = PulseConverter::new(&Bms {
+    let converter = PulseConverter::new(&crate::bms::parse::model::Bms {
         arrangers: notes,
         ..Default::default()
     });

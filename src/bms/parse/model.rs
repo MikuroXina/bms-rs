@@ -20,16 +20,14 @@ use num::BigUint;
 
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
-use crate::{
-    bms::{
-        Decimal,
-        command::{
-            Argb, Channel, JudgeLevel, Key, LnType, NoteKind, ObjId, ObjTime, PlayerMode, PoorMode,
-            Track, Volume,
-        },
-        lex::token::Token,
+use crate::bms::{
+    Decimal,
+    command::{
+        Argb, JudgeLevel, LnModeType, LnType, ObjId, PlayerMode, PoorMode, Volume,
+        channel::{Channel, Key, NoteKind},
+        time::{ObjTime, Track},
     },
-    command::LnModeType,
+    lex::token::Token,
 };
 
 #[cfg(feature = "minor-command")]

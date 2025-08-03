@@ -1,6 +1,10 @@
 use bms_rs::bms::{
     Decimal,
-    command::{Argb, Channel, ObjId, ObjTime, Track},
+    command::{
+        Argb, ObjId,
+        channel::Channel,
+        time::{ObjTime, Track},
+    },
     lex::token::Token,
     parse::{
         BmsParseOutput, ParseWarning,

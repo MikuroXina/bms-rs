@@ -1,7 +1,13 @@
 //! Definitions of the header defines.
 use std::path::PathBuf;
 
-use crate::bms::command::*;
+use crate::bms::command::{
+    Argb, JudgeLevel, ObjId,
+    graphics::{PixelPoint, PixelSize},
+};
+
+#[cfg(feature = "minor-command")]
+use crate::bms::command::{ExWavFrequency, ExWavPan, ExWavVolume};
 
 /// A definition for #@BGA command.
 #[derive(Debug, Clone, PartialEq)]

@@ -2,12 +2,14 @@
 
 use bms_rs::{
     bms::{
-        command::ObjId,
-        lex::{LexWarning, parse},
-        parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
+        command::{
+            JudgeLevel, ObjId, PoorMode,
+            graphics::{PixelPoint, PixelSize},
+        },
+        lex::{BmsLexOutput, LexWarning, parse},
+        parse::{BmsParseOutput, prompt::AlwaysWarn, random::rng::RngMock},
     },
-    command::{JudgeLevel, PixelPoint, PixelSize, PoorMode},
-    lex::BmsLexOutput,
+    parse::model::Bms,
 };
 use num::BigUint;
 

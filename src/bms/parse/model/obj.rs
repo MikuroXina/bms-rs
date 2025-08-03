@@ -1,5 +1,12 @@
 //! Definitions of the note object.
-use crate::bms::{Decimal, command::*};
+use crate::bms::{
+    Decimal,
+    command::{
+        ObjId,
+        channel::{Channel, Key, NoteKind, PlayerSide},
+        time::{ObjTime, Track},
+    },
+};
 
 /// An object on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

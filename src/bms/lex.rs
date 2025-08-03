@@ -106,9 +106,16 @@ mod tests {
 
     use fraction::{GenericDecimal, GenericFraction};
 
-    use crate::bms::{
-        command::*,
-        lex::{BmsLexOutput, parse, token::Token::*},
+    use crate::{
+        bms::{
+            command::{
+                JudgeLevel, PlayerMode,
+                channel::{Channel, NoteKind, PlayerSide},
+                time::Track,
+            },
+            lex::{BmsLexOutput, parse, token::Token::*},
+        },
+        command::channel::Key,
     };
 
     #[test]

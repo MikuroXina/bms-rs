@@ -1,16 +1,14 @@
-use bms_rs::{
-    bms::{
-        Decimal,
-        parse::{
-            BmsParseOutput,
-            check_playing::{PlayingError, PlayingWarning},
-            model::Bms,
-            prompt::AlwaysWarn,
-            random::rng::RngMock,
-        },
-    },
+use bms_rs::bms::{
+    Decimal,
     command::ObjId,
     lex::{BmsLexOutput, parse, token::Token},
+    parse::{
+        BmsParseOutput,
+        check_playing::{PlayingError, PlayingWarning},
+        model::Bms,
+        prompt::AlwaysWarn,
+        random::rng::RngMock,
+    },
 };
 use num::BigUint;
 

@@ -7,12 +7,9 @@ pub mod graphics;
 pub mod time;
 
 #[cfg(feature = "minor-command")]
+use crate::bms::command::time::ObjTime;
+#[cfg(feature = "minor-command")]
 use std::time::Duration;
-
-/// Export defs
-pub use channel::*;
-pub use graphics::*;
-pub use time::*;
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

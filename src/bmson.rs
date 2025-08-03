@@ -29,13 +29,16 @@ use std::{collections::HashMap, num::NonZeroU8};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
-use crate::{
-    bms::{
-        command::{JudgeLevel, Key, NoteKind, ObjTime, PlayerSide, Track},
-        parse::model::Bms,
+use crate::bms::{
+    command::{
+        JudgeLevel,
+        channel::{Key, NoteKind, PlayerSide},
+        time::{ObjTime, Track},
     },
-    parse::model::obj::BgaLayer,
+    parse::model::Bms,
 };
+
+use crate::parse::model::obj::BgaLayer;
 
 use self::{
     fin_f64::FinF64,

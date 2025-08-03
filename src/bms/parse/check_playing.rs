@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::command::NoteKind;
+use crate::bms::command::channel::NoteKind;
 
 use super::model::Bms;
 
