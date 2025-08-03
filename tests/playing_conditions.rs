@@ -1,7 +1,7 @@
 use bms_rs::bms::{
     Decimal,
     command::ObjId,
-    lex::{BmsLexOutput, parse, token::Token},
+    lex::{BmsLexOutput, parse_lex_tokens, token::Token},
     parse::{
         BmsParseOutput,
         check_playing::{PlayingError, PlayingWarning},
@@ -19,7 +19,7 @@ fn test_playing_conditions_empty_bms() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -47,7 +47,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -72,7 +72,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     assert!(
@@ -111,7 +111,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);

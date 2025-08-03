@@ -1,7 +1,7 @@
 use bms_rs::bms::{
     Decimal,
     command::{JudgeLevel, ObjId},
-    lex::{BmsLexOutput, LexWarning, parse},
+    lex::{BmsLexOutput, LexWarning, parse_lex_tokens},
     parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
 };
 use num::BigUint;
@@ -12,7 +12,7 @@ fn test_lal() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -46,7 +46,7 @@ fn test_nc() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -86,7 +86,7 @@ fn test_j219() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
@@ -120,7 +120,7 @@ fn test_blank() {
     let BmsLexOutput {
         tokens: _,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(
         warnings,
         vec![
@@ -144,7 +144,7 @@ fn test_bemuse_ext() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(source);
+    } = parse_lex_tokens(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,

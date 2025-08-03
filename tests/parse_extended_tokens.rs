@@ -6,7 +6,7 @@ use bms_rs::{
             JudgeLevel, ObjId, PoorMode,
             graphics::{PixelPoint, PixelSize},
         },
-        lex::{BmsLexOutput, LexWarning, parse},
+        lex::{BmsLexOutput, LexWarning, parse_lex_tokens},
         parse::{BmsParseOutput, prompt::AlwaysWarn, random::rng::RngMock},
     },
     parse::model::Bms,

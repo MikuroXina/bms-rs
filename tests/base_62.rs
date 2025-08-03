@@ -1,5 +1,5 @@
 use bms_rs::bms::{
-    lex::{BmsLexOutput, parse},
+    lex::{BmsLexOutput, parse_lex_tokens},
     parse::{BmsParseOutput, model::Bms, prompt::AlwaysUseNewer, random::rng::RngMock},
 };
 use num::BigUint;
@@ -9,7 +9,7 @@ fn test_not_base_62() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(
+    } = parse_lex_tokens(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
@@ -35,7 +35,7 @@ fn test_base_62() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse(
+    } = parse_lex_tokens(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
