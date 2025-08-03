@@ -104,12 +104,12 @@ impl ControlFlowRule {
 
     /// Convert the control flow rule to a parse warning with a given row and column.
     pub fn to_parse_warning_manual(
-        self,
+        &self,
         row: impl Into<usize>,
         col: impl Into<usize>,
     ) -> ParseWarning {
         ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(self),
+            content: ParseWarningContent::ViolateControlFlowRule(*self),
             row: row.into(),
             col: col.into(),
         }
