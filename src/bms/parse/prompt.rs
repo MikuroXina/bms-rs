@@ -17,7 +17,7 @@ use super::model::def::ExWavDef;
 use super::{
     ParseWarning, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedFactorObj},
+    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -162,9 +162,9 @@ pub enum PromptingDuplication<'a> {
         /// Duplicated speed factor change time.
         time: ObjTime,
         /// Existing definition.
-        older: &'a SpeedFactorObj,
+        older: &'a SpeedObj,
         /// Incoming definition.
-        newer: &'a SpeedFactorObj,
+        newer: &'a SpeedObj,
     },
     /// Section length change event is duplicated.
     SectionLenChangeEvent {

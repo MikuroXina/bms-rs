@@ -36,7 +36,7 @@ use self::{
     def::{Bmp, ExRankDef},
     obj::{
         BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedFactorObj, StopObj,
+        SectionLenChangeObj, SpeedObj, StopObj,
     },
 };
 use super::{
@@ -165,7 +165,7 @@ pub struct Arrangers {
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     /// The spacing factors corresponding to the id of the spacing change object.
-    pub speed_factor_changes: BTreeMap<ObjTime, SpeedFactorObj>,
+    pub speed_factor_changes: BTreeMap<ObjTime, SpeedObj>,
     /// bemaniaDX STP events, indexed by ObjTime. #STP
     #[cfg(feature = "minor-command")]
     pub stp_events: BTreeMap<ObjTime, StpEvent>,
@@ -633,12 +633,10 @@ impl Bms {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digit: {}",
-                        c1
+                        "Invalid hex digit: {c1}",
                     )))? * 16
                         + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                            "Invalid hex digit: {}",
-                            c2
+                            "Invalid hex digit: {c2}",
                         )))?;
                     if bpm == 0 {
                         continue;
@@ -685,7 +683,7 @@ impl Bms {
                         .get(&obj)
                         .ok_or(ParseWarning::UndefinedObject(obj))?;
                     self.arrangers.push_speed_factor_change(
-                        SpeedFactorObj {
+                        SpeedObj {
                             time,
                             factor: factor.clone(),
                         },
@@ -715,7 +713,7 @@ impl Bms {
             } => {
                 let length = Decimal::from(Decimal::from_fraction(
                     GenericFraction::from_str(message).map_err(|_| {
-                        ParseWarning::SyntaxError(format!("Invalid section length: {}", message))
+                        ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
                     })?,
                 ));
                 if length <= Decimal::from(0u64) {
@@ -826,8 +824,7 @@ impl Bms {
                     self.notes
                         .remove_latest_note(begin_id)
                         .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {:?}",
-                            end_id
+                            "Cannot find begin note for LNOBJ {end_id:?}"
                         )))?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
@@ -1016,7 +1013,7 @@ impl Arrangers {
     /// Adds a new spacing factor change object to the notes.
     pub fn push_speed_factor_change(
         &mut self,
-        speed_factor_change: SpeedFactorObj,
+        speed_factor_change: SpeedObj,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match self.speed_factor_changes.entry(speed_factor_change.time) {
