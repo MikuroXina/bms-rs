@@ -106,7 +106,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        bms::lex::token::Token,
+        bms::lex::token::{Token, TokenContent},
         parse::{
             BmsParseTokenIter,
             random::ast_build::{CaseBranch, CaseBranchValue, Unit},
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
-        use Token::*;
+        use TokenContent::*;
         let tokens = vec![
             Title("11000000"),
             Switch(BigUint::from(2u32)),
@@ -142,7 +142,14 @@ mod tests {
             Skip,
             EndSwitch,
             Title("00000044"),
-        ];
+        ]
+        .into_iter()
+        .map(|t| Token {
+            content: t,
+            row: 0,
+            col: 0,
+        })
+        .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
@@ -183,7 +190,13 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(u, Unit::Token(Title("00550000"))))
+                .any(|u| matches!(
+                    u,
+                    Unit::Token(Token {
+                        content: Title("00550000"),
+                        ..
+                    })
+                ))
         );
         assert!(
             if_block
@@ -192,7 +205,13 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(u, Unit::Token(Title("00006600"))))
+                .any(|u| matches!(
+                    u,
+                    Unit::Token(Token {
+                        content: Title("00006600"),
+                        ..
+                    })
+                ))
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
@@ -200,7 +219,13 @@ mod tests {
         else {
             panic!("Case(2) not found");
         };
-        assert!(matches!(&tokens[0], Unit::Token(Title("00003300"))));
+        assert!(matches!(
+            &tokens[0],
+            Unit::Token(Token {
+                content: Title("00003300"),
+                ..
+            })
+        ));
         let mut rng = DummyRng;
         let mut ast_iter = ast.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
@@ -208,7 +233,9 @@ mod tests {
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
             match t {
-                Title(s) => {
+                Token {
+                    content: Title(s), ..
+                } => {
                     assert_eq!(s, &expected[i], "Title content mismatch");
                 }
                 _ => panic!("Token type mismatch"),
@@ -219,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_switch_insane_tokenized() {
-        use Token::*;
+        use TokenContent::*;
         let tokens = vec![
             Switch(BigUint::from(5u32)),
             Def,
@@ -249,7 +276,14 @@ mod tests {
             EndSwitch,
             Skip,
             EndSwitch,
-        ];
+        ]
+        .into_iter()
+        .map(|t| Token {
+            content: t,
+            row: 0,
+            col: 0,
+        })
+        .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =

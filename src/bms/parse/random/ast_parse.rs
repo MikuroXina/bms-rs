@@ -99,7 +99,7 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::bms::lex::token::Token;
+    use crate::bms::lex::token::{Token, TokenContent};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -111,9 +111,18 @@ mod tests {
 
     #[test]
     fn test_setrandom_setwitch_large_value() {
+        use TokenContent::*;
         // If/Case value is very large under SetRandom/SetSwitch
-        let t_if = Token::Title("LARGE_IF");
-        let t_case = Token::Title("LARGE_CASE");
+        let t_if = Token {
+            content: Title("LARGE_IF"),
+            row: 0,
+            col: 0,
+        };
+        let t_case = Token {
+            content: Title("LARGE_CASE"),
+            row: 0,
+            col: 0,
+        };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(u64::MAX),
@@ -147,7 +156,9 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {
-                Token::Title(s) => Some(*s),
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
@@ -157,10 +168,15 @@ mod tests {
 
     #[test]
     fn test_nested_random_switch() {
+        use TokenContent::*;
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         // Random outer, Switch inner
-        let t_switch_in_random = Token::Title("SWITCH_IN_RANDOM");
+        let t_switch_in_random = Token {
+            content: Title("SWITCH_IN_RANDOM"),
+            row: 0,
+            col: 0,
+        };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(1u64),
@@ -190,14 +206,20 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {
-                Token::Title(s) => Some(*s),
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
         assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
         // Switch outer, Random inner
-        let t_random_in_switch = Token::Title("RANDOM_IN_SWITCH");
+        let t_random_in_switch = Token {
+            content: Title("RANDOM_IN_SWITCH"),
+            row: 0,
+            col: 0,
+        };
         let cases = vec![CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u64)),
             tokens: vec![Unit::RandomBlock {
@@ -228,7 +250,9 @@ mod tests {
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match t {
-                Token::Title(s) => Some(*s),
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
@@ -237,9 +261,14 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_random_switch() {
+        use TokenContent::*;
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
-        let t_deep_nested = Token::Title("DEEP_NESTED");
+        let t_deep_nested = Token {
+            content: Title("DEEP_NESTED"),
+            row: 0,
+            col: 0,
+        };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(1u64),
@@ -284,7 +313,9 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t {
-                Token::Title(s) => Some(*s),
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
