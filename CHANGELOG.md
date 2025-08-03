@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-08-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Rearrange struct positions ([#143](https://github.com/MikuroXina/bms-rs/issues/143))
+* add beatoraja & remaining tokens ([#141](https://github.com/MikuroXina/bms-rs/issues/141))
+* use BigUInt & Decimal ([#139](https://github.com/MikuroXina/bms-rs/issues/139))
+* Add note channel preset, modify `LexWarning` ([#135](https://github.com/MikuroXina/bms-rs/issues/135))
+* add playing warning/error checking & classify lex/parse/playing warnings ([#134](https://github.com/MikuroXina/bms-rs/issues/134))
+* Change usage of `parse` and `Bms::from_token_stream`, only return warnings ([#132](https://github.com/MikuroXina/bms-rs/issues/132))
+
+### Features
+
+* add beatoraja & remaining tokens ([#141](https://github.com/MikuroXina/bms-rs/issues/141)) ([4fbf6c6](https://github.com/MikuroXina/bms-rs/commit/4fbf6c6d7d79d33e06cd86f124d3ef9642970975))
+* Add note channel preset, modify `LexWarning` ([#135](https://github.com/MikuroXina/bms-rs/issues/135)) ([6fcd830](https://github.com/MikuroXina/bms-rs/commit/6fcd8301de65407391e1cff66da069c64020701f))
+* add playing warning/error checking & classify lex/parse/playing warnings ([#134](https://github.com/MikuroXina/bms-rs/issues/134)) ([7a9732d](https://github.com/MikuroXina/bms-rs/commit/7a9732d4702038d0c0b708e99dbe7f4593de41a6))
+* **bmson:** add beatoraja ext ([#136](https://github.com/MikuroXina/bms-rs/issues/136)) ([d76b4df](https://github.com/MikuroXina/bms-rs/commit/d76b4dfaec954c54320ae127396927ade56056e9))
+* Change usage of `parse` and `Bms::from_token_stream`, only return warnings ([#132](https://github.com/MikuroXina/bms-rs/issues/132)) ([94a8bb4](https://github.com/MikuroXina/bms-rs/commit/94a8bb4f87226a81313e8ca7e3272e651cdb3768))
+* Use AST to support more situations, pass the insane test in BMS command memo ([#126](https://github.com/MikuroXina/bms-rs/issues/126)) ([2fdaa45](https://github.com/MikuroXina/bms-rs/commit/2fdaa452537750b41a6415b9c22d5ada2d16aafe))
+* use BigUInt & Decimal ([#139](https://github.com/MikuroXina/bms-rs/issues/139)) ([4f17a7c](https://github.com/MikuroXina/bms-rs/commit/4f17a7c319ee17183ccf7f7eeb5d918c1feddeeb))
+
+
+### Bug Fixes
+
+* Fill files test, add support for file path with spaces ([#140](https://github.com/MikuroXina/bms-rs/issues/140)) ([f8eb0e1](https://github.com/MikuroXina/bms-rs/commit/f8eb0e18a66af0f0a8771b0d5693c045e68e2235))
+* Rearrange struct positions ([#143](https://github.com/MikuroXina/bms-rs/issues/143)) ([d05edf4](https://github.com/MikuroXina/bms-rs/commit/d05edf471d9f92d500132618e19f1ff464e031ad))
+* serde error & clippy warnings ([#130](https://github.com/MikuroXina/bms-rs/issues/130)) ([b62a742](https://github.com/MikuroXina/bms-rs/commit/b62a742954cf10dfbd76938647186a1042aee934))
+
+
+### Miscellaneous Chores
+
+* release 0.8.0 ([#124](https://github.com/MikuroXina/bms-rs/issues/124)) ([440c018](https://github.com/MikuroXina/bms-rs/commit/440c018e1465ec5833234d2e76f2890fa2682795))
+
 ## [0.7.0](https://github.com/MikuroXina/bms-rs/compare/v0.6.0...v0.7.0) (2025-06-22)
 
 

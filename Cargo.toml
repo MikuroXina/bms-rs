@@ -1,6 +1,6 @@
 [package]
 name = "bms-rs"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["MikuroXina <ryosukadnak@gmail.com>"]
 edition = "2024"
 description = "The BMS format parser."
