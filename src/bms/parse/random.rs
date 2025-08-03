@@ -55,7 +55,7 @@ pub(super) fn parse_control_flow<'a>(
 ///
 /// This enum defines all possible errors that can occur during BMS control flow parsing.
 /// Each variant represents a specific type of control flow violation or malformed construct.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowRule {
     /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
@@ -100,6 +100,17 @@ pub enum ControlFlowRule {
     /// A `#DEF` token was encountered outside of a switch block.
     #[error("unmatched def")]
     UnmatchedDef,
+}
+
+impl ControlFlowRule {
+    /// Convert the control flow rule to a parse warning with a given token.
+    pub fn to_parse_warning(&self, token: &Token) -> ParseWarning {
+        ParseWarning {
+            content: ParseWarningContent::ViolateControlFlowRule(*self),
+            row: token.row,
+            col: token.col,
+        }
+    }
 }
 
 #[cfg(test)]
