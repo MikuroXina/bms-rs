@@ -6,7 +6,7 @@
 //!
 //! ## Simple Usage
 //!
-//! For most use cases, you can use the [`parse_bms`] function to parse a BMS file in one step:
+//! For most use cases, you can use the [`bms::parse_bms`] function to parse a BMS file in one step:
 //!
 //! ```
 //! use bms_rs::bms::{parse_bms, BmsOutput};
@@ -23,7 +23,7 @@
 //!
 //! For more control over the parsing process, you can use the individual steps:
 //!
-//! At first, you can get the tokens stream with [`lex::parse_lex_tokens`]. Then pass it and the random generator to [`parse::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
+//! At first, you can get the tokens stream with [`bms::lex::parse_lex_tokens`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```
 //! use rand::{rngs::StdRng, SeedableRng};
@@ -51,8 +51,8 @@
 //! # Features
 //!
 //! - `bmson` feature enables the BMSON format support.
-//! - `serde` feature enables the `serde` support. It supports `Serialize` for all the definications in this crate, and `Deserialize` for all the result types.
-//! - `rand` feature enables the random number generator support. It supports [`RandRng`].
+//! - `serde` feature enables the `serde` support. It supports [`serde::Serialize`] for all the definications in this crate, and [`serde::Deserialize`] for all the result types.
+//! - `rand` feature enables the random number generator support. It supports [`bms::parse::random::rng::RandRng`].
 //!
 //! # About the format
 //!
