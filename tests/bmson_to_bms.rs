@@ -107,16 +107,16 @@ fn test_bmson_to_bms_with_notes() {
                     x: Some(NonZeroU8::new(1).unwrap()), // Key1
                     l: 0,                                // Normal note
                     c: false,
-                    t: LnMode::Ln,
-                    up: false,
+                    t: Some(LnMode::Ln),
+                    up: Some(false),
                 },
                 Note {
                     y: PulseNumber(480),                 // 2 quarter notes
                     x: Some(NonZeroU8::new(2).unwrap()), // Key2
                     l: 240,                              // Long note
                     c: false,
-                    t: LnMode::Ln,
-                    up: false,
+                    t: Some(LnMode::Ln),
+                    up: Some(false),
                 },
             ],
         }],

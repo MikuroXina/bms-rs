@@ -196,11 +196,11 @@ pub struct Note {
     pub c: bool,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
-    pub t: LnMode,
+    pub t: Option<LnMode>,
     /// Beatoraja implementation of long note up flag.
     /// If it is true and configured at the end position of a long note, then this position will become the ending note of the long note.
     #[serde(default)]
-    pub up: bool,
+    pub up: Option<bool>,
 }
 
 fn deserialize_x_none_if_zero<'de, D>(deserializer: D) -> Result<Option<NonZeroU8>, D::Error>

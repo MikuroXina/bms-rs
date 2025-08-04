@@ -252,8 +252,8 @@ impl Bms {
                             y: pulses,
                             l: duration,
                             c: false,
-                            t: self.header.ln_mode,
-                            up: false,
+                            t: Some(self.header.ln_mode),
+                            up: Some(false),
                         });
                     }
                 }
