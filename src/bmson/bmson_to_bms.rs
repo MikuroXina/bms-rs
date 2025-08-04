@@ -1,0 +1,251 @@
+//! Part: Convert `Bmson` to `Bms`.
+
+use std::{num::NonZeroU8, path::PathBuf};
+
+use crate::{
+    bms::prelude::*,
+    bmson::{Bmson, pulse::PulseNumber},
+};
+
+impl Bms {
+    /// Convert `Bmson` to `Bms`.
+    pub fn from_bmson(value: Bmson) -> Self {
+        let mut bms = Bms::default();
+
+        // Convert info to header
+        bms.header.title = Some(value.info.title);
+        bms.header.subtitle = Some(value.info.subtitle);
+        bms.header.artist = Some(value.info.artist);
+        bms.header.sub_artist = value.info.subartists.first().cloned();
+        bms.header.genre = Some(value.info.genre);
+        bms.header.play_level = Some(value.info.level as u8);
+        bms.header.total = Some(Decimal::from(value.info.total.as_f64()));
+        bms.header.back_bmp = value.info.back_image.map(PathBuf::from);
+        bms.header.stage_file = value.info.eyecatch_image.map(PathBuf::from);
+        bms.header.banner = value.info.banner_image.map(PathBuf::from);
+        bms.header.preview_music = value.info.preview_music.map(PathBuf::from);
+
+        // Convert judge rank
+        let judge_rank_value = (value.info.judge_rank.as_f64() * 18.0) as i64;
+        bms.header.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
+
+        // Convert initial BPM
+        bms.arrangers.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
+
+        // Convert resolution
+        bms.arrangers.section_len_changes.insert(
+            Track(0),
+            SectionLenChangeObj {
+                track: Track(0),
+                length: Decimal::from(value.info.resolution),
+            },
+        );
+
+        // Convert BPM events
+        for bpm_event in value.bpm_events {
+            let time = convert_pulse_to_obj_time(bpm_event.y, value.info.resolution);
+            let bpm = Decimal::from(bpm_event.bpm.as_f64());
+            bms.arrangers
+                .bpm_changes
+                .insert(time, BpmChangeObj { time, bpm });
+        }
+
+        // Convert stop events
+        for stop_event in value.stop_events {
+            let time = convert_pulse_to_obj_time(stop_event.y, value.info.resolution);
+            let duration = Decimal::from(stop_event.duration);
+            bms.arrangers.stops.insert(time, StopObj { time, duration });
+        }
+
+        // Convert scroll events
+        for scroll_event in value.scroll_events {
+            let time = convert_pulse_to_obj_time(scroll_event.y, value.info.resolution);
+            let factor = Decimal::from(scroll_event.rate.as_f64());
+            bms.arrangers
+                .scrolling_factor_changes
+                .insert(time, ScrollingFactorObj { time, factor });
+        }
+
+        // Convert sound channels to notes
+        let mut obj_id_counter = 1u16;
+        for sound_channel in value.sound_channels {
+            let wav_path = PathBuf::from(sound_channel.name);
+            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            bms.notes.wav_files.insert(obj_id, wav_path);
+
+            for note in sound_channel.notes {
+                let time = convert_pulse_to_obj_time(note.y, value.info.resolution);
+                let (key, side) = convert_lane_to_key_side(note.x);
+                let kind = if note.l > 0 {
+                    NoteKind::Long
+                } else {
+                    NoteKind::Visible
+                };
+
+                let obj = Obj {
+                    offset: time,
+                    kind,
+                    side,
+                    key,
+                    obj: obj_id,
+                };
+                bms.notes.push_note(obj);
+            }
+            obj_id_counter += 1;
+        }
+
+        // Convert mine channels
+        for mine_channel in value.mine_channels {
+            let wav_path = PathBuf::from(mine_channel.name);
+            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            bms.notes.wav_files.insert(obj_id, wav_path);
+
+            for mine_event in mine_channel.notes {
+                let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
+                let (key, side) = convert_lane_to_key_side(mine_event.x);
+
+                let obj = Obj {
+                    offset: time,
+                    kind: NoteKind::Landmine,
+                    side,
+                    key,
+                    obj: obj_id,
+                };
+                bms.notes.push_note(obj);
+            }
+            obj_id_counter += 1;
+        }
+
+        // Convert key channels (invisible notes)
+        for key_channel in value.key_channels {
+            let wav_path = PathBuf::from(key_channel.name);
+            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            bms.notes.wav_files.insert(obj_id, wav_path);
+
+            for key_event in key_channel.notes {
+                let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
+                let (key, side) = convert_lane_to_key_side(key_event.x);
+
+                let obj = Obj {
+                    offset: time,
+                    kind: NoteKind::Invisible,
+                    side,
+                    key,
+                    obj: obj_id,
+                };
+                bms.notes.push_note(obj);
+            }
+            obj_id_counter += 1;
+        }
+
+        // Convert BGA
+        for bga_header in value.bga.bga_header {
+            let bmp_path = PathBuf::from(bga_header.name);
+            bms.graphics.bmp_files.insert(
+                create_obj_id_from_u32(bga_header.id.0),
+                Bmp {
+                    file: bmp_path,
+                    transparent_color: Argb::default(),
+                },
+            );
+        }
+
+        for bga_event in value.bga.bga_events {
+            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            bms.graphics.bga_changes.insert(
+                time,
+                BgaObj {
+                    time,
+                    id: create_obj_id_from_u32(bga_event.id.0),
+                    layer: BgaLayer::Base,
+                },
+            );
+        }
+
+        for bga_event in value.bga.layer_events {
+            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            bms.graphics.bga_changes.insert(
+                time,
+                BgaObj {
+                    time,
+                    id: create_obj_id_from_u32(bga_event.id.0),
+                    layer: BgaLayer::Overlay,
+                },
+            );
+        }
+
+        for bga_event in value.bga.poor_events {
+            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            bms.graphics.bga_changes.insert(
+                time,
+                BgaObj {
+                    time,
+                    id: create_obj_id_from_u32(bga_event.id.0),
+                    layer: BgaLayer::Poor,
+                },
+            );
+        }
+
+        bms
+    }
+}
+
+/// Convert pulse number to ObjTime
+fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
+    // Simple conversion: assume 4/4 time signature and convert pulses to track/time
+    let pulses_per_measure = resolution * 4; // 4 quarter notes per measure
+    let track = pulse.0 / pulses_per_measure;
+    let remaining_pulses = pulse.0 % pulses_per_measure;
+
+    // Convert remaining pulses to fraction
+    let numerator = remaining_pulses;
+    let denominator = pulses_per_measure;
+
+    ObjTime::new(track, numerator, denominator)
+}
+
+/// Convert lane number to Key and PlayerSide
+fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
+    let lane_value = lane.map(|l| l.get()).unwrap_or(0);
+
+    // Handle player sides
+    let (adjusted_lane, side) = if lane_value > 8 {
+        (lane_value - 8, PlayerSide::Player2)
+    } else {
+        (lane_value, PlayerSide::Player1)
+    };
+
+    // Convert lane to key
+    let key = match adjusted_lane {
+        1 => Key::Key1,
+        2 => Key::Key2,
+        3 => Key::Key3,
+        4 => Key::Key4,
+        5 => Key::Key5,
+        6 => Key::Key6,
+        7 => Key::Key7,
+        8 => Key::Scratch,
+        _ => Key::Key1, // Default fallback
+    };
+
+    (key, side)
+}
+
+/// Create ObjId from u16
+fn create_obj_id_from_u16(value: u16) -> ObjId {
+    [(value / 62) as u8, (value % 62) as u8]
+        .map(|val| match val {
+            0..=9 => b'0' + val,
+            10..=35 => b'A' + (val - 10),
+            36..=61 => b'a' + (val - 36),
+            _ => b'0',
+        })
+        .map(|val| val as char)
+        .try_into()
+        .unwrap_or_else(|_| ObjId::null())
+}
+
+/// Create ObjId from u32
+fn create_obj_id_from_u32(value: u32) -> ObjId {
+    create_obj_id_from_u16((value % 3844) as u16) // 62^2 = 3844
+}
