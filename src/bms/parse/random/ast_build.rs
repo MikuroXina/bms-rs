@@ -119,7 +119,7 @@ fn parse_unit_or_block<'a>(
             let (unit, errs) = parse_random_block(iter);
             Some((unit, errs))
         }
-        _ if !token.content.is_control_flow_token() => {
+        content if !content.is_control_flow_token() => {
             let t = *token;
             iter.next();
             Some((Unit::Token(t), Vec::new()))
