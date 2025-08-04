@@ -60,7 +60,7 @@ This will be placed as:
 
 ## Usage
 
-- **NOTE**: BMS files now is almost with `SHIFT-JIS` encoding. It's recommended to use [`encoding_rs`](https://crates.io/crates/encoding_rs) crate to parse raw file to `Cow<str>`, which is a compatible type of `&str`, using `AsRef::as_ref`.
+- **NOTE**: BMS files now is almost with Shift_JIS encoding. It's recommended to use [`encoding_rs`](https://crates.io/crates/encoding_rs) crate to parse raw file to `Cow<str>`, which is a compatible type of `&str`, using `AsRef::as_ref`.
 
 ### Simple Usage
 
