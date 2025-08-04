@@ -8,7 +8,7 @@ pub use super::{BmsWarning, Decimal};
 
 // Re-export from command module
 pub use super::command::{
-    Argb, ExtChrEvent, JudgeLevel, LnModeType, LnType, ObjId, PlayerMode, PoorMode, Rgb, Volume,
+    Argb, ExtChrEvent, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Rgb, Volume,
     WavCmdParam,
 };
 

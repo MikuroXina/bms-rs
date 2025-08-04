@@ -1,5 +1,7 @@
+#![cfg(feature = "bmson")]
+
 use bms_rs::{
-    bms::parse::model::Bms,
+    bms::{command::LnMode, parse::model::Bms},
     bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
 };
 
@@ -26,7 +28,7 @@ fn test_bmson_to_bms_conversion() {
             banner_image: Some("banner.png".to_string()),
             preview_music: Some("preview.wav".to_string()),
             resolution: 240,
-            ln_type: bms_rs::bmson::LongNoteType::LN,
+            ln_type: LnMode::Ln,
         },
         lines: None,
         bpm_events: vec![],
@@ -92,7 +94,7 @@ fn test_bmson_to_bms_with_notes() {
             banner_image: None,
             preview_music: None,
             resolution: 240,
-            ln_type: bms_rs::bmson::LongNoteType::LN,
+            ln_type: LnMode::Ln,
         },
         lines: None,
         bpm_events: vec![],
@@ -105,7 +107,7 @@ fn test_bmson_to_bms_with_notes() {
                     x: Some(NonZeroU8::new(1).unwrap()), // Key1
                     l: 0,                                // Normal note
                     c: false,
-                    t: bms_rs::bmson::LongNoteType::LN,
+                    t: LnMode::Ln,
                     up: false,
                 },
                 Note {
@@ -113,7 +115,7 @@ fn test_bmson_to_bms_with_notes() {
                     x: Some(NonZeroU8::new(2).unwrap()), // Key2
                     l: 240,                              // Long note
                     c: false,
-                    t: bms_rs::bmson::LongNoteType::LN,
+                    t: LnMode::Ln,
                     up: false,
                 },
             ],

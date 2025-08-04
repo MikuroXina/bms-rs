@@ -9,8 +9,8 @@ use crate::{
     bms::prelude::*,
     bmson::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
-        LongNoteType, MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent,
-        fin_f64::FinF64, pulse::PulseConverter,
+        MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, fin_f64::FinF64,
+        pulse::PulseConverter,
     },
 };
 
@@ -36,6 +36,12 @@ pub enum BmsToBmsonWarning {
     /// The note lane was invalid and default value was used.
     #[error("note lane was invalid, using default value")]
     InvalidNoteLane,
+    /// The initial BPM was missing and default value was used.
+    #[error("initial BPM was missing, using default value")]
+    MissingBpm,
+    /// The total percentage was missing and default value was used.
+    #[error("total percentage was missing, using default value")]
+    MissingTotal,
 }
 
 /// Output of the conversion from `Bms` to `Bmson`.
@@ -68,7 +74,7 @@ impl Bms {
         })
         .unwrap_or_else(|| {
             warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
-            FinF64::new(1.0).unwrap()
+            FinF64::new(1.0).expect("Internal error: 1.0 is not a valid FinF64")
         });
 
         let resolution = self.resolution_for_pulses();
@@ -87,14 +93,13 @@ impl Bms {
             .bpm_changes
             .values()
             .filter_map(|bpm_change| {
-                let bpm = FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0));
-                if bpm.is_none() {
-                    warnings.push(BmsToBmsonWarning::InvalidBpm);
-                    return None;
-                }
                 Some(BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
-                    bpm: bpm.unwrap(),
+                    bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
+                        .unwrap_or_else(|| {
+                            warnings.push(BmsToBmsonWarning::InvalidBpm);
+                            FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
+                        }),
                 })
             })
             .collect();
@@ -137,36 +142,29 @@ impl Bms {
             chart_name: "".into(),
             level: self.header.play_level.unwrap_or_default() as u32,
             init_bpm: {
-                let bpm = FinF64::new(
-                    self.arrangers
-                        .bpm
-                        .as_ref()
-                        .map_or(Decimal::from(120.0), |bpm| bpm.to_owned())
-                        .to_f64()
-                        .unwrap_or(120.0),
-                );
-                if bpm.is_none() {
-                    warnings.push(BmsToBmsonWarning::InvalidBpm);
-                    FinF64::new(120.0).unwrap()
+                let bpm_value = if let Some(bpm) = self.arrangers.bpm.as_ref() {
+                    bpm.to_f64().unwrap_or(120.0)
                 } else {
-                    bpm.unwrap()
-                }
+                    warnings.push(BmsToBmsonWarning::MissingBpm);
+                    120.0
+                };
+                FinF64::new(bpm_value).unwrap_or_else(|| {
+                    warnings.push(BmsToBmsonWarning::InvalidBpm);
+                    FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
+                })
             },
             judge_rank,
             total: {
-                let total = FinF64::new(
-                    self.header
-                        .total
-                        .unwrap_or(Decimal::from(100.0))
-                        .to_f64()
-                        .unwrap_or(100.0),
-                );
-                if total.is_none() {
-                    warnings.push(BmsToBmsonWarning::InvalidTotal);
-                    FinF64::new(100.0).unwrap()
+                let total_value = if let Some(total) = self.header.total.as_ref() {
+                    total.to_f64().unwrap_or(100.0)
                 } else {
-                    total.unwrap()
-                }
+                    warnings.push(BmsToBmsonWarning::MissingTotal);
+                    100.0
+                };
+                FinF64::new(total_value).unwrap_or_else(|| {
+                    warnings.push(BmsToBmsonWarning::InvalidTotal);
+                    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
+                })
             },
             back_image: self
                 .header
@@ -182,7 +180,7 @@ impl Bms {
             banner_image: self.header.banner.map(|path| path.display().to_string()),
             preview_music: None,
             resolution,
-            ln_type: LongNoteType::LN,
+            ln_type: self.header.ln_mode,
         };
 
         let (sound_channels, mine_channels, key_channels) = {
@@ -221,10 +219,6 @@ impl Bms {
                     )
                     .and_then(|lane| NonZeroU8::new(lane));
 
-                if note_lane.is_none() {
-                    warnings.push(BmsToBmsonWarning::InvalidNoteLane);
-                }
-
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
@@ -246,19 +240,19 @@ impl Bms {
                     }
                     _ => {
                         // Normal note
-                        let duration = if let Some(next_note) =
-                            self.notes.next_obj_by_key(note.key, note.offset)
-                        {
-                            pulses.abs_diff(converter.get_pulses_at(next_note.offset))
-                        } else {
-                            0
-                        };
+                        let duration = self
+                            .notes
+                            .next_obj_by_key(note.key, note.offset)
+                            .map(|next_note| {
+                                pulses.abs_diff(converter.get_pulses_at(next_note.offset))
+                            })
+                            .unwrap_or(0);
                         sound_map.entry(note.obj).or_default().push(Note {
                             x: note_lane,
                             y: pulses,
                             l: duration,
                             c: false,
-                            t: LongNoteType::LN,
+                            t: self.header.ln_mode,
                             up: false,
                         });
                     }

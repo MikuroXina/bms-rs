@@ -1,3 +1,5 @@
+#![cfg(feature = "bmson")]
+
 use bms_rs::bmson::{
     BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, pulse::PulseNumber,
 };

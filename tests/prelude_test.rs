@@ -12,7 +12,7 @@ fn test_prelude_imports() {
     let _rgb = Rgb { r: 255, g: 0, b: 0 };
     let _poor_mode = PoorMode::default();
     let _ln_type = LnType::default();
-    let _ln_mode_type = LnModeType::default();
+    let _ln_mode_type = LnMode::default();
     let _wav_cmd_param = WavCmdParam::Pitch;
 
     // Test channel types
@@ -122,7 +122,7 @@ fn test_prelude_imports() {
     assert_eq!(_judge_level, JudgeLevel::Normal);
     assert_eq!(_poor_mode, PoorMode::Interrupt);
     assert_eq!(_ln_type, LnType::Rdm);
-    assert_eq!(_ln_mode_type, LnModeType::Ln);
+    assert_eq!(_ln_mode_type, LnMode::Ln);
     assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
     assert_eq!(_channel, Channel::Bgm);
     assert_eq!(_key, Key::Key1);

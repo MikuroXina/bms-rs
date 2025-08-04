@@ -26,7 +26,7 @@ use crate::bms::command::{
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnModeType, LnType, ObjId, PlayerMode, PoorMode, Volume,
+        Argb, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{Channel, Key, NoteKind},
         time::{ObjTime, Track},
     },
@@ -109,7 +109,7 @@ pub struct Header {
     /// The path of banner image.
     pub banner: Option<PathBuf>,
     /// LN Mode
-    pub ln_mode: LnModeType,
+    pub ln_mode: LnMode,
     /// Preview Music
     pub preview_music: Option<PathBuf>,
     /// Movie Define

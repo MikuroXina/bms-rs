@@ -275,33 +275,33 @@ pub enum LnType {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
-pub enum LnModeType {
-    /// Normal Long Note (LN)
+pub enum LnMode {
+    /// Normal Long Note, no tail judge (LN)
     #[default]
     Ln = 1,
-    /// Classic Long Note (CN)
+    /// IIDX Classic Long Note, with tail judge (CN)
     Cn = 2,
-    /// Hell Classic Long Note (HCN)
+    /// IIDX Hell Long Note, with tail judge. holding add gurge, un-holding lose gurge (HCN)
     Hcn = 3,
 }
 
-impl From<LnModeType> for u8 {
-    fn from(mode: LnModeType) -> u8 {
+impl From<LnMode> for u8 {
+    fn from(mode: LnMode) -> u8 {
         match mode {
-            LnModeType::Ln => 1,
-            LnModeType::Cn => 2,
-            LnModeType::Hcn => 3,
+            LnMode::Ln => 1,
+            LnMode::Cn => 2,
+            LnMode::Hcn => 3,
         }
     }
 }
 
-impl TryFrom<u8> for LnModeType {
+impl TryFrom<u8> for LnMode {
     type Error = u8;
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
-            1 => LnModeType::Ln,
-            2 => LnModeType::Cn,
-            3 => LnModeType::Hcn,
+            1 => LnMode::Ln,
+            2 => LnMode::Cn,
+            3 => LnMode::Hcn,
             _ => return Err(value),
         })
     }

@@ -11,7 +11,7 @@ use num::BigUint;
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnModeType, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        Argb, JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
         time::Track,
     },
 };
@@ -166,7 +166,7 @@ pub enum Token<'a> {
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
-    LnMode(LnModeType),
+    LnMode(LnMode),
     /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
     LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
@@ -1180,9 +1180,9 @@ impl<'a> Token<'a> {
                         .parse()
                         .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
                     let mode = match mode {
-                        1 => LnModeType::Ln,
-                        2 => LnModeType::Cn,
-                        3 => LnModeType::Hcn,
+                        1 => LnMode::Ln,
+                        2 => LnMode::Cn,
+                        3 => LnMode::Hcn,
                         _ => return Err(c.make_err_expected_token("lnmode 1-3")),
                     };
                     Self::LnMode(mode)

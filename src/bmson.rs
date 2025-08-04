@@ -23,18 +23,21 @@
 //!
 //! - BMS can play different sound on the start and end of long note. But bmson does not allow this.
 //! - Transparent color on BGA is not supported. But you can use PNG files having RGBA channels.
+#![cfg(feature = "bmson")]
+#![cfg_attr(docsrs, doc(cfg(feature = "bmson")))]
 
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
+pub mod fin_f64;
+pub mod pulse;
 
 use std::num::NonZeroU8;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use self::{fin_f64::FinF64, pulse::PulseNumber};
+use crate::bms::command::LnMode;
 
-pub mod fin_f64;
-pub mod pulse;
+use self::{fin_f64::FinF64, pulse::PulseNumber};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -130,7 +133,7 @@ pub struct BmsonInfo {
     pub resolution: u64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
-    pub ln_type: LongNoteType,
+    pub ln_type: LnMode,
 }
 
 /// Default mode hint, beatmania 7 keys.
@@ -193,7 +196,7 @@ pub struct Note {
     pub c: bool,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
-    pub t: LongNoteType,
+    pub t: LnMode,
     /// Beatoraja implementation of long note up flag.
     /// If it is true and configured at the end position of a long note, then this position will become the ending note of the long note.
     #[serde(default)]
@@ -268,19 +271,6 @@ pub struct BgaEvent {
 /// Picture id for [`Bga`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BgaId(pub u32);
-
-/// Beatoraja implementation of long note type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[repr(u8)]
-pub enum LongNoteType {
-    /// Normal long note.
-    #[default]
-    LN = 1,
-    /// Continuous long note.
-    CN = 2,
-    /// Hell continuous long note.
-    HCN = 3,
-}
 
 /// Beatoraja implementation of scroll event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
