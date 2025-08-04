@@ -44,10 +44,11 @@ pub enum ParseWarningContent {
 pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
 
 /// A parse warning with position information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseWarning {
     /// The content of the parse warning.
+    #[source]
     pub content: ParseWarningContent,
     /// The row (line number) where the warning occurred.
     pub row: usize,
@@ -62,12 +63,6 @@ impl std::fmt::Display for ParseWarning {
             "{} at line {}, column {}",
             self.content, self.row, self.col
         )
-    }
-}
-
-impl std::error::Error for ParseWarning {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.content)
     }
 }
 
