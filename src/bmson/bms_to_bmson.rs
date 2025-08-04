@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, num::NonZeroU8};
 
+use num::ToPrimitive;
 use thiserror::Error;
 
 use crate::{
@@ -13,42 +14,51 @@ use crate::{
     },
 };
 
-/// Errors on converting from `Bms` into `Bmson`.
-#[derive(Debug, Error, PartialEq, Eq, Hash)]
+/// Warnings that occur during conversion from `Bms` to `Bmson`.
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
 #[non_exhaustive]
-pub enum BmsonConvertError {
-    /// The initial BPM was infinity or NaN.
-    #[error("header bpm was invalid value")]
+pub enum BmsToBmsonWarning {
+    /// The initial BPM was invalid and default value was used.
+    #[error("initial BPM was invalid, using default value")]
     InvalidBpm,
-    /// The total percentage was infinity or NaN.
-    #[error("header total was invalid value")]
+    /// The total percentage was invalid and default value was used.
+    #[error("total percentage was invalid, using default value")]
     InvalidTotal,
-    /// The scrolling factor was infinity or NaN.
-    #[error("scrolling factor was invalid value")]
+    /// The scrolling factor was invalid and default value was used.
+    #[error("scrolling factor was invalid, using default value")]
     InvalidScrollingFactor,
-    /// The judge rank was infinity or NaN.
-    #[error("judge rank was invalid value")]
+    /// The judge rank was invalid and default value was used.
+    #[error("judge rank was invalid, using default value")]
     InvalidJudgeRank,
-    /// The stop duration was infinity or NaN.
-    #[error("stop duration was invalid value")]
+    /// The stop duration was invalid and default value was used.
+    #[error("stop duration was invalid, using default value")]
     InvalidStopDuration,
-    /// The note lane was invalid.
-    #[error("note lane was invalid value")]
+    /// The note lane was invalid and default value was used.
+    #[error("note lane was invalid, using default value")]
     InvalidNoteLane,
 }
 
-impl TryFrom<Bms> for Bmson {
-    type Error = BmsonConvertError;
+/// Output of the conversion from `Bms` to `Bmson`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BmsToBmsonOutput {
+    /// The converted `Bmson` object.
+    pub bmson: Bmson,
+    /// Warnings that occurred during the conversion.
+    pub warnings: Vec<BmsToBmsonWarning>,
+}
 
-    fn try_from(value: Bms) -> Result<Self, Self::Error> {
-        let converter = PulseConverter::new(&value);
+impl Bms {
+    /// Convert `Bms` to `Bmson`.
+    pub fn to_bmson(self) -> BmsToBmsonOutput {
+        let mut warnings = Vec::new();
+        let converter = PulseConverter::new(&self);
 
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
-        let judge_rank = FinF64::new(match value.header.rank {
+        let judge_rank = FinF64::new(match self.header.rank {
             Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::Normal) | None => 1.0,
@@ -57,13 +67,13 @@ impl TryFrom<Bms> for Bmson {
             Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
         .unwrap_or_else(|| {
-            // This should never happen as the values are all valid
-            panic!("Internal error: judge rank is invalid")
+            warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
+            FinF64::new(1.0).unwrap()
         });
 
-        let resolution = value.resolution_for_pulses();
+        let resolution = self.resolution_for_pulses();
 
-        let last_obj_time = value
+        let last_obj_time = self
             .last_obj_time()
             .unwrap_or_else(|| ObjTime::new(0, 0, 4));
         let lines = (0..=last_obj_time.track.0)
@@ -72,54 +82,48 @@ impl TryFrom<Bms> for Bmson {
             })
             .collect();
 
-        let bpm_events = value
+        let bpm_events = self
             .arrangers
             .bpm_changes
             .values()
-            .map(|bpm_change| {
-                Ok(BpmEvent {
+            .filter_map(|bpm_change| {
+                let bpm = FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0));
+                if bpm.is_none() {
+                    warnings.push(BmsToBmsonWarning::InvalidBpm);
+                    return None;
+                }
+                Some(BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
-                    bpm: FinF64::new(
-                        bpm_change
-                            .bpm
-                            .clone()
-                            .try_into()
-                            .map_err(|_| BmsonConvertError::InvalidBpm)?,
-                    )
-                    .ok_or(BmsonConvertError::InvalidBpm)?,
+                    bpm: bpm.unwrap(),
                 })
             })
-            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
+            .collect();
 
-        let stop_events = value
+        let stop_events = self
             .arrangers
             .stops
             .values()
-            .map(|stop| {
-                Ok(StopEvent {
+            .filter_map(|stop| {
+                stop.duration.to_f64().map(|f64_value| StopEvent {
                     y: converter.get_pulses_at(stop.time),
-                    duration: stop
-                        .duration
-                        .clone()
-                        .try_into()
-                        .map_err(|_| BmsonConvertError::InvalidStopDuration)?,
+                    duration: f64_value as u64,
                 })
             })
-            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
+            .collect();
 
         let info = BmsonInfo {
-            title: value.header.title.unwrap_or_default(),
-            subtitle: value.header.subtitle.unwrap_or_default(),
-            artist: value.header.artist.unwrap_or_default(),
-            subartists: vec![value.header.sub_artist.unwrap_or_default()],
-            genre: value.header.genre.unwrap_or_default(),
+            title: self.header.title.unwrap_or_default(),
+            subtitle: self.header.subtitle.unwrap_or_default(),
+            artist: self.header.artist.unwrap_or_default(),
+            subartists: vec![self.header.sub_artist.unwrap_or_default()],
+            genre: self.header.genre.unwrap_or_default(),
             mode_hint: {
                 // TODO: Support other modes
-                let is_7keys = value
+                let is_7keys = self
                     .notes
                     .all_notes()
                     .any(|note| note.key == Key::Key6 || note.key == Key::Key7);
-                let is_dp = value
+                let is_dp = self
                     .notes
                     .all_notes()
                     .any(|note| note.side == PlayerSide::Player2);
@@ -131,50 +135,62 @@ impl TryFrom<Bms> for Bmson {
                 }
             },
             chart_name: "".into(),
-            level: value.header.play_level.unwrap_or_default() as u32,
-            init_bpm: FinF64::new(
-                value
-                    .arrangers
-                    .bpm
-                    .as_ref()
-                    .map_or(Decimal::from(120.0), |bpm| bpm.to_owned())
-                    .try_into()
-                    .map_err(|_| BmsonConvertError::InvalidBpm)?,
-            )
-            .ok_or(BmsonConvertError::InvalidBpm)?,
+            level: self.header.play_level.unwrap_or_default() as u32,
+            init_bpm: {
+                let bpm = FinF64::new(
+                    self.arrangers
+                        .bpm
+                        .as_ref()
+                        .map_or(Decimal::from(120.0), |bpm| bpm.to_owned())
+                        .to_f64()
+                        .unwrap_or(120.0),
+                );
+                if bpm.is_none() {
+                    warnings.push(BmsToBmsonWarning::InvalidBpm);
+                    FinF64::new(120.0).unwrap()
+                } else {
+                    bpm.unwrap()
+                }
+            },
             judge_rank,
-            total: FinF64::new(
-                value
-                    .header
-                    .total
-                    .unwrap_or(Decimal::from(100.0))
-                    .try_into()
-                    .map_err(|_| BmsonConvertError::InvalidTotal)?,
-            )
-            .ok_or(BmsonConvertError::InvalidTotal)?,
-            back_image: value
+            total: {
+                let total = FinF64::new(
+                    self.header
+                        .total
+                        .unwrap_or(Decimal::from(100.0))
+                        .to_f64()
+                        .unwrap_or(100.0),
+                );
+                if total.is_none() {
+                    warnings.push(BmsToBmsonWarning::InvalidTotal);
+                    FinF64::new(100.0).unwrap()
+                } else {
+                    total.unwrap()
+                }
+            },
+            back_image: self
                 .header
                 .back_bmp
                 .as_ref()
                 .cloned()
                 .map(|path| path.display().to_string()),
-            eyecatch_image: value
+            eyecatch_image: self
                 .header
                 .stage_file
                 .map(|path| path.display().to_string()),
-            title_image: value.header.back_bmp.map(|path| path.display().to_string()),
-            banner_image: value.header.banner.map(|path| path.display().to_string()),
+            title_image: self.header.back_bmp.map(|path| path.display().to_string()),
+            banner_image: self.header.banner.map(|path| path.display().to_string()),
             preview_music: None,
             resolution,
             ln_type: LongNoteType::LN,
         };
 
         let (sound_channels, mine_channels, key_channels) = {
-            let path_root = value.notes.wav_path_root.clone().unwrap_or_default();
+            let path_root = self.notes.wav_path_root.clone().unwrap_or_default();
             let mut sound_map: HashMap<_, Vec<Note>> = HashMap::new();
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
-            for note in value.notes.all_notes() {
+            for note in self.notes.all_notes() {
                 let note_lane = note
                     .kind
                     .is_playable()
@@ -203,8 +219,12 @@ impl TryFrom<Bms> for Bmson {
                             PlayerSide::Player2 => 8,
                         },
                     )
-                    .map(|lane| NonZeroU8::new(lane).ok_or(BmsonConvertError::InvalidNoteLane))
-                    .transpose()?;
+                    .and_then(|lane| NonZeroU8::new(lane));
+
+                if note_lane.is_none() {
+                    warnings.push(BmsToBmsonWarning::InvalidNoteLane);
+                }
+
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
                     NoteKind::Landmine => {
@@ -227,7 +247,7 @@ impl TryFrom<Bms> for Bmson {
                     _ => {
                         // Normal note
                         let duration = if let Some(next_note) =
-                            value.notes.next_obj_by_key(note.key, note.offset)
+                            self.notes.next_obj_by_key(note.key, note.offset)
                         {
                             pulses.abs_diff(converter.get_pulses_at(next_note.offset))
                         } else {
@@ -247,8 +267,8 @@ impl TryFrom<Bms> for Bmson {
             let sound_channels = sound_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root
-                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                    let sound_path =
+                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     SoundChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -258,8 +278,8 @@ impl TryFrom<Bms> for Bmson {
             let mine_channels = mine_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root
-                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                    let sound_path =
+                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     MineChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -269,8 +289,8 @@ impl TryFrom<Bms> for Bmson {
             let key_channels = key_map
                 .into_iter()
                 .map(|(obj, notes)| {
-                    let sound_path = path_root
-                        .join(value.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                    let sound_path =
+                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     KeyChannel {
                         name: sound_path.display().to_string(),
                         notes,
@@ -287,13 +307,13 @@ impl TryFrom<Bms> for Bmson {
                 layer_events: vec![],
                 poor_events: vec![],
             };
-            for (id, bmp) in &value.graphics.bmp_files {
+            for (id, bmp) in &self.graphics.bmp_files {
                 bga.bga_header.push(BgaHeader {
                     id: BgaId(id.as_u32()),
                     name: bmp.file.display().to_string(),
                 });
             }
-            for (&time, change) in value.graphics.bga_changes() {
+            for (&time, change) in self.graphics.bga_changes() {
                 let target = match change.layer {
                     BgaLayer::Base => &mut bga.bga_events,
                     BgaLayer::Poor => &mut bga.poor_events,
@@ -307,26 +327,24 @@ impl TryFrom<Bms> for Bmson {
             bga
         };
 
-        let scroll_events = value
+        let scroll_events = self
             .arrangers
             .scrolling_factor_changes
             .values()
-            .map(|scroll| {
-                Ok(ScrollEvent {
+            .filter_map(|scroll| {
+                let rate = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0));
+                if rate.is_none() {
+                    warnings.push(BmsToBmsonWarning::InvalidScrollingFactor);
+                    return None;
+                }
+                Some(ScrollEvent {
                     y: converter.get_pulses_at(scroll.time),
-                    rate: FinF64::new(
-                        scroll
-                            .factor
-                            .clone()
-                            .try_into()
-                            .map_err(|_| BmsonConvertError::InvalidScrollingFactor)?,
-                    )
-                    .ok_or(BmsonConvertError::InvalidScrollingFactor)?,
+                    rate: rate.unwrap(),
                 })
             })
-            .collect::<Result<Vec<_>, BmsonConvertError>>()?;
+            .collect();
 
-        Ok(Self {
+        let bmson = Bmson {
             version: "1.0.0".into(),
             info,
             lines: Some(lines),
@@ -337,6 +355,8 @@ impl TryFrom<Bms> for Bmson {
             scroll_events,
             mine_channels,
             key_channels,
-        })
+        };
+
+        BmsToBmsonOutput { bmson, warnings }
     }
 }

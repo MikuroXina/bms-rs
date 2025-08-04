@@ -85,17 +85,18 @@ impl Bms {
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, value.info.resolution);
             let bpm = Decimal::from(bpm_event.bpm.as_f64());
-            
+
             // Add to scope_defines
-            let bpm_def_id = match create_obj_id_from_u16(bms.scope_defines.bpm_defs.len() as u16 + 1) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let bpm_def_id =
+                match create_obj_id_from_u16(bms.scope_defines.bpm_defs.len() as u16 + 1) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
+                        ObjId::null()
+                    }
+                };
             bms.scope_defines.bpm_defs.insert(bpm_def_id, bpm.clone());
-            
+
             bms.arrangers
                 .bpm_changes
                 .insert(time, BpmChangeObj { time, bpm });
@@ -105,17 +106,20 @@ impl Bms {
         for stop_event in value.stop_events {
             let time = convert_pulse_to_obj_time(stop_event.y, value.info.resolution);
             let duration = Decimal::from(stop_event.duration);
-            
+
             // Add to scope_defines
-            let stop_def_id = match create_obj_id_from_u16(bms.scope_defines.stop_defs.len() as u16 + 1) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
-                    ObjId::null()
-                }
-            };
-            bms.scope_defines.stop_defs.insert(stop_def_id, duration.clone());
-            
+            let stop_def_id =
+                match create_obj_id_from_u16(bms.scope_defines.stop_defs.len() as u16 + 1) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
+                        ObjId::null()
+                    }
+                };
+            bms.scope_defines
+                .stop_defs
+                .insert(stop_def_id, duration.clone());
+
             bms.arrangers.stops.insert(time, StopObj { time, duration });
         }
 
@@ -123,17 +127,20 @@ impl Bms {
         for scroll_event in value.scroll_events {
             let time = convert_pulse_to_obj_time(scroll_event.y, value.info.resolution);
             let factor = Decimal::from(scroll_event.rate.as_f64());
-            
+
             // Add to scope_defines
-            let scroll_def_id = match create_obj_id_from_u16(bms.scope_defines.scroll_defs.len() as u16 + 1) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
-                    ObjId::null()
-                }
-            };
-            bms.scope_defines.scroll_defs.insert(scroll_def_id, factor.clone());
-            
+            let scroll_def_id =
+                match create_obj_id_from_u16(bms.scope_defines.scroll_defs.len() as u16 + 1) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
+                        ObjId::null()
+                    }
+                };
+            bms.scope_defines
+                .scroll_defs
+                .insert(scroll_def_id, factor.clone());
+
             bms.arrangers
                 .scrolling_factor_changes
                 .insert(time, ScrollingFactorObj { time, factor });
