@@ -88,8 +88,8 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
         match TokenContent::parse(&mut cursor, channel_parser) {
             Ok(content) => tokens.push(Token {
                 content,
-                row: 0,
-                col: 0,
+                row: cursor.line(),
+                col: cursor.col(),
             }),
             Err(warning) => warnings.push(warning),
         };
