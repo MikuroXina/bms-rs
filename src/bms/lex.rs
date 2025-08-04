@@ -11,7 +11,10 @@ use thiserror::Error;
 
 use crate::bms::command::channel::{Channel, read_channel_beat};
 
-use self::{cursor::Cursor, token::Token};
+use self::{
+    cursor::Cursor,
+    token::{Token, TokenContent},
+};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -82,16 +85,22 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match Token::parse(&mut cursor, channel_parser) {
-            Ok(token) => tokens.push(token),
+        match TokenContent::parse(&mut cursor, channel_parser) {
+            Ok(content) => tokens.push(Token {
+                content,
+                row: cursor.line(),
+                col: cursor.col(),
+            }),
             Err(warning) => warnings.push(warning),
         };
     }
 
-    let case_sensitive = tokens.contains(&Token::Base62);
+    let case_sensitive = tokens
+        .iter()
+        .any(|token| matches!(token.content, TokenContent::Base62));
     if !case_sensitive {
         for token in &mut tokens {
-            token.make_id_uppercase();
+            token.content.make_id_uppercase();
         }
     }
     BmsLexOutput {
@@ -113,7 +122,7 @@ mod tests {
                 channel::{Channel, NoteKind, PlayerSide},
                 time::Track,
             },
-            lex::{BmsLexOutput, parse_lex_tokens, token::Token::*},
+            lex::{BmsLexOutput, parse_lex_tokens, token::TokenContent::*},
         },
         command::channel::Key,
     };
@@ -149,7 +158,7 @@ mod tests {
 
         assert_eq!(warnings, vec![]);
         assert_eq!(
-            tokens,
+            tokens.into_iter().map(|t| t.content).collect::<Vec<_>>(),
             vec![
                 Player(PlayerMode::Single),
                 Genre("FUGA"),

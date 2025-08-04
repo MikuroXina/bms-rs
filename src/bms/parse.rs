@@ -25,16 +25,13 @@ use super::lex::BmsLexOutput;
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseWarning {
+pub enum ParseWarningContent {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
     ViolateControlFlowRule(#[from] ControlFlowRule),
-    /// The invalid real number for the BPM.
-    #[error("not a number bpm: {0}")]
-    BpmParseError(String),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -43,8 +40,31 @@ pub enum ParseWarning {
     PromptHandlerWarning,
 }
 
-/// type alias of core::result::Result<T, ParseWarning>
-pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
+/// type alias of core::result::Result<T, ParseWarningContent>
+pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
+
+/// A parse warning with position information.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ParseWarning {
+    /// The content of the parse warning.
+    #[source]
+    pub content: ParseWarningContent,
+    /// The row (line number) where the warning occurred.
+    pub row: usize,
+    /// The column (character position) where the warning occurred.
+    pub col: usize,
+}
+
+impl std::fmt::Display for ParseWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} at line {}, column {}",
+            self.content, self.row, self.col
+        )
+    }
+}
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -110,7 +130,11 @@ impl Bms {
         let mut bms = Bms::default();
         for &token in continue_tokens.iter() {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
-                parse_warnings.push(error);
+                parse_warnings.push(ParseWarning {
+                    content: error,
+                    row: token.row,
+                    col: token.col,
+                });
             }
         }
 
