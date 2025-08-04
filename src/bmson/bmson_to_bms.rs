@@ -2,15 +2,46 @@
 
 use std::{num::NonZeroU8, path::PathBuf};
 
+use thiserror::Error;
+
 use crate::{
     bms::prelude::*,
     bmson::{Bmson, pulse::PulseNumber},
 };
 
+/// Warnings that occur during conversion from `Bmson` to `Bms`.
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum BmsonToBmsWarning {
+    /// The wav object ID was out of range and default value was used.
+    #[error("wav object ID was out of range, using default value")]
+    WavObjIdOutOfRange,
+    /// The BGA header object ID was out of range and default value was used.
+    #[error("BGA header object ID was out of range, using default value")]
+    BgaHeaderObjIdOutOfRange,
+    /// The BGA event object ID was out of range and default value was used.
+    #[error("BGA event object ID was out of range, using default value")]
+    BgaEventObjIdOutOfRange,
+}
+
+/// Output of the conversion from `Bmson` to `Bms`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BmsonToBmsOutput {
+    /// The converted `Bms` object.
+    pub bms: Bms,
+    /// Warnings that occurred during the conversion.
+    pub warnings: Vec<BmsonToBmsWarning>,
+    /// Warnings that affect the playing of the score.
+    pub playing_warnings: Vec<PlayingWarning>,
+    /// Errors that make the score unplayable.
+    pub playing_errors: Vec<PlayingError>,
+}
+
 impl Bms {
     /// Convert `Bmson` to `Bms`.
-    pub fn from_bmson(value: Bmson) -> Self {
+    pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
         let mut bms = Bms::default();
+        let mut warnings = Vec::new();
 
         // Convert info to header
         bms.header.title = Some(value.info.title);
@@ -70,7 +101,13 @@ impl Bms {
         let mut obj_id_counter = 1u16;
         for sound_channel in value.sound_channels {
             let wav_path = PathBuf::from(sound_channel.name);
-            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for note in sound_channel.notes {
@@ -97,7 +134,13 @@ impl Bms {
         // Convert mine channels
         for mine_channel in value.mine_channels {
             let wav_path = PathBuf::from(mine_channel.name);
-            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for mine_event in mine_channel.notes {
@@ -119,7 +162,13 @@ impl Bms {
         // Convert key channels (invisible notes)
         for key_channel in value.key_channels {
             let wav_path = PathBuf::from(key_channel.name);
-            let obj_id = create_obj_id_from_u16(obj_id_counter);
+            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for key_event in key_channel.notes {
@@ -141,8 +190,15 @@ impl Bms {
         // Convert BGA
         for bga_header in value.bga.bga_header {
             let bmp_path = PathBuf::from(bga_header.name);
+            let obj_id = match create_obj_id_from_u32(bga_header.id.0) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::BgaHeaderObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.graphics.bmp_files.insert(
-                create_obj_id_from_u32(bga_header.id.0),
+                obj_id,
                 Bmp {
                     file: bmp_path,
                     transparent_color: Argb::default(),
@@ -152,11 +208,18 @@ impl Bms {
 
         for bga_event in value.bga.bga_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
                     time,
-                    id: create_obj_id_from_u32(bga_event.id.0),
+                    id: obj_id,
                     layer: BgaLayer::Base,
                 },
             );
@@ -164,11 +227,18 @@ impl Bms {
 
         for bga_event in value.bga.layer_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
                     time,
-                    id: create_obj_id_from_u32(bga_event.id.0),
+                    id: obj_id,
                     layer: BgaLayer::Overlay,
                 },
             );
@@ -176,17 +246,31 @@ impl Bms {
 
         for bga_event in value.bga.poor_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
+                Ok(id) => id,
+                Err(_) => {
+                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                    ObjId::null()
+                }
+            };
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
                     time,
-                    id: create_obj_id_from_u32(bga_event.id.0),
+                    id: obj_id,
                     layer: BgaLayer::Poor,
                 },
             );
         }
 
-        bms
+        let (playing_warnings, playing_errors) = bms.check_playing();
+
+        BmsonToBmsOutput {
+            bms,
+            warnings,
+            playing_warnings,
+            playing_errors,
+        }
     }
 }
 
@@ -232,20 +316,29 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 }
 
 /// Create ObjId from u16
-fn create_obj_id_from_u16(value: u16) -> ObjId {
-    [(value / 62) as u8, (value % 62) as u8]
-        .map(|val| match val {
-            0..=9 => b'0' + val,
-            10..=35 => b'A' + (val - 10),
-            36..=61 => b'a' + (val - 36),
-            _ => b'0',
-        })
-        .map(|val| val as char)
-        .try_into()
-        .unwrap_or_else(|_| ObjId::null())
+fn create_obj_id_from_u16(value: u16) -> Result<ObjId, ()> {
+    let mut chars = ['0'; 2];
+    let first = (value / 62) as u8;
+    let second = (value % 62) as u8;
+
+    chars[0] = match first {
+        0..=9 => (b'0' + first) as char,
+        10..=35 => (b'A' + (first - 10)) as char,
+        36..=61 => (b'a' + (first - 36)) as char,
+        _ => return Err(()),
+    };
+
+    chars[1] = match second {
+        0..=9 => (b'0' + second) as char,
+        10..=35 => (b'A' + (second - 10)) as char,
+        36..=61 => (b'a' + (second - 36)) as char,
+        _ => return Err(()),
+    };
+
+    chars.try_into().map_err(|_| ())
 }
 
 /// Create ObjId from u32
-fn create_obj_id_from_u32(value: u32) -> ObjId {
-    create_obj_id_from_u16((value % 3844) as u16) // 62^2 = 3844
+fn create_obj_id_from_u32(value: u32) -> Result<ObjId, ()> {
+    create_obj_id_from_u16(value as u16)
 }

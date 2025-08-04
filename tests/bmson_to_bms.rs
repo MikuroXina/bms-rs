@@ -1,5 +1,7 @@
-use bms_rs::bms::parse::model::Bms;
-use bms_rs::bmson::{Bmson, BmsonInfo};
+use bms_rs::{
+    bms::parse::model::Bms,
+    bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
+};
 
 #[test]
 fn test_bmson_to_bms_conversion() {
@@ -37,7 +39,7 @@ fn test_bmson_to_bms_conversion() {
     };
 
     // Convert to Bms
-    let bms: Bms = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
 
     // Verify conversion
     assert_eq!(bms.header.title, Some("Test Song".to_string()));
@@ -123,7 +125,7 @@ fn test_bmson_to_bms_with_notes() {
     };
 
     // Convert to Bms
-    let bms: Bms = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
 
     // Verify that notes were converted
     assert_eq!(bms.notes.wav_files.len(), 1);

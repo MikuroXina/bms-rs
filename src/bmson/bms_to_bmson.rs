@@ -7,7 +7,9 @@ use thiserror::Error;
 use crate::{
     bms::prelude::*,
     bmson::{
-        fin_f64::FinF64, pulse::PulseConverter, BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent, LongNoteType, MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent
+        BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
+        LongNoteType, MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent,
+        fin_f64::FinF64, pulse::PulseConverter,
     },
 };
 
