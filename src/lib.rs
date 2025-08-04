@@ -4,6 +4,8 @@
 //!
 //! # Usage
 //!
+//! - **NOTE**: BMS files now is almost with Shift_JIS encoding. It's recommended to use [`encoding_rs`](https://crates.io/crates/encoding_rs) crate to parse raw file to `Cow<str>`, which is a compatible type of `&str`, using `AsRef::as_ref`.
+//!
 //! ## Simple Usage
 //!
 //! For most use cases, you can use the [`bms::parse_bms`] function to parse a BMS file in one step:
@@ -49,6 +51,10 @@
 //! ```
 //!
 //! # Features
+//!
+//! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
+//!
+//! - For supported note channels, see [docs.rs#Channel](https://docs.rs/bms-rs/latest/bms_rs/bms/command/channel/enum.Channel.html).
 //!
 //! ## Default Features
 //!
