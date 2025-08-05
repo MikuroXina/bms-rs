@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::{
     bms::prelude::*,
-    bmson::{Bmson, pulse::PulseNumber},
+    bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
 /// Warnings that occur during conversion from `Bmson` to `Bms`.
@@ -75,7 +75,6 @@ impl Bms {
         let mut warnings = Vec::new();
         let mut wav_obj_id_issuer = ObjIdIssuer::new();
         let mut bga_header_obj_id_issuer = ObjIdIssuer::new();
-        let mut bga_event_obj_id_issuer = ObjIdIssuer::new();
         let mut bpm_def_obj_id_issuer = ObjIdIssuer::new();
         let mut stop_def_obj_id_issuer = ObjIdIssuer::new();
         let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
@@ -240,12 +239,16 @@ impl Bms {
         }
 
         // Convert BGA
+        // First, create a mapping from BgaId to ObjId for bga_headers
+        let mut bga_id_to_obj_id = std::collections::HashMap::new();
+
         for bga_header in value.bga.bga_header {
             let bmp_path = PathBuf::from(bga_header.name);
             let obj_id = bga_header_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::BgaHeaderObjIdOutOfRange);
                 ObjId::null()
             });
+            bga_id_to_obj_id.insert(bga_header.id, obj_id);
             bms.graphics.bmp_files.insert(
                 obj_id,
                 Bmp {
@@ -255,12 +258,17 @@ impl Bms {
             );
         }
 
-        for bga_event in value.bga.bga_events {
-            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
+        // Helper function to get obj_id for bga events
+        let mut get_bga_obj_id = |bga_id: &BgaId| -> ObjId {
+            bga_id_to_obj_id.get(bga_id).copied().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
                 ObjId::null()
-            });
+            })
+        };
+
+        for bga_event in value.bga.bga_events {
+            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
+            let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
@@ -273,10 +281,7 @@ impl Bms {
 
         for bga_event in value.bga.layer_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
-                warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
-                ObjId::null()
-            });
+            let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
@@ -289,10 +294,7 @@ impl Bms {
 
         for bga_event in value.bga.poor_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
-                warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
-                ObjId::null()
-            });
+            let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
