@@ -1,8 +1,9 @@
 use bms_rs::bms::{
     Decimal,
     command::{
-        Argb, ObjId,
+        ObjId,
         channel::Channel,
+        graphics::Argb,
         time::{ObjTime, Track},
     },
     lex::token::{Token, TokenContent},

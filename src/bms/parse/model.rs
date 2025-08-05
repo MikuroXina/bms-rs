@@ -19,15 +19,13 @@ use itertools::Itertools;
 use num::BigUint;
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{
-    ExtChrEvent,
-    minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
-};
+use crate::bms::command::minor_command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
+        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{Channel, Key, NoteKind},
+        graphics::Argb,
         time::{ObjTime, Track},
     },
     lex::token::{Token, TokenContent},
@@ -38,14 +36,13 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaArgbObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj,
-        ExtendedMessageObj, JudgeObj, KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj,
-        SeekObj, SpeedObj, StopObj, TextObj,
+        BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, ExtendedMessageObj, JudgeObj,
+        KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use self::obj::{BgaKeyboundObj, OptionObj};
+use self::obj::{BgaArgbObj, BgaKeyboundObj, OptionObj, SeekObj};
 use super::{
     ParseWarningContent, Result,
     prompt::{PromptHandler, PromptingDuplication},
@@ -222,6 +219,7 @@ pub struct Notes {
     /// KEY volume change events, indexed by time. #98
     pub key_volume_changes: BTreeMap<ObjTime, KeyVolumeObj>,
     /// Seek events, indexed by time. #05
+    #[cfg(feature = "minor-command")]
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
     /// Text events, indexed by time. #99
     pub text_events: BTreeMap<ObjTime, TextObj>,
@@ -270,6 +268,7 @@ pub struct Graphics {
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
     pub bga_opacity_changes: BTreeMap<ObjTime, BgaOpacityObj>,
     /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
+    #[cfg(feature = "minor-command")]
     pub bga_argb_changes: BTreeMap<ObjTime, BgaArgbObj>,
 }
 
@@ -1430,6 +1429,7 @@ impl Graphics {
     }
 
     /// Adds a new BGA ARGB color change object to the graphics.
+    #[cfg(feature = "minor-command")]
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
@@ -1594,6 +1594,7 @@ impl Notes {
     }
 
     /// Adds a new seek object to the notes.
+    #[cfg(feature = "minor-command")]
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,

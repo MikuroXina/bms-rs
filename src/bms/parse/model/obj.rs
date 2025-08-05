@@ -2,14 +2,14 @@
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, ObjId,
+        JudgeLevel, ObjId,
         channel::{Channel, Key, NoteKind, PlayerSide},
         time::{ObjTime, Track},
     },
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::SwBgaEvent;
+use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -269,6 +269,7 @@ pub struct BgaOpacityObj {
 /// An object to change the ARGB color of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct BgaArgbObj {
     /// The time which the ARGB change is on.
     pub time: ObjTime,
@@ -301,6 +302,7 @@ pub struct KeyVolumeObj {
 /// An object to seek video position.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
@@ -342,6 +344,7 @@ pub struct BgaKeyboundObj {
 /// An object to change option.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct OptionObj {
     /// The time which the option change is on.
     pub time: ObjTime,

@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::bms::{
     Decimal,
     command::{
-        Argb, ObjId,
+        ObjId,
         time::{ObjTime, Track},
     },
 };
@@ -18,15 +18,18 @@ use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
-        BgaArgbObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
-        ScrollingFactorObj, SectionLenChangeObj, SeekObj, SpeedObj, TextObj,
+        BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
+        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, TextObj,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use super::model::obj::{BgaKeyboundObj, OptionObj};
+use super::model::obj::{BgaArgbObj, BgaKeyboundObj, OptionObj, SeekObj};
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::{StpEvent, SwBgaEvent, WavCmdEvent};
+use crate::bms::command::{
+    graphics::Argb,
+    minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
+};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
@@ -202,6 +205,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a BgaOpacityObj,
     },
     /// BGA ARGB color definition is duplicated.
+    #[cfg(feature = "minor-command")]
     BgaArgb {
         /// Duplicated BGA ARGB object id.
         id: ObjId,
@@ -211,6 +215,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a Argb,
     },
     /// BGA ARGB color change event is duplicated.
+    #[cfg(feature = "minor-command")]
     BgaArgbChangeEvent {
         /// Duplicated BGA ARGB change time.
         time: ObjTime,
@@ -278,6 +283,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a KeyVolumeObj,
     },
     /// Seek message event is duplicated.
+    #[cfg(feature = "minor-command")]
     SeekMessageEvent {
         /// Duplicated seek time.
         time: ObjTime,

@@ -3,7 +3,7 @@
 use crate::bms::command::time::ObjTime;
 use std::time::Duration;
 
-use super::{Argb, ObjId, WavCmdParam};
+use super::{ObjId, graphics::Argb};
 
 /// Pan value for ExWav sound effect.
 /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
@@ -149,6 +149,56 @@ pub struct SwBgaEvent {
     pub argb: Argb,
     /// Animation frame sequence (e.g. 01020304).
     pub pattern: String,
+}
+
+/// BM98 #ExtChr extended character customization event.
+///
+/// Used for #ExtChr command, implements custom UI element image replacement.
+/// - sprite_num: character index to replace [0-1023]
+/// - bmp_num: BMP index (hex to decimal, or -1/-257, etc.)
+/// - start_x/start_y: crop start point
+/// - end_x/end_y: crop end point
+/// - offset_x/offset_y: offset (optional)
+/// - abs_x/abs_y: absolute coordinate (optional)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExtChrEvent {
+    /// Character index to replace [0-1023]
+    pub sprite_num: i32,
+    /// BMP index (hex to decimal, or -1/-257, etc.)
+    pub bmp_num: i32,
+    /// Crop start point
+    pub start_x: i32,
+    /// Crop start point
+    pub start_y: i32,
+    /// Crop end point
+    pub end_x: i32,
+    /// Crop end point
+    pub end_y: i32,
+    /// Offset (optional)
+    pub offset_x: Option<i32>,
+    /// Offset (optional)
+    pub offset_y: Option<i32>,
+    /// Absolute coordinate (optional)
+    pub abs_x: Option<i32>,
+    /// Absolute coordinate (optional)
+    pub abs_y: Option<i32>,
+}
+
+/// WAVCMD parameter type.
+///
+/// - Pitch: pitch (0-127, 60 is C6)
+/// - Volume: volume percent (usually 0-100)
+/// - Time: playback time (ms*0.5, 0 means original length)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum WavCmdParam {
+    /// Pitch (0-127, 60 is C6)
+    Pitch,
+    /// Volume percent (0-100 is recommended. Larger than 100 value is not recommended.)
+    Volume,
+    /// Playback time (ms*0.5, 0 means original length)
+    Time,
 }
 
 #[cfg(test)]

@@ -11,15 +11,15 @@ use num::BigUint;
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
         time::Track,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{
-    ExtChrEvent, WavCmdParam,
-    minor_command::{ExWavFrequency, ExWavPan, ExWavVolume, StpEvent, SwBgaEvent, WavCmdEvent},
+use crate::bms::command::minor_command::{
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    WavCmdParam,
 };
 
 use super::{Result, cursor::Cursor};

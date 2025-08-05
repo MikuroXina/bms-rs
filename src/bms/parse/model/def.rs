@@ -2,8 +2,8 @@
 use std::path::PathBuf;
 
 use crate::bms::command::{
-    Argb, JudgeLevel, ObjId,
-    graphics::{PixelPoint, PixelSize},
+    JudgeLevel, ObjId,
+    graphics::{Argb, PixelPoint, PixelSize},
 };
 
 #[cfg(feature = "minor-command")]

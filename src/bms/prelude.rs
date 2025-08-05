@@ -7,10 +7,7 @@
 pub use super::{BmsWarning, Decimal};
 
 // Re-export from command module
-pub use super::command::{
-    Argb, ExtChrEvent, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Rgb, Volume,
-    WavCmdParam,
-};
+pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
 
 // Re-export from command submodules
 pub use super::command::{
@@ -18,7 +15,7 @@ pub use super::command::{
         Channel, Key, NoteKind, PlayerSide, read_channel_beat, read_channel_beat_nanasi,
         read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
     },
-    graphics::{PixelPoint, PixelSize},
+    graphics::{Argb, PixelPoint, PixelSize, Rgb},
     time::{ObjTime, Track},
 };
 
@@ -57,7 +54,8 @@ pub use super::lex::token::Token;
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]
 pub use super::command::minor_command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, StpEvent, SwBgaEvent, WavCmdEvent,
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    WavCmdParam,
 };
 
 // Re-export ExWavDef when feature is enabled

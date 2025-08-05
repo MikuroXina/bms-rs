@@ -13,7 +13,6 @@ fn test_prelude_imports() {
     let _poor_mode = PoorMode::default();
     let _ln_type = LnType::default();
     let _ln_mode_type = LnMode::default();
-    let _wav_cmd_param = WavCmdParam::Pitch;
 
     // Test channel types
     let _channel = Channel::Bgm;
@@ -123,7 +122,6 @@ fn test_prelude_imports() {
     assert_eq!(_poor_mode, PoorMode::Interrupt);
     assert_eq!(_ln_type, LnType::Rdm);
     assert_eq!(_ln_mode_type, LnMode::Ln);
-    assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
     assert_eq!(_channel, Channel::Bgm);
     assert_eq!(_key, Key::Key1);
     assert_eq!(_note_kind, NoteKind::Visible);
@@ -135,6 +133,7 @@ fn test_prelude_imports() {
 #[cfg(feature = "minor-command")]
 fn test_prelude_minor_command_imports() {
     // Test minor command types when feature is enabled
+    let _wav_cmd_param = WavCmdParam::Pitch;
     let _ex_wav_pan = ExWavPan::try_from(0).unwrap();
     let _ex_wav_volume = ExWavVolume::try_from(0).unwrap();
     let _ex_wav_frequency = ExWavFrequency::try_from(100).unwrap();
@@ -170,6 +169,7 @@ fn test_prelude_minor_command_imports() {
     };
 
     // Test that we can use the minor command types
+    assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
     assert_eq!(_ex_wav_pan.value(), 0);
     assert_eq!(_ex_wav_volume.value(), 0);
     assert_eq!(_ex_wav_frequency.value(), 100);
