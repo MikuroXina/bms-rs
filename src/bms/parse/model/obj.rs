@@ -240,7 +240,7 @@ impl Ord for SpeedObj {
 }
 
 /// An extended object on the score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtendedMessageObj {
     /// The track which the message is on.
@@ -251,90 +251,46 @@ pub struct ExtendedMessageObj {
     pub message: String,
 }
 
-impl PartialEq for ExtendedMessageObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.track == other.track
-    }
-}
-
-impl Eq for ExtendedMessageObj {}
-
-impl PartialOrd for ExtendedMessageObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for ExtendedMessageObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track.cmp(&other.track)
-    }
-}
-
 /// An object to change the opacity of BGA layers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaOpacityObj {
-    /// The track which the opacity change is on.
-    pub track: Track,
+    /// The time which the opacity change is on.
+    pub time: ObjTime,
     /// The BGA layer to change opacity for.
     pub layer: BgaLayer,
     /// The opacity value (0x01-0xFF, where 0x01 is transparent and 0xFF is opaque).
     pub opacity: u8,
 }
 
-impl PartialEq for BgaOpacityObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.track == other.track && self.layer == other.layer
-    }
-}
-
-impl Eq for BgaOpacityObj {}
-
-impl PartialOrd for BgaOpacityObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for BgaOpacityObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track
-            .cmp(&other.track)
-            .then(self.layer.cmp(&other.layer))
-    }
-}
-
 /// An object to change the ARGB color of BGA layers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaArgbObj {
-    /// The track which the ARGB change is on.
-    pub track: Track,
+    /// The time which the ARGB change is on.
+    pub time: ObjTime,
     /// The BGA layer to change ARGB color for.
     pub layer: BgaLayer,
     /// The ARGB color value (A,R,G,B each [0-255]).
     pub argb: Argb,
 }
 
-impl PartialEq for BgaArgbObj {
-    fn eq(&self, other: &Self) -> bool {
-        self.track == other.track && self.layer == other.layer
-    }
+/// An object to change the volume of BGM sounds.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BgmVolumeObj {
+    /// The time which the volume change is on.
+    pub time: ObjTime,
+    /// The volume value (0x01-0xFF, where 0x01 is minimum and 0xFF is maximum).
+    pub volume: u8,
 }
 
-impl Eq for BgaArgbObj {}
-
-impl PartialOrd for BgaArgbObj {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for BgaArgbObj {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.track
-            .cmp(&other.track)
-            .then(self.layer.cmp(&other.layer))
-    }
+/// An object to change the volume of KEY sounds.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct KeyVolumeObj {
+    /// The time which the volume change is on.
+    pub time: ObjTime,
+    /// The volume value (0x01-0xFF, where 0x01 is minimum and 0xFF is maximum).
+    pub volume: u8,
 }

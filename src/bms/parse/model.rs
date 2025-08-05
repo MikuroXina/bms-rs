@@ -38,8 +38,9 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaArgbObj, BgaLayer, BgaObj, BgaOpacityObj, BpmChangeObj, ExtendedMessageObj, Obj,
-        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj,
+        BgaArgbObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj,
+        ExtendedMessageObj, KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
+        StopObj,
     },
 };
 use super::{
@@ -213,6 +214,10 @@ pub struct Notes {
     /// Material WAV file paths. #MATERIALSWAV
     #[cfg(feature = "minor-command")]
     pub materials_wav: Vec<PathBuf>,
+    /// BGM volume change events, indexed by time. #97
+    pub bgm_volume_changes: BTreeMap<ObjTime, BgmVolumeObj>,
+    /// KEY volume change events, indexed by time. #98
+    pub key_volume_changes: BTreeMap<ObjTime, KeyVolumeObj>,
 }
 
 /// The graphics objects that are used in the score.
@@ -900,7 +905,7 @@ impl Bms {
                     };
                     self.graphics.push_bga_opacity_change(
                         BgaOpacityObj {
-                            track: *track,
+                            time,
                             layer,
                             opacity: opacity_value,
                         },
@@ -910,20 +915,36 @@ impl Bms {
                 }
             }
             TokenContent::Message {
-                track: _,
+                track,
                 channel: Channel::BgmVolume,
-                message: _,
+                message,
             } => {
-                // Volume is handled by the VOLWAV command, not by message
-                // This is just for compatibility
+                for (time, volume_value) in volume_from_message(*track, message) {
+                    self.notes.push_bgm_volume_change(
+                        BgmVolumeObj {
+                            time,
+                            volume: volume_value,
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
+                }
             }
             TokenContent::Message {
-                track: _,
+                track,
                 channel: Channel::KeyVolume,
-                message: _,
+                message,
             } => {
-                // Volume is handled by the VOLWAV command, not by message
-                // This is just for compatibility
+                for (time, volume_value) in volume_from_message(*track, message) {
+                    self.notes.push_key_volume_change(
+                        KeyVolumeObj {
+                            time,
+                            volume: volume_value,
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
+                }
             }
             TokenContent::Message {
                 track: _,
@@ -958,20 +979,29 @@ impl Bms {
                         Channel::BgaPoorArgb => BgaLayer::Poor,
                         _ => unreachable!(),
                     };
-                    let argb = self
-                        .scope_defines
-                        .argb_defs
-                        .get(&argb_id)
-                        .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
-                    self.graphics.push_bga_argb_change(
-                        BgaArgbObj {
-                            track: *track,
-                            layer,
-                            argb: *argb,
-                        },
-                        time,
-                        prompt_handler,
-                    )?;
+                    #[cfg(feature = "minor-command")]
+                    {
+                        let argb = self
+                            .scope_defines
+                            .argb_defs
+                            .get(&argb_id)
+                            .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
+                        self.graphics.push_bga_argb_change(
+                            BgaArgbObj {
+                                time,
+                                layer,
+                                argb: *argb,
+                            },
+                            time,
+                            prompt_handler,
+                        )?;
+                    }
+                    #[cfg(not(feature = "minor-command"))]
+                    {
+                        return Err(ParseWarningContent::SyntaxError(
+                            "ARGB definitions require minor-command feature".to_string(),
+                        ));
+                    }
                 }
             }
             TokenContent::Message {
@@ -1439,6 +1469,58 @@ impl Notes {
     pub fn last_bgm_time(&self) -> Option<ObjTime> {
         self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }
+
+    /// Adds a new BGM volume change object to the notes.
+    pub fn push_bgm_volume_change(
+        &mut self,
+        volume_obj: BgmVolumeObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bgm_volume_changes.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(volume_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgmVolumeChangeEvent {
+                        time,
+                        older: existing,
+                        newer: &volume_obj,
+                    })
+                    .apply(entry.get_mut(), volume_obj)
+            }
+        }
+    }
+
+    /// Adds a new KEY volume change object to the notes.
+    pub fn push_key_volume_change(
+        &mut self,
+        volume_obj: KeyVolumeObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.key_volume_changes.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(volume_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::KeyVolumeChangeEvent {
+                        time,
+                        older: existing,
+                        newer: &volume_obj,
+                    })
+                    .apply(entry.get_mut(), volume_obj)
+            }
+        }
+    }
 }
 
 fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
@@ -1475,5 +1557,23 @@ fn opacity_from_message(
         let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, opacity_value))
+    })
+}
+
+fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
+    let denominator = message.len() as u64 / 2;
+    let mut chars = message.chars().tuples().enumerate();
+    std::iter::from_fn(move || {
+        let (i, c1, c2) = loop {
+            let (i, (c1, c2)) = chars.next()?;
+            if !(c1 == '0' && c2 == '0') {
+                break (i, c1, c2);
+            }
+        };
+        // Parse volume value from hex string
+        let volume_hex = format!("{c1}{c2}");
+        let volume_value = u8::from_str_radix(&volume_hex, 16).ok()?;
+        let time = ObjTime::new(track.0, i as u64, denominator);
+        Some((time, volume_value))
     })
 }

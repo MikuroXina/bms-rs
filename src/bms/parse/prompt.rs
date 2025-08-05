@@ -18,8 +18,8 @@ use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
-        BgaArgbObj, BgaObj, BgaOpacityObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj,
-        SpeedObj,
+        BgaArgbObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, KeyVolumeObj,
+        ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
     },
 };
 #[cfg(feature = "minor-command")]
@@ -255,6 +255,24 @@ pub enum PromptingDuplication<'a> {
         older: &'a Decimal,
         /// Incoming definition.
         newer: &'a Decimal,
+    },
+    /// BGM volume change event is duplicated.
+    BgmVolumeChangeEvent {
+        /// Duplicated BGM volume change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgmVolumeObj,
+        /// Incoming definition.
+        newer: &'a BgmVolumeObj,
+    },
+    /// KEY volume change event is duplicated.
+    KeyVolumeChangeEvent {
+        /// Duplicated KEY volume change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a KeyVolumeObj,
+        /// Incoming definition.
+        newer: &'a KeyVolumeObj,
     },
 }
 

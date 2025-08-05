@@ -211,7 +211,7 @@ impl Default for Volume {
 }
 
 /// An alpha-red-gree-blue color data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Argb {
     /// A component of alpha.
