@@ -38,7 +38,7 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
+        BgaLayer, BgaObj, BgaOpacityObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
         SectionLenChangeObj, SpeedObj, StopObj,
     },
 };
@@ -247,6 +247,8 @@ pub struct Graphics {
     /// Video frame rate. #VIDEOF/S
     #[cfg(feature = "minor-command")]
     pub video_fs: Option<Decimal>,
+    /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
+    pub bga_opacity_changes: BTreeMap<ObjTime, BgaOpacityObj>,
 }
 
 /// The other objects that are used in the score. May be arranged in play.
@@ -792,7 +794,7 @@ impl Bms {
             }
             TokenContent::Message {
                 track,
-                channel: channel @ (Channel::BgaBase | Channel::BgaPoor | Channel::BgaLayer),
+                channel: channel @ (Channel::BgaBase | Channel::BgaPoor | Channel::BgaLayer | Channel::BgaLayer2),
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
@@ -803,6 +805,7 @@ impl Bms {
                         Channel::BgaBase => BgaLayer::Base,
                         Channel::BgaPoor => BgaLayer::Poor,
                         Channel::BgaLayer => BgaLayer::Overlay,
+                        Channel::BgaLayer2 => BgaLayer::Overlay2,
                         _ => unreachable!(),
                     };
                     self.graphics.push_bga_change(
@@ -849,54 +852,27 @@ impl Bms {
             }
             TokenContent::Message {
                 track,
-                channel: Channel::BgaLayer2,
+                channel: channel @ (Channel::BgaBaseOpacity | Channel::BgaLayerOpacity | Channel::BgaLayer2Opacity | Channel::BgaPoorOpacity),
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
-                    if !self.graphics.bmp_files.contains_key(&obj) {
-                        return Err(ParseWarningContent::UndefinedObject(obj));
-                    }
-                    self.graphics.push_bga_change(
-                        BgaObj {
-                            time,
-                            id: obj,
-                            layer: BgaLayer::Overlay2,
+                for (time, opacity_value) in opacity_from_message(*track, message) {
+                    let layer = match channel {
+                        Channel::BgaBaseOpacity => BgaLayer::Base,
+                        Channel::BgaLayerOpacity => BgaLayer::Overlay,
+                        Channel::BgaLayer2Opacity => BgaLayer::Overlay2,
+                        Channel::BgaPoorOpacity => BgaLayer::Poor,
+                        _ => unreachable!(),
+                    };
+                    self.graphics.push_bga_opacity_change(
+                        BgaOpacityObj {
+                            track: *track,
+                            layer,
+                            opacity: opacity_value,
                         },
+                        time,
                         prompt_handler,
                     )?;
                 }
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaBaseOpacity,
-                message: _,
-            } => {
-                // Opacity is handled by the ARGB command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaLayerOpacity,
-                message: _,
-            } => {
-                // Opacity is handled by the ARGB command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaLayer2Opacity,
-                message: _,
-            } => {
-                // Opacity is handled by the ARGB command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaPoorOpacity,
-                message: _,
-            } => {
-                // Opacity is handled by the ARGB command, not by message
-                // This is just for compatibility
             }
             TokenContent::Message {
                 track: _,
@@ -1290,6 +1266,32 @@ impl Graphics {
             }
         }
     }
+
+    /// Adds a new BGA opacity change object to the graphics.
+    pub fn push_bga_opacity_change(
+        &mut self,
+        opacity_obj: BgaOpacityObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bga_opacity_changes.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(opacity_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaOpacityChangeEvent {
+                        time,
+                        older: existing,
+                        newer: &opacity_obj,
+                    })
+                    .apply(entry.get_mut(), opacity_obj)
+            }
+        }
+    }
 }
 
 impl Notes {
@@ -1391,5 +1393,23 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
         let obj = ObjId::try_from([c1, c2]).ok()?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
+    })
+}
+
+fn opacity_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
+    let denominator = message.len() as u64 / 2;
+    let mut chars = message.chars().tuples().enumerate();
+    std::iter::from_fn(move || {
+        let (i, c1, c2) = loop {
+            let (i, (c1, c2)) = chars.next()?;
+            if !(c1 == '0' && c2 == '0') {
+                break (i, c1, c2);
+            }
+        };
+        // Parse opacity value from hex string
+        let opacity_hex = format!("{}{}", c1, c2);
+        let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
+        let time = ObjTime::new(track.0, i as u64, denominator);
+        Some((time, opacity_value))
     })
 }

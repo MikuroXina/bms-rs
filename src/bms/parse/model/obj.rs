@@ -163,7 +163,7 @@ impl Ord for BgaObj {
 }
 
 /// A layer where the image for BGA to be displayed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum BgaLayer {
@@ -268,5 +268,39 @@ impl PartialOrd for ExtendedMessageObj {
 impl Ord for ExtendedMessageObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.track.cmp(&other.track)
+    }
+}
+
+/// An object to change the opacity of BGA layers.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BgaOpacityObj {
+    /// The track which the opacity change is on.
+    pub track: Track,
+    /// The BGA layer to change opacity for.
+    pub layer: BgaLayer,
+    /// The opacity value (0x01-0xFF, where 0x01 is transparent and 0xFF is opaque).
+    pub opacity: u8,
+}
+
+impl PartialEq for BgaOpacityObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.track == other.track && self.layer == other.layer
+    }
+}
+
+impl Eq for BgaOpacityObj {}
+
+impl PartialOrd for BgaOpacityObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BgaOpacityObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.track
+            .cmp(&other.track)
+            .then(self.layer.cmp(&other.layer))
     }
 }

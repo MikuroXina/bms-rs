@@ -17,7 +17,7 @@ use super::model::def::ExWavDef;
 use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
+    model::obj::{BgaObj, BgaOpacityObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -183,6 +183,15 @@ pub enum PromptingDuplication<'a> {
         older: &'a BgaObj,
         /// Incoming definition.
         newer: &'a BgaObj,
+    },
+    /// BGA opacity change event is duplicated.
+    BgaOpacityChangeEvent {
+        /// Duplicated BGA opacity change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaOpacityObj,
+        /// Incoming definition.
+        newer: &'a BgaOpacityObj,
     },
 }
 
