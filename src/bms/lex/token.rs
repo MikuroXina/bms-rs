@@ -84,8 +84,10 @@ pub enum TokenContent<'a> {
     BpmChange(ObjId, Decimal),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`TokenContent::Switch`].
     Case(BigUint),
-    /// `#CDDA [u64]`.
-    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
+    /// CD-DA can be used as BGM (Background Music). 
+    /// In DDR (Dance Dance Revolution), a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    /// This allows the game to play audio directly from a CD drive.
     #[cfg(feature = "minor-command")]
     Cdda(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
@@ -198,7 +200,9 @@ pub enum TokenContent<'a> {
         /// The message to the channel.
         message: Cow<'a, str>,
     },
-    /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
+    /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM.
+    /// This is a minor command extension that allows MIDI files to be used as background music.
+    /// *Deprecated* - Some players may not support this feature.
     #[cfg(feature = "minor-command")]
     MidiFile(&'a Path),
     /// `#MOVIE [filename]` DXEmu extension, defines global video file.
@@ -212,6 +216,8 @@ pub enum TokenContent<'a> {
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
+    /// This is a minor command extension that enables octave mode for the chart.
+    /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
@@ -234,6 +240,8 @@ pub enum TokenContent<'a> {
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
     Scroll(ObjId, Decimal),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    /// Defines a video seek event that allows jumping to specific time positions in video files.
+    /// This is a minor command extension for advanced video control.
     #[cfg(feature = "minor-command")]
     Seek(ObjId, Decimal),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -271,14 +279,20 @@ pub enum TokenContent<'a> {
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
+    /// Defines the color depth for video playback. Common values are 16, 24, or 32 bits.
+    /// This affects the quality and performance of video rendering.
     #[cfg(feature = "minor-command")]
     VideoColors(u8),
     /// `#VIDEODLY [f64]` Video delay extension.
+    /// Defines a delay in seconds before video playback starts.
+    /// This is useful for synchronizing video with audio or other game elements.
     #[cfg(feature = "minor-command")]
     VideoDly(Decimal),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
     VideoFile(&'a Path),
     /// `#VIDEOF/S [f64]` Video file frame rate.
+    /// Defines the frame rate for video playback in frames per second (FPS).
+    /// This affects the smoothness and timing of video playback.
     #[cfg(feature = "minor-command")]
     VideoFs(Decimal),
     /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.

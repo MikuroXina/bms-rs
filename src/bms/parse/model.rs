@@ -55,13 +55,13 @@ pub struct Bms {
     pub header: Header,
     /// The scope-defines in the score.
     pub scope_defines: ScopeDefines,
-    /// The arranges in the score.
+    /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
-    /// The objects in the score.
+    /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
     pub notes: Notes,
-    /// The graphics part in the score.
+    /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
-    /// The other part in the score.
+    /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
 }
 
@@ -103,16 +103,27 @@ pub struct Header {
     /// The LN notation type of the score.
     pub ln_type: LnType,
     /// The path of background image, which is shown while playing the score.
+    /// This image is displayed behind the gameplay area.
     pub back_bmp: Option<PathBuf>,
     /// The path of splash screen image, which is shown before playing the score.
+    /// This image is displayed during the loading screen.
     pub stage_file: Option<PathBuf>,
     /// The path of banner image.
+    /// This image is used in music selection screens.
     pub banner: Option<PathBuf>,
-    /// LN Mode
+    /// LN Mode. Defines the long note mode for this chart.
+    /// - 1: LN (Long Note)
+    /// - 2: CN (Charge Note) 
+    /// - 3: HCN (Hell Charge Note)
     pub ln_mode: LnMode,
-    /// Preview Music
+    /// Preview Music. Defines the preview audio file for music selection.
+    /// This file is played when hovering over the song in the music select screen.
     pub preview_music: Option<PathBuf>,
-    /// Movie Define
+    /// Movie Define. Defines the global video file for the chart.
+    /// - Video starts from section #000
+    /// - Priority rules apply when conflicting with #xxx04
+    /// - No loop, stays on last frame after playback
+    /// - Audio track in video is not played
     pub movie: Option<PathBuf>,
 }
 
@@ -182,6 +193,7 @@ pub struct Arrangers {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Notes {
     /// The path to override the base path of the WAV file path.
+    /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
     /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
@@ -191,6 +203,7 @@ pub struct Notes {
     /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
     /// Index for fast key lookup. Used for LN/landmine logic.
+    /// Maps each key (lane) to a sorted map of times and object IDs for efficient note lookup.
     pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     /// Extended message events. #EXT
     pub extended_messages: Vec<ExtendedMessageObj>,
@@ -207,12 +220,15 @@ pub struct Notes {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Graphics {
     /// The path of the background video. The video should be started the playing from the section 000.
+    /// This video is displayed behind the gameplay area.
+    /// Its audio track should not be played.
     pub video_file: Option<PathBuf>,
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
     pub bga_changes: BTreeMap<ObjTime, BgaObj>,
     /// The path of image, which is shown when the player got POOR.
+    /// This image is displayed when the player misses a note or gets a poor judgment.
     pub poor_bmp: Option<PathBuf>,
     /// The display mode for background image/video.
     pub poor_bga_mode: PoorMode,
@@ -241,6 +257,7 @@ pub struct Others {
     #[cfg(feature = "minor-command")]
     pub options: Option<Vec<String>>,
     /// Whether the score is the octave mode.
+    /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     pub is_octave: bool,
     /// CDDA events, indexed by value. #CDDA
