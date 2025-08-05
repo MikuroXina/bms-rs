@@ -125,8 +125,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod bms;
-#[cfg(feature = "bmson")]
-#[cfg_attr(docsrs, doc(cfg(feature = "bmson")))]
 pub mod bmson;
 
 pub use bms::{command, lex, parse};
