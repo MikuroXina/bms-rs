@@ -111,7 +111,8 @@ fn test_prelude_imports() {
     let _duplication_workaround = DuplicationWorkaround::UseOlder;
     let _always_use_older = AlwaysUseOlder;
     let _always_use_newer = AlwaysUseNewer;
-    let _always_warn = AlwaysWarn;
+    let _always_warn_and_use_older = AlwaysWarnAndUseOlder;
+    let _always_warn_and_use_newer = AlwaysWarnAndUseNewer;
 
     // Test rng types
     let _rng_mock = RngMock::<1>([BigUint::from(1u32)]);

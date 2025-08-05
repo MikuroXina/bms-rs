@@ -2,7 +2,7 @@ use bms_rs::bms::{
     Decimal,
     command::{JudgeLevel, ObjId},
     lex::{BmsLexOutput, LexWarning, parse_lex_tokens},
-    parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarn, random::rng::RngMock},
+    parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarnAndUseOlder, random::rng::RngMock},
 };
 use num::BigUint;
 
@@ -18,7 +18,11 @@ fn test_lal() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
+    } = Bms::from_token_stream(
+        &tokens,
+        RngMock([BigUint::from(1u64)]),
+        AlwaysWarnAndUseOlder,
+    );
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -52,7 +56,11 @@ fn test_nc() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
+    } = Bms::from_token_stream(
+        &tokens,
+        RngMock([BigUint::from(1u64)]),
+        AlwaysWarnAndUseOlder,
+    );
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -92,7 +100,11 @@ fn test_j219() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
+    } = Bms::from_token_stream(
+        &tokens,
+        RngMock([BigUint::from(1u64)]),
+        AlwaysWarnAndUseOlder,
+    );
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -150,7 +162,11 @@ fn test_bemuse_ext() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysWarn);
+    } = Bms::from_token_stream(
+        &tokens,
+        RngMock([BigUint::from(1u64)]),
+        AlwaysWarnAndUseOlder,
+    );
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info

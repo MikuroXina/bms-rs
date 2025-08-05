@@ -341,8 +341,10 @@ pub enum DuplicationWorkaround {
     UseOlder,
     /// Choose to use the incoming one.
     UseNewer,
-    /// Choose to warn.
-    Warn,
+    /// Choose to warn and use older values.
+    WarnAndUseOlder,
+    /// Choose to warn and use newer values.
+    WarnAndUseNewer,
 }
 
 impl DuplicationWorkaround {
@@ -353,7 +355,13 @@ impl DuplicationWorkaround {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::Warn => Err(ParseWarningContent::PromptHandlerWarning),
+            DuplicationWorkaround::WarnAndUseOlder => {
+                Err(ParseWarningContent::PromptHandlerWarning)
+            }
+            DuplicationWorkaround::WarnAndUseNewer => {
+                *target = newer;
+                Err(ParseWarningContent::PromptHandlerWarning)
+            }
         }
     }
 }
@@ -378,12 +386,22 @@ impl PromptHandler for AlwaysUseNewer {
     }
 }
 
-/// The strategy that always warns.
+/// The strategy that always warns and uses older values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AlwaysWarn;
+pub struct AlwaysWarnAndUseOlder;
 
-impl PromptHandler for AlwaysWarn {
+impl PromptHandler for AlwaysWarnAndUseOlder {
     fn handle_duplication(&mut self, _: PromptingDuplication) -> DuplicationWorkaround {
-        DuplicationWorkaround::Warn
+        DuplicationWorkaround::WarnAndUseOlder
+    }
+}
+
+/// The strategy that always warns and uses newer values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AlwaysWarnAndUseNewer;
+
+impl PromptHandler for AlwaysWarnAndUseNewer {
+    fn handle_duplication(&mut self, _: PromptingDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseNewer
     }
 }

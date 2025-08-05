@@ -108,7 +108,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarn);
+    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarnAndUseOlder);
 
     // Convert parse warnings to BmsWarning
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::ParseWarning));
