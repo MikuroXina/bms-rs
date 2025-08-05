@@ -85,7 +85,7 @@ pub enum TokenContent<'a> {
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`TokenContent::Switch`].
     Case(BigUint),
     /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
-    /// CD-DA can be used as BGM (Background Music). 
+    /// CD-DA can be used as BGM (Background Music).
     /// In DDR (Dance Dance Revolution), a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
     /// This allows the game to play audio directly from a CD drive.
     #[cfg(feature = "minor-command")]

@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::bms::{
     Decimal,
     command::{
-        ObjId,
+        Argb, ObjId,
         time::{ObjTime, Track},
     },
 };
@@ -17,7 +17,10 @@ use super::model::def::ExWavDef;
 use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{BgaObj, BgaOpacityObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
+    model::obj::{
+        BgaArgbObj, BgaObj, BgaOpacityObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj,
+        SpeedObj,
+    },
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -192,6 +195,24 @@ pub enum PromptingDuplication<'a> {
         older: &'a BgaOpacityObj,
         /// Incoming definition.
         newer: &'a BgaOpacityObj,
+    },
+    /// BGA ARGB color definition is duplicated.
+    BgaArgb {
+        /// Duplicated BGA ARGB object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a Argb,
+        /// Incoming definition.
+        newer: &'a Argb,
+    },
+    /// BGA ARGB color change event is duplicated.
+    BgaArgbChangeEvent {
+        /// Duplicated BGA ARGB change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaArgbObj,
+        /// Incoming definition.
+        newer: &'a BgaArgbObj,
     },
 }
 

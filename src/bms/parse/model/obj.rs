@@ -2,7 +2,7 @@
 use crate::bms::{
     Decimal,
     command::{
-        ObjId,
+        Argb, ObjId,
         channel::{Channel, Key, NoteKind, PlayerSide},
         time::{ObjTime, Track},
     },
@@ -298,6 +298,40 @@ impl PartialOrd for BgaOpacityObj {
 }
 
 impl Ord for BgaOpacityObj {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.track
+            .cmp(&other.track)
+            .then(self.layer.cmp(&other.layer))
+    }
+}
+
+/// An object to change the ARGB color of BGA layers.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BgaArgbObj {
+    /// The track which the ARGB change is on.
+    pub track: Track,
+    /// The BGA layer to change ARGB color for.
+    pub layer: BgaLayer,
+    /// The ARGB color value (A,R,G,B each [0-255]).
+    pub argb: Argb,
+}
+
+impl PartialEq for BgaArgbObj {
+    fn eq(&self, other: &Self) -> bool {
+        self.track == other.track && self.layer == other.layer
+    }
+}
+
+impl Eq for BgaArgbObj {}
+
+impl PartialOrd for BgaArgbObj {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BgaArgbObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.track
             .cmp(&other.track)

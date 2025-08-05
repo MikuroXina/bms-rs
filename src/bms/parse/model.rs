@@ -38,8 +38,8 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BgaOpacityObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedObj, StopObj,
+        BgaArgbObj, BgaLayer, BgaObj, BgaOpacityObj, BpmChangeObj, ExtendedMessageObj, Obj,
+        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj,
     },
 };
 use super::{
@@ -113,7 +113,7 @@ pub struct Header {
     pub banner: Option<PathBuf>,
     /// LN Mode. Defines the long note mode for this chart.
     /// - 1: LN (Long Note)
-    /// - 2: CN (Charge Note) 
+    /// - 2: CN (Charge Note)
     /// - 3: HCN (Hell Charge Note)
     pub ln_mode: LnMode,
     /// Preview Music. Defines the preview audio file for music selection.
@@ -249,6 +249,8 @@ pub struct Graphics {
     pub video_fs: Option<Decimal>,
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
     pub bga_opacity_changes: BTreeMap<ObjTime, BgaOpacityObj>,
+    /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
+    pub bga_argb_changes: BTreeMap<ObjTime, BgaArgbObj>,
 }
 
 /// The other objects that are used in the score. May be arranged in play.
@@ -612,12 +614,17 @@ impl Bms {
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Argb(id, argb) => {
-                if self.scope_defines.argb_defs.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {id:?}",
-                    )));
+                if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::BgaArgb {
+                            id: *id,
+                            older,
+                            newer: argb,
+                        })
+                        .apply(older, *argb)?;
+                } else {
+                    self.scope_defines.argb_defs.insert(*id, *argb);
                 }
-                self.scope_defines.argb_defs.insert(*id, *argb);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Seek(id, v) => {
@@ -794,7 +801,11 @@ impl Bms {
             }
             TokenContent::Message {
                 track,
-                channel: channel @ (Channel::BgaBase | Channel::BgaPoor | Channel::BgaLayer | Channel::BgaLayer2),
+                channel:
+                    channel @ (Channel::BgaBase
+                    | Channel::BgaPoor
+                    | Channel::BgaLayer
+                    | Channel::BgaLayer2),
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
@@ -852,7 +863,11 @@ impl Bms {
             }
             TokenContent::Message {
                 track,
-                channel: channel @ (Channel::BgaBaseOpacity | Channel::BgaLayerOpacity | Channel::BgaLayer2Opacity | Channel::BgaPoorOpacity),
+                channel:
+                    channel @ (Channel::BgaBaseOpacity
+                    | Channel::BgaLayerOpacity
+                    | Channel::BgaLayer2Opacity
+                    | Channel::BgaPoorOpacity),
                 message,
             } => {
                 for (time, opacity_value) in opacity_from_message(*track, message) {
@@ -907,37 +922,37 @@ impl Bms {
                 // This is just for compatibility
             }
             TokenContent::Message {
-                track: _,
-                channel: Channel::BgaBaseArgb,
-                message: _,
+                track,
+                channel:
+                    channel @ (Channel::BgaBaseArgb
+                    | Channel::BgaLayerArgb
+                    | Channel::BgaLayer2Argb
+                    | Channel::BgaPoorArgb),
+                message,
             } => {
-                // ARGB is handled by the ARGB command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaLayerArgb,
-                message: _,
-            } => {
-                // ARGB is handled by the ARGB command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaLayer2Argb,
-                message: _,
-            } => {
-                // ARGB is handled by the ARGB command, not by message
-                // This is just for compatibility
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::BgaPoorArgb,
-                message: _,
-            } => {
-                // ARGB is handled by the ARGB command, not by message
-                // This is just for compatibility
+                for (time, argb_id) in ids_from_message(*track, message) {
+                    let layer = match channel {
+                        Channel::BgaBaseArgb => BgaLayer::Base,
+                        Channel::BgaLayerArgb => BgaLayer::Overlay,
+                        Channel::BgaLayer2Argb => BgaLayer::Overlay2,
+                        Channel::BgaPoorArgb => BgaLayer::Poor,
+                        _ => unreachable!(),
+                    };
+                    let argb = self
+                        .scope_defines
+                        .argb_defs
+                        .get(&argb_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
+                    self.graphics.push_bga_argb_change(
+                        BgaArgbObj {
+                            track: *track,
+                            layer,
+                            argb: *argb,
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
+                }
             }
             TokenContent::Message {
                 track: _,
@@ -1292,6 +1307,32 @@ impl Graphics {
             }
         }
     }
+
+    /// Adds a new BGA ARGB color change object to the graphics.
+    pub fn push_bga_argb_change(
+        &mut self,
+        argb_obj: BgaArgbObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bga_argb_changes.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(argb_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaArgbChangeEvent {
+                        time,
+                        older: existing,
+                        newer: &argb_obj,
+                    })
+                    .apply(entry.get_mut(), argb_obj)
+            }
+        }
+    }
 }
 
 impl Notes {
@@ -1396,7 +1437,10 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
     })
 }
 
-fn opacity_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
+fn opacity_from_message(
+    track: Track,
+    message: &'_ str,
+) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
     let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
@@ -1407,7 +1451,7 @@ fn opacity_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = 
             }
         };
         // Parse opacity value from hex string
-        let opacity_hex = format!("{}{}", c1, c2);
+        let opacity_hex = format!("{c1}{c2}");
         let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, opacity_value))
