@@ -777,12 +777,12 @@ impl Bms {
                     )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel: Channel::ChangeOption,
                 message,
             } => {
-                #[cfg(feature = "minor-command")]
                 for (_time, obj) in ids_from_message(*track, message) {
                     let _option = self
                         .others
@@ -791,10 +791,6 @@ impl Bms {
                         .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     // Here we can add logic to handle ChangeOption
                     // Currently just ignored because change_options are already stored in notes
-                }
-                #[cfg(not(feature = "minor-command"))]
-                for (_time, _obj) in ids_from_message(*track, message) {
-                    // ChangeOption is not supported without minor-command feature
                 }
             }
             TokenContent::Message {
@@ -953,6 +949,7 @@ impl Bms {
                     )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel:
@@ -970,59 +967,42 @@ impl Bms {
                         Channel::BgaPoorArgb => BgaLayer::Poor,
                         _ => unreachable!(),
                     };
-                    #[cfg(feature = "minor-command")]
-                    {
-                        let argb = self
-                            .scope_defines
-                            .argb_defs
-                            .get(&argb_id)
-                            .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
-                        self.graphics.push_bga_argb_change(
-                            BgaArgbObj {
-                                time,
-                                layer,
-                                argb: *argb,
-                            },
+                    let argb = self
+                        .scope_defines
+                        .argb_defs
+                        .get(&argb_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
+                    self.graphics.push_bga_argb_change(
+                        BgaArgbObj {
                             time,
-                            prompt_handler,
-                        )?;
-                    }
-                    #[cfg(not(feature = "minor-command"))]
-                    {
-                        return Err(ParseWarningContent::SyntaxError(
-                            "ARGB definitions require minor-command feature".to_string(),
-                        ));
-                    }
+                            layer,
+                            argb: *argb,
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel: Channel::Seek,
                 message,
             } => {
                 for (time, seek_id) in ids_from_message(*track, message) {
-                    #[cfg(feature = "minor-command")]
-                    {
-                        let position = self
-                            .others
-                            .seek_events
-                            .get(&seek_id)
-                            .ok_or(ParseWarningContent::UndefinedObject(seek_id))?;
-                        self.notes.push_seek_event(
-                            SeekObj {
-                                time,
-                                position: position.clone(),
-                            },
+                    let position = self
+                        .others
+                        .seek_events
+                        .get(&seek_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(seek_id))?;
+                    self.notes.push_seek_event(
+                        SeekObj {
                             time,
-                            prompt_handler,
-                        )?;
-                    }
-                    #[cfg(not(feature = "minor-command"))]
-                    {
-                        return Err(ParseWarningContent::SyntaxError(
-                            "Seek events require minor-command feature".to_string(),
-                        ));
-                    }
+                            position: position.clone(),
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
                 }
             }
             TokenContent::Message {
@@ -1067,64 +1047,48 @@ impl Bms {
                     )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel: Channel::BgaKeybound,
                 message,
             } => {
                 for (time, keybound_id) in ids_from_message(*track, message) {
-                    #[cfg(feature = "minor-command")]
-                    {
-                        let event = self
-                            .scope_defines
-                            .swbga_events
-                            .get(&keybound_id)
-                            .ok_or(ParseWarningContent::UndefinedObject(keybound_id))?;
-                        self.notes.push_bga_keybound_event(
-                            BgaKeyboundObj {
-                                time,
-                                event: event.clone(),
-                            },
+                    let event = self
+                        .scope_defines
+                        .swbga_events
+                        .get(&keybound_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(keybound_id))?;
+                    self.notes.push_bga_keybound_event(
+                        BgaKeyboundObj {
                             time,
-                            prompt_handler,
-                        )?;
-                    }
-                    #[cfg(not(feature = "minor-command"))]
-                    {
-                        return Err(ParseWarningContent::SyntaxError(
-                            "BGA keybound events require minor-command feature".to_string(),
-                        ));
-                    }
+                            event: event.clone(),
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel: Channel::Option,
                 message,
             } => {
                 for (time, option_id) in ids_from_message(*track, message) {
-                    #[cfg(feature = "minor-command")]
-                    {
-                        let option = self
-                            .others
-                            .change_options
-                            .get(&option_id)
-                            .ok_or(ParseWarningContent::UndefinedObject(option_id))?;
-                        self.notes.push_option_event(
-                            OptionObj {
-                                time,
-                                option: option.clone(),
-                            },
+                    let option = self
+                        .others
+                        .change_options
+                        .get(&option_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(option_id))?;
+                    self.notes.push_option_event(
+                        OptionObj {
                             time,
-                            prompt_handler,
-                        )?;
-                    }
-                    #[cfg(not(feature = "minor-command"))]
-                    {
-                        return Err(ParseWarningContent::SyntaxError(
-                            "Option events require minor-command feature".to_string(),
-                        ));
-                    }
+                            option: option.clone(),
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
                 }
             }
             TokenContent::ExtendedMessage {

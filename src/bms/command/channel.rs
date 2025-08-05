@@ -28,6 +28,7 @@ pub enum Channel {
     /// For the bpm change object.
     BpmChange,
     /// For the change option object.
+    #[cfg(feature = "minor-command")]
     ChangeOption,
     /// For the note which the user can interact.
     Note {
@@ -47,6 +48,7 @@ pub enum Channel {
     /// For the note spacing change object.
     Speed,
     /// For the video seek object. #SEEKxx n
+    #[cfg(feature = "minor-command")]
     Seek,
     /// For the BGA LAYER2 object. #BMPxx (LAYER2 is layered over LAYER)
     BgaLayer2,
@@ -67,16 +69,22 @@ pub enum Channel {
     /// For the JUDGE object. #EXRANKxx n (100 corresponds to RANK:NORMAL. integer or decimal fraction)
     Judge,
     /// For the BGA BASE aRGB. #ARGBxx a,r,g,b (each [0-255])
+    #[cfg(feature = "minor-command")]
     BgaBaseArgb,
     /// For the BGA LAYER aRGB. #ARGBxx
+    #[cfg(feature = "minor-command")]
     BgaLayerArgb,
     /// For the BGA LAYER2 aRGB. #ARGBxx
+    #[cfg(feature = "minor-command")]
     BgaLayer2Argb,
     /// For the BGA POOR aRGB. #ARGBxx
+    #[cfg(feature = "minor-command")]
     BgaPoorArgb,
     /// For the BGA KEYBOUND. #SWBGAxx
+    #[cfg(feature = "minor-command")]
     BgaKeybound,
     /// For the OPTION. #CHANGEOPTIONxx (multiline)
+    #[cfg(feature = "minor-command")]
     Option,
 }
 
@@ -91,6 +99,7 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
         "03" => BpmChangeU8,
         "08" => BpmChange,
         "04" => BgaBase,
+        #[cfg(feature = "minor-command")]
         "05" => Seek,
         "06" => BgaPoor,
         "07" => BgaLayer,
@@ -104,11 +113,17 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
         "98" => KeyVolume,
         "99" => Text,
         "A0" => Judge,
+        #[cfg(feature = "minor-command")]
         "A1" => BgaBaseArgb,
+        #[cfg(feature = "minor-command")]
         "A2" => BgaLayerArgb,
+        #[cfg(feature = "minor-command")]
         "A3" => BgaLayer2Argb,
+        #[cfg(feature = "minor-command")]
         "A4" => BgaPoorArgb,
+        #[cfg(feature = "minor-command")]
         "A5" => BgaKeybound,
+        #[cfg(feature = "minor-command")]
         "A6" => Option,
         "SC" => Scroll,
         "SP" => Speed,
