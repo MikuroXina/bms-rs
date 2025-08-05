@@ -215,7 +215,7 @@ impl Bms {
                             PlayerSide::Player2 => 8,
                         },
                     )
-                    .and_then(|lane| NonZeroU8::new(lane));
+                    .and_then(NonZeroU8::new);
 
                 let pulses = converter.get_pulses_at(note.offset);
                 match note.kind {
