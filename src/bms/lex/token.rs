@@ -89,6 +89,7 @@ pub enum TokenContent<'a> {
     #[cfg(feature = "minor-command")]
     Cdda(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
+    #[cfg(feature = "minor-command")]
     ChangeOption(ObjId, &'a str),
     /// `#CHARFILE [filename]`.
     /// The character file similar to pop'n music. It's filextension is `.chp`.
@@ -214,6 +215,7 @@ pub enum TokenContent<'a> {
     #[cfg(feature = "minor-command")]
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
+    #[cfg(feature = "minor-command")]
     Option(&'a str),
     /// `#PATH_WAV [string]`. Defines the root path of [`TokenContent::Wav`] paths. This should be used only for tests.
     PathWav(&'a Path),
@@ -477,6 +479,7 @@ impl<'a> TokenContent<'a> {
                 "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
                 #[cfg(feature = "minor-command")]
                 "#OCT/FP" => Self::OctFp,
+                #[cfg(feature = "minor-command")]
                 "#OPTION" => Self::Option(c.next_line_remaining()),
                 "#PATH_WAV" => {
                     let file_name = c.next_line_remaining();
@@ -807,6 +810,7 @@ impl<'a> TokenContent<'a> {
                         draw_point: (dx, dy),
                     }
                 }
+                #[cfg(feature = "minor-command")]
                 changeoption if changeoption.starts_with("#CHANGEOPTION") => {
                     let id = changeoption.trim_start_matches("#CHANGEOPTION");
                     let option = c.next_line_remaining();
@@ -1169,7 +1173,7 @@ impl<'a> TokenContent<'a> {
                     let s = c.next_line_remaining();
                     Self::DivideProp(s)
                 }
-    #[cfg(feature = "minor-command")]
+                #[cfg(feature = "minor-command")]
                 materials if materials.starts_with("#MATERIALS") => {
                     let s = c.next_line_remaining();
                     Self::Materials(Path::new(s))
@@ -1242,6 +1246,7 @@ impl<'a> TokenContent<'a> {
             BpmChange(id, _) => {
                 id.make_uppercase();
             }
+            #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
                 id.make_uppercase();
             }
@@ -1449,6 +1454,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_changeoption() {
         let TokenContent::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
             panic!("Not ChangeOption");

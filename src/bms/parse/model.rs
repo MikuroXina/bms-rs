@@ -238,6 +238,7 @@ pub struct Graphics {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Others {
     /// The message for overriding options of some BMS player.
+    #[cfg(feature = "minor-command")]
     pub options: Option<Vec<String>>,
     /// Whether the score is the octave mode.
     #[cfg(feature = "minor-command")]
@@ -255,6 +256,7 @@ pub struct Others {
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
+    #[cfg(feature = "minor-command")]
     pub change_options: HashMap<ObjId, String>,
     /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
@@ -372,6 +374,7 @@ impl Bms {
                     self.scope_defines.bpm_defs.insert(*id, bpm.clone());
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
                     prompt_handler
@@ -465,6 +468,7 @@ impl Bms {
             TokenContent::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             TokenContent::OctFp => self.others.is_octave = true,
+            #[cfg(feature = "minor-command")]
             TokenContent::Option(option) => self
                 .others
                 .options
@@ -712,6 +716,7 @@ impl Bms {
                 channel: Channel::ChangeOption,
                 message,
             } => {
+                #[cfg(feature = "minor-command")]
                 for (_time, obj) in ids_from_message(*track, message) {
                     let _option = self
                         .others
@@ -720,6 +725,10 @@ impl Bms {
                         .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     // Here we can add logic to handle ChangeOption
                     // Currently just ignored because change_options are already stored in notes
+                }
+                #[cfg(not(feature = "minor-command"))]
+                for (_time, _obj) in ids_from_message(*track, message) {
+                    // ChangeOption is not supported without minor-command feature
                 }
             }
             TokenContent::Message {
