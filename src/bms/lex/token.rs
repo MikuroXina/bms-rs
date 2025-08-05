@@ -175,6 +175,11 @@ pub enum TokenContent<'a> {
     LnTypeMgq,
     /// `#MAKER [string]`. Defines the author name of the score.
     Maker(&'a str),
+    /// `#MATERIALS [string]` Material path definition.
+    /// Defines the relative path which makes an executable file a starting point.
+    /// This allows BMS files to reference files in Materials subdirectories using `<foldername>filename` syntax.
+    #[cfg(feature = "minor-command")]
+    Materials(&'a Path),
     /// `#MATERIALSBMP [filename]` Material BMP extension.
     /// Deprecated.
     #[cfg(feature = "minor-command")]
@@ -1164,6 +1169,11 @@ impl<'a> TokenContent<'a> {
                     let s = c.next_line_remaining();
                     Self::DivideProp(s)
                 }
+    #[cfg(feature = "minor-command")]
+                materials if materials.starts_with("#MATERIALS") => {
+                    let s = c.next_line_remaining();
+                    Self::Materials(Path::new(s))
+                }
                 charset if charset.starts_with("#CHARSET") => {
                     let s = c.next_line_remaining();
                     Self::Charset(s)
@@ -1531,6 +1541,15 @@ mod tests {
             panic!("Not Movie");
         };
         assert_eq!(path, Path::new("video.mp4"));
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_materials() {
+        let TokenContent::Materials(path) = parse_token("#MATERIALS /path/to/materials") else {
+            panic!("Not Materials");
+        };
+        assert_eq!(path, Path::new("/path/to/materials"));
     }
 
     #[test]

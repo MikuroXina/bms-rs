@@ -263,6 +263,9 @@ pub struct Others {
     /// Divide property. #DIVIDEPROP
     #[cfg(feature = "minor-command")]
     pub divide_prop: Option<String>,
+    /// Material path definition. #MATERIALS
+    #[cfg(feature = "minor-command")]
+    pub materials_path: Option<PathBuf>,
 }
 
 impl Bms {
@@ -899,6 +902,10 @@ impl Bms {
             #[cfg(feature = "minor-command")]
             TokenContent::DivideProp(prop) => {
                 self.others.divide_prop = Some(prop.to_string());
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Materials(path) => {
+                self.others.materials_path = Some(path.to_path_buf());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::VideoColors(colors) => {
