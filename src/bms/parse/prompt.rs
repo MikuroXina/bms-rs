@@ -22,6 +22,8 @@ use super::{
         SpeedObj,
     },
 };
+#[cfg(feature = "minor-command")]
+use crate::bms::command::minor_command::{StpEvent, SwBgaEvent, WavCmdEvent};
 
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
@@ -213,6 +215,46 @@ pub enum PromptingDuplication<'a> {
         older: &'a BgaArgbObj,
         /// Incoming definition.
         newer: &'a BgaArgbObj,
+    },
+    /// STP event is duplicated.
+    #[cfg(feature = "minor-command")]
+    StpEvent {
+        /// Duplicated STP event time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a StpEvent,
+        /// Incoming definition.
+        newer: &'a StpEvent,
+    },
+    /// WAVCMD event is duplicated.
+    #[cfg(feature = "minor-command")]
+    WavCmdEvent {
+        /// Duplicated WAVCMD event wav_index.
+        wav_index: ObjId,
+        /// Existing definition.
+        older: &'a WavCmdEvent,
+        /// Incoming definition.
+        newer: &'a WavCmdEvent,
+    },
+    /// SWBGA event is duplicated.
+    #[cfg(feature = "minor-command")]
+    SwBgaEvent {
+        /// Duplicated SWBGA event id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a SwBgaEvent,
+        /// Incoming definition.
+        newer: &'a SwBgaEvent,
+    },
+    /// Seek event is duplicated.
+    #[cfg(feature = "minor-command")]
+    SeekEvent {
+        /// Duplicated Seek event id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a Decimal,
+        /// Incoming definition.
+        newer: &'a Decimal,
     },
 }
 

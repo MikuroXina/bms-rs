@@ -583,34 +583,49 @@ impl Bms {
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Stp(ev) => {
-                // Store by ObjTime as key, report error if duplicated
+                // Store by ObjTime as key, handle duplication with prompt handler
                 let key = ev.time;
-                if self.arrangers.stp_events.contains_key(&key) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated STP event at time {key:?}"
-                    )));
+                if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::StpEvent {
+                            time: key,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, *ev)?;
+                } else {
+                    self.arrangers.stp_events.insert(key, *ev);
                 }
-                self.arrangers.stp_events.insert(key, *ev);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::WavCmd(ev) => {
-                // Store by wav_index as key, report error if duplicated
+                // Store by wav_index as key, handle duplication with prompt handler
                 let key = ev.wav_index;
-                if self.scope_defines.wavcmd_events.contains_key(&key) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated WAVCMD event for wav_index {key:?}",
-                    )));
+                if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::WavCmdEvent {
+                            wav_index: key,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, *ev)?;
+                } else {
+                    self.scope_defines.wavcmd_events.insert(key, *ev);
                 }
-                self.scope_defines.wavcmd_events.insert(key, *ev);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::SwBga(id, ev) => {
-                if self.scope_defines.swbga_events.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated SWBGA event for id {id:?}",
-                    )));
+                if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SwBgaEvent {
+                            id: *id,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, ev.clone())?;
+                } else {
+                    self.scope_defines.swbga_events.insert(*id, ev.clone());
                 }
-                self.scope_defines.swbga_events.insert(*id, ev.clone());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Argb(id, argb) => {
@@ -628,12 +643,17 @@ impl Bms {
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Seek(id, v) => {
-                if self.others.seek_events.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated Seek event for id {id:?}",
-                    )));
+                if let Some(older) = self.others.seek_events.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SeekEvent {
+                            id: *id,
+                            older,
+                            newer: v,
+                        })
+                        .apply(older, v.clone())?;
+                } else {
+                    self.others.seek_events.insert(*id, v.clone());
                 }
-                self.others.seek_events.insert(*id, v.clone());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::ExtChr(ev) => {
