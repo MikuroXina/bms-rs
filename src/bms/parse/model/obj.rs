@@ -2,11 +2,14 @@
 use crate::bms::{
     Decimal,
     command::{
-        Argb, ObjId,
+        Argb, JudgeLevel, ObjId,
         channel::{Channel, Key, NoteKind, PlayerSide},
         time::{ObjTime, Track},
     },
 };
+
+#[cfg(feature = "minor-command")]
+use crate::bms::command::minor_command::SwBgaEvent;
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -293,4 +296,55 @@ pub struct KeyVolumeObj {
     pub time: ObjTime,
     /// The volume value (0x01-0xFF, where 0x01 is minimum and 0xFF is maximum).
     pub volume: u8,
+}
+
+/// An object to seek video position.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SeekObj {
+    /// The time which the seek event is on.
+    pub time: ObjTime,
+    /// The seek position value.
+    pub position: Decimal,
+}
+
+/// An object to display text.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TextObj {
+    /// The time which the text is displayed.
+    pub time: ObjTime,
+    /// The text content.
+    pub text: String,
+}
+
+/// An object to change judge level.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct JudgeObj {
+    /// The time which the judge change is on.
+    pub time: ObjTime,
+    /// The judge level.
+    pub judge_level: JudgeLevel,
+}
+
+/// An object to change BGA keybound.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
+pub struct BgaKeyboundObj {
+    /// The time which the BGA keybound change is on.
+    pub time: ObjTime,
+    /// The BGA keybound event.
+    pub event: SwBgaEvent,
+}
+
+/// An object to change option.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OptionObj {
+    /// The time which the option change is on.
+    pub time: ObjTime,
+    /// The option content.
+    pub option: String,
 }

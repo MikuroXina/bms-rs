@@ -18,10 +18,13 @@ use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
-        BgaArgbObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, KeyVolumeObj,
-        ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
+        BgaArgbObj, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
+        ScrollingFactorObj, SectionLenChangeObj, SeekObj, SpeedObj, TextObj,
     },
 };
+
+#[cfg(feature = "minor-command")]
+use super::model::obj::{BgaKeyboundObj, OptionObj};
 #[cfg(feature = "minor-command")]
 use crate::bms::command::minor_command::{StpEvent, SwBgaEvent, WavCmdEvent};
 
@@ -273,6 +276,53 @@ pub enum PromptingDuplication<'a> {
         older: &'a KeyVolumeObj,
         /// Incoming definition.
         newer: &'a KeyVolumeObj,
+    },
+    /// Seek message event is duplicated.
+    SeekMessageEvent {
+        /// Duplicated seek time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a SeekObj,
+        /// Incoming definition.
+        newer: &'a SeekObj,
+    },
+    /// Text event is duplicated.
+    TextEvent {
+        /// Duplicated text time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a TextObj,
+        /// Incoming definition.
+        newer: &'a TextObj,
+    },
+    /// Judge event is duplicated.
+    JudgeEvent {
+        /// Duplicated judge time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a JudgeObj,
+        /// Incoming definition.
+        newer: &'a JudgeObj,
+    },
+    /// BGA keybound event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaKeyboundEvent {
+        /// Duplicated BGA keybound time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaKeyboundObj,
+        /// Incoming definition.
+        newer: &'a BgaKeyboundObj,
+    },
+    /// Option event is duplicated.
+    #[cfg(feature = "minor-command")]
+    OptionEvent {
+        /// Duplicated option time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a OptionObj,
+        /// Incoming definition.
+        newer: &'a OptionObj,
     },
 }
 

@@ -39,10 +39,13 @@ use self::{
     def::{Bmp, ExRankDef},
     obj::{
         BgaArgbObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj,
-        ExtendedMessageObj, KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
-        StopObj,
+        ExtendedMessageObj, JudgeObj, KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj,
+        SeekObj, SpeedObj, StopObj, TextObj,
     },
 };
+
+#[cfg(feature = "minor-command")]
+use self::obj::{BgaKeyboundObj, OptionObj};
 use super::{
     ParseWarningContent, Result,
     prompt::{PromptHandler, PromptingDuplication},
@@ -218,6 +221,18 @@ pub struct Notes {
     pub bgm_volume_changes: BTreeMap<ObjTime, BgmVolumeObj>,
     /// KEY volume change events, indexed by time. #98
     pub key_volume_changes: BTreeMap<ObjTime, KeyVolumeObj>,
+    /// Seek events, indexed by time. #05
+    pub seek_events: BTreeMap<ObjTime, SeekObj>,
+    /// Text events, indexed by time. #99
+    pub text_events: BTreeMap<ObjTime, TextObj>,
+    /// Judge events, indexed by time. #A0
+    pub judge_events: BTreeMap<ObjTime, JudgeObj>,
+    /// BGA keybound events, indexed by time. #A5
+    #[cfg(feature = "minor-command")]
+    pub bga_keybound_events: BTreeMap<ObjTime, BgaKeyboundObj>,
+    /// Option events, indexed by time. #A6
+    #[cfg(feature = "minor-command")]
+    pub option_events: BTreeMap<ObjTime, OptionObj>,
 }
 
 /// The graphics objects that are used in the score.
@@ -879,14 +894,6 @@ impl Bms {
                 }
             }
             TokenContent::Message {
-                track: _,
-                channel: Channel::Seek,
-                message: _,
-            } => {
-                // Seek events are handled by the Seek command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
                 track,
                 channel:
                     channel @ (Channel::BgaBaseOpacity
@@ -947,22 +954,6 @@ impl Bms {
                 }
             }
             TokenContent::Message {
-                track: _,
-                channel: Channel::Text,
-                message: _,
-            } => {
-                // Text is handled by the TEXT command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
-                track: _,
-                channel: Channel::Judge,
-                message: _,
-            } => {
-                // Judge is handled by the EXRANK command, not by message
-                // This is just for compatibility
-            }
-            TokenContent::Message {
                 track,
                 channel:
                     channel @ (Channel::BgaBaseArgb
@@ -1005,20 +996,136 @@ impl Bms {
                 }
             }
             TokenContent::Message {
-                track: _,
-                channel: Channel::BgaKeybound,
-                message: _,
+                track,
+                channel: Channel::Seek,
+                message,
             } => {
-                // SWBGA is handled by the SWBGA command, not by message
-                // This is just for compatibility
+                for (time, seek_id) in ids_from_message(*track, message) {
+                    #[cfg(feature = "minor-command")]
+                    {
+                        let position = self
+                            .others
+                            .seek_events
+                            .get(&seek_id)
+                            .ok_or(ParseWarningContent::UndefinedObject(seek_id))?;
+                        self.notes.push_seek_event(
+                            SeekObj {
+                                time,
+                                position: position.clone(),
+                            },
+                            time,
+                            prompt_handler,
+                        )?;
+                    }
+                    #[cfg(not(feature = "minor-command"))]
+                    {
+                        return Err(ParseWarningContent::SyntaxError(
+                            "Seek events require minor-command feature".to_string(),
+                        ));
+                    }
+                }
             }
             TokenContent::Message {
-                track: _,
-                channel: Channel::Option,
-                message: _,
+                track,
+                channel: Channel::Text,
+                message,
             } => {
-                // Option is handled by the CHANGEOPTION command, not by message
-                // This is just for compatibility
+                for (time, text_id) in ids_from_message(*track, message) {
+                    let text = self
+                        .others
+                        .texts
+                        .get(&text_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(text_id))?;
+                    self.notes.push_text_event(
+                        TextObj {
+                            time,
+                            text: text.clone(),
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::Judge,
+                message,
+            } => {
+                for (time, judge_id) in ids_from_message(*track, message) {
+                    let exrank_def = self
+                        .scope_defines
+                        .exrank_defs
+                        .get(&judge_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(judge_id))?;
+                    self.notes.push_judge_event(
+                        JudgeObj {
+                            time,
+                            judge_level: exrank_def.judge_level,
+                        },
+                        time,
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::BgaKeybound,
+                message,
+            } => {
+                for (time, keybound_id) in ids_from_message(*track, message) {
+                    #[cfg(feature = "minor-command")]
+                    {
+                        let event = self
+                            .scope_defines
+                            .swbga_events
+                            .get(&keybound_id)
+                            .ok_or(ParseWarningContent::UndefinedObject(keybound_id))?;
+                        self.notes.push_bga_keybound_event(
+                            BgaKeyboundObj {
+                                time,
+                                event: event.clone(),
+                            },
+                            time,
+                            prompt_handler,
+                        )?;
+                    }
+                    #[cfg(not(feature = "minor-command"))]
+                    {
+                        return Err(ParseWarningContent::SyntaxError(
+                            "BGA keybound events require minor-command feature".to_string(),
+                        ));
+                    }
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::Option,
+                message,
+            } => {
+                for (time, option_id) in ids_from_message(*track, message) {
+                    #[cfg(feature = "minor-command")]
+                    {
+                        let option = self
+                            .others
+                            .change_options
+                            .get(&option_id)
+                            .ok_or(ParseWarningContent::UndefinedObject(option_id))?;
+                        self.notes.push_option_event(
+                            OptionObj {
+                                time,
+                                option: option.clone(),
+                            },
+                            time,
+                            prompt_handler,
+                        )?;
+                    }
+                    #[cfg(not(feature = "minor-command"))]
+                    {
+                        return Err(ParseWarningContent::SyntaxError(
+                            "Option events require minor-command feature".to_string(),
+                        ));
+                    }
+                }
             }
             TokenContent::ExtendedMessage {
                 track,
@@ -1518,6 +1625,138 @@ impl Notes {
                         newer: &volume_obj,
                     })
                     .apply(entry.get_mut(), volume_obj)
+            }
+        }
+    }
+
+    /// Adds a new seek object to the notes.
+    pub fn push_seek_event(
+        &mut self,
+        seek_obj: SeekObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.seek_events.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(seek_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::SeekMessageEvent {
+                        time,
+                        older: existing,
+                        newer: &seek_obj,
+                    })
+                    .apply(entry.get_mut(), seek_obj)
+            }
+        }
+    }
+
+    /// Adds a new text object to the notes.
+    pub fn push_text_event(
+        &mut self,
+        text_obj: TextObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.text_events.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(text_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::TextEvent {
+                        time,
+                        older: existing,
+                        newer: &text_obj,
+                    })
+                    .apply(entry.get_mut(), text_obj)
+            }
+        }
+    }
+
+    /// Adds a new judge object to the notes.
+    pub fn push_judge_event(
+        &mut self,
+        judge_obj: JudgeObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.judge_events.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(judge_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::JudgeEvent {
+                        time,
+                        older: existing,
+                        newer: &judge_obj,
+                    })
+                    .apply(entry.get_mut(), judge_obj)
+            }
+        }
+    }
+
+    /// Adds a new BGA keybound object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_bga_keybound_event(
+        &mut self,
+        keybound_obj: BgaKeyboundObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bga_keybound_events.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(keybound_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaKeyboundEvent {
+                        time,
+                        older: existing,
+                        newer: &keybound_obj,
+                    })
+                    .apply(entry.get_mut(), keybound_obj)
+            }
+        }
+    }
+
+    /// Adds a new option object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_option_event(
+        &mut self,
+        option_obj: OptionObj,
+        time: ObjTime,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.option_events.entry(time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(option_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::OptionEvent {
+                        time,
+                        older: existing,
+                        newer: &option_obj,
+                    })
+                    .apply(entry.get_mut(), option_obj)
             }
         }
     }
