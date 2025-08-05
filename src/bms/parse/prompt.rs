@@ -18,13 +18,13 @@ use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
-        BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
-        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, TextObj,
+        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
+        SectionLenChangeObj, SpeedObj, TextObj,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use super::model::obj::{BgaArgbObj, BgaKeyboundObj, OptionObj, SeekObj};
+use super::model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{
     graphics::Argb,
@@ -196,6 +196,7 @@ pub enum PromptingDuplication<'a> {
         newer: &'a BgaObj,
     },
     /// BGA opacity change event is duplicated.
+    #[cfg(feature = "minor-command")]
     BgaOpacityChangeEvent {
         /// Duplicated BGA opacity change time.
         time: ObjTime,

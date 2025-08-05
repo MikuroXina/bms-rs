@@ -53,12 +53,16 @@ pub enum Channel {
     /// For the BGA LAYER2 object. #BMPxx (LAYER2 is layered over LAYER)
     BgaLayer2,
     /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
+    #[cfg(feature = "minor-command")]
     BgaBaseOpacity,
     /// For the opacity of BGA LAYER. transparent « [01-FF] » opaque
+    #[cfg(feature = "minor-command")]
     BgaLayerOpacity,
     /// For the opacity of BGA LAYER2. transparent « [01-FF] » opaque
+    #[cfg(feature = "minor-command")]
     BgaLayer2Opacity,
     /// For the opacity of BGA POOR. transparent « [01-FF] » opaque
+    #[cfg(feature = "minor-command")]
     BgaPoorOpacity,
     /// For the BGM volume. min 1 « [01-FF] » max 255 (= original sound)
     BgmVolume,
@@ -105,9 +109,13 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
         "07" => BgaLayer,
         "09" => Stop,
         "0A" => BgaLayer2,
+        #[cfg(feature = "minor-command")]
         "0B" => BgaBaseOpacity,
+        #[cfg(feature = "minor-command")]
         "0C" => BgaLayerOpacity,
+        #[cfg(feature = "minor-command")]
         "0D" => BgaLayer2Opacity,
+        #[cfg(feature = "minor-command")]
         "0E" => BgaPoorOpacity,
         "97" => BgmVolume,
         "98" => KeyVolume,

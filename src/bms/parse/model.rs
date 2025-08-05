@@ -36,13 +36,13 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj, BpmChangeObj, ExtendedMessageObj, JudgeObj,
-        KeyVolumeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+        BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, ExtendedMessageObj, JudgeObj, KeyVolumeObj,
+        Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use self::obj::{BgaArgbObj, BgaKeyboundObj, OptionObj, SeekObj};
+use self::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
 use super::{
     ParseWarningContent, Result,
     prompt::{PromptHandler, PromptingDuplication},
@@ -266,6 +266,7 @@ pub struct Graphics {
     #[cfg(feature = "minor-command")]
     pub video_fs: Option<Decimal>,
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
+    #[cfg(feature = "minor-command")]
     pub bga_opacity_changes: BTreeMap<ObjTime, BgaOpacityObj>,
     /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
     #[cfg(feature = "minor-command")]
@@ -888,6 +889,7 @@ impl Bms {
                     });
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel:
@@ -1403,6 +1405,7 @@ impl Graphics {
     }
 
     /// Adds a new BGA opacity change object to the graphics.
+    #[cfg(feature = "minor-command")]
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
@@ -1743,6 +1746,7 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
     })
 }
 
+#[cfg(feature = "minor-command")]
 fn opacity_from_message(
     track: Track,
     message: &'_ str,

@@ -257,6 +257,7 @@ pub struct ExtendedMessageObj {
 /// An object to change the opacity of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg(feature = "minor-command")]
 pub struct BgaOpacityObj {
     /// The time which the opacity change is on.
     pub time: ObjTime,
