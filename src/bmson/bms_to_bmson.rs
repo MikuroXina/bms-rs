@@ -88,12 +88,11 @@ impl Bms {
             })
             .collect();
 
-        let bpm_events = self
-            .arrangers
-            .bpm_changes
-            .values()
-            .filter_map(|bpm_change| {
-                Some(BpmEvent {
+        let bpm_events =
+            self.arrangers
+                .bpm_changes
+                .values()
+                .map(|bpm_change| BpmEvent {
                     y: converter.get_pulses_at(bpm_change.time),
                     bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
                         .unwrap_or_else(|| {
@@ -101,8 +100,7 @@ impl Bms {
                             FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
                         }),
                 })
-            })
-            .collect();
+                .collect();
 
         let stop_events = self
             .arrangers
