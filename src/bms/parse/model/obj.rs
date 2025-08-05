@@ -173,6 +173,10 @@ pub enum BgaLayer {
     Poor,
     /// An overlaying layer.
     Overlay,
+    /// An overlaying layer.
+    ///
+    /// This layer is layered over [`BgaLayer::Overlay`].
+    Overlay2,
 }
 
 /// An object to change scrolling factor of the score.

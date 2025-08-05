@@ -46,6 +46,38 @@ pub enum Channel {
     Scroll,
     /// For the note spacing change object.
     Speed,
+    /// For the video seek object. #SEEKxx n
+    Seek,
+    /// For the BGA LAYER2 object. #BMPxx (LAYER2 is layered over LAYER)
+    BgaLayer2,
+    /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
+    BgaBaseOpacity,
+    /// For the opacity of BGA LAYER. transparent « [01-FF] » opaque
+    BgaLayerOpacity,
+    /// For the opacity of BGA LAYER2. transparent « [01-FF] » opaque
+    BgaLayer2Opacity,
+    /// For the opacity of BGA POOR. transparent « [01-FF] » opaque
+    BgaPoorOpacity,
+    /// For the BGM volume. min 1 « [01-FF] » max 255 (= original sound)
+    BgmVolume,
+    /// For the KEY volume. min 1 « [01-FF] » max 255 (= original sound)
+    KeyVolume,
+    /// For the TEXT object. #TEXTxx "string"
+    Text,
+    /// For the JUDGE object. #EXRANKxx n (100 corresponds to RANK:NORMAL. integer or decimal fraction)
+    Judge,
+    /// For the BGA BASE aRGB. #ARGBxx a,r,g,b (each [0-255])
+    BgaBaseArgb,
+    /// For the BGA LAYER aRGB. #ARGBxx
+    BgaLayerArgb,
+    /// For the BGA LAYER2 aRGB. #ARGBxx
+    BgaLayer2Argb,
+    /// For the BGA POOR aRGB. #ARGBxx
+    BgaPoorArgb,
+    /// For the BGA KEYBOUND. #SWBGAxx
+    BgaKeybound,
+    /// For the OPTION. #CHANGEOPTIONxx (multiline)
+    Option,
 }
 
 /// Reads a channel from a string.
@@ -59,9 +91,25 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
         "03" => BpmChangeU8,
         "08" => BpmChange,
         "04" => BgaBase,
+        "05" => Seek,
         "06" => BgaPoor,
         "07" => BgaLayer,
         "09" => Stop,
+        "0A" => BgaLayer2,
+        "0B" => BgaBaseOpacity,
+        "0C" => BgaLayerOpacity,
+        "0D" => BgaLayer2Opacity,
+        "0E" => BgaPoorOpacity,
+        "97" => BgmVolume,
+        "98" => KeyVolume,
+        "99" => Text,
+        "A0" => Judge,
+        "A1" => BgaBaseArgb,
+        "A2" => BgaLayerArgb,
+        "A3" => BgaLayer2Argb,
+        "A4" => BgaPoorArgb,
+        "A5" => BgaKeybound,
+        "A6" => Option,
         "SC" => Scroll,
         "SP" => Speed,
         _ => return None,

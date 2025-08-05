@@ -309,7 +309,7 @@ impl Bms {
                 let target = match change.layer {
                     BgaLayer::Base => &mut bga.bga_events,
                     BgaLayer::Poor => &mut bga.poor_events,
-                    BgaLayer::Overlay => &mut bga.layer_events,
+                    BgaLayer::Overlay | BgaLayer::Overlay2 => &mut bga.layer_events,
                 };
                 target.push(BgaEvent {
                     y: converter.get_pulses_at(time),

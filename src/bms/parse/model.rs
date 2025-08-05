@@ -839,6 +839,146 @@ impl Bms {
                     });
                 }
             }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::Seek,
+                message: _,
+            } => {
+                // Seek events are handled by the Seek command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::BgaLayer2,
+                message,
+            } => {
+                for (time, obj) in ids_from_message(*track, message) {
+                    if !self.graphics.bmp_files.contains_key(&obj) {
+                        return Err(ParseWarningContent::UndefinedObject(obj));
+                    }
+                    self.graphics.push_bga_change(
+                        BgaObj {
+                            time,
+                            id: obj,
+                            layer: BgaLayer::Overlay2,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaBaseOpacity,
+                message: _,
+            } => {
+                // Opacity is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaLayerOpacity,
+                message: _,
+            } => {
+                // Opacity is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaLayer2Opacity,
+                message: _,
+            } => {
+                // Opacity is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaPoorOpacity,
+                message: _,
+            } => {
+                // Opacity is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgmVolume,
+                message: _,
+            } => {
+                // Volume is handled by the VOLWAV command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::KeyVolume,
+                message: _,
+            } => {
+                // Volume is handled by the VOLWAV command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::Text,
+                message: _,
+            } => {
+                // Text is handled by the TEXT command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::Judge,
+                message: _,
+            } => {
+                // Judge is handled by the EXRANK command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaBaseArgb,
+                message: _,
+            } => {
+                // ARGB is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaLayerArgb,
+                message: _,
+            } => {
+                // ARGB is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaLayer2Argb,
+                message: _,
+            } => {
+                // ARGB is handled by the ARGB command, not by message
+                // This is just for compatibility
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaPoorArgb,
+                message: _,
+            } => {
+                // ARGB is handled by the ARGB command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::BgaKeybound,
+                message: _,
+            } => {
+                // SWBGA is handled by the SWBGA command, not by message
+                // This is just for compatibility
+            }
+            TokenContent::Message {
+                track: _,
+                channel: Channel::Option,
+                message: _,
+            } => {
+                // Option is handled by the CHANGEOPTION command, not by message
+                // This is just for compatibility
+            }
             TokenContent::ExtendedMessage {
                 track,
                 channel,
