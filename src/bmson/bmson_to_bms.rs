@@ -33,6 +33,28 @@ pub enum BmsonToBmsWarning {
     ScrollDefOutOfRange,
 }
 
+#[derive(Debug)]
+struct ObjIdIssuer(u16);
+
+impl ObjIdIssuer {
+    const fn new() -> Self {
+        Self(1)
+    }
+}
+
+impl Iterator for ObjIdIssuer {
+    type Item = ObjId;
+    fn next(&mut self) -> Option<Self::Item> {
+        const MAX_ID: u16 = 62 * 62;
+        if self.0 > MAX_ID {
+            return None;
+        }
+        let id = self.0;
+        self.0 += 1;
+        create_obj_id_from_u16(id).ok()
+    }
+}
+
 /// Output of the conversion from `Bmson` to `Bms`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BmsonToBmsOutput {
@@ -51,6 +73,12 @@ impl Bms {
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
         let mut bms = Bms::default();
         let mut warnings = Vec::new();
+        let mut wav_obj_id_issuer = ObjIdIssuer::new();
+        let mut bga_header_obj_id_issuer = ObjIdIssuer::new();
+        let mut bga_event_obj_id_issuer = ObjIdIssuer::new();
+        let mut bpm_def_obj_id_issuer = ObjIdIssuer::new();
+        let mut stop_def_obj_id_issuer = ObjIdIssuer::new();
+        let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
 
         // Convert info to header
         bms.header.title = Some(value.info.title);
@@ -87,14 +115,10 @@ impl Bms {
             let bpm = Decimal::from(bpm_event.bpm.as_f64());
 
             // Add to scope_defines
-            let bpm_def_id =
-                match create_obj_id_from_u16(bms.scope_defines.bpm_defs.len() as u16 + 1) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
-                        ObjId::null()
-                    }
-                };
+            let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
+                ObjId::null()
+            });
             bms.scope_defines.bpm_defs.insert(bpm_def_id, bpm.clone());
 
             bms.arrangers
@@ -108,14 +132,10 @@ impl Bms {
             let duration = Decimal::from(stop_event.duration);
 
             // Add to scope_defines
-            let stop_def_id =
-                match create_obj_id_from_u16(bms.scope_defines.stop_defs.len() as u16 + 1) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
-                        ObjId::null()
-                    }
-                };
+            let stop_def_id = stop_def_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
+                ObjId::null()
+            });
             bms.scope_defines
                 .stop_defs
                 .insert(stop_def_id, duration.clone());
@@ -129,14 +149,10 @@ impl Bms {
             let factor = Decimal::from(scroll_event.rate.as_f64());
 
             // Add to scope_defines
-            let scroll_def_id =
-                match create_obj_id_from_u16(bms.scope_defines.scroll_defs.len() as u16 + 1) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
-                        ObjId::null()
-                    }
-                };
+            let scroll_def_id = scroll_def_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
+                ObjId::null()
+            });
             bms.scope_defines
                 .scroll_defs
                 .insert(scroll_def_id, factor.clone());
@@ -147,16 +163,12 @@ impl Bms {
         }
 
         // Convert sound channels to notes
-        let mut obj_id_counter = 1u16;
         for sound_channel in value.sound_channels {
             let wav_path = PathBuf::from(sound_channel.name);
-            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for note in sound_channel.notes {
@@ -177,19 +189,15 @@ impl Bms {
                 };
                 bms.notes.push_note(obj);
             }
-            obj_id_counter += 1;
         }
 
         // Convert mine channels
         for mine_channel in value.mine_channels {
             let wav_path = PathBuf::from(mine_channel.name);
-            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for mine_event in mine_channel.notes {
@@ -205,19 +213,15 @@ impl Bms {
                 };
                 bms.notes.push_note(obj);
             }
-            obj_id_counter += 1;
         }
 
         // Convert key channels (invisible notes)
         for key_channel in value.key_channels {
             let wav_path = PathBuf::from(key_channel.name);
-            let obj_id = match create_obj_id_from_u16(obj_id_counter) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for key_event in key_channel.notes {
@@ -233,19 +237,15 @@ impl Bms {
                 };
                 bms.notes.push_note(obj);
             }
-            obj_id_counter += 1;
         }
 
         // Convert BGA
         for bga_header in value.bga.bga_header {
             let bmp_path = PathBuf::from(bga_header.name);
-            let obj_id = match create_obj_id_from_u32(bga_header.id.0) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::BgaHeaderObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = bga_header_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::BgaHeaderObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.graphics.bmp_files.insert(
                 obj_id,
                 Bmp {
@@ -257,13 +257,10 @@ impl Bms {
 
         for bga_event in value.bga.bga_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
@@ -276,13 +273,10 @@ impl Bms {
 
         for bga_event in value.bga.layer_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
@@ -295,13 +289,10 @@ impl Bms {
 
         for bga_event in value.bga.poor_events {
             let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution);
-            let obj_id = match create_obj_id_from_u32(bga_event.id.0) {
-                Ok(id) => id,
-                Err(_) => {
-                    warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
-                    ObjId::null()
-                }
-            };
+            let obj_id = bga_event_obj_id_issuer.next().unwrap_or_else(|| {
+                warnings.push(BmsonToBmsWarning::BgaEventObjIdOutOfRange);
+                ObjId::null()
+            });
             bms.graphics.bga_changes.insert(
                 time,
                 BgaObj {
@@ -385,9 +376,4 @@ fn create_obj_id_from_u16(value: u16) -> Result<ObjId, ()> {
     };
 
     chars.try_into().map_err(|_| ())
-}
-
-/// Create ObjId from u32
-fn create_obj_id_from_u32(value: u32) -> Result<ObjId, ()> {
-    create_obj_id_from_u16(value as u16)
 }
