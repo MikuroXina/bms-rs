@@ -1494,8 +1494,8 @@ mod tests {
             panic!("Not StpSeq");
         };
         assert_eq!(stp.time.track, Track(1));
-        assert_eq!(stp.time.numerator, 500);
-        assert_eq!(stp.time.denominator, 1000);
+        assert_eq!(stp.time.numerator, 1);
+        assert_eq!(stp.time.denominator, 2); // After GCD(500, 1000)
         assert_eq!(stp.duration.as_millis(), 1500);
     }
 
