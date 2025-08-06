@@ -138,6 +138,7 @@ pub enum TokenContent<'a> {
     #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
     /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
+    #[cfg(feature = "minor-command")]
     ExtendedMessage {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
         track: Track,
@@ -919,6 +920,7 @@ impl<'a> TokenContent<'a> {
                         abs_y,
                     })
                 }
+                #[cfg(feature = "minor-command")]
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
                         .next_token()

@@ -34,8 +34,8 @@ pub use super::parse::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
         obj::{
-            BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-            SectionLenChangeObj, SpeedObj, StopObj,
+            BgaLayer, BgaObj, BpmChangeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
+            StopObj,
         },
     },
     prompt::{
@@ -60,4 +60,10 @@ pub use super::command::minor_command::{
 
 // Re-export ExWavDef when feature is enabled
 #[cfg(feature = "minor-command")]
-pub use super::parse::model::def::ExWavDef;
+pub use super::parse::model::{
+    def::ExWavDef,
+    obj::{
+        BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, BgmVolumeObj, ExtendedMessageObj, JudgeObj,
+        KeyVolumeObj, OptionObj, SeekObj, TextObj,
+    },
+};

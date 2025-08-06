@@ -36,13 +36,15 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, ExtendedMessageObj, JudgeObj, KeyVolumeObj,
-        Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+        BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use self::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
+use self::obj::{
+    BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj,
+};
 use super::{
     ParseWarningContent, Result,
     prompt::{PromptHandler, PromptingDuplication},
@@ -207,6 +209,7 @@ pub struct Notes {
     /// Maps each key (lane) to a sorted map of times and object IDs for efficient note lookup.
     pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     /// Extended message events. #EXT
+    #[cfg(feature = "minor-command")]
     pub extended_messages: Vec<ExtendedMessageObj>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
@@ -1092,6 +1095,7 @@ impl Bms {
                     )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::ExtendedMessage {
                 track,
                 channel,
@@ -1521,6 +1525,7 @@ impl Notes {
     }
 
     /// Adds the new extended message object to the notes.
+    #[cfg(feature = "minor-command")]
     pub fn push_extended_message(&mut self, message: ExtendedMessageObj) {
         self.extended_messages.push(message);
     }

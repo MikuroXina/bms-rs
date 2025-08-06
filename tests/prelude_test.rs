@@ -101,11 +101,6 @@ fn test_prelude_imports() {
         time: _obj_time,
         factor: Decimal::from(1),
     };
-    let _extended_message_obj = ExtendedMessageObj {
-        track: _track,
-        channel: Channel::Bgm,
-        message: "test".into(),
-    };
 
     // Test prompt types
     let _duplication_workaround = DuplicationWorkaround::UseOlder;
@@ -145,6 +140,11 @@ fn test_prelude_minor_command_imports() {
             denominator: 1,
         },
         duration: std::time::Duration::from_secs(1),
+    };
+    let _extended_message_obj = ExtendedMessageObj {
+        track: Track(1),
+        channel: Channel::Bgm,
+        message: "test".into(),
     };
     let _wav_cmd_event = WavCmdEvent {
         param: WavCmdParam::Pitch,
