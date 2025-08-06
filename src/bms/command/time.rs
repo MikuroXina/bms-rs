@@ -22,13 +22,21 @@ pub struct ObjTime {
 impl ObjTime {
     /// Create a new time.
     pub fn new(mut track: u64, mut numerator: u64, mut denominator: u64) -> Self {
+        // If denominator is 0, set numerator to 0 and denominator to 1, and return.
+        if denominator == 0 {
+            return Self {
+                track: Track(track),
+                numerator: 0,
+                denominator: 1,
+            };
+        }
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
         if numerator > denominator {
             track += numerator / denominator;
             numerator %= denominator;
         }
-        // If numerator or denominator is 0, set numerator to 0 and denominator to 1, and return.
-        if numerator == 0 || denominator == 0 {
+        // If numerator is 0, set numerator to 0 and denominator to 1, and return.
+        if numerator == 0 {
             return Self {
                 track: Track(track),
                 numerator: 0,
@@ -36,11 +44,9 @@ impl ObjTime {
             };
         }
         // Reduce the fraction to the simplest form.
-        if numerator != 0 && denominator != 0 {
-            let gcd = numerator.gcd(&denominator);
-            numerator /= gcd;
-            denominator /= gcd;
-        }
+        let gcd = numerator.gcd(&denominator);
+        numerator /= gcd;
+        denominator /= gcd;
         Self {
             track: Track(track),
             numerator,
