@@ -1020,7 +1020,6 @@ impl Bms {
                             time,
                             text: text.clone(),
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1624,10 +1623,9 @@ impl Notes {
     pub fn push_text_event(
         &mut self,
         text_obj: TextObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.text_events.entry(time) {
+        match self.text_events.entry(text_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(text_obj);
                 Ok(())
@@ -1637,7 +1635,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::TextEvent {
-                        time,
+                        time: text_obj.time,
                         older: existing,
                         newer: &text_obj,
                     })
