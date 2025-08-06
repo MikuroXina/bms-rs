@@ -4,7 +4,7 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export main types from bms module
-pub use super::{BmsWarning, Decimal};
+pub use super::{BmsOutput, BmsWarning, Decimal, parse_bms};
 
 // Re-export from command module
 pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
@@ -34,8 +34,8 @@ pub use super::parse::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
         obj::{
-            BgaLayer, BgaObj, BpmChangeObj, Obj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj,
-            StopObj,
+            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
         },
     },
     prompt::{
@@ -62,8 +62,5 @@ pub use super::command::minor_command::{
 #[cfg(feature = "minor-command")]
 pub use super::parse::model::{
     def::ExWavDef,
-    obj::{
-        BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, BgmVolumeObj, ExtendedMessageObj, JudgeObj,
-        KeyVolumeObj, OptionObj, SeekObj, TextObj,
-    },
+    obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj},
 };

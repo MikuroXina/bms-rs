@@ -270,10 +270,10 @@ pub struct Graphics {
     pub video_fs: Option<Decimal>,
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
     #[cfg(feature = "minor-command")]
-    pub bga_opacity_changes: BTreeMap<ObjTime, BgaOpacityObj>,
+    pub bga_opacity_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaOpacityObj>>,
     /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
     #[cfg(feature = "minor-command")]
-    pub bga_argb_changes: BTreeMap<ObjTime, BgaArgbObj>,
+    pub bga_argb_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaArgbObj>>,
 }
 
 /// The other objects that are used in the score. May be arranged in play.
@@ -916,7 +916,6 @@ impl Bms {
                             layer,
                             opacity: opacity_value,
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -932,7 +931,6 @@ impl Bms {
                             time,
                             volume: volume_value,
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -948,7 +946,6 @@ impl Bms {
                             time,
                             volume: volume_value,
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -982,7 +979,6 @@ impl Bms {
                             layer,
                             argb: *argb,
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1004,7 +1000,6 @@ impl Bms {
                             time,
                             position: position.clone(),
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1046,7 +1041,6 @@ impl Bms {
                             time,
                             judge_level: exrank_def.judge_level,
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1068,7 +1062,6 @@ impl Bms {
                             time,
                             event: event.clone(),
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1090,7 +1083,6 @@ impl Bms {
                             time,
                             option: option.clone(),
                         },
-                        time,
                         prompt_handler,
                     )?;
                 }
@@ -1413,10 +1405,13 @@ impl Graphics {
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.bga_opacity_changes.entry(time) {
+        let this_layer_map = self
+            .bga_opacity_changes
+            .entry(opacity_obj.layer)
+            .or_default();
+        match this_layer_map.entry(opacity_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(opacity_obj);
                 Ok(())
@@ -1426,7 +1421,7 @@ impl Graphics {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BgaOpacityChangeEvent {
-                        time,
+                        time: opacity_obj.time,
                         older: existing,
                         newer: &opacity_obj,
                     })
@@ -1440,10 +1435,10 @@ impl Graphics {
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.bga_argb_changes.entry(time) {
+        let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
+        match this_layer_map.entry(argb_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(argb_obj);
                 Ok(())
@@ -1453,7 +1448,7 @@ impl Graphics {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BgaArgbChangeEvent {
-                        time,
+                        time: argb_obj.time,
                         older: existing,
                         newer: &argb_obj,
                     })
@@ -1553,10 +1548,9 @@ impl Notes {
     pub fn push_bgm_volume_change(
         &mut self,
         volume_obj: BgmVolumeObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.bgm_volume_changes.entry(time) {
+        match self.bgm_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(volume_obj);
                 Ok(())
@@ -1566,7 +1560,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BgmVolumeChangeEvent {
-                        time,
+                        time: volume_obj.time,
                         older: existing,
                         newer: &volume_obj,
                     })
@@ -1579,10 +1573,9 @@ impl Notes {
     pub fn push_key_volume_change(
         &mut self,
         volume_obj: KeyVolumeObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.key_volume_changes.entry(time) {
+        match self.key_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(volume_obj);
                 Ok(())
@@ -1592,7 +1585,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::KeyVolumeChangeEvent {
-                        time,
+                        time: volume_obj.time,
                         older: existing,
                         newer: &volume_obj,
                     })
@@ -1606,10 +1599,9 @@ impl Notes {
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.seek_events.entry(time) {
+        match self.seek_events.entry(seek_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(seek_obj);
                 Ok(())
@@ -1619,7 +1611,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::SeekMessageEvent {
-                        time,
+                        time: seek_obj.time,
                         older: existing,
                         newer: &seek_obj,
                     })
@@ -1658,10 +1650,9 @@ impl Notes {
     pub fn push_judge_event(
         &mut self,
         judge_obj: JudgeObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.judge_events.entry(time) {
+        match self.judge_events.entry(judge_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(judge_obj);
                 Ok(())
@@ -1671,7 +1662,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::JudgeEvent {
-                        time,
+                        time: judge_obj.time,
                         older: existing,
                         newer: &judge_obj,
                     })
@@ -1685,10 +1676,9 @@ impl Notes {
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.bga_keybound_events.entry(time) {
+        match self.bga_keybound_events.entry(keybound_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(keybound_obj);
                 Ok(())
@@ -1698,7 +1688,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::BgaKeyboundEvent {
-                        time,
+                        time: keybound_obj.time,
                         older: existing,
                         newer: &keybound_obj,
                     })
@@ -1712,10 +1702,9 @@ impl Notes {
     pub fn push_option_event(
         &mut self,
         option_obj: OptionObj,
-        time: ObjTime,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match self.option_events.entry(time) {
+        match self.option_events.entry(option_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(option_obj);
                 Ok(())
@@ -1725,7 +1714,7 @@ impl Notes {
 
                 prompt_handler
                     .handle_duplication(PromptingDuplication::OptionEvent {
-                        time,
+                        time: option_obj.time,
                         older: existing,
                         newer: &option_obj,
                     })
