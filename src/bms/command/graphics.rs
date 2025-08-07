@@ -59,7 +59,7 @@ impl From<PixelSize> for (u16, u16) {
 }
 
 /// An alpha-red-gree-blue color data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Argb {
     /// A component of alpha.

@@ -134,7 +134,7 @@ pub struct WavCmdEvent {
 /// - loop_mode: whether to loop (0: no loop, 1: loop)
 /// - argb: transparent color (A,R,G,B)
 /// - pattern: animation frame sequence (e.g. 01020304)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SwBgaEvent {
     /// Frame interval (ms), e.g. 60FPS=17.

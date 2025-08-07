@@ -31,7 +31,7 @@ pub enum PlayerMode {
 /// Note: VeryEasy is not Implemented.
 /// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
 /// See: https://github.com/MikuroXina/bms-rs/pull/122
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
     /// Rank 0, the most difficult rank.

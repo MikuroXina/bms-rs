@@ -10,7 +10,7 @@ use crate::bms::command::{
 use crate::bms::command::minor_command::{ExWavFrequency, ExWavPan, ExWavVolume};
 
 /// A definition for #@BGA command.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AtBgaDef {
     /// The object ID.
@@ -26,7 +26,7 @@ pub struct AtBgaDef {
 }
 
 /// A definition for #BGA command.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgaDef {
     /// The object ID.
@@ -42,7 +42,7 @@ pub struct BgaDef {
 }
 
 /// A definition for #EXWAV command.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct ExWavDef {
@@ -65,7 +65,7 @@ pub struct ExWavDef {
 }
 
 /// A background image/video data.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bmp {
     /// The path to the image/video file. This is relative path from the BMS file.
@@ -75,7 +75,7 @@ pub struct Bmp {
 }
 
 /// A definition for #EXRANK command.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExRankDef {
     /// The object ID.

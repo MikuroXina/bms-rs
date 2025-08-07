@@ -11,7 +11,7 @@
 //!   - `read_channel_dsc_oct_fp` for DSC & OCT/FP
 
 /// The channel, or lane, where the note will be on.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum Channel {
@@ -287,7 +287,7 @@ pub fn read_channel_dsc_oct_fp(channel: &str) -> Option<Channel> {
 }
 
 /// A kind of the note.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NoteKind {
     /// A normal note can be seen by the user.
@@ -313,7 +313,7 @@ impl NoteKind {
 }
 
 /// A side of the player.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PlayerSide {
     /// The player 1 side.
@@ -340,7 +340,7 @@ pub enum PlayerSide {
 /// |[K1]  [K3]  [K5]  [K7]  [K9]|
 /// |----------------------------|
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Key {
     /// The leftmost white key.

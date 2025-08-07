@@ -166,7 +166,7 @@ impl Ord for BgaObj {
 }
 
 /// A layer where the image for BGA to be displayed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum BgaLayer {
@@ -243,7 +243,7 @@ impl Ord for SpeedObj {
 }
 
 /// An extended object on the score.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct ExtendedMessageObj {
@@ -256,7 +256,7 @@ pub struct ExtendedMessageObj {
 }
 
 /// An object to change the opacity of BGA layers.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct BgaOpacityObj {
@@ -269,7 +269,7 @@ pub struct BgaOpacityObj {
 }
 
 /// An object to change the ARGB color of BGA layers.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct BgaArgbObj {
@@ -282,7 +282,7 @@ pub struct BgaArgbObj {
 }
 
 /// An object to change the volume of BGM sounds.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BgmVolumeObj {
     /// The time which the volume change is on.
@@ -292,7 +292,7 @@ pub struct BgmVolumeObj {
 }
 
 /// An object to change the volume of KEY sounds.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct KeyVolumeObj {
     /// The time which the volume change is on.
@@ -302,7 +302,7 @@ pub struct KeyVolumeObj {
 }
 
 /// An object to seek video position.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct SeekObj {
@@ -313,7 +313,7 @@ pub struct SeekObj {
 }
 
 /// An object to display text.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TextObj {
     /// The time which the text is displayed.
@@ -323,7 +323,7 @@ pub struct TextObj {
 }
 
 /// An object to change judge level.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct JudgeObj {
     /// The time which the judge change is on.
@@ -333,7 +333,7 @@ pub struct JudgeObj {
 }
 
 /// An object to change BGA keybound.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct BgaKeyboundObj {
@@ -344,7 +344,7 @@ pub struct BgaKeyboundObj {
 }
 
 /// An object to change option.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg(feature = "minor-command")]
 pub struct OptionObj {
