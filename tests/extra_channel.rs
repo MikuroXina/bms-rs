@@ -18,28 +18,28 @@ fn test_channel_volume() {
     assert_eq!(bms.notes.bgm_volume_changes.len(), 8);
     assert_eq!(bms.notes.key_volume_changes.len(), 4);
     assert_eq!(
-        bms.notes.bgm_volume_changes.get(&ObjTime::new(1, 0, 0)),
+        bms.notes.bgm_volume_changes.get(&ObjTime::new(1, 0, 1)),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(1, 0, 0),
+            time: ObjTime::new(1, 0, 1),
             volume: 1,
         })
     );
     assert_eq!(
-        bms.notes.key_volume_changes.get(&ObjTime::new(1, 0, 0)),
+        bms.notes.key_volume_changes.get(&ObjTime::new(1, 0, 1)),
         Some(&KeyVolumeObj {
-            time: ObjTime::new(1, 0, 0),
+            time: ObjTime::new(1, 0, 1),
             volume: 2 * 16 + 2,
         })
     );
     assert_eq!(
-        bms.notes.bgm_volume_changes.get(&ObjTime::new(2, 0, 0)),
+        bms.notes.bgm_volume_changes.get(&ObjTime::new(2, 0, 1)),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(2, 0, 0),
+            time: ObjTime::new(2, 0, 1),
             volume: 5,
         })
     );
     assert_eq!(
-        bms.notes.key_volume_changes.get(&ObjTime::new(2, 0, 0)),
+        bms.notes.key_volume_changes.get(&ObjTime::new(2, 0, 1)),
         None
     );
 }
