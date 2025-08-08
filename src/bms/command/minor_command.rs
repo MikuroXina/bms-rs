@@ -160,7 +160,7 @@ pub struct SwBgaEvent {
 /// - end_x/end_y: crop end point
 /// - offset_x/offset_y: offset (optional)
 /// - abs_x/abs_y: absolute coordinate (optional)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtChrEvent {
     /// Character index to replace [0-1023]
