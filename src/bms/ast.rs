@@ -15,6 +15,7 @@
 //! All errors are collected as warnings and returned alongside the parsed tokens,
 //! allowing the parser to continue processing while providing detailed error information.
 
+pub mod structure;
 pub mod ast_build;
 pub mod ast_parse;
 pub mod rng;
@@ -122,7 +123,7 @@ mod tests {
 
     use num::BigUint;
 
-    use super::ast_build::{CaseBranch, CaseBranchValue, Unit};
+    use super::structure::{CaseBranch, CaseBranchValue, Unit};
     use super::*;
     use crate::{
         bms::lex::token::{Token, TokenContent},

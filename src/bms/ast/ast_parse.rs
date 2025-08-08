@@ -4,7 +4,10 @@ use num::BigUint;
 
 use crate::bms::lex::token::Token;
 
-use super::{ast_build::*, rng::Rng};
+use super::{
+    rng::Rng,
+    structure::{BlockValue, CaseBranchValue, Unit},
+};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
@@ -99,7 +102,10 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::bms::lex::token::{Token, TokenContent};
+    use crate::bms::{
+        ast::structure::{CaseBranch, IfBlock, IfBranch},
+        lex::token::{Token, TokenContent},
+    };
 
     struct DummyRng;
     impl Rng for DummyRng {
