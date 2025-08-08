@@ -1,9 +1,10 @@
+//! The module for parsing the control flow AST.
+
 use num::BigUint;
 
 use crate::bms::lex::token::Token;
 
-use super::ast_build::*;
-use super::rng::Rng;
+use super::{ast_build::*, rng::Rng};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
@@ -39,15 +40,14 @@ pub(super) fn parse_control_flow_ast<'a>(
                     found = true;
                 }
                 // If not found, try to find the 0 (else) branch
-                if !found {
-                    if let Some(else_branch) = if_blocks
+                if !found
+                    && let Some(else_branch) = if_blocks
                         .iter()
                         .flat_map(|if_block| if_block.branches.get(&BigUint::from(0u64)))
                         .next()
-                    {
-                        let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
-                        result.extend(parse_control_flow_ast(&mut branch_iter, rng));
-                    }
+                {
+                    let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
+                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
                 }
                 // If none found, do nothing
             }

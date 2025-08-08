@@ -1,16 +1,4 @@
-use bms_rs::bms::{
-    command::{
-        channel::{Key, NoteKind, PlayerSide},
-        time::ObjTime,
-    },
-    lex::{BmsLexOutput, parse_lex_tokens},
-    parse::{
-        BmsParseOutput,
-        model::{Bms, obj::Obj},
-        prompt::AlwaysWarnAndUseOlder,
-        random::rng::RngMock,
-    },
-};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]

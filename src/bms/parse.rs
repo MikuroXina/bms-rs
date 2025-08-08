@@ -6,19 +6,21 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
-pub mod random;
 
 use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use crate::bms::{command::ObjId, lex::token::Token, parse::random::parse_control_flow};
+use crate::bms::{
+    ast::{ControlFlowRule, parse_control_flow, rng::Rng},
+    command::ObjId,
+    lex::token::Token,
+};
 
 use self::{
     check_playing::{PlayingError, PlayingWarning},
     model::Bms,
     prompt::PromptHandler,
-    random::{ControlFlowRule, rng::Rng},
 };
 use super::lex::BmsLexOutput;
 

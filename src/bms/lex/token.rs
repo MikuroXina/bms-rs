@@ -1332,7 +1332,7 @@ mod tests {
 
     use super::*;
 
-    fn parse_token(input: &str) -> TokenContent {
+    fn parse_token<'a>(input: &'a str) -> TokenContent<'a> {
         let mut cursor = Cursor::new(input);
         TokenContent::parse(&mut cursor, read_channel_beat).unwrap()
     }

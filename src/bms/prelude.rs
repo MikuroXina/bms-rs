@@ -19,6 +19,12 @@ pub use super::command::{
     time::{ObjTime, Track},
 };
 
+// Re-export from ast module
+pub use super::ast::{
+    ControlFlowRule,
+    rng::{RandRng, Rng, RngMock},
+};
+
 // Re-export from lex module
 pub use super::lex::{
     BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
@@ -42,14 +48,10 @@ pub use super::parse::{
         AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
         DuplicationWorkaround, PromptHandler, PromptingDuplication,
     },
-    random::{
-        ControlFlowRule,
-        rng::{RandRng, Rng, RngMock},
-    },
 };
 
 // Re-export from lex submodules
-pub use super::lex::token::Token;
+pub use super::lex::token::{Token, TokenContent};
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

@@ -15,8 +15,8 @@
 //! All errors are collected as warnings and returned alongside the parsed tokens,
 //! allowing the parser to continue processing while providing detailed error information.
 
-mod ast_build;
-mod ast_parse;
+pub mod ast_build;
+pub mod ast_parse;
 pub mod rng;
 
 use ast_build::build_control_flow_ast;
@@ -24,7 +24,7 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::{ParseWarning, ParseWarningContent};
+use super::{ParseWarning, prelude::ParseWarningContent};
 use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
 
 /// Parses and executes control flow constructs in a BMS token stream.
@@ -122,13 +122,11 @@ mod tests {
 
     use num::BigUint;
 
+    use super::ast_build::{CaseBranch, CaseBranchValue, Unit};
     use super::*;
     use crate::{
         bms::lex::token::{Token, TokenContent},
-        parse::{
-            BmsParseTokenIter,
-            random::ast_build::{CaseBranch, CaseBranchValue, Unit},
-        },
+        parse::BmsParseTokenIter,
     };
 
     struct DummyRng;

@@ -1,11 +1,22 @@
+//! The module for building the control flow AST.
+//!
+//! The AST is a tree structure that represents the control flow of the BMS source.
+//! It is used to check the control flow of the BMS source.
+//!
+//! The AST is built by traversing the Token stream and recursively parsing all control flow blocks.
+//!
+//! The AST is used to check the control flow of the BMS source.
+
 use std::collections::HashMap;
 
 use num::BigUint;
 
 use crate::{
     bms::lex::token::{Token, TokenContent},
-    parse::{BmsParseTokenIter, ParseWarning, random::ControlFlowRule},
+    parse::{BmsParseTokenIter, ParseWarning},
 };
+
+use super::ControlFlowRule;
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -363,17 +374,17 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                         errors.append(&mut errs);
                         continue;
                     }
-                    if let Some(ref max) = max_value {
-                        if !(&BigUint::from(1u64)..=max).contains(&elif_val) {
-                            errors.push(
-                                ControlFlowRule::RandomIfBranchValueOutOfRange
-                                    .to_parse_warning_manual(*row, *col),
-                            );
-                            iter.next();
-                            let (_, mut errs) = parse_if_block_body(iter);
-                            errors.append(&mut errs);
-                            continue;
-                        }
+                    if let Some(ref max) = max_value
+                        && !(&BigUint::from(1u64)..=max).contains(&elif_val)
+                    {
+                        errors.push(
+                            ControlFlowRule::RandomIfBranchValueOutOfRange
+                                .to_parse_warning_manual(*row, *col),
+                        );
+                        iter.next();
+                        let (_, mut errs) = parse_if_block_body(iter);
+                        errors.append(&mut errs);
+                        continue;
                     }
                     iter.next();
                     seen_if_values.insert(elif_val);
