@@ -25,31 +25,22 @@ impl ObjTime {
     /// Panics:
     ///
     /// When `denominator == 0`.
-    pub fn new(mut track: u64, mut numerator: u64, mut denominator: u64) -> Self {
+    pub fn new(track: u64, numerator: u64, denominator: u64) -> Self {
         // If denominator is 0, it panics.
         assert!(denominator > 0);
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
-        if numerator > denominator {
-            track += numerator / denominator;
-            numerator %= denominator;
-        }
-        // If numerator is 0, set numerator to 0 and denominator to 1, and return.
-        if numerator == 0 {
-            return Self {
-                track: Track(track),
-                numerator: 0,
-                denominator: 1,
-            };
-        }
-        // if numerator != 0 and denominator != 0
+        let (track, numerator) = if numerator > denominator {
+            (track + (numerator / denominator), numerator % denominator)
+        } else {
+            (track, numerator)
+        };
         // Reduce the fraction to the simplest form.
+        // Note: 0.gcd(&num) == num, when num > 0
         let gcd = numerator.gcd(&denominator);
-        numerator /= gcd;
-        denominator /= gcd;
         Self {
             track: Track(track),
-            numerator,
-            denominator,
+            numerator: numerator / gcd,
+            denominator: denominator / gcd,
         }
     }
 }
