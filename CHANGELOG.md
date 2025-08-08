@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v1.0.0) (2025-08-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149))
+* impl From<Bmson> for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146))
+
+### Features
+
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146)) ([08b61ee](https://github.com/MikuroXina/bms-rs/commit/08b61ee314240ff0eaf512a66f0eb4192d944d04))
+* impl From&lt;Bmson&gt; for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145)) ([ed0c95f](https://github.com/MikuroXina/bms-rs/commit/ed0c95f1f74643b73858a11c6c79f6e0186735fb))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149)) ([159fb8f](https://github.com/MikuroXina/bms-rs/commit/159fb8ffe16f56d0dd2a042d0b877dad37400a80))
+
 ## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-08-03)
 
 
