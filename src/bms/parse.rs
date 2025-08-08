@@ -7,22 +7,11 @@ pub mod check_playing;
 pub mod model;
 pub mod prompt;
 
-use std::ops::{Deref, DerefMut};
-
 use thiserror::Error;
 
-use crate::bms::{
-    ast::{ControlFlowRule, parse_control_flow, rng::Rng},
-    command::ObjId,
-    lex::token::Token,
-};
+use crate::bms::{BmsTokenIter, command::ObjId};
 
-use self::{
-    check_playing::{PlayingError, PlayingWarning},
-    model::Bms,
-    prompt::PromptHandler,
-};
-use super::lex::BmsLexOutput;
+use self::{model::Bms, prompt::PromptHandler};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -31,9 +20,6 @@ pub enum ParseWarningContent {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
-    /// Violation of control flow rule.
-    #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(#[from] ControlFlowRule),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -76,61 +62,18 @@ pub struct BmsParseOutput {
     pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarning>,
-    /// Warnings that occurred during playing.
-    pub playing_warnings: Vec<PlayingWarning>,
-    /// Errors that occurred during playing.
-    pub playing_errors: Vec<PlayingError>,
-}
-
-/// The type of parsing tokens iter.
-pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>);
-
-impl<'a> BmsParseTokenIter<'a> {
-    /// Create iter from BmsLexOutput reference.
-    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.iter().as_slice().iter().peekable())
-    }
-    /// Create iter from Token list reference.
-    pub fn from_tokens(value: &'a [Token<'a>]) -> Self {
-        Self(value.iter().peekable())
-    }
-}
-
-impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
-    fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.iter().peekable())
-    }
-}
-
-impl<'a, T: AsRef<[Token<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
-    fn from(value: &'a T) -> Self {
-        Self(value.as_ref().iter().peekable())
-    }
-}
-
-impl<'a> Deref for BmsParseTokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for BmsParseTokenIter<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: impl Into<BmsParseTokenIter<'a>>,
-        rng: impl Rng,
+        token_iter: impl Into<BmsTokenIter<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
-        let (continue_tokens, mut parse_warnings) = parse_control_flow(&mut token_iter.into(), rng);
         let mut bms = Bms::default();
-        for &token in continue_tokens.iter() {
+        let token_iter: BmsTokenIter<'a> = token_iter.into();
+        let mut parse_warnings = vec![];
+        for token in token_iter.0 {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(ParseWarning {
                     content: error,
@@ -140,13 +83,9 @@ impl Bms {
             }
         }
 
-        let (playing_warnings, playing_errors) = bms.check_playing();
-
         BmsParseOutput {
             bms,
             parse_warnings,
-            playing_warnings,
-            playing_errors,
         }
     }
 }

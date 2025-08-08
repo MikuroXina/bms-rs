@@ -15,106 +15,47 @@
 //! All errors are collected as warnings and returned alongside the parsed tokens,
 //! allowing the parser to continue processing while providing detailed error information.
 
-pub mod structure;
 pub mod ast_build;
 pub mod ast_parse;
 pub mod rng;
+pub mod structure;
 
 use ast_build::build_control_flow_ast;
 use ast_parse::parse_control_flow_ast;
 use rng::Rng;
-use thiserror::Error;
 
-use super::{ParseWarning, prelude::ParseWarningContent};
-use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
+use crate::bms::{BmsTokenIter, ast::structure::AstRoot, lex::token::Token};
+
+use self::structure::AstBuildWarning;
+
+/// AstBuildOutput
+pub struct AstBuildOutput<'a> {
+    /// AST Root
+    pub root: AstRoot<'a>,
+    /// Warnings
+    pub ast_build_warnings: Vec<AstBuildWarning>,
+}
 
 /// Parses and executes control flow constructs in a BMS token stream.
 ///
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
-pub(super) fn parse_control_flow<'a>(
-    token_stream: &mut BmsParseTokenIter<'a>,
-    mut rng: impl Rng,
-) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
-    let (ast, errors) = build_control_flow_ast(token_stream);
-    let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
-    (tokens, errors)
+pub fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutput<'a> {
+    let mut token_stream = token_stream.into();
+    let (units, errors) = build_control_flow_ast(&mut token_stream);
+    AstBuildOutput {
+        root: AstRoot { units },
+        ast_build_warnings: errors,
+    }
 }
 
-/// Control flow parsing errors and warnings.
+/// Parses and executes control flow constructs in a BMS token stream.
 ///
-/// This enum defines all possible errors that can occur during BMS control flow parsing.
-/// Each variant represents a specific type of control flow violation or malformed construct.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ControlFlowRule {
-    /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
-    #[error("unmatched end if")]
-    UnmatchedEndIf,
-    /// An `#ENDRANDOM` token was encountered without a corresponding `#RANDOM` token.
-    #[error("unmatched end random")]
-    UnmatchedEndRandom,
-    /// An `#ENDSWITCH` token was encountered without a corresponding `#SWITCH` token.
-    #[error("unmatched end switch")]
-    UnmatchedEndSwitch,
-    /// An `#ELSEIF` token was encountered without a corresponding `#IF` token.
-    #[error("unmatched else if")]
-    UnmatchedElseIf,
-    /// An `#ELSE` token was encountered without a corresponding `#IF` token.
-    #[error("unmatched else")]
-    UnmatchedElse,
-    /// A duplicate `#IF` branch value was found in a random block.
-    #[error("duplicate if branch value in random block")]
-    RandomDuplicateIfBranchValue,
-    /// An `#IF` branch value exceeds the maximum value of its random block.
-    #[error("if branch value out of range in random block")]
-    RandomIfBranchValueOutOfRange,
-    /// Tokens were found between `#RANDOM` and `#IF` that should not be there.
-    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
-    UnmatchedTokenInRandomBlock,
-    /// A duplicate `#CASE` value was found in a switch block.
-    #[error("duplicate case value in switch block")]
-    SwitchDuplicateCaseValue,
-    /// A `#CASE` value exceeds the maximum value of its switch block.
-    #[error("case value out of range in switch block")]
-    SwitchCaseValueOutOfRange,
-    /// Multiple `#DEF` branches were found in the same switch block.
-    #[error("duplicate def branch in switch block")]
-    SwitchDuplicateDef,
-    /// A `#SKIP` token was encountered outside of a switch block.
-    #[error("unmatched skip")]
-    UnmatchedSkip,
-    /// A `#CASE` token was encountered outside of a switch block.
-    #[error("unmatched case")]
-    UnmatchedCase,
-    /// A `#DEF` token was encountered outside of a switch block.
-    #[error("unmatched def")]
-    UnmatchedDef,
-}
-
-impl ControlFlowRule {
-    /// Convert the control flow rule to a parse warning with a given token.
-    pub fn to_parse_warning(&self, token: &Token) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: token.row,
-            col: token.col,
-        }
-    }
-
-    /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn to_parse_warning_manual(
-        &self,
-        row: impl Into<usize>,
-        col: impl Into<usize>,
-    ) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: row.into(),
-            col: col.into(),
-        }
-    }
+/// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
+/// from control flow constructs and then executing them using the provided random number generator.
+pub fn parse_ast(AstRoot { units }: AstRoot<'_>, mut rng: impl Rng) -> Vec<&Token<'_>> {
+    let mut ast_iter = units.into_iter().peekable();
+    parse_control_flow_ast(&mut ast_iter, &mut rng)
 }
 
 #[cfg(test)]
@@ -125,9 +66,9 @@ mod tests {
 
     use super::structure::{CaseBranch, CaseBranchValue, Unit};
     use super::*;
-    use crate::{
-        bms::lex::token::{Token, TokenContent},
-        parse::BmsParseTokenIter,
+    use crate::bms::{
+        BmsTokenIter,
+        lex::token::{Token, TokenContent},
     };
 
     struct DummyRng;
@@ -167,7 +108,7 @@ mod tests {
             col: 0,
         })
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -301,7 +242,7 @@ mod tests {
             col: 0,
         })
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))

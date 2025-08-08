@@ -1,38 +1,32 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_not_base_62() {
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(
+    let BmsOutput { bms, warnings } = parse_bms(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
     );
-    assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
-    assert_eq!(parse_warnings, vec![]);
+    assert!(warnings.iter().any(|w| matches!(
+        w,
+        BmsWarning::ParseWarning(ParseWarning {
+            content: ParseWarningContent::PromptHandlerWarning,
+            ..
+        })
+    )));
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 1);
     assert_eq!(
         bms.notes.wav_files.iter().next().unwrap().1,
-        &std::path::Path::new("fuga.wav").to_path_buf()
+        // It uses [`AlwaysWarnAndUseOlder`] by default.
+        &std::path::Path::new("hoge.wav").to_path_buf()
     );
 }
 
 #[test]
 fn test_base_62() {
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(
+    let BmsOutput { bms, warnings } = parse_bms(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
@@ -40,13 +34,13 @@ fn test_base_62() {
         #BASE 62
     ",
     );
-    assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
-    assert_eq!(parse_warnings, vec![]);
+    assert!(warnings.iter().any(|w| !matches!(
+        w,
+        BmsWarning::ParseWarning(ParseWarning {
+            content: ParseWarningContent::PromptHandlerWarning,
+            ..
+        })
+    )));
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 2);
 }

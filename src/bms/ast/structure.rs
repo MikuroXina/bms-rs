@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 
 use num::BigUint;
+use thiserror::Error;
 
 use crate::bms::lex::token::Token;
 
@@ -87,4 +88,102 @@ pub enum CaseBranchValue {
     Case(BigUint),
     /// The value of the Def branch.
     Def,
+}
+
+/// Control flow parsing errors and warnings.
+///
+/// This enum defines all possible errors that can occur during BMS control flow parsing.
+/// Each variant represents a specific type of control flow violation or malformed construct.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AstBuildWarningType {
+    /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
+    #[error("unmatched end if")]
+    UnmatchedEndIf,
+    /// An `#ENDRANDOM` token was encountered without a corresponding `#RANDOM` token.
+    #[error("unmatched end random")]
+    UnmatchedEndRandom,
+    /// An `#ENDSWITCH` token was encountered without a corresponding `#SWITCH` token.
+    #[error("unmatched end switch")]
+    UnmatchedEndSwitch,
+    /// An `#ELSEIF` token was encountered without a corresponding `#IF` token.
+    #[error("unmatched else if")]
+    UnmatchedElseIf,
+    /// An `#ELSE` token was encountered without a corresponding `#IF` token.
+    #[error("unmatched else")]
+    UnmatchedElse,
+    /// A duplicate `#IF` branch value was found in a random block.
+    #[error("duplicate if branch value in random block")]
+    RandomDuplicateIfBranchValue,
+    /// An `#IF` branch value exceeds the maximum value of its random block.
+    #[error("if branch value out of range in random block")]
+    RandomIfBranchValueOutOfRange,
+    /// Tokens were found between `#RANDOM` and `#IF` that should not be there.
+    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
+    UnmatchedTokenInRandomBlock,
+    /// A duplicate `#CASE` value was found in a switch block.
+    #[error("duplicate case value in switch block")]
+    SwitchDuplicateCaseValue,
+    /// A `#CASE` value exceeds the maximum value of its switch block.
+    #[error("case value out of range in switch block")]
+    SwitchCaseValueOutOfRange,
+    /// Multiple `#DEF` branches were found in the same switch block.
+    #[error("duplicate def branch in switch block")]
+    SwitchDuplicateDef,
+    /// A `#SKIP` token was encountered outside of a switch block.
+    #[error("unmatched skip")]
+    UnmatchedSkip,
+    /// A `#CASE` token was encountered outside of a switch block.
+    #[error("unmatched case")]
+    UnmatchedCase,
+    /// A `#DEF` token was encountered outside of a switch block.
+    #[error("unmatched def")]
+    UnmatchedDef,
+}
+
+impl AstBuildWarningType {
+    /// Convert the control flow rule to a parse warning with a given token.
+    pub fn to_parse_warning(&self, token: &Token) -> AstBuildWarning {
+        AstBuildWarning {
+            warning_type: *self,
+            row: token.row,
+            col: token.col,
+        }
+    }
+
+    /// Convert the control flow rule to a parse warning with a given row and column.
+    pub fn to_parse_warning_manual(
+        &self,
+        row: impl Into<usize>,
+        col: impl Into<usize>,
+    ) -> AstBuildWarning {
+        AstBuildWarning {
+            warning_type: *self,
+            row: row.into(),
+            col: col.into(),
+        }
+    }
+}
+
+/// AST Build Warning
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AstBuildWarning {
+    /// type
+    #[source]
+    pub warning_type: AstBuildWarningType,
+    /// row
+    pub row: usize,
+    /// col
+    pub col: usize,
+}
+
+impl std::fmt::Display for AstBuildWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} at line {}, column {}",
+            self.warning_type, self.row, self.col
+        )
+    }
 }

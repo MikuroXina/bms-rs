@@ -1,24 +1,10 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    let BmsOutput { bms, warnings } = parse_bms(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(
@@ -42,21 +28,8 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    let BmsOutput { bms, warnings } = parse_bms(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(bms.header.title.as_deref(), Some("NULCTRL"));
@@ -86,21 +59,8 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    let BmsOutput { bms, warnings } = parse_bms(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(bms.header.title.as_deref(), Some("J219"));
@@ -148,21 +108,17 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = parse_lex_tokens(source);
-    assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
+    let BmsOutput { bms, warnings } = parse_bms(source);
+    assert_eq!(
+        warnings
+            .into_iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
+            .collect::<Vec<_>>(),
+        vec![]
     );
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes

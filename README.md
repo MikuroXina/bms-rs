@@ -79,32 +79,7 @@ println!("Warnings: {:?}", warnings);
 
 ### Advanced Usage
 
-For more control over the parsing process, you can use the individual steps:
-
-At first, you can get the tokens stream with [`bms::lex::parse_lex_tokens`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
-
-```rust
-use rand::{rngs::StdRng, SeedableRng};
-use bms_rs::bms::prelude::*;
-
-let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
-let BmsLexOutput { tokens: _, lex_warnings } = parse_lex_tokens(&source);
-assert_eq!(lex_warnings, vec![]);
-// Or you can use another preset.
-// This crate defines some presets for Beat(5K/7K/10K/14K) and Pop'n(5K/9K/18K) modes.
-// See `bms::lex::command::channel` documentation for the pre-defined channel parsers.
-// Please see [BMS command memo](https://hitkey.bms.ms/cmds.htm#KEYMAP-TABLE) for more details.
-let BmsLexOutput { tokens, lex_warnings } = parse_lex_tokens_with_channel_parser(&source, &read_channel_beat);
-assert_eq!(lex_warnings, vec![]);
-// You can modify the tokens before parsing, for some commands that this library does not warpped.
-let rng = RandRng(StdRng::seed_from_u64(42));
-let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
-    &tokens, rng, AlwaysWarnAndUseOlder
-    );
-assert_eq!(parse_warnings, vec![]);
-assert_eq!(playing_warnings, vec![]);
-assert_eq!(playing_errors, vec![]);
-```
+- TODO: See the impl of [`bms::parse_bms`]
 
 - For usage of the latest commit version, see [lib.rs](./src/lib.rs)
 
@@ -130,14 +105,15 @@ assert_eq!(playing_errors, vec![]);
   - [Wiki](https://en.wikipedia.org/wiki/Be-Music_Source)
   - [wiki.bms.ms(Archive)](https://web.archive.org/web/*/http://wiki.bms.ms/Bms:Spec)
   - [First Version By Urao Yane](http://bm98.yaneu.com/bm98/bmsformat.html)
-  - https://nvyu.net/rdm/rby_ex.php
-  - https://cosmic.mearie.org/f/sonorous/bmsexts
-  - http://dtxmania.net/wiki.cgi?page=qa_dtx_spec_e
-  - https://cosmic.mearie.org/2005/03/bmsguide/
-  - https://github.com/lifthrasiir/angolmois/blob/master/INTERNALS.md
+  - <https://nvyu.net/rdm/rby_ex.php>
+  - <https://cosmic.mearie.org/f/sonorous/bmsexts>
+  - <http://dtxmania.net/wiki.cgi?page=qa_dtx_spec_e>
+  - <https://cosmic.mearie.org/2005/03/bmsguide/>
+  - <https://github.com/lifthrasiir/angolmois/blob/master/INTERNALS.md>
   - [RDM's LONG NOTE support](https://web.archive.org/web/*/http://ivy.pr.co.kr/rdm/jp/extension.htm)
-  - http://right-stick.sub.jp/lr2skinhelp.html
+  - <http://right-stick.sub.jp/lr2skinhelp.html>
 - [Bemuse Extensions](https://bemuse.ninja/project/docs/bms-extensions/)
   - [For `#SCROLL`](https://hitkey.nekokan.dyndns.info/bmse_help_full/beat.html)
 - [Base62](https://docs.google.com/document/u/0/d/e/2PACX-1vTl8zOS3ukl5HpuNsBUlN8rn_ZaNdJSHb8a4se3Z3ap9Y6UJ1nB8LA3HnxWAk9kMTDp0j9orpg43-tl/pub)
 - [Beatoraja Extensions](https://github.com/exch-bms2/beatoraja/wiki/%E6%A5%BD%E6%9B%B2%E8%A3%BD%E4%BD%9C%E8%80%85%E5%90%91%E3%81%91%E8%B3%87%E6%96%99#bms%E6%8B%A1%E5%BC%B5%E5%AE%9A%E7%BE%A9)
+

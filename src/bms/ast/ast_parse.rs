@@ -9,7 +9,8 @@ use super::{
     structure::{BlockValue, CaseBranchValue, Unit},
 };
 
-pub(super) fn parse_control_flow_ast<'a>(
+/// Parse [`Unit`] list into activated token list.
+pub fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
 ) -> Vec<&'a Token<'a>> {

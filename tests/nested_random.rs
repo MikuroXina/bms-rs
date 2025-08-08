@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{parse_bms_with_tokens, prelude::*};
 use num::BigUint;
 
 #[test]
@@ -47,12 +47,18 @@ fn nested_random() {
     } = parse_lex_tokens(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
+    assert_eq!(
+        warnings
+            .into_iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -88,12 +94,18 @@ fn nested_random() {
     );
 
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
+    assert_eq!(
+        warnings
+            .into_iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
@@ -129,12 +141,18 @@ fn nested_random() {
     );
 
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
+    assert_eq!(
+        warnings
+            .into_iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
+            .collect::<Vec<_>>(),
+        vec![]
+    );
+
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![

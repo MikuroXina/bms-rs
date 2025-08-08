@@ -4,7 +4,7 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export main types from bms module
-pub use super::{BmsOutput, BmsWarning, Decimal, parse_bms};
+pub use super::{BmsOutput, BmsTokenIter, BmsWarning, Decimal, parse_bms};
 
 // Re-export from command module
 pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
@@ -21,8 +21,8 @@ pub use super::command::{
 
 // Re-export from ast module
 pub use super::ast::{
-    ControlFlowRule,
     rng::{RandRng, Rng, RngMock},
+    structure::AstBuildWarningType,
 };
 
 // Re-export from lex module
@@ -31,7 +31,7 @@ pub use super::lex::{
 };
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningContent};
+pub use super::parse::{BmsParseOutput, ParseWarning, ParseWarningContent};
 
 // Re-export from parse submodules
 pub use super::parse::{

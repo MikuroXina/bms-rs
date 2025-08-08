@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{parse_bms_with_tokens, prelude::*};
 use num::BigUint;
 
 #[test]
@@ -11,20 +11,25 @@ fn test_playing_conditions_empty_bms() {
     } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
-        parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput {
+        bms: _, warnings, ..
+    } = parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
+    assert_eq!(
+        &warnings
+            .iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingError(_) | BmsWarning::PlayingWarning(_)
+            ))
+            .map(ToOwned::to_owned)
+            .collect::<Vec<BmsWarning>>(),
+        &vec![]
+    );
 
     // Should have warnings and errors for empty BMS
-    assert!(playing_warnings.contains(&PlayingWarning::TotalUndefined));
-    assert!(playing_errors.contains(&PlayingError::BpmUndefined));
-    assert!(playing_errors.contains(&PlayingError::NoNotes));
+    assert!(warnings.contains(&BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)));
+    assert!(warnings.contains(&BmsWarning::PlayingError(PlayingError::BpmUndefined)));
+    assert!(warnings.contains(&BmsWarning::PlayingError(PlayingError::NoNotes)));
     // NoDisplayableNotes and NoPlayableNotes are not checked when there are no notes at all
 }
 
@@ -39,19 +44,16 @@ fn test_playing_conditions_with_bpm_and_notes() {
     } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
-        parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-
-    assert_eq!(parse_warnings, vec![]);
-
-    // Should not have any warnings or errors for valid BMS
-    assert_eq!(playing_warnings, vec![]);
-    assert_eq!(playing_errors, vec![]);
+    let BmsOutput {
+        bms: _, warnings, ..
+    } = parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
+    assert_eq!(
+        &warnings
+            .iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<BmsWarning>>(),
+        &vec![]
+    );
 }
 
 #[test]
@@ -74,22 +76,28 @@ fn test_playing_conditions_with_bpm_change_only() {
         |t| matches!(&t.content, TokenContent::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms,
-        parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput { bms, warnings, .. } =
+        parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
+    assert_eq!(
+        &warnings
+            .iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingError(_) | BmsWarning::PlayingWarning(_)
+            ))
+            .map(ToOwned::to_owned)
+            .collect::<Vec<BmsWarning>>(),
+        &vec![]
+    );
 
     // Should have StartBpmUndefined warning but no BpmUndefined error
     assert_eq!(bms.arrangers.bpm, None);
     assert_eq!(bms.scope_defines.bpm_defs.len(), 1);
     assert_eq!(bms.arrangers.bpm_changes.len(), 0);
-    assert!(playing_errors.contains(&PlayingError::BpmUndefined));
-    assert!(!playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
+    assert!(warnings.contains(&BmsWarning::PlayingError(PlayingError::BpmUndefined)));
+    assert!(!warnings.contains(&BmsWarning::PlayingWarning(
+        PlayingWarning::StartBpmUndefined
+    )));
 }
 
 #[test]
@@ -103,18 +111,29 @@ fn test_playing_conditions_invisible_notes_only() {
     } = parse_lex_tokens(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
-        parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
-
-    assert_eq!(parse_warnings, vec![]);
+    let BmsOutput {
+        bms: _, warnings, ..
+    } = parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
+    assert_eq!(
+        &warnings
+            .iter()
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingError(_) | BmsWarning::PlayingWarning(_)
+            ))
+            .map(ToOwned::to_owned)
+            .collect::<Vec<BmsWarning>>(),
+        &vec![]
+    );
 
     // Should have both NoDisplayableNotes and NoPlayableNotes warnings
-    assert!(playing_warnings.contains(&PlayingWarning::NoDisplayableNotes));
-    assert!(playing_warnings.contains(&PlayingWarning::NoPlayableNotes));
-    assert_eq!(playing_errors, vec![]);
+    assert!(warnings.contains(&BmsWarning::PlayingWarning(
+        PlayingWarning::NoDisplayableNotes
+    )));
+    assert!(warnings.contains(&BmsWarning::PlayingWarning(PlayingWarning::NoPlayableNotes)));
+    assert!(
+        !warnings
+            .iter()
+            .any(|w| matches!(w, BmsWarning::PlayingError(_)))
+    );
 }
