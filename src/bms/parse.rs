@@ -24,8 +24,11 @@ pub enum ParseWarningContent {
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
     /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("parsing is warned by prompt handler")]
+    #[error("has duplication in defines, or same event in the same time")]
     HasDuplication,
+    /// Unexpected Token like control flow tokens.
+    #[error("has unexpected token, e.g. control flow tokens")]
+    UnexpectedToken,
 }
 
 /// type alias of core::result::Result<T, ParseWarningContent>
