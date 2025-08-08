@@ -19,7 +19,10 @@ fn test_atbga_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -53,7 +56,10 @@ fn test_bga_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -87,7 +93,10 @@ fn test_exrank_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -118,7 +127,10 @@ fn test_exwav_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -152,7 +164,10 @@ fn test_changeoption_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -183,7 +198,10 @@ fn test_text_parsing() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -218,7 +236,10 @@ fn test_notes_parse_extended_tokens() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -281,7 +302,10 @@ fn test_token_parsing_comprehensive() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -364,7 +388,10 @@ fn test_exwav_out_of_range_values() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -392,7 +419,10 @@ fn test_exwav_out_of_range_values() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -420,7 +450,10 @@ fn test_exwav_out_of_range_values() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| !matches!(w, BmsWarning::PlayingError(_)))
+            .filter(|w| !matches!(
+                w,
+                BmsWarning::PlayingWarning(_) | BmsWarning::PlayingError(_)
+            ))
             .collect::<Vec<_>>(),
         vec![]
     );
