@@ -25,7 +25,7 @@ pub enum ParseWarningContent {
     UndefinedObject(ObjId),
     /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
     #[error("parsing is warned by prompt handler")]
-    PromptHandlerWarning,
+    HasDuplication,
 }
 
 /// type alias of core::result::Result<T, ParseWarningContent>
