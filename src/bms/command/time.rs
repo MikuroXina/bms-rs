@@ -1,5 +1,7 @@
 //! Definitions of time in BMS.
 
+use num::Integer;
+
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,19 +22,25 @@ pub struct ObjTime {
 impl ObjTime {
     /// Create a new time.
     ///
-    /// # Panics
+    /// Panics:
     ///
-    /// Panics if `denominator` is 0 or `numerator` is greater than or equal to `denominator`.
+    /// When `denominator == 0`.
     pub fn new(track: u64, numerator: u64, denominator: u64) -> Self {
-        if track == 0 {
-            eprintln!("warning: track 000 detected");
-        }
-        assert!(0 < denominator);
-        assert!(numerator < denominator);
+        // If denominator is 0, it panics.
+        assert!(denominator > 0);
+        // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
+        let (track, numerator) = if numerator > denominator {
+            (track + (numerator / denominator), numerator % denominator)
+        } else {
+            (track, numerator)
+        };
+        // Reduce the fraction to the simplest form.
+        // Note: 0.gcd(&num) == num, when num > 0
+        let gcd = numerator.gcd(&denominator);
         Self {
             track: Track(track),
-            numerator,
-            denominator,
+            numerator: numerator / gcd,
+            denominator: denominator / gcd,
         }
     }
 }

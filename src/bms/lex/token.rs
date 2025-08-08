@@ -11,15 +11,15 @@ use num::BigUint;
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
         time::Track,
     },
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{
-    ExtChrEvent, WavCmdParam,
-    minor_command::{ExWavFrequency, ExWavPan, ExWavVolume, StpEvent, SwBgaEvent, WavCmdEvent},
+use crate::bms::command::minor_command::{
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    WavCmdParam,
 };
 
 use super::{Result, cursor::Cursor};
@@ -84,11 +84,14 @@ pub enum TokenContent<'a> {
     BpmChange(ObjId, Decimal),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`TokenContent::Switch`].
     Case(BigUint),
-    /// `#CDDA [u64]`.
-    /// CD-DA can be used as BGM. In DDR, a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
+    /// CD-DA can be used as BGM (Background Music).
+    /// In DDR (Dance Dance Revolution), a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
+    /// This allows the game to play audio directly from a CD drive.
     #[cfg(feature = "minor-command")]
     Cdda(BigUint),
     /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
+    #[cfg(feature = "minor-command")]
     ChangeOption(ObjId, &'a str),
     /// `#CHARFILE [filename]`.
     /// The character file similar to pop'n music. It's filextension is `.chp`.
@@ -135,6 +138,7 @@ pub enum TokenContent<'a> {
     #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
     /// `#EXT #XXXYY:...`. Defines the extended message. `XXX` is the track, `YY` is the channel.
+    #[cfg(feature = "minor-command")]
     ExtendedMessage {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
         track: Track,
@@ -175,6 +179,11 @@ pub enum TokenContent<'a> {
     LnTypeMgq,
     /// `#MAKER [string]`. Defines the author name of the score.
     Maker(&'a str),
+    /// `#MATERIALS [string]` Material path definition.
+    /// Defines the relative path which makes an executable file a starting point.
+    /// This allows BMS files to reference files in Materials subdirectories using `<foldername>filename` syntax.
+    #[cfg(feature = "minor-command")]
+    Materials(&'a Path),
     /// `#MATERIALSBMP [filename]` Material BMP extension.
     /// Deprecated.
     #[cfg(feature = "minor-command")]
@@ -192,7 +201,9 @@ pub enum TokenContent<'a> {
         /// The message to the channel.
         message: Cow<'a, str>,
     },
-    /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM. *Deprecated*
+    /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM.
+    /// This is a minor command extension that allows MIDI files to be used as background music.
+    /// *Deprecated* - Some players may not support this feature.
     #[cfg(feature = "minor-command")]
     MidiFile(&'a Path),
     /// `#MOVIE [filename]` DXEmu extension, defines global video file.
@@ -206,9 +217,12 @@ pub enum TokenContent<'a> {
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
+    /// This is a minor command extension that enables octave mode for the chart.
+    /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     OctFp,
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
+    #[cfg(feature = "minor-command")]
     Option(&'a str),
     /// `#PATH_WAV [string]`. Defines the root path of [`TokenContent::Wav`] paths. This should be used only for tests.
     PathWav(&'a Path),
@@ -227,6 +241,8 @@ pub enum TokenContent<'a> {
     /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
     Scroll(ObjId, Decimal),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
+    /// Defines a video seek event that allows jumping to specific time positions in video files.
+    /// This is a minor command extension for advanced video control.
     #[cfg(feature = "minor-command")]
     Seek(ObjId, Decimal),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -264,14 +280,20 @@ pub enum TokenContent<'a> {
     /// `%URL [string]`. The url of this score file.
     Url(&'a str),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
+    /// Defines the color depth for video playback. Common values are 16, 24, or 32 bits.
+    /// This affects the quality and performance of video rendering.
     #[cfg(feature = "minor-command")]
     VideoColors(u8),
     /// `#VIDEODLY [f64]` Video delay extension.
+    /// Defines a delay in seconds before video playback starts.
+    /// This is useful for synchronizing video with audio or other game elements.
     #[cfg(feature = "minor-command")]
     VideoDly(Decimal),
     /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
     VideoFile(&'a Path),
     /// `#VIDEOF/S [f64]` Video file frame rate.
+    /// Defines the frame rate for video playback in frames per second (FPS).
+    /// This affects the smoothness and timing of video playback.
     #[cfg(feature = "minor-command")]
     VideoFs(Decimal),
     /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
@@ -472,6 +494,7 @@ impl<'a> TokenContent<'a> {
                 "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
                 #[cfg(feature = "minor-command")]
                 "#OCT/FP" => Self::OctFp,
+                #[cfg(feature = "minor-command")]
                 "#OPTION" => Self::Option(c.next_line_remaining()),
                 "#PATH_WAV" => {
                     let file_name = c.next_line_remaining();
@@ -802,6 +825,7 @@ impl<'a> TokenContent<'a> {
                         draw_point: (dx, dy),
                     }
                 }
+                #[cfg(feature = "minor-command")]
                 changeoption if changeoption.starts_with("#CHANGEOPTION") => {
                     let id = changeoption.trim_start_matches("#CHANGEOPTION");
                     let option = c.next_line_remaining();
@@ -896,6 +920,7 @@ impl<'a> TokenContent<'a> {
                         abs_y,
                     })
                 }
+                #[cfg(feature = "minor-command")]
                 ext_message if ext_message.starts_with("#EXT") => {
                     let message = c
                         .next_token()
@@ -1164,6 +1189,11 @@ impl<'a> TokenContent<'a> {
                     let s = c.next_line_remaining();
                     Self::DivideProp(s)
                 }
+                #[cfg(feature = "minor-command")]
+                materials if materials.starts_with("#MATERIALS") => {
+                    let s = c.next_line_remaining();
+                    Self::Materials(Path::new(s))
+                }
                 charset if charset.starts_with("#CHARSET") => {
                     let s = c.next_line_remaining();
                     Self::Charset(s)
@@ -1232,6 +1262,7 @@ impl<'a> TokenContent<'a> {
             BpmChange(id, _) => {
                 id.make_uppercase();
             }
+            #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
                 id.make_uppercase();
             }
@@ -1439,6 +1470,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "minor-command")]
     fn test_changeoption() {
         let TokenContent::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
             panic!("Not ChangeOption");
@@ -1462,8 +1494,8 @@ mod tests {
             panic!("Not StpSeq");
         };
         assert_eq!(stp.time.track, Track(1));
-        assert_eq!(stp.time.numerator, 500);
-        assert_eq!(stp.time.denominator, 1000);
+        assert_eq!(stp.time.numerator, 1);
+        assert_eq!(stp.time.denominator, 2); // After GCD(500, 1000)
         assert_eq!(stp.duration.as_millis(), 1500);
     }
 
@@ -1531,6 +1563,15 @@ mod tests {
             panic!("Not Movie");
         };
         assert_eq!(path, Path::new("video.mp4"));
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_materials() {
+        let TokenContent::Materials(path) = parse_token("#MATERIALS /path/to/materials") else {
+            panic!("Not Materials");
+        };
+        assert_eq!(path, Path::new("/path/to/materials"));
     }
 
     #[test]

@@ -19,15 +19,13 @@ use itertools::Itertools;
 use num::BigUint;
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{
-    ExtChrEvent,
-    minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
-};
+use crate::bms::command::minor_command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
 use crate::bms::{
     Decimal,
     command::{
-        Argb, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
+        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{Channel, Key, NoteKind},
+        graphics::Argb,
         time::{ObjTime, Track},
     },
     lex::token::{Token, TokenContent},
@@ -38,9 +36,14 @@ use self::def::{AtBgaDef, BgaDef, ExWavDef};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedObj, StopObj,
+        BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
     },
+};
+
+#[cfg(feature = "minor-command")]
+use self::obj::{
+    BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj,
 };
 use super::{
     ParseWarningContent, Result,
@@ -55,13 +58,13 @@ pub struct Bms {
     pub header: Header,
     /// The scope-defines in the score.
     pub scope_defines: ScopeDefines,
-    /// The arranges in the score.
+    /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
-    /// The objects in the score.
+    /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
     pub notes: Notes,
-    /// The graphics part in the score.
+    /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
-    /// The other part in the score.
+    /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
 }
 
@@ -103,16 +106,27 @@ pub struct Header {
     /// The LN notation type of the score.
     pub ln_type: LnType,
     /// The path of background image, which is shown while playing the score.
+    /// This image is displayed behind the gameplay area.
     pub back_bmp: Option<PathBuf>,
     /// The path of splash screen image, which is shown before playing the score.
+    /// This image is displayed during the loading screen.
     pub stage_file: Option<PathBuf>,
     /// The path of banner image.
+    /// This image is used in music selection screens.
     pub banner: Option<PathBuf>,
-    /// LN Mode
+    /// LN Mode. Defines the long note mode for this chart.
+    /// - 1: LN (Long Note)
+    /// - 2: CN (Charge Note)
+    /// - 3: HCN (Hell Charge Note)
     pub ln_mode: LnMode,
-    /// Preview Music
+    /// Preview Music. Defines the preview audio file for music selection.
+    /// This file is played when hovering over the song in the music select screen.
     pub preview_music: Option<PathBuf>,
-    /// Movie Define
+    /// Movie Define. Defines the global video file for the chart.
+    /// - Video starts from section #000
+    /// - Priority rules apply when conflicting with #xxx04
+    /// - No loop, stays on last frame after playback
+    /// - Audio track in video is not played
     pub movie: Option<PathBuf>,
 }
 
@@ -182,6 +196,7 @@ pub struct Arrangers {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Notes {
     /// The path to override the base path of the WAV file path.
+    /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
     /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
@@ -191,8 +206,10 @@ pub struct Notes {
     /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
     /// Index for fast key lookup. Used for LN/landmine logic.
+    /// Maps each key (lane) to a sorted map of times and object IDs for efficient note lookup.
     pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
     /// Extended message events. #EXT
+    #[cfg(feature = "minor-command")]
     pub extended_messages: Vec<ExtendedMessageObj>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
@@ -200,6 +217,23 @@ pub struct Notes {
     /// Material WAV file paths. #MATERIALSWAV
     #[cfg(feature = "minor-command")]
     pub materials_wav: Vec<PathBuf>,
+    /// BGM volume change events, indexed by time. #97
+    pub bgm_volume_changes: BTreeMap<ObjTime, BgmVolumeObj>,
+    /// KEY volume change events, indexed by time. #98
+    pub key_volume_changes: BTreeMap<ObjTime, KeyVolumeObj>,
+    /// Seek events, indexed by time. #05
+    #[cfg(feature = "minor-command")]
+    pub seek_events: BTreeMap<ObjTime, SeekObj>,
+    /// Text events, indexed by time. #99
+    pub text_events: BTreeMap<ObjTime, TextObj>,
+    /// Judge events, indexed by time. #A0
+    pub judge_events: BTreeMap<ObjTime, JudgeObj>,
+    /// BGA keybound events, indexed by time. #A5
+    #[cfg(feature = "minor-command")]
+    pub bga_keybound_events: BTreeMap<ObjTime, BgaKeyboundObj>,
+    /// Option events, indexed by time. #A6
+    #[cfg(feature = "minor-command")]
+    pub option_events: BTreeMap<ObjTime, OptionObj>,
 }
 
 /// The graphics objects that are used in the score.
@@ -207,12 +241,15 @@ pub struct Notes {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Graphics {
     /// The path of the background video. The video should be started the playing from the section 000.
+    /// This video is displayed behind the gameplay area.
+    /// Its audio track should not be played.
     pub video_file: Option<PathBuf>,
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
     pub bga_changes: BTreeMap<ObjTime, BgaObj>,
     /// The path of image, which is shown when the player got POOR.
+    /// This image is displayed when the player misses a note or gets a poor judgment.
     pub poor_bmp: Option<PathBuf>,
     /// The display mode for background image/video.
     pub poor_bga_mode: PoorMode,
@@ -231,6 +268,12 @@ pub struct Graphics {
     /// Video frame rate. #VIDEOF/S
     #[cfg(feature = "minor-command")]
     pub video_fs: Option<Decimal>,
+    /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
+    #[cfg(feature = "minor-command")]
+    pub bga_opacity_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaOpacityObj>>,
+    /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
+    #[cfg(feature = "minor-command")]
+    pub bga_argb_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaArgbObj>>,
 }
 
 /// The other objects that are used in the score. May be arranged in play.
@@ -238,8 +281,10 @@ pub struct Graphics {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Others {
     /// The message for overriding options of some BMS player.
+    #[cfg(feature = "minor-command")]
     pub options: Option<Vec<String>>,
     /// Whether the score is the octave mode.
+    /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     pub is_octave: bool,
     /// CDDA events, indexed by value. #CDDA
@@ -255,6 +300,7 @@ pub struct Others {
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
+    #[cfg(feature = "minor-command")]
     pub change_options: HashMap<ObjId, String>,
     /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
@@ -263,6 +309,9 @@ pub struct Others {
     /// Divide property. #DIVIDEPROP
     #[cfg(feature = "minor-command")]
     pub divide_prop: Option<String>,
+    /// Material path definition. #MATERIALS
+    #[cfg(feature = "minor-command")]
+    pub materials_path: Option<PathBuf>,
 }
 
 impl Bms {
@@ -369,6 +418,7 @@ impl Bms {
                     self.scope_defines.bpm_defs.insert(*id, bpm.clone());
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
                     prompt_handler
@@ -462,6 +512,7 @@ impl Bms {
             TokenContent::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             TokenContent::OctFp => self.others.is_octave = true,
+            #[cfg(feature = "minor-command")]
             TokenContent::Option(option) => self
                 .others
                 .options
@@ -555,52 +606,77 @@ impl Bms {
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Stp(ev) => {
-                // Store by ObjTime as key, report error if duplicated
+                // Store by ObjTime as key, handle duplication with prompt handler
                 let key = ev.time;
-                if self.arrangers.stp_events.contains_key(&key) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated STP event at time {key:?}"
-                    )));
+                if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::StpEvent {
+                            time: key,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, *ev)?;
+                } else {
+                    self.arrangers.stp_events.insert(key, *ev);
                 }
-                self.arrangers.stp_events.insert(key, *ev);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::WavCmd(ev) => {
-                // Store by wav_index as key, report error if duplicated
+                // Store by wav_index as key, handle duplication with prompt handler
                 let key = ev.wav_index;
-                if self.scope_defines.wavcmd_events.contains_key(&key) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated WAVCMD event for wav_index {key:?}",
-                    )));
+                if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::WavCmdEvent {
+                            wav_index: key,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, *ev)?;
+                } else {
+                    self.scope_defines.wavcmd_events.insert(key, *ev);
                 }
-                self.scope_defines.wavcmd_events.insert(key, *ev);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::SwBga(id, ev) => {
-                if self.scope_defines.swbga_events.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated SWBGA event for id {id:?}",
-                    )));
+                if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SwBgaEvent {
+                            id: *id,
+                            older,
+                            newer: ev,
+                        })
+                        .apply(older, ev.clone())?;
+                } else {
+                    self.scope_defines.swbga_events.insert(*id, ev.clone());
                 }
-                self.scope_defines.swbga_events.insert(*id, ev.clone());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Argb(id, argb) => {
-                if self.scope_defines.argb_defs.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated ARGB definition for id {id:?}",
-                    )));
+                if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::BgaArgb {
+                            id: *id,
+                            older,
+                            newer: argb,
+                        })
+                        .apply(older, *argb)?;
+                } else {
+                    self.scope_defines.argb_defs.insert(*id, *argb);
                 }
-                self.scope_defines.argb_defs.insert(*id, *argb);
             }
             #[cfg(feature = "minor-command")]
             TokenContent::Seek(id, v) => {
-                if self.others.seek_events.contains_key(id) {
-                    return Err(super::ParseWarningContent::SyntaxError(format!(
-                        "Duplicated Seek event for id {id:?}",
-                    )));
+                if let Some(older) = self.others.seek_events.get_mut(id) {
+                    prompt_handler
+                        .handle_duplication(PromptingDuplication::SeekEvent {
+                            id: *id,
+                            older,
+                            newer: v,
+                        })
+                        .apply(older, v.clone())?;
+                } else {
+                    self.others.seek_events.insert(*id, v.clone());
                 }
-                self.others.seek_events.insert(*id, v.clone());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::ExtChr(ev) => {
@@ -704,6 +780,7 @@ impl Bms {
                     )?;
                 }
             }
+            #[cfg(feature = "minor-command")]
             TokenContent::Message {
                 track,
                 channel: Channel::ChangeOption,
@@ -763,7 +840,11 @@ impl Bms {
             }
             TokenContent::Message {
                 track,
-                channel: channel @ (Channel::BgaBase | Channel::BgaPoor | Channel::BgaLayer),
+                channel:
+                    channel @ (Channel::BgaBase
+                    | Channel::BgaPoor
+                    | Channel::BgaLayer
+                    | Channel::BgaLayer2),
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
@@ -774,6 +855,7 @@ impl Bms {
                         Channel::BgaBase => BgaLayer::Base,
                         Channel::BgaPoor => BgaLayer::Poor,
                         Channel::BgaLayer => BgaLayer::Overlay,
+                        Channel::BgaLayer2 => BgaLayer::Overlay2,
                         _ => unreachable!(),
                     };
                     self.graphics.push_bga_change(
@@ -810,6 +892,201 @@ impl Bms {
                     });
                 }
             }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Message {
+                track,
+                channel:
+                    channel @ (Channel::BgaBaseOpacity
+                    | Channel::BgaLayerOpacity
+                    | Channel::BgaLayer2Opacity
+                    | Channel::BgaPoorOpacity),
+                message,
+            } => {
+                for (time, opacity_value) in opacity_from_message(*track, message) {
+                    let layer = match channel {
+                        Channel::BgaBaseOpacity => BgaLayer::Base,
+                        Channel::BgaLayerOpacity => BgaLayer::Overlay,
+                        Channel::BgaLayer2Opacity => BgaLayer::Overlay2,
+                        Channel::BgaPoorOpacity => BgaLayer::Poor,
+                        _ => unreachable!(),
+                    };
+                    self.graphics.push_bga_opacity_change(
+                        BgaOpacityObj {
+                            time,
+                            layer,
+                            opacity: opacity_value,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::BgmVolume,
+                message,
+            } => {
+                for (time, volume_value) in volume_from_message(*track, message) {
+                    self.notes.push_bgm_volume_change(
+                        BgmVolumeObj {
+                            time,
+                            volume: volume_value,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::KeyVolume,
+                message,
+            } => {
+                for (time, volume_value) in volume_from_message(*track, message) {
+                    self.notes.push_key_volume_change(
+                        KeyVolumeObj {
+                            time,
+                            volume: volume_value,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Message {
+                track,
+                channel:
+                    channel @ (Channel::BgaBaseArgb
+                    | Channel::BgaLayerArgb
+                    | Channel::BgaLayer2Argb
+                    | Channel::BgaPoorArgb),
+                message,
+            } => {
+                for (time, argb_id) in ids_from_message(*track, message) {
+                    let layer = match channel {
+                        Channel::BgaBaseArgb => BgaLayer::Base,
+                        Channel::BgaLayerArgb => BgaLayer::Overlay,
+                        Channel::BgaLayer2Argb => BgaLayer::Overlay2,
+                        Channel::BgaPoorArgb => BgaLayer::Poor,
+                        _ => unreachable!(),
+                    };
+                    let argb = self
+                        .scope_defines
+                        .argb_defs
+                        .get(&argb_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
+                    self.graphics.push_bga_argb_change(
+                        BgaArgbObj {
+                            time,
+                            layer,
+                            argb: *argb,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Message {
+                track,
+                channel: Channel::Seek,
+                message,
+            } => {
+                for (time, seek_id) in ids_from_message(*track, message) {
+                    let position = self
+                        .others
+                        .seek_events
+                        .get(&seek_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(seek_id))?;
+                    self.notes.push_seek_event(
+                        SeekObj {
+                            time,
+                            position: position.clone(),
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::Text,
+                message,
+            } => {
+                for (time, text_id) in ids_from_message(*track, message) {
+                    let text = self
+                        .others
+                        .texts
+                        .get(&text_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(text_id))?;
+                    self.notes.push_text_event(
+                        TextObj {
+                            time,
+                            text: text.clone(),
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            TokenContent::Message {
+                track,
+                channel: Channel::Judge,
+                message,
+            } => {
+                for (time, judge_id) in ids_from_message(*track, message) {
+                    let exrank_def = self
+                        .scope_defines
+                        .exrank_defs
+                        .get(&judge_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(judge_id))?;
+                    self.notes.push_judge_event(
+                        JudgeObj {
+                            time,
+                            judge_level: exrank_def.judge_level,
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Message {
+                track,
+                channel: Channel::BgaKeybound,
+                message,
+            } => {
+                for (time, keybound_id) in ids_from_message(*track, message) {
+                    let event = self
+                        .scope_defines
+                        .swbga_events
+                        .get(&keybound_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(keybound_id))?;
+                    self.notes.push_bga_keybound_event(
+                        BgaKeyboundObj {
+                            time,
+                            event: event.clone(),
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Message {
+                track,
+                channel: Channel::Option,
+                message,
+            } => {
+                for (time, option_id) in ids_from_message(*track, message) {
+                    let option = self
+                        .others
+                        .change_options
+                        .get(&option_id)
+                        .ok_or(ParseWarningContent::UndefinedObject(option_id))?;
+                    self.notes.push_option_event(
+                        OptionObj {
+                            time,
+                            option: option.clone(),
+                        },
+                        prompt_handler,
+                    )?;
+                }
+            }
+            #[cfg(feature = "minor-command")]
             TokenContent::ExtendedMessage {
                 track,
                 channel,
@@ -899,6 +1176,10 @@ impl Bms {
             #[cfg(feature = "minor-command")]
             TokenContent::DivideProp(prop) => {
                 self.others.divide_prop = Some(prop.to_string());
+            }
+            #[cfg(feature = "minor-command")]
+            TokenContent::Materials(path) => {
+                self.others.materials_path = Some(path.to_path_buf());
             }
             #[cfg(feature = "minor-command")]
             TokenContent::VideoColors(colors) => {
@@ -1117,6 +1398,63 @@ impl Graphics {
             }
         }
     }
+
+    /// Adds a new BGA opacity change object to the graphics.
+    #[cfg(feature = "minor-command")]
+    pub fn push_bga_opacity_change(
+        &mut self,
+        opacity_obj: BgaOpacityObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        let this_layer_map = self
+            .bga_opacity_changes
+            .entry(opacity_obj.layer)
+            .or_default();
+        match this_layer_map.entry(opacity_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(opacity_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaOpacityChangeEvent {
+                        time: opacity_obj.time,
+                        older: existing,
+                        newer: &opacity_obj,
+                    })
+                    .apply(entry.get_mut(), opacity_obj)
+            }
+        }
+    }
+
+    /// Adds a new BGA ARGB color change object to the graphics.
+    #[cfg(feature = "minor-command")]
+    pub fn push_bga_argb_change(
+        &mut self,
+        argb_obj: BgaArgbObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
+        match this_layer_map.entry(argb_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(argb_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaArgbChangeEvent {
+                        time: argb_obj.time,
+                        older: existing,
+                        newer: &argb_obj,
+                    })
+                    .apply(entry.get_mut(), argb_obj)
+            }
+        }
+    }
 }
 
 impl Notes {
@@ -1181,6 +1519,7 @@ impl Notes {
     }
 
     /// Adds the new extended message object to the notes.
+    #[cfg(feature = "minor-command")]
     pub fn push_extended_message(&mut self, message: ExtendedMessageObj) {
         self.extended_messages.push(message);
     }
@@ -1203,6 +1542,184 @@ impl Notes {
     pub fn last_bgm_time(&self) -> Option<ObjTime> {
         self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }
+
+    /// Adds a new BGM volume change object to the notes.
+    pub fn push_bgm_volume_change(
+        &mut self,
+        volume_obj: BgmVolumeObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bgm_volume_changes.entry(volume_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(volume_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgmVolumeChangeEvent {
+                        time: volume_obj.time,
+                        older: existing,
+                        newer: &volume_obj,
+                    })
+                    .apply(entry.get_mut(), volume_obj)
+            }
+        }
+    }
+
+    /// Adds a new KEY volume change object to the notes.
+    pub fn push_key_volume_change(
+        &mut self,
+        volume_obj: KeyVolumeObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.key_volume_changes.entry(volume_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(volume_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::KeyVolumeChangeEvent {
+                        time: volume_obj.time,
+                        older: existing,
+                        newer: &volume_obj,
+                    })
+                    .apply(entry.get_mut(), volume_obj)
+            }
+        }
+    }
+
+    /// Adds a new seek object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_seek_event(
+        &mut self,
+        seek_obj: SeekObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.seek_events.entry(seek_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(seek_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::SeekMessageEvent {
+                        time: seek_obj.time,
+                        older: existing,
+                        newer: &seek_obj,
+                    })
+                    .apply(entry.get_mut(), seek_obj)
+            }
+        }
+    }
+
+    /// Adds a new text object to the notes.
+    pub fn push_text_event(
+        &mut self,
+        text_obj: TextObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.text_events.entry(text_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(text_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::TextEvent {
+                        time: text_obj.time,
+                        older: existing,
+                        newer: &text_obj,
+                    })
+                    .apply(entry.get_mut(), text_obj)
+            }
+        }
+    }
+
+    /// Adds a new judge object to the notes.
+    pub fn push_judge_event(
+        &mut self,
+        judge_obj: JudgeObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.judge_events.entry(judge_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(judge_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::JudgeEvent {
+                        time: judge_obj.time,
+                        older: existing,
+                        newer: &judge_obj,
+                    })
+                    .apply(entry.get_mut(), judge_obj)
+            }
+        }
+    }
+
+    /// Adds a new BGA keybound object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_bga_keybound_event(
+        &mut self,
+        keybound_obj: BgaKeyboundObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.bga_keybound_events.entry(keybound_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(keybound_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::BgaKeyboundEvent {
+                        time: keybound_obj.time,
+                        older: existing,
+                        newer: &keybound_obj,
+                    })
+                    .apply(entry.get_mut(), keybound_obj)
+            }
+        }
+    }
+
+    /// Adds a new option object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_option_event(
+        &mut self,
+        option_obj: OptionObj,
+        prompt_handler: &mut impl PromptHandler,
+    ) -> Result<()> {
+        match self.option_events.entry(option_obj.time) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(option_obj);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompt_handler
+                    .handle_duplication(PromptingDuplication::OptionEvent {
+                        time: option_obj.time,
+                        older: existing,
+                        newer: &option_obj,
+                    })
+                    .apply(entry.get_mut(), option_obj)
+            }
+        }
+    }
 }
 
 fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
@@ -1218,5 +1735,45 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
         let obj = ObjId::try_from([c1, c2]).ok()?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
+    })
+}
+
+#[cfg(feature = "minor-command")]
+fn opacity_from_message(
+    track: Track,
+    message: &'_ str,
+) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
+    let denominator = message.len() as u64 / 2;
+    let mut chars = message.chars().tuples().enumerate();
+    std::iter::from_fn(move || {
+        let (i, c1, c2) = loop {
+            let (i, (c1, c2)) = chars.next()?;
+            if !(c1 == '0' && c2 == '0') {
+                break (i, c1, c2);
+            }
+        };
+        // Parse opacity value from hex string
+        let opacity_hex = format!("{c1}{c2}");
+        let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
+        let time = ObjTime::new(track.0, i as u64, denominator);
+        Some((time, opacity_value))
+    })
+}
+
+fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
+    let denominator = message.len() as u64 / 2;
+    let mut chars = message.chars().tuples().enumerate();
+    std::iter::from_fn(move || {
+        let (i, c1, c2) = loop {
+            let (i, (c1, c2)) = chars.next()?;
+            if !(c1 == '0' && c2 == '0') {
+                break (i, c1, c2);
+            }
+        };
+        // Parse volume value from hex string
+        let volume_hex = format!("{c1}{c2}");
+        let volume_value = u8::from_str_radix(&volume_hex, 16).ok()?;
+        let time = ObjTime::new(track.0, i as u64, denominator);
+        Some((time, volume_value))
     })
 }

@@ -17,7 +17,18 @@ use super::model::def::ExWavDef;
 use super::{
     ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{BgaObj, BpmChangeObj, ScrollingFactorObj, SectionLenChangeObj, SpeedObj},
+    model::obj::{
+        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
+        SectionLenChangeObj, SpeedObj, TextObj,
+    },
+};
+
+#[cfg(feature = "minor-command")]
+use super::model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
+#[cfg(feature = "minor-command")]
+use crate::bms::command::{
+    graphics::Argb,
+    minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -184,6 +195,142 @@ pub enum PromptingDuplication<'a> {
         /// Incoming definition.
         newer: &'a BgaObj,
     },
+    /// BGA opacity change event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaOpacityChangeEvent {
+        /// Duplicated BGA opacity change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaOpacityObj,
+        /// Incoming definition.
+        newer: &'a BgaOpacityObj,
+    },
+    /// BGA ARGB color definition is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaArgb {
+        /// Duplicated BGA ARGB object id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a Argb,
+        /// Incoming definition.
+        newer: &'a Argb,
+    },
+    /// BGA ARGB color change event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaArgbChangeEvent {
+        /// Duplicated BGA ARGB change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaArgbObj,
+        /// Incoming definition.
+        newer: &'a BgaArgbObj,
+    },
+    /// STP event is duplicated.
+    #[cfg(feature = "minor-command")]
+    StpEvent {
+        /// Duplicated STP event time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a StpEvent,
+        /// Incoming definition.
+        newer: &'a StpEvent,
+    },
+    /// WAVCMD event is duplicated.
+    #[cfg(feature = "minor-command")]
+    WavCmdEvent {
+        /// Duplicated WAVCMD event wav_index.
+        wav_index: ObjId,
+        /// Existing definition.
+        older: &'a WavCmdEvent,
+        /// Incoming definition.
+        newer: &'a WavCmdEvent,
+    },
+    /// SWBGA event is duplicated.
+    #[cfg(feature = "minor-command")]
+    SwBgaEvent {
+        /// Duplicated SWBGA event id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a SwBgaEvent,
+        /// Incoming definition.
+        newer: &'a SwBgaEvent,
+    },
+    /// Seek event is duplicated.
+    #[cfg(feature = "minor-command")]
+    SeekEvent {
+        /// Duplicated Seek event id.
+        id: ObjId,
+        /// Existing definition.
+        older: &'a Decimal,
+        /// Incoming definition.
+        newer: &'a Decimal,
+    },
+    /// BGM volume change event is duplicated.
+    BgmVolumeChangeEvent {
+        /// Duplicated BGM volume change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgmVolumeObj,
+        /// Incoming definition.
+        newer: &'a BgmVolumeObj,
+    },
+    /// KEY volume change event is duplicated.
+    KeyVolumeChangeEvent {
+        /// Duplicated KEY volume change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a KeyVolumeObj,
+        /// Incoming definition.
+        newer: &'a KeyVolumeObj,
+    },
+    /// Seek message event is duplicated.
+    #[cfg(feature = "minor-command")]
+    SeekMessageEvent {
+        /// Duplicated seek time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a SeekObj,
+        /// Incoming definition.
+        newer: &'a SeekObj,
+    },
+    /// Text event is duplicated.
+    TextEvent {
+        /// Duplicated text time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a TextObj,
+        /// Incoming definition.
+        newer: &'a TextObj,
+    },
+    /// Judge event is duplicated.
+    JudgeEvent {
+        /// Duplicated judge time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a JudgeObj,
+        /// Incoming definition.
+        newer: &'a JudgeObj,
+    },
+    /// BGA keybound event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaKeyboundEvent {
+        /// Duplicated BGA keybound time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaKeyboundObj,
+        /// Incoming definition.
+        newer: &'a BgaKeyboundObj,
+    },
+    /// Option event is duplicated.
+    #[cfg(feature = "minor-command")]
+    OptionEvent {
+        /// Duplicated option time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a OptionObj,
+        /// Incoming definition.
+        newer: &'a OptionObj,
+    },
 }
 
 /// A choice to handle the duplicated definition.
@@ -194,8 +341,10 @@ pub enum DuplicationWorkaround {
     UseOlder,
     /// Choose to use the incoming one.
     UseNewer,
-    /// Choose to warn.
-    Warn,
+    /// Choose to warn and use older values.
+    WarnAndUseOlder,
+    /// Choose to warn and use newer values.
+    WarnAndUseNewer,
 }
 
 impl DuplicationWorkaround {
@@ -206,7 +355,13 @@ impl DuplicationWorkaround {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::Warn => Err(ParseWarningContent::PromptHandlerWarning),
+            DuplicationWorkaround::WarnAndUseOlder => {
+                Err(ParseWarningContent::PromptHandlerWarning)
+            }
+            DuplicationWorkaround::WarnAndUseNewer => {
+                *target = newer;
+                Err(ParseWarningContent::PromptHandlerWarning)
+            }
         }
     }
 }
@@ -231,12 +386,22 @@ impl PromptHandler for AlwaysUseNewer {
     }
 }
 
-/// The strategy that always warns.
+/// The strategy that always warns and uses older values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct AlwaysWarn;
+pub struct AlwaysWarnAndUseOlder;
 
-impl PromptHandler for AlwaysWarn {
+impl PromptHandler for AlwaysWarnAndUseOlder {
     fn handle_duplication(&mut self, _: PromptingDuplication) -> DuplicationWorkaround {
-        DuplicationWorkaround::Warn
+        DuplicationWorkaround::WarnAndUseOlder
+    }
+}
+
+/// The strategy that always warns and uses newer values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AlwaysWarnAndUseNewer;
+
+impl PromptHandler for AlwaysWarnAndUseNewer {
+    fn handle_duplication(&mut self, _: PromptingDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseNewer
     }
 }

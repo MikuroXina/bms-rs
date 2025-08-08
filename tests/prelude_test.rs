@@ -13,7 +13,6 @@ fn test_prelude_imports() {
     let _poor_mode = PoorMode::default();
     let _ln_type = LnType::default();
     let _ln_mode_type = LnMode::default();
-    let _wav_cmd_param = WavCmdParam::Pitch;
 
     // Test channel types
     let _channel = Channel::Bgm;
@@ -102,17 +101,13 @@ fn test_prelude_imports() {
         time: _obj_time,
         factor: Decimal::from(1),
     };
-    let _extended_message_obj = ExtendedMessageObj {
-        track: _track,
-        channel: Channel::Bgm,
-        message: "test".into(),
-    };
 
     // Test prompt types
     let _duplication_workaround = DuplicationWorkaround::UseOlder;
     let _always_use_older = AlwaysUseOlder;
     let _always_use_newer = AlwaysUseNewer;
-    let _always_warn = AlwaysWarn;
+    let _always_warn_and_use_older = AlwaysWarnAndUseOlder;
+    let _always_warn_and_use_newer = AlwaysWarnAndUseNewer;
 
     // Test rng types
     let _rng_mock = RngMock::<1>([BigUint::from(1u32)]);
@@ -123,7 +118,6 @@ fn test_prelude_imports() {
     assert_eq!(_poor_mode, PoorMode::Interrupt);
     assert_eq!(_ln_type, LnType::Rdm);
     assert_eq!(_ln_mode_type, LnMode::Ln);
-    assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
     assert_eq!(_channel, Channel::Bgm);
     assert_eq!(_key, Key::Key1);
     assert_eq!(_note_kind, NoteKind::Visible);
@@ -135,6 +129,7 @@ fn test_prelude_imports() {
 #[cfg(feature = "minor-command")]
 fn test_prelude_minor_command_imports() {
     // Test minor command types when feature is enabled
+    let _wav_cmd_param = WavCmdParam::Pitch;
     let _ex_wav_pan = ExWavPan::try_from(0).unwrap();
     let _ex_wav_volume = ExWavVolume::try_from(0).unwrap();
     let _ex_wav_frequency = ExWavFrequency::try_from(100).unwrap();
@@ -145,6 +140,11 @@ fn test_prelude_minor_command_imports() {
             denominator: 1,
         },
         duration: std::time::Duration::from_secs(1),
+    };
+    let _extended_message_obj = ExtendedMessageObj {
+        track: Track(1),
+        channel: Channel::Bgm,
+        message: "test".into(),
     };
     let _wav_cmd_event = WavCmdEvent {
         param: WavCmdParam::Pitch,
@@ -170,6 +170,7 @@ fn test_prelude_minor_command_imports() {
     };
 
     // Test that we can use the minor command types
+    assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
     assert_eq!(_ex_wav_pan.value(), 0);
     assert_eq!(_ex_wav_volume.value(), 0);
     assert_eq!(_ex_wav_frequency.value(), 100);

@@ -210,31 +210,6 @@ impl Default for Volume {
     }
 }
 
-/// An alpha-red-gree-blue color data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Argb {
-    /// A component of alpha.
-    pub alpha: u8,
-    /// A component of red.
-    pub red: u8,
-    /// A component of green.
-    pub green: u8,
-    /// A component of blue.
-    pub blue: u8,
-}
-
-impl Default for Argb {
-    fn default() -> Self {
-        Self {
-            alpha: 255,
-            red: 0,
-            green: 0,
-            blue: 0,
-        }
-    }
-}
-
 /// A POOR BGA display mode.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -246,18 +221,6 @@ pub enum PoorMode {
     Overlay,
     /// Not to display the POOR BGA.
     Hidden,
-}
-
-/// RGB struct, used for #VIDEOCOLORS and similar commands.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Rgb {
-    /// Red component
-    pub r: u8,
-    /// Green component
-    pub g: u8,
-    /// Blue component
-    pub b: u8,
 }
 
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
@@ -305,54 +268,4 @@ impl TryFrom<u8> for LnMode {
             _ => return Err(value),
         })
     }
-}
-
-/// WAVCMD parameter type.
-///
-/// - Pitch: pitch (0-127, 60 is C6)
-/// - Volume: volume percent (usually 0-100)
-/// - Time: playback time (ms*0.5, 0 means original length)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum WavCmdParam {
-    /// Pitch (0-127, 60 is C6)
-    Pitch,
-    /// Volume percent (0-100 is recommended. Larger than 100 value is not recommended.)
-    Volume,
-    /// Playback time (ms*0.5, 0 means original length)
-    Time,
-}
-
-/// BM98 #ExtChr extended character customization event.
-///
-/// Used for #ExtChr command, implements custom UI element image replacement.
-/// - sprite_num: character index to replace [0-1023]
-/// - bmp_num: BMP index (hex to decimal, or -1/-257, etc.)
-/// - start_x/start_y: crop start point
-/// - end_x/end_y: crop end point
-/// - offset_x/offset_y: offset (optional)
-/// - abs_x/abs_y: absolute coordinate (optional)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ExtChrEvent {
-    /// Character index to replace [0-1023]
-    pub sprite_num: i32,
-    /// BMP index (hex to decimal, or -1/-257, etc.)
-    pub bmp_num: i32,
-    /// Crop start point
-    pub start_x: i32,
-    /// Crop start point
-    pub start_y: i32,
-    /// Crop end point
-    pub end_x: i32,
-    /// Crop end point
-    pub end_y: i32,
-    /// Offset (optional)
-    pub offset_x: Option<i32>,
-    /// Offset (optional)
-    pub offset_y: Option<i32>,
-    /// Absolute coordinate (optional)
-    pub abs_x: Option<i32>,
-    /// Absolute coordinate (optional)
-    pub abs_y: Option<i32>,
 }

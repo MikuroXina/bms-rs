@@ -4,13 +4,10 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export main types from bms module
-pub use super::{BmsWarning, Decimal};
+pub use super::{BmsOutput, BmsWarning, Decimal, parse_bms};
 
 // Re-export from command module
-pub use super::command::{
-    Argb, ExtChrEvent, JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Rgb, Volume,
-    WavCmdParam,
-};
+pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
 
 // Re-export from command submodules
 pub use super::command::{
@@ -18,7 +15,7 @@ pub use super::command::{
         Channel, Key, NoteKind, PlayerSide, read_channel_beat, read_channel_beat_nanasi,
         read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
     },
-    graphics::{PixelPoint, PixelSize},
+    graphics::{Argb, PixelPoint, PixelSize, Rgb},
     time::{ObjTime, Track},
 };
 
@@ -37,13 +34,13 @@ pub use super::parse::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
         obj::{
-            BgaLayer, BgaObj, BpmChangeObj, ExtendedMessageObj, Obj, ScrollingFactorObj,
-            SectionLenChangeObj, SpeedObj, StopObj,
+            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
         },
     },
     prompt::{
-        AlwaysUseNewer, AlwaysUseOlder, AlwaysWarn, DuplicationWorkaround, PromptHandler,
-        PromptingDuplication,
+        AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
+        DuplicationWorkaround, PromptHandler, PromptingDuplication,
     },
     random::{
         ControlFlowRule,
@@ -57,9 +54,13 @@ pub use super::lex::token::Token;
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]
 pub use super::command::minor_command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, StpEvent, SwBgaEvent, WavCmdEvent,
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+    WavCmdParam,
 };
 
 // Re-export ExWavDef when feature is enabled
 #[cfg(feature = "minor-command")]
-pub use super::parse::model::def::ExWavDef;
+pub use super::parse::model::{
+    def::ExWavDef,
+    obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj},
+};

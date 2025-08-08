@@ -99,7 +99,7 @@ assert_eq!(lex_warnings, vec![]);
 // You can modify the tokens before parsing, for some commands that this library does not warpped.
 let rng = RandRng(StdRng::seed_from_u64(42));
 let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
-    &tokens, rng, AlwaysWarn
+    &tokens, rng, AlwaysWarnAndUseOlder
     );
 assert_eq!(parse_warnings, vec![]);
 assert_eq!(playing_warnings, vec![]);

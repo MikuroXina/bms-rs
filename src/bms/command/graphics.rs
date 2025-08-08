@@ -57,3 +57,40 @@ impl From<PixelSize> for (u16, u16) {
         (size.width, size.height)
     }
 }
+
+/// An alpha-red-gree-blue color data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Argb {
+    /// A component of alpha.
+    pub alpha: u8,
+    /// A component of red.
+    pub red: u8,
+    /// A component of green.
+    pub green: u8,
+    /// A component of blue.
+    pub blue: u8,
+}
+
+impl Default for Argb {
+    fn default() -> Self {
+        Self {
+            alpha: 255,
+            red: 0,
+            green: 0,
+            blue: 0,
+        }
+    }
+}
+
+/// RGB struct, used for #VIDEOCOLORS and similar commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Rgb {
+    /// Red component
+    pub r: u8,
+    /// Green component
+    pub g: u8,
+    /// Blue component
+    pub b: u8,
+}
