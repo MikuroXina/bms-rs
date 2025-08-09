@@ -6,8 +6,9 @@
 // Re-export main types from bms module
 pub use super::{
     BmsOutput, BmsTokenIter, BmsWarning, Decimal, parse_bms, parse_bms_step_build_ast,
-    parse_bms_step_lex, parse_bms_step_model, parse_bms_step_parse_ast, parse_bms_with_ast,
-    parse_bms_with_rng, parse_bms_with_tokens, parse_bms_with_tokens_and_prompt_handler,
+    parse_bms_step_check_playing, parse_bms_step_lex, parse_bms_step_model, parse_bms_step_parse_ast,
+    parse_bms_with_ast, parse_bms_with_rng, parse_bms_with_tokens,
+    parse_bms_with_tokens_and_prompt_handler,
 };
 
 // Re-export from command module
