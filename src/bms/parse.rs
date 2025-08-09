@@ -51,7 +51,7 @@ pub struct BmsParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream<'a>(
+    pub(super) fn from_token_stream<'a>(
         token_iter: impl Into<BmsTokenIter<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {

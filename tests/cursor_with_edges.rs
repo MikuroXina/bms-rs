@@ -1,4 +1,7 @@
-use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::Token};
+use bms_rs::bms::{
+    lex::{BmsLexOutput, token::Token},
+    parse_bms_step_lex,
+};
 
 #[test]
 fn test_cursor_with_no_ending_return_and_newline() {
@@ -8,7 +11,7 @@ fn test_cursor_with_no_ending_return_and_newline() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(text);
+    } = parse_bms_step_lex(text);
     assert_eq!(warnings, vec![]);
     let mut tokens_iter = tokens.into_iter();
     assert_eq!(tokens_iter.next().unwrap().content, Token::Title("Sample"));

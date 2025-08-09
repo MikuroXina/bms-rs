@@ -49,13 +49,13 @@ pub struct BmsLexOutput<'a> {
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse_lex_tokens<'a>(source: &'a str) -> BmsLexOutput<'a> {
+pub(super) fn parse_lex_tokens<'a>(source: &'a str) -> BmsLexOutput<'a> {
     parse_lex_tokens_with_channel_parser(source, &read_channel_beat)
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
 /// Use this function when you want to parse the BMS format text with a custom channel parser.
-pub fn parse_lex_tokens_with_channel_parser<'a>(
+pub(super) fn parse_lex_tokens_with_channel_parser<'a>(
     source: &'a str,
     channel_parser: &'a impl Fn(&str) -> Option<Channel>,
 ) -> BmsLexOutput<'a> {
@@ -90,6 +90,8 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
 
 #[cfg(test)]
 mod tests {
+    use super::parse_lex_tokens;
+
     use std::{path::Path, str::FromStr};
 
     use fraction::{GenericDecimal, GenericFraction};
@@ -101,7 +103,7 @@ mod tests {
                 channel::{Channel, NoteKind, PlayerSide},
                 time::Track,
             },
-            lex::{BmsLexOutput, parse_lex_tokens, token::Token::*},
+            lex::{BmsLexOutput, token::Token::*},
         },
         command::channel::Key,
     };

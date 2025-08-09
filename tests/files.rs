@@ -1,5 +1,4 @@
 use bms_rs::bms::prelude::*;
-use bms_rs::command::PositionWrapperExt;
 
 #[test]
 fn test_lal() {
@@ -88,7 +87,7 @@ fn test_blank() {
     let BmsLexOutput {
         tokens: _,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(
         warnings,
         vec![

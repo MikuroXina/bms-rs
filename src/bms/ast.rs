@@ -45,7 +45,7 @@ pub struct AstBuildOutput<'a> {
 ///
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
-pub fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutput<'a> {
+pub(super) fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutput<'a> {
     let mut token_stream = token_stream.into();
     let (units, errors) = build_control_flow_ast(&mut token_stream);
     AstBuildOutput {
@@ -66,7 +66,10 @@ pub struct AstParseOutput<'a> {
 ///
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
-pub fn parse_ast<'a>(AstRoot { units }: AstRoot<'a>, mut rng: impl Rng) -> AstParseOutput<'a> {
+pub(super) fn parse_ast<'a>(
+    AstRoot { units }: AstRoot<'a>,
+    mut rng: impl Rng,
+) -> AstParseOutput<'a> {
     let mut ast_iter = units.into_iter().peekable();
     let (tokens, warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
     AstParseOutput {

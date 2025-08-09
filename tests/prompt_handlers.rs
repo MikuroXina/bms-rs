@@ -61,7 +61,7 @@ fn test_always_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysUseOlder);
+    } = parse_bms_step_model(&tokens, AlwaysUseOlder);
 
     // Should have no warnings since AlwaysUseOlder handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -181,7 +181,7 @@ fn test_always_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
+    } = parse_bms_step_model(&tokens, AlwaysUseNewer);
 
     // Should have no warnings since AlwaysUseNewer handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -301,7 +301,7 @@ fn test_always_warn_and_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = parse_bms_step_model(&tokens, AlwaysWarnAndUseOlder);
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(parse_warnings.len(), 9);
@@ -426,7 +426,7 @@ fn test_always_warn_and_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseNewer);
+    } = parse_bms_step_model(&tokens, AlwaysWarnAndUseNewer);
 
     // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
     assert!(

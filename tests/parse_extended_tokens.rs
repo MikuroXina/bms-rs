@@ -1,6 +1,6 @@
 #![cfg(feature = "minor-command")]
 
-use bms_rs::bms::{parse_bms_with_tokens, prelude::*};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]
@@ -12,7 +12,7 @@ fn test_atbga_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -49,7 +49,7 @@ fn test_bga_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -86,7 +86,7 @@ fn test_exrank_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -120,7 +120,7 @@ fn test_exwav_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -157,7 +157,7 @@ fn test_changeoption_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -191,7 +191,7 @@ fn test_text_parsing() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -229,7 +229,7 @@ fn test_notes_parse_extended_tokens() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -295,7 +295,7 @@ fn test_token_parsing_comprehensive() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsOutput { bms, warnings, .. } =
         parse_bms_with_tokens(&tokens, RngMock([BigUint::from(1u64)]));
@@ -373,7 +373,7 @@ fn test_exwav_out_of_range_values() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };
@@ -409,7 +409,7 @@ fn test_exwav_out_of_range_values() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };
@@ -442,7 +442,7 @@ fn test_exwav_out_of_range_values() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     let [warn] = &warnings[..] else {
         panic!("expected 1 warning, got: {warnings:?}");
     };

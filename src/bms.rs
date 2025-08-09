@@ -30,13 +30,14 @@ use thiserror::Error;
 
 use crate::bms::{
     ast::{
-        AstBuildOutput, AstParseOutput, build_ast, parse_ast,
+        AstBuildOutput, AstParseOutput,
         rng::{RandRng, Rng},
         structure::AstRoot,
     },
     command::PositionWrapper,
     lex::token::Token,
     parse::model::Bms,
+    prelude::{AlwaysWarnAndUseOlder, PromptHandler},
 };
 
 use self::{
@@ -44,7 +45,7 @@ use self::{
     lex::BmsLexOutput,
     parse::{
         BmsParseOutput, ParseWarning,
-        check_playing::{PlayingError, PlayingWarning},
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
     },
 };
 
@@ -151,7 +152,7 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = lex::parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
 
     let BmsOutput {
         bms,
@@ -177,7 +178,7 @@ pub fn parse_bms_with_tokens(tokens: &[PositionWrapper<Token<'_>>], rng: impl Rn
     let AstBuildOutput {
         root,
         ast_build_warnings,
-    } = build_ast(tokens);
+    } = parse_bms_step_build_ast(tokens);
 
     let BmsOutput {
         bms,
@@ -203,34 +204,97 @@ pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
     let AstParseOutput {
         tokens: tokens_from_ast,
         ast_parse_warnings,
-    } = parse_ast(root, rng);
+    } = parse_bms_step_parse_ast(root, rng);
     let tokens: Vec<PositionWrapper<Token<'_>>> =
         tokens_from_ast.into_iter().map(ToOwned::to_owned).collect();
 
+    // Convert lex warnings to BmsWarning
+    let mut warnings: Vec<BmsWarning> = ast_parse_warnings
+        .into_iter()
+        .map(BmsWarning::AstParseWarning)
+        .collect();
+
+    let BmsOutput {
+        bms,
+        warnings: after_warnings,
+    } = parse_bms_with_tokens_and_prompt_handler(&tokens, AlwaysWarnAndUseOlder);
+
+    warnings.extend(after_warnings);
+
+    BmsOutput { bms, warnings }
+}
+
+/// Parse bms file with tokens and prompt handler.
+///
+/// A step of [`parse_bms_with_ast`]
+pub fn parse_bms_with_tokens_and_prompt_handler(
+    tokens: &[PositionWrapper<Token<'_>>],
+    prompt_handler: impl PromptHandler,
+) -> BmsOutput {
     // Parse Bms File
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(&tokens, parse::prompt::AlwaysWarnAndUseOlder);
+    } = parse_bms_step_model(tokens, prompt_handler);
 
-    // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = parse_warnings
         .into_iter()
         .map(BmsWarning::ParseWarning)
         .collect();
 
-    warnings.extend(
-        ast_parse_warnings
-            .into_iter()
-            .map(BmsWarning::AstParseWarning),
-    );
-
     // Check playing
-    let (playing_warnings, playing_errors) = bms.check_playing();
+    let PlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing();
 
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
 
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
     BmsOutput { bms, warnings }
+}
+
+/*
+* Steps for parsing BMS file
+*/
+
+/// Public step function for lexing used by bms.rs and external callers.
+///
+/// Step 1 of [`parse_bms`]
+pub fn parse_bms_step_lex<'a>(source: &'a str) -> BmsLexOutput<'a> {
+    lex::parse_lex_tokens(source)
+}
+
+/// Public step function for building AST used by `bms.rs` and external callers.
+///
+/// Step 2 of [`parse_bms`]
+pub fn parse_bms_step_build_ast<'a>(
+    token_stream: impl Into<BmsTokenIter<'a>>,
+) -> AstBuildOutput<'a> {
+    ast::build_ast(token_stream)
+}
+
+/// Public step function for parsing AST used by `bms.rs` and external callers.
+///
+/// Step 3 of [`parse_bms`]
+pub fn parse_bms_step_parse_ast<'a>(root: AstRoot<'a>, rng: impl Rng) -> AstParseOutput<'a> {
+    ast::parse_ast(root, rng)
+}
+
+/// Public step function for parsing BMS model used by `bms.rs` and external callers.
+///
+/// Step 4 of [`parse_bms`]
+pub fn parse_bms_step_model<'a>(
+    token_iter: impl Into<BmsTokenIter<'a>>,
+    prompt_handler: impl PromptHandler,
+) -> BmsParseOutput {
+    Bms::from_token_stream(token_iter, prompt_handler)
+}
+
+/// Public step function for checking playing used by `bms.rs` and external callers.
+///
+/// Step 5 of [`parse_bms`]
+pub fn parse_bms_step_check_playing(bms: &Bms) -> PlayingCheckOutput {
+    bms.check_playing()
 }

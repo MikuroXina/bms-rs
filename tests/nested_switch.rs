@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse_bms_with_tokens, prelude::*};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]
@@ -23,7 +23,7 @@ fn switch() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsOutput {
@@ -67,7 +67,7 @@ fn nested_switch_simpler() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsOutput {
@@ -128,7 +128,7 @@ fn nested_switch() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
@@ -306,7 +306,7 @@ fn nested_random_in_switch() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
@@ -484,7 +484,7 @@ fn nested_switch_in_random() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsOutput { bms, warnings, .. } = parse_bms_with_tokens(&tokens, rng);
@@ -657,7 +657,7 @@ fn test_switch_insane() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = bms_rs::lex::parse_lex_tokens(SRC);
+    } = parse_bms_step_lex(SRC);
     assert_eq!(warnings, vec![]);
 
     // CASE 1, RANDOM 1

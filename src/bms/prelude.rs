@@ -4,10 +4,17 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export main types from bms module
-pub use super::{BmsOutput, BmsTokenIter, BmsWarning, Decimal, parse_bms};
+pub use super::{
+    BmsOutput, BmsTokenIter, BmsWarning, Decimal, parse_bms, parse_bms_step_build_ast,
+    parse_bms_step_lex, parse_bms_step_model, parse_bms_step_parse_ast, parse_bms_with_ast,
+    parse_bms_with_rng, parse_bms_with_tokens, parse_bms_with_tokens_and_prompt_handler,
+};
 
 // Re-export from command module
-pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
+pub use super::command::{
+    JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, PositionWrapper, PositionWrapperExt,
+    Volume,
+};
 
 // Re-export from command submodules
 pub use super::command::{
@@ -26,16 +33,14 @@ pub use super::ast::{
 };
 
 // Re-export from lex module
-pub use super::lex::{
-    BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
-};
+pub use super::lex::{BmsLexOutput, LexWarning};
 
 // Re-export from parse module
 pub use super::parse::{BmsParseOutput, ParseWarning};
 
 // Re-export from parse submodules
 pub use super::parse::{
-    check_playing::{PlayingError, PlayingWarning},
+    check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
     model::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
@@ -51,7 +56,6 @@ pub use super::parse::{
 };
 
 // Re-export from lex submodules
-pub use super::command::PositionWrapper;
 pub use super::lex::token::Token;
 
 // Re-export minor command types when feature is enabled

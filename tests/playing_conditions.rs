@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse_bms_with_tokens, prelude::*};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]
@@ -8,7 +8,7 @@ fn test_playing_conditions_empty_bms() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let BmsOutput {
@@ -41,7 +41,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let BmsOutput {
@@ -63,7 +63,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     assert!(
@@ -108,7 +108,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = parse_bms_step_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let BmsOutput {

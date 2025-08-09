@@ -41,9 +41,19 @@ pub enum PlayingError {
     NoNotes,
 }
 
+/// Output of playing check.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PlayingCheckOutput {
+    /// Warnings that occurred during playing check.
+    pub playing_warnings: Vec<PlayingWarning>,
+    /// Errors which will make this chart unplayable.
+    pub playing_errors: Vec<PlayingError>,
+}
+
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub(crate) fn check_playing(&self) -> (Vec<PlayingWarning>, Vec<PlayingError>) {
+    pub(crate) fn check_playing(&self) -> PlayingCheckOutput {
         let mut warnings = Vec::new();
         let mut errors = Vec::new();
 
@@ -83,6 +93,9 @@ impl Bms {
             }
         }
 
-        (warnings, errors)
+        PlayingCheckOutput {
+            playing_warnings: warnings,
+            playing_errors: errors,
+        }
     }
 }

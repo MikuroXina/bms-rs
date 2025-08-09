@@ -1,4 +1,7 @@
-use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::Token};
+use bms_rs::bms::{
+    lex::{BmsLexOutput, token::Token},
+    parse_bms_step_lex,
+};
 
 #[test]
 fn test_comment() {
@@ -12,7 +15,7 @@ fn test_comment() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(text);
+    } = parse_bms_step_lex(text);
     assert_eq!(warnings, vec![]);
     let mut ts_iter = tokens.into_iter();
     assert_eq!(
