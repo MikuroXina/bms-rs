@@ -37,7 +37,7 @@ impl PositionWrapperExt for ParseWarning {}
 /// type alias of core::result::Result<T, ParseWarning>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
-// `ParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<ParseWarning>`。
+// The `ParseWarning` type alias has been removed. Please use `PositionWrapper<ParseWarning>` directly.
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]

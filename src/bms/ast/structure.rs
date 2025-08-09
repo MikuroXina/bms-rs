@@ -161,7 +161,7 @@ pub enum AstBuildWarning {
 }
 
 impl PositionWrapperExt for AstBuildWarning {}
-// `AstBuildWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstBuildWarning>`。
+// The `AstBuildWarning` type alias has been removed. Please use `PositionWrapper<AstBuildWarning>` directly.
 
 /// Control flow parsing warnings emitted during AST execution (parse phase).
 ///
@@ -179,4 +179,4 @@ pub enum AstParseWarning {
 }
 
 impl PositionWrapperExt for AstParseWarning {}
-// `AstParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstParseWarning>`。
+// The `AstParseWarning` type alias has been removed. Please use `PositionWrapper<AstParseWarning>` directly.

@@ -312,7 +312,7 @@ pub enum Token<'a> {
 
 impl<'a> PositionWrapperExt for Token<'a> {}
 
-// `Token` 类型别名已删除，直接使用 `PositionWrapper<Token<'a>>`。
+// The `Token` type alias has been removed. Use `PositionWrapper<Token<'a>>` directly.
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
