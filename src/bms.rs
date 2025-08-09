@@ -30,7 +30,7 @@ use thiserror::Error;
 
 use crate::bms::{
     ast::{
-        AstBuildOutput, AstParseOutput,
+        BmsAstBuildOutput, BmsAstParseOutput,
         rng::{RandRng, Rng},
         structure::AstRoot,
     },
@@ -175,7 +175,7 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
 /// A step of [`parse_bms`]
 pub fn parse_bms_with_tokens(tokens: &[PositionWrapper<Token<'_>>], rng: impl Rng) -> BmsOutput {
     // Parse BMS using default RNG and prompt handler
-    let AstBuildOutput {
+    let BmsAstBuildOutput {
         root,
         ast_build_warnings,
     } = parse_bms_step_build_ast(tokens);
@@ -201,7 +201,7 @@ pub fn parse_bms_with_tokens(tokens: &[PositionWrapper<Token<'_>>], rng: impl Rn
 /// A step of [`parse_bms`]
 pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
     // Parse Ast
-    let AstParseOutput {
+    let BmsAstParseOutput {
         tokens: tokens_from_ast,
         ast_parse_warnings,
     } = parse_bms_step_parse_ast(root, rng);
@@ -269,14 +269,14 @@ pub fn parse_bms_step_lex<'a>(source: &'a str) -> BmsLexOutput<'a> {
 /// Step 2 of [`parse_bms`]
 pub fn parse_bms_step_build_ast<'a>(
     token_stream: impl Into<BmsTokenIter<'a>>,
-) -> AstBuildOutput<'a> {
+) -> BmsAstBuildOutput<'a> {
     ast::build_ast(token_stream)
 }
 
 /// Public step function for parsing AST used by `bms.rs` and external callers.
 ///
 /// Step 3 of [`parse_bms`]
-pub fn parse_bms_step_parse_ast<'a>(root: AstRoot<'a>, rng: impl Rng) -> AstParseOutput<'a> {
+pub fn parse_bms_step_parse_ast<'a>(root: AstRoot<'a>, rng: impl Rng) -> BmsAstParseOutput<'a> {
     ast::parse_ast(root, rng)
 }
 

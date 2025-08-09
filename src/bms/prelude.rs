@@ -29,7 +29,8 @@ pub use super::command::{
 // Re-export from ast module
 pub use super::ast::{
     rng::{RandRng, Rng, RngMock},
-    structure::AstBuildWarning,
+    structure::{AstBuildWarning, AstParseWarning},
+    BmsAstBuildOutput, BmsAstParseOutput,
 };
 
 // Re-export from lex module

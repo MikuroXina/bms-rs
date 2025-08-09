@@ -34,7 +34,7 @@ use crate::bms::{
 use self::structure::AstBuildWarning;
 
 /// AstBuildOutput
-pub struct AstBuildOutput<'a> {
+pub struct BmsAstBuildOutput<'a> {
     /// AST Root
     pub root: AstRoot<'a>,
     /// Warnings
@@ -45,17 +45,17 @@ pub struct AstBuildOutput<'a> {
 ///
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
-pub(super) fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutput<'a> {
+pub(super) fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> BmsAstBuildOutput<'a> {
     let mut token_stream = token_stream.into();
     let (units, errors) = build_control_flow_ast(&mut token_stream);
-    AstBuildOutput {
+    BmsAstBuildOutput {
         root: AstRoot { units },
         ast_build_warnings: errors,
     }
 }
 
 /// AstParseOutput
-pub struct AstParseOutput<'a> {
+pub struct BmsAstParseOutput<'a> {
     /// Parsed tokens
     pub tokens: Vec<PositionWrapper<Token<'a>>>,
     /// Warnings
@@ -69,10 +69,10 @@ pub struct AstParseOutput<'a> {
 pub(super) fn parse_ast<'a>(
     AstRoot { units }: AstRoot<'a>,
     mut rng: impl Rng,
-) -> AstParseOutput<'a> {
+) -> BmsAstParseOutput<'a> {
     let mut ast_iter = units.into_iter().peekable();
     let (tokens, warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
-    AstParseOutput {
+    BmsAstParseOutput {
         tokens: tokens
             .into_iter()
             .map(ToOwned::to_owned)

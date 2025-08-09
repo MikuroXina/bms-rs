@@ -79,7 +79,45 @@ println!("Warnings: {:?}", warnings);
 
 ### Advanced Usage
 
-- TODO: See the impl of [`bms::parse_bms`]
+Call each parsing step explicitly:
+
+```rust
+use bms_rs::bms::prelude::*;
+
+let source = "#TITLE Test\n#00111:0101";
+// Step 1: lexing
+let BmsLexOutput { tokens, lex_warnings } = parse_bms_step_lex(source);
+assert!(lex_warnings.is_empty());
+
+// Step 2: build AST
+let BmsAstBuildOutput { root, ast_build_warnings } = parse_bms_step_build_ast(&tokens);
+assert!(ast_build_warnings.is_empty());
+
+// Step 3: parse AST with rng
+use rand::{rngs::StdRng, SeedableRng};
+let _rng = RandRng(StdRng::from_os_rng());
+let rng = RandRng(StdRng::seed_from_u64(1));
+let BmsAstParseOutput { tokens, ast_parse_warnings } = parse_bms_step_parse_ast(root, rng);
+assert!(ast_parse_warnings.is_empty());
+
+// Step 4: build model with a prompt handler
+let BmsParseOutput { bms, parse_warnings } = parse_bms_step_model(&tokens, AlwaysWarnAndUseOlder);
+assert!(parse_warnings.is_empty());
+```
+
+Convert key channels between modes:
+
+```rust
+use bms_rs::bms::prelude::*;
+
+let (side, key) = convert_key_channel_between(
+    ModeKeyChannel::Beat,
+    ModeKeyChannel::Pms,
+    PlayerSide::Player2,
+    Key::Key3,
+);
+assert_eq!((side, key), (PlayerSide::Player1, Key::Key7));
+```
 
 - For usage of the latest commit version, see [lib.rs](./src/lib.rs)
 
