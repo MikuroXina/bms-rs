@@ -31,7 +31,9 @@ use thiserror::Error;
 use crate::{
     bms::{
         ast::{
-            build_ast, parse_ast, rng::{RandRng, Rng}, structure::AstRoot, AstBuildOutput, AstParseOutput
+            AstBuildOutput, AstParseOutput, build_ast, parse_ast,
+            rng::{RandRng, Rng},
+            structure::AstRoot,
         },
         parse::model::Bms,
     },

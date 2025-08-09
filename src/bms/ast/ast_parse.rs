@@ -2,7 +2,7 @@
 
 use num::BigUint;
 
-use crate::bms::lex::token::Token;
+use crate::bms::{command::PositionWrapperExt, lex::token::Token};
 
 use super::{
     rng::Rng,
@@ -71,12 +71,12 @@ pub fn parse_control_flow_ast<'a>(
                 if let BlockValue::Random { max } = &value {
                     let max_owned = max.clone();
                     for case in &cases {
-                        if let CaseBranchValue::Case(ref val) = case.value
+                        if let CaseBranchValue::Case(ref val) = case.value.content
                             && !(BigUint::from(1u64)..=max_owned.clone()).contains(val)
                         {
                             warnings.push(
                                 AstParseWarningType::SwitchCaseValueOutOfRange
-                                    .to_parse_warning_manual(case.row, case.col),
+                                    .into_wrapper_manual(case.value.row, case.value.column),
                             );
                         }
                     }
@@ -94,7 +94,7 @@ pub fn parse_control_flow_ast<'a>(
                 // Find Case branch
                 let mut found = false;
                 for case in &cases {
-                    match &case.value {
+                    match &*case.value {
                         CaseBranchValue::Case(val) if *val == switch_val => {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
                             let (tokens, mut inner_warnings) =
@@ -110,7 +110,7 @@ pub fn parse_control_flow_ast<'a>(
                 // If no Case matches, find the Def branch
                 if !found {
                     for case in &cases {
-                        if let CaseBranchValue::Def = case.value {
+                        if let CaseBranchValue::Def = *case.value {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
                             let (tokens, mut inner_warnings) =
                                 parse_control_flow_ast(&mut case_iter, rng);
@@ -135,13 +135,13 @@ fn validate_random_ifblocks_ranges(
     for if_block in if_blocks {
         for if_branch in if_block.branches.values() {
             // 0 is Else branch and is allowed always
-            if if_branch.value == BigUint::from(0u64) {
+            if *if_branch.value == BigUint::from(0u64) {
                 continue;
             }
-            if !(BigUint::from(1u64)..=max_owned.clone()).contains(&if_branch.value) {
+            if !(BigUint::from(1u64)..=max_owned.clone()).contains(&*if_branch.value) {
                 warnings.push(
                     AstParseWarningType::RandomIfBranchValueOutOfRange
-                        .to_parse_warning_manual(if_branch.row, if_branch.col),
+                        .into_wrapper_manual(if_branch.value.row, if_branch.value.column),
                 );
             }
         }
@@ -158,6 +158,7 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::structure::{CaseBranch, IfBlock, IfBranch},
+        command::PositionWrapper,
         lex::token::{Token, TokenContent},
     };
 
@@ -176,20 +177,18 @@ mod tests {
         let t_if = Token {
             content: Title("LARGE_IF"),
             row: 0,
-            col: 0,
+            column: 0,
         };
         let t_case = Token {
             content: Title("LARGE_CASE"),
             row: 0,
-            col: 0,
+            column: 0,
         };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(u64::MAX),
             IfBranch {
-                value: BigUint::from(u64::MAX),
-                row: 0,
-                col: 0,
+                value: PositionWrapper::new(BigUint::from(u64::MAX), 0, 0),
                 tokens: vec![Unit::Token(&t_if)],
             },
         );
@@ -207,9 +206,11 @@ mod tests {
                     value: BigUint::from(u64::MAX),
                 },
                 cases: vec![CaseBranch {
-                    value: CaseBranchValue::Case(BigUint::from(u64::MAX)),
-                    row: 0,
-                    col: 0,
+                    value: PositionWrapper::new(
+                        CaseBranchValue::Case(BigUint::from(u64::MAX)),
+                        0,
+                        0,
+                    ),
                     tokens: vec![Unit::Token(&t_case)],
                 }],
             },
@@ -239,23 +240,23 @@ mod tests {
         let t_switch_in_random = Token {
             content: Title("SWITCH_IN_RANDOM"),
             row: 0,
-            col: 0,
+            column: 0,
         };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             IfBranch {
-                value: BigUint::from(1u64),
-                row: 0,
-                col: 0,
+                value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(2u64),
                     },
                     cases: vec![CaseBranch {
-                        value: CaseBranchValue::Case(BigUint::from(2u64)),
-                        row: 0,
-                        col: 0,
+                        value: PositionWrapper::new(
+                            CaseBranchValue::Case(BigUint::from(2u64)),
+                            0,
+                            0,
+                        ),
                         tokens: vec![Unit::Token(&t_switch_in_random)],
                     }],
                 }],
@@ -286,12 +287,10 @@ mod tests {
         let t_random_in_switch = Token {
             content: Title("RANDOM_IN_SWITCH"),
             row: 0,
-            col: 0,
+            column: 0,
         };
         let cases = vec![CaseBranch {
-            value: CaseBranchValue::Case(BigUint::from(1u64)),
-            row: 0,
-            col: 0,
+            value: PositionWrapper::new(CaseBranchValue::Case(BigUint::from(1u64)), 0, 0),
             tokens: vec![Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(2u64),
@@ -301,9 +300,7 @@ mod tests {
                     b.insert(
                         BigUint::from(2u64),
                         IfBranch {
-                            value: BigUint::from(2u64),
-                            row: 0,
-                            col: 0,
+                            value: PositionWrapper::new(BigUint::from(2u64), 0, 0),
                             tokens: vec![Unit::Token(&t_random_in_switch)],
                         },
                     );
@@ -339,23 +336,23 @@ mod tests {
         let t_deep_nested = Token {
             content: Title("DEEP_NESTED"),
             row: 0,
-            col: 0,
+            column: 0,
         };
         let mut if_branches = HashMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             IfBranch {
-                value: BigUint::from(1u64),
-                row: 0,
-                col: 0,
+                value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(1u64),
                     },
                     cases: vec![CaseBranch {
-                        value: CaseBranchValue::Case(BigUint::from(1u64)),
-                        row: 0,
-                        col: 0,
+                        value: PositionWrapper::new(
+                            CaseBranchValue::Case(BigUint::from(1u64)),
+                            0,
+                            0,
+                        ),
                         tokens: vec![Unit::RandomBlock {
                             value: BlockValue::Set {
                                 value: BigUint::from(1u64),
@@ -365,9 +362,7 @@ mod tests {
                                 b.insert(
                                     BigUint::from(1u64),
                                     IfBranch {
-                                        value: BigUint::from(1u64),
-                                        row: 0,
-                                        col: 0,
+                                        value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
                                         tokens: vec![Unit::Token(&t_deep_nested)],
                                     },
                                 );

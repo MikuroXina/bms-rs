@@ -1,3 +1,8 @@
+//! Minor command types and utilities.
+//!
+//! This module contains types and utilities for minor BMS commands that are only available
+//! when the `minor-command` feature is enabled.
+
 #![cfg(feature = "minor-command")]
 
 use crate::bms::command::time::ObjTime;

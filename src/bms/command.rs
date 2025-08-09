@@ -4,13 +4,9 @@
 
 pub mod channel;
 pub mod graphics;
+pub mod minor_command;
 pub mod time;
 
-/// Minor command types and utilities.
-///
-/// This module contains types and utilities for minor BMS commands that are only available
-/// when the `minor-command` feature is enabled.
-pub mod minor_command;
 /// A generic wrapper that attaches position information (row/column) to a value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -26,7 +22,11 @@ pub struct PositionWrapper<T> {
 impl<T> PositionWrapper<T> {
     /// Instances a new `PositionWrapper`
     pub const fn new(content: T, row: usize, column: usize) -> Self {
-        Self { content, row, column }
+        Self {
+            content,
+            row,
+            column,
+        }
     }
 }
 
@@ -45,7 +45,11 @@ impl<T> std::ops::DerefMut for PositionWrapper<T> {
 
 impl<T: std::fmt::Display> std::fmt::Display for PositionWrapper<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} at line {}, column {}", self.content, self.row, self.column)
+        write!(
+            f,
+            "{} at line {}, column {}",
+            self.content, self.row, self.column
+        )
     }
 }
 
@@ -67,6 +71,24 @@ impl<T: std::error::Error + 'static> std::error::Error for PositionWrapper<T> {
     }
 }
 
+/// Extension methods for `PositionWrapper`.
+pub trait PositionWrapperExt {
+    /// Instances a new `PositionWrapper` with the same row and column as a wrapper.
+    fn into_wrapper<W>(self, wrapper: &PositionWrapper<W>) -> PositionWrapper<Self>
+    where
+        Self: Sized,
+    {
+        PositionWrapper::new(self, wrapper.row, wrapper.column)
+    }
+
+    /// Instances a new `PositionWrapper` with a given row and column.
+    fn into_wrapper_manual(self, row: usize, column: usize) -> PositionWrapper<Self>
+    where
+        Self: Sized,
+    {
+        PositionWrapper::new(self, row, column)
+    }
+}
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

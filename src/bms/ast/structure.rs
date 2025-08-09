@@ -3,9 +3,11 @@ use std::collections::HashMap;
 
 use num::BigUint;
 use thiserror::Error;
-use crate::bms::command::PositionWrapper;
 
-use crate::bms::lex::token::Token;
+use crate::{
+    bms::{command::PositionWrapper, lex::token::Token},
+    command::PositionWrapperExt,
+};
 
 /// The root of the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,12 +67,8 @@ pub struct IfBlock<'a> {
 /// The If branch of a If block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBranch<'a> {
-    /// The value of the If branch.
-    pub value: BigUint,
-    /// The source row of this branch definition.
-    pub row: usize,
-    /// The source column of this branch definition.
-    pub col: usize,
+    /// The value of the If branch, with position info.
+    pub value: PositionWrapper<BigUint>,
     /// The tokens of the If branch.
     pub tokens: Vec<Unit<'a>>,
 }
@@ -79,12 +77,8 @@ pub struct IfBranch<'a> {
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseBranch<'a> {
-    /// The value of the Case branch.
-    pub value: CaseBranchValue,
-    /// The source row of this branch definition.
-    pub row: usize,
-    /// The source column of this branch definition.
-    pub col: usize,
+    /// The value of the Case branch, with position info.
+    pub value: PositionWrapper<CaseBranchValue>,
     /// The tokens of the Case branch.
     pub tokens: Vec<Unit<'a>>,
 }
@@ -150,21 +144,7 @@ pub enum AstBuildWarningType {
     UnmatchedDef,
 }
 
-impl AstBuildWarningType {
-    /// Convert the control flow rule to a parse warning with a given token.
-    pub fn to_parse_warning(&self, token: &Token) -> AstBuildWarning {
-        PositionWrapper::new(*self, token.row, token.col)
-    }
-
-    /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn to_parse_warning_manual(
-        &self,
-        row: impl Into<usize>,
-        col: impl Into<usize>,
-    ) -> AstBuildWarning {
-        PositionWrapper::new(*self, row.into(), col.into())
-    }
-}
+impl PositionWrapperExt for AstBuildWarningType {}
 
 /// AST Build Warning
 pub type AstBuildWarning = PositionWrapper<AstBuildWarningType>;
@@ -184,16 +164,7 @@ pub enum AstParseWarningType {
     SwitchCaseValueOutOfRange,
 }
 
-impl AstParseWarningType {
-    /// Convert to a parse warning with a given row and column.
-    pub fn to_parse_warning_manual(
-        &self,
-        row: impl Into<usize>,
-        col: impl Into<usize>,
-    ) -> AstParseWarning {
-        PositionWrapper::new(*self, row.into(), col.into())
-    }
-}
+impl PositionWrapperExt for AstParseWarningType {}
 
 /// AST Parse Warning
 pub type AstParseWarning = PositionWrapper<AstParseWarningType>;

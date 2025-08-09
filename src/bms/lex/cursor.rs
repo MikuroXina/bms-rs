@@ -1,3 +1,5 @@
+use crate::bms::command::PositionWrapper;
+
 use super::LexWarning;
 
 pub(crate) struct Cursor<'a> {
@@ -128,27 +130,23 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarning {
-        LexWarning::ExpectedToken {
-            line: self.line(),
-            col: self.col(),
-            message: message.into(),
-        }
+        LexWarning::ExpectedToken(PositionWrapper::new(
+            message.into(),
+            self.line(),
+            self.col(),
+        ))
     }
 
     pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarning {
-        LexWarning::UnknownObject {
-            object: object.into(),
-            line: self.line(),
-            col: self.col(),
-        }
+        LexWarning::UnknownObject(PositionWrapper::new(object.into(), self.line(), self.col()))
     }
 
     pub(crate) fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarning {
-        LexWarning::UnknownChannel {
-            channel: channel.into(),
-            line: self.line(),
-            col: self.col(),
-        }
+        LexWarning::UnknownChannel(PositionWrapper::new(
+            channel.into(),
+            self.line(),
+            self.col(),
+        ))
     }
 }
 

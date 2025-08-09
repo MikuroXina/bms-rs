@@ -8,12 +8,15 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::bms::{
-    Decimal,
-    command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        time::Track,
+use crate::{
+    bms::{
+        Decimal,
+        command::{
+            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+            graphics::Argb, time::Track,
+        },
     },
+    command::PositionWrapper,
 };
 
 #[cfg(feature = "minor-command")]
@@ -306,16 +309,7 @@ pub enum TokenContent<'a> {
 }
 
 /// A token with position information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct Token<'a> {
-    /// The content of the token.
-    pub content: TokenContent<'a>,
-    /// The row (line number) of the token in the original string.
-    pub row: usize,
-    /// The column (character position) of the token in the original string.
-    pub col: usize,
-}
+pub type Token<'a> = PositionWrapper<TokenContent<'a>>;
 
 impl<'a> TokenContent<'a> {
     pub(crate) fn parse(

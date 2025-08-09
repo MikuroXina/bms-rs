@@ -117,7 +117,7 @@ mod tests {
         .map(|t| Token {
             content: t,
             row: 0,
-            col: 0,
+            column: 0,
         })
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
@@ -129,7 +129,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -143,7 +143,7 @@ mod tests {
         };
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -185,7 +185,7 @@ mod tests {
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(2u64)))
+            .find(|c| c.value.content == CaseBranchValue::Case(BigUint::from(2u64)))
         else {
             panic!("Case(2) not found");
         };
@@ -252,7 +252,7 @@ mod tests {
         .map(|t| Token {
             content: t,
             row: 0,
-            col: 0,
+            column: 0,
         })
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
@@ -264,7 +264,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };

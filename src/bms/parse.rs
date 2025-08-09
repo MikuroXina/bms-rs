@@ -7,6 +7,7 @@ pub mod check_playing;
 pub mod model;
 pub mod prompt;
 
+use crate::bms::command::PositionWrapper;
 use thiserror::Error;
 
 use crate::bms::{BmsTokenIter, command::ObjId};
@@ -34,28 +35,8 @@ pub enum ParseWarningContent {
 /// type alias of core::result::Result<T, ParseWarningContent>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
 
-/// A parse warning with position information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ParseWarning {
-    /// The content of the parse warning.
-    #[source]
-    pub content: ParseWarningContent,
-    /// The row (line number) where the warning occurred.
-    pub row: usize,
-    /// The column (character position) where the warning occurred.
-    pub col: usize,
-}
-
-impl std::fmt::Display for ParseWarning {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} at line {}, column {}",
-            self.content, self.row, self.col
-        )
-    }
-}
+/// A parse warning with position information, wrapped by PositionWrapper
+pub type ParseWarning = PositionWrapper<ParseWarningContent>;
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -78,11 +59,7 @@ impl Bms {
         let mut parse_warnings = vec![];
         for token in token_iter.0 {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
-                parse_warnings.push(ParseWarning {
-                    content: error,
-                    row: token.row,
-                    col: token.col,
-                });
+                parse_warnings.push(PositionWrapper::new(error, token.row, token.column));
             }
         }
 

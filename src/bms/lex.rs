@@ -7,6 +7,7 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
+use crate::bms::command::PositionWrapper;
 use thiserror::Error;
 
 use crate::bms::command::channel::{Channel, read_channel_beat};
@@ -22,35 +23,14 @@ use self::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
     /// The token was expected but not found.
-    #[error("expected {message}, but not found at line {line}, col {col}")]
-    ExpectedToken {
-        /// The line number of the token expected.
-        line: usize,
-        /// The column number of the token expected.
-        col: usize,
-        /// What the expected is.
-        message: String,
-    },
+    #[error("expected {0}")]
+    ExpectedToken(PositionWrapper<String>),
     /// The channel was not recognized.
-    #[error("channel `{channel}` not recognized at line {line}, col {col}")]
-    UnknownChannel {
-        /// The channel that was not recognized.
-        channel: String,
-        /// The line number.
-        line: usize,
-        /// The column number.
-        col: usize,
-    },
+    #[error("channel `{0}` not recognized")]
+    UnknownChannel(PositionWrapper<String>),
     /// The object id was not recognized.
-    #[error("object `{object}` not recognized at line {line}, col {col}")]
-    UnknownObject {
-        /// The object id that was not recognized.
-        object: String,
-        /// The line number.
-        line: usize,
-        /// The column number.
-        col: usize,
-    },
+    #[error("object `{0}` not recognized")]
+    UnknownObject(PositionWrapper<String>),
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
@@ -89,7 +69,7 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
             Ok(content) => tokens.push(Token {
                 content,
                 row: cursor.line(),
-                col: cursor.col(),
+                column: cursor.col(),
             }),
             Err(warning) => warnings.push(warning),
         };

@@ -53,7 +53,7 @@ fn test_always_use_older() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -173,7 +173,7 @@ fn test_always_use_newer() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -293,7 +293,7 @@ fn test_always_warn_and_use_older() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -418,7 +418,7 @@ fn test_always_warn_and_use_newer() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
