@@ -28,20 +28,25 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::{bms::{
-    ast::{
-        build_ast, parse_ast, rng::{RandRng, Rng}, structure::AstRoot, AstBuildOutput, AstParseOutput
+use crate::{
+    bms::{
+        ast::{
+            AstBuildOutput, AstParseOutput, build_ast, parse_ast,
+            rng::{RandRng, Rng},
+            structure::AstRoot,
+        },
+        command::PositionWrapper,
+        lex::token::TokenContent,
+        parse::model::Bms,
     },
-    command::PositionWrapper,
-    lex::token::TokenContent,
-    parse::model::Bms,
-}, lex::LexWarningContent};
+    lex::LexWarningContent,
+};
 
 use self::{
-    ast::structure::{AstBuildWarning, AstParseWarning},
+    ast::structure::{AstBuildWarningType, AstParseWarningType},
     lex::BmsLexOutput,
     parse::{
-        BmsParseOutput, ParseWarning,
+        BmsParseOutput, ParseWarningContent,
         check_playing::{PlayingError, PlayingWarning},
     },
 };
@@ -96,13 +101,13 @@ pub enum BmsWarning {
     LexWarning(#[from] PositionWrapper<LexWarningContent>),
     /// Violation of control flow rule.
     #[error("Warn: AST build: {0}")]
-    AstBuildWarning(#[from] AstBuildWarning),
+    AstBuildWarning(#[from] PositionWrapper<AstBuildWarningType>),
     /// Violation detected during AST execution.
     #[error("Warn: AST parse: {0}")]
-    AstParseWarning(#[from] AstParseWarning),
+    AstParseWarning(#[from] PositionWrapper<AstParseWarningType>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(#[from] ParseWarning),
+    ParseWarning(#[from] PositionWrapper<ParseWarningContent>),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),

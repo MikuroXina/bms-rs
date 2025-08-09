@@ -17,16 +17,16 @@ use crate::bms::{
 use crate::command::PositionWrapperExt;
 
 use super::structure::{
-    AstBuildWarning, AstBuildWarningType, BlockValue, CaseBranch, CaseBranchValue, IfBranch, Unit,
+    AstBuildWarningType, BlockValue, CaseBranch, CaseBranchValue, IfBranch, Unit,
 };
 
 /// The main entry for building the control flow AST. Traverses the Token stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
     tokens_iter: &mut BmsTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<AstBuildWarning>) {
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let mut result = Vec::new();
-    let mut errors = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     while tokens_iter.peek().is_some() {
         if let Some((unit, mut errs)) = parse_unit_or_block(tokens_iter) {
             result.push(unit);
@@ -60,7 +60,7 @@ pub(super) fn build_control_flow_ast<'a>(
 /// Handle a single Token: if it is the start of a block, recursively call the block parser, otherwise return a Token node.
 fn parse_unit_or_block<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> Option<(Unit<'a>, Vec<AstBuildWarning>)> {
+) -> Option<(Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>)> {
     let token = iter.peek()?;
     use TokenContent::*;
     match &token.content {
@@ -83,7 +83,9 @@ fn parse_unit_or_block<'a>(
 
 /// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
 /// Supports Case/Def branches, error detection, and nested structures.
-fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuildWarning>) {
+fn parse_switch_block<'a>(
+    iter: &mut BmsTokenIter<'a>,
+) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let token = iter.next().unwrap();
     use TokenContent::*;
     let block_value = match &token.content {
@@ -94,7 +96,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
     let mut cases = Vec::new();
     let mut seen_case_values = std::collections::HashSet::new();
     let mut seen_def = false;
-    let mut errors = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     while let Some(next) = iter.peek() {
         match &next.content {
             Case(case_val) => {
@@ -183,9 +185,9 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
 /// Supports nested blocks, prioritizing parse_unit_or_block.
 fn parse_case_or_def_body<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<AstBuildWarning>) {
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let mut result = Vec::new();
-    let mut errors = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     use TokenContent::*;
     while let Some(&token) = iter.peek() {
         if matches!(&token.content, Skip | EndSwitch | Case(_) | Def) {
@@ -221,7 +223,9 @@ fn parse_case_or_def_body<'a>(
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
 /// - If encountering a non-control-flow Token, prioritize parse_unit_or_block; if not in any IfBlock, report error.
 /// - Supports nested structures; recursively handle other block types.
-fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuildWarning>) {
+fn parse_random_block<'a>(
+    iter: &mut BmsTokenIter<'a>,
+) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     use TokenContent::*;
@@ -231,7 +235,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
         _ => unreachable!(),
     };
     let mut if_blocks = Vec::new();
-    let mut errors = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     // 2. Main loop, process the contents inside the Random block
     while let Some(PositionWrapper {
         content,
@@ -383,9 +387,11 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
 /// - If EndIf is encountered, consume it automatically.
-fn parse_if_block_body<'a>(iter: &mut BmsTokenIter<'a>) -> (Vec<Unit<'a>>, Vec<AstBuildWarning>) {
+fn parse_if_block_body<'a>(
+    iter: &mut BmsTokenIter<'a>,
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let mut result = Vec::new();
-    let mut errors = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     use TokenContent::*;
     while let Some(token) = iter.peek() {
         match &token.content {

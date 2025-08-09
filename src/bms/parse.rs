@@ -37,8 +37,7 @@ impl PositionWrapperExt for ParseWarningContent {}
 /// type alias of core::result::Result<T, ParseWarningContent>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
 
-/// A parse warning with position information, wrapped by PositionWrapper
-pub type ParseWarning = PositionWrapper<ParseWarningContent>;
+// `ParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<ParseWarningContent>`。
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -47,7 +46,7 @@ pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<ParseWarning>,
+    pub parse_warnings: Vec<PositionWrapper<ParseWarningContent>>,
 }
 
 impl Bms {

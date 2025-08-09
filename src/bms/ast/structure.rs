@@ -144,9 +144,7 @@ pub enum AstBuildWarningType {
 
 impl PositionWrapperExt for AstBuildWarningType {}
 impl PositionWrapperExt for CaseBranchValue {}
-
-/// AST Build Warning
-pub type AstBuildWarning = PositionWrapper<AstBuildWarningType>;
+// `AstBuildWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstBuildWarningType>`。
 
 /// Control flow parsing warnings emitted during AST execution (parse phase).
 ///
@@ -164,6 +162,4 @@ pub enum AstParseWarningType {
 }
 
 impl PositionWrapperExt for AstParseWarningType {}
-
-/// AST Parse Warning
-pub type AstParseWarning = PositionWrapper<AstParseWarningType>;
+// `AstParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstParseWarningType>`。

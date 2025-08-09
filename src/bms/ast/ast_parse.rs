@@ -9,7 +9,7 @@ use crate::bms::{
 
 use super::{
     rng::Rng,
-    structure::{AstParseWarning, AstParseWarningType, BlockValue, CaseBranchValue, IfBlock, Unit},
+    structure::{AstParseWarningType, BlockValue, CaseBranchValue, IfBlock, Unit},
 };
 
 /// Parse [`Unit`] list into activated token list.
@@ -18,10 +18,10 @@ pub fn parse_control_flow_ast<'a>(
     rng: &mut impl Rng,
 ) -> (
     Vec<&'a PositionWrapper<TokenContent<'a>>>,
-    Vec<AstParseWarning>,
+    Vec<PositionWrapper<AstParseWarningType>>,
 ) {
     let mut result = Vec::new();
-    let mut warnings: Vec<AstParseWarning> = Vec::new();
+    let mut warnings: Vec<PositionWrapper<AstParseWarningType>> = Vec::new();
     for unit in iter.by_ref() {
         match unit {
             Unit::Token(token) => {
@@ -133,7 +133,7 @@ pub fn parse_control_flow_ast<'a>(
 }
 
 fn validate_random_ifblocks_ranges(
-    warnings: &mut Vec<AstParseWarning>,
+    warnings: &mut Vec<PositionWrapper<AstParseWarningType>>,
     if_blocks: &Vec<IfBlock<'_>>,
     max: &BigUint,
 ) {
