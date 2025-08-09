@@ -27,7 +27,8 @@ pub use super::ast::{
 
 // Re-export from lex module
 pub use super::lex::{
-    BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
+    BmsLexOutput, LexWarning, LexWarningContent, parse_lex_tokens,
+    parse_lex_tokens_with_channel_parser,
 };
 
 // Re-export from parse module

@@ -7,7 +7,7 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
-use crate::bms::command::PositionWrapper;
+use crate::bms::command::{PositionWrapper, PositionWrapperExt};
 use thiserror::Error;
 
 use crate::bms::command::channel::{Channel, read_channel_beat};
@@ -17,24 +17,29 @@ use self::{
     token::{Token, TokenContent},
 };
 
-/// An error occurred when lexical analysis.
+/// The content of lexical warnings (without position info).
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum LexWarning {
+pub enum LexWarningContent {
     /// The token was expected but not found.
     #[error("expected {0}")]
-    ExpectedToken(PositionWrapper<String>),
+    ExpectedToken(String),
     /// The channel was not recognized.
     #[error("channel `{0}` not recognized")]
-    UnknownChannel(PositionWrapper<String>),
+    UnknownChannel(String),
     /// The object id was not recognized.
     #[error("object `{0}` not recognized")]
-    UnknownObject(PositionWrapper<String>),
+    UnknownObject(String),
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
 }
+
+impl PositionWrapperExt for LexWarningContent {}
+
+/// A lex warning with position information, wrapped by PositionWrapper
+pub type LexWarning = PositionWrapper<LexWarningContent>;
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;

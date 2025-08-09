@@ -378,7 +378,13 @@ fn test_exwav_out_of_range_values() {
         panic!("expected 1 warning, got: {warnings:?}");
     };
     match warn {
-        LexWarning::ExpectedToken(w) if w.content.starts_with("pan value out of range") => {}
+        w if w.content == LexWarningContent::ExpectedToken("".to_string()) => {
+            unreachable!()
+        }
+        w if matches!(
+            &w.content,
+            LexWarningContent::ExpectedToken(msg) if msg.starts_with("pan value out of range")
+        ) => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
     let BmsOutput {
@@ -408,7 +414,10 @@ fn test_exwav_out_of_range_values() {
         panic!("expected 1 warning, got: {warnings:?}");
     };
     match warn {
-        LexWarning::ExpectedToken(w) if w.content.starts_with("volume value out of range") => {}
+        w if matches!(
+            &w.content,
+            LexWarningContent::ExpectedToken(msg) if msg.starts_with("volume value out of range")
+        ) => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
     let BmsOutput {
@@ -438,7 +447,10 @@ fn test_exwav_out_of_range_values() {
         panic!("expected 1 warning, got: {warnings:?}");
     };
     match warn {
-        LexWarning::ExpectedToken(w) if w.content.starts_with("frequency value out of range") => {}
+        w if matches!(
+            &w.content,
+            LexWarningContent::ExpectedToken(msg) if msg.starts_with("frequency value out of range")
+        ) => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
     let BmsOutput {
