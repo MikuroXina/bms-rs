@@ -8,12 +8,15 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::bms::{
-    Decimal,
-    command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        time::Track,
+use crate::{
+    bms::{
+        Decimal,
+        command::{
+            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+            graphics::Argb, time::Track,
+        },
     },
+    command::PositionWrapperExt,
 };
 
 #[cfg(feature = "minor-command")]
@@ -304,6 +307,8 @@ pub enum Token<'a> {
     #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
 }
+
+impl<'a> PositionWrapperExt for Token<'a> {}
 
 // `Token` 类型别名已删除，直接使用 `PositionWrapper<Token<'a>>`。
 
