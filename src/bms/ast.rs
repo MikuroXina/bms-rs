@@ -49,13 +49,25 @@ pub fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutpu
     }
 }
 
+/// AstParseOutput
+pub struct AstParseOutput<'a> {
+    /// Parsed tokens
+    pub tokens: Vec<&'a Token<'a>>,
+    /// Warnings
+    pub ast_parse_warnings: Vec<structure::AstParseWarning>,
+}
+
 /// Parses and executes control flow constructs in a BMS token stream.
 ///
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
-pub fn parse_ast(AstRoot { units }: AstRoot<'_>, mut rng: impl Rng) -> Vec<&Token<'_>> {
+pub fn parse_ast<'a>(AstRoot { units }: AstRoot<'a>, mut rng: impl Rng) -> AstParseOutput<'a> {
     let mut ast_iter = units.into_iter().peekable();
-    parse_control_flow_ast(&mut ast_iter, &mut rng)
+    let (tokens, warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
+    AstParseOutput {
+        tokens,
+        ast_parse_warnings: warnings,
+    }
 }
 
 #[cfg(test)]
@@ -186,7 +198,8 @@ mod tests {
         ));
         let mut rng = DummyRng;
         let mut ast_iter = ast.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        let (tokens, parse_warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        assert_eq!(parse_warnings, vec![]);
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
@@ -258,10 +271,12 @@ mod tests {
         println!("Case(1) tokens: {:#?}", case1.tokens);
         let mut rng = DummyRng;
         let mut ast_iter = ast.clone().into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        let (_tokens, parse_warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        assert_eq!(parse_warnings, vec![]);
         let mut rng = DummyRng;
         let mut ast_iter = ast.into_iter().peekable();
-        let _tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        let (_tokens, parse_warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        assert_eq!(parse_warnings, vec![]);
         assert_eq!(errors, vec![]);
     }
 }

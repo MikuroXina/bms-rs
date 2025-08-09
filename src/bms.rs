@@ -31,9 +31,7 @@ use thiserror::Error;
 use crate::{
     bms::{
         ast::{
-            AstBuildOutput, build_ast, parse_ast,
-            rng::{RandRng, Rng},
-            structure::AstRoot,
+            build_ast, parse_ast, rng::{RandRng, Rng}, structure::AstRoot, AstBuildOutput, AstParseOutput
         },
         parse::model::Bms,
     },
@@ -41,7 +39,7 @@ use crate::{
 };
 
 use self::{
-    ast::structure::AstBuildWarning,
+    ast::structure::{AstBuildWarning, AstParseWarning},
     lex::{BmsLexOutput, LexWarning},
     parse::{
         BmsParseOutput, ParseWarning,
@@ -98,6 +96,9 @@ pub enum BmsWarning {
     /// Violation of control flow rule.
     #[error("Warn: AST build: {0}")]
     AstBuildWarning(#[from] AstBuildWarning),
+    /// Violation detected during AST execution.
+    #[error("Warn: AST parse: {0}")]
+    AstParseWarning(#[from] AstParseWarning),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     ParseWarning(#[from] ParseWarning),
@@ -198,10 +199,11 @@ pub fn parse_bms_with_tokens(tokens: &[Token<'_>], rng: impl Rng) -> BmsOutput {
 /// A step of [`parse_bms`]
 pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
     // Parse Ast
-    let tokens: Vec<Token<'_>> = parse_ast(root, rng)
-        .into_iter()
-        .map(ToOwned::to_owned)
-        .collect();
+    let AstParseOutput {
+        tokens: tokens_from_ast,
+        ast_parse_warnings,
+    } = parse_ast(root, rng);
+    let tokens: Vec<Token<'_>> = tokens_from_ast.into_iter().map(ToOwned::to_owned).collect();
 
     // Parse Bms File
     let BmsParseOutput {
@@ -214,6 +216,12 @@ pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
         .into_iter()
         .map(BmsWarning::ParseWarning)
         .collect();
+
+    warnings.extend(
+        ast_parse_warnings
+            .into_iter()
+            .map(BmsWarning::AstParseWarning),
+    );
 
     // Check playing
     let (playing_warnings, playing_errors) = bms.check_playing();

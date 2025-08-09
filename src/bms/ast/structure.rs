@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use num::BigUint;
 use thiserror::Error;
+use crate::bms::command::PositionWrapper;
 
 use crate::bms::lex::token::Token;
 
@@ -66,6 +67,10 @@ pub struct IfBlock<'a> {
 pub struct IfBranch<'a> {
     /// The value of the If branch.
     pub value: BigUint,
+    /// The source row of this branch definition.
+    pub row: usize,
+    /// The source column of this branch definition.
+    pub col: usize,
     /// The tokens of the If branch.
     pub tokens: Vec<Unit<'a>>,
 }
@@ -76,6 +81,10 @@ pub struct IfBranch<'a> {
 pub struct CaseBranch<'a> {
     /// The value of the Case branch.
     pub value: CaseBranchValue,
+    /// The source row of this branch definition.
+    pub row: usize,
+    /// The source column of this branch definition.
+    pub col: usize,
     /// The tokens of the Case branch.
     pub tokens: Vec<Unit<'a>>,
 }
@@ -144,11 +153,7 @@ pub enum AstBuildWarningType {
 impl AstBuildWarningType {
     /// Convert the control flow rule to a parse warning with a given token.
     pub fn to_parse_warning(&self, token: &Token) -> AstBuildWarning {
-        AstBuildWarning {
-            warning_type: *self,
-            row: token.row,
-            col: token.col,
-        }
+        PositionWrapper::new(*self, token.row, token.col)
     }
 
     /// Convert the control flow rule to a parse warning with a given row and column.
@@ -157,33 +162,38 @@ impl AstBuildWarningType {
         row: impl Into<usize>,
         col: impl Into<usize>,
     ) -> AstBuildWarning {
-        AstBuildWarning {
-            warning_type: *self,
-            row: row.into(),
-            col: col.into(),
-        }
+        PositionWrapper::new(*self, row.into(), col.into())
     }
 }
 
 /// AST Build Warning
+pub type AstBuildWarning = PositionWrapper<AstBuildWarningType>;
+
+/// Control flow parsing warnings emitted during AST execution (parse phase).
+///
+/// These warnings are produced when evaluating the AST, e.g. validating value ranges
+/// for `#RANDOM/#SWITCH` against their branches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct AstBuildWarning {
-    /// type
-    #[source]
-    pub warning_type: AstBuildWarningType,
-    /// row
-    pub row: usize,
-    /// col
-    pub col: usize,
+pub enum AstParseWarningType {
+    /// An `#IF` branch value exceeds the maximum of its `#RANDOM` block.
+    #[error("if branch value out of range in random block")]
+    RandomIfBranchValueOutOfRange,
+    /// A `#CASE` value exceeds the maximum of its `#SWITCH` block.
+    #[error("case value out of range in switch block")]
+    SwitchCaseValueOutOfRange,
 }
 
-impl std::fmt::Display for AstBuildWarning {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} at line {}, column {}",
-            self.warning_type, self.row, self.col
-        )
+impl AstParseWarningType {
+    /// Convert to a parse warning with a given row and column.
+    pub fn to_parse_warning_manual(
+        &self,
+        row: impl Into<usize>,
+        col: impl Into<usize>,
+    ) -> AstParseWarning {
+        PositionWrapper::new(*self, row.into(), col.into())
     }
 }
+
+/// AST Parse Warning
+pub type AstParseWarning = PositionWrapper<AstParseWarningType>;
