@@ -27,7 +27,7 @@ pub use super::ast::{
 
 // Re-export from lex module
 pub use super::lex::{
-    BmsLexOutput, LexWarningContent, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
+    BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
 };
 
 // Re-export from parse module
@@ -52,7 +52,7 @@ pub use super::parse::{
 
 // Re-export from lex submodules
 pub use super::command::PositionWrapper;
-pub use super::lex::token::TokenContent;
+pub use super::lex::token::Token;
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

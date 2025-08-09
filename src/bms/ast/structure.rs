@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use num::BigUint;
 use thiserror::Error;
 
-use crate::bms::{command::PositionWrapper, lex::token::TokenContent};
+use crate::bms::{command::PositionWrapper, lex::token::Token};
 use crate::command::PositionWrapperExt;
 
 /// The root of the AST.
@@ -18,11 +18,11 @@ pub struct AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unit<'a> {
     /// A token that is not a control flow token.
-    Token(&'a PositionWrapper<TokenContent<'a>>),
+    Token(&'a PositionWrapper<Token<'a>>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
-        /// The value of the Random block.
-        value: BlockValue,
+        /// The value of the Random block with its header position.
+        value: PositionWrapper<BlockValue>,
         /// The If blocks of the Random block.
         if_blocks: Vec<IfBlock<'a>>,
     },
@@ -31,12 +31,14 @@ pub enum Unit<'a> {
     /// If there is no other Case branch activated, Def branch will be activated.
     /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
     SwitchBlock {
-        /// The value of the Switch block.
-        value: BlockValue,
+        /// The value of the Switch block with its header position.
+        value: PositionWrapper<BlockValue>,
         /// The Case branches of the Switch block.
         cases: Vec<CaseBranch<'a>>,
     },
 }
+
+impl<'a> PositionWrapperExt for Unit<'a> {}
 
 /// The value of a Random/Switch block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,12 +57,16 @@ pub enum BlockValue {
     },
 }
 
+impl PositionWrapperExt for BlockValue {}
+
 /// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
     /// The branches of the If block.
     pub branches: HashMap<BigUint, IfBranch<'a>>,
 }
+
+impl<'a> PositionWrapperExt for IfBlock<'a> {}
 
 /// The If branch of a If block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,6 +76,8 @@ pub struct IfBranch<'a> {
     /// The tokens of the If branch.
     pub tokens: Vec<Unit<'a>>,
 }
+
+impl<'a> PositionWrapperExt for IfBranch<'a> {}
 
 /// The define of a Case/Def branch in a Switch block.
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
@@ -81,6 +89,8 @@ pub struct CaseBranch<'a> {
     pub tokens: Vec<Unit<'a>>,
 }
 
+impl<'a> PositionWrapperExt for CaseBranch<'a> {}
+
 /// The type note of a Case/Def branch.
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +100,8 @@ pub enum CaseBranchValue {
     /// The value of the Def branch.
     Def,
 }
+
+impl PositionWrapperExt for CaseBranchValue {}
 
 /// Control flow parsing errors and warnings.
 ///
@@ -140,10 +152,15 @@ pub enum AstBuildWarningType {
     /// A `#DEF` token was encountered outside of a switch block.
     #[error("unmatched def")]
     UnmatchedDef,
+    /// A related marker pointing to the start of the enclosing random block.
+    #[error("related random block header")]
+    FromRandomBlock,
+    /// A related marker pointing to the start of the enclosing switch block.
+    #[error("related switch block header")]
+    FromSwitchBlock,
 }
 
 impl PositionWrapperExt for AstBuildWarningType {}
-impl PositionWrapperExt for CaseBranchValue {}
 // `AstBuildWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstBuildWarningType>`。
 
 /// Control flow parsing warnings emitted during AST execution (parse phase).

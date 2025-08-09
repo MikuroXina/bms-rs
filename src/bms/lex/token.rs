@@ -28,7 +28,7 @@ use super::{Result, cursor::Cursor};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
-pub enum TokenContent<'a> {
+pub enum Token<'a> {
     /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
     /// - A1: BGA BASE
     /// - A2: BGA LAYER
@@ -82,7 +82,7 @@ pub enum TokenContent<'a> {
     Bpm(Decimal),
     /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
     BpmChange(ObjId, Decimal),
-    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`TokenContent::Switch`].
+    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
     /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
     /// CD-DA can be used as BGM (Background Music).
@@ -128,11 +128,11 @@ pub enum TokenContent<'a> {
     ElseIf(BigUint),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
-    /// `#ENDIF`. Closes the if scope. See [TokenContent::If].
+    /// `#ENDIF`. Closes the if scope. See [Token::If].
     EndIf,
-    /// `#ENDRANDOM`. Closes the random scope. See [TokenContent::Random].
+    /// `#ENDRANDOM`. Closes the random scope. See [Token::Random].
     EndRandom,
-    /// `#ENDSW`. Closes the random scope. See [TokenContent::Switch].
+    /// `#ENDSW`. Closes the random scope. See [Token::Switch].
     EndSwitch,
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     #[cfg(feature = "minor-command")]
@@ -224,7 +224,7 @@ pub enum TokenContent<'a> {
     /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
     #[cfg(feature = "minor-command")]
     Option(&'a str),
-    /// `#PATH_WAV [string]`. Defines the root path of [`TokenContent::Wav`] paths. This should be used only for tests.
+    /// `#PATH_WAV [string]`. Defines the root path of [`Token::Wav`] paths. This should be used only for tests.
     PathWav(&'a Path),
     /// `#PLAYER [1-4]`. Defines the play style of the score.
     Player(PlayerMode),
@@ -305,9 +305,9 @@ pub enum TokenContent<'a> {
     WavCmd(WavCmdEvent),
 }
 
-// `Token` 类型别名已删除，直接使用 `PositionWrapper<TokenContent<'a>>`。
+// `Token` 类型别名已删除，直接使用 `PositionWrapper<Token<'a>>`。
 
-impl<'a> TokenContent<'a> {
+impl<'a> Token<'a> {
     pub(crate) fn parse(
         c: &mut Cursor<'a>,
         channel_parser: impl Fn(&str) -> Option<Channel>,
@@ -1234,7 +1234,7 @@ impl<'a> TokenContent<'a> {
     }
 
     pub(crate) fn make_id_uppercase(&mut self) {
-        use TokenContent::*;
+        use Token::*;
         match self {
             #[cfg(feature = "minor-command")]
             AtBga { id, source_bmp, .. } => {
@@ -1297,19 +1297,19 @@ impl<'a> TokenContent<'a> {
     pub fn is_control_flow_token(&self) -> bool {
         matches!(
             self,
-            TokenContent::Random(_)
-                | TokenContent::SetRandom(_)
-                | TokenContent::If(_)
-                | TokenContent::ElseIf(_)
-                | TokenContent::Else
-                | TokenContent::EndIf
-                | TokenContent::EndRandom
-                | TokenContent::Switch(_)
-                | TokenContent::SetSwitch(_)
-                | TokenContent::Case(_)
-                | TokenContent::Def
-                | TokenContent::Skip
-                | TokenContent::EndSwitch
+            Token::Random(_)
+                | Token::SetRandom(_)
+                | Token::If(_)
+                | Token::ElseIf(_)
+                | Token::Else
+                | Token::EndIf
+                | Token::EndRandom
+                | Token::Switch(_)
+                | Token::SetSwitch(_)
+                | Token::Case(_)
+                | Token::Def
+                | Token::Skip
+                | Token::EndSwitch
         )
     }
 }
@@ -1322,15 +1322,14 @@ mod tests {
 
     use super::*;
 
-    fn parse_token<'a>(input: &'a str) -> TokenContent<'a> {
+    fn parse_token<'a>(input: &'a str) -> Token<'a> {
         let mut cursor = Cursor::new(input);
-        TokenContent::parse(&mut cursor, read_channel_beat).unwrap()
+        Token::parse(&mut cursor, read_channel_beat).unwrap()
     }
 
     #[test]
     fn test_exbmp() {
-        let TokenContent::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png")
-        else {
+        let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png") else {
             panic!("Not ExBmp");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1343,7 +1342,7 @@ mod tests {
 
     #[test]
     fn test_exrank() {
-        let TokenContent::ExRank(id, level) = parse_token("#EXRANK01 2") else {
+        let Token::ExRank(id, level) = parse_token("#EXRANK01 2") else {
             panic!("Not ExRank");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1353,7 +1352,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_exwav() {
-        let TokenContent::ExWav {
+        let Token::ExWav {
             id,
             pan,
             volume,
@@ -1373,7 +1372,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_exwav_2() {
-        let TokenContent::ExWav {
+        let Token::ExWav {
             id,
             pan,
             volume,
@@ -1393,7 +1392,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_exwav_default() {
-        let TokenContent::ExWav {
+        let Token::ExWav {
             id,
             pan,
             volume,
@@ -1412,7 +1411,7 @@ mod tests {
 
     #[test]
     fn test_text() {
-        let TokenContent::Text(id, text) = parse_token("#TEXT01 hello world") else {
+        let Token::Text(id, text) = parse_token("#TEXT01 hello world") else {
             panic!("Not Text");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1422,7 +1421,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_atbga() {
-        let TokenContent::AtBga {
+        let Token::AtBga {
             id,
             source_bmp,
             trim_top_left,
@@ -1442,7 +1441,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_bga() {
-        let TokenContent::Bga {
+        let Token::Bga {
             id,
             source_bmp,
             trim_top_left,
@@ -1462,7 +1461,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_changeoption() {
-        let TokenContent::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
+        let Token::ChangeOption(id, opt) = parse_token("#CHANGEOPTION01 opt") else {
             panic!("Not ChangeOption");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1471,7 +1470,7 @@ mod tests {
 
     #[test]
     fn test_lnobj() {
-        let TokenContent::LnObj(id) = parse_token("#LNOBJ01") else {
+        let Token::LnObj(id) = parse_token("#LNOBJ01") else {
             panic!("Not LnObj");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1480,7 +1479,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_stpseq() {
-        let TokenContent::Stp(stp) = parse_token("#STP 001.500 1500") else {
+        let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
             panic!("Not StpSeq");
         };
         assert_eq!(stp.time.track, Track(1));
@@ -1492,7 +1491,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_wavcmd_pitch() {
-        let TokenContent::WavCmd(ev) = parse_token("#WAVCMD 00 0E 61") else {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 00 0E 61") else {
             panic!("Not WavCmd");
         };
         assert_eq!(ev.param, WavCmdParam::Pitch);
@@ -1503,7 +1502,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_wavcmd_volume() {
-        let TokenContent::WavCmd(ev) = parse_token("#WAVCMD 01 0E 50") else {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 01 0E 50") else {
             panic!("Not WavCmd");
         };
         assert_eq!(ev.param, WavCmdParam::Volume);
@@ -1514,7 +1513,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_wavcmd_time() {
-        let TokenContent::WavCmd(ev) = parse_token("#WAVCMD 02 0E 100") else {
+        let Token::WavCmd(ev) = parse_token("#WAVCMD 02 0E 100") else {
             panic!("Not WavCmd");
         };
         assert_eq!(ev.param, WavCmdParam::Time);
@@ -1525,8 +1524,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_swbga() {
-        let TokenContent::SwBga(id, ev) =
-            parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
+        let Token::SwBga(id, ev) = parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
         else {
             panic!("Not SwBga");
         };
@@ -1549,7 +1547,7 @@ mod tests {
 
     #[test]
     fn test_movie() {
-        let TokenContent::Movie(path) = parse_token("#MOVIE video.mp4") else {
+        let Token::Movie(path) = parse_token("#MOVIE video.mp4") else {
             panic!("Not Movie");
         };
         assert_eq!(path, Path::new("video.mp4"));
@@ -1558,7 +1556,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_materials() {
-        let TokenContent::Materials(path) = parse_token("#MATERIALS /path/to/materials") else {
+        let Token::Materials(path) = parse_token("#MATERIALS /path/to/materials") else {
             panic!("Not Materials");
         };
         assert_eq!(path, Path::new("/path/to/materials"));
@@ -1568,7 +1566,7 @@ mod tests {
     #[cfg(feature = "minor-command")]
     fn test_extchr_basic() {
         let token = parse_token("#ExtChr 512 09 30 0 99 9");
-        let TokenContent::ExtChr(ev) = token else {
+        let Token::ExtChr(ev) = token else {
             panic!("Not ExtChr");
         };
         assert_eq!(ev.sprite_num, 512);
@@ -1587,7 +1585,7 @@ mod tests {
     #[cfg(feature = "minor-command")]
     fn test_extchr_offset() {
         let token = parse_token("#ExtChr 516 0 38 1 62 9 -2 -2");
-        let TokenContent::ExtChr(ev) = token else {
+        let Token::ExtChr(ev) = token else {
             panic!("Not ExtChr: {token:?}");
         };
         assert_eq!(ev.offset_x, Some(-2));
@@ -1600,7 +1598,7 @@ mod tests {
     #[cfg(feature = "minor-command")]
     fn test_extchr_abs() {
         let token = parse_token("#ExtChr 513 0 38 1 62 9 -2 -2 0 0");
-        let TokenContent::ExtChr(ev) = token else {
+        let Token::ExtChr(ev) = token else {
             panic!("Not ExtChr: {token:?}");
         };
         assert_eq!(ev.offset_x, Some(-2));

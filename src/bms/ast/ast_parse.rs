@@ -4,7 +4,7 @@ use num::BigUint;
 
 use crate::bms::{
     command::{PositionWrapper, PositionWrapperExt},
-    lex::token::TokenContent,
+    lex::token::Token,
 };
 
 use super::{
@@ -17,7 +17,7 @@ pub fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
 ) -> (
-    Vec<&'a PositionWrapper<TokenContent<'a>>>,
+    Vec<&'a PositionWrapper<Token<'a>>>,
     Vec<PositionWrapper<AstParseWarningType>>,
 ) {
     let mut result = Vec::new();
@@ -29,11 +29,11 @@ pub fn parse_control_flow_ast<'a>(
             }
             Unit::RandomBlock { value, if_blocks } => {
                 // Range validation moved from build phase to parse phase
-                if let BlockValue::Random { max } = &value {
+                if let BlockValue::Random { max } = &value.content {
                     validate_random_ifblocks_ranges(&mut warnings, &if_blocks, max);
                 }
                 // Select branch
-                let branch_val = match value {
+                let branch_val = match value.content {
                     BlockValue::Random { max } => {
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
@@ -74,7 +74,7 @@ pub fn parse_control_flow_ast<'a>(
             }
             Unit::SwitchBlock { value, cases } => {
                 // Range validation moved from build phase to parse phase
-                if let BlockValue::Random { max } = &value {
+                if let BlockValue::Random { max } = &value.content {
                     let max_owned = max.clone();
                     for case in &cases {
                         if let CaseBranchValue::Case(ref val) = case.value.content
@@ -87,7 +87,7 @@ pub fn parse_control_flow_ast<'a>(
                         }
                     }
                 }
-                let switch_val = match value {
+                let switch_val = match value.content {
                     BlockValue::Random { max } => {
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
@@ -164,8 +164,8 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::structure::{CaseBranch, IfBlock, IfBranch},
-        command::PositionWrapper,
-        lex::token::TokenContent,
+        command::{PositionWrapper, PositionWrapperExt},
+        lex::token::Token,
     };
 
     struct DummyRng;
@@ -178,14 +178,14 @@ mod tests {
 
     #[test]
     fn test_setrandom_setwitch_large_value() {
-        use TokenContent::*;
+        use Token::*;
         // If/Case value is very large under SetRandom/SetSwitch
-        let t_if = PositionWrapper::<TokenContent> {
+        let t_if = PositionWrapper::<Token> {
             content: Title("LARGE_IF"),
             row: 0,
             column: 0,
         };
-        let t_case = PositionWrapper::<TokenContent> {
+        let t_case = PositionWrapper::<Token> {
             content: Title("LARGE_CASE"),
             row: 0,
             column: 0,
@@ -202,7 +202,8 @@ mod tests {
             Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
-                },
+                }
+                .into_wrapper_manual(0, 0),
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
                 }],
@@ -210,7 +211,8 @@ mod tests {
             Unit::SwitchBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
-                },
+                }
+                .into_wrapper_manual(0, 0),
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX)).into_wrapper_manual(0, 0),
                     tokens: vec![Unit::Token(&t_case)],
@@ -223,7 +225,7 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(*s),
+                Token::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -233,11 +235,11 @@ mod tests {
 
     #[test]
     fn test_nested_random_switch() {
-        use TokenContent::*;
+        use Token::*;
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         // Random outer, Switch inner
-        let t_switch_in_random = PositionWrapper::<TokenContent> {
+        let t_switch_in_random = PositionWrapper::<Token> {
             content: Title("SWITCH_IN_RANDOM"),
             row: 0,
             column: 0,
@@ -250,7 +252,8 @@ mod tests {
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(2u64),
-                    },
+                    }
+                    .into_wrapper_manual(0, 0),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(2u64)).into_wrapper_manual(0, 0),
                         tokens: vec![Unit::Token(&t_switch_in_random)],
@@ -261,7 +264,8 @@ mod tests {
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
@@ -271,14 +275,14 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(*s),
+                Token::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
         assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
         // Switch outer, Random inner
-        let t_random_in_switch = PositionWrapper::<TokenContent> {
+        let t_random_in_switch = PositionWrapper::<Token> {
             content: Title("RANDOM_IN_SWITCH"),
             row: 0,
             column: 0,
@@ -288,7 +292,8 @@ mod tests {
             tokens: vec![Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(2u64),
-                },
+                }
+                .into_wrapper_manual(0, 0),
                 if_blocks: vec![{
                     let mut b = HashMap::new();
                     b.insert(
@@ -305,7 +310,8 @@ mod tests {
         let units2 = vec![Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
@@ -313,7 +319,7 @@ mod tests {
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(*s),
+                Token::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -322,10 +328,10 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_random_switch() {
-        use TokenContent::*;
+        use Token::*;
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
-        let t_deep_nested = PositionWrapper::<TokenContent> {
+        let t_deep_nested = PositionWrapper::<Token> {
             content: Title("DEEP_NESTED"),
             row: 0,
             column: 0,
@@ -338,13 +344,15 @@ mod tests {
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(1u64),
-                    },
+                    }
+                    .into_wrapper_manual(0, 0),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(1u64)).into_wrapper_manual(0, 0),
                         tokens: vec![Unit::RandomBlock {
                             value: BlockValue::Set {
                                 value: BigUint::from(1u64),
-                            },
+                            }
+                            .into_wrapper_manual(0, 0),
                             if_blocks: vec![{
                                 let mut b = HashMap::new();
                                 b.insert(
@@ -364,7 +372,8 @@ mod tests {
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
@@ -374,7 +383,7 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(*s),
+                Token::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();

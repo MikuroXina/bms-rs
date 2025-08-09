@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use num::BigUint;
 
 use crate::bms::{
-    BmsTokenIter, ast::structure::IfBlock, command::PositionWrapper, lex::token::TokenContent,
+    BmsTokenIter, ast::structure::IfBlock, command::PositionWrapper, lex::token::Token,
 };
 use crate::command::PositionWrapperExt;
 
@@ -36,7 +36,7 @@ pub(super) fn build_control_flow_ast<'a>(
         let Some(token) = tokens_iter.peek() else {
             break;
         };
-        use TokenContent::*;
+        use Token::*;
         let rule = match &token.content {
             EndIf => Some(AstBuildWarningType::UnmatchedEndIf),
             EndRandom => Some(AstBuildWarningType::UnmatchedEndRandom),
@@ -62,7 +62,7 @@ fn parse_unit_or_block<'a>(
     iter: &mut BmsTokenIter<'a>,
 ) -> Option<(Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>)> {
     let token = iter.peek()?;
-    use TokenContent::*;
+    use Token::*;
     match &token.content {
         SetSwitch(_) | Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
@@ -87,12 +87,13 @@ fn parse_switch_block<'a>(
     iter: &mut BmsTokenIter<'a>,
 ) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let token = iter.next().unwrap();
-    use TokenContent::*;
-    let block_value = match &token.content {
+    use Token::*;
+    let block_value_inner = match &token.content {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
         _ => unreachable!(),
     };
+    let block_value = PositionWrapper::new(block_value_inner, token.row, token.column);
     let mut cases = Vec::new();
     let mut seen_case_values = std::collections::HashSet::new();
     let mut seen_def = false;
@@ -188,7 +189,7 @@ fn parse_case_or_def_body<'a>(
 ) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let mut result = Vec::new();
     let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(&token.content, Skip | EndSwitch | Case(_) | Def) {
             break;
@@ -228,12 +229,13 @@ fn parse_random_block<'a>(
 ) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
-    use TokenContent::*;
-    let block_value = match &token.content {
+    use Token::*;
+    let block_value_inner = match &token.content {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
         _ => unreachable!(),
     };
+    let block_value = PositionWrapper::new(block_value_inner, token.row, token.column);
     let mut if_blocks = Vec::new();
     let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
     // 2. Main loop, process the contents inside the Random block
@@ -392,7 +394,7 @@ fn parse_if_block_body<'a>(
 ) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
     let mut result = Vec::new();
     let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(token) = iter.peek() {
         match &token.content {
             // 1. Branch-terminating Token, break
@@ -420,15 +422,13 @@ fn parse_if_block_body<'a>(
 mod tests {
     use super::*;
     use crate::bms::ast::rng::Rng;
-    use crate::bms::{
-        ast::ast_parse::parse_control_flow_ast, command::PositionWrapper, lex::token::TokenContent,
-    };
+    use crate::bms::{ast::ast_parse::parse_control_flow_ast, command::PositionWrapper};
     use core::ops::RangeInclusive;
     use num::BigUint;
 
     #[test]
     fn test_switch_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             SetSwitch(BigUint::from(2u64)),
             Def,
@@ -444,7 +444,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -477,10 +477,10 @@ mod tests {
 
     #[test]
     fn test_unmatched_endrandom_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndRandom]
             .into_iter()
-            .map(|t| PositionWrapper::<TokenContent> {
+            .map(|t| PositionWrapper::<Token> {
                 content: t,
                 row: 0,
                 column: 0,
@@ -492,10 +492,10 @@ mod tests {
 
     #[test]
     fn test_unmatched_endif_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndIf]
             .into_iter()
-            .map(|t| PositionWrapper::<TokenContent> {
+            .map(|t| PositionWrapper::<Token> {
                 content: t,
                 row: 0,
                 column: 0,
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn test_random_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -519,7 +519,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -543,7 +543,7 @@ mod tests {
         let Some(_) = all_titles.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("A"),
                     ..
                 })
@@ -554,7 +554,7 @@ mod tests {
         let Some(_) = all_titles.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("B"),
                     ..
                 })
@@ -566,7 +566,7 @@ mod tests {
 
     #[test]
     fn test_random_nested_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -580,7 +580,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_random_multiple_if_elseif_else() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(3u64)),
             If(BigUint::from(1u64)),
@@ -634,7 +634,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -657,7 +657,7 @@ mod tests {
         let Some(_) = b1.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("A1"),
                     ..
                 })
@@ -671,7 +671,7 @@ mod tests {
         let Some(_) = b2.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("A2"),
                     ..
                 })
@@ -685,7 +685,7 @@ mod tests {
         let Some(_) = belse.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("Aelse"),
                     ..
                 })
@@ -700,7 +700,7 @@ mod tests {
         let Some(_) = b1.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("B1"),
                     ..
                 })
@@ -714,7 +714,7 @@ mod tests {
         let Some(_) = b2.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("B2"),
                     ..
                 })
@@ -728,7 +728,7 @@ mod tests {
         let Some(_) = belse.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(PositionWrapper::<TokenContent> {
+                Unit::Token(PositionWrapper::<Token> {
                     content: Title("Belse"),
                     ..
                 })
@@ -740,7 +740,7 @@ mod tests {
 
     #[test]
     fn test_random_duplicate_ifbranch() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -751,7 +751,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -766,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_random_ifbranch_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(3u64)), // out of range
@@ -775,7 +775,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -802,7 +802,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_case() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(1u64)),
@@ -812,7 +812,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -827,7 +827,7 @@ mod tests {
 
     #[test]
     fn test_switch_case_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(3u64)), // out of range
@@ -835,7 +835,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -862,7 +862,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_def() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Def,
@@ -874,7 +874,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -892,7 +892,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_token_in_random_block() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             Title("A"), // Not in any IfBlock
@@ -902,7 +902,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,

@@ -92,10 +92,8 @@ fn test_blank() {
     assert_eq!(
         warnings,
         vec![
-            LexWarningContent::ExpectedToken("key audio filename".to_string(),)
-                .into_wrapper_manual(19, 8),
-            LexWarningContent::ExpectedToken("key audio filename".to_string(),)
-                .into_wrapper_manual(22, 7),
+            LexWarning::ExpectedToken("key audio filename".to_string(),).into_wrapper_manual(19, 8),
+            LexWarning::ExpectedToken("key audio filename".to_string(),).into_wrapper_manual(22, 7),
         ]
     );
 }

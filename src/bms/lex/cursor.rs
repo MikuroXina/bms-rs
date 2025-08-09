@@ -1,6 +1,6 @@
 use crate::bms::command::PositionWrapperExt;
 
-use super::LexWarningContent;
+use super::LexWarning;
 use crate::bms::command::PositionWrapper;
 
 pub(crate) struct Cursor<'a> {
@@ -133,24 +133,22 @@ impl<'a> Cursor<'a> {
     pub(crate) fn make_err_expected_token(
         &self,
         message: impl Into<String>,
-    ) -> PositionWrapper<LexWarningContent> {
-        LexWarningContent::ExpectedToken(message.into())
-            .into_wrapper_manual(self.line(), self.col())
+    ) -> PositionWrapper<LexWarning> {
+        LexWarning::ExpectedToken(message.into()).into_wrapper_manual(self.line(), self.col())
     }
 
     pub(crate) fn make_err_object_id(
         &self,
         object: impl Into<String>,
-    ) -> PositionWrapper<LexWarningContent> {
-        LexWarningContent::UnknownObject(object.into()).into_wrapper_manual(self.line(), self.col())
+    ) -> PositionWrapper<LexWarning> {
+        LexWarning::UnknownObject(object.into()).into_wrapper_manual(self.line(), self.col())
     }
 
     pub(crate) fn make_err_unknown_channel(
         &self,
         channel: impl Into<String>,
-    ) -> PositionWrapper<LexWarningContent> {
-        LexWarningContent::UnknownChannel(channel.into())
-            .into_wrapper_manual(self.line(), self.col())
+    ) -> PositionWrapper<LexWarning> {
+        LexWarning::UnknownChannel(channel.into()).into_wrapper_manual(self.line(), self.col())
     }
 }
 

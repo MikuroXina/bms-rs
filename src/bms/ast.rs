@@ -28,7 +28,7 @@ use crate::bms::{
     BmsTokenIter,
     ast::structure::{AstParseWarningType, AstRoot},
     command::PositionWrapper,
-    lex::token::TokenContent,
+    lex::token::Token,
 };
 
 use self::structure::AstBuildWarningType;
@@ -57,7 +57,7 @@ pub fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutpu
 /// AstParseOutput
 pub struct AstParseOutput<'a> {
     /// Parsed tokens
-    pub tokens: Vec<&'a PositionWrapper<TokenContent<'a>>>,
+    pub tokens: Vec<&'a PositionWrapper<Token<'a>>>,
     /// Warnings
     pub ast_parse_warnings: Vec<PositionWrapper<AstParseWarningType>>,
 }
@@ -83,7 +83,7 @@ mod tests {
 
     use super::structure::{CaseBranch, CaseBranchValue, Unit};
     use super::*;
-    use crate::bms::{BmsTokenIter, command::PositionWrapper, lex::token::TokenContent};
+    use crate::bms::{BmsTokenIter, command::PositionWrapper, lex::token::Token};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Title("11000000"),
             Switch(BigUint::from(2u32)),
@@ -116,7 +116,7 @@ mod tests {
             Title("00000044"),
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
@@ -164,7 +164,7 @@ mod tests {
                 .iter()
                 .any(|u| matches!(
                     u,
-                    Unit::Token(PositionWrapper::<TokenContent> {
+                    Unit::Token(PositionWrapper::<Token> {
                         content: Title("00550000"),
                         ..
                     })
@@ -179,7 +179,7 @@ mod tests {
                 .iter()
                 .any(|u| matches!(
                     u,
-                    Unit::Token(PositionWrapper::<TokenContent> {
+                    Unit::Token(PositionWrapper::<Token> {
                         content: Title("00006600"),
                         ..
                     })
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_switch_insane_tokenized() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(5u32)),
             Def,
@@ -244,7 +244,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| PositionWrapper::<TokenContent> {
+        .map(|t| PositionWrapper::<Token> {
             content: t,
             row: 0,
             column: 0,
