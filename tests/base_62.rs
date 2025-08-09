@@ -11,7 +11,7 @@ fn test_not_base_62() {
     assert!(warnings.iter().any(|w| matches!(
         w,
         BmsWarning::ParseWarning(PositionWrapper {
-            content: ParseWarningContent::HasDuplication,
+            content: ParseWarning::HasDuplication,
             ..
         })
     )));
@@ -37,7 +37,7 @@ fn test_base_62() {
     assert!(warnings.iter().any(|w| !matches!(
         w,
         BmsWarning::ParseWarning(PositionWrapper {
-            content: ParseWarningContent::HasDuplication,
+            content: ParseWarning::HasDuplication,
             ..
         })
     )));

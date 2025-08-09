@@ -35,7 +35,7 @@ pub enum LexWarning {
 
 impl PositionWrapperExt for LexWarning {}
 
-/// type alias of core::result::Result<T, PositionWrapper<LexWarningContent>>
+/// type alias of core::result::Result<T, PositionWrapper<LexWarning>>
 pub(crate) type Result<T> = core::result::Result<T, PositionWrapper<LexWarning>>;
 
 /// Lex Parsing Results, includes tokens and warnings.

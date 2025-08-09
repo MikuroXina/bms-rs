@@ -17,7 +17,7 @@ use self::{model::Bms, prompt::PromptHandler};
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseWarningContent {
+pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
@@ -32,12 +32,12 @@ pub enum ParseWarningContent {
     UnexpectedToken,
 }
 
-impl PositionWrapperExt for ParseWarningContent {}
+impl PositionWrapperExt for ParseWarning {}
 
-/// type alias of core::result::Result<T, ParseWarningContent>
-pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
+/// type alias of core::result::Result<T, ParseWarning>
+pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
-// `ParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<ParseWarningContent>`。
+// `ParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<ParseWarning>`。
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -46,7 +46,7 @@ pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<PositionWrapper<ParseWarningContent>>,
+    pub parse_warnings: Vec<PositionWrapper<ParseWarning>>,
 }
 
 impl Bms {

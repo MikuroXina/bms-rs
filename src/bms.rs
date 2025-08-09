@@ -43,7 +43,7 @@ use self::{
     ast::structure::{AstBuildWarningType, AstParseWarningType},
     lex::BmsLexOutput,
     parse::{
-        BmsParseOutput, ParseWarningContent,
+        BmsParseOutput, ParseWarning,
         check_playing::{PlayingError, PlayingWarning},
     },
 };
@@ -102,7 +102,7 @@ pub enum BmsWarning {
     AstParseWarning(#[from] PositionWrapper<AstParseWarningType>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(#[from] PositionWrapper<ParseWarningContent>),
+    ParseWarning(#[from] PositionWrapper<ParseWarning>),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
