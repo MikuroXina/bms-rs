@@ -320,3 +320,8 @@ pub struct KeyChannel {
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
 }
+
+/// Parse bmson file from source text.
+pub fn parse_bmson(source: &str) -> Result<Bmson, serde_json::Error> {
+    serde_json::from_str(source)
+}
