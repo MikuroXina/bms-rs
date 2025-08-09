@@ -9,7 +9,7 @@ use crate::bms::{
 
 use super::{
     rng::Rng,
-    structure::{AstParseWarningType, BlockValue, CaseBranchValue, IfBlock, Unit},
+    structure::{AstParseWarning, BlockValue, CaseBranchValue, IfBlock, Unit},
 };
 
 /// Parse [`Unit`] list into activated token list.
@@ -18,10 +18,10 @@ pub fn parse_control_flow_ast<'a>(
     rng: &mut impl Rng,
 ) -> (
     Vec<&'a PositionWrapper<Token<'a>>>,
-    Vec<PositionWrapper<AstParseWarningType>>,
+    Vec<PositionWrapper<AstParseWarning>>,
 ) {
     let mut result = Vec::new();
-    let mut warnings: Vec<PositionWrapper<AstParseWarningType>> = Vec::new();
+    let mut warnings: Vec<PositionWrapper<AstParseWarning>> = Vec::new();
     for unit in iter.by_ref() {
         match unit {
             Unit::Token(token) => {
@@ -81,7 +81,7 @@ pub fn parse_control_flow_ast<'a>(
                             && !(BigUint::from(1u64)..=max_owned.clone()).contains(val)
                         {
                             warnings.push(
-                                AstParseWarningType::SwitchCaseValueOutOfRange
+                                AstParseWarning::SwitchCaseValueOutOfRange
                                     .into_wrapper_manual(case.value.row, case.value.column),
                             );
                         }
@@ -133,7 +133,7 @@ pub fn parse_control_flow_ast<'a>(
 }
 
 fn validate_random_ifblocks_ranges(
-    warnings: &mut Vec<PositionWrapper<AstParseWarningType>>,
+    warnings: &mut Vec<PositionWrapper<AstParseWarning>>,
     if_blocks: &Vec<IfBlock<'_>>,
     max: &BigUint,
 ) {
@@ -146,7 +146,7 @@ fn validate_random_ifblocks_ranges(
             }
             if !(BigUint::from(1u64)..=max_owned.clone()).contains(&*if_branch.value) {
                 warnings.push(
-                    AstParseWarningType::RandomIfBranchValueOutOfRange
+                    AstParseWarning::RandomIfBranchValueOutOfRange
                         .into_wrapper_manual(if_branch.value.row, if_branch.value.column),
                 );
             }

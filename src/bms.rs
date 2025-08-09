@@ -40,7 +40,7 @@ use crate::bms::{
 };
 
 use self::{
-    ast::structure::{AstBuildWarningType, AstParseWarningType},
+    ast::structure::{AstBuildWarning, AstParseWarning},
     lex::BmsLexOutput,
     parse::{
         BmsParseOutput, ParseWarning,
@@ -96,10 +96,10 @@ pub enum BmsWarning {
     LexWarning(#[from] PositionWrapper<lex::LexWarning>),
     /// Violation of control flow rule.
     #[error("Warn: AST build: {0}")]
-    AstBuildWarning(#[from] PositionWrapper<AstBuildWarningType>),
+    AstBuildWarning(#[from] PositionWrapper<AstBuildWarning>),
     /// Violation detected during AST execution.
     #[error("Warn: AST parse: {0}")]
-    AstParseWarning(#[from] PositionWrapper<AstParseWarningType>),
+    AstParseWarning(#[from] PositionWrapper<AstParseWarning>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     ParseWarning(#[from] PositionWrapper<ParseWarning>),

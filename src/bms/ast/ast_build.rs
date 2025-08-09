@@ -17,16 +17,16 @@ use crate::bms::{
 use crate::command::PositionWrapperExt;
 
 use super::structure::{
-    AstBuildWarningType, BlockValue, CaseBranch, CaseBranchValue, IfBranch, Unit,
+    AstBuildWarning, BlockValue, CaseBranch, CaseBranchValue, IfBranch, Unit,
 };
 
 /// The main entry for building the control flow AST. Traverses the Token stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
     tokens_iter: &mut BmsTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarning>>) {
     let mut result = Vec::new();
-    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarning>> = Vec::new();
     while tokens_iter.peek().is_some() {
         if let Some((unit, mut errs)) = parse_unit_or_block(tokens_iter) {
             result.push(unit);
@@ -38,14 +38,14 @@ pub(super) fn build_control_flow_ast<'a>(
         };
         use Token::*;
         let rule = match &token.content {
-            EndIf => Some(AstBuildWarningType::UnmatchedEndIf),
-            EndRandom => Some(AstBuildWarningType::UnmatchedEndRandom),
-            EndSwitch => Some(AstBuildWarningType::UnmatchedEndSwitch),
-            ElseIf(_) => Some(AstBuildWarningType::UnmatchedElseIf),
-            Else => Some(AstBuildWarningType::UnmatchedElse),
-            Skip => Some(AstBuildWarningType::UnmatchedSkip),
-            Case(_) => Some(AstBuildWarningType::UnmatchedCase),
-            Def => Some(AstBuildWarningType::UnmatchedDef),
+            EndIf => Some(AstBuildWarning::UnmatchedEndIf),
+            EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
+            EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
+            ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
+            Else => Some(AstBuildWarning::UnmatchedElse),
+            Skip => Some(AstBuildWarning::UnmatchedSkip),
+            Case(_) => Some(AstBuildWarning::UnmatchedCase),
+            Def => Some(AstBuildWarning::UnmatchedDef),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -60,7 +60,7 @@ pub(super) fn build_control_flow_ast<'a>(
 /// Handle a single Token: if it is the start of a block, recursively call the block parser, otherwise return a Token node.
 fn parse_unit_or_block<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> Option<(Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>)> {
+) -> Option<(Unit<'a>, Vec<PositionWrapper<AstBuildWarning>>)> {
     let token = iter.peek()?;
     use Token::*;
     match &token.content {
@@ -85,7 +85,7 @@ fn parse_unit_or_block<'a>(
 /// Supports Case/Def branches, error detection, and nested structures.
 fn parse_switch_block<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
+) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarning>>) {
     let token = iter.next().unwrap();
     use Token::*;
     let block_value_inner = match &token.content {
@@ -97,13 +97,13 @@ fn parse_switch_block<'a>(
     let mut cases = Vec::new();
     let mut seen_case_values = std::collections::HashSet::new();
     let mut seen_def = false;
-    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarning>> = Vec::new();
     while let Some(next) = iter.peek() {
         match &next.content {
             Case(case_val) => {
                 // Check for duplicates
                 if seen_case_values.contains(case_val) {
-                    errors.push(AstBuildWarningType::SwitchDuplicateCaseValue.into_wrapper(next));
+                    errors.push(AstBuildWarning::SwitchDuplicateCaseValue.into_wrapper(next));
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
@@ -128,7 +128,7 @@ fn parse_switch_block<'a>(
             }
             Def => {
                 if seen_def {
-                    errors.push(AstBuildWarningType::SwitchDuplicateDef.into_wrapper(next));
+                    errors.push(AstBuildWarning::SwitchDuplicateDef.into_wrapper(next));
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
@@ -156,11 +156,11 @@ fn parse_switch_block<'a>(
                 break;
             }
             EndIf => {
-                errors.push(AstBuildWarningType::UnmatchedEndIf.into_wrapper(next));
+                errors.push(AstBuildWarning::UnmatchedEndIf.into_wrapper(next));
                 iter.next();
             }
             EndRandom => {
-                errors.push(AstBuildWarningType::UnmatchedEndRandom.into_wrapper(next));
+                errors.push(AstBuildWarning::UnmatchedEndRandom.into_wrapper(next));
                 iter.next();
             }
             // Automatically complete EndSwitch: break when encountering Random/SetRandom/If/EndRandom/EndIf
@@ -186,9 +186,9 @@ fn parse_switch_block<'a>(
 /// Supports nested blocks, prioritizing parse_unit_or_block.
 fn parse_case_or_def_body<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarning>>) {
     let mut result = Vec::new();
-    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarning>> = Vec::new();
     use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(&token.content, Skip | EndSwitch | Case(_) | Def) {
@@ -200,12 +200,12 @@ fn parse_case_or_def_body<'a>(
             continue;
         }
         let rule = match &token.content {
-            EndIf => Some(AstBuildWarningType::UnmatchedEndIf),
-            EndRandom => Some(AstBuildWarningType::UnmatchedEndRandom),
-            EndSwitch => Some(AstBuildWarningType::UnmatchedEndSwitch),
-            ElseIf(_) => Some(AstBuildWarningType::UnmatchedElseIf),
-            Else => Some(AstBuildWarningType::UnmatchedElse),
-            Skip => Some(AstBuildWarningType::UnmatchedSkip),
+            EndIf => Some(AstBuildWarning::UnmatchedEndIf),
+            EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
+            EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
+            ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
+            Else => Some(AstBuildWarning::UnmatchedElse),
+            Skip => Some(AstBuildWarning::UnmatchedSkip),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -226,7 +226,7 @@ fn parse_case_or_def_body<'a>(
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarningType>>) {
+) -> (Unit<'a>, Vec<PositionWrapper<AstBuildWarning>>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     use Token::*;
@@ -237,7 +237,7 @@ fn parse_random_block<'a>(
     };
     let block_value = PositionWrapper::new(block_value_inner, token.row, token.column);
     let mut if_blocks = Vec::new();
-    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarning>> = Vec::new();
     // 2. Main loop, process the contents inside the Random block
     while let Some(PositionWrapper {
         content,
@@ -258,7 +258,7 @@ fn parse_random_block<'a>(
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
                     errors.push(
-                        AstBuildWarningType::RandomDuplicateIfBranchValue
+                        AstBuildWarning::RandomDuplicateIfBranchValue
                             .into_wrapper_manual(row, col),
                     );
                     let (_, mut errs) = parse_if_block_body(iter);
@@ -284,7 +284,7 @@ fn parse_random_block<'a>(
                 {
                     if seen_if_values.contains(elif_val) {
                         errors.push(
-                            AstBuildWarningType::RandomDuplicateIfBranchValue
+                            AstBuildWarning::RandomDuplicateIfBranchValue
                                 .into_wrapper_manual(*row, *column),
                         );
                         iter.next();
@@ -312,7 +312,7 @@ fn parse_random_block<'a>(
                 }) = iter.peek()
                 {
                     errors.push(
-                        AstBuildWarningType::UnmatchedElseIf.into_wrapper_manual(*row, *column),
+                        AstBuildWarning::UnmatchedElseIf.into_wrapper_manual(*row, *column),
                     );
                     iter.next();
                 }
@@ -335,7 +335,7 @@ fn parse_random_block<'a>(
                 }
                 // 2.5 Check for redundant Else
                 if let Some(PositionWrapper { content: Else, .. }) = iter.peek() {
-                    errors.push(AstBuildWarningType::UnmatchedElse.into_wrapper_manual(row, col));
+                    errors.push(AstBuildWarning::UnmatchedElse.into_wrapper_manual(row, col));
                     iter.next();
                 }
                 // 2.6 Collect this IfBlock
@@ -348,12 +348,12 @@ fn parse_random_block<'a>(
             }
             // 3.2 Error: EndIf/EndSwitch encountered, record error and skip
             EndIf => {
-                errors.push(AstBuildWarningType::UnmatchedEndIf.into_wrapper_manual(*row, *column));
+                errors.push(AstBuildWarning::UnmatchedEndIf.into_wrapper_manual(*row, *column));
                 iter.next();
             }
             EndSwitch => {
                 errors.push(
-                    AstBuildWarningType::UnmatchedEndSwitch.into_wrapper_manual(*row, *column),
+                    AstBuildWarning::UnmatchedEndSwitch.into_wrapper_manual(*row, *column),
                 );
                 iter.next();
             }
@@ -366,7 +366,7 @@ fn parse_random_block<'a>(
                 if let Some((_unit, mut errs)) = parse_unit_or_block(iter) {
                     // This Token does not belong to any IfBlock, discard directly and record error
                     errors
-                        .push(AstBuildWarningType::UnmatchedTokenInRandomBlock.into_wrapper(token));
+                        .push(AstBuildWarning::UnmatchedTokenInRandomBlock.into_wrapper(token));
                     errors.append(&mut errs);
                 } else {
                     iter.next();
@@ -391,9 +391,9 @@ fn parse_random_block<'a>(
 /// - If EndIf is encountered, consume it automatically.
 fn parse_if_block_body<'a>(
     iter: &mut BmsTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarningType>>) {
+) -> (Vec<Unit<'a>>, Vec<PositionWrapper<AstBuildWarning>>) {
     let mut result = Vec::new();
-    let mut errors: Vec<PositionWrapper<AstBuildWarningType>> = Vec::new();
+    let mut errors: Vec<PositionWrapper<AstBuildWarning>> = Vec::new();
     use Token::*;
     while let Some(token) = iter.peek() {
         match &token.content {
@@ -487,7 +487,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
-        assert!(errors.contains(&AstBuildWarningType::UnmatchedEndRandom.into_wrapper(&tokens[1])));
+        assert!(errors.contains(&AstBuildWarning::UnmatchedEndRandom.into_wrapper(&tokens[1])));
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
-        assert!(errors.contains(&AstBuildWarningType::UnmatchedEndIf.into_wrapper(&tokens[1])));
+        assert!(errors.contains(&AstBuildWarning::UnmatchedEndIf.into_wrapper(&tokens[1])));
     }
 
     #[test]
@@ -760,7 +760,7 @@ mod tests {
         let (_ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
         assert_eq!(
             errors,
-            vec![AstBuildWarningType::RandomDuplicateIfBranchValue.into_wrapper(&tokens[3])]
+            vec![AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(&tokens[3])]
         );
     }
 
@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert!(matches!(
             warnings[0].content,
-            super::super::structure::AstParseWarningType::RandomIfBranchValueOutOfRange
+            super::super::structure::AstParseWarning::RandomIfBranchValueOutOfRange
         ));
     }
 
@@ -821,7 +821,7 @@ mod tests {
         let (_ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
         assert_eq!(
             errors,
-            vec![AstBuildWarningType::SwitchDuplicateCaseValue.into_wrapper(&tokens[3])]
+            vec![AstBuildWarning::SwitchDuplicateCaseValue.into_wrapper(&tokens[3])]
         );
     }
 
@@ -856,7 +856,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         assert!(matches!(
             warnings[0].content,
-            super::super::structure::AstParseWarningType::SwitchCaseValueOutOfRange
+            super::super::structure::AstParseWarning::SwitchCaseValueOutOfRange
         ));
     }
 
@@ -884,8 +884,8 @@ mod tests {
         assert_eq!(
             errors,
             vec![
-                AstBuildWarningType::SwitchDuplicateDef.into_wrapper(&tokens[2]),
-                AstBuildWarningType::SwitchDuplicateDef.into_wrapper(&tokens[4]),
+                AstBuildWarning::SwitchDuplicateDef.into_wrapper(&tokens[2]),
+                AstBuildWarning::SwitchDuplicateDef.into_wrapper(&tokens[4]),
             ]
         );
     }
@@ -911,7 +911,7 @@ mod tests {
         let (_ast, errors) = build_control_flow_ast(&mut BmsTokenIter::from_tokens(&tokens));
         assert_eq!(
             errors,
-            vec![AstBuildWarningType::UnmatchedTokenInRandomBlock.into_wrapper(&tokens[1])]
+            vec![AstBuildWarning::UnmatchedTokenInRandomBlock.into_wrapper(&tokens[1])]
         );
     }
 }

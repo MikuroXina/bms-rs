@@ -26,19 +26,19 @@ use rng::Rng;
 
 use crate::bms::{
     BmsTokenIter,
-    ast::structure::{AstParseWarningType, AstRoot},
+    ast::structure::{AstParseWarning, AstRoot},
     command::PositionWrapper,
     lex::token::Token,
 };
 
-use self::structure::AstBuildWarningType;
+use self::structure::AstBuildWarning;
 
 /// AstBuildOutput
 pub struct AstBuildOutput<'a> {
     /// AST Root
     pub root: AstRoot<'a>,
     /// Warnings
-    pub ast_build_warnings: Vec<PositionWrapper<AstBuildWarningType>>,
+    pub ast_build_warnings: Vec<PositionWrapper<AstBuildWarning>>,
 }
 
 /// Parses and executes control flow constructs in a BMS token stream.
@@ -59,7 +59,7 @@ pub struct AstParseOutput<'a> {
     /// Parsed tokens
     pub tokens: Vec<&'a PositionWrapper<Token<'a>>>,
     /// Warnings
-    pub ast_parse_warnings: Vec<PositionWrapper<AstParseWarningType>>,
+    pub ast_parse_warnings: Vec<PositionWrapper<AstParseWarning>>,
 }
 
 /// Parses and executes control flow constructs in a BMS token stream.

@@ -109,7 +109,7 @@ impl PositionWrapperExt for CaseBranchValue {}
 /// Each variant represents a specific type of control flow violation or malformed construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum AstBuildWarningType {
+pub enum AstBuildWarning {
     /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
     #[error("unmatched end if")]
     UnmatchedEndIf,
@@ -160,8 +160,8 @@ pub enum AstBuildWarningType {
     FromSwitchBlock,
 }
 
-impl PositionWrapperExt for AstBuildWarningType {}
-// `AstBuildWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstBuildWarningType>`。
+impl PositionWrapperExt for AstBuildWarning {}
+// `AstBuildWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstBuildWarning>`。
 
 /// Control flow parsing warnings emitted during AST execution (parse phase).
 ///
@@ -169,7 +169,7 @@ impl PositionWrapperExt for AstBuildWarningType {}
 /// for `#RANDOM/#SWITCH` against their branches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum AstParseWarningType {
+pub enum AstParseWarning {
     /// An `#IF` branch value exceeds the maximum of its `#RANDOM` block.
     #[error("if branch value out of range in random block")]
     RandomIfBranchValueOutOfRange,
@@ -178,5 +178,5 @@ pub enum AstParseWarningType {
     SwitchCaseValueOutOfRange,
 }
 
-impl PositionWrapperExt for AstParseWarningType {}
-// `AstParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstParseWarningType>`。
+impl PositionWrapperExt for AstParseWarning {}
+// `AstParseWarning` 类型别名已删除，请直接使用 `PositionWrapper<AstParseWarning>`。

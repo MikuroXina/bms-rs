@@ -22,7 +22,7 @@ pub use super::command::{
 // Re-export from ast module
 pub use super::ast::{
     rng::{RandRng, Rng, RngMock},
-    structure::AstBuildWarningType,
+    structure::AstBuildWarning,
 };
 
 // Re-export from lex module
