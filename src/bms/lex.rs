@@ -10,8 +10,6 @@ pub mod token;
 use crate::bms::command::{PositionWrapper, PositionWrapperExt};
 use thiserror::Error;
 
-use crate::bms::command::channel::{Channel, read_channel_beat};
-
 use self::{cursor::Cursor, token::Token};
 
 /// The content of lexical warnings (without position info).
@@ -50,21 +48,12 @@ pub struct BmsLexOutput<'a> {
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
 pub(super) fn parse_lex_tokens<'a>(source: &'a str) -> BmsLexOutput<'a> {
-    parse_lex_tokens_with_channel_parser(source, &read_channel_beat)
-}
-
-/// Analyzes and converts the BMS format text into [`TokenStream`].
-/// Use this function when you want to parse the BMS format text with a custom channel parser.
-pub(super) fn parse_lex_tokens_with_channel_parser<'a>(
-    source: &'a str,
-    channel_parser: &'a impl Fn(&str) -> Option<Channel>,
-) -> BmsLexOutput<'a> {
     let mut cursor = Cursor::new(source);
 
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match Token::parse(&mut cursor, channel_parser) {
+        match Token::parse(&mut cursor) {
             Ok(content) => tokens.push(PositionWrapper::<Token> {
                 content,
                 row: cursor.line(),

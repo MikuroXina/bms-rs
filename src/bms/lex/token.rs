@@ -12,8 +12,10 @@ use crate::{
     bms::{
         Decimal,
         command::{
-            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
-            graphics::Argb, time::Track,
+            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
+            channel::{Channel, read_channel_beat},
+            graphics::Argb,
+            time::Track,
         },
     },
     command::PositionWrapperExt,
@@ -313,10 +315,8 @@ impl<'a> PositionWrapperExt for Token<'a> {}
 // `Token` 类型别名已删除，直接使用 `PositionWrapper<Token<'a>>`。
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(
-        c: &mut Cursor<'a>,
-        channel_parser: impl Fn(&str) -> Option<Channel>,
-    ) -> Result<Self> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+        let channel_parser = read_channel_beat;
         loop {
             let command = c
                 .next_token()
@@ -1321,7 +1321,6 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::bms::command::channel::read_channel_beat;
     #[cfg(feature = "minor-command")]
     use crate::bms::command::time::Track;
 
@@ -1329,7 +1328,7 @@ mod tests {
 
     fn parse_token<'a>(input: &'a str) -> Token<'a> {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor, read_channel_beat).unwrap()
+        Token::parse(&mut cursor).unwrap()
     }
 
     #[test]

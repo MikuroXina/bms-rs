@@ -19,8 +19,8 @@ pub use super::command::{
 // Re-export from command submodules
 pub use super::command::{
     channel::{
-        Channel, Key, NoteKind, PlayerSide, read_channel_beat, read_channel_beat_nanasi,
-        read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
+        Channel, Key, ModeKeyChannel, NoteKind, PlayerSide, convert_key_channel_between,
+        read_channel_beat,
     },
     graphics::{Argb, PixelPoint, PixelSize, Rgb},
     time::{ObjTime, Track},
