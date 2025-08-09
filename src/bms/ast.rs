@@ -24,7 +24,7 @@ use ast_build::build_control_flow_ast;
 use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 
-use crate::bms::{BmsTokenIter, ast::structure::AstRoot, lex::token::Token};
+use crate::bms::{ast::structure::{AstParseWarning, AstRoot}, lex::token::Token, BmsTokenIter};
 
 use self::structure::AstBuildWarning;
 
@@ -54,7 +54,7 @@ pub struct AstParseOutput<'a> {
     /// Parsed tokens
     pub tokens: Vec<&'a Token<'a>>,
     /// Warnings
-    pub ast_parse_warnings: Vec<structure::AstParseWarning>,
+    pub ast_parse_warnings: Vec<AstParseWarning>,
 }
 
 /// Parses and executes control flow constructs in a BMS token stream.
