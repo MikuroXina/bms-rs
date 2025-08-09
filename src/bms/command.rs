@@ -4,13 +4,100 @@
 
 pub mod channel;
 pub mod graphics;
+pub mod minor_command;
 pub mod time;
 
-/// Minor command types and utilities.
-///
-/// This module contains types and utilities for minor BMS commands that are only available
-/// when the `minor-command` feature is enabled.
-pub mod minor_command;
+// Needed for implementing `PositionWrapperExt` for numeric types used in the crate
+use num::BigUint;
+
+/// A generic wrapper that attaches position information (row/column) to a value.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PositionWrapper<T> {
+    /// Wrapped content value
+    pub content: T,
+    /// Source line number (1-based)
+    pub row: usize,
+    /// Source column number (1-based)
+    pub column: usize,
+}
+
+impl<T> PositionWrapper<T> {
+    /// Instances a new `PositionWrapper`
+    pub const fn new(content: T, row: usize, column: usize) -> Self {
+        Self {
+            content,
+            row,
+            column,
+        }
+    }
+}
+
+impl<T> std::ops::Deref for PositionWrapper<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.content
+    }
+}
+
+impl<T> std::ops::DerefMut for PositionWrapper<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.content
+    }
+}
+
+impl<T: std::fmt::Display> std::fmt::Display for PositionWrapper<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} at line {}, column {}",
+            self.content, self.row, self.column
+        )
+    }
+}
+
+impl<T> From<(T, usize, usize)> for PositionWrapper<T> {
+    fn from(value: (T, usize, usize)) -> Self {
+        Self::new(value.0, value.1, value.2)
+    }
+}
+
+impl<T> From<PositionWrapper<T>> for (T, usize, usize) {
+    fn from(value: PositionWrapper<T>) -> Self {
+        (value.content, value.row, value.column)
+    }
+}
+
+impl<T: std::error::Error + 'static> std::error::Error for PositionWrapper<T> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.content)
+    }
+}
+
+/// Extension methods for `PositionWrapper`.
+pub trait PositionWrapperExt {
+    /// Instances a new `PositionWrapper` with the same row and column as a wrapper.
+    fn into_wrapper<W>(self, wrapper: &PositionWrapper<W>) -> PositionWrapper<Self>
+    where
+        Self: Sized,
+    {
+        PositionWrapper::new(self, wrapper.row, wrapper.column)
+    }
+
+    /// Instances a new `PositionWrapper` with a given row and column.
+    fn into_wrapper_manual(self, row: usize, column: usize) -> PositionWrapper<Self>
+    where
+        Self: Sized,
+    {
+        PositionWrapper::new(self, row, column)
+    }
+}
+
+// Provide extension methods for commonly wrapped inner types.
+// Note: We intentionally implement per-type instead of a blanket impl to avoid coherence
+// issues with other specific impls in modules like `ast::structure`.
+impl PositionWrapperExt for String {}
+impl PositionWrapperExt for BigUint {}
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

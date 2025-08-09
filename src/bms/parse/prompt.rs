@@ -355,12 +355,10 @@ impl DuplicationWorkaround {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder => {
-                Err(ParseWarningContent::PromptHandlerWarning)
-            }
+            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarningContent::HasDuplication),
             DuplicationWorkaround::WarnAndUseNewer => {
                 *target = newer;
-                Err(ParseWarningContent::PromptHandlerWarning)
+                Err(ParseWarningContent::HasDuplication)
             }
         }
     }

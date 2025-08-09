@@ -4,7 +4,7 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export main types from bms module
-pub use super::{BmsOutput, BmsWarning, Decimal, parse_bms};
+pub use super::{BmsOutput, BmsTokenIter, BmsWarning, Decimal, parse_bms};
 
 // Re-export from command module
 pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
@@ -19,13 +19,20 @@ pub use super::command::{
     time::{ObjTime, Track},
 };
 
+// Re-export from ast module
+pub use super::ast::{
+    rng::{RandRng, Rng, RngMock},
+    structure::AstBuildWarningType,
+};
+
 // Re-export from lex module
 pub use super::lex::{
-    BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
+    BmsLexOutput, LexWarning, LexWarningContent, parse_lex_tokens,
+    parse_lex_tokens_with_channel_parser,
 };
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningContent};
+pub use super::parse::{BmsParseOutput, ParseWarning, ParseWarningContent};
 
 // Re-export from parse submodules
 pub use super::parse::{
@@ -42,14 +49,10 @@ pub use super::parse::{
         AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
         DuplicationWorkaround, PromptHandler, PromptingDuplication,
     },
-    random::{
-        ControlFlowRule,
-        rng::{RandRng, Rng, RngMock},
-    },
 };
 
 // Re-export from lex submodules
-pub use super::lex::token::Token;
+pub use super::lex::token::{Token, TokenContent};
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

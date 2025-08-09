@@ -1,20 +1,4 @@
-use bms_rs::bms::{
-    Decimal,
-    command::{
-        ObjId,
-        channel::Channel,
-        graphics::Argb,
-        time::{ObjTime, Track},
-    },
-    lex::token::{Token, TokenContent},
-    parse::{
-        BmsParseOutput, ParseWarningContent,
-        model::{Bms, def::Bmp},
-        prompt::{AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder},
-        random::rng::RngMock,
-    },
-};
-use num::BigUint;
+use bms_rs::bms::prelude::*;
 use std::borrow::Cow;
 use std::path::Path;
 
@@ -69,7 +53,7 @@ fn test_always_use_older() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -77,7 +61,7 @@ fn test_always_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysUseOlder);
 
     // Should have no warnings since AlwaysUseOlder handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -189,7 +173,7 @@ fn test_always_use_newer() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -197,7 +181,7 @@ fn test_always_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
 
     // Should have no warnings since AlwaysUseNewer handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -309,7 +293,7 @@ fn test_always_warn_and_use_older() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -317,18 +301,14 @@ fn test_always_warn_and_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(parse_warnings.len(), 9);
     assert!(
         parse_warnings
             .iter()
-            .all(|w| matches!(w.content, ParseWarningContent::PromptHandlerWarning))
+            .all(|w| matches!(w.content, ParseWarningContent::HasDuplication))
     );
 
     // Check that older values are used for all scope_defines conflicts
@@ -438,7 +418,7 @@ fn test_always_warn_and_use_newer() {
     .map(|content| Token {
         content,
         row: 0,
-        col: 0,
+        column: 0,
     })
     .collect();
 
@@ -446,17 +426,13 @@ fn test_always_warn_and_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseNewer,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseNewer);
 
     // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
     assert!(
         parse_warnings
             .iter()
-            .any(|w| matches!(w.content, ParseWarningContent::PromptHandlerWarning))
+            .any(|w| matches!(w.content, ParseWarningContent::HasDuplication))
     );
 
     // Check that newer values are used for all scope_defines conflicts

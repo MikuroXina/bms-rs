@@ -1166,9 +1166,7 @@ impl Bms {
             | TokenContent::Case(_)
             | TokenContent::Def
             | TokenContent::Skip
-            | TokenContent::EndSwitch => {
-                unreachable!()
-            }
+            | TokenContent::EndSwitch => return Err(ParseWarningContent::UnexpectedToken),
             #[cfg(feature = "minor-command")]
             TokenContent::CharFile(path) => {
                 self.graphics.char_file = Some(path.into());
