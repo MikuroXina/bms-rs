@@ -12,10 +12,7 @@ use thiserror::Error;
 
 use crate::bms::command::channel::{Channel, read_channel_beat};
 
-use self::{
-    cursor::Cursor,
-    token::{Token, TokenContent},
-};
+use self::{cursor::Cursor, token::TokenContent};
 
 /// The content of lexical warnings (without position info).
 #[non_exhaustive]
@@ -38,20 +35,17 @@ pub enum LexWarningContent {
 
 impl PositionWrapperExt for LexWarningContent {}
 
-/// A lex warning with position information, wrapped by PositionWrapper
-pub type LexWarning = PositionWrapper<LexWarningContent>;
-
-/// type alias of core::result::Result<T, LexWarning>
-pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
+/// type alias of core::result::Result<T, PositionWrapper<LexWarningContent>>
+pub(crate) type Result<T> = core::result::Result<T, PositionWrapper<LexWarningContent>>;
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
-    pub tokens: Vec<Token<'a>>,
+    pub tokens: Vec<PositionWrapper<TokenContent<'a>>>,
     /// warnings
-    pub lex_warnings: Vec<LexWarning>,
+    pub lex_warnings: Vec<PositionWrapper<LexWarningContent>>,
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
@@ -71,7 +65,7 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
     let mut warnings = vec![];
     while !cursor.is_end() {
         match TokenContent::parse(&mut cursor, channel_parser) {
-            Ok(content) => tokens.push(Token {
+            Ok(content) => tokens.push(PositionWrapper::<TokenContent> {
                 content,
                 row: cursor.line(),
                 column: cursor.col(),

@@ -6,7 +6,7 @@ use std::path::Path;
 #[test]
 fn test_always_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<Token> = vec![
+    let tokens: Vec<PositionWrapper<TokenContent>> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -50,7 +50,7 @@ fn test_always_use_older() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
+    .map(|content| PositionWrapper::<TokenContent> {
         content,
         row: 0,
         column: 0,
@@ -126,7 +126,7 @@ fn test_always_use_older() {
 #[test]
 fn test_always_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<Token> = vec![
+    let tokens: Vec<PositionWrapper<TokenContent>> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -170,7 +170,7 @@ fn test_always_use_newer() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
+    .map(|content| PositionWrapper::<TokenContent> {
         content,
         row: 0,
         column: 0,
@@ -246,7 +246,7 @@ fn test_always_use_newer() {
 #[test]
 fn test_always_warn_and_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<Token> = vec![
+    let tokens: Vec<PositionWrapper<TokenContent>> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -290,7 +290,7 @@ fn test_always_warn_and_use_older() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
+    .map(|content| PositionWrapper::<TokenContent> {
         content,
         row: 0,
         column: 0,
@@ -371,7 +371,7 @@ fn test_always_warn_and_use_older() {
 #[test]
 fn test_always_warn_and_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<Token> = vec![
+    let tokens: Vec<PositionWrapper<TokenContent>> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -415,7 +415,7 @@ fn test_always_warn_and_use_newer() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
+    .map(|content| PositionWrapper::<TokenContent> {
         content,
         row: 0,
         column: 0,

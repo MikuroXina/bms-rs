@@ -11,14 +11,10 @@ use std::collections::HashMap;
 
 use num::BigUint;
 
-use crate::{
-    bms::{
-        BmsTokenIter,
-        ast::structure::IfBlock,
-        lex::token::{Token, TokenContent},
-    },
-    command::PositionWrapperExt,
+use crate::bms::{
+    BmsTokenIter, ast::structure::IfBlock, command::PositionWrapper, lex::token::TokenContent,
 };
+use crate::command::PositionWrapperExt;
 
 use super::structure::{
     AstBuildWarning, AstBuildWarningType, BlockValue, CaseBranch, CaseBranchValue, IfBranch, Unit,
@@ -108,7 +104,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
-                    if let Some(Token { content: Skip, .. }) = iter.peek() {
+                    if let Some(PositionWrapper { content: Skip, .. }) = iter.peek() {
                         iter.next();
                     }
                     continue;
@@ -123,7 +119,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     value: CaseBranchValue::Case(case_val.clone()).into_wrapper_manual(row, col),
                     tokens,
                 });
-                if let Some(Token { content: Skip, .. }) = iter.peek() {
+                if let Some(PositionWrapper { content: Skip, .. }) = iter.peek() {
                     iter.next();
                 }
             }
@@ -133,7 +129,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
-                    if let Some(Token { content: Skip, .. }) = iter.peek() {
+                    if let Some(PositionWrapper { content: Skip, .. }) = iter.peek() {
                         iter.next();
                     }
                     continue;
@@ -148,7 +144,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     value: CaseBranchValue::Def.into_wrapper_manual(row, col),
                     tokens,
                 });
-                if let Some(Token { content: Skip, .. }) = iter.peek() {
+                if let Some(PositionWrapper { content: Skip, .. }) = iter.peek() {
                     iter.next();
                 }
             }
@@ -237,7 +233,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
     let mut if_blocks = Vec::new();
     let mut errors = Vec::new();
     // 2. Main loop, process the contents inside the Random block
-    while let Some(Token {
+    while let Some(PositionWrapper {
         content,
         row,
         column,
@@ -274,7 +270,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     );
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
-                while let Some(Token {
+                while let Some(PositionWrapper {
                     content: ElseIf(elif_val),
                     row,
                     column,
@@ -303,7 +299,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     );
                 }
                 // 2.3 Check for redundant ElseIf
-                if let Some(Token {
+                if let Some(PositionWrapper {
                     content: ElseIf(_),
                     row,
                     column,
@@ -315,7 +311,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     iter.next();
                 }
                 // 2.4 Handle Else branch, branch value is 0
-                if let Some(Token { content: Else, .. }) = iter.peek() {
+                if let Some(PositionWrapper { content: Else, .. }) = iter.peek() {
                     let (row, col) = {
                         let t = iter.peek().unwrap();
                         (t.row, t.column)
@@ -332,7 +328,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     );
                 }
                 // 2.5 Check for redundant Else
-                if let Some(Token { content: Else, .. }) = iter.peek() {
+                if let Some(PositionWrapper { content: Else, .. }) = iter.peek() {
                     errors.push(AstBuildWarningType::UnmatchedElse.into_wrapper_manual(row, col));
                     iter.next();
                 }
@@ -418,7 +414,9 @@ fn parse_if_block_body<'a>(iter: &mut BmsTokenIter<'a>) -> (Vec<Unit<'a>>, Vec<A
 mod tests {
     use super::*;
     use crate::bms::ast::rng::Rng;
-    use crate::bms::{ast::ast_parse::parse_control_flow_ast, lex::token::Token};
+    use crate::bms::{
+        ast::ast_parse::parse_control_flow_ast, command::PositionWrapper, lex::token::TokenContent,
+    };
     use core::ops::RangeInclusive;
     use num::BigUint;
 
@@ -440,7 +438,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -476,7 +474,7 @@ mod tests {
         use TokenContent::*;
         let tokens = [Title("A"), EndRandom]
             .into_iter()
-            .map(|t| Token {
+            .map(|t| PositionWrapper::<TokenContent> {
                 content: t,
                 row: 0,
                 column: 0,
@@ -491,7 +489,7 @@ mod tests {
         use TokenContent::*;
         let tokens = [Title("A"), EndIf]
             .into_iter()
-            .map(|t| Token {
+            .map(|t| PositionWrapper::<TokenContent> {
                 content: t,
                 row: 0,
                 column: 0,
@@ -515,7 +513,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -539,7 +537,7 @@ mod tests {
         let Some(_) = all_titles.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("A"),
                     ..
                 })
@@ -550,7 +548,7 @@ mod tests {
         let Some(_) = all_titles.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("B"),
                     ..
                 })
@@ -576,7 +574,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -630,7 +628,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -653,7 +651,7 @@ mod tests {
         let Some(_) = b1.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("A1"),
                     ..
                 })
@@ -667,7 +665,7 @@ mod tests {
         let Some(_) = b2.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("A2"),
                     ..
                 })
@@ -681,7 +679,7 @@ mod tests {
         let Some(_) = belse.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("Aelse"),
                     ..
                 })
@@ -696,7 +694,7 @@ mod tests {
         let Some(_) = b1.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("B1"),
                     ..
                 })
@@ -710,7 +708,7 @@ mod tests {
         let Some(_) = b2.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("B2"),
                     ..
                 })
@@ -724,7 +722,7 @@ mod tests {
         let Some(_) = belse.tokens.iter().find(|u| {
             matches!(
                 u,
-                Unit::Token(Token {
+                Unit::Token(PositionWrapper::<TokenContent> {
                     content: Title("Belse"),
                     ..
                 })
@@ -747,7 +745,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -771,7 +769,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -808,7 +806,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -831,7 +829,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -870,7 +868,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -898,7 +896,7 @@ mod tests {
             EndRandom,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,

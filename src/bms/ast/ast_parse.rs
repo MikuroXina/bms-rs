@@ -2,7 +2,10 @@
 
 use num::BigUint;
 
-use crate::bms::{command::PositionWrapperExt, lex::token::Token};
+use crate::bms::{
+    command::{PositionWrapper, PositionWrapperExt},
+    lex::token::TokenContent,
+};
 
 use super::{
     rng::Rng,
@@ -13,7 +16,10 @@ use super::{
 pub fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> (Vec<&'a Token<'a>>, Vec<AstParseWarning>) {
+) -> (
+    Vec<&'a PositionWrapper<TokenContent<'a>>>,
+    Vec<AstParseWarning>,
+) {
     let mut result = Vec::new();
     let mut warnings: Vec<AstParseWarning> = Vec::new();
     for unit in iter.by_ref() {
@@ -158,7 +164,8 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::structure::{CaseBranch, IfBlock, IfBranch},
-        lex::token::{Token, TokenContent},
+        command::PositionWrapper,
+        lex::token::TokenContent,
     };
 
     struct DummyRng;
@@ -173,12 +180,12 @@ mod tests {
     fn test_setrandom_setwitch_large_value() {
         use TokenContent::*;
         // If/Case value is very large under SetRandom/SetSwitch
-        let t_if = Token {
+        let t_if = PositionWrapper::<TokenContent> {
             content: Title("LARGE_IF"),
             row: 0,
             column: 0,
         };
-        let t_case = Token {
+        let t_case = PositionWrapper::<TokenContent> {
             content: Title("LARGE_CASE"),
             row: 0,
             column: 0,
@@ -215,10 +222,8 @@ mod tests {
         let (tokens, _w) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match &t.content {
+                TokenContent::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -232,7 +237,7 @@ mod tests {
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         // Random outer, Switch inner
-        let t_switch_in_random = Token {
+        let t_switch_in_random = PositionWrapper::<TokenContent> {
             content: Title("SWITCH_IN_RANDOM"),
             row: 0,
             column: 0,
@@ -265,17 +270,15 @@ mod tests {
         let (tokens, _w) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match &t.content {
+                TokenContent::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
         assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
         // Switch outer, Random inner
-        let t_random_in_switch = Token {
+        let t_random_in_switch = PositionWrapper::<TokenContent> {
             content: Title("RANDOM_IN_SWITCH"),
             row: 0,
             column: 0,
@@ -309,10 +312,8 @@ mod tests {
         let (tokens2, _w) = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match &t.content {
+                TokenContent::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -324,7 +325,7 @@ mod tests {
         use TokenContent::*;
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
-        let t_deep_nested = Token {
+        let t_deep_nested = PositionWrapper::<TokenContent> {
             content: Title("DEEP_NESTED"),
             row: 0,
             column: 0,
@@ -372,10 +373,8 @@ mod tests {
         let (tokens, _w) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match &t.content {
+                TokenContent::Title(s) => Some(*s),
                 _ => None,
             })
             .collect();

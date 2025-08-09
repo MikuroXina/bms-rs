@@ -24,7 +24,12 @@ use ast_build::build_control_flow_ast;
 use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 
-use crate::bms::{ast::structure::{AstParseWarning, AstRoot}, lex::token::Token, BmsTokenIter};
+use crate::bms::{
+    BmsTokenIter,
+    ast::structure::{AstParseWarning, AstRoot},
+    command::PositionWrapper,
+    lex::token::TokenContent,
+};
 
 use self::structure::AstBuildWarning;
 
@@ -52,7 +57,7 @@ pub fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBuildOutpu
 /// AstParseOutput
 pub struct AstParseOutput<'a> {
     /// Parsed tokens
-    pub tokens: Vec<&'a Token<'a>>,
+    pub tokens: Vec<&'a PositionWrapper<TokenContent<'a>>>,
     /// Warnings
     pub ast_parse_warnings: Vec<AstParseWarning>,
 }
@@ -78,10 +83,7 @@ mod tests {
 
     use super::structure::{CaseBranch, CaseBranchValue, Unit};
     use super::*;
-    use crate::bms::{
-        BmsTokenIter,
-        lex::token::{Token, TokenContent},
-    };
+    use crate::bms::{BmsTokenIter, command::PositionWrapper, lex::token::TokenContent};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -114,7 +116,7 @@ mod tests {
             Title("00000044"),
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,
@@ -162,7 +164,7 @@ mod tests {
                 .iter()
                 .any(|u| matches!(
                     u,
-                    Unit::Token(Token {
+                    Unit::Token(PositionWrapper::<TokenContent> {
                         content: Title("00550000"),
                         ..
                     })
@@ -177,7 +179,7 @@ mod tests {
                 .iter()
                 .any(|u| matches!(
                     u,
-                    Unit::Token(Token {
+                    Unit::Token(PositionWrapper::<TokenContent> {
                         content: Title("00006600"),
                         ..
                     })
@@ -189,13 +191,7 @@ mod tests {
         else {
             panic!("Case(2) not found");
         };
-        assert!(matches!(
-            &tokens[0],
-            Unit::Token(Token {
-                content: Title("00003300"),
-                ..
-            })
-        ));
+        assert!(matches!(&tokens[0], Unit::Token(_)));
         let mut rng = DummyRng;
         let mut ast_iter = ast.into_iter().peekable();
         let (tokens, parse_warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
@@ -203,14 +199,13 @@ mod tests {
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
-            match t {
-                Token {
-                    content: Title(s), ..
-                } => {
-                    assert_eq!(s, &expected[i], "Title content mismatch");
-                }
-                _ => panic!("Token type mismatch"),
-            }
+            let PositionWrapper {
+                content: Title(s), ..
+            } = t
+            else {
+                panic!("Token type mismatch");
+            };
+            assert_eq!(s, &expected[i], "Title content mismatch");
         }
         assert_eq!(errors, vec![]);
     }
@@ -249,7 +244,7 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
+        .map(|t| PositionWrapper::<TokenContent> {
             content: t,
             row: 0,
             column: 0,

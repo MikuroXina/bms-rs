@@ -8,15 +8,12 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::{
-    bms::{
-        Decimal,
-        command::{
-            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
-            graphics::Argb, time::Track,
-        },
+use crate::bms::{
+    Decimal,
+    command::{
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
+        time::Track,
     },
-    command::PositionWrapper,
 };
 
 #[cfg(feature = "minor-command")]
@@ -308,8 +305,7 @@ pub enum TokenContent<'a> {
     WavCmd(WavCmdEvent),
 }
 
-/// A token with position information.
-pub type Token<'a> = PositionWrapper<TokenContent<'a>>;
+// `Token` 类型别名已删除，直接使用 `PositionWrapper<TokenContent<'a>>`。
 
 impl<'a> TokenContent<'a> {
     pub(crate) fn parse(

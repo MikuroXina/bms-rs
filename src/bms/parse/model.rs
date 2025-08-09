@@ -23,12 +23,12 @@ use crate::bms::command::minor_command::{ExtChrEvent, StpEvent, SwBgaEvent, WavC
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
+        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, PositionWrapper, Volume,
         channel::{Channel, Key, NoteKind},
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::{Token, TokenContent},
+    lex::token::TokenContent,
 };
 
 #[cfg(feature = "minor-command")]
@@ -317,7 +317,7 @@ pub struct Others {
 impl Bms {
     pub(crate) fn parse(
         &mut self,
-        token: &Token,
+        token: &PositionWrapper<TokenContent>,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match &token.content {

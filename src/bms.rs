@@ -28,21 +28,18 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::{
-    bms::{
-        ast::{
-            AstBuildOutput, AstParseOutput, build_ast, parse_ast,
-            rng::{RandRng, Rng},
-            structure::AstRoot,
-        },
-        parse::model::Bms,
+use crate::{bms::{
+    ast::{
+        build_ast, parse_ast, rng::{RandRng, Rng}, structure::AstRoot, AstBuildOutput, AstParseOutput
     },
-    lex::token::Token,
-};
+    command::PositionWrapper,
+    lex::token::TokenContent,
+    parse::model::Bms,
+}, lex::LexWarningContent};
 
 use self::{
     ast::structure::{AstBuildWarning, AstParseWarning},
-    lex::{BmsLexOutput, LexWarning},
+    lex::BmsLexOutput,
     parse::{
         BmsParseOutput, ParseWarning,
         check_playing::{PlayingError, PlayingWarning},
@@ -56,7 +53,9 @@ use self::{
 pub type Decimal = GenericDecimal<BigUint, usize>;
 
 /// The type of parsing tokens iter.
-pub struct BmsTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>);
+pub struct BmsTokenIter<'a>(
+    std::iter::Peekable<std::slice::Iter<'a, PositionWrapper<TokenContent<'a>>>>,
+);
 
 impl<'a> BmsTokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
@@ -64,19 +63,19 @@ impl<'a> BmsTokenIter<'a> {
         Self(value.tokens.iter().as_slice().iter().peekable())
     }
     /// Create iter from Token list reference.
-    pub fn from_tokens(value: &'a [Token<'a>]) -> Self {
+    pub fn from_tokens(value: &'a [PositionWrapper<TokenContent<'a>>]) -> Self {
         Self(value.iter().peekable())
     }
 }
 
-impl<'a, T: AsRef<[Token<'a>]> + ?Sized> From<&'a T> for BmsTokenIter<'a> {
+impl<'a, T: AsRef<[PositionWrapper<TokenContent<'a>>]> + ?Sized> From<&'a T> for BmsTokenIter<'a> {
     fn from(value: &'a T) -> Self {
         Self(value.as_ref().iter().peekable())
     }
 }
 
 impl<'a> Deref for BmsTokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
+    type Target = std::iter::Peekable<std::slice::Iter<'a, PositionWrapper<TokenContent<'a>>>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -94,7 +93,7 @@ impl<'a> DerefMut for BmsTokenIter<'a> {
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    LexWarning(#[from] LexWarning),
+    LexWarning(#[from] PositionWrapper<LexWarningContent>),
     /// Violation of control flow rule.
     #[error("Warn: AST build: {0}")]
     AstBuildWarning(#[from] AstBuildWarning),
@@ -173,7 +172,10 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
 /// Parse bms file with tokens and rng.
 ///
 /// A step of [`parse_bms`]
-pub fn parse_bms_with_tokens(tokens: &[Token<'_>], rng: impl Rng) -> BmsOutput {
+pub fn parse_bms_with_tokens(
+    tokens: &[PositionWrapper<TokenContent<'_>>],
+    rng: impl Rng,
+) -> BmsOutput {
     // Parse BMS using default RNG and prompt handler
     let AstBuildOutput {
         root,
@@ -205,7 +207,8 @@ pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
         tokens: tokens_from_ast,
         ast_parse_warnings,
     } = parse_ast(root, rng);
-    let tokens: Vec<Token<'_>> = tokens_from_ast.into_iter().map(ToOwned::to_owned).collect();
+    let tokens: Vec<PositionWrapper<TokenContent<'_>>> =
+        tokens_from_ast.into_iter().map(ToOwned::to_owned).collect();
 
     // Parse Bms File
     let BmsParseOutput {

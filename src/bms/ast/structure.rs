@@ -4,10 +4,8 @@ use std::collections::HashMap;
 use num::BigUint;
 use thiserror::Error;
 
-use crate::{
-    bms::{command::PositionWrapper, lex::token::Token},
-    command::PositionWrapperExt,
-};
+use crate::bms::{command::PositionWrapper, lex::token::TokenContent};
+use crate::command::PositionWrapperExt;
 
 /// The root of the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +18,7 @@ pub struct AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unit<'a> {
     /// A token that is not a control flow token.
-    Token(&'a Token<'a>),
+    Token(&'a PositionWrapper<TokenContent<'a>>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         /// The value of the Random block.
