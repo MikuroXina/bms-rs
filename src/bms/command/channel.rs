@@ -227,7 +227,11 @@ impl ModeKeyChannel {
         match self {
             Beat => (side, key),
             PmsBmeType => {
-                let key = match key { Key8 => Scratch, Key9 => FreeZone, other => other };
+                let key = match key {
+                    Key8 => Scratch,
+                    Key9 => FreeZone,
+                    other => other,
+                };
                 (side, key)
             }
             Pms => {
@@ -242,24 +246,26 @@ impl ModeKeyChannel {
                 }
             }
             BeatNanasi => {
-                let key = match key { FootPedal => FreeZone, other => other };
+                let key = match key {
+                    FootPedal => FreeZone,
+                    other => other,
+                };
                 (side, key)
             }
-            DscOctFp => {
-                match (side, key) {
-                    (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) =>
-                        (Player1, k),
-                    (Player1, ScratchExtra) => (Player2, Scratch),
-                    (Player1, FootPedal) => (Player2, Key1),
-                    (Player1, Key8) => (Player2, Key2),
-                    (Player1, Key9) => (Player2, Key3),
-                    (Player1, Key10) => (Player2, Key4),
-                    (Player1, Key11) => (Player2, Key5),
-                    (Player1, Key12) => (Player2, Key6),
-                    (Player1, Key13) => (Player2, Key7),
-                    other => other,
+            DscOctFp => match (side, key) {
+                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
+                    (Player1, k)
                 }
-            }
+                (Player1, ScratchExtra) => (Player2, Scratch),
+                (Player1, FootPedal) => (Player2, Key1),
+                (Player1, Key8) => (Player2, Key2),
+                (Player1, Key9) => (Player2, Key3),
+                (Player1, Key10) => (Player2, Key4),
+                (Player1, Key11) => (Player2, Key5),
+                (Player1, Key12) => (Player2, Key6),
+                (Player1, Key13) => (Player2, Key7),
+                other => other,
+            },
         }
     }
 
@@ -287,8 +293,9 @@ impl ModeKeyChannel {
                 other => (side, other),
             },
             DscOctFp => match (side, key) {
-                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) =>
-                    (Player1, k),
+                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
+                    (Player1, k)
+                }
                 (Player2, Key1) => (Player1, FootPedal),
                 (Player2, Key2) => (Player1, Key8),
                 (Player2, Key3) => (Player1, Key9),

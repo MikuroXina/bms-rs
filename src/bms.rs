@@ -205,8 +205,6 @@ pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
         tokens: tokens_from_ast,
         ast_parse_warnings,
     } = parse_bms_step_parse_ast(root, rng);
-    let tokens: Vec<PositionWrapper<Token<'_>>> =
-        tokens_from_ast.into_iter().map(ToOwned::to_owned).collect();
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = ast_parse_warnings
@@ -217,7 +215,7 @@ pub fn parse_bms_with_ast(root: AstRoot<'_>, rng: impl Rng) -> BmsOutput {
     let BmsOutput {
         bms,
         warnings: after_warnings,
-    } = parse_bms_with_tokens_and_prompt_handler(&tokens, AlwaysWarnAndUseOlder);
+    } = parse_bms_with_tokens_and_prompt_handler(&tokens_from_ast, AlwaysWarnAndUseOlder);
 
     warnings.extend(after_warnings);
 

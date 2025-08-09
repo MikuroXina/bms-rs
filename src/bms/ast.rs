@@ -57,7 +57,7 @@ pub(super) fn build_ast<'a>(token_stream: impl Into<BmsTokenIter<'a>>) -> AstBui
 /// AstParseOutput
 pub struct AstParseOutput<'a> {
     /// Parsed tokens
-    pub tokens: Vec<&'a PositionWrapper<Token<'a>>>,
+    pub tokens: Vec<PositionWrapper<Token<'a>>>,
     /// Warnings
     pub ast_parse_warnings: Vec<PositionWrapper<AstParseWarning>>,
 }
@@ -73,7 +73,10 @@ pub(super) fn parse_ast<'a>(
     let mut ast_iter = units.into_iter().peekable();
     let (tokens, warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
     AstParseOutput {
-        tokens,
+        tokens: tokens
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>(),
         ast_parse_warnings: warnings,
     }
 }
