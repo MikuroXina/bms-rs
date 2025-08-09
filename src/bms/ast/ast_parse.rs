@@ -158,7 +158,6 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::structure::{CaseBranch, IfBlock, IfBranch},
-        command::PositionWrapper,
         lex::token::{Token, TokenContent},
     };
 
@@ -188,7 +187,7 @@ mod tests {
         if_branches.insert(
             BigUint::from(u64::MAX),
             IfBranch {
-                value: PositionWrapper::new(BigUint::from(u64::MAX), 0, 0),
+                value: BigUint::from(u64::MAX).into_wrapper_manual(0, 0),
                 tokens: vec![Unit::Token(&t_if)],
             },
         );
@@ -206,11 +205,7 @@ mod tests {
                     value: BigUint::from(u64::MAX),
                 },
                 cases: vec![CaseBranch {
-                    value: PositionWrapper::new(
-                        CaseBranchValue::Case(BigUint::from(u64::MAX)),
-                        0,
-                        0,
-                    ),
+                    value: CaseBranchValue::Case(BigUint::from(u64::MAX)).into_wrapper_manual(0, 0),
                     tokens: vec![Unit::Token(&t_case)],
                 }],
             },
@@ -246,17 +241,13 @@ mod tests {
         if_branches.insert(
             BigUint::from(1u64),
             IfBranch {
-                value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
+                value: BigUint::from(1u64).into_wrapper_manual(0, 0),
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(2u64),
                     },
                     cases: vec![CaseBranch {
-                        value: PositionWrapper::new(
-                            CaseBranchValue::Case(BigUint::from(2u64)),
-                            0,
-                            0,
-                        ),
+                        value: CaseBranchValue::Case(BigUint::from(2u64)).into_wrapper_manual(0, 0),
                         tokens: vec![Unit::Token(&t_switch_in_random)],
                     }],
                 }],
@@ -290,7 +281,7 @@ mod tests {
             column: 0,
         };
         let cases = vec![CaseBranch {
-            value: PositionWrapper::new(CaseBranchValue::Case(BigUint::from(1u64)), 0, 0),
+            value: CaseBranchValue::Case(BigUint::from(1u64)).into_wrapper_manual(0, 0),
             tokens: vec![Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(2u64),
@@ -300,7 +291,7 @@ mod tests {
                     b.insert(
                         BigUint::from(2u64),
                         IfBranch {
-                            value: PositionWrapper::new(BigUint::from(2u64), 0, 0),
+                            value: BigUint::from(2u64).into_wrapper_manual(0, 0),
                             tokens: vec![Unit::Token(&t_random_in_switch)],
                         },
                     );
@@ -342,17 +333,13 @@ mod tests {
         if_branches.insert(
             BigUint::from(1u64),
             IfBranch {
-                value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
+                value: BigUint::from(1u64).into_wrapper_manual(0, 0),
                 tokens: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(1u64),
                     },
                     cases: vec![CaseBranch {
-                        value: PositionWrapper::new(
-                            CaseBranchValue::Case(BigUint::from(1u64)),
-                            0,
-                            0,
-                        ),
+                        value: CaseBranchValue::Case(BigUint::from(1u64)).into_wrapper_manual(0, 0),
                         tokens: vec![Unit::RandomBlock {
                             value: BlockValue::Set {
                                 value: BigUint::from(1u64),
@@ -362,7 +349,7 @@ mod tests {
                                 b.insert(
                                     BigUint::from(1u64),
                                     IfBranch {
-                                        value: PositionWrapper::new(BigUint::from(1u64), 0, 0),
+                                        value: BigUint::from(1u64).into_wrapper_manual(0, 0),
                                         tokens: vec![Unit::Token(&t_deep_nested)],
                                     },
                                 );

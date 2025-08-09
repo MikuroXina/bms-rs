@@ -7,7 +7,7 @@ pub mod check_playing;
 pub mod model;
 pub mod prompt;
 
-use crate::bms::command::PositionWrapper;
+use crate::bms::command::{PositionWrapper, PositionWrapperExt};
 use thiserror::Error;
 
 use crate::bms::{BmsTokenIter, command::ObjId};
@@ -31,6 +31,8 @@ pub enum ParseWarningContent {
     #[error("has unexpected token, e.g. control flow tokens")]
     UnexpectedToken,
 }
+
+impl PositionWrapperExt for ParseWarningContent {}
 
 /// type alias of core::result::Result<T, ParseWarningContent>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
@@ -59,7 +61,7 @@ impl Bms {
         let mut parse_warnings = vec![];
         for token in token_iter.0 {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
-                parse_warnings.push(PositionWrapper::new(error, token.row, token.column));
+                parse_warnings.push(error.into_wrapper_manual(token.row, token.column));
             }
         }
 

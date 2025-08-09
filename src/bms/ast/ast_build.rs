@@ -15,7 +15,6 @@ use crate::{
     bms::{
         BmsTokenIter,
         ast::structure::IfBlock,
-        command::PositionWrapper,
         lex::token::{Token, TokenContent},
     },
     command::PositionWrapperExt,
@@ -121,7 +120,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: PositionWrapper::new(CaseBranchValue::Case(case_val.clone()), row, col),
+                    value: CaseBranchValue::Case(case_val.clone()).into_wrapper_manual(row, col),
                     tokens,
                 });
                 if let Some(Token { content: Skip, .. }) = iter.peek() {
@@ -146,7 +145,7 @@ fn parse_switch_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: PositionWrapper::new(CaseBranchValue::Def, row, col),
+                    value: CaseBranchValue::Def.into_wrapper_manual(row, col),
                     tokens,
                 });
                 if let Some(Token { content: Skip, .. }) = iter.peek() {
@@ -269,7 +268,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     branches.insert(
                         if_val.clone(),
                         IfBranch {
-                            value: PositionWrapper::new(if_val.clone(), row, col),
+                            value: if_val.clone().into_wrapper_manual(row, col),
                             tokens,
                         },
                     );
@@ -298,7 +297,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     branches.insert(
                         elif_val.clone(),
                         IfBranch {
-                            value: PositionWrapper::new(elif_val.clone(), *row, *column),
+                            value: elif_val.clone().into_wrapper_manual(*row, *column),
                             tokens: elif_tokens,
                         },
                     );
@@ -327,7 +326,7 @@ fn parse_random_block<'a>(iter: &mut BmsTokenIter<'a>) -> (Unit<'a>, Vec<AstBuil
                     branches.insert(
                         BigUint::from(0u64),
                         IfBranch {
-                            value: PositionWrapper::new(BigUint::from(0u64), row, col),
+                            value: BigUint::from(0u64).into_wrapper_manual(row, col),
                             tokens: etokens,
                         },
                     );

@@ -7,6 +7,9 @@ pub mod graphics;
 pub mod minor_command;
 pub mod time;
 
+// Needed for implementing `PositionWrapperExt` for numeric types used in the crate
+use num::BigUint;
+
 /// A generic wrapper that attaches position information (row/column) to a value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -89,6 +92,12 @@ pub trait PositionWrapperExt {
         PositionWrapper::new(self, row, column)
     }
 }
+
+// Provide extension methods for commonly wrapped inner types.
+// Note: We intentionally implement per-type instead of a blanket impl to avoid coherence
+// issues with other specific impls in modules like `ast::structure`.
+impl PositionWrapperExt for String {}
+impl PositionWrapperExt for BigUint {}
 
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

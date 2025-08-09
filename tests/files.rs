@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use bms_rs::command::PositionWrapper;
+use bms_rs::command::PositionWrapperExt;
 
 #[test]
 fn test_lal() {
@@ -92,16 +92,8 @@ fn test_blank() {
     assert_eq!(
         warnings,
         vec![
-            LexWarning::ExpectedToken(PositionWrapper::new(
-                "key audio filename".to_string(),
-                19,
-                8,
-            )),
-            LexWarning::ExpectedToken(PositionWrapper::new(
-                "key audio filename".to_string(),
-                22,
-                7,
-            )),
+            LexWarning::ExpectedToken("key audio filename".to_string().into_wrapper_manual(19, 8),),
+            LexWarning::ExpectedToken("key audio filename".to_string().into_wrapper_manual(22, 7),),
         ]
     );
 }

@@ -145,6 +145,7 @@ pub enum AstBuildWarningType {
 }
 
 impl PositionWrapperExt for AstBuildWarningType {}
+impl PositionWrapperExt for CaseBranchValue {}
 
 /// AST Build Warning
 pub type AstBuildWarning = PositionWrapper<AstBuildWarningType>;
