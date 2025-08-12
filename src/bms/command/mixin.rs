@@ -111,6 +111,8 @@ pub trait SourcePosMixinExt {
     }
 }
 
+impl<T> SourcePosMixinExt for SourcePosMixin<T> {}
+
 // Provide extension methods for commonly wrapped inner types.
 // Note: We intentionally implement per-type instead of a blanket impl to avoid coherence
 // issues with other specific impls in modules like `ast::structure`.
