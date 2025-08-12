@@ -28,7 +28,7 @@ use crate::bms::{
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::TokenContent,
+    lex::token::Token,
     prelude::SourcePosMixin,
 };
 
@@ -70,7 +70,7 @@ pub struct Bms {
 }
 
 /// A header of the score, including the information that is usually used in music selection.
-/// Parsed from [`TokenStream`](crate::lex::TokenContent::TokenStream).
+/// Parsed from [`TokenStream`](crate::lex::Token::TokenStream).
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Header {
@@ -318,13 +318,13 @@ pub struct Others {
 impl Bms {
     pub(crate) fn parse<'a>(
         &mut self,
-        token: &'a SourcePosMixin<TokenContent<'a>>,
+        token: &'a SourcePosMixin<Token<'a>>,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match &token.content {
-            TokenContent::Artist(artist) => self.header.artist = Some(artist.to_string()),
+            Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
             #[cfg(feature = "minor-command")]
-            TokenContent::AtBga {
+            Token::AtBga {
                 id,
                 source_bmp,
                 trim_top_left,
@@ -350,10 +350,10 @@ impl Bms {
                     self.scope_defines.atbga_defs.insert(*id, to_insert);
                 }
             }
-            TokenContent::Banner(file) => self.header.banner = Some(file.into()),
-            TokenContent::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
+            Token::Banner(file) => self.header.banner = Some(file.into()),
+            Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
             #[cfg(feature = "minor-command")]
-            TokenContent::Bga {
+            Token::Bga {
                 id,
                 source_bmp,
                 trim_top_left,
@@ -379,7 +379,7 @@ impl Bms {
                     self.scope_defines.bga_defs.insert(*id, to_insert);
                 }
             }
-            TokenContent::Bmp(id, path) => {
+            Token::Bmp(id, path) => {
                 if id.is_none() {
                     self.graphics.poor_bmp = Some(path.into());
                     return Ok(());
@@ -403,10 +403,10 @@ impl Bms {
                     self.graphics.bmp_files.insert(id, to_insert);
                 }
             }
-            TokenContent::Bpm(bpm) => {
+            Token::Bpm(bpm) => {
                 self.arrangers.bpm = Some(bpm.clone());
             }
-            TokenContent::BpmChange(id, bpm) => {
+            Token::BpmChange(id, bpm) => {
                 if let Some(older) = self.scope_defines.bpm_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BpmChange {
@@ -420,7 +420,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::ChangeOption(id, option) => {
+            Token::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ChangeOption {
@@ -433,14 +433,14 @@ impl Bms {
                     self.others.change_options.insert(*id, option.to_string());
                 }
             }
-            TokenContent::Comment(comment) => self
+            Token::Comment(comment) => self
                 .header
                 .comment
                 .get_or_insert_with(Vec::new)
                 .push(comment.to_string()),
-            TokenContent::Difficulty(diff) => self.header.difficulty = Some(*diff),
-            TokenContent::Email(email) => self.header.email = Some(email.to_string()),
-            TokenContent::ExBmp(id, transparent_color, path) => {
+            Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
+            Token::Email(email) => self.header.email = Some(email.to_string()),
+            Token::ExBmp(id, transparent_color, path) => {
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: *transparent_color,
@@ -457,7 +457,7 @@ impl Bms {
                     self.graphics.bmp_files.insert(*id, to_insert);
                 }
             }
-            TokenContent::ExRank(id, judge_level) => {
+            Token::ExRank(id, judge_level) => {
                 let to_insert = ExRankDef {
                     id: *id,
                     judge_level: *judge_level,
@@ -475,7 +475,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::ExWav {
+            Token::ExWav {
                 id,
                 pan,
                 volume,
@@ -501,32 +501,30 @@ impl Bms {
                     self.scope_defines.exwav_defs.insert(*id, to_insert);
                 }
             }
-            TokenContent::Genre(genre) => self.header.genre = Some(genre.to_string()),
-            TokenContent::LnTypeRdm => {
+            Token::Genre(genre) => self.header.genre = Some(genre.to_string()),
+            Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
             }
-            TokenContent::LnTypeMgq => {
+            Token::LnTypeMgq => {
                 self.header.ln_type = LnType::Mgq;
             }
-            TokenContent::Maker(maker) => self.header.maker = Some(maker.to_string()),
+            Token::Maker(maker) => self.header.maker = Some(maker.to_string()),
             #[cfg(feature = "minor-command")]
-            TokenContent::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
+            Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
-            TokenContent::OctFp => self.others.is_octave = true,
+            Token::OctFp => self.others.is_octave = true,
             #[cfg(feature = "minor-command")]
-            TokenContent::Option(option) => self
+            Token::Option(option) => self
                 .others
                 .options
                 .get_or_insert_with(Vec::new)
                 .push(option.to_string()),
-            TokenContent::PathWav(wav_path_root) => {
-                self.notes.wav_path_root = Some(wav_path_root.into())
-            }
-            TokenContent::Player(player) => self.header.player = Some(*player),
-            TokenContent::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
-            TokenContent::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
-            TokenContent::Rank(rank) => self.header.rank = Some(*rank),
-            TokenContent::Scroll(id, factor) => {
+            Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
+            Token::Player(player) => self.header.player = Some(*player),
+            Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
+            Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
+            Token::Rank(rank) => self.header.rank = Some(*rank),
+            Token::Scroll(id, factor) => {
                 if let Some(older) = self.scope_defines.scroll_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::ScrollingFactorChange {
@@ -539,7 +537,7 @@ impl Bms {
                     self.scope_defines.scroll_defs.insert(*id, factor.clone());
                 }
             }
-            TokenContent::Speed(id, factor) => {
+            Token::Speed(id, factor) => {
                 if let Some(older) = self.scope_defines.speed_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SpeedFactorChange {
@@ -552,8 +550,8 @@ impl Bms {
                     self.scope_defines.speed_defs.insert(*id, factor.clone());
                 }
             }
-            TokenContent::StageFile(file) => self.header.stage_file = Some(file.into()),
-            TokenContent::Stop(id, len) => {
+            Token::StageFile(file) => self.header.stage_file = Some(file.into()),
+            Token::Stop(id, len) => {
                 if let Some(older) = self.scope_defines.stop_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Stop {
@@ -566,11 +564,9 @@ impl Bms {
                     self.scope_defines.stop_defs.insert(*id, len.clone());
                 }
             }
-            TokenContent::SubArtist(sub_artist) => {
-                self.header.sub_artist = Some(sub_artist.to_string())
-            }
-            TokenContent::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
-            TokenContent::Text(id, text) => {
+            Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
+            Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
+            Token::Text(id, text) => {
                 if let Some(older) = self.others.texts.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Text {
@@ -583,16 +579,14 @@ impl Bms {
                     self.others.texts.insert(*id, text.to_string());
                 }
             }
-            TokenContent::Title(title) => self.header.title = Some(title.to_string()),
-            TokenContent::Total(total) => {
+            Token::Title(title) => self.header.title = Some(title.to_string()),
+            Token::Total(total) => {
                 self.header.total = Some(total.clone());
             }
-            TokenContent::Url(url) => self.header.url = Some(url.to_string()),
-            TokenContent::VideoFile(video_file) => {
-                self.graphics.video_file = Some(video_file.into())
-            }
-            TokenContent::VolWav(volume) => self.header.volume = *volume,
-            TokenContent::Wav(id, path) => {
+            Token::Url(url) => self.header.url = Some(url.to_string()),
+            Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
+            Token::VolWav(volume) => self.header.volume = *volume,
+            Token::Wav(id, path) => {
                 if let Some(older) = self.notes.wav_files.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::Wav {
@@ -606,7 +600,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Stp(ev) => {
+            Token::Stp(ev) => {
                 // Store by ObjTime as key, handle duplication with prompt handler
                 let key = ev.time;
                 if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
@@ -622,7 +616,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::WavCmd(ev) => {
+            Token::WavCmd(ev) => {
                 // Store by wav_index as key, handle duplication with prompt handler
                 let key = ev.wav_index;
                 if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
@@ -638,7 +632,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::SwBga(id, ev) => {
+            Token::SwBga(id, ev) => {
                 if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SwBgaEvent {
@@ -652,7 +646,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Argb(id, argb) => {
+            Token::Argb(id, argb) => {
                 if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::BgaArgb {
@@ -666,7 +660,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Seek(id, v) => {
+            Token::Seek(id, v) => {
                 if let Some(older) = self.others.seek_events.get_mut(id) {
                     prompt_handler
                         .handle_duplication(PromptingDuplication::SeekEvent {
@@ -680,18 +674,18 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::ExtChr(ev) => {
+            Token::ExtChr(ev) => {
                 self.others.extchr_events.push(*ev);
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::MaterialsWav(path) => {
+            Token::MaterialsWav(path) => {
                 self.notes.materials_wav.push(path.to_path_buf());
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::MaterialsBmp(path) => {
+            Token::MaterialsBmp(path) => {
                 self.graphics.materials_bmp.push(path.to_path_buf());
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::BpmChange,
                 message,
@@ -711,7 +705,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::BpmChangeU8,
                 message,
@@ -737,7 +731,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Scroll,
                 message,
@@ -757,7 +751,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Speed,
                 message,
@@ -778,7 +772,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::ChangeOption,
                 message,
@@ -793,7 +787,7 @@ impl Bms {
                     // Currently just ignored because change_options are already stored in notes
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::SectionLen,
                 message,
@@ -816,7 +810,7 @@ impl Bms {
                     prompt_handler,
                 )?;
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Stop,
                 message,
@@ -833,7 +827,7 @@ impl Bms {
                     })
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel:
                     channel @ (Channel::BgaBase
@@ -863,7 +857,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Bgm,
                 message,
@@ -872,7 +866,7 @@ impl Bms {
                     self.notes.bgms.entry(time).or_default().push(obj)
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Note { kind, side, key },
                 message,
@@ -888,7 +882,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel:
                     channel @ (Channel::BgaBaseOpacity
@@ -915,7 +909,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::BgmVolume,
                 message,
@@ -930,7 +924,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::KeyVolume,
                 message,
@@ -946,7 +940,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel:
                     channel @ (Channel::BgaBaseArgb
@@ -979,7 +973,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Seek,
                 message,
@@ -999,7 +993,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Text,
                 message,
@@ -1019,7 +1013,7 @@ impl Bms {
                     )?;
                 }
             }
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Judge,
                 message,
@@ -1040,7 +1034,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::BgaKeybound,
                 message,
@@ -1061,7 +1055,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Message {
+            Token::Message {
                 track,
                 channel: Channel::Option,
                 message,
@@ -1082,7 +1076,7 @@ impl Bms {
                 }
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::ExtendedMessage {
+            Token::ExtendedMessage {
                 track,
                 channel,
                 message,
@@ -1093,7 +1087,7 @@ impl Bms {
                     message: (*message).to_owned(),
                 });
             }
-            TokenContent::LnObj(end_id) => {
+            Token::LnObj(end_id) => {
                 let mut end_note = self
                     .notes
                     .remove_latest_note(*end_id)
@@ -1118,7 +1112,7 @@ impl Bms {
                 self.notes.push_note(begin_note);
                 self.notes.push_note(end_note);
             }
-            TokenContent::DefExRank(judge_level) => {
+            Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
                 self.scope_defines.exrank_defs.insert(
                     ObjId::try_from([0, 0]).map_err(|_| {
@@ -1132,61 +1126,59 @@ impl Bms {
                     },
                 );
             }
-            TokenContent::LnMode(ln_mode_type) => {
+            Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;
             }
-            TokenContent::Movie(path) => self.header.movie = Some(path.into()),
-            TokenContent::Preview(path) => self.header.preview_music = Some(path.into()),
+            Token::Movie(path) => self.header.movie = Some(path.into()),
+            Token::Preview(path) => self.header.preview_music = Some(path.into()),
             #[cfg(feature = "minor-command")]
-            TokenContent::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
+            Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             #[cfg(feature = "minor-command")]
-            TokenContent::BaseBpm(generic_decimal) => {
+            Token::BaseBpm(generic_decimal) => {
                 self.arrangers.base_bpm = Some(generic_decimal.clone())
             }
-            TokenContent::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
-            TokenContent::UnknownCommand(line) => {
-                self.others.unknown_command_lines.push(line.to_string())
-            }
-            TokenContent::Base62 | TokenContent::Charset(_) => {
+            Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
+            Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
+            Token::Base62 | Token::Charset(_) => {
                 // Pass.
             }
-            TokenContent::Random(_)
-            | TokenContent::SetRandom(_)
-            | TokenContent::If(_)
-            | TokenContent::ElseIf(_)
-            | TokenContent::Else
-            | TokenContent::EndIf
-            | TokenContent::EndRandom
-            | TokenContent::Switch(_)
-            | TokenContent::SetSwitch(_)
-            | TokenContent::Case(_)
-            | TokenContent::Def
-            | TokenContent::Skip
-            | TokenContent::EndSwitch => {
+            Token::Random(_)
+            | Token::SetRandom(_)
+            | Token::If(_)
+            | Token::ElseIf(_)
+            | Token::Else
+            | Token::EndIf
+            | Token::EndRandom
+            | Token::Switch(_)
+            | Token::SetSwitch(_)
+            | Token::Case(_)
+            | Token::Def
+            | Token::Skip
+            | Token::EndSwitch => {
                 unreachable!()
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::CharFile(path) => {
+            Token::CharFile(path) => {
                 self.graphics.char_file = Some(path.into());
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::DivideProp(prop) => {
+            Token::DivideProp(prop) => {
                 self.others.divide_prop = Some(prop.to_string());
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::Materials(path) => {
+            Token::Materials(path) => {
                 self.others.materials_path = Some(path.to_path_buf());
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::VideoColors(colors) => {
+            Token::VideoColors(colors) => {
                 self.graphics.video_colors = Some(*colors);
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::VideoDly(delay) => {
+            Token::VideoDly(delay) => {
                 self.graphics.video_dly = Some(delay.clone());
             }
             #[cfg(feature = "minor-command")]
-            TokenContent::VideoFs(frame_rate) => {
+            Token::VideoFs(frame_rate) => {
                 self.graphics.video_fs = Some(frame_rate.clone());
             }
         }

@@ -4,7 +4,7 @@ use num::BigUint;
 
 use super::{ControlFlowRule, ParseWarning};
 use crate::{
-    bms::{lex::token::TokenContent, parse::BmsParseTokenIter},
+    bms::{lex::token::Token, parse::BmsParseTokenIter},
     command::mixin::SourcePosMixin,
 };
 
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Unit<'a> {
     /// A token that is not a control flow token.
-    Token(&'a SourcePosMixin<TokenContent<'a>>),
+    Token(&'a SourcePosMixin<Token<'a>>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         value: BlockValue,
@@ -68,7 +68,7 @@ pub(super) enum CaseBranchValue {
     Def,
 }
 
-/// The main entry for building the control flow AST. Traverses the SourcePosMixin<TokenContent> stream and recursively parses all control flow blocks.
+/// The main entry for building the control flow AST. Traverses the SourcePosMixin<Token> stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
     tokens_iter: &mut BmsParseTokenIter<'a>,
@@ -84,7 +84,7 @@ pub(super) fn build_control_flow_ast<'a>(
         let Some(token) = tokens_iter.peek() else {
             break;
         };
-        use TokenContent::*;
+        use Token::*;
         let rule = match &token.content {
             EndIf => Some(ControlFlowRule::UnmatchedEndIf),
             EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
@@ -99,18 +99,18 @@ pub(super) fn build_control_flow_ast<'a>(
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next SourcePosMixin<TokenContent>
+        // Jump to the next SourcePosMixin<Token>
         tokens_iter.next();
     }
     (result, errors)
 }
 
-/// Handle a single SourcePosMixin<TokenContent>: if it is the start of a block, recursively call the block parser, otherwise return a SourcePosMixin<TokenContent> node.
+/// Handle a single SourcePosMixin<Token>: if it is the start of a block, recursively call the block parser, otherwise return a SourcePosMixin<Token> node.
 fn parse_unit_or_block<'a>(
     iter: &mut BmsParseTokenIter<'a>,
 ) -> Option<(Unit<'a>, Vec<SourcePosMixin<ParseWarning>>)> {
     let token = iter.peek()?;
-    use TokenContent::*;
+    use Token::*;
     match &token.content {
         SetSwitch(_) | Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
@@ -135,7 +135,7 @@ fn parse_switch_block<'a>(
     iter: &mut BmsParseTokenIter<'a>,
 ) -> (Unit<'a>, Vec<SourcePosMixin<ParseWarning>>) {
     let token = iter.next().unwrap();
-    use TokenContent::*;
+    use Token::*;
     let block_value = match &token.content {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
@@ -159,7 +159,7 @@ fn parse_switch_block<'a>(
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
                     if let Some(SourcePosMixin {
-                        content: TokenContent::Skip,
+                        content: Token::Skip,
                         ..
                     }) = iter.peek()
                     {
@@ -176,7 +176,7 @@ fn parse_switch_block<'a>(
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
                     if let Some(SourcePosMixin {
-                        content: TokenContent::Skip,
+                        content: Token::Skip,
                         ..
                     }) = iter.peek()
                     {
@@ -193,7 +193,7 @@ fn parse_switch_block<'a>(
                     tokens,
                 });
                 if let Some(SourcePosMixin {
-                    content: TokenContent::Skip,
+                    content: Token::Skip,
                     ..
                 }) = iter.peek()
                 {
@@ -207,7 +207,7 @@ fn parse_switch_block<'a>(
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
                     if let Some(SourcePosMixin {
-                        content: TokenContent::Skip,
+                        content: Token::Skip,
                         ..
                     }) = iter.peek()
                     {
@@ -224,7 +224,7 @@ fn parse_switch_block<'a>(
                     tokens,
                 });
                 if let Some(SourcePosMixin {
-                    content: TokenContent::Skip,
+                    content: Token::Skip,
                     ..
                 }) = iter.peek()
                 {
@@ -262,14 +262,14 @@ fn parse_switch_block<'a>(
     )
 }
 
-/// Parse the body of a Case/Def branch until a branch-terminating SourcePosMixin<TokenContent> is encountered.
+/// Parse the body of a Case/Def branch until a branch-terminating SourcePosMixin<Token> is encountered.
 /// Supports nested blocks, prioritizing parse_unit_or_block.
 fn parse_case_or_def_body<'a>(
     iter: &mut BmsParseTokenIter<'a>,
 ) -> (Vec<Unit<'a>>, Vec<SourcePosMixin<ParseWarning>>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(&token.content, Skip | EndSwitch | Case(_) | Def) {
             break;
@@ -291,7 +291,7 @@ fn parse_case_or_def_body<'a>(
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next SourcePosMixin<TokenContent>
+        // Jump to the next SourcePosMixin<Token>
         iter.next();
     }
     (result, errors)
@@ -302,14 +302,14 @@ fn parse_case_or_def_body<'a>(
 /// Design:
 /// - After entering Random/SetRandom, loop through Tokens.
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow SourcePosMixin<TokenContent>, prioritize parse_unit_or_block; if not in any IfBlock, report error.
+/// - If encountering a non-control-flow SourcePosMixin<Token>, prioritize parse_unit_or_block; if not in any IfBlock, report error.
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a>(
     iter: &mut BmsParseTokenIter<'a>,
 ) -> (Unit<'a>, Vec<SourcePosMixin<ParseWarning>>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
-    use TokenContent::*;
+    use Token::*;
     let block_value = match &token.content {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
@@ -472,10 +472,10 @@ fn parse_random_block<'a>(
             SetSwitch(_) | Switch(_) | Case(_) | Def | Skip => {
                 break;
             }
-            // 4. Handle non-control-flow SourcePosMixin<TokenContent>: prioritize parse_unit_or_block; if not in any IfBlock, report error
+            // 4. Handle non-control-flow SourcePosMixin<Token>: prioritize parse_unit_or_block; if not in any IfBlock, report error
             _ => {
                 if let Some((_unit, mut errs)) = parse_unit_or_block(iter) {
-                    // This SourcePosMixin<TokenContent> does not belong to any IfBlock, discard directly and record error
+                    // This SourcePosMixin<Token> does not belong to any IfBlock, discard directly and record error
                     errors.push(
                         ControlFlowRule::UnmatchedTokenInRandomBlock
                             .into_wrapper_manual(token.row(), token.column()),
@@ -497,7 +497,7 @@ fn parse_random_block<'a>(
     )
 }
 
-/// Parse the body of an If/ElseIf/Else branch until a branch-terminating SourcePosMixin<TokenContent> is encountered.
+/// Parse the body of an If/ElseIf/Else branch until a branch-terminating SourcePosMixin<Token> is encountered.
 /// Design:
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
@@ -507,10 +507,10 @@ fn parse_if_block_body<'a>(
 ) -> (Vec<Unit<'a>>, Vec<SourcePosMixin<ParseWarning>>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(token) = iter.peek() {
         match &token.content {
-            // 1. Branch-terminating SourcePosMixin<TokenContent>, break
+            // 1. Branch-terminating SourcePosMixin<Token>, break
             ElseIf(_) | Else | EndIf | EndRandom | EndSwitch => {
                 if let EndIf = token.content {
                     iter.next();
@@ -534,11 +534,11 @@ fn parse_if_block_body<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{bms::lex::token::TokenContent, command::mixin::SourcePosMixinExt};
+    use crate::{bms::lex::token::Token, command::mixin::SourcePosMixinExt};
 
     #[test]
     fn test_switch_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             SetSwitch(BigUint::from(2u64)),
             Def,
@@ -579,12 +579,12 @@ mod tests {
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
-        // Since tokens only contain SourcePosMixin<TokenContent> type, do not search for RandomBlock here. Related assertions are already covered above.
+        // Since tokens only contain SourcePosMixin<Token> type, do not search for RandomBlock here. Related assertions are already covered above.
     }
 
     #[test]
     fn test_unmatched_endrandom_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndRandom]
             .into_iter()
             .enumerate()
@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_endif_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndIf]
             .into_iter()
             .enumerate()
@@ -608,7 +608,7 @@ mod tests {
 
     #[test]
     fn test_random_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -642,7 +642,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("A"),
+                    content: Token::Title("A"),
                     ..
                 })
             )
@@ -653,7 +653,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("B"),
+                    content: Token::Title("B"),
                     ..
                 })
             )
@@ -664,7 +664,7 @@ mod tests {
 
     #[test]
     fn test_random_nested_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -709,7 +709,7 @@ mod tests {
 
     #[test]
     fn test_random_multiple_if_elseif_else() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(3u64)),
             If(BigUint::from(1u64)),
@@ -750,7 +750,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("A1"),
+                    content: Token::Title("A1"),
                     ..
                 })
             )
@@ -764,7 +764,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("A2"),
+                    content: Token::Title("A2"),
                     ..
                 })
             )
@@ -778,7 +778,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("Aelse"),
+                    content: Token::Title("Aelse"),
                     ..
                 })
             )
@@ -793,7 +793,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("B1"),
+                    content: Token::Title("B1"),
                     ..
                 })
             )
@@ -807,7 +807,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("B2"),
+                    content: Token::Title("B2"),
                     ..
                 })
             )
@@ -821,7 +821,7 @@ mod tests {
             matches!(
                 u,
                 Unit::Token(SourcePosMixin {
-                    content: TokenContent::Title("Belse"),
+                    content: Token::Title("Belse"),
                     ..
                 })
             )
@@ -832,7 +832,7 @@ mod tests {
 
     #[test]
     fn test_random_duplicate_ifbranch() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -855,7 +855,7 @@ mod tests {
 
     #[test]
     fn test_random_ifbranch_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(3u64)), // out of range
@@ -876,7 +876,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_case() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(1u64)),
@@ -898,7 +898,7 @@ mod tests {
 
     #[test]
     fn test_switch_case_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(3u64)), // out of range
@@ -918,7 +918,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_def() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Def,
@@ -945,7 +945,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_token_in_random_block() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             Title("A"), // Not in any IfBlock

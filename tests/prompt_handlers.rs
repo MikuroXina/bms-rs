@@ -7,7 +7,7 @@ use bms_rs::bms::{
         mixin::{SourcePosMixin, SourcePosMixinExt},
         time::{ObjTime, Track},
     },
-    lex::token::TokenContent,
+    lex::token::Token,
     parse::{
         BmsParseOutput, ParseWarning,
         model::{Bms, def::Bmp},
@@ -23,44 +23,44 @@ use std::path::Path;
 #[test]
 fn test_always_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<SourcePosMixin<Token>> = vec![
         // BPM definition conflicts
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
         // Stop definition conflicts
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
         // Scroll definition conflicts
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
         // Speed definition conflicts
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
         // WAV definition conflicts
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
         // BMP definition conflicts
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
         // TEXT definition conflicts
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "old text"),
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "new text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "old text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "new text"),
         // Event conflicts
-        TokenContent::Bpm(Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
-        TokenContent::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
-        TokenContent::Message {
+        Token::Bpm(Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("01"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(2),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("02"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("03"),
@@ -140,44 +140,44 @@ fn test_always_use_older() {
 #[test]
 fn test_always_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<SourcePosMixin<Token>> = vec![
         // BPM definition conflicts
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
         // Stop definition conflicts
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
         // Scroll definition conflicts
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
         // Speed definition conflicts
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
         // WAV definition conflicts
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
         // BMP definition conflicts
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
         // TEXT definition conflicts
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "old text"),
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "new text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "old text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "new text"),
         // Event conflicts
-        TokenContent::Bpm(Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
-        TokenContent::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
-        TokenContent::Message {
+        Token::Bpm(Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("01"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(2),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("02"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("03"),
@@ -257,44 +257,44 @@ fn test_always_use_newer() {
 #[test]
 fn test_always_warn_and_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<SourcePosMixin<Token>> = vec![
         // BPM definition conflicts
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
         // Stop definition conflicts
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
         // Scroll definition conflicts
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
         // Speed definition conflicts
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
         // WAV definition conflicts
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
         // BMP definition conflicts
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
         // TEXT definition conflicts
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "old text"),
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "new text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "old text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "new text"),
         // Event conflicts
-        TokenContent::Bpm(Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
-        TokenContent::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
-        TokenContent::Message {
+        Token::Bpm(Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("01"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(2),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("02"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("03"),
@@ -383,44 +383,44 @@ fn test_always_warn_and_use_older() {
 #[test]
 fn test_always_warn_and_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<SourcePosMixin<Token>> = vec![
         // BPM definition conflicts
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
         // Stop definition conflicts
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
-        TokenContent::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(0.5)),
+        Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
         // Scroll definition conflicts
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(2.0)),
         // Speed definition conflicts
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
-        TokenContent::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.0)),
+        Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
         // WAV definition conflicts
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
-        TokenContent::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("old.wav")),
+        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("new.wav")),
         // BMP definition conflicts
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
-        TokenContent::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("old.bmp")),
+        Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("new.bmp")),
         // TEXT definition conflicts
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "old text"),
-        TokenContent::Text(ObjId::try_from("01").unwrap(), "new text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "old text"),
+        Token::Text(ObjId::try_from("01").unwrap(), "new text"),
         // Event conflicts
-        TokenContent::Bpm(Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
-        TokenContent::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
-        TokenContent::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
-        TokenContent::Message {
+        Token::Bpm(Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
+        Token::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(140)),
+        Token::BpmChange(ObjId::try_from("03").unwrap(), Decimal::from(160)),
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("01"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(2),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("02"),
         },
-        TokenContent::Message {
+        Token::Message {
             track: Track(1),
             channel: Channel::BpmChange,
             message: Cow::Borrowed("03"),

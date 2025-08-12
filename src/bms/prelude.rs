@@ -50,7 +50,7 @@ pub use super::parse::{
 };
 
 // Re-export from lex submodules
-pub use super::lex::token::TokenContent;
+pub use super::lex::token::Token;
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]
