@@ -16,7 +16,7 @@ use crate::{
             graphics::Argb, time::Track,
         },
     },
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+    command::mixin::SourcePosMixinExt,
 };
 
 #[cfg(feature = "minor-command")]
@@ -105,7 +105,7 @@ pub enum TokenContent<'a> {
     Charset(&'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
     Comment(&'a str),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
+    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`TokenContent::Switch`].
     Def,
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
@@ -170,7 +170,7 @@ pub enum TokenContent<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
+    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`TokenContent::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnMode),
@@ -309,9 +309,6 @@ pub enum TokenContent<'a> {
 }
 
 impl SourcePosMixinExt for TokenContent<'_> {}
-
-/// A token with position information.
-pub type Token<'a> = SourcePosMixin<TokenContent<'a>>;
 
 impl<'a> TokenContent<'a> {
     pub(crate) fn parse(

@@ -26,8 +26,8 @@ use thiserror::Error;
 
 use super::ParseWarning;
 use crate::{
-    bms::{lex::token::Token, parse::BmsParseTokenIter, prelude::SourcePosMixin},
-    command::mixin::SourcePosMixinExt,
+    bms::{lex::token::TokenContent, parse::BmsParseTokenIter},
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
 /// Parses and executes control flow constructs in a BMS token stream.
@@ -37,10 +37,14 @@ use crate::{
 pub(super) fn parse_control_flow<'a>(
     token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
-) -> (Vec<&'a Token<'a>>, Vec<SourcePosMixin<ParseWarning>>) {
+) -> (
+    Vec<&'a SourcePosMixin<TokenContent<'a>>>,
+    Vec<SourcePosMixin<ParseWarning>>,
+) {
     let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
+    let tokens: Vec<&'a SourcePosMixin<TokenContent<'a>>> =
+        parse_control_flow_ast(&mut ast_iter, &mut rng);
     (tokens, errors)
 }
 
@@ -99,15 +103,14 @@ impl SourcePosMixinExt for ControlFlowRule {}
 
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &Token) -> SourcePosMixin<ParseWarning> {
+    pub fn into_wrapper(
+        self,
+        token: &SourcePosMixin<TokenContent>,
+    ) -> SourcePosMixin<ParseWarning> {
         ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)
     }
     /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn into_wrapper_manual(
-        self,
-        row: usize,
-        col: usize,
-    ) -> SourcePosMixin<ParseWarning> {
+    pub fn into_wrapper_manual(self, row: usize, col: usize) -> SourcePosMixin<ParseWarning> {
         ParseWarning::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
     }
 }
@@ -120,7 +123,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        bms::lex::token::{Token, TokenContent},
+        bms::lex::token::TokenContent,
         command::mixin::SourcePosMixinExt,
         parse::{
             BmsParseTokenIter,
@@ -202,13 +205,11 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(
-                    u,
-                    Unit::Token(Token {
-                        content: Title("00550000"),
-                        ..
-                    })
-                ))
+                .filter_map(|u| match u {
+                    Unit::Token(t) => Some(&t.content),
+                    _ => None,
+                })
+                .any(|u| matches!(u, TokenContent::Title("00550000")))
         );
         assert!(
             if_block
@@ -217,13 +218,11 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(
-                    u,
-                    Unit::Token(Token {
-                        content: Title("00006600"),
-                        ..
-                    })
-                ))
+                .filter_map(|u| match u {
+                    Unit::Token(t) => Some(&t.content),
+                    _ => None,
+                })
+                .any(|u| matches!(u, TokenContent::Title("00006600")))
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
@@ -233,8 +232,8 @@ mod tests {
         };
         assert!(matches!(
             &tokens[0],
-            Unit::Token(Token {
-                content: Title("00003300"),
+            Unit::Token(SourcePosMixin {
+                content: TokenContent::Title("00003300"),
                 ..
             })
         ));
@@ -244,13 +243,11 @@ mod tests {
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
-            match t {
-                Token {
-                    content: Title(s), ..
-                } => {
-                    assert_eq!(s, &expected[i], "Title content mismatch");
+            match t.content {
+                TokenContent::Title(s) => {
+                    assert_eq!(s, expected[i], "Title content mismatch");
                 }
-                _ => panic!("Token type mismatch"),
+                _ => panic!("TokenContent::Title type mismatch"),
             }
         }
         assert_eq!(errors, vec![]);
