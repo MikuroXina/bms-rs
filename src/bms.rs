@@ -25,12 +25,15 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::parse::{model::Bms, random::rng::RandRng};
+use crate::{
+    bms::prelude::SourcePosMixin,
+    parse::{ParseWarningContent, model::Bms, random::rng::RandRng},
+};
 
 use self::{
     lex::{BmsLexOutput, LexWarning},
     parse::{
-        BmsParseOutput, ParseWarning,
+        BmsParseOutput,
         check_playing::{PlayingError, PlayingWarning},
     },
 };
@@ -51,7 +54,7 @@ pub enum BmsWarning {
     LexWarning(#[from] LexWarning),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(#[from] ParseWarning),
+    ParseWarning(#[from] SourcePosMixin<ParseWarningContent>),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),

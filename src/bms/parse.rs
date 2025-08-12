@@ -48,9 +48,6 @@ impl SourcePosMixinExt for ParseWarningContent {}
 /// type alias of core::result::Result<T, ParseWarningContent>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
 
-/// A parse warning with position information.
-pub type ParseWarning = SourcePosMixin<ParseWarningContent>;
-
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -58,7 +55,7 @@ pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<ParseWarning>,
+    pub parse_warnings: Vec<SourcePosMixin<ParseWarningContent>>,
     /// Warnings that occurred during playing.
     pub playing_warnings: Vec<PlayingWarning>,
     /// Errors that occurred during playing.

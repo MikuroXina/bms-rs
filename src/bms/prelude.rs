@@ -16,6 +16,7 @@ pub use super::command::{
         read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
     },
     graphics::{Argb, PixelPoint, PixelSize, Rgb},
+    mixin::{SourcePosMixin, SourcePosMixinExt},
     time::{ObjTime, Track},
 };
 
@@ -25,7 +26,7 @@ pub use super::lex::{
 };
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningContent};
+pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarningContent};
 
 // Re-export from parse submodules
 pub use super::parse::{
