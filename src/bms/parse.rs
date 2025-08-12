@@ -132,8 +132,8 @@ impl Bms {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(ParseWarning {
                     content: error,
-                    row: token.row,
-                    col: token.col,
+                    row: token.row(),
+                    col: token.column(),
                 });
             }
         }

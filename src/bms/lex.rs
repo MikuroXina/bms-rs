@@ -9,7 +9,10 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::channel::{Channel, read_channel_beat};
+use crate::{
+    bms::command::channel::{Channel, read_channel_beat},
+    command::mixin::SourcePosMixinExt,
+};
 
 use self::{
     cursor::Cursor,
@@ -86,11 +89,7 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
     let mut warnings = vec![];
     while !cursor.is_end() {
         match TokenContent::parse(&mut cursor, channel_parser) {
-            Ok(content) => tokens.push(Token {
-                content,
-                row: cursor.line(),
-                col: cursor.col(),
-            }),
+            Ok(content) => tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col())),
             Err(warning) => warnings.push(warning),
         };
     }

@@ -4,6 +4,7 @@ use bms_rs::bms::{
         ObjId,
         channel::Channel,
         graphics::Argb,
+        mixin::SourcePosMixinExt,
         time::{ObjTime, Track},
     },
     lex::token::{Token, TokenContent},
@@ -66,11 +67,8 @@ fn test_always_use_older() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
-        content,
-        row: 0,
-        col: 0,
-    })
+    .enumerate()
+    .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
     let BmsParseOutput {
@@ -186,11 +184,8 @@ fn test_always_use_newer() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
-        content,
-        row: 0,
-        col: 0,
-    })
+    .enumerate()
+    .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
     let BmsParseOutput {
@@ -306,11 +301,8 @@ fn test_always_warn_and_use_older() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
-        content,
-        row: 0,
-        col: 0,
-    })
+    .enumerate()
+    .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
     let BmsParseOutput {
@@ -435,11 +427,8 @@ fn test_always_warn_and_use_newer() {
         }, // Same time as first
     ]
     .into_iter()
-    .map(|content| Token {
-        content,
-        row: 0,
-        col: 0,
-    })
+    .enumerate()
+    .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
     let BmsParseOutput {

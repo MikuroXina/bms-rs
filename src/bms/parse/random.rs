@@ -97,8 +97,8 @@ impl ControlFlowRule {
     pub fn to_parse_warning(&self, token: &Token) -> ParseWarning {
         ParseWarning {
             content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: token.row,
-            col: token.col,
+            row: token.row(),
+            col: token.column(),
         }
     }
 
@@ -125,6 +125,7 @@ mod tests {
     use super::*;
     use crate::{
         bms::lex::token::{Token, TokenContent},
+        command::mixin::SourcePosMixinExt,
         parse::{
             BmsParseTokenIter,
             random::ast_build::{CaseBranch, CaseBranchValue, Unit},
@@ -162,11 +163,8 @@ mod tests {
             Title("00000044"),
         ]
         .into_iter()
-        .map(|t| Token {
-            content: t,
-            row: 0,
-            col: 0,
-        })
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
@@ -296,11 +294,8 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
-            content: t,
-            row: 0,
-            col: 0,
-        })
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
