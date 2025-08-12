@@ -25,7 +25,10 @@ use rng::Rng;
 use thiserror::Error;
 
 use super::{ParseWarning, ParseWarningContent};
-use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
+use crate::{
+    bms::{lex::token::Token, parse::BmsParseTokenIter},
+    command::mixin::SourcePosMixinExt,
+};
 
 /// Parses and executes control flow constructs in a BMS token stream.
 ///
@@ -92,27 +95,16 @@ pub enum ControlFlowRule {
     UnmatchedDef,
 }
 
+impl SourcePosMixinExt for ControlFlowRule {}
+
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn to_parse_warning(&self, token: &Token) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: token.row(),
-            col: token.column(),
-        }
+    pub fn into_wrapper(self, token: &Token) -> ParseWarning {
+        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper(token)
     }
-
     /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn to_parse_warning_manual(
-        &self,
-        row: impl Into<usize>,
-        col: impl Into<usize>,
-    ) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: row.into(),
-            col: col.into(),
-        }
+    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarning {
+        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
     }
 }
 
