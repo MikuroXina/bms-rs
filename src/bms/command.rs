@@ -4,6 +4,7 @@
 
 pub mod channel;
 pub mod graphics;
+pub mod mixin;
 pub mod time;
 
 /// Minor command types and utilities.
