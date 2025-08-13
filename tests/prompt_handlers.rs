@@ -4,10 +4,10 @@ use bms_rs::bms::{
         ObjId,
         channel::Channel,
         graphics::Argb,
-        mixin::{SourcePosMixin, SourcePosMixinExt},
+        mixin::SourcePosMixinExt,
         time::{ObjTime, Track},
     },
-    lex::token::TokenContent,
+    lex::token::{Token, TokenContent},
     parse::{
         BmsParseOutput, ParseWarning,
         model::{Bms, def::Bmp},
@@ -23,7 +23,7 @@ use std::path::Path;
 #[test]
 fn test_always_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<Token> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -140,7 +140,7 @@ fn test_always_use_older() {
 #[test]
 fn test_always_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<Token> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -257,7 +257,7 @@ fn test_always_use_newer() {
 #[test]
 fn test_always_warn_and_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<Token> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -383,7 +383,7 @@ fn test_always_warn_and_use_older() {
 #[test]
 fn test_always_warn_and_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<SourcePosMixin<TokenContent>> = vec![
+    let tokens: Vec<Token> = vec![
         // BPM definition conflicts
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         TokenContent::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),

@@ -13,7 +13,7 @@ use std::ops::{Deref, DerefMut};
 use thiserror::Error;
 
 use crate::{
-    bms::{command::ObjId, lex::token::TokenContent, parse::random::parse_control_flow},
+    bms::{command::ObjId, lex::token::Token, parse::random::parse_control_flow},
     command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
@@ -63,17 +63,15 @@ pub struct BmsParseOutput {
 }
 
 /// The type of parsing tokens iter.
-pub struct BmsParseTokenIter<'a>(
-    std::iter::Peekable<std::slice::Iter<'a, SourcePosMixin<TokenContent<'a>>>>,
-);
+pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>);
 
 impl<'a> BmsParseTokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
     pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
         Self(value.tokens.iter().as_slice().iter().peekable())
     }
-    /// Create iter from SourcePosMixin<TokenContent> list reference.
-    pub fn from_tokens(value: &'a [SourcePosMixin<TokenContent<'a>>]) -> Self {
+    /// Create iter from Token list reference.
+    pub fn from_tokens(value: &'a [Token<'a>]) -> Self {
         Self(value.iter().peekable())
     }
 }
@@ -84,16 +82,14 @@ impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
     }
 }
 
-impl<'a, T: AsRef<[SourcePosMixin<TokenContent<'a>>]> + ?Sized> From<&'a T>
-    for BmsParseTokenIter<'a>
-{
+impl<'a, T: AsRef<[Token<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
     fn from(value: &'a T) -> Self {
         Self(value.as_ref().iter().peekable())
     }
 }
 
 impl<'a> Deref for BmsParseTokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, SourcePosMixin<TokenContent<'a>>>>;
+    type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

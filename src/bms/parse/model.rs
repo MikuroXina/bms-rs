@@ -28,8 +28,7 @@ use crate::bms::{
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::TokenContent,
-    prelude::SourcePosMixin,
+    lex::token::{Token, TokenContent},
 };
 
 #[cfg(feature = "minor-command")]
@@ -316,9 +315,9 @@ pub struct Others {
 }
 
 impl Bms {
-    pub(crate) fn parse<'a>(
+    pub(crate) fn parse(
         &mut self,
-        token: &'a SourcePosMixin<TokenContent<'a>>,
+        token: &Token,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match &token.content {
@@ -718,12 +717,16 @@ impl Bms {
             } => {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
-                    let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digit: {c1}",
-                    )))? * 16
-                        + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                            "Invalid hex digit: {c2}",
-                        )))?;
+                    let bpm = c1
+                        .to_digit(16)
+                        .ok_or(ParseWarning::SyntaxError(format!(
+                            "Invalid hex digit: {c1}",
+                        )))?
+                        * 16
+                        + c2.to_digit(16)
+                            .ok_or(ParseWarning::SyntaxError(format!(
+                                "Invalid hex digit: {c2}",
+                            )))?;
                     if bpm == 0 {
                         continue;
                     }
@@ -800,7 +803,9 @@ impl Bms {
             } => {
                 let length = Decimal::from(Decimal::from_fraction(
                     GenericFraction::from_str(message).map_err(|_| {
-                        ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
+                        ParseWarning::SyntaxError(format!(
+                            "Invalid section length: {message}"
+                        ))
                     })?,
                 ));
                 if length <= Decimal::from(0u64) {
@@ -1107,12 +1112,11 @@ impl Bms {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note =
-                    self.notes
-                        .remove_latest_note(begin_id)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {end_id:?}"
-                        )))?;
+                let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or(
+                    ParseWarning::SyntaxError(format!(
+                        "Cannot find begin note for LNOBJ {end_id:?}"
+                    )),
+                )?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.notes.push_note(begin_note);

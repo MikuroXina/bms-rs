@@ -10,14 +10,14 @@ pub mod token;
 use thiserror::Error;
 
 use crate::{
-    bms::{
-        command::channel::{Channel, read_channel_beat},
-        prelude::SourcePosMixin,
-    },
+    bms::command::channel::{Channel, read_channel_beat},
     command::mixin::SourcePosMixinExt,
 };
 
-use self::{cursor::Cursor, token::TokenContent};
+use self::{
+    cursor::Cursor,
+    token::{Token, TokenContent},
+};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -57,7 +57,7 @@ pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
-    pub tokens: Vec<SourcePosMixin<TokenContent<'a>>>,
+    pub tokens: Vec<Token<'a>>,
     /// warnings
     pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
 }

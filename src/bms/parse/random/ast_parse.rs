@@ -1,6 +1,6 @@
 use num::BigUint;
 
-use crate::bms::{lex::token::TokenContent, prelude::SourcePosMixin};
+use crate::bms::lex::token::Token;
 
 use super::ast_build::*;
 use super::rng::Rng;
@@ -8,7 +8,7 @@ use super::rng::Rng;
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> Vec<&'a SourcePosMixin<TokenContent<'a>>> {
+) -> Vec<&'a Token<'a>> {
     let mut result = Vec::new();
     for unit in iter.by_ref() {
         match unit {
@@ -98,7 +98,10 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{bms::lex::token::TokenContent, command::mixin::SourcePosMixinExt};
+    use crate::{
+        bms::lex::token::{Token, TokenContent},
+        command::mixin::SourcePosMixinExt,
+    };
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -146,13 +149,15 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(s),
+            .filter_map(|t| match t {
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
-        assert!(titles.contains(&&"LARGE_IF"));
-        assert!(titles.contains(&&"LARGE_CASE"));
+        assert!(titles.contains(&"LARGE_IF"));
+        assert!(titles.contains(&"LARGE_CASE"));
     }
 
     #[test]
@@ -190,12 +195,14 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(s),
+            .filter_map(|t| match t {
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
-        assert!(titles.contains(&&"SWITCH_IN_RANDOM"));
+        assert!(titles.contains(&"SWITCH_IN_RANDOM"));
 
         // Switch outer, Random inner
         let t_random_in_switch = Title("RANDOM_IN_SWITCH").into_wrapper_manual(0, 0);
@@ -228,12 +235,14 @@ mod tests {
         let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
-            .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(s),
+            .filter_map(|t| match t {
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
-        assert!(titles2.contains(&&"RANDOM_IN_SWITCH"));
+        assert!(titles2.contains(&"RANDOM_IN_SWITCH"));
     }
 
     #[test]
@@ -285,11 +294,13 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match &t.content {
-                TokenContent::Title(s) => Some(s),
+            .filter_map(|t| match t {
+                Token {
+                    content: Title(s), ..
+                } => Some(*s),
                 _ => None,
             })
             .collect();
-        assert!(titles.contains(&&"DEEP_NESTED"));
+        assert!(titles.contains(&"DEEP_NESTED"));
     }
 }
