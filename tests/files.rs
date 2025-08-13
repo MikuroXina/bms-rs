@@ -134,7 +134,10 @@ fn test_blank() {
         lex_warnings: warnings,
     } = parse_lex_tokens(source);
     assert_eq!(
-        warnings.into_iter().map(|w| w.content).collect::<Vec<_>>(),
+        warnings
+            .into_iter()
+            .map(|w| w.content().clone())
+            .collect::<Vec<_>>(),
         vec![
             LexWarning::ExpectedToken {
                 message: "key audio filename".to_string()

@@ -10,7 +10,7 @@ use num::BigUint;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SourcePosMixin<T> {
     /// Wrapped content value
-    pub content: T,
+    content: T,
     /// Source line number (1-based)
     row: usize,
     /// Source column number (1-based)
@@ -27,6 +27,16 @@ impl<T> SourcePosMixin<T> {
         }
     }
 
+    /// Returns the wrapped content.
+    pub fn content(&self) -> &T {
+        &self.content
+    }
+
+    /// Returns the wrapped content as a mutable reference.
+    pub fn content_mut(&mut self) -> &mut T {
+        &mut self.content
+    }
+
     /// Returns the row number of the source position.
     pub fn row(&self) -> usize {
         self.row
@@ -40,19 +50,6 @@ impl<T> SourcePosMixin<T> {
     /// Returns the source position as a tuple of (row, column).
     pub fn as_pos(&self) -> (usize, usize) {
         (self.row, self.column)
-    }
-}
-
-impl<T> std::ops::Deref for SourcePosMixin<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.content
-    }
-}
-
-impl<T> std::ops::DerefMut for SourcePosMixin<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.content
     }
 }
 

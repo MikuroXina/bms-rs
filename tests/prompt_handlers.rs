@@ -320,7 +320,7 @@ fn test_always_warn_and_use_older() {
     assert!(
         parse_warnings
             .iter()
-            .all(|w| matches!(w.content, ParseWarningContent::PromptHandlerWarning))
+            .all(|w| matches!(w.content(), ParseWarningContent::PromptHandlerWarning))
     );
 
     // Check that older values are used for all scope_defines conflicts
@@ -445,7 +445,7 @@ fn test_always_warn_and_use_newer() {
     assert!(
         parse_warnings
             .iter()
-            .any(|w| matches!(w.content, ParseWarningContent::PromptHandlerWarning))
+            .any(|w| matches!(w.content(), ParseWarningContent::PromptHandlerWarning))
     );
 
     // Check that newer values are used for all scope_defines conflicts

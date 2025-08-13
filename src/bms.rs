@@ -25,7 +25,10 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::parse::{model::Bms, random::rng::RandRng};
+use crate::{
+    command::mixin::SourcePosMixin,
+    parse::{model::Bms, random::rng::RandRng},
+};
 
 use self::{
     lex::{BmsLexOutput, LexWarning},

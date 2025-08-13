@@ -84,7 +84,7 @@ pub(super) fn build_control_flow_ast<'a>(
             break;
         };
         use TokenContent::*;
-        let rule = match &token.content {
+        let rule = match token.content() {
             EndIf => Some(ControlFlowRule::UnmatchedEndIf),
             EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
             EndSwitch => Some(ControlFlowRule::UnmatchedEndSwitch),
@@ -110,7 +110,7 @@ fn parse_unit_or_block<'a>(
 ) -> Option<(Unit<'a>, Vec<ParseWarning>)> {
     let token = iter.peek()?;
     use TokenContent::*;
-    match &token.content {
+    match token.content() {
         SetSwitch(_) | Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
             Some((unit, errs))
@@ -133,7 +133,7 @@ fn parse_unit_or_block<'a>(
 fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ParseWarning>) {
     let token = iter.next().unwrap();
     use TokenContent::*;
-    let block_value = match &token.content {
+    let block_value = match token.content() {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
         _ => unreachable!(),
@@ -147,7 +147,7 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
     let mut seen_def = false;
     let mut errors = Vec::new();
     while let Some(next) = iter.peek() {
-        match &next.content {
+        match next.content() {
             Case(case_val) => {
                 // Check for duplicates
                 if seen_case_values.contains(case_val) {
@@ -155,7 +155,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
-                    if let Some(Token { content: Skip, .. }) = iter.peek() {
+                    if iter
+                        .peek()
+                        .filter(|t| matches!(t.content(), Skip))
+                        .is_some()
+                    {
                         iter.next();
                     }
                     continue;
@@ -168,7 +172,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
-                    if let Some(Token { content: Skip, .. }) = iter.peek() {
+                    if iter
+                        .peek()
+                        .filter(|t| matches!(t.content(), Skip))
+                        .is_some()
+                    {
                         iter.next();
                     }
                     continue;
@@ -181,7 +189,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     value: CaseBranchValue::Case(case_val.clone()),
                     tokens,
                 });
-                if let Some(Token { content: Skip, .. }) = iter.peek() {
+                if iter
+                    .peek()
+                    .filter(|t| matches!(t.content(), Skip))
+                    .is_some()
+                {
                     iter.next();
                 }
             }
@@ -191,7 +203,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     iter.next();
                     let (_, mut errs) = parse_case_or_def_body(iter);
                     errors.append(&mut errs);
-                    if let Some(Token { content: Skip, .. }) = iter.peek() {
+                    if iter
+                        .peek()
+                        .filter(|t| matches!(t.content(), Skip))
+                        .is_some()
+                    {
                         iter.next();
                     }
                     continue;
@@ -204,7 +220,11 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     value: CaseBranchValue::Def,
                     tokens,
                 });
-                if let Some(Token { content: Skip, .. }) = iter.peek() {
+                if iter
+                    .peek()
+                    .filter(|t| matches!(t.content(), Skip))
+                    .is_some()
+                {
                     iter.next();
                 }
             }
@@ -248,7 +268,7 @@ fn parse_case_or_def_body<'a>(
     let mut errors = Vec::new();
     use TokenContent::*;
     while let Some(&token) = iter.peek() {
-        if matches!(&token.content, Skip | EndSwitch | Case(_) | Def) {
+        if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
             break;
         }
         if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
@@ -256,7 +276,7 @@ fn parse_case_or_def_body<'a>(
             errors.append(&mut errs);
             continue;
         }
-        let rule = match &token.content {
+        let rule = match token.content() {
             EndIf => Some(ControlFlowRule::UnmatchedEndIf),
             EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
             EndSwitch => Some(ControlFlowRule::UnmatchedEndSwitch),
@@ -285,7 +305,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     use TokenContent::*;
-    let block_value = match &token.content {
+    let block_value = match token.content() {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
         _ => unreachable!(),
@@ -298,7 +318,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
     let mut errors = Vec::new();
     // 2. Main loop, process the contents inside the Random block
     while let Some(&token) = iter.peek() {
-        match &token.content {
+        match token.content() {
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
@@ -349,7 +369,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some((token, elif_val)) = iter
                     .peek()
-                    .map(|t| (t, &t.content))
+                    .map(|t| (t, t.content()))
                     .into_iter()
                     .filter_map(|(t, c)| match c {
                         ElseIf(val) => Some((t, val)),
@@ -392,7 +412,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     );
                 }
                 // 2.3 Check for redundant ElseIf
-                if let Some(token) = iter.peek().filter(|t| matches!(t.content, ElseIf(_))) {
+                if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
                     errors.push(
                         ControlFlowRule::UnmatchedElseIf
                             .into_wrapper_manual(token.row(), token.column()),
@@ -400,7 +420,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     iter.next();
                 }
                 // 2.4 Handle Else branch, branch value is 0
-                if let Some(_token) = iter.peek().filter(|t| matches!(t.content, Else)) {
+                if let Some(_token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
                     iter.next();
                     let (etokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
@@ -413,7 +433,7 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
                     );
                 }
                 // 2.5 Check for redundant Else
-                if let Some(token) = iter.peek().filter(|t| matches!(t.content, Else)) {
+                if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
                     errors.push(
                         ControlFlowRule::UnmatchedElse
                             .into_wrapper_manual(token.row(), token.column()),
@@ -482,10 +502,10 @@ fn parse_if_block_body<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Vec<Unit<'a>>, 
     let mut errors = Vec::new();
     use TokenContent::*;
     while let Some(token) = iter.peek() {
-        match &token.content {
+        match token.content() {
             // 1. Branch-terminating Token, break
             ElseIf(_) | Else | EndIf | EndRandom | EndSwitch => {
-                if let EndIf = token.content {
+                if let EndIf = token.content() {
                     iter.next();
                 }
                 break;
@@ -507,7 +527,7 @@ fn parse_if_block_body<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Vec<Unit<'a>>, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{bms::lex::token::Token, command::mixin::SourcePosMixinExt};
+    use crate::command::mixin::SourcePosMixinExt;
 
     #[test]
     fn test_switch_ast() {
@@ -612,24 +632,18 @@ mod tests {
             .flat_map(|b| &b.tokens)
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("A"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("A"))
         }) else {
             panic!("A missing, all_titles: {all_titles:?}");
         };
         let Some(_) = all_titles.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("B"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("B"))
         }) else {
             panic!("B missing, all_titles: {all_titles:?}");
         };
@@ -720,13 +734,10 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("A1"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("A1"))
         }) else {
             panic!("A1 missing");
         };
@@ -734,13 +745,10 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("A2"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("A2"))
         }) else {
             panic!("A2 missing");
         };
@@ -748,13 +756,10 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("Aelse"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("Aelse"))
         }) else {
             panic!("Aelse missing");
         };
@@ -763,13 +768,10 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("B1"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("B1"))
         }) else {
             panic!("B1 missing");
         };
@@ -777,13 +779,10 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("B2"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("B2"))
         }) else {
             panic!("B2 missing");
         };
@@ -791,13 +790,10 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.tokens.iter().find(|u| {
-            matches!(
-                u,
-                Unit::Token(Token {
-                    content: Title("Belse"),
-                    ..
-                })
-            )
+            let Unit::Token(token) = u else {
+                panic!("Unit::Token expected, got: {u:?}");
+            };
+            matches!(token.content(), Title("Belse"))
         }) else {
             panic!("Belse missing");
         };

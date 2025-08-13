@@ -78,11 +78,11 @@ fn test_playing_conditions_with_bpm_change_only() {
     assert!(
         !tokens
             .iter()
-            .any(|t| matches!(&t.content, TokenContent::Bpm(bpm) if bpm == &Decimal::from(120)))
+            .any(|t| matches!(&t.content(), TokenContent::Bpm(bpm) if bpm == &Decimal::from(120)))
     );
     let obj_id = ObjId::try_from("08").unwrap();
     assert!(tokens.iter().any(
-        |t| matches!(&t.content, TokenContent::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
+        |t| matches!(&t.content(), TokenContent::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
     let rng = RngMock([BigUint::from(1u64)]);

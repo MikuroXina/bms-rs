@@ -98,10 +98,7 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{
-        bms::lex::token::{Token, TokenContent},
-        command::mixin::SourcePosMixinExt,
-    };
+    use crate::{bms::lex::token::TokenContent, command::mixin::SourcePosMixinExt};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -149,10 +146,8 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match t.content() {
+                Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -195,10 +190,8 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match t.content() {
+                Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -235,10 +228,8 @@ mod tests {
         let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match t.content() {
+                Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
@@ -294,10 +285,8 @@ mod tests {
         let tokens = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t {
-                Token {
-                    content: Title(s), ..
-                } => Some(*s),
+            .filter_map(|t| match t.content() {
+                Title(s) => Some(*s),
                 _ => None,
             })
             .collect();
