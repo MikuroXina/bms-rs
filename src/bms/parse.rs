@@ -28,7 +28,7 @@ use super::lex::BmsLexOutput;
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseWarning {
+pub enum ParseWarningContent {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
@@ -43,10 +43,10 @@ pub enum ParseWarning {
     PromptHandlerWarning,
 }
 
-impl SourcePosMixinExt for ParseWarning {}
+impl SourcePosMixinExt for ParseWarningContent {}
 
-/// type alias of core::result::Result<T, ParseWarning>
-pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
+/// type alias of core::result::Result<T, ParseWarningContent>
+pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +55,7 @@ pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<SourcePosMixin<ParseWarning>>,
+    pub parse_warnings: Vec<SourcePosMixin<ParseWarningContent>>,
     /// Warnings that occurred during playing.
     pub playing_warnings: Vec<PlayingWarning>,
     /// Errors that occurred during playing.

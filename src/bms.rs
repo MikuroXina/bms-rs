@@ -27,7 +27,7 @@ use thiserror::Error;
 
 use crate::{
     bms::prelude::SourcePosMixin,
-    parse::{ParseWarning, model::Bms, random::rng::RandRng},
+    parse::{ParseWarningContent, model::Bms, random::rng::RandRng},
 };
 
 use self::{
@@ -54,7 +54,7 @@ pub enum BmsWarning {
     LexWarning(#[from] SourcePosMixin<LexWarning>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(#[from] SourcePosMixin<ParseWarning>),
+    ParseWarning(#[from] SourcePosMixin<ParseWarningContent>),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),

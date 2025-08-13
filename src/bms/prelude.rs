@@ -26,7 +26,7 @@ pub use super::lex::{
 };
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning};
+pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarningContent};
 
 // Re-export from parse submodules
 pub use super::parse::{

@@ -15,7 +15,7 @@ use crate::bms::{
 #[cfg(feature = "minor-command")]
 use super::model::def::ExWavDef;
 use super::{
-    ParseWarning, Result,
+    ParseWarningContent, Result,
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
         BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
@@ -356,11 +356,11 @@ impl DuplicationWorkaround {
                 Ok(())
             }
             DuplicationWorkaround::WarnAndUseOlder => {
-                Err(ParseWarning::PromptHandlerWarning)
+                Err(ParseWarningContent::PromptHandlerWarning)
             }
             DuplicationWorkaround::WarnAndUseNewer => {
                 *target = newer;
-                Err(ParseWarning::PromptHandlerWarning)
+                Err(ParseWarningContent::PromptHandlerWarning)
             }
         }
     }

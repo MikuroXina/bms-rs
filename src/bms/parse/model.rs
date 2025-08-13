@@ -46,7 +46,7 @@ use self::obj::{
     BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj,
 };
 use super::{
-    ParseWarning, Result,
+    ParseWarningContent, Result,
     prompt::{PromptHandler, PromptingDuplication},
 };
 
@@ -383,7 +383,7 @@ impl Bms {
                     self.graphics.poor_bmp = Some(path.into());
                     return Ok(());
                 }
-                let id = id.ok_or(ParseWarning::SyntaxError(
+                let id = id.ok_or(ParseWarningContent::SyntaxError(
                     "BMP id should not be None".to_string(),
                 ))?;
                 let to_insert = Bmp {
@@ -700,7 +700,7 @@ impl Bms {
                         .scope_defines
                         .bpm_defs
                         .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     self.arrangers.push_bpm_change(
                         BpmChangeObj {
                             time,
@@ -719,12 +719,12 @@ impl Bms {
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1
                         .to_digit(16)
-                        .ok_or(ParseWarning::SyntaxError(format!(
+                        .ok_or(ParseWarningContent::SyntaxError(format!(
                             "Invalid hex digit: {c1}",
                         )))?
                         * 16
                         + c2.to_digit(16)
-                            .ok_or(ParseWarning::SyntaxError(format!(
+                            .ok_or(ParseWarningContent::SyntaxError(format!(
                                 "Invalid hex digit: {c2}",
                             )))?;
                     if bpm == 0 {
@@ -750,7 +750,7 @@ impl Bms {
                         .scope_defines
                         .scroll_defs
                         .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     self.arrangers.push_scrolling_factor_change(
                         ScrollingFactorObj {
                             time,
@@ -770,7 +770,7 @@ impl Bms {
                         .scope_defines
                         .speed_defs
                         .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     self.arrangers.push_speed_factor_change(
                         SpeedObj {
                             time,
@@ -791,7 +791,7 @@ impl Bms {
                         .others
                         .change_options
                         .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     // Here we can add logic to handle ChangeOption
                     // Currently just ignored because change_options are already stored in notes
                 }
@@ -803,13 +803,13 @@ impl Bms {
             } => {
                 let length = Decimal::from(Decimal::from_fraction(
                     GenericFraction::from_str(message).map_err(|_| {
-                        ParseWarning::SyntaxError(format!(
+                        ParseWarningContent::SyntaxError(format!(
                             "Invalid section length: {message}"
                         ))
                     })?,
                 ));
                 if length <= Decimal::from(0u64) {
-                    return Err(ParseWarning::SyntaxError(
+                    return Err(ParseWarningContent::SyntaxError(
                         "section length must be greater than zero".to_string(),
                     ));
                 }
@@ -831,7 +831,7 @@ impl Bms {
                         .scope_defines
                         .stop_defs
                         .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(obj))?;
                     self.arrangers.push_stop(StopObj {
                         time,
                         duration: duration.clone(),
@@ -849,7 +849,7 @@ impl Bms {
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
                     if !self.graphics.bmp_files.contains_key(&obj) {
-                        return Err(ParseWarning::UndefinedObject(obj));
+                        return Err(ParseWarningContent::UndefinedObject(obj));
                     }
                     let layer = match channel {
                         Channel::BgaBase => BgaLayer::Base,
@@ -972,7 +972,7 @@ impl Bms {
                         .scope_defines
                         .argb_defs
                         .get(&argb_id)
-                        .ok_or(ParseWarning::UndefinedObject(argb_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(argb_id))?;
                     self.graphics.push_bga_argb_change(
                         BgaArgbObj {
                             time,
@@ -994,7 +994,7 @@ impl Bms {
                         .others
                         .seek_events
                         .get(&seek_id)
-                        .ok_or(ParseWarning::UndefinedObject(seek_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(seek_id))?;
                     self.notes.push_seek_event(
                         SeekObj {
                             time,
@@ -1014,7 +1014,7 @@ impl Bms {
                         .others
                         .texts
                         .get(&text_id)
-                        .ok_or(ParseWarning::UndefinedObject(text_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(text_id))?;
                     self.notes.push_text_event(
                         TextObj {
                             time,
@@ -1034,7 +1034,7 @@ impl Bms {
                         .scope_defines
                         .exrank_defs
                         .get(&judge_id)
-                        .ok_or(ParseWarning::UndefinedObject(judge_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(judge_id))?;
                     self.notes.push_judge_event(
                         JudgeObj {
                             time,
@@ -1055,7 +1055,7 @@ impl Bms {
                         .scope_defines
                         .swbga_events
                         .get(&keybound_id)
-                        .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(keybound_id))?;
                     self.notes.push_bga_keybound_event(
                         BgaKeyboundObj {
                             time,
@@ -1076,7 +1076,7 @@ impl Bms {
                         .others
                         .change_options
                         .get(&option_id)
-                        .ok_or(ParseWarning::UndefinedObject(option_id))?;
+                        .ok_or(ParseWarningContent::UndefinedObject(option_id))?;
                     self.notes.push_option_event(
                         OptionObj {
                             time,
@@ -1102,18 +1102,18 @@ impl Bms {
                 let mut end_note = self
                     .notes
                     .remove_latest_note(*end_id)
-                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
+                    .ok_or(ParseWarningContent::UndefinedObject(*end_id))?;
                 let Obj { offset, key, .. } = &end_note;
                 let (_, &begin_id) = self.notes.ids_by_key[key]
                     .range(..offset)
                     .last()
                     .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
+                        ParseWarningContent::SyntaxError(format!(
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
                 let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or(
-                    ParseWarning::SyntaxError(format!(
+                    ParseWarningContent::SyntaxError(format!(
                         "Cannot find begin note for LNOBJ {end_id:?}"
                     )),
                 )?;
@@ -1126,11 +1126,11 @@ impl Bms {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
                 self.scope_defines.exrank_defs.insert(
                     ObjId::try_from([0, 0]).map_err(|_| {
-                        ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
+                        ParseWarningContent::SyntaxError("Invalid ObjId [0, 0]".to_string())
                     })?,
                     ExRankDef {
                         id: ObjId::try_from([0, 0]).map_err(|_| {
-                            ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
+                            ParseWarningContent::SyntaxError("Invalid ObjId [0, 0]".to_string())
                         })?,
                         judge_level,
                     },
