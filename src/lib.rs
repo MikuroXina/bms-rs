@@ -52,7 +52,7 @@
 //!
 //! # Features
 //!
-//! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
+//! - For supported commands, see [docs.rs#TokenWithPos](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.TokenWithPos.html).
 //!
 //! - For supported note channels, see [docs.rs#Channel](https://docs.rs/bms-rs/latest/bms_rs/bms/command/channel/enum.Channel.html).
 //!

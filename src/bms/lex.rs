@@ -16,7 +16,7 @@ use crate::{
 
 use self::{
     cursor::Cursor,
-    token::{Token, TokenContent},
+    token::{TokenWithPos, Token},
 };
 
 /// An error occurred when lexical analysis.
@@ -57,7 +57,7 @@ pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
-    pub tokens: Vec<Token<'a>>,
+    pub tokens: Vec<TokenWithPos<'a>>,
     /// warnings
     pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
 }
@@ -78,7 +78,7 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
     let mut tokens = vec![];
     let mut warnings = vec![];
     while !cursor.is_end() {
-        match TokenContent::parse(&mut cursor, channel_parser) {
+        match Token::parse(&mut cursor, channel_parser) {
             Ok(content) => tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col())),
             Err(warning) => warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col())),
         };
@@ -86,7 +86,7 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
 
     let case_sensitive = tokens
         .iter()
-        .any(|token| matches!(token.content(), TokenContent::Base62));
+        .any(|token| matches!(token.content(), Token::Base62));
     if !case_sensitive {
         for token in &mut tokens {
             token.content_mut().make_id_uppercase();
@@ -111,7 +111,7 @@ mod tests {
                 channel::{Channel, NoteKind, PlayerSide},
                 time::Track,
             },
-            lex::{BmsLexOutput, parse_lex_tokens, token::TokenContent::*},
+            lex::{BmsLexOutput, parse_lex_tokens, token::Token::*},
         },
         command::channel::Key,
     };

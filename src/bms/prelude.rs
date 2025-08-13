@@ -25,7 +25,7 @@ pub use super::lex::{
 };
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningContent};
+pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarningWithPos, ParseWarning};
 
 // Re-export from parse submodules
 pub use super::parse::{
@@ -49,7 +49,7 @@ pub use super::parse::{
 };
 
 // Re-export from lex submodules
-pub use super::lex::token::Token;
+pub use super::lex::token::TokenWithPos;
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

@@ -3,15 +3,15 @@ use std::collections::HashMap;
 use num::BigUint;
 
 use crate::{
-    bms::lex::token::{Token, TokenContent},
-    parse::{BmsParseTokenIter, ParseWarning, random::ControlFlowRule},
+    bms::lex::token::{TokenWithPos, Token},
+    parse::{BmsParseTokenIter, ParseWarningWithPos, random::ControlFlowRule},
 };
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Unit<'a> {
     /// A token that is not a control flow token.
-    Token(&'a Token<'a>),
+    TokenWithPos(&'a TokenWithPos<'a>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         value: BlockValue,
@@ -67,11 +67,11 @@ pub(super) enum CaseBranchValue {
     Def,
 }
 
-/// The main entry for building the control flow AST. Traverses the Token stream and recursively parses all control flow blocks.
+/// The main entry for building the control flow AST. Traverses the TokenWithPos stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a>(
     tokens_iter: &mut BmsParseTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<ParseWarning>) {
+) -> (Vec<Unit<'a>>, Vec<ParseWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     while tokens_iter.peek().is_some() {
@@ -83,7 +83,7 @@ pub(super) fn build_control_flow_ast<'a>(
         let Some(token) = tokens_iter.peek() else {
             break;
         };
-        use TokenContent::*;
+        use Token::*;
         let rule = match token.content() {
             EndIf => Some(ControlFlowRule::UnmatchedEndIf),
             EndRandom => Some(ControlFlowRule::UnmatchedEndRandom),
@@ -98,18 +98,18 @@ pub(super) fn build_control_flow_ast<'a>(
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next Token
+        // Jump to the next TokenWithPos
         tokens_iter.next();
     }
     (result, errors)
 }
 
-/// Handle a single Token: if it is the start of a block, recursively call the block parser, otherwise return a Token node.
+/// Handle a single TokenWithPos: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithPos node.
 fn parse_unit_or_block<'a>(
     iter: &mut BmsParseTokenIter<'a>,
-) -> Option<(Unit<'a>, Vec<ParseWarning>)> {
+) -> Option<(Unit<'a>, Vec<ParseWarningWithPos>)> {
     let token = iter.peek()?;
-    use TokenContent::*;
+    use Token::*;
     match token.content() {
         SetSwitch(_) | Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
@@ -122,7 +122,7 @@ fn parse_unit_or_block<'a>(
         content if !content.is_control_flow_token() => {
             let t = *token;
             iter.next();
-            Some((Unit::Token(t), Vec::new()))
+            Some((Unit::TokenWithPos(t), Vec::new()))
         }
         _ => None,
     }
@@ -130,9 +130,9 @@ fn parse_unit_or_block<'a>(
 
 /// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
 /// Supports Case/Def branches, error detection, and nested structures.
-fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ParseWarning>) {
+fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
     let token = iter.next().unwrap();
-    use TokenContent::*;
+    use Token::*;
     let block_value = match token.content() {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
@@ -259,14 +259,14 @@ fn parse_switch_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
     )
 }
 
-/// Parse the body of a Case/Def branch until a branch-terminating Token is encountered.
+/// Parse the body of a Case/Def branch until a branch-terminating TokenWithPos is encountered.
 /// Supports nested blocks, prioritizing parse_unit_or_block.
 fn parse_case_or_def_body<'a>(
     iter: &mut BmsParseTokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<ParseWarning>) {
+) -> (Vec<Unit<'a>>, Vec<ParseWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
             break;
@@ -288,7 +288,7 @@ fn parse_case_or_def_body<'a>(
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next Token
+        // Jump to the next TokenWithPos
         iter.next();
     }
     (result, errors)
@@ -299,12 +299,12 @@ fn parse_case_or_def_body<'a>(
 /// Design:
 /// - After entering Random/SetRandom, loop through Tokens.
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow Token, prioritize parse_unit_or_block; if not in any IfBlock, report error.
+/// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, report error.
 /// - Supports nested structures; recursively handle other block types.
-fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ParseWarning>) {
+fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
-    use TokenContent::*;
+    use Token::*;
     let block_value = match token.content() {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
@@ -467,10 +467,10 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
             SetSwitch(_) | Switch(_) | Case(_) | Def | Skip => {
                 break;
             }
-            // 4. Handle non-control-flow Token: prioritize parse_unit_or_block; if not in any IfBlock, report error
+            // 4. Handle non-control-flow TokenWithPos: prioritize parse_unit_or_block; if not in any IfBlock, report error
             _ => {
                 if let Some((_unit, mut errs)) = parse_unit_or_block(iter) {
-                    // This Token does not belong to any IfBlock, discard directly and record error
+                    // This TokenWithPos does not belong to any IfBlock, discard directly and record error
                     errors.push(
                         ControlFlowRule::UnmatchedTokenInRandomBlock
                             .into_wrapper_manual(token.row(), token.column()),
@@ -492,18 +492,18 @@ fn parse_random_block<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Unit<'a>, Vec<Pa
     )
 }
 
-/// Parse the body of an If/ElseIf/Else branch until a branch-terminating Token is encountered.
+/// Parse the body of an If/ElseIf/Else branch until a branch-terminating TokenWithPos is encountered.
 /// Design:
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
 /// - If EndIf is encountered, consume it automatically.
-fn parse_if_block_body<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Vec<Unit<'a>>, Vec<ParseWarning>) {
+fn parse_if_block_body<'a>(iter: &mut BmsParseTokenIter<'a>) -> (Vec<Unit<'a>>, Vec<ParseWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use TokenContent::*;
+    use Token::*;
     while let Some(token) = iter.peek() {
         match token.content() {
-            // 1. Branch-terminating Token, break
+            // 1. Branch-terminating TokenWithPos, break
             ElseIf(_) | Else | EndIf | EndRandom | EndSwitch => {
                 if let EndIf = token.content() {
                     iter.next();
@@ -531,7 +531,7 @@ mod tests {
 
     #[test]
     fn test_switch_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             SetSwitch(BigUint::from(2u64)),
             Def,
@@ -572,12 +572,12 @@ mod tests {
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
-        // Since tokens only contain Token type, do not search for RandomBlock here. Related assertions are already covered above.
+        // Since tokens only contain TokenWithPos type, do not search for RandomBlock here. Related assertions are already covered above.
     }
 
     #[test]
     fn test_unmatched_endrandom_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndRandom]
             .into_iter()
             .enumerate()
@@ -589,7 +589,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_endif_error() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = [Title("A"), EndIf]
             .into_iter()
             .enumerate()
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_random_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -632,16 +632,16 @@ mod tests {
             .flat_map(|b| &b.tokens)
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("A"))
         }) else {
             panic!("A missing, all_titles: {all_titles:?}");
         };
         let Some(_) = all_titles.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("B"))
         }) else {
@@ -651,7 +651,7 @@ mod tests {
 
     #[test]
     fn test_random_nested_ast() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -696,7 +696,7 @@ mod tests {
 
     #[test]
     fn test_random_multiple_if_elseif_else() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(3u64)),
             If(BigUint::from(1u64)),
@@ -734,8 +734,8 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("A1"))
         }) else {
@@ -745,8 +745,8 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("A2"))
         }) else {
@@ -756,8 +756,8 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("Aelse"))
         }) else {
@@ -768,8 +768,8 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("B1"))
         }) else {
@@ -779,8 +779,8 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("B2"))
         }) else {
@@ -790,8 +790,8 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.tokens.iter().find(|u| {
-            let Unit::Token(token) = u else {
-                panic!("Unit::Token expected, got: {u:?}");
+            let Unit::TokenWithPos(token) = u else {
+                panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
             matches!(token.content(), Title("Belse"))
         }) else {
@@ -801,7 +801,7 @@ mod tests {
 
     #[test]
     fn test_random_duplicate_ifbranch() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
@@ -824,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_random_ifbranch_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(3u64)), // out of range
@@ -845,7 +845,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_case() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(1u64)),
@@ -867,7 +867,7 @@ mod tests {
 
     #[test]
     fn test_switch_case_value_out_of_range() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(3u64)), // out of range
@@ -887,7 +887,7 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_def() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Def,
@@ -914,7 +914,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_token_in_random_block() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
             Title("A"), // Not in any IfBlock
