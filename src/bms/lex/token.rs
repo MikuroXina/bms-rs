@@ -8,12 +8,15 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::bms::{
-    Decimal,
-    command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        time::Track,
+use crate::{
+    bms::{
+        Decimal,
+        command::{
+            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+            graphics::Argb, time::Track,
+        },
     },
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
 #[cfg(feature = "minor-command")]
@@ -305,17 +308,10 @@ pub enum TokenContent<'a> {
     WavCmd(WavCmdEvent),
 }
 
+impl SourcePosMixinExt for TokenContent<'_> {}
+
 /// A token with position information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct Token<'a> {
-    /// The content of the token.
-    pub content: TokenContent<'a>,
-    /// The row (line number) of the token in the original string.
-    pub row: usize,
-    /// The column (character position) of the token in the original string.
-    pub col: usize,
-}
+pub type Token<'a> = SourcePosMixin<TokenContent<'a>>;
 
 impl<'a> TokenContent<'a> {
     pub(crate) fn parse(
@@ -1332,7 +1328,7 @@ mod tests {
 
     use super::*;
 
-    fn parse_token(input: &str) -> TokenContent {
+    fn parse_token(input: &'_ str) -> TokenContent<'_> {
         let mut cursor = Cursor::new(input);
         TokenContent::parse(&mut cursor, read_channel_beat).unwrap()
     }

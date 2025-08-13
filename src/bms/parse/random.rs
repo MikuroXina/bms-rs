@@ -25,7 +25,10 @@ use rng::Rng;
 use thiserror::Error;
 
 use super::{ParseWarning, ParseWarningContent};
-use crate::bms::{lex::token::Token, parse::BmsParseTokenIter};
+use crate::{
+    bms::{lex::token::Token, parse::BmsParseTokenIter},
+    command::mixin::SourcePosMixinExt,
+};
 
 /// Parses and executes control flow constructs in a BMS token stream.
 ///
@@ -92,27 +95,16 @@ pub enum ControlFlowRule {
     UnmatchedDef,
 }
 
+impl SourcePosMixinExt for ControlFlowRule {}
+
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn to_parse_warning(&self, token: &Token) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: token.row,
-            col: token.col,
-        }
+    pub fn into_wrapper(self, token: &Token) -> ParseWarning {
+        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper(token)
     }
-
     /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn to_parse_warning_manual(
-        &self,
-        row: impl Into<usize>,
-        col: impl Into<usize>,
-    ) -> ParseWarning {
-        ParseWarning {
-            content: ParseWarningContent::ViolateControlFlowRule(*self),
-            row: row.into(),
-            col: col.into(),
-        }
+    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarning {
+        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
     }
 }
 
@@ -123,8 +115,9 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{
-        bms::lex::token::{Token, TokenContent},
+    use crate::bms::{
+        command::mixin::SourcePosMixinExt,
+        lex::token::TokenContent,
         parse::{
             BmsParseTokenIter,
             random::ast_build::{CaseBranch, CaseBranchValue, Unit},
@@ -162,11 +155,8 @@ mod tests {
             Title("00000044"),
         ]
         .into_iter()
-        .map(|t| Token {
-            content: t,
-            row: 0,
-            col: 0,
-        })
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
@@ -208,13 +198,11 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(
-                    u,
-                    Unit::Token(Token {
-                        content: Title("00550000"),
-                        ..
-                    })
-                ))
+                .filter_map(|u| match u {
+                    Unit::Token(token) => Some(token),
+                    _ => None,
+                })
+                .any(|u| matches!(u.content(), Title("00550000")))
         );
         assert!(
             if_block
@@ -223,13 +211,11 @@ mod tests {
                 .unwrap()
                 .tokens
                 .iter()
-                .any(|u| matches!(
-                    u,
-                    Unit::Token(Token {
-                        content: Title("00006600"),
-                        ..
-                    })
-                ))
+                .filter_map(|u| match u {
+                    Unit::Token(token) => Some(token),
+                    _ => None,
+                })
+                .any(|u| matches!(u.content(), Title("00006600")))
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
@@ -237,27 +223,19 @@ mod tests {
         else {
             panic!("Case(2) not found");
         };
-        assert!(matches!(
-            &tokens[0],
-            Unit::Token(Token {
-                content: Title("00003300"),
-                ..
-            })
-        ));
+        assert!({
+            let Unit::Token(token) = &tokens[0] else {
+                panic!("Unit::Token expected, got: {tokens:?}");
+            };
+            matches!(token.content(), Title("00003300"))
+        });
         let mut rng = DummyRng;
         let mut ast_iter = ast.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
-            match t {
-                Token {
-                    content: Title(s), ..
-                } => {
-                    assert_eq!(s, &expected[i], "Title content mismatch");
-                }
-                _ => panic!("Token type mismatch"),
-            }
+            assert_eq!(t.content(), &Title(expected[i]));
         }
         assert_eq!(errors, vec![]);
     }
@@ -296,11 +274,8 @@ mod tests {
             EndSwitch,
         ]
         .into_iter()
-        .map(|t| Token {
-            content: t,
-            row: 0,
-            col: 0,
-        })
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");

@@ -9,7 +9,10 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::channel::{Channel, read_channel_beat};
+use crate::{
+    bms::command::channel::{Channel, read_channel_beat},
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+};
 
 use self::{
     cursor::Cursor,
@@ -22,39 +25,29 @@ use self::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum LexWarning {
     /// The token was expected but not found.
-    #[error("expected {message}, but not found at line {line}, col {col}")]
+    #[error("expected {message}, but not found")]
     ExpectedToken {
-        /// The line number of the token expected.
-        line: usize,
-        /// The column number of the token expected.
-        col: usize,
         /// What the expected is.
         message: String,
     },
     /// The channel was not recognized.
-    #[error("channel `{channel}` not recognized at line {line}, col {col}")]
+    #[error("channel `{channel}` not recognized")]
     UnknownChannel {
         /// The channel that was not recognized.
         channel: String,
-        /// The line number.
-        line: usize,
-        /// The column number.
-        col: usize,
     },
     /// The object id was not recognized.
-    #[error("object `{object}` not recognized at line {line}, col {col}")]
+    #[error("object `{object}` not recognized")]
     UnknownObject {
         /// The object id that was not recognized.
         object: String,
-        /// The line number.
-        line: usize,
-        /// The column number.
-        col: usize,
     },
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
 }
+
+impl SourcePosMixinExt for LexWarning {}
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
@@ -66,7 +59,7 @@ pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: Vec<Token<'a>>,
     /// warnings
-    pub lex_warnings: Vec<LexWarning>,
+    pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
 }
 
 /// Analyzes and converts the BMS format text into [`TokenStream`].
@@ -86,21 +79,17 @@ pub fn parse_lex_tokens_with_channel_parser<'a>(
     let mut warnings = vec![];
     while !cursor.is_end() {
         match TokenContent::parse(&mut cursor, channel_parser) {
-            Ok(content) => tokens.push(Token {
-                content,
-                row: cursor.line(),
-                col: cursor.col(),
-            }),
-            Err(warning) => warnings.push(warning),
+            Ok(content) => tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col())),
+            Err(warning) => warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col())),
         };
     }
 
     let case_sensitive = tokens
         .iter()
-        .any(|token| matches!(token.content, TokenContent::Base62));
+        .any(|token| matches!(token.content(), TokenContent::Base62));
     if !case_sensitive {
         for token in &mut tokens {
-            token.content.make_id_uppercase();
+            token.content_mut().make_id_uppercase();
         }
     }
     BmsLexOutput {
@@ -158,7 +147,10 @@ mod tests {
 
         assert_eq!(warnings, vec![]);
         assert_eq!(
-            tokens.into_iter().map(|t| t.content).collect::<Vec<_>>(),
+            tokens
+                .into_iter()
+                .map(|t| t.content().clone())
+                .collect::<Vec<_>>(),
             vec![
                 Player(PlayerMode::Single),
                 Genre("FUGA"),

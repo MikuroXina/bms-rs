@@ -320,7 +320,7 @@ impl Bms {
         token: &Token,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
-        match &token.content {
+        match token.content() {
             TokenContent::Artist(artist) => self.header.artist = Some(artist.to_string()),
             #[cfg(feature = "minor-command")]
             TokenContent::AtBga {

@@ -25,7 +25,10 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::parse::{model::Bms, random::rng::RandRng};
+use crate::{
+    command::mixin::SourcePosMixin,
+    parse::{model::Bms, random::rng::RandRng},
+};
 
 use self::{
     lex::{BmsLexOutput, LexWarning},
@@ -48,7 +51,7 @@ pub type Decimal = GenericDecimal<BigUint, usize>;
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    LexWarning(#[from] LexWarning),
+    LexWarning(#[from] SourcePosMixin<LexWarning>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     ParseWarning(#[from] ParseWarning),
