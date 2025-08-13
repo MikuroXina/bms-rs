@@ -24,9 +24,9 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::ParseWarningContent;
+use super::{ParseWarning, ParseWarningContent};
 use crate::{
-    bms::{lex::token::Token, parse::BmsParseTokenIter, prelude::SourcePosMixin},
+    bms::{lex::token::Token, parse::BmsParseTokenIter},
     command::mixin::SourcePosMixinExt,
 };
 
@@ -37,7 +37,7 @@ use crate::{
 pub(super) fn parse_control_flow<'a>(
     token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
-) -> (Vec<&'a Token<'a>>, Vec<SourcePosMixin<ParseWarningContent>>) {
+) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
     let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
     let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
@@ -99,15 +99,11 @@ impl SourcePosMixinExt for ControlFlowRule {}
 
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &Token) -> SourcePosMixin<ParseWarningContent> {
+    pub fn into_wrapper(self, token: &Token) -> ParseWarning {
         ParseWarningContent::ViolateControlFlowRule(self).into_wrapper(token)
     }
     /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn into_wrapper_manual(
-        self,
-        row: usize,
-        col: usize,
-    ) -> SourcePosMixin<ParseWarningContent> {
+    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarning {
         ParseWarningContent::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
     }
 }
