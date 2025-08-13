@@ -1,4 +1,4 @@
-use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::Token};
+use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::TokenContent};
 
 #[test]
 fn test_comment() {
@@ -17,19 +17,19 @@ fn test_comment() {
     let mut ts_iter = tokens.into_iter();
     assert_eq!(
         ts_iter.next().unwrap().content,
-        Token::Comment("This is a comment")
+        TokenContent::Comment("This is a comment")
     );
     assert_eq!(
         ts_iter.next().unwrap().content,
-        Token::NotACommand("This is another comment")
+        TokenContent::NotACommand("This is another comment")
     );
     assert_eq!(
         ts_iter.next().unwrap().content,
-        Token::NotACommand("This is the third comment💖")
+        TokenContent::NotACommand("This is the third comment💖")
     );
     assert_eq!(
         ts_iter.next().unwrap().content,
-        Token::NotACommand("This is the fourth comment")
+        TokenContent::NotACommand("This is the fourth comment")
     );
     assert_eq!(ts_iter.next(), None);
 }

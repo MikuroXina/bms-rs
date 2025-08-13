@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use super::ParseWarning;
 use crate::{
-    bms::{lex::token::Token, parse::BmsParseTokenIter},
+    bms::{lex::token::TokenContent, parse::BmsParseTokenIter},
     command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
@@ -38,12 +38,12 @@ pub(super) fn parse_control_flow<'a>(
     token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
 ) -> (
-    Vec<&'a SourcePosMixin<Token<'a>>>,
+    Vec<&'a SourcePosMixin<TokenContent<'a>>>,
     Vec<SourcePosMixin<ParseWarning>>,
 ) {
     let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a SourcePosMixin<Token<'a>>> =
+    let tokens: Vec<&'a SourcePosMixin<TokenContent<'a>>> =
         parse_control_flow_ast(&mut ast_iter, &mut rng);
     (tokens, errors)
 }
@@ -103,7 +103,10 @@ impl SourcePosMixinExt for ControlFlowRule {}
 
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &SourcePosMixin<Token>) -> SourcePosMixin<ParseWarning> {
+    pub fn into_wrapper(
+        self,
+        token: &SourcePosMixin<TokenContent>,
+    ) -> SourcePosMixin<ParseWarning> {
         ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)
     }
     /// Convert the control flow rule to a parse warning with a given row and column.
@@ -120,7 +123,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        bms::lex::token::Token,
+        bms::lex::token::TokenContent,
         command::mixin::SourcePosMixinExt,
         parse::{
             BmsParseTokenIter,
@@ -138,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
-        use Token::*;
+        use TokenContent::*;
         let tokens = vec![
             Title("11000000"),
             Switch(BigUint::from(2u32)),
@@ -206,7 +209,7 @@ mod tests {
                     Unit::Token(t) => Some(&t.content),
                     _ => None,
                 })
-                .any(|u| matches!(u, Token::Title("00550000")))
+                .any(|u| matches!(u, TokenContent::Title("00550000")))
         );
         assert!(
             if_block
@@ -219,7 +222,7 @@ mod tests {
                     Unit::Token(t) => Some(&t.content),
                     _ => None,
                 })
-                .any(|u| matches!(u, Token::Title("00006600")))
+                .any(|u| matches!(u, TokenContent::Title("00006600")))
         );
         let Some(CaseBranch { tokens, .. }) = cases
             .iter()
@@ -230,7 +233,7 @@ mod tests {
         assert!(matches!(
             &tokens[0],
             Unit::Token(SourcePosMixin {
-                content: Token::Title("00003300"),
+                content: TokenContent::Title("00003300"),
                 ..
             })
         ));
@@ -241,10 +244,10 @@ mod tests {
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
             match t.content {
-                Token::Title(s) => {
+                TokenContent::Title(s) => {
                     assert_eq!(s, expected[i], "Title content mismatch");
                 }
-                _ => panic!("Token::Title type mismatch"),
+                _ => panic!("TokenContent::Title type mismatch"),
             }
         }
         assert_eq!(errors, vec![]);
@@ -252,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_switch_insane_tokenized() {
-        use Token::*;
+        use TokenContent::*;
         let tokens = vec![
             Switch(BigUint::from(5u32)),
             Def,

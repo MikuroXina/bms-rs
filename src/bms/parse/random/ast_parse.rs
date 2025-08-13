@@ -1,6 +1,6 @@
 use num::BigUint;
 
-use crate::bms::{lex::token::Token, prelude::SourcePosMixin};
+use crate::bms::{lex::token::TokenContent, prelude::SourcePosMixin};
 
 use super::ast_build::*;
 use super::rng::Rng;
@@ -8,7 +8,7 @@ use super::rng::Rng;
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> Vec<&'a SourcePosMixin<Token<'a>>> {
+) -> Vec<&'a SourcePosMixin<TokenContent<'a>>> {
     let mut result = Vec::new();
     for unit in iter.by_ref() {
         match unit {
@@ -98,7 +98,7 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{bms::lex::token::Token, command::mixin::SourcePosMixinExt};
+    use crate::{bms::lex::token::TokenContent, command::mixin::SourcePosMixinExt};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_setrandom_setwitch_large_value() {
-        use Token::*;
+        use TokenContent::*;
         // If/Case value is very large under SetRandom/SetSwitch
         let t_if = Title("LARGE_IF").into_wrapper_manual(0, 0);
         let t_case = Title("LARGE_CASE").into_wrapper_manual(0, 0);
@@ -147,7 +147,7 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                Token::Title(s) => Some(s),
+                TokenContent::Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_nested_random_switch() {
-        use Token::*;
+        use TokenContent::*;
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         // Random outer, Switch inner
@@ -191,7 +191,7 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                Token::Title(s) => Some(s),
+                TokenContent::Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -229,7 +229,7 @@ mod tests {
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match &t.content {
-                Token::Title(s) => Some(s),
+                TokenContent::Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_random_switch() {
-        use Token::*;
+        use TokenContent::*;
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
         let t_deep_nested = Title("DEEP_NESTED").into_wrapper_manual(0, 0);
@@ -286,7 +286,7 @@ mod tests {
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match &t.content {
-                Token::Title(s) => Some(s),
+                TokenContent::Title(s) => Some(s),
                 _ => None,
             })
             .collect();
