@@ -38,7 +38,10 @@ pub trait PromptHandler {
     /// Determines a [`DuplicationWorkaround`] for [`TrackDuplication`].
     fn handle_track_duplication(&mut self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
-    fn handle_channel_duplication(&mut self, duplication: ChannelDuplication) -> DuplicationWorkaround;
+    fn handle_channel_duplication(
+        &mut self,
+        duplication: ChannelDuplication,
+    ) -> DuplicationWorkaround;
 }
 
 /// It represents that there is a duplicated definition on the BMS file.
@@ -154,61 +157,6 @@ pub enum DefDuplication<'a> {
         /// Incoming definition.
         newer: Decimal,
     },
-    /// BPM change event is duplicated.
-    BpmChangeEvent {
-        /// Duplicated BPM change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a BpmChangeObj,
-        /// Incoming definition.
-        newer: &'a BpmChangeObj,
-    },
-    /// Scrolling factor change event is duplicated.
-    ScrollingFactorChangeEvent {
-        /// Duplicated scrolling factor change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a ScrollingFactorObj,
-        /// Incoming definition.
-        newer: &'a ScrollingFactorObj,
-    },
-    /// Speed factor change event is duplicated.
-    SpeedFactorChangeEvent {
-        /// Duplicated speed factor change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a SpeedObj,
-        /// Incoming definition.
-        newer: &'a SpeedObj,
-    },
-    /// Section length change event is duplicated.
-    SectionLenChangeEvent {
-        /// Duplicated section length change track.
-        track: Track,
-        /// Existing definition.
-        older: &'a SectionLenChangeObj,
-        /// Incoming definition.
-        newer: &'a SectionLenChangeObj,
-    },
-    /// BGA change event is duplicated.
-    BgaChangeEvent {
-        /// Duplicated BGA change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a BgaObj,
-        /// Incoming definition.
-        newer: &'a BgaObj,
-    },
-    /// BGA opacity change event is duplicated.
-    #[cfg(feature = "minor-command")]
-    BgaOpacityChangeEvent {
-        /// Duplicated BGA opacity change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a BgaOpacityObj,
-        /// Incoming definition.
-        newer: &'a BgaOpacityObj,
-    },
     /// BGA ARGB color definition is duplicated.
     #[cfg(feature = "minor-command")]
     BgaArgb {
@@ -218,26 +166,6 @@ pub enum DefDuplication<'a> {
         older: &'a Argb,
         /// Incoming definition.
         newer: &'a Argb,
-    },
-    /// BGA ARGB color change event is duplicated.
-    #[cfg(feature = "minor-command")]
-    BgaArgbChangeEvent {
-        /// Duplicated BGA ARGB change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a BgaArgbObj,
-        /// Incoming definition.
-        newer: &'a BgaArgbObj,
-    },
-    /// STP event is duplicated.
-    #[cfg(feature = "minor-command")]
-    StpEvent {
-        /// Duplicated STP event time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a StpEvent,
-        /// Incoming definition.
-        newer: &'a StpEvent,
     },
     /// WAVCMD event is duplicated.
     #[cfg(feature = "minor-command")]
@@ -268,6 +196,89 @@ pub enum DefDuplication<'a> {
         older: &'a Decimal,
         /// Incoming definition.
         newer: &'a Decimal,
+    },
+}
+
+/// It represents that there is a duplicated track object on the BMS file.
+pub enum TrackDuplication<'a> {
+    /// Section length change event is duplicated.
+    SectionLenChangeEvent {
+        /// Duplicated section length change track.
+        track: Track,
+        /// Existing definition.
+        older: &'a SectionLenChangeObj,
+        /// Incoming definition.
+        newer: &'a SectionLenChangeObj,
+    },
+}
+
+/// It represents that there is a duplicated channel object on the BMS file.
+pub enum ChannelDuplication<'a> {
+    /// BPM change event is duplicated.
+    BpmChangeEvent {
+        /// Duplicated BPM change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BpmChangeObj,
+        /// Incoming definition.
+        newer: &'a BpmChangeObj,
+    },
+    /// Scrolling factor change event is duplicated.
+    ScrollingFactorChangeEvent {
+        /// Duplicated scrolling factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a ScrollingFactorObj,
+        /// Incoming definition.
+        newer: &'a ScrollingFactorObj,
+    },
+    /// Speed factor change event is duplicated.
+    SpeedFactorChangeEvent {
+        /// Duplicated speed factor change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a SpeedObj,
+        /// Incoming definition.
+        newer: &'a SpeedObj,
+    },
+    /// BGA change event is duplicated.
+    BgaChangeEvent {
+        /// Duplicated BGA change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaObj,
+        /// Incoming definition.
+        newer: &'a BgaObj,
+    },
+    /// BGA opacity change event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaOpacityChangeEvent {
+        /// Duplicated BGA opacity change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaOpacityObj,
+        /// Incoming definition.
+        newer: &'a BgaOpacityObj,
+    },
+    /// BGA ARGB color change event is duplicated.
+    #[cfg(feature = "minor-command")]
+    BgaArgbChangeEvent {
+        /// Duplicated BGA ARGB change time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a BgaArgbObj,
+        /// Incoming definition.
+        newer: &'a BgaArgbObj,
+    },
+    /// STP event is duplicated.
+    #[cfg(feature = "minor-command")]
+    StpEvent {
+        /// Duplicated STP event time.
+        time: ObjTime,
+        /// Existing definition.
+        older: &'a StpEvent,
+        /// Incoming definition.
+        newer: &'a StpEvent,
     },
     /// BGM volume change event is duplicated.
     BgmVolumeChangeEvent {
@@ -337,32 +348,6 @@ pub enum DefDuplication<'a> {
     },
 }
 
-/// It represents that there is a duplicated track object on the BMS file.
-pub enum TrackDuplication<'a> {
-    /// Section length change event is duplicated.
-    SectionLenChangeEvent {
-        /// Duplicated section length change track.
-        track: Track,
-        /// Existing definition.
-        older: &'a SectionLenChangeObj,
-        /// Incoming definition.
-        newer: &'a SectionLenChangeObj,
-    },
-}
-
-/// It represents that there is a duplicated channel object on the BMS file.
-pub enum ChannelDuplication<'a> {
-    /// BGM volume change event is duplicated.
-    BgmVolumeChangeEvent {
-        /// Duplicated BGM volume change time.
-        time: ObjTime,
-        /// Existing definition.
-        older: &'a BgmVolumeObj,
-        /// Incoming definition.
-        newer: &'a BgmVolumeObj,
-    },
-}
-
 /// A choice to handle the duplicated definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -378,47 +363,17 @@ pub enum DuplicationWorkaround {
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply_def<T>(self, target: &mut T, newer: T) -> Result<()> {
+    pub(crate) fn apply<T>(self, target: &mut T, newer: T, warning: ParseWarning) -> Result<()> {
         match self {
             DuplicationWorkaround::UseOlder => Ok(()),
             DuplicationWorkaround::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarning::DuplicatingDef),
+            DuplicationWorkaround::WarnAndUseOlder => Err(warning),
             DuplicationWorkaround::WarnAndUseNewer => {
                 *target = newer;
-                Err(ParseWarning::DuplicatingDef)
-            }
-        }
-    }
-    
-    pub(crate) fn apply_track<T>(self, target: &mut T, newer: T) -> Result<()> {
-        match self {
-            DuplicationWorkaround::UseOlder => Ok(()),
-            DuplicationWorkaround::UseNewer => {
-                *target = newer;
-                Ok(())
-            }
-            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarning::DuplicatingTrackObj),
-            DuplicationWorkaround::WarnAndUseNewer => {
-                *target = newer;
-                Err(ParseWarning::DuplicatingTrackObj)
-            }
-        }
-    }
-    
-    pub(crate) fn apply_channel<T>(self, target: &mut T, newer: T) -> Result<()> {
-        match self {
-            DuplicationWorkaround::UseOlder => Ok(()),
-            DuplicationWorkaround::UseNewer => {
-                *target = newer;
-                Ok(())
-            }
-            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarning::DuplicatingChannelObj),
-            DuplicationWorkaround::WarnAndUseNewer => {
-                *target = newer;
-                Err(ParseWarning::DuplicatingChannelObj)
+                Err(warning)
             }
         }
     }
@@ -432,11 +387,11 @@ impl PromptHandler for AlwaysUseOlder {
     fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
-    
+
     fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
-    
+
     fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
@@ -450,11 +405,11 @@ impl PromptHandler for AlwaysUseNewer {
     fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
-    
+
     fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
-    
+
     fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
@@ -468,11 +423,11 @@ impl PromptHandler for AlwaysWarnAndUseOlder {
     fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
-    
+
     fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
-    
+
     fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
@@ -486,11 +441,11 @@ impl PromptHandler for AlwaysWarnAndUseNewer {
     fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
-    
+
     fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
-    
+
     fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }

@@ -47,7 +47,7 @@ use self::obj::{
 };
 use super::{
     ParseWarning, Result,
-    prompt::{PromptHandler, DefDuplication},
+    prompt::{ChannelDuplication, DefDuplication, PromptHandler, TrackDuplication},
 };
 
 /// A score data of BMS format.
@@ -344,7 +344,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.atbga_defs.insert(*id, to_insert);
                 }
@@ -373,7 +373,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.bga_defs.insert(*id, to_insert);
                 }
@@ -397,7 +397,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.graphics.bmp_files.insert(id, to_insert);
                 }
@@ -413,7 +413,7 @@ impl Bms {
                             older: older.clone(),
                             newer: bpm.clone(),
                         })
-                        .apply_def(older, bpm.clone())?;
+                        .apply(older, bpm.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.bpm_defs.insert(*id, bpm.clone());
                 }
@@ -427,7 +427,7 @@ impl Bms {
                             older,
                             newer: option,
                         })
-                        .apply_def(older, option.to_string())?;
+                        .apply(older, option.to_string(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.others.change_options.insert(*id, option.to_string());
                 }
@@ -451,7 +451,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.graphics.bmp_files.insert(*id, to_insert);
                 }
@@ -468,7 +468,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.exrank_defs.insert(*id, to_insert);
                 }
@@ -495,7 +495,7 @@ impl Bms {
                             older,
                             newer: &to_insert,
                         })
-                        .apply_def(older, to_insert)?;
+                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.exwav_defs.insert(*id, to_insert);
                 }
@@ -531,7 +531,7 @@ impl Bms {
                             older: older.clone(),
                             newer: factor.clone(),
                         })
-                        .apply_def(older, factor.clone())?;
+                        .apply(older, factor.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.scroll_defs.insert(*id, factor.clone());
                 }
@@ -544,7 +544,7 @@ impl Bms {
                             older: older.clone(),
                             newer: factor.clone(),
                         })
-                        .apply_def(older, factor.clone())?;
+                        .apply(older, factor.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.speed_defs.insert(*id, factor.clone());
                 }
@@ -558,7 +558,7 @@ impl Bms {
                             older: older.clone(),
                             newer: len.clone(),
                         })
-                        .apply_def(older, len.clone())?;
+                        .apply(older, len.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.stop_defs.insert(*id, len.clone());
                 }
@@ -573,7 +573,7 @@ impl Bms {
                             older,
                             newer: text,
                         })
-                        .apply_def(older, text.to_string())?;
+                        .apply(older, text.to_string(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.others.texts.insert(*id, text.to_string());
                 }
@@ -593,7 +593,7 @@ impl Bms {
                             older,
                             newer: path,
                         })
-                        .apply_def(older, path.into())?;
+                        .apply(older, path.into(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.notes.wav_files.insert(*id, path.into());
                 }
@@ -604,12 +604,12 @@ impl Bms {
                 let key = ev.time;
                 if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::StpEvent {
+                        .handle_channel_duplication(ChannelDuplication::StpEvent {
                             time: key,
                             older,
                             newer: ev,
                         })
-                        .apply_def(older, *ev)?;
+                        .apply(older, *ev, ParseWarning::DuplicatingChannelObj)?;
                 } else {
                     self.arrangers.stp_events.insert(key, *ev);
                 }
@@ -625,7 +625,7 @@ impl Bms {
                             older,
                             newer: ev,
                         })
-                        .apply_def(older, *ev)?;
+                        .apply(older, *ev, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.wavcmd_events.insert(key, *ev);
                 }
@@ -639,7 +639,7 @@ impl Bms {
                             older,
                             newer: ev,
                         })
-                        .apply_def(older, ev.clone())?;
+                        .apply(older, ev.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.swbga_events.insert(*id, ev.clone());
                 }
@@ -653,7 +653,7 @@ impl Bms {
                             older,
                             newer: argb,
                         })
-                        .apply_def(older, *argb)?;
+                        .apply(older, *argb, ParseWarning::DuplicatingDef)?;
                 } else {
                     self.scope_defines.argb_defs.insert(*id, *argb);
                 }
@@ -667,7 +667,7 @@ impl Bms {
                             older,
                             newer: v,
                         })
-                        .apply_def(older, v.clone())?;
+                        .apply(older, v.clone(), ParseWarning::DuplicatingDef)?;
                 } else {
                     self.others.seek_events.insert(*id, v.clone());
                 }
@@ -1256,12 +1256,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BpmChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {
                         time: bpm_change.time,
                         older: existing,
                         newer: &bpm_change,
                     })
-                    .apply_def(entry.get_mut(), bpm_change)
+                    .apply(
+                        entry.get_mut(),
+                        bpm_change,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1284,12 +1288,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::ScrollingFactorChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::ScrollingFactorChangeEvent {
                         time: scrolling_factor_change.time,
                         older: existing,
                         newer: &scrolling_factor_change,
                     })
-                    .apply_def(entry.get_mut(), scrolling_factor_change)
+                    .apply(
+                        entry.get_mut(),
+                        scrolling_factor_change,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1309,12 +1317,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::SpeedFactorChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::SpeedFactorChangeEvent {
                         time: speed_factor_change.time,
                         older: existing,
                         newer: &speed_factor_change,
                     })
-                    .apply_def(entry.get_mut(), speed_factor_change)
+                    .apply(
+                        entry.get_mut(),
+                        speed_factor_change,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1334,12 +1346,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::SectionLenChangeEvent {
+                    .handle_track_duplication(TrackDuplication::SectionLenChangeEvent {
                         track: section_len_change.track,
                         older: existing,
                         newer: &section_len_change,
                     })
-                    .apply_def(entry.get_mut(), section_len_change)
+                    .apply(
+                        entry.get_mut(),
+                        section_len_change,
+                        ParseWarning::DuplicatingTrackObj,
+                    )
             }
         }
     }
@@ -1376,12 +1392,12 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BgaChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::BgaChangeEvent {
                         time: bga.time,
                         older: existing,
                         newer: &bga,
                     })
-                    .apply_def(entry.get_mut(), bga)
+                    .apply(entry.get_mut(), bga, ParseWarning::DuplicatingChannelObj)
             }
         }
     }
@@ -1406,12 +1422,16 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BgaOpacityChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::BgaOpacityChangeEvent {
                         time: opacity_obj.time,
                         older: existing,
                         newer: &opacity_obj,
                     })
-                    .apply_def(entry.get_mut(), opacity_obj)
+                    .apply(
+                        entry.get_mut(),
+                        opacity_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1433,12 +1453,16 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BgaArgbChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::BgaArgbChangeEvent {
                         time: argb_obj.time,
                         older: existing,
                         newer: &argb_obj,
                     })
-                    .apply_def(entry.get_mut(), argb_obj)
+                    .apply(
+                        entry.get_mut(),
+                        argb_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1545,12 +1569,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BgmVolumeChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::BgmVolumeChangeEvent {
                         time: volume_obj.time,
                         older: existing,
                         newer: &volume_obj,
                     })
-                    .apply_def(entry.get_mut(), volume_obj)
+                    .apply(
+                        entry.get_mut(),
+                        volume_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1570,12 +1598,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::KeyVolumeChangeEvent {
+                    .handle_channel_duplication(ChannelDuplication::KeyVolumeChangeEvent {
                         time: volume_obj.time,
                         older: existing,
                         newer: &volume_obj,
                     })
-                    .apply_def(entry.get_mut(), volume_obj)
+                    .apply(
+                        entry.get_mut(),
+                        volume_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1596,12 +1628,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::SeekMessageEvent {
+                    .handle_channel_duplication(ChannelDuplication::SeekMessageEvent {
                         time: seek_obj.time,
                         older: existing,
                         newer: &seek_obj,
                     })
-                    .apply_def(entry.get_mut(), seek_obj)
+                    .apply(
+                        entry.get_mut(),
+                        seek_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1621,12 +1657,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::TextEvent {
+                    .handle_channel_duplication(ChannelDuplication::TextEvent {
                         time: text_obj.time,
                         older: existing,
                         newer: &text_obj,
                     })
-                    .apply_def(entry.get_mut(), text_obj)
+                    .apply(
+                        entry.get_mut(),
+                        text_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1646,12 +1686,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::JudgeEvent {
+                    .handle_channel_duplication(ChannelDuplication::JudgeEvent {
                         time: judge_obj.time,
                         older: existing,
                         newer: &judge_obj,
                     })
-                    .apply_def(entry.get_mut(), judge_obj)
+                    .apply(
+                        entry.get_mut(),
+                        judge_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1672,12 +1716,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::BgaKeyboundEvent {
+                    .handle_channel_duplication(ChannelDuplication::BgaKeyboundEvent {
                         time: keybound_obj.time,
                         older: existing,
                         newer: &keybound_obj,
                     })
-                    .apply_def(entry.get_mut(), keybound_obj)
+                    .apply(
+                        entry.get_mut(),
+                        keybound_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }
@@ -1698,12 +1746,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_def_duplication(DefDuplication::OptionEvent {
+                    .handle_channel_duplication(ChannelDuplication::OptionEvent {
                         time: option_obj.time,
                         older: existing,
                         newer: &option_obj,
                     })
-                    .apply_def(entry.get_mut(), option_obj)
+                    .apply(
+                        entry.get_mut(),
+                        option_obj,
+                        ParseWarning::DuplicatingChannelObj,
+                    )
             }
         }
     }

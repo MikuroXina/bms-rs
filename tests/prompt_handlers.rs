@@ -317,11 +317,10 @@ fn test_always_warn_and_use_older() {
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(parse_warnings.len(), 9);
-    assert!(
-        parse_warnings
-            .iter()
-            .all(|w| matches!(w.content(), ParseWarning::DuplicatingDef))
-    );
+    assert!(parse_warnings.iter().all(|w| matches!(
+        w.content(),
+        ParseWarning::DuplicatingChannelObj | ParseWarning::DuplicatingDef
+    )));
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
