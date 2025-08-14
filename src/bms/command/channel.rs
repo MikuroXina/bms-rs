@@ -87,6 +87,112 @@ pub enum Channel {
     Option,
 }
 
+/// A kind of the note.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum NoteKind {
+    /// A normal note can be seen by the user.
+    Visible,
+    /// A invisible note cannot be played by the user.
+    Invisible,
+    /// A long-press note (LN), requires the user to hold pressing the key.
+    Long,
+    /// A landmine note that treated as POOR judgement when
+    Landmine,
+}
+
+impl NoteKind {
+    /// Returns whether the note is a playable.
+    pub const fn is_playable(self) -> bool {
+        !matches!(self, Self::Invisible)
+    }
+
+    /// Returns whether the note is a long-press note.
+    pub const fn is_long(self) -> bool {
+        matches!(self, Self::Long)
+    }
+}
+
+/// A side of the player.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PlayerSide {
+    /// The player 1 side.
+    #[default]
+    Player1,
+    /// The player 2 side.
+    Player2,
+}
+
+/// A key of the controller or keyboard.
+///
+/// - Beat 5K/7K/10K/14K:
+/// ```text
+/// |---------|----------------------|
+/// |         |   [K2]  [K4]  [K6]   |
+/// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
+/// |---------|----------------------|
+/// ```
+///
+/// - PMS:
+/// ```text
+/// |----------------------------|
+/// |   [K2]  [K4]  [K6]  [K8]   |
+/// |[K1]  [K3]  [K5]  [K7]  [K9]|
+/// |----------------------------|
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
+#[repr(u64)]
+pub enum Key {
+    /// The leftmost white key.
+    /// `11` in BME-type Player1.
+    Key1 = 1,
+    /// The leftmost black key.
+    /// `12` in BME-type Player1.
+    Key2 = 2,
+    /// The second white key from the left.
+    /// `13` in BME-type Player1.
+    Key3 = 3,
+    /// The second black key from the left.
+    /// `14` in BME-type Player1.
+    Key4 = 4,
+    /// The third white key from the left.
+    /// `15` in BME-type Player1.
+    Key5 = 5,
+    /// The rightmost black key.
+    /// `18` in BME-type Player1.
+    Key6 = 6,
+    /// The rightmost white key.
+    /// `19` in BME-type Player1.
+    Key7 = 7,
+    /// The extra black key. Used in PMS or other modes.
+    Key8 = 8,
+    /// The extra white key. Used in PMS or other modes.
+    Key9 = 9,
+    /// The extra key for OCT/FP.
+    Key10 = 10,
+    /// The extra key for OCT/FP.
+    Key11 = 11,
+    /// The extra key for OCT/FP.
+    Key12 = 12,
+    /// The extra key for OCT/FP.
+    Key13 = 13,
+    /// The extra key for OCT/FP.
+    Key14 = 14,
+    /// The scratch disk.
+    /// `16` in BME-type Player1.
+    Scratch = 101,
+    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
+    ScratchExtra = 102,
+    /// The foot pedal.
+    FootPedal = 151,
+    /// The zone that the user can scratch disk freely.
+    /// `17` in BMS-type Player1.
+    FreeZone = 201,
+}
+
 /// Reads a channel from a string.
 ///
 /// For general part, please call this function when using other functions.
@@ -419,19 +525,15 @@ pub struct KeyChannelModeMirror {
 
 impl KeyChannelMode for KeyChannelModeMirror {
     fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        let key_count = self.key_count.clamp(1, 14);
-        let (side, mut key) = beat_map.into_tuple();
-        if beat_map.side() == self.side && (beat_map.key() as usize) < key_count {
-            key = KEY_DEFS[key_count - beat_map.key() as usize];
-        }
-        BeatModeMap::new(side, key)
+        self.map_from_beat(beat_map)
     }
 
     fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        let key_count = self.key_count.clamp(1, 14);
+        let key_count = self.key_count;
         let (side, mut key) = beat_map.into_tuple();
-        if beat_map.side() == self.side && (beat_map.key() as usize) < key_count {
-            key = KEY_DEFS[key_count - beat_map.key() as usize];
+        // Note: [`Key`] is 1-indexed, so we need to subtract 1 from the key count.
+        if side == self.side && (key as u64 as usize) <= key_count {
+            key = KEY_DEFS[key_count - (key as u64 as usize)];
         }
         BeatModeMap::new(side, key)
     }
@@ -450,106 +552,52 @@ pub fn convert_key_channel_between(
     dst.map_from_beat(beat_map)
 }
 
-/// A kind of the note.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum NoteKind {
-    /// A normal note can be seen by the user.
-    Visible,
-    /// A invisible note cannot be played by the user.
-    Invisible,
-    /// A long-press note (LN), requires the user to hold pressing the key.
-    Long,
-    /// A landmine note that treated as POOR judgement when
-    Landmine,
-}
+#[cfg(test)]
+mod channel_mode_tests {
+    use super::*;
 
-impl NoteKind {
-    /// Returns whether the note is a playable.
-    pub const fn is_playable(self) -> bool {
-        !matches!(self, Self::Invisible)
+    #[test]
+    fn test_key_channel_mode_mirror() {
+        // Test 1: 3 keys
+        let keys = vec![
+            (PlayerSide::Player1, Key::Key1),
+            (PlayerSide::Player1, Key::Key2),
+            (PlayerSide::Player1, Key::Key3),
+            (PlayerSide::Player1, Key::Key4),
+            (PlayerSide::Player1, Key::Key5),
+            (PlayerSide::Player2, Key::Key1),
+            (PlayerSide::Player2, Key::Key2),
+            (PlayerSide::Player2, Key::Key3),
+            (PlayerSide::Player2, Key::Key4),
+            (PlayerSide::Player2, Key::Key5),
+        ]
+        .into_iter()
+        .map(|(side, key)| BeatModeMap::new(side, key))
+        .collect::<Vec<_>>();
+        let mut mode = KeyChannelModeMirror {
+            side: PlayerSide::Player1,
+            key_count: 3,
+        };
+        let expected = vec![
+            (PlayerSide::Player1, Key::Key3),
+            (PlayerSide::Player1, Key::Key2),
+            (PlayerSide::Player1, Key::Key1),
+            (PlayerSide::Player1, Key::Key4),
+            (PlayerSide::Player1, Key::Key5),
+            (PlayerSide::Player2, Key::Key1),
+            (PlayerSide::Player2, Key::Key2),
+            (PlayerSide::Player2, Key::Key3),
+            (PlayerSide::Player2, Key::Key4),
+            (PlayerSide::Player2, Key::Key5),
+        ]
+        .into_iter()
+        .map(|(side, key)| BeatModeMap::new(side, key))
+        .collect::<Vec<_>>();
+        for (i, key) in keys.iter().enumerate() {
+            let beat_map = mode.to_beat(*key);
+            assert_eq!(beat_map, expected[i]);
+            let beat_map = mode.map_from_beat(beat_map);
+            assert_eq!(beat_map, *key);
+        }
     }
-
-    /// Returns whether the note is a long-press note.
-    pub const fn is_long(self) -> bool {
-        matches!(self, Self::Long)
-    }
-}
-
-/// A side of the player.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum PlayerSide {
-    /// The player 1 side.
-    #[default]
-    Player1,
-    /// The player 2 side.
-    Player2,
-}
-
-/// A key of the controller or keyboard.
-///
-/// - Beat 5K/7K/10K/14K:
-/// ```text
-/// |---------|----------------------|
-/// |         |   [K2]  [K4]  [K6]   |
-/// |(Scratch)|[K1]  [K3]  [K5]  [K7]|
-/// |---------|----------------------|
-/// ```
-///
-/// - PMS:
-/// ```text
-/// |----------------------------|
-/// |   [K2]  [K4]  [K6]  [K8]   |
-/// |[K1]  [K3]  [K5]  [K7]  [K9]|
-/// |----------------------------|
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Key {
-    /// The leftmost white key.
-    /// `11` in BME-type Player1.
-    Key1,
-    /// The leftmost black key.
-    /// `12` in BME-type Player1.
-    Key2,
-    /// The second white key from the left.
-    /// `13` in BME-type Player1.
-    Key3,
-    /// The second black key from the left.
-    /// `14` in BME-type Player1.
-    Key4,
-    /// The third white key from the left.
-    /// `15` in BME-type Player1.
-    Key5,
-    /// The rightmost black key.
-    /// `18` in BME-type Player1.
-    Key6,
-    /// The rightmost white key.
-    /// `19` in BME-type Player1.
-    Key7,
-    /// The extra black key. Used in PMS or other modes.
-    Key8,
-    /// The extra white key. Used in PMS or other modes.
-    Key9,
-    /// The extra key for OCT/FP.
-    Key10,
-    /// The extra key for OCT/FP.
-    Key11,
-    /// The extra key for OCT/FP.
-    Key12,
-    /// The extra key for OCT/FP.
-    Key13,
-    /// The extra key for OCT/FP.
-    Key14,
-    /// The scratch disk.
-    /// `16` in BME-type Player1.
-    Scratch,
-    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra,
-    /// The foot pedal.
-    FootPedal,
-    /// The zone that the user can scratch disk freely.
-    /// `17` in BMS-type Player1.
-    FreeZone,
 }
