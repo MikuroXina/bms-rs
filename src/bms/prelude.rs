@@ -39,7 +39,7 @@ pub use super::parse::{
     },
     prompt::{
         AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-        DuplicationWorkaround, PromptHandler, PromptingDuplication,
+        DuplicationWorkaround, PromptHandler, DefDuplication,
     },
     random::{
         ControlFlowRule,

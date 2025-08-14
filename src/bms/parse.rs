@@ -12,9 +12,13 @@ use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use crate::{
-    bms::{command::ObjId, lex::token::TokenWithPos, parse::random::parse_control_flow},
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+use crate::bms::{
+    command::{
+        ObjId,
+        mixin::{SourcePosMixin, SourcePosMixinExt},
+    },
+    lex::token::TokenWithPos,
+    parse::random::parse_control_flow,
 };
 
 use self::{
@@ -38,9 +42,15 @@ pub enum ParseWarning {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
-    /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("parsing is warned by prompt handler")]
-    PromptHandlerWarning,
+    /// Has duplicated definition, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating definition")]
+    DuplicatingDef,
+    /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating track object")]
+    DuplicatingTrackObj,
+    /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating channel object")]
+    DuplicatingChannelObj,
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
