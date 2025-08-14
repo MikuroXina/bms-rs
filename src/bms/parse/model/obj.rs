@@ -182,6 +182,37 @@ pub enum BgaLayer {
     Overlay2,
 }
 
+impl BgaLayer {
+    /// Convert a [`crate::bms::command::channel::Channel`] to a [`BgaLayer`].
+    pub fn from_channel(channel: Channel) -> Option<Self> {
+        match channel {
+            Channel::BgaBase | Channel::BgaBaseArgb | Channel::BgaBaseOpacity => {
+                Some(BgaLayer::Base)
+            }
+            Channel::BgaLayer | Channel::BgaLayerArgb | Channel::BgaLayerOpacity => {
+                Some(BgaLayer::Overlay)
+            }
+            Channel::BgaLayer2 | Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => {
+                Some(BgaLayer::Overlay2)
+            }
+            Channel::BgaPoor | Channel::BgaPoorArgb | Channel::BgaPoorOpacity => {
+                Some(BgaLayer::Poor)
+            }
+            _ => None,
+        }
+    }
+
+    /// Convert a [`BgaLayer`] to a [`crate::bms::command::channel::Channel`].
+    pub fn to_channel(self) -> Channel {
+        match self {
+            BgaLayer::Base => Channel::BgaBase,
+            BgaLayer::Overlay => Channel::BgaLayer,
+            BgaLayer::Overlay2 => Channel::BgaLayer2,
+            BgaLayer::Poor => Channel::BgaPoor,
+        }
+    }
+}
+
 /// An object to change scrolling factor of the score.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

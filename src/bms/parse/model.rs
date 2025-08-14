@@ -894,13 +894,8 @@ impl Bms {
                     if !self.graphics.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
-                    let layer = match channel {
-                        Channel::BgaBase => BgaLayer::Base,
-                        Channel::BgaPoor => BgaLayer::Poor,
-                        Channel::BgaLayer => BgaLayer::Overlay,
-                        Channel::BgaLayer2 => BgaLayer::Overlay2,
-                        _ => unreachable!(),
-                    };
+                    let layer = BgaLayer::from_channel(*channel)
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
                     self.graphics.push_bga_change(
                         BgaObj {
                             time,
@@ -946,13 +941,8 @@ impl Bms {
                 message,
             } => {
                 for (time, opacity_value) in opacity_from_message(*track, message) {
-                    let layer = match channel {
-                        Channel::BgaBaseOpacity => BgaLayer::Base,
-                        Channel::BgaLayerOpacity => BgaLayer::Overlay,
-                        Channel::BgaLayer2Opacity => BgaLayer::Overlay2,
-                        Channel::BgaPoorOpacity => BgaLayer::Poor,
-                        _ => unreachable!(),
-                    };
+                    let layer = BgaLayer::from_channel(*channel)
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
                     self.graphics.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
@@ -1004,13 +994,8 @@ impl Bms {
                 message,
             } => {
                 for (time, argb_id) in ids_from_message(*track, message) {
-                    let layer = match channel {
-                        Channel::BgaBaseArgb => BgaLayer::Base,
-                        Channel::BgaLayerArgb => BgaLayer::Overlay,
-                        Channel::BgaLayer2Argb => BgaLayer::Overlay2,
-                        Channel::BgaPoorArgb => BgaLayer::Poor,
-                        _ => unreachable!(),
-                    };
+                    let layer = BgaLayer::from_channel(*channel)
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
                     let argb = self
                         .scope_defines
                         .argb_defs
@@ -1137,7 +1122,7 @@ impl Bms {
             } => {
                 self.notes.push_extended_message(ExtendedMessageObj {
                     track: *track,
-                    channel: channel.clone(),
+                    channel: *channel,
                     message: (*message).to_owned(),
                 });
             }
@@ -1454,12 +1439,7 @@ impl Graphics {
                             newer: &bga,
                         },
                         bga.time,
-                        match bga.layer {
-                            BgaLayer::Base => Channel::BgaBase,
-                            BgaLayer::Overlay => Channel::BgaLayer,
-                            BgaLayer::Overlay2 => Channel::BgaLayer2,
-                            BgaLayer::Poor => Channel::BgaPoor,
-                        },
+                        bga.layer.to_channel(),
                     )
                     .apply(entry.get_mut(), bga)
             }
@@ -1493,12 +1473,7 @@ impl Graphics {
                             newer: &opacity_obj,
                         },
                         opacity_obj.time,
-                        match opacity_obj.layer {
-                            BgaLayer::Base => Channel::BgaBase,
-                            BgaLayer::Overlay => Channel::BgaLayer,
-                            BgaLayer::Overlay2 => Channel::BgaLayer2,
-                            BgaLayer::Poor => Channel::BgaPoor,
-                        },
+                        opacity_obj.layer.to_channel(),
                     )
                     .apply(entry.get_mut(), opacity_obj)
             }
@@ -1529,12 +1504,7 @@ impl Graphics {
                             newer: &argb_obj,
                         },
                         argb_obj.time,
-                        match argb_obj.layer {
-                            BgaLayer::Base => Channel::BgaBase,
-                            BgaLayer::Overlay => Channel::BgaLayer,
-                            BgaLayer::Overlay2 => Channel::BgaLayer2,
-                            BgaLayer::Poor => Channel::BgaPoor,
-                        },
+                        argb_obj.layer.to_channel(),
                     )
                     .apply(entry.get_mut(), argb_obj)
             }
