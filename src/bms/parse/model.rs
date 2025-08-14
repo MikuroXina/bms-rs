@@ -902,6 +902,7 @@ impl Bms {
                             id: obj,
                             layer,
                         },
+                        *channel,
                         prompt_handler,
                     )?;
                 }
@@ -949,6 +950,7 @@ impl Bms {
                             layer,
                             opacity: opacity_value,
                         },
+                        *channel,
                         prompt_handler,
                     )?;
                 }
@@ -1007,6 +1009,7 @@ impl Bms {
                             layer,
                             argb: *argb,
                         },
+                        *channel,
                         prompt_handler,
                     )?;
                 }
@@ -1421,6 +1424,7 @@ impl Graphics {
     pub fn push_bga_change(
         &mut self,
         bga: BgaObj,
+        channel: Channel,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match self.bga_changes.entry(bga.time) {
@@ -1439,7 +1443,7 @@ impl Graphics {
                             newer: &bga,
                         },
                         bga.time,
-                        bga.layer.to_channel(),
+                        channel,
                     )
                     .apply(entry.get_mut(), bga)
             }
@@ -1451,6 +1455,7 @@ impl Graphics {
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
+        channel: Channel,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         let this_layer_map = self
@@ -1473,7 +1478,7 @@ impl Graphics {
                             newer: &opacity_obj,
                         },
                         opacity_obj.time,
-                        opacity_obj.layer.to_channel(),
+                        channel,
                     )
                     .apply(entry.get_mut(), opacity_obj)
             }
@@ -1485,6 +1490,7 @@ impl Graphics {
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
+        channel: Channel,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
@@ -1504,7 +1510,7 @@ impl Graphics {
                             newer: &argb_obj,
                         },
                         argb_obj.time,
-                        argb_obj.layer.to_channel(),
+                        channel,
                     )
                     .apply(entry.get_mut(), argb_obj)
             }
