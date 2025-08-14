@@ -11,7 +11,7 @@ fn test_channel_volume() {
     assert!(
         warnings
             .into_iter()
-            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarning(_)))
+            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarningWithPos(_)))
             .count()
             == 0
     );
@@ -56,7 +56,7 @@ fn test_channel_text() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarning(_)))
+            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarningWithPos(_)))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -95,7 +95,7 @@ fn test_channel_judge() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarning(_)))
+            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarningWithPos(_)))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -139,7 +139,7 @@ fn test_bga_opacity_channels() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarning(_)))
+            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarningWithPos(_)))
             .collect::<Vec<_>>(),
         vec![]
     );
@@ -223,7 +223,7 @@ fn test_bga_argb_channels() {
     assert_eq!(
         warnings
             .into_iter()
-            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarning(_)))
+            .filter(|w| matches!(w, BmsWarning::LexWarning(_) | BmsWarning::ParseWarningWithPos(_)))
             .collect::<Vec<_>>(),
         vec![]
     );

@@ -24,9 +24,9 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::{ParseWarning, ParseWarningContent};
+use super::{ParseWarningWithPos, ParseWarning};
 use crate::{
-    bms::{lex::token::Token, parse::BmsParseTokenIter},
+    bms::{lex::token::TokenWithPos, parse::BmsParseTokenIter},
     command::mixin::SourcePosMixinExt,
 };
 
@@ -37,10 +37,10 @@ use crate::{
 pub(super) fn parse_control_flow<'a>(
     token_stream: &mut BmsParseTokenIter<'a>,
     mut rng: impl Rng,
-) -> (Vec<&'a Token<'a>>, Vec<ParseWarning>) {
+) -> (Vec<&'a TokenWithPos<'a>>, Vec<ParseWarningWithPos>) {
     let (ast, errors) = build_control_flow_ast(token_stream);
     let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a Token<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
+    let tokens: Vec<&'a TokenWithPos<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
     (tokens, errors)
 }
 
@@ -99,12 +99,12 @@ impl SourcePosMixinExt for ControlFlowRule {}
 
 impl ControlFlowRule {
     /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &Token) -> ParseWarning {
-        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper(token)
+    pub fn into_wrapper(self, token: &TokenWithPos) -> ParseWarningWithPos {
+        ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)
     }
     /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarning {
-        ParseWarningContent::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
+    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarningWithPos {
+        ParseWarning::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
     }
 }
 
@@ -117,7 +117,7 @@ mod tests {
     use super::*;
     use crate::bms::{
         command::mixin::SourcePosMixinExt,
-        lex::token::TokenContent,
+        lex::token::Token,
         parse::{
             BmsParseTokenIter,
             random::ast_build::{CaseBranch, CaseBranchValue, Unit},
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Title("11000000"),
             Switch(BigUint::from(2u32)),
@@ -173,9 +173,9 @@ mod tests {
         };
         println!("Case(1) tokens: {:#?}", case1.tokens);
         assert_eq!(errors, vec![]);
-        assert!(matches!(&ast[0], Unit::Token(_))); // 11000000
+        assert!(matches!(&ast[0], Unit::TokenWithPos(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
-        assert!(matches!(&ast[2], Unit::Token(_))); // 00000044
+        assert!(matches!(&ast[2], Unit::TokenWithPos(_))); // 00000044
         let Unit::SwitchBlock { cases, .. } = &ast[1] else {
             panic!("AST structure error");
         };
@@ -185,7 +185,7 @@ mod tests {
         else {
             panic!("Case(1) not found");
         };
-        assert!(matches!(&tokens[0], Unit::Token(_))); // 00220000
+        assert!(matches!(&tokens[0], Unit::TokenWithPos(_))); // 00220000
         assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
         let Unit::RandomBlock { if_blocks, .. } = &tokens[1] else {
             panic!("RandomBlock not found");
@@ -199,7 +199,7 @@ mod tests {
                 .tokens
                 .iter()
                 .filter_map(|u| match u {
-                    Unit::Token(token) => Some(token),
+                    Unit::TokenWithPos(token) => Some(token),
                     _ => None,
                 })
                 .any(|u| matches!(u.content(), Title("00550000")))
@@ -212,7 +212,7 @@ mod tests {
                 .tokens
                 .iter()
                 .filter_map(|u| match u {
-                    Unit::Token(token) => Some(token),
+                    Unit::TokenWithPos(token) => Some(token),
                     _ => None,
                 })
                 .any(|u| matches!(u.content(), Title("00006600")))
@@ -224,8 +224,8 @@ mod tests {
             panic!("Case(2) not found");
         };
         assert!({
-            let Unit::Token(token) = &tokens[0] else {
-                panic!("Unit::Token expected, got: {tokens:?}");
+            let Unit::TokenWithPos(token) = &tokens[0] else {
+                panic!("Unit::TokenWithPos expected, got: {tokens:?}");
             };
             matches!(token.content(), Title("00003300"))
         });
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_switch_insane_tokenized() {
-        use TokenContent::*;
+        use Token::*;
         let tokens = vec![
             Switch(BigUint::from(5u32)),
             Def,

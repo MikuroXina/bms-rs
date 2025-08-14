@@ -13,7 +13,7 @@ use std::ops::{Deref, DerefMut};
 use thiserror::Error;
 
 use crate::{
-    bms::{command::ObjId, lex::token::Token, parse::random::parse_control_flow},
+    bms::{command::ObjId, lex::token::TokenWithPos, parse::random::parse_control_flow},
     command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
@@ -28,7 +28,7 @@ use super::lex::BmsLexOutput;
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseWarningContent {
+pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
@@ -43,13 +43,13 @@ pub enum ParseWarningContent {
     PromptHandlerWarning,
 }
 
-impl SourcePosMixinExt for ParseWarningContent {}
+impl SourcePosMixinExt for ParseWarning {}
 
-/// type alias of core::result::Result<T, ParseWarningContent>
-pub(crate) type Result<T> = core::result::Result<T, ParseWarningContent>;
+/// type alias of core::result::Result<T, ParseWarning>
+pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
 /// A parse warning with position information.
-pub type ParseWarning = SourcePosMixin<ParseWarningContent>;
+pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -58,7 +58,7 @@ pub struct BmsParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<ParseWarning>,
+    pub parse_warnings: Vec<ParseWarningWithPos>,
     /// Warnings that occurred during playing.
     pub playing_warnings: Vec<PlayingWarning>,
     /// Errors that occurred during playing.
@@ -66,15 +66,15 @@ pub struct BmsParseOutput {
 }
 
 /// The type of parsing tokens iter.
-pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>);
+pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
 
 impl<'a> BmsParseTokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
     pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
         Self(value.tokens.iter().as_slice().iter().peekable())
     }
-    /// Create iter from Token list reference.
-    pub fn from_tokens(value: &'a [Token<'a>]) -> Self {
+    /// Create iter from TokenWithPos list reference.
+    pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
         Self(value.iter().peekable())
     }
 }
@@ -85,14 +85,14 @@ impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
     }
 }
 
-impl<'a, T: AsRef<[Token<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
+impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
     fn from(value: &'a T) -> Self {
         Self(value.as_ref().iter().peekable())
     }
 }
 
 impl<'a> Deref for BmsParseTokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, Token<'a>>>;
+    type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }

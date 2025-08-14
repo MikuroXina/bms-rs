@@ -33,7 +33,7 @@ use crate::{
 use self::{
     lex::{BmsLexOutput, LexWarning},
     parse::{
-        BmsParseOutput, ParseWarning,
+        BmsParseOutput, ParseWarningWithPos,
         check_playing::{PlayingError, PlayingWarning},
     },
 };
@@ -54,7 +54,7 @@ pub enum BmsWarning {
     LexWarning(#[from] SourcePosMixin<LexWarning>),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarning(#[from] ParseWarning),
+    ParseWarningWithPos(#[from] ParseWarningWithPos),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -114,7 +114,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarnAndUseOlder);
 
     // Convert parse warnings to BmsWarning
-    warnings.extend(parse_warnings.into_iter().map(BmsWarning::ParseWarning));
+    warnings.extend(parse_warnings.into_iter().map(BmsWarning::ParseWarningWithPos));
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

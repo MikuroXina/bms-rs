@@ -1,6 +1,6 @@
 use num::BigUint;
 
-use crate::bms::lex::token::Token;
+use crate::bms::lex::token::TokenWithPos;
 
 use super::ast_build::*;
 use super::rng::Rng;
@@ -8,11 +8,11 @@ use super::rng::Rng;
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> Vec<&'a Token<'a>> {
+) -> Vec<&'a TokenWithPos<'a>> {
     let mut result = Vec::new();
     for unit in iter.by_ref() {
         match unit {
-            Unit::Token(token) => {
+            Unit::TokenWithPos(token) => {
                 result.push(token);
             }
             Unit::RandomBlock { value, if_blocks } => {
@@ -98,7 +98,7 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{bms::lex::token::TokenContent, command::mixin::SourcePosMixinExt};
+    use crate::{bms::lex::token::Token, command::mixin::SourcePosMixinExt};
 
     struct DummyRng;
     impl Rng for DummyRng {
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_setrandom_setwitch_large_value() {
-        use TokenContent::*;
+        use Token::*;
         // If/Case value is very large under SetRandom/SetSwitch
         let t_if = Title("LARGE_IF").into_wrapper_manual(0, 0);
         let t_case = Title("LARGE_CASE").into_wrapper_manual(0, 0);
@@ -119,7 +119,7 @@ mod tests {
             BigUint::from(u64::MAX),
             IfBranch {
                 value: BigUint::from(u64::MAX),
-                tokens: vec![Unit::Token(&t_if)],
+                tokens: vec![Unit::TokenWithPos(&t_if)],
             },
         );
         let units = vec![
@@ -137,7 +137,7 @@ mod tests {
                 },
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX)),
-                    tokens: vec![Unit::Token(&t_case)],
+                    tokens: vec![Unit::TokenWithPos(&t_case)],
                 }],
             },
         ];
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_nested_random_switch() {
-        use TokenContent::*;
+        use Token::*;
         // Nested Random and Switch, mutually nested
         let mut rng = DummyRng;
         // Random outer, Switch inner
@@ -173,7 +173,7 @@ mod tests {
                     },
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(2u64)),
-                        tokens: vec![Unit::Token(&t_switch_in_random)],
+                        tokens: vec![Unit::TokenWithPos(&t_switch_in_random)],
                     }],
                 }],
             },
@@ -211,7 +211,7 @@ mod tests {
                         BigUint::from(2u64),
                         IfBranch {
                             value: BigUint::from(2u64),
-                            tokens: vec![Unit::Token(&t_random_in_switch)],
+                            tokens: vec![Unit::TokenWithPos(&t_random_in_switch)],
                         },
                     );
                     IfBlock { branches: b }
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_deeply_nested_random_switch() {
-        use TokenContent::*;
+        use Token::*;
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
         let t_deep_nested = Title("DEEP_NESTED").into_wrapper_manual(0, 0);
@@ -263,7 +263,7 @@ mod tests {
                                     BigUint::from(1u64),
                                     IfBranch {
                                         value: BigUint::from(1u64),
-                                        tokens: vec![Unit::Token(&t_deep_nested)],
+                                        tokens: vec![Unit::TokenWithPos(&t_deep_nested)],
                                     },
                                 );
                                 IfBlock { branches: b }

@@ -1,4 +1,4 @@
-use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::TokenContent};
+use bms_rs::bms::lex::{BmsLexOutput, parse_lex_tokens, token::Token};
 
 #[test]
 fn test_cursor_with_no_ending_return_and_newline() {
@@ -13,7 +13,7 @@ fn test_cursor_with_no_ending_return_and_newline() {
     let mut tokens_iter = tokens.into_iter();
     assert_eq!(
         tokens_iter.next().unwrap().content(),
-        &TokenContent::Title("Sample")
+        &Token::Title("Sample")
     );
     assert_eq!(tokens_iter.next(), None);
 }
