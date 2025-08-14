@@ -205,7 +205,7 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
 ///   - This -> Beat: reverse of above
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModeKeyChannel {
-    /// Beat 5K/7K/10K/14K, A mixture of BMS/BMS type.
+    /// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
     /// It is the default type of key parsing.
     Beat,
     /// PMS BME-type, supports 9K/18K.
