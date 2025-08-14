@@ -205,37 +205,6 @@ pub trait KeyChannelMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChannelModeBeat;
 
-/// PMS BME-type, supports 9K/18K.
-///
-/// - Lanes:
-///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModePmsBmeType;
-
-/// PMS
-///   
-/// - Lanes:
-///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
-///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModePms;
-
-/// Beat nanasi/angolmois
-///
-/// - Lanes:
-///   - Beat -> this: FreeZone=>FootPedal
-///   - This -> Beat: FootPedal=>FreeZone
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModeBeatNanasi;
-
-/// DSC & OCT/FP
-///   
-/// - Lanes:
-///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
-///   - This -> Beat: reverse of above
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModeDscOctFp;
-
 impl KeyChannelMode for KeyChannelModeBeat {
     fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
         (side, key)
@@ -245,6 +214,13 @@ impl KeyChannelMode for KeyChannelModeBeat {
         (side, key)
     }
 }
+
+/// PMS BME-type, supports 9K/18K.
+///
+/// - Lanes:
+///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModePmsBmeType;
 
 impl KeyChannelMode for KeyChannelModePmsBmeType {
     fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
@@ -266,6 +242,14 @@ impl KeyChannelMode for KeyChannelModePmsBmeType {
         }
     }
 }
+
+/// PMS
+///   
+/// - Lanes:
+///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
+///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModePms;
 
 impl KeyChannelMode for KeyChannelModePms {
     fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
@@ -295,6 +279,14 @@ impl KeyChannelMode for KeyChannelModePms {
     }
 }
 
+/// Beat nanasi/angolmois
+///
+/// - Lanes:
+///   - Beat -> this: FreeZone=>FootPedal
+///   - This -> Beat: FootPedal=>FreeZone
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeBeatNanasi;
+
 impl KeyChannelMode for KeyChannelModeBeatNanasi {
     fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
         use Key::*;
@@ -313,6 +305,14 @@ impl KeyChannelMode for KeyChannelModeBeatNanasi {
         }
     }
 }
+
+/// DSC & OCT/FP
+///   
+/// - Lanes:
+///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
+///   - This -> Beat: reverse of above
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeDscOctFp;
 
 impl KeyChannelMode for KeyChannelModeDscOctFp {
     fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
@@ -351,6 +351,29 @@ impl KeyChannelMode for KeyChannelModeDscOctFp {
             (Player2, Scratch) => (Player1, ScratchExtra),
             other => other,
         }
+    }
+}
+
+const KEY_DEFS: [Key; 14] = [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8, Key::Key9, Key::Key10, Key::Key11, Key::Key12, Key::Key13, Key::Key14];
+
+/// Mirror the note of player 1 side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeMirror {
+    side: PlayerSide,
+    key_count: usize,
+}
+
+impl KeyChannelMode for KeyChannelModeMirror {
+    fn to_beat(&mut self, side: PlayerSide, mut key: Key) -> (PlayerSide, Key) {
+        let key_count = self.key_count.clamp(1, 14);
+        if side == self.side && (key as usize) < key_count {
+            key = KEY_DEFS[key_count - key as usize];
+        }
+        (side, key)
+    }
+
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        (side, key)
     }
 }
 
