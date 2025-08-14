@@ -3,12 +3,7 @@
 //! For more details, please see [`Channel`] enum and its related types.
 //! For documents of modes, please see [BMS command memo#KEYMAP Table](https://hitkey.bms.ms/cmds.htm#KEYMAP-TABLE)
 //!
-//! - Pre-defined channel parsers:
-//!   - `read_channel_beat` for Beat 5K/7K/10K/14K
-//!   - `read_channel_pms_bme_type` for PMS BME-type
-//!   - `read_channel_pms` for PMS
-//!   - `read_channel_beat_nanasi` for Beat nanasi/angolmois
-//!   - `read_channel_dsc_oct_fp` for DSC & OCT/FP
+//! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
