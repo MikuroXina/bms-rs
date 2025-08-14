@@ -9,10 +9,7 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::{
-    channel::read_channel_beat,
-    mixin::{SourcePosMixin, SourcePosMixinExt},
-};
+use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
 
 use self::{
     cursor::Cursor,
@@ -86,12 +83,11 @@ impl<'a> TokenStream<'a> {
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
     pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {
         let mut cursor = Cursor::new(source);
-        let channel_parser = read_channel_beat;
 
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            match Token::parse(&mut cursor, channel_parser) {
+            match Token::parse(&mut cursor) {
                 Ok(content) => {
                     tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
                 }
