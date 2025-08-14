@@ -61,5 +61,5 @@ pub use super::command::minor_command::{
 #[cfg(feature = "minor-command")]
 pub use super::parse::model::{
     def::ExWavDef,
-    obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj},
+    obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
 };

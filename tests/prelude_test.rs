@@ -141,11 +141,6 @@ fn test_prelude_minor_command_imports() {
         },
         duration: std::time::Duration::from_secs(1),
     };
-    let _extended_message_obj = ExtendedMessageObj {
-        track: Track(1),
-        channel: Channel::Bgm,
-        message: "test".into(),
-    };
     let _wav_cmd_event = WavCmdEvent {
         param: WavCmdParam::Pitch,
         wav_index: ObjId::try_from([b'A', b'1']).unwrap(),
