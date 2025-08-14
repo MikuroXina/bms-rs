@@ -77,11 +77,12 @@ fn test_playing_conditions_with_bpm_change_only() {
 
     assert!(
         !tokens
+            .tokens()
             .iter()
             .any(|t| matches!(&t.content(), Token::Bpm(bpm) if bpm == &Decimal::from(120)))
     );
     let obj_id = ObjId::try_from("08").unwrap();
-    assert!(tokens.iter().any(
+    assert!(tokens.tokens().iter().any(
         |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 

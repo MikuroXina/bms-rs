@@ -116,19 +116,6 @@ impl<'a> TokenStream<'a> {
     }
 }
 
-impl<'a> std::ops::Deref for TokenStream<'a> {
-    type Target = Vec<TokenWithPos<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.tokens
-    }
-}
-
-impl<'a> std::ops::DerefMut for TokenStream<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tokens
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{path::Path, str::FromStr};
