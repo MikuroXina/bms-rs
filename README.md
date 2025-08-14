@@ -81,14 +81,20 @@ println!("Warnings: {:?}", warnings);
 
 For more control over the parsing process, you can use the individual steps:
 
-At first, you can get the tokens stream with [`bms::lex::parse_lex_tokens`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
+At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 
 ```rust
 use rand::{rngs::StdRng, SeedableRng};
 use bms_rs::bms::prelude::*;
 
 let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
-let BmsLexOutput { tokens, lex_warnings } = parse_lex_tokens(&source);
+let BmsLexOutput { tokens: _, lex_warnings } = TokenStream::parse_lex(&source);
+assert_eq!(lex_warnings, vec![]);
+// Or you can use another preset.
+// This crate defines some presets for Beat(5K/7K/10K/14K) and Pop'n(5K/9K/18K) modes.
+// See `bms::lex::command::channel` documentation for the pre-defined channel parsers.
+// Please see [BMS command memo](https://hitkey.bms.ms/cmds.htm#KEYMAP-TABLE) for more details.
+let BmsLexOutput { tokens, lex_warnings } = parse_lex_tokens_with_channel_parser(&source, &read_channel_beat);
 assert_eq!(lex_warnings, vec![]);
 // You can modify the tokens before parsing, for some commands that this library does not warpped.
 let rng = RandRng(StdRng::seed_from_u64(42));

@@ -74,7 +74,7 @@ pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenW
 impl<'a> BmsParseTokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
     pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.iter().as_slice().iter().peekable())
+        Self(value.tokens.tokens().iter().peekable())
     }
     /// Create iter from TokenWithPos list reference.
     pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
@@ -84,7 +84,7 @@ impl<'a> BmsParseTokenIter<'a> {
 
 impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
     fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.iter().peekable())
+        Self(value.tokens.tokens().iter().peekable())
     }
 }
 

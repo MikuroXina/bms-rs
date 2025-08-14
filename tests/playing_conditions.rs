@@ -1,7 +1,7 @@
 use bms_rs::bms::{
     Decimal,
     command::ObjId,
-    lex::{BmsLexOutput, parse_lex_tokens, token::Token},
+    lex::{BmsLexOutput, TokenStream, token::Token},
     parse::{
         BmsParseOutput,
         check_playing::{PlayingError, PlayingWarning},
@@ -19,7 +19,7 @@ fn test_playing_conditions_empty_bms() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -28,7 +28,7 @@ fn test_playing_conditions_empty_bms() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -47,7 +47,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -56,7 +56,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -72,16 +72,17 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     assert!(
         !tokens
+            .tokens()
             .iter()
             .any(|t| matches!(&t.content(), Token::Bpm(bpm) if bpm == &Decimal::from(120)))
     );
     let obj_id = ObjId::try_from("08").unwrap();
-    assert!(tokens.iter().any(
+    assert!(tokens.tokens().iter().any(
         |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
@@ -91,7 +92,7 @@ fn test_playing_conditions_with_bpm_change_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -111,7 +112,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
@@ -120,7 +121,7 @@ fn test_playing_conditions_invisible_notes_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
