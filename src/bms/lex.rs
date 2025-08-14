@@ -9,7 +9,10 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
+use crate::bms::command::{
+    channel::read_channel_beat,
+    mixin::{SourcePosMixin, SourcePosMixinExt},
+};
 
 use self::{
     cursor::Cursor,
@@ -54,35 +57,75 @@ pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct BmsLexOutput<'a> {
     /// tokens
-    pub tokens: Vec<TokenWithPos<'a>>,
+    pub tokens: TokenStream<'a>,
     /// warnings
     pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
 }
 
-/// Analyzes and converts the BMS format text into [`TokenStream`].
-pub fn parse_lex_tokens<'a>(source: &'a str) -> BmsLexOutput<'a> {
-    let mut cursor = Cursor::new(source);
+/// A list of tokens.
+/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct TokenStream<'a> {
+    /// The tokens.
+    pub tokens: Vec<TokenWithPos<'a>>,
+}
 
-    let mut tokens = vec![];
-    let mut warnings = vec![];
-    while !cursor.is_end() {
-        match Token::parse(&mut cursor) {
-            Ok(content) => tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col())),
-            Err(warning) => warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col())),
-        };
+impl<'a> TokenStream<'a> {
+    /// Returns a slice of tokens.
+    pub fn tokens(&self) -> &[TokenWithPos<'a>] {
+        &self.tokens
     }
 
-    let case_sensitive = tokens
-        .iter()
-        .any(|token| matches!(token.content(), Token::Base62));
-    if !case_sensitive {
-        for token in &mut tokens {
-            token.content_mut().make_id_uppercase();
+    /// Returns a mutable slice of tokens.
+    pub fn tokens_mut(&mut self) -> &mut [TokenWithPos<'a>] {
+        &mut self.tokens
+    }
+
+    /// Analyzes and converts the BMS format text into [`TokenStream`].
+    /// Use this function when you want to parse the BMS format text with a custom channel parser.
+    pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {
+        let mut cursor = Cursor::new(source);
+        let channel_parser = read_channel_beat;
+
+        let mut tokens = vec![];
+        let mut warnings = vec![];
+        while !cursor.is_end() {
+            match Token::parse(&mut cursor, channel_parser) {
+                Ok(content) => {
+                    tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
+                }
+                Err(warning) => {
+                    warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))
+                }
+            };
+        }
+
+        let case_sensitive = tokens
+            .iter()
+            .any(|token| matches!(token.content(), Token::Base62));
+        if !case_sensitive {
+            for token in &mut tokens {
+                token.content_mut().make_id_uppercase();
+            }
+        }
+        BmsLexOutput {
+            tokens: TokenStream { tokens },
+            lex_warnings: warnings,
         }
     }
-    BmsLexOutput {
-        tokens,
-        lex_warnings: warnings,
+}
+
+impl<'a> std::ops::Deref for TokenStream<'a> {
+    type Target = Vec<TokenWithPos<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.tokens
+    }
+}
+
+impl<'a> std::ops::DerefMut for TokenStream<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tokens
     }
 }
 
@@ -92,16 +135,13 @@ mod tests {
 
     use fraction::{GenericDecimal, GenericFraction};
 
-    use crate::{
-        bms::{
-            command::{
-                JudgeLevel, PlayerMode,
-                channel::{Channel, NoteKind, PlayerSide},
-                time::Track,
-            },
-            lex::{BmsLexOutput, parse_lex_tokens, token::Token::*},
+    use crate::bms::{
+        command::{
+            JudgeLevel, PlayerMode,
+            channel::{Channel, Key, NoteKind, PlayerSide},
+            time::Track,
         },
-        command::channel::Key,
+        lex::{BmsLexOutput, TokenStream, token::Token::*},
     };
 
     #[test]
@@ -131,12 +171,14 @@ mod tests {
         let BmsLexOutput {
             tokens,
             lex_warnings: warnings,
-        } = parse_lex_tokens(SRC);
+        } = TokenStream::parse_lex(SRC);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(
             tokens
-                .into_iter()
+                .tokens()
+                .iter()
+                .cloned()
                 .map(|t| t.content().clone())
                 .collect::<Vec<_>>(),
             vec![

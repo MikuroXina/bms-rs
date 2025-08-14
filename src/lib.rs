@@ -25,19 +25,19 @@
 //!
 //! For more control over the parsing process, you can use the individual steps:
 //!
-//! At first, you can get the tokens stream with [`bms::lex::parse_lex_tokens`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
+//! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::prelude::*;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
-//! let BmsLexOutput { tokens, lex_warnings } = parse_lex_tokens(&source);
+//! let BmsLexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let rng = RandRng(StdRng::seed_from_u64(42));
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
-//!     &tokens, rng, AlwaysWarnAndUseOlder
+//!     tokens.tokens(), rng, AlwaysWarnAndUseOlder
 //!     );
 //! assert_eq!(parse_warnings, vec![]);
 //! assert_eq!(playing_warnings, vec![]);

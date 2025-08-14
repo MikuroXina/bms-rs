@@ -96,7 +96,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     let BmsLexOutput {
         tokens,
         lex_warnings,
-    } = lex::parse_lex_tokens(source);
+    } = lex::TokenStream::parse_lex(source);
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings
@@ -111,7 +111,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, parse::prompt::AlwaysWarnAndUseOlder);
 
     // Convert parse warnings to BmsWarning
     warnings.extend(
