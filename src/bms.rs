@@ -106,12 +106,13 @@ pub fn parse_bms(source: &str) -> BmsOutput {
 
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
+    // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let BmsParseOutput {
         bms,
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(tokens.tokens(), rng, parse::prompt::AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(tokens.tokens(), rng, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert parse warnings to BmsWarning
     warnings.extend(
