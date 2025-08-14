@@ -12,8 +12,9 @@ pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode
 // Re-export from command submodules
 pub use super::command::{
     channel::{
-        Channel, Key, ModeKeyChannel, NoteKind, PlayerSide, convert_key_channel_between,
-        read_channel_beat,
+        Channel, Key, KeyChannelMode, KeyChannelModeBeat, KeyChannelModeBeatNanasi,
+        KeyChannelModeDscOctFp, KeyChannelModePms, KeyChannelModePmsBmeType, NoteKind, PlayerSide,
+        convert_key_channel_between, read_channel_beat,
     },
     graphics::{Argb, PixelPoint, PixelSize, Rgb},
     time::{ObjTime, Track},

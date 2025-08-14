@@ -178,142 +178,196 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     Some(Channel::Note { kind, side, key })
 }
 
-/// Key channel family for different key mapping schemes.
+/// Trait for key channel mode implementations.
 ///
-/// Mappings used by each family:
-/// - Beat:
+/// This trait defines the interface for converting between different key channel modes
+/// and the standard Beat mode. Each mode implementation should provide methods to
+/// convert from its own format to Beat format and vice versa.
+pub trait KeyChannelMode {
+    /// Convert from this mode's format to Beat mode format.
+    ///
+    /// This method takes a (PlayerSide, Key) pair in this mode's format and converts
+    /// it to the equivalent (PlayerSide, Key) pair in Beat mode format.
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key);
+
+    /// Convert from Beat mode format to this mode's format.
+    ///
+    /// This method takes a (PlayerSide, Key) pair in Beat mode format and converts
+    /// it to the equivalent (PlayerSide, Key) pair in this mode's format.
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key);
+}
+
+/// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
+/// It is the default type of key parsing.
+///
+/// - Lanes:
 ///   - Chars: '1'..'7','6' scratch, '7' free zone, '8'->Key6, '9'->Key7
-///   - Char -> (PlayerSide, Key):
-///     - '1'..'5' => (Player1, Key1..Key5), '6' => (Player1, Scratch),
-///       '7' => (Player1, FreeZone), '8' => (Player1, Key6), '9' => (Player1, Key7)
-/// - PmsBmeType:
-///   - Beat -> this: Scratch=>Key8, FreeZone=>Key9 (others unchanged)
-///   - This -> Beat: Key8=>Scratch, Key9=>FreeZone (others unchanged)
-/// - Pms:
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeBeat;
+
+/// PMS BME-type, supports 9K/18K.
+///
+/// - Lanes:
+///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModePmsBmeType;
+
+/// PMS
+///   
+/// - Lanes:
 ///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
 ///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
-/// - BeatNanasi:
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModePms;
+
+/// Beat nanasi/angolmois
+///
+/// - Lanes:
 ///   - Beat -> this: FreeZone=>FootPedal
 ///   - This -> Beat: FootPedal=>FreeZone
-/// - DscOctFp:
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeBeatNanasi;
+
+/// DSC & OCT/FP
+///   
+/// - Lanes:
 ///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
 ///   - This -> Beat: reverse of above
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModeKeyChannel {
-    /// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
-    /// It is the default type of key parsing.
-    Beat,
-    /// PMS BME-type, supports 9K/18K.
-    PmsBmeType,
-    /// PMS
-    Pms,
-    /// Beat nanasi/angolmois
-    BeatNanasi,
-    /// DSC & OCT/FP
-    DscOctFp,
-}
+pub struct KeyChannelModeDscOctFp;
 
-impl ModeKeyChannel {
-    fn to_beat(self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
-        use Key::*;
-        use ModeKeyChannel::*;
-        use PlayerSide::*;
-        match self {
-            Beat => (side, key),
-            PmsBmeType => {
-                let key = match key {
-                    Key8 => Scratch,
-                    Key9 => FreeZone,
-                    other => other,
-                };
-                (side, key)
-            }
-            Pms => {
-                let (side, key) = (side, key);
-                match key {
-                    Key1 | Key2 | Key3 | Key4 | Key5 => (Player1, key),
-                    Key6 => (Player2, Key2),
-                    Key7 => (Player2, Key3),
-                    Key8 => (Player2, Key4),
-                    Key9 => (Player2, Key5),
-                    other => (side, other),
-                }
-            }
-            BeatNanasi => {
-                let key = match key {
-                    FootPedal => FreeZone,
-                    other => other,
-                };
-                (side, key)
-            }
-            DscOctFp => match (side, key) {
-                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
-                    (Player1, k)
-                }
-                (Player1, ScratchExtra) => (Player2, Scratch),
-                (Player1, FootPedal) => (Player2, Key1),
-                (Player1, Key8) => (Player2, Key2),
-                (Player1, Key9) => (Player2, Key3),
-                (Player1, Key10) => (Player2, Key4),
-                (Player1, Key11) => (Player2, Key5),
-                (Player1, Key12) => (Player2, Key6),
-                (Player1, Key13) => (Player2, Key7),
-                other => other,
-            },
-        }
+impl KeyChannelMode for KeyChannelModeBeat {
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        (side, key)
     }
 
-    fn map_from_beat(self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        (side, key)
+    }
+}
+
+impl KeyChannelMode for KeyChannelModePmsBmeType {
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
         use Key::*;
-        use ModeKeyChannel::*;
-        use PlayerSide::*;
-        match self {
-            Beat => (side, key),
-            PmsBmeType => match key {
-                Scratch => (side, Key8),
-                FreeZone => (side, Key9),
-                other => (side, other),
-            },
-            Pms => match (side, key) {
-                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5)) => (Player1, k),
-                (Player2, Key2) => (Player1, Key6),
-                (Player2, Key3) => (Player1, Key7),
-                (Player2, Key4) => (Player1, Key8),
-                (Player2, Key5) => (Player1, Key9),
-                other => other,
-            },
-            BeatNanasi => match key {
-                FreeZone => (side, FootPedal),
-                other => (side, other),
-            },
-            DscOctFp => match (side, key) {
-                (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
-                    (Player1, k)
-                }
-                (Player2, Key1) => (Player1, FootPedal),
-                (Player2, Key2) => (Player1, Key8),
-                (Player2, Key3) => (Player1, Key9),
-                (Player2, Key4) => (Player1, Key10),
-                (Player2, Key5) => (Player1, Key11),
-                (Player2, Key6) => (Player1, Key12),
-                (Player2, Key7) => (Player1, Key13),
-                (Player2, Scratch) => (Player1, ScratchExtra),
-                other => other,
-            },
+        let key = match key {
+            Key8 => Scratch,
+            Key9 => FreeZone,
+            other => other,
+        };
+        (side, key)
+    }
+
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        match key {
+            Scratch => (side, Key8),
+            FreeZone => (side, Key9),
+            other => (side, other),
         }
     }
 }
 
-/// Convert (side, key) from source channel family into destination channel family.
+impl KeyChannelMode for KeyChannelModePms {
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        use PlayerSide::*;
+        match key {
+            Key1 | Key2 | Key3 | Key4 | Key5 => (Player1, key),
+            Key6 => (Player2, Key2),
+            Key7 => (Player2, Key3),
+            Key8 => (Player2, Key4),
+            Key9 => (Player2, Key5),
+            other => (side, other),
+        }
+    }
+
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        use PlayerSide::*;
+        match (side, key) {
+            (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5)) => (Player1, k),
+            (Player2, Key2) => (Player1, Key6),
+            (Player2, Key3) => (Player1, Key7),
+            (Player2, Key4) => (Player1, Key8),
+            (Player2, Key5) => (Player1, Key9),
+            other => other,
+        }
+    }
+}
+
+impl KeyChannelMode for KeyChannelModeBeatNanasi {
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        let key = match key {
+            FootPedal => FreeZone,
+            other => other,
+        };
+        (side, key)
+    }
+
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        match key {
+            FreeZone => (side, FootPedal),
+            other => (side, other),
+        }
+    }
+}
+
+impl KeyChannelMode for KeyChannelModeDscOctFp {
+    fn to_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        use PlayerSide::*;
+        match (side, key) {
+            (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
+                (Player1, k)
+            }
+            (Player1, ScratchExtra) => (Player2, Scratch),
+            (Player1, FootPedal) => (Player2, Key1),
+            (Player1, Key8) => (Player2, Key2),
+            (Player1, Key9) => (Player2, Key3),
+            (Player1, Key10) => (Player2, Key4),
+            (Player1, Key11) => (Player2, Key5),
+            (Player1, Key12) => (Player2, Key6),
+            (Player1, Key13) => (Player2, Key7),
+            other => other,
+        }
+    }
+
+    fn map_from_beat(&mut self, side: PlayerSide, key: Key) -> (PlayerSide, Key) {
+        use Key::*;
+        use PlayerSide::*;
+        match (side, key) {
+            (Player1, k @ (Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch)) => {
+                (Player1, k)
+            }
+            (Player2, Key1) => (Player1, FootPedal),
+            (Player2, Key2) => (Player1, Key8),
+            (Player2, Key3) => (Player1, Key9),
+            (Player2, Key4) => (Player1, Key10),
+            (Player2, Key5) => (Player1, Key11),
+            (Player2, Key6) => (Player1, Key12),
+            (Player2, Key7) => (Player1, Key13),
+            (Player2, Scratch) => (Player1, ScratchExtra),
+            other => other,
+        }
+    }
+}
+
+/// Convert a key/channel between two different key channel modes.
+///
+/// This function takes two key channel modes and a (PlayerSide, Key) pair,
+/// and converts it to the equivalent (PlayerSide, Key) pair in the destination mode.
 pub fn convert_key_channel_between(
-    src: ModeKeyChannel,
-    dst: ModeKeyChannel,
+    src: &mut impl KeyChannelMode,
+    dst: &mut impl KeyChannelMode,
     side: PlayerSide,
     key: Key,
 ) -> (PlayerSide, Key) {
     let (side, key) = src.to_beat(side, key);
     dst.map_from_beat(side, key)
 }
+
 /// A kind of the note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
