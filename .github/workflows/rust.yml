@@ -31,6 +31,8 @@ jobs:
         run: cargo clippy --verbose --all-features
       - name: Test crate
         run: cargo test --verbose --all-features
+      - name: Format Check
+        run: cargo fmt --check
 
       - if: matrix.os == 'ubuntu-latest'
         name: cargo-deny
