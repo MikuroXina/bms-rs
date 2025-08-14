@@ -15,7 +15,9 @@ use thiserror::Error;
 use crate::bms::{
     command::{
         ObjId,
+        channel::Channel,
         mixin::{SourcePosMixin, SourcePosMixinExt},
+        time::{ObjTime, Track},
     },
     lex::token::TokenWithPos,
     parse::random::parse_control_flow,
@@ -43,14 +45,14 @@ pub enum ParseWarning {
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
     /// Has duplicated definition, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("duplicating definition")]
-    DuplicatingDef,
+    #[error("duplicating definition: {0}")]
+    DuplicatingDef(ObjId),
     /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("duplicating track object")]
-    DuplicatingTrackObj,
+    #[error("duplicating track object: {0} {1}")]
+    DuplicatingTrackObj(Track, Channel),
     /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("duplicating channel object")]
-    DuplicatingChannelObj,
+    #[error("duplicating channel object: {0} {1}")]
+    DuplicatingChannelObj(ObjTime, Channel),
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,

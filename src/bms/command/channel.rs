@@ -87,6 +87,54 @@ pub enum Channel {
     Option,
 }
 
+impl std::fmt::Display for Channel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Channel: ")?;
+        match self {
+            Channel::BgaBase => write!(f, "BGA"),
+            Channel::BgaLayer => write!(f, "BGA_LAYER"),
+            Channel::BgaPoor => write!(f, "BGA_POOR"),
+            Channel::Bgm => write!(f, "BGM"),
+            Channel::BpmChangeU8 => write!(f, "BPM_CHANGE_U8"),
+            Channel::BpmChange => write!(f, "BPM_CHANGE"),
+            #[cfg(feature = "minor-command")]
+            Channel::ChangeOption => write!(f, "CHANGE_OPTION"),
+            Channel::Note { .. } => write!(f, "NOTE"),
+            Channel::SectionLen => write!(f, "SECTION_LEN"),
+            Channel::Stop => write!(f, "STOP"),
+            Channel::Scroll => write!(f, "SCROLL"),
+            Channel::Speed => write!(f, "SPEED"),
+            #[cfg(feature = "minor-command")]
+            Channel::Seek => write!(f, "SEEK"),
+            Channel::BgaLayer2 => write!(f, "BGA_LAYER2"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseOpacity => write!(f, "BGA_BASE_OPACITY"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerOpacity => write!(f, "BGA_LAYER_OPACITY"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Opacity => write!(f, "BGA_LAYER2_OPACITY"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorOpacity => write!(f, "BGA_POOR_OPACITY"),
+            Channel::BgmVolume => write!(f, "BGM_VOLUME"),
+            Channel::KeyVolume => write!(f, "KEY_VOLUME"),
+            Channel::Text => write!(f, "TEXT"),
+            Channel::Judge => write!(f, "JUDGE"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseArgb => write!(f, "BGA_BASE_ARGB"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerArgb => write!(f, "BGA_LAYER_ARGB"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Argb => write!(f, "BGA_LAYER2_ARGB"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorArgb => write!(f, "BGA_POOR_ARGB"),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaKeybound => write!(f, "BGA_KEYBOUND"),
+            #[cfg(feature = "minor-command")]
+            Channel::Option => write!(f, "OPTION"),
+        }
+    }
+}
+
 /// A kind of the note.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

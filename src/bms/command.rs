@@ -117,6 +117,12 @@ impl std::fmt::Debug for ObjId {
     }
 }
 
+impl std::fmt::Display for ObjId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ObjId: {}{}", self.0[0] as char, self.0[1] as char)
+    }
+}
+
 impl TryFrom<[char; 2]> for ObjId {
     type Error = [char; 2];
     fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {

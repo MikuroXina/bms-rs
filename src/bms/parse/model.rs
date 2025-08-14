@@ -339,12 +339,15 @@ impl Bms {
                 };
                 if let Some(older) = self.scope_defines.atbga_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::AtBga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::AtBga {
+                                id: *id,
+                                older,
+                                newer: &to_insert,
+                            },
+                            *id,
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.scope_defines.atbga_defs.insert(*id, to_insert);
                 }
@@ -368,12 +371,15 @@ impl Bms {
                 };
                 if let Some(older) = self.scope_defines.bga_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Bga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::Bga {
+                                id: *id,
+                                older,
+                                newer: &to_insert,
+                            },
+                            *id,
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.scope_defines.bga_defs.insert(*id, to_insert);
                 }
@@ -392,12 +398,15 @@ impl Bms {
                 };
                 if let Some(older) = self.graphics.bmp_files.get_mut(&id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
+                        .handle_def_duplication(
+                            DefDuplication::Bmp {
+                                id,
+                                older,
+                                newer: &to_insert,
+                            },
                             id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.graphics.bmp_files.insert(id, to_insert);
                 }
@@ -408,12 +417,15 @@ impl Bms {
             Token::BpmChange(id, bpm) => {
                 if let Some(older) = self.scope_defines.bpm_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::BpmChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: bpm.clone(),
-                        })
-                        .apply(older, bpm.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::BpmChange {
+                                id: *id,
+                                older: older.clone(),
+                                newer: bpm.clone(),
+                            },
+                            *id,
+                        )
+                        .apply(older, bpm.clone())?;
                 } else {
                     self.scope_defines.bpm_defs.insert(*id, bpm.clone());
                 }
@@ -422,12 +434,15 @@ impl Bms {
             Token::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::ChangeOption {
-                            id: *id,
-                            older,
-                            newer: option,
-                        })
-                        .apply(older, option.to_string(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::ChangeOption {
+                                id: *id,
+                                older,
+                                newer: option,
+                            },
+                            *id,
+                        )
+                        .apply(older, option.to_string())?;
                 } else {
                     self.others.change_options.insert(*id, option.to_string());
                 }
@@ -446,12 +461,15 @@ impl Bms {
                 };
                 if let Some(older) = self.graphics.bmp_files.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::Bmp {
+                                id: *id,
+                                older,
+                                newer: &to_insert,
+                            },
+                            *id,
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.graphics.bmp_files.insert(*id, to_insert);
                 }
@@ -463,12 +481,15 @@ impl Bms {
                 };
                 if let Some(older) = self.scope_defines.exrank_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::ExRank {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::ExRank {
+                                id: *id,
+                                older,
+                                newer: &to_insert,
+                            },
+                            *id,
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.scope_defines.exrank_defs.insert(*id, to_insert);
                 }
@@ -490,12 +511,15 @@ impl Bms {
                 };
                 if let Some(older) = self.scope_defines.exwav_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::ExWav {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply(older, to_insert, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::ExWav {
+                                id: *id,
+                                older,
+                                newer: &to_insert,
+                            },
+                            *id,
+                        )
+                        .apply(older, to_insert)?;
                 } else {
                     self.scope_defines.exwav_defs.insert(*id, to_insert);
                 }
@@ -526,12 +550,15 @@ impl Bms {
             Token::Scroll(id, factor) => {
                 if let Some(older) = self.scope_defines.scroll_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::ScrollingFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply(older, factor.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::ScrollingFactorChange {
+                                id: *id,
+                                older: older.clone(),
+                                newer: factor.clone(),
+                            },
+                            *id,
+                        )
+                        .apply(older, factor.clone())?;
                 } else {
                     self.scope_defines.scroll_defs.insert(*id, factor.clone());
                 }
@@ -539,12 +566,15 @@ impl Bms {
             Token::Speed(id, factor) => {
                 if let Some(older) = self.scope_defines.speed_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::SpeedFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply(older, factor.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::SpeedFactorChange {
+                                id: *id,
+                                older: older.clone(),
+                                newer: factor.clone(),
+                            },
+                            *id,
+                        )
+                        .apply(older, factor.clone())?;
                 } else {
                     self.scope_defines.speed_defs.insert(*id, factor.clone());
                 }
@@ -553,12 +583,15 @@ impl Bms {
             Token::Stop(id, len) => {
                 if let Some(older) = self.scope_defines.stop_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Stop {
-                            id: *id,
-                            older: older.clone(),
-                            newer: len.clone(),
-                        })
-                        .apply(older, len.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::Stop {
+                                id: *id,
+                                older: older.clone(),
+                                newer: len.clone(),
+                            },
+                            *id,
+                        )
+                        .apply(older, len.clone())?;
                 } else {
                     self.scope_defines.stop_defs.insert(*id, len.clone());
                 }
@@ -568,12 +601,15 @@ impl Bms {
             Token::Text(id, text) => {
                 if let Some(older) = self.others.texts.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Text {
-                            id: *id,
-                            older,
-                            newer: text,
-                        })
-                        .apply(older, text.to_string(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::Text {
+                                id: *id,
+                                older,
+                                newer: text,
+                            },
+                            *id,
+                        )
+                        .apply(older, text.to_string())?;
                 } else {
                     self.others.texts.insert(*id, text.to_string());
                 }
@@ -588,12 +624,15 @@ impl Bms {
             Token::Wav(id, path) => {
                 if let Some(older) = self.notes.wav_files.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::Wav {
-                            id: *id,
-                            older,
-                            newer: path,
-                        })
-                        .apply(older, path.into(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::Wav {
+                                id: *id,
+                                older,
+                                newer: path,
+                            },
+                            *id,
+                        )
+                        .apply(older, path.into())?;
                 } else {
                     self.notes.wav_files.insert(*id, path.into());
                 }
@@ -604,12 +643,16 @@ impl Bms {
                 let key = ev.time;
                 if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
                     prompt_handler
-                        .handle_channel_duplication(ChannelDuplication::StpEvent {
-                            time: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply(older, *ev, ParseWarning::DuplicatingChannelObj)?;
+                        .handle_channel_duplication(
+                            ChannelDuplication::StpEvent {
+                                time: key,
+                                older,
+                                newer: ev,
+                            },
+                            key,
+                            Channel::Stop,
+                        )
+                        .apply(older, *ev)?;
                 } else {
                     self.arrangers.stp_events.insert(key, *ev);
                 }
@@ -620,12 +663,15 @@ impl Bms {
                 let key = ev.wav_index;
                 if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::WavCmdEvent {
-                            wav_index: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply(older, *ev, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::WavCmdEvent {
+                                wav_index: key,
+                                older,
+                                newer: ev,
+                            },
+                            key,
+                        )
+                        .apply(older, *ev)?;
                 } else {
                     self.scope_defines.wavcmd_events.insert(key, *ev);
                 }
@@ -634,12 +680,15 @@ impl Bms {
             Token::SwBga(id, ev) => {
                 if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::SwBgaEvent {
-                            id: *id,
-                            older,
-                            newer: ev,
-                        })
-                        .apply(older, ev.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::SwBgaEvent {
+                                id: *id,
+                                older,
+                                newer: ev,
+                            },
+                            *id,
+                        )
+                        .apply(older, ev.clone())?;
                 } else {
                     self.scope_defines.swbga_events.insert(*id, ev.clone());
                 }
@@ -648,12 +697,15 @@ impl Bms {
             Token::Argb(id, argb) => {
                 if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::BgaArgb {
-                            id: *id,
-                            older,
-                            newer: argb,
-                        })
-                        .apply(older, *argb, ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::BgaArgb {
+                                id: *id,
+                                older,
+                                newer: argb,
+                            },
+                            *id,
+                        )
+                        .apply(older, *argb)?;
                 } else {
                     self.scope_defines.argb_defs.insert(*id, *argb);
                 }
@@ -662,12 +714,15 @@ impl Bms {
             Token::Seek(id, v) => {
                 if let Some(older) = self.others.seek_events.get_mut(id) {
                     prompt_handler
-                        .handle_def_duplication(DefDuplication::SeekEvent {
-                            id: *id,
-                            older,
-                            newer: v,
-                        })
-                        .apply(older, v.clone(), ParseWarning::DuplicatingDef)?;
+                        .handle_def_duplication(
+                            DefDuplication::SeekEvent {
+                                id: *id,
+                                older,
+                                newer: v,
+                            },
+                            *id,
+                        )
+                        .apply(older, v.clone())?;
                 } else {
                     self.others.seek_events.insert(*id, v.clone());
                 }
@@ -1256,16 +1311,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {
-                        time: bpm_change.time,
-                        older: existing,
-                        newer: &bpm_change,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        bpm_change,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::BpmChangeEvent {
+                            time: bpm_change.time,
+                            older: existing,
+                            newer: &bpm_change,
+                        },
+                        bpm_change.time,
+                        Channel::BpmChange,
                     )
+                    .apply(entry.get_mut(), bpm_change)
             }
         }
     }
@@ -1288,16 +1343,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::ScrollingFactorChangeEvent {
-                        time: scrolling_factor_change.time,
-                        older: existing,
-                        newer: &scrolling_factor_change,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        scrolling_factor_change,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::ScrollingFactorChangeEvent {
+                            time: scrolling_factor_change.time,
+                            older: existing,
+                            newer: &scrolling_factor_change,
+                        },
+                        scrolling_factor_change.time,
+                        Channel::Scroll,
                     )
+                    .apply(entry.get_mut(), scrolling_factor_change)
             }
         }
     }
@@ -1317,16 +1372,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::SpeedFactorChangeEvent {
-                        time: speed_factor_change.time,
-                        older: existing,
-                        newer: &speed_factor_change,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        speed_factor_change,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::SpeedFactorChangeEvent {
+                            time: speed_factor_change.time,
+                            older: existing,
+                            newer: &speed_factor_change,
+                        },
+                        speed_factor_change.time,
+                        Channel::Speed,
                     )
+                    .apply(entry.get_mut(), speed_factor_change)
             }
         }
     }
@@ -1346,16 +1401,16 @@ impl Arrangers {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_track_duplication(TrackDuplication::SectionLenChangeEvent {
-                        track: section_len_change.track,
-                        older: existing,
-                        newer: &section_len_change,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        section_len_change,
-                        ParseWarning::DuplicatingTrackObj,
+                    .handle_track_duplication(
+                        TrackDuplication::SectionLenChangeEvent {
+                            track: section_len_change.track,
+                            older: existing,
+                            newer: &section_len_change,
+                        },
+                        section_len_change.track,
+                        Channel::SectionLen,
                     )
+                    .apply(entry.get_mut(), section_len_change)
             }
         }
     }
@@ -1392,12 +1447,21 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BgaChangeEvent {
-                        time: bga.time,
-                        older: existing,
-                        newer: &bga,
-                    })
-                    .apply(entry.get_mut(), bga, ParseWarning::DuplicatingChannelObj)
+                    .handle_channel_duplication(
+                        ChannelDuplication::BgaChangeEvent {
+                            time: bga.time,
+                            older: existing,
+                            newer: &bga,
+                        },
+                        bga.time,
+                        match bga.layer {
+                            BgaLayer::Base => Channel::BgaBase,
+                            BgaLayer::Overlay => Channel::BgaLayer,
+                            BgaLayer::Overlay2 => Channel::BgaLayer2,
+                            BgaLayer::Poor => Channel::BgaPoor,
+                        },
+                    )
+                    .apply(entry.get_mut(), bga)
             }
         }
     }
@@ -1422,16 +1486,21 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BgaOpacityChangeEvent {
-                        time: opacity_obj.time,
-                        older: existing,
-                        newer: &opacity_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        opacity_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::BgaOpacityChangeEvent {
+                            time: opacity_obj.time,
+                            older: existing,
+                            newer: &opacity_obj,
+                        },
+                        opacity_obj.time,
+                        match opacity_obj.layer {
+                            BgaLayer::Base => Channel::BgaBase,
+                            BgaLayer::Overlay => Channel::BgaLayer,
+                            BgaLayer::Overlay2 => Channel::BgaLayer2,
+                            BgaLayer::Poor => Channel::BgaPoor,
+                        },
                     )
+                    .apply(entry.get_mut(), opacity_obj)
             }
         }
     }
@@ -1453,16 +1522,21 @@ impl Graphics {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BgaArgbChangeEvent {
-                        time: argb_obj.time,
-                        older: existing,
-                        newer: &argb_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        argb_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::BgaArgbChangeEvent {
+                            time: argb_obj.time,
+                            older: existing,
+                            newer: &argb_obj,
+                        },
+                        argb_obj.time,
+                        match argb_obj.layer {
+                            BgaLayer::Base => Channel::BgaBase,
+                            BgaLayer::Overlay => Channel::BgaLayer,
+                            BgaLayer::Overlay2 => Channel::BgaLayer2,
+                            BgaLayer::Poor => Channel::BgaPoor,
+                        },
                     )
+                    .apply(entry.get_mut(), argb_obj)
             }
         }
     }
@@ -1569,16 +1643,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BgmVolumeChangeEvent {
-                        time: volume_obj.time,
-                        older: existing,
-                        newer: &volume_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        volume_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::BgmVolumeChangeEvent {
+                            time: volume_obj.time,
+                            older: existing,
+                            newer: &volume_obj,
+                        },
+                        volume_obj.time,
+                        Channel::BgmVolume,
                     )
+                    .apply(entry.get_mut(), volume_obj)
             }
         }
     }
@@ -1598,16 +1672,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::KeyVolumeChangeEvent {
-                        time: volume_obj.time,
-                        older: existing,
-                        newer: &volume_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        volume_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::KeyVolumeChangeEvent {
+                            time: volume_obj.time,
+                            older: existing,
+                            newer: &volume_obj,
+                        },
+                        volume_obj.time,
+                        Channel::KeyVolume,
                     )
+                    .apply(entry.get_mut(), volume_obj)
             }
         }
     }
@@ -1628,16 +1702,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::SeekMessageEvent {
-                        time: seek_obj.time,
-                        older: existing,
-                        newer: &seek_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        seek_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::SeekMessageEvent {
+                            time: seek_obj.time,
+                            older: existing,
+                            newer: &seek_obj,
+                        },
+                        seek_obj.time,
+                        Channel::Seek,
                     )
+                    .apply(entry.get_mut(), seek_obj)
             }
         }
     }
@@ -1657,16 +1731,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::TextEvent {
-                        time: text_obj.time,
-                        older: existing,
-                        newer: &text_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        text_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::TextEvent {
+                            time: text_obj.time,
+                            older: existing,
+                            newer: &text_obj,
+                        },
+                        text_obj.time,
+                        Channel::Text,
                     )
+                    .apply(entry.get_mut(), text_obj)
             }
         }
     }
@@ -1686,16 +1760,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::JudgeEvent {
-                        time: judge_obj.time,
-                        older: existing,
-                        newer: &judge_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        judge_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::JudgeEvent {
+                            time: judge_obj.time,
+                            older: existing,
+                            newer: &judge_obj,
+                        },
+                        judge_obj.time,
+                        Channel::Judge,
                     )
+                    .apply(entry.get_mut(), judge_obj)
             }
         }
     }
@@ -1716,16 +1790,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::BgaKeyboundEvent {
-                        time: keybound_obj.time,
-                        older: existing,
-                        newer: &keybound_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        keybound_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::BgaKeyboundEvent {
+                            time: keybound_obj.time,
+                            older: existing,
+                            newer: &keybound_obj,
+                        },
+                        keybound_obj.time,
+                        Channel::BgaKeybound,
                     )
+                    .apply(entry.get_mut(), keybound_obj)
             }
         }
     }
@@ -1746,16 +1820,16 @@ impl Notes {
                 let existing = entry.get();
 
                 prompt_handler
-                    .handle_channel_duplication(ChannelDuplication::OptionEvent {
-                        time: option_obj.time,
-                        older: existing,
-                        newer: &option_obj,
-                    })
-                    .apply(
-                        entry.get_mut(),
-                        option_obj,
-                        ParseWarning::DuplicatingChannelObj,
+                    .handle_channel_duplication(
+                        ChannelDuplication::OptionEvent {
+                            time: option_obj.time,
+                            older: existing,
+                            newer: &option_obj,
+                        },
+                        option_obj.time,
+                        Channel::Option,
                     )
+                    .apply(entry.get_mut(), option_obj)
             }
         }
     }
