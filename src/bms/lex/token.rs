@@ -15,6 +15,7 @@ use crate::{
             JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
             graphics::Argb, time::Track,
         },
+        prelude::read_channel_beat,
     },
     command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
@@ -314,10 +315,8 @@ impl SourcePosMixinExt for Token<'_> {}
 pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(
-        c: &mut Cursor<'a>,
-        channel_parser: impl Fn(&str) -> Option<Channel>,
-    ) -> Result<Self> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+        let channel_parser = read_channel_beat;
         loop {
             let command = c
                 .next_token()
@@ -1322,7 +1321,6 @@ impl<'a> Token<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::bms::command::channel::read_channel_beat;
     #[cfg(feature = "minor-command")]
     use crate::bms::command::time::Track;
 
@@ -1330,13 +1328,12 @@ mod tests {
 
     fn parse_token(input: &'_ str) -> Token<'_> {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor, read_channel_beat).unwrap()
+        Token::parse(&mut cursor).unwrap()
     }
 
     #[test]
     fn test_exbmp() {
-        let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png")
-        else {
+        let Token::ExBmp(id, argb, path) = parse_token("#EXBMP01 255,0,0,0 exbmp.png") else {
             panic!("Not ExBmp");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1531,8 +1528,7 @@ mod tests {
     #[test]
     #[cfg(feature = "minor-command")]
     fn test_swbga() {
-        let Token::SwBga(id, ev) =
-            parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
+        let Token::SwBga(id, ev) = parse_token("#SWBGA01 100:400:16:0:255,255,255,255 01020304")
         else {
             panic!("Not SwBga");
         };

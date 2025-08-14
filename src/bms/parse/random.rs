@@ -24,7 +24,7 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::{ParseWarningWithPos, ParseWarning};
+use super::{ParseWarning, ParseWarningWithPos};
 use crate::{
     bms::{lex::token::TokenWithPos, parse::BmsParseTokenIter},
     command::mixin::SourcePosMixinExt,

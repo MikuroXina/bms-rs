@@ -7,7 +7,7 @@ use bms_rs::bms::{
         mixin::SourcePosMixinExt,
         time::{ObjTime, Track},
     },
-    lex::token::{TokenWithPos, Token},
+    lex::token::{Token, TokenWithPos},
     parse::{
         BmsParseOutput, ParseWarning,
         model::{Bms, def::Bmp},
