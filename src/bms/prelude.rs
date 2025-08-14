@@ -12,20 +12,18 @@ pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode
 // Re-export from command submodules
 pub use super::command::{
     channel::{
-        Channel, Key, NoteKind, PlayerSide, read_channel_beat, read_channel_beat_nanasi,
-        read_channel_dsc_oct_fp, read_channel_pms, read_channel_pms_bme_type,
+        Channel, Key, ModeKeyChannel, NoteKind, PlayerSide, convert_key_channel_between,
+        read_channel_beat,
     },
     graphics::{Argb, PixelPoint, PixelSize, Rgb},
     time::{ObjTime, Track},
 };
 
 // Re-export from lex module
-pub use super::lex::{
-    BmsLexOutput, LexWarning, parse_lex_tokens, parse_lex_tokens_with_channel_parser,
-};
+pub use super::lex::{BmsLexOutput, LexWarning, parse_lex_tokens};
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarningWithPos, ParseWarning};
+pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningWithPos};
 
 // Re-export from parse submodules
 pub use super::parse::{

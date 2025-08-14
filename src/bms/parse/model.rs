@@ -28,7 +28,7 @@ use crate::bms::{
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::{TokenWithPos, Token},
+    lex::token::{Token, TokenWithPos},
 };
 
 #[cfg(feature = "minor-command")]
@@ -518,9 +518,7 @@ impl Bms {
                 .options
                 .get_or_insert_with(Vec::new)
                 .push(option.to_string()),
-            Token::PathWav(wav_path_root) => {
-                self.notes.wav_path_root = Some(wav_path_root.into())
-            }
+            Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
@@ -565,9 +563,7 @@ impl Bms {
                     self.scope_defines.stop_defs.insert(*id, len.clone());
                 }
             }
-            Token::SubArtist(sub_artist) => {
-                self.header.sub_artist = Some(sub_artist.to_string())
-            }
+            Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
             Token::Text(id, text) => {
                 if let Some(older) = self.others.texts.get_mut(id) {
@@ -587,9 +583,7 @@ impl Bms {
                 self.header.total = Some(total.clone());
             }
             Token::Url(url) => self.header.url = Some(url.to_string()),
-            Token::VideoFile(video_file) => {
-                self.graphics.video_file = Some(video_file.into())
-            }
+            Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             Token::VolWav(volume) => self.header.volume = *volume,
             Token::Wav(id, path) => {
                 if let Some(older) = self.notes.wav_files.get_mut(id) {
@@ -717,16 +711,12 @@ impl Bms {
             } => {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
-                    let bpm = c1
-                        .to_digit(16)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Invalid hex digit: {c1}",
-                        )))?
-                        * 16
-                        + c2.to_digit(16)
-                            .ok_or(ParseWarning::SyntaxError(format!(
-                                "Invalid hex digit: {c2}",
-                            )))?;
+                    let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
+                        "Invalid hex digit: {c1}",
+                    )))? * 16
+                        + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
+                            "Invalid hex digit: {c2}",
+                        )))?;
                     if bpm == 0 {
                         continue;
                     }
@@ -803,9 +793,7 @@ impl Bms {
             } => {
                 let length = Decimal::from(Decimal::from_fraction(
                     GenericFraction::from_str(message).map_err(|_| {
-                        ParseWarning::SyntaxError(format!(
-                            "Invalid section length: {message}"
-                        ))
+                        ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
                     })?,
                 ));
                 if length <= Decimal::from(0u64) {
@@ -1112,11 +1100,12 @@ impl Bms {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or(
-                    ParseWarning::SyntaxError(format!(
-                        "Cannot find begin note for LNOBJ {end_id:?}"
-                    )),
-                )?;
+                let mut begin_note =
+                    self.notes
+                        .remove_latest_note(begin_id)
+                        .ok_or(ParseWarning::SyntaxError(format!(
+                            "Cannot find begin note for LNOBJ {end_id:?}"
+                        )))?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.notes.push_note(begin_note);
@@ -1148,9 +1137,7 @@ impl Bms {
                 self.arrangers.base_bpm = Some(generic_decimal.clone())
             }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
-            Token::UnknownCommand(line) => {
-                self.others.unknown_command_lines.push(line.to_string())
-            }
+            Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
             Token::Base62 | Token::Charset(_) => {
                 // Pass.
             }
