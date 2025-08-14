@@ -1154,7 +1154,7 @@ impl Bms {
             | Token::Def
             | Token::Skip
             | Token::EndSwitch => {
-                return Err(ParseWarning::UnexpectedControlFlow);
+                unreachable!()
             }
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => {

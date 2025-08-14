@@ -41,9 +41,6 @@ pub enum ParseWarning {
     /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
     #[error("parsing is warned by prompt handler")]
     PromptHandlerWarning,
-    /// Unexpected control flow.
-    #[error("unexpected control flow")]
-    UnexpectedControlFlow,
 }
 
 impl SourcePosMixinExt for ParseWarning {}
