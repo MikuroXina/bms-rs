@@ -3,13 +3,13 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, ObjId,
-        channel::{Key, NoteKind, PlayerSide},
+        channel::{Channel, Key, NoteKind, PlayerSide},
         time::{ObjTime, Track},
     },
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{channel::Channel, graphics::Argb, minor_command::SwBgaEvent};
+use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -186,18 +186,18 @@ impl BgaLayer {
     /// Convert a [`crate::bms::command::channel::Channel`] to a [`BgaLayer`].
     pub fn from_channel(channel: Channel) -> Option<Self> {
         match channel {
-            Channel::BgaBase | Channel::BgaBaseArgb | Channel::BgaBaseOpacity => {
-                Some(BgaLayer::Base)
-            }
-            Channel::BgaLayer | Channel::BgaLayerArgb | Channel::BgaLayerOpacity => {
-                Some(BgaLayer::Overlay)
-            }
-            Channel::BgaLayer2 | Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => {
-                Some(BgaLayer::Overlay2)
-            }
-            Channel::BgaPoor | Channel::BgaPoorArgb | Channel::BgaPoorOpacity => {
-                Some(BgaLayer::Poor)
-            }
+            Channel::BgaBase => Some(BgaLayer::Base),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(BgaLayer::Base),
+            Channel::BgaLayer => Some(BgaLayer::Overlay),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(BgaLayer::Overlay),
+            Channel::BgaLayer2 => Some(BgaLayer::Overlay2),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(BgaLayer::Overlay2),
+            Channel::BgaPoor => Some(BgaLayer::Poor),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(BgaLayer::Poor),
             _ => None,
         }
     }
