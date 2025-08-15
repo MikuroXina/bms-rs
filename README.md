@@ -140,5 +140,6 @@ assert_eq!(playing_errors, vec![]);
   - http://right-stick.sub.jp/lr2skinhelp.html
 - [Bemuse Extensions](https://bemuse.ninja/project/docs/bms-extensions/)
   - [For `#SCROLL`](https://hitkey.nekokan.dyndns.info/bmse_help_full/beat.html)
+  - `#EXT` support has been removed because of lack specification.
 - [Base62](https://docs.google.com/document/u/0/d/e/2PACX-1vTl8zOS3ukl5HpuNsBUlN8rn_ZaNdJSHb8a4se3Z3ap9Y6UJ1nB8LA3HnxWAk9kMTDp0j9orpg43-tl/pub)
 - [Beatoraja Extensions](https://github.com/exch-bms2/beatoraja/wiki/%E6%A5%BD%E6%9B%B2%E8%A3%BD%E4%BD%9C%E8%80%85%E5%90%91%E3%81%91%E8%B3%87%E6%96%99#bms%E6%8B%A1%E5%BC%B5%E5%AE%9A%E7%BE%A9)
