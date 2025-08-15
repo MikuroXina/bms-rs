@@ -37,8 +37,9 @@
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let rng = RandRng(StdRng::seed_from_u64(42));
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
-//!     tokens.tokens(), rng, AlwaysWarnAndUseOlder
+//!     tokens.tokens(), rng, AlwaysWarnAndUseNewer
 //!     );
+//! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);

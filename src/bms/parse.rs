@@ -12,9 +12,15 @@ use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use crate::{
-    bms::{command::ObjId, lex::token::TokenWithPos, parse::random::parse_control_flow},
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+use crate::bms::{
+    command::{
+        ObjId,
+        channel::Channel,
+        mixin::{SourcePosMixin, SourcePosMixinExt},
+        time::{ObjTime, Track},
+    },
+    lex::token::TokenWithPos,
+    parse::random::parse_control_flow,
 };
 
 use self::{
@@ -38,9 +44,15 @@ pub enum ParseWarning {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
-    /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("parsing is warned by prompt handler")]
-    PromptHandlerWarning,
+    /// Has duplicated definition, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating definition: {0}")]
+    DuplicatingDef(ObjId),
+    /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating track object: {0} {1}")]
+    DuplicatingTrackObj(Track, Channel),
+    /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating channel object: {0} {1}")]
+    DuplicatingChannelObj(ObjTime, Channel),
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,

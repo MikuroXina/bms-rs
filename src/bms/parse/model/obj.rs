@@ -3,13 +3,13 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, ObjId,
-        channel::{Key, NoteKind, PlayerSide},
+        channel::{Channel, Key, NoteKind, PlayerSide},
         time::{ObjTime, Track},
     },
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::{channel::Channel, graphics::Argb, minor_command::SwBgaEvent};
+use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -180,6 +180,37 @@ pub enum BgaLayer {
     ///
     /// This layer is layered over [`BgaLayer::Overlay`].
     Overlay2,
+}
+
+impl BgaLayer {
+    /// Convert a [`crate::bms::command::channel::Channel`] to a [`BgaLayer`].
+    pub fn from_channel(channel: Channel) -> Option<Self> {
+        match channel {
+            Channel::BgaBase => Some(BgaLayer::Base),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(BgaLayer::Base),
+            Channel::BgaLayer => Some(BgaLayer::Overlay),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(BgaLayer::Overlay),
+            Channel::BgaLayer2 => Some(BgaLayer::Overlay2),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(BgaLayer::Overlay2),
+            Channel::BgaPoor => Some(BgaLayer::Poor),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(BgaLayer::Poor),
+            _ => None,
+        }
+    }
+
+    /// Convert a [`BgaLayer`] to a [`crate::bms::command::channel::Channel`].
+    pub fn to_channel(self) -> Channel {
+        match self {
+            BgaLayer::Base => Channel::BgaBase,
+            BgaLayer::Overlay => Channel::BgaLayer,
+            BgaLayer::Overlay2 => Channel::BgaLayer2,
+            BgaLayer::Poor => Channel::BgaPoor,
+        }
+    }
 }
 
 /// An object to change scrolling factor of the score.
