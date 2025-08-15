@@ -42,9 +42,7 @@ use self::{
 };
 
 #[cfg(feature = "minor-command")]
-use self::obj::{
-    BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, ExtendedMessageObj, OptionObj, SeekObj,
-};
+use self::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
 use super::{
     ParseWarning, Result,
     prompt::{ChannelDuplication, DefDuplication, PromptHandler, TrackDuplication},
@@ -208,9 +206,6 @@ pub struct Notes {
     /// Index for fast key lookup. Used for LN/landmine logic.
     /// Maps each key (lane) to a sorted map of times and object IDs for efficient note lookup.
     pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
-    /// Extended message events. #EXT
-    #[cfg(feature = "minor-command")]
-    pub extended_messages: Vec<ExtendedMessageObj>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -1062,18 +1057,6 @@ impl Bms {
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
-            Token::ExtendedMessage {
-                track,
-                channel,
-                message,
-            } => {
-                self.notes.push_extended_message(ExtendedMessageObj {
-                    track: *track,
-                    channel: *channel,
-                    message: (*message).to_owned(),
-                });
-            }
             Token::LnObj(end_id) => {
                 let mut end_note = self
                     .notes
@@ -1519,12 +1502,6 @@ impl Notes {
             }
             removed
         })
-    }
-
-    /// Adds the new extended message object to the notes.
-    #[cfg(feature = "minor-command")]
-    pub fn push_extended_message(&mut self, message: ExtendedMessageObj) {
-        self.extended_messages.push(message);
     }
 
     /// Gets the time of last visible object.

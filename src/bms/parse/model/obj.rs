@@ -273,19 +273,6 @@ impl Ord for SpeedObj {
     }
 }
 
-/// An extended object on the score.
-#[derive(Debug, Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
-pub struct ExtendedMessageObj {
-    /// The track which the message is on.
-    pub track: Track,
-    /// The channel which the message is on.
-    pub channel: Channel,
-    /// The extended message.
-    pub message: String,
-}
-
 /// An object to change the opacity of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
