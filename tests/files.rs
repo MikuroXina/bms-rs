@@ -1,7 +1,7 @@
 use bms_rs::bms::{
     Decimal,
     command::{JudgeLevel, ObjId},
-    lex::{BmsLexOutput, LexWarning, parse_lex_tokens},
+    lex::{BmsLexOutput, LexWarning, TokenStream},
     parse::{BmsParseOutput, model::Bms, prompt::AlwaysWarnAndUseOlder, random::rng::RngMock},
 };
 use num::BigUint;
@@ -12,14 +12,14 @@ fn test_lal() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        &tokens,
+        tokens.tokens(),
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -50,14 +50,14 @@ fn test_nc() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        &tokens,
+        tokens.tokens(),
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -94,14 +94,14 @@ fn test_j219() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        &tokens,
+        tokens.tokens(),
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -132,7 +132,7 @@ fn test_blank() {
     let BmsLexOutput {
         tokens: _,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(
         warnings
             .into_iter()
@@ -155,14 +155,14 @@ fn test_bemuse_ext() {
     let BmsLexOutput {
         tokens,
         lex_warnings: warnings,
-    } = parse_lex_tokens(source);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let BmsParseOutput {
         bms,
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        &tokens,
+        tokens.tokens(),
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );

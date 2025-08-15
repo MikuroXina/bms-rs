@@ -12,9 +12,15 @@ use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
-use crate::{
-    bms::{command::ObjId, lex::token::TokenWithPos, parse::random::parse_control_flow},
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+use crate::bms::{
+    command::{
+        ObjId,
+        channel::Channel,
+        mixin::{SourcePosMixin, SourcePosMixinExt},
+        time::{ObjTime, Track},
+    },
+    lex::token::TokenWithPos,
+    parse::random::parse_control_flow,
 };
 
 use self::{
@@ -38,9 +44,15 @@ pub enum ParseWarning {
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
-    /// Parsing is warned because `prompt_handler` returned [`DuplicationWorkaround::Warn`].
-    #[error("parsing is warned by prompt handler")]
-    PromptHandlerWarning,
+    /// Has duplicated definition, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating definition: {0}")]
+    DuplicatingDef(ObjId),
+    /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating track object: {0} {1}")]
+    DuplicatingTrackObj(Track, Channel),
+    /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
+    #[error("duplicating channel object: {0} {1}")]
+    DuplicatingChannelObj(ObjTime, Channel),
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
@@ -74,7 +86,7 @@ pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenW
 impl<'a> BmsParseTokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
     pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.iter().as_slice().iter().peekable())
+        Self(value.tokens.tokens().iter().peekable())
     }
     /// Create iter from TokenWithPos list reference.
     pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
@@ -84,7 +96,7 @@ impl<'a> BmsParseTokenIter<'a> {
 
 impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
     fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.iter().peekable())
+        Self(value.tokens.tokens().iter().peekable())
     }
 }
 

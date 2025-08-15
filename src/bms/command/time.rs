@@ -7,6 +7,12 @@ use num::Integer;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Track(pub u64);
 
+impl std::fmt::Display for Track {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Track: {:03}", self.0)
+    }
+}
+
 /// A time of the object on the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -58,5 +64,15 @@ impl Ord for ObjTime {
         self.track
             .cmp(&other.track)
             .then(self_time_in_track.cmp(&other_time_in_track))
+    }
+}
+
+impl std::fmt::Display for ObjTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ObjTime: {}, {} / {}",
+            self.track, self.numerator, self.denominator
+        )
     }
 }
