@@ -35,24 +35,13 @@ use crate::bms::command::{
 /// An interface to prompt about handling conflicts on the BMS file.
 pub trait PromptHandler {
     /// Determines a [`DuplicationWorkaround`] for [`DefDuplication`].
-    fn handle_def_duplication(
-        &mut self,
-        duplication: DefDuplication,
-        id: ObjId,
-    ) -> DuplicationWorkaround;
+    fn handle_def_duplication(&mut self, duplication: DefDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`TrackDuplication`].
-    fn handle_track_duplication(
-        &mut self,
-        duplication: TrackDuplication,
-        track: Track,
-        channel: Channel,
-    ) -> DuplicationWorkaround;
+    fn handle_track_duplication(&mut self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
     fn handle_channel_duplication(
         &mut self,
         duplication: ChannelDuplication,
-        time: ObjTime,
-        channel: Channel,
     ) -> DuplicationWorkaround;
 }
 
@@ -369,23 +358,69 @@ pub enum DuplicationWorkaround {
     /// Choose to use the incoming one.
     UseNewer,
     /// Choose to warn and use older values.
-    WarnAndUseOlder(ParseWarning),
+    WarnAndUseOlder,
     /// Choose to warn and use newer values.
-    WarnAndUseNewer(ParseWarning),
+    WarnAndUseNewer,
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply<T>(self, target: &mut T, newer: T) -> Result<()> {
+    pub(crate) fn apply_def<T>(self, target: &mut T, newer: T, id: ObjId) -> Result<()> {
         match self {
             DuplicationWorkaround::UseOlder => Ok(()),
             DuplicationWorkaround::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder(warning) => Err(warning),
-            DuplicationWorkaround::WarnAndUseNewer(warning) => {
+            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarning::DuplicatingDef(id)),
+            DuplicationWorkaround::WarnAndUseNewer => {
                 *target = newer;
-                Err(warning)
+                Err(ParseWarning::DuplicatingDef(id))
+            }
+        }
+    }
+
+    pub(crate) fn apply_track<T>(
+        self,
+        target: &mut T,
+        newer: T,
+        track: Track,
+        channel: Channel,
+    ) -> Result<()> {
+        match self {
+            DuplicationWorkaround::UseOlder => Ok(()),
+            DuplicationWorkaround::UseNewer => {
+                *target = newer;
+                Ok(())
+            }
+            DuplicationWorkaround::WarnAndUseOlder => {
+                Err(ParseWarning::DuplicatingTrackObj(track, channel))
+            }
+            DuplicationWorkaround::WarnAndUseNewer => {
+                *target = newer;
+                Err(ParseWarning::DuplicatingTrackObj(track, channel))
+            }
+        }
+    }
+
+    pub(crate) fn apply_channel<T>(
+        self,
+        target: &mut T,
+        newer: T,
+        time: ObjTime,
+        channel: Channel,
+    ) -> Result<()> {
+        match self {
+            DuplicationWorkaround::UseOlder => Ok(()),
+            DuplicationWorkaround::UseNewer => {
+                *target = newer;
+                Ok(())
+            }
+            DuplicationWorkaround::WarnAndUseOlder => {
+                Err(ParseWarning::DuplicatingChannelObj(time, channel))
+            }
+            DuplicationWorkaround::WarnAndUseNewer => {
+                *target = newer;
+                Err(ParseWarning::DuplicatingChannelObj(time, channel))
             }
         }
     }
@@ -396,25 +431,15 @@ impl DuplicationWorkaround {
 pub struct AlwaysUseOlder;
 
 impl PromptHandler for AlwaysUseOlder {
-    fn handle_def_duplication(&mut self, _: DefDuplication, _: ObjId) -> DuplicationWorkaround {
+    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 
-    fn handle_track_duplication(
-        &mut self,
-        _: TrackDuplication,
-        _: Track,
-        _: Channel,
-    ) -> DuplicationWorkaround {
+    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 
-    fn handle_channel_duplication(
-        &mut self,
-        _: ChannelDuplication,
-        _: ObjTime,
-        _: Channel,
-    ) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 }
@@ -424,25 +449,15 @@ impl PromptHandler for AlwaysUseOlder {
 pub struct AlwaysUseNewer;
 
 impl PromptHandler for AlwaysUseNewer {
-    fn handle_def_duplication(&mut self, _: DefDuplication, _: ObjId) -> DuplicationWorkaround {
+    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 
-    fn handle_track_duplication(
-        &mut self,
-        _: TrackDuplication,
-        _: Track,
-        _: Channel,
-    ) -> DuplicationWorkaround {
+    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 
-    fn handle_channel_duplication(
-        &mut self,
-        _: ChannelDuplication,
-        _: ObjTime,
-        _: Channel,
-    ) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 }
@@ -452,26 +467,16 @@ impl PromptHandler for AlwaysUseNewer {
 pub struct AlwaysWarnAndUseOlder;
 
 impl PromptHandler for AlwaysWarnAndUseOlder {
-    fn handle_def_duplication(&mut self, _: DefDuplication, id: ObjId) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseOlder(ParseWarning::DuplicatingDef(id))
+    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseOlder
     }
 
-    fn handle_track_duplication(
-        &mut self,
-        _: TrackDuplication,
-        track: Track,
-        channel: Channel,
-    ) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseOlder(ParseWarning::DuplicatingTrackObj(track, channel))
+    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseOlder
     }
 
-    fn handle_channel_duplication(
-        &mut self,
-        _: ChannelDuplication,
-        time: ObjTime,
-        channel: Channel,
-    ) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseOlder(ParseWarning::DuplicatingChannelObj(time, channel))
+    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseOlder
     }
 }
 
@@ -480,25 +485,15 @@ impl PromptHandler for AlwaysWarnAndUseOlder {
 pub struct AlwaysWarnAndUseNewer;
 
 impl PromptHandler for AlwaysWarnAndUseNewer {
-    fn handle_def_duplication(&mut self, _: DefDuplication, id: ObjId) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseNewer(ParseWarning::DuplicatingDef(id))
+    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseNewer
     }
 
-    fn handle_track_duplication(
-        &mut self,
-        _: TrackDuplication,
-        track: Track,
-        channel: Channel,
-    ) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseNewer(ParseWarning::DuplicatingTrackObj(track, channel))
+    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseNewer
     }
 
-    fn handle_channel_duplication(
-        &mut self,
-        _: ChannelDuplication,
-        time: ObjTime,
-        channel: Channel,
-    ) -> DuplicationWorkaround {
-        DuplicationWorkaround::WarnAndUseNewer(ParseWarning::DuplicatingChannelObj(time, channel))
+    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::WarnAndUseNewer
     }
 }
