@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixinExt,
-    lex::{TokenIter, TokenStream, token::TokenWithPos},
+    lex::{TokenIter, TokenRefStream, token::TokenWithPos},
     parse::{ParseWarning, ParseWarningWithPos},
 };
 
@@ -34,6 +34,7 @@ use self::{
 };
 
 /// The root of the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstRoot<'a> {
     /// The units of the AST.
     pub units: Vec<Unit<'a>>,
@@ -43,9 +44,9 @@ pub struct AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstBuildOutput<'a> {
     /// The units of the AST.
-    pub units: Vec<Unit<'a>>,
+    pub root: AstRoot<'a>,
     /// The errors that occurred during building.
-    pub parse_warnings: Vec<ParseWarningWithPos>,
+    pub ast_build_warnings: Vec<ParseWarningWithPos>,
 }
 
 impl<'a> AstRoot<'a> {
@@ -53,8 +54,8 @@ impl<'a> AstRoot<'a> {
     pub fn build(token_stream: &mut TokenIter<'a>) -> AstBuildOutput<'a> {
         let (units, errors) = build_control_flow_ast(token_stream);
         AstBuildOutput {
-            units,
-            parse_warnings: errors,
+            root: AstRoot { units },
+            ast_build_warnings: errors,
         }
     }
 }
@@ -63,7 +64,7 @@ impl<'a> AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstParseOutput<'a> {
     /// The tokens that were parsed.
-    pub tokens: TokenStream<'a>,
+    pub tokens: TokenRefStream<'a>,
 }
 
 impl<'a> AstRoot<'a> {
@@ -72,9 +73,7 @@ impl<'a> AstRoot<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         AstParseOutput {
-            tokens: TokenStream {
-                tokens: tokens.into_iter().cloned().collect(),
-            },
+            tokens: TokenRefStream { tokens },
         }
     }
 }

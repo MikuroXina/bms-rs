@@ -17,7 +17,7 @@ use crate::bms::{
         mixin::{SourcePosMixin, SourcePosMixinExt},
         time::{ObjTime, Track},
     },
-    lex::TokenIter,
+    lex::{TokenIter, TokenRefIter},
 };
 
 use self::{
@@ -80,15 +80,41 @@ impl Bms {
     pub fn from_token_stream<'a>(
         token_iter: impl Into<TokenIter<'a>>,
         rng: impl Rng,
-        mut prompt_handler: impl PromptHandler,
+        prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let AstBuildOutput {
-            units,
-            mut parse_warnings,
+            root,
+            ast_build_warnings,
         } = AstRoot::build(&mut token_iter.into());
-        let AstParseOutput { tokens } = AstRoot { units }.parse(rng);
+        let AstParseOutput { tokens } = root.parse(rng);
+        // Build Bms without AST.
+        let BmsParseOutput {
+            bms,
+            parse_warnings,
+            playing_warnings,
+            playing_errors,
+        } = Bms::from_token_stream_without_ast(&tokens.tokens, prompt_handler);
+        let new_parse_warnings = ast_build_warnings
+            .into_iter()
+            .chain(parse_warnings)
+            .collect();
+        BmsParseOutput {
+            bms,
+            parse_warnings: new_parse_warnings,
+            playing_warnings,
+            playing_errors,
+        }
+    }
+
+    /// Parses a token stream into [`Bms`] without AST.
+    pub fn from_token_stream_without_ast<'a>(
+        token_iter: impl Into<TokenRefIter<'a>>,
+        mut prompt_handler: impl PromptHandler,
+    ) -> BmsParseOutput {
         let mut bms = Bms::default();
-        for token in tokens.tokens() {
+        let iter: TokenRefIter<'a> = token_iter.into();
+        let mut parse_warnings = vec![];
+        for token in iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error.into_wrapper(token));
             }

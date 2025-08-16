@@ -121,6 +121,69 @@ impl<'a> DerefMut for TokenIter<'a> {
     }
 }
 
+/// A list of tokens.
+/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct TokenRefStream<'a> {
+    /// The tokens.
+    pub tokens: Vec<&'a TokenWithPos<'a>>,
+}
+
+impl<'a> TokenRefStream<'a> {
+    /// Returns a slice of tokens.
+    pub fn tokens(&self) -> &[&'a TokenWithPos<'a>] {
+        &self.tokens
+    }
+
+    /// Returns a mutable slice of tokens.
+    pub fn tokens_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
+        &mut self.tokens
+    }
+}
+
+/// The type of parsing tokens iter.
+pub struct TokenRefIter<'a>(std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>);
+
+impl<'a> TokenRefIter<'a> {
+    /// Create iter from TokenWithPos list reference.
+    pub fn from_ref_slice(value: &'a [&'a TokenWithPos<'a>]) -> Self {
+        Self(value.iter().peekable())
+    }
+}
+
+impl<'a> From<&'a TokenRefStream<'a>> for TokenRefIter<'a> {
+    fn from(value: &'a TokenRefStream<'a>) -> Self {
+        Self(value.tokens.iter().peekable())
+    }
+}
+
+impl<'a, T: AsRef<[&'a TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenRefIter<'a> {
+    fn from(value: &'a T) -> Self {
+        Self(value.as_ref().iter().peekable())
+    }
+}
+
+impl<'a> Deref for TokenRefIter<'a> {
+    type Target = std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for TokenRefIter<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> Iterator for TokenRefIter<'a> {
+    type Item = &'a TokenWithPos<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().copied()
+    }
+}
+
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
