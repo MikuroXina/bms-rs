@@ -67,7 +67,7 @@
 //!
 //! Each command starts with `#` character, and other lines will be ignored. Some commands require arguments separated by whitespace character such as spaces or tabs.
 //!
-//! ```
+//! ```text
 //! #PLAYER 1
 //! #GENRE FUGA
 //! #TITLE BAR(^^)
@@ -97,13 +97,13 @@
 //!
 //! The object id is formed by 2-digit of 36-radix (`[0-9a-zA-Z]`) integer. So the sequence length must be an even number. The `00` object id is the special id, expresses the rest (no object lies). The object lies on the position divided equally by how many the object is in the measure. For example:
 //!
-//! ```
+//! ```text
 //! #00211:0303000303
 //! ```
 //!
 //! This will be placed as:
 //!
-//! ```
+//! ```text
 //! 003|--|--------------|
 //!    |  |03            |
 //!    |  |03            |
