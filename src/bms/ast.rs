@@ -19,29 +19,64 @@ mod ast_build;
 mod ast_parse;
 pub mod rng;
 
-use ast_build::build_control_flow_ast;
-use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixinExt,
-    lex::{TokenIter, token::TokenWithPos},
+    lex::{TokenIter, TokenStream, token::TokenWithPos},
     parse::{ParseWarning, ParseWarningWithPos},
 };
 
-/// Parses and executes control flow constructs in a BMS token stream.
-///
-/// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
-/// from control flow constructs and then executing them using the provided random number generator.
-pub(super) fn parse_control_flow<'a>(
-    token_stream: &mut TokenIter<'a>,
-    mut rng: impl Rng,
-) -> (Vec<&'a TokenWithPos<'a>>, Vec<ParseWarningWithPos>) {
-    let (ast, errors) = build_control_flow_ast(token_stream);
-    let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a TokenWithPos<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
-    (tokens, errors)
+use self::{
+    ast_build::{Unit, build_control_flow_ast},
+    ast_parse::parse_control_flow_ast,
+};
+
+/// The root of the AST.
+pub struct AstRoot<'a> {
+    /// The units of the AST.
+    pub units: Vec<Unit<'a>>,
+}
+
+/// The output of building the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AstBuildOutput<'a> {
+    /// The units of the AST.
+    pub units: Vec<Unit<'a>>,
+    /// The errors that occurred during building.
+    pub parse_warnings: Vec<ParseWarningWithPos>,
+}
+
+impl<'a> AstRoot<'a> {
+    /// Builds the AST from a token stream.
+    pub fn build(token_stream: &mut TokenIter<'a>) -> AstBuildOutput<'a> {
+        let (units, errors) = build_control_flow_ast(token_stream);
+        AstBuildOutput {
+            units,
+            parse_warnings: errors,
+        }
+    }
+}
+
+/// The output of parsing the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AstParseOutput<'a> {
+    /// The tokens that were parsed.
+    pub tokens: TokenStream<'a>,
+}
+
+impl<'a> AstRoot<'a> {
+    /// Parses the AST using a random number generator.
+    pub fn parse(self, mut rng: impl Rng) -> AstParseOutput<'a> {
+        let mut ast_iter = self.units.into_iter().peekable();
+        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        AstParseOutput {
+            tokens: TokenStream {
+                tokens: tokens.into_iter().cloned().collect(),
+            },
+        }
+    }
 }
 
 /// Control flow parsing errors and warnings.

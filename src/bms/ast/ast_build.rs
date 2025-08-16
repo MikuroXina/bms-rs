@@ -14,7 +14,7 @@ use super::ControlFlowRule;
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Unit<'a> {
+pub enum Unit<'a> {
     /// A token that is not a control flow token.
     TokenWithPos(&'a TokenWithPos<'a>),
     /// A Random block. Can contain multiple If blocks.
@@ -34,7 +34,7 @@ pub(super) enum Unit<'a> {
 
 /// The value of a Random/Switch block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum BlockValue {
+pub enum BlockValue {
     /// For Random/Switch, value ranges in [1, max].
     /// IfBranch value must ranges in [1, max].
     Random { max: BigUint },
@@ -45,13 +45,13 @@ pub(super) enum BlockValue {
 
 /// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct IfBlock<'a> {
+pub struct IfBlock<'a> {
     pub branches: HashMap<BigUint, IfBranch<'a>>,
 }
 
 /// The If branch of a If block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct IfBranch<'a> {
+pub struct IfBranch<'a> {
     pub value: BigUint,
     pub tokens: Vec<Unit<'a>>,
 }
@@ -59,7 +59,7 @@ pub(super) struct IfBranch<'a> {
 /// The define of a Case/Def branch in a Switch block.
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct CaseBranch<'a> {
+pub struct CaseBranch<'a> {
     pub value: CaseBranchValue,
     pub tokens: Vec<Unit<'a>>,
 }
@@ -67,7 +67,7 @@ pub(super) struct CaseBranch<'a> {
 /// The type note of a Case/Def branch.
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum CaseBranchValue {
+pub enum CaseBranchValue {
     Case(BigUint),
     Def,
 }

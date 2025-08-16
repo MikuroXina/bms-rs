@@ -10,7 +10,7 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{ControlFlowRule, parse_control_flow, rng::Rng},
+    ast::{AstBuildOutput, AstParseOutput, AstRoot, ControlFlowRule, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -82,9 +82,13 @@ impl Bms {
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
-        let (continue_tokens, mut parse_warnings) = parse_control_flow(&mut token_iter.into(), rng);
+        let AstBuildOutput {
+            units,
+            mut parse_warnings,
+        } = AstRoot::build(&mut token_iter.into());
+        let AstParseOutput { tokens } = AstRoot { units }.parse(rng);
         let mut bms = Bms::default();
-        for &token in continue_tokens.iter() {
+        for token in tokens.tokens() {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error.into_wrapper(token));
             }
