@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v1.0.0) (2025-08-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149))
+* impl From<Bmson> for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146))
+
+### Features
+
+* add ParseWarning::UnexpectedControlFlow ([#155](https://github.com/MikuroXina/bms-rs/issues/155)) ([5655747](https://github.com/MikuroXina/bms-rs/commit/5655747e435d2e718c465a6acc44c52177e3012a))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146)) ([08b61ee](https://github.com/MikuroXina/bms-rs/commit/08b61ee314240ff0eaf512a66f0eb4192d944d04))
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157)) ([1c2afb4](https://github.com/MikuroXina/bms-rs/commit/1c2afb445f126dd19fe71e9c655a2692dac9f02c))
+* impl From&lt;Bmson&gt; for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145)) ([ed0c95f](https://github.com/MikuroXina/bms-rs/commit/ed0c95f1f74643b73858a11c6c79f6e0186735fb))
+* Impl text pos mixin ([#151](https://github.com/MikuroXina/bms-rs/issues/151)) ([0460db8](https://github.com/MikuroXina/bms-rs/commit/0460db838709fd2e2bb9f1dead5f289eb75a67ad))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149)) ([159fb8f](https://github.com/MikuroXina/bms-rs/commit/159fb8ffe16f56d0dd2a042d0b877dad37400a80))
+* Move out ast part ([#159](https://github.com/MikuroXina/bms-rs/issues/159)) ([a0df07b](https://github.com/MikuroXina/bms-rs/commit/a0df07b30e28db883f45b3af8d699773ebd6d72e))
+* new channel convert method ([#153](https://github.com/MikuroXina/bms-rs/issues/153)) ([4a7b69d](https://github.com/MikuroXina/bms-rs/commit/4a7b69d3034e46621f23f96a39d87e633b69731f))
+* Split prompt warning types ([#158](https://github.com/MikuroXina/bms-rs/issues/158)) ([b0fe15b](https://github.com/MikuroXina/bms-rs/commit/b0fe15b90d1b21c0cfc75800b8534863e22d3fa1))
+
+
+### Bug Fixes
+
+* use "WithPos" postfix ([#152](https://github.com/MikuroXina/bms-rs/issues/152)) ([78a0c4a](https://github.com/MikuroXina/bms-rs/commit/78a0c4adbe1b9327e39d3876dfd0bd747d3ed2db))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154)) ([bad36e8](https://github.com/MikuroXina/bms-rs/commit/bad36e812ce2024c721d8ffbbabeddbdfa598319))
+
 ## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-08-03)
 
 
