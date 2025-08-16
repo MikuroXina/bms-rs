@@ -1,16 +1,6 @@
 #![cfg(feature = "minor-command")]
 
-use bms_rs::{
-    bms::{
-        command::{
-            JudgeLevel, ObjId, PoorMode,
-            graphics::{PixelPoint, PixelSize},
-        },
-        lex::{BmsLexOutput, LexWarning, TokenStream},
-        parse::{BmsParseOutput, prompt::AlwaysWarnAndUseOlder, random::rng::RngMock},
-    },
-    parse::model::Bms,
-};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]

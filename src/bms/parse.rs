@@ -6,11 +6,11 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
-pub mod random;
 
 use thiserror::Error;
 
 use crate::bms::{
+    ast::{ControlFlowRule, parse_control_flow, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -18,14 +18,12 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     lex::TokenIter,
-    parse::random::parse_control_flow,
 };
 
 use self::{
     check_playing::{PlayingError, PlayingWarning},
     model::Bms,
     prompt::PromptHandler,
-    random::{ControlFlowRule, rng::Rng},
 };
 
 /// An error occurred when parsing the [`TokenStream`].

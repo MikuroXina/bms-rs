@@ -2,10 +2,15 @@ use std::collections::HashMap;
 
 use num::BigUint;
 
-use crate::{
-    bms::lex::token::{Token, TokenWithPos},
-    parse::{ParseWarningWithPos, TokenIter, random::ControlFlowRule},
+use crate::bms::{
+    lex::{
+        TokenIter,
+        token::{Token, TokenWithPos},
+    },
+    parse::ParseWarningWithPos,
 };
+
+use super::ControlFlowRule;
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]

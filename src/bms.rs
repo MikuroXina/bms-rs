@@ -18,6 +18,7 @@
 use fraction::GenericDecimal;
 use num::BigUint;
 
+pub mod ast;
 pub mod command;
 pub mod lex;
 pub mod parse;
@@ -25,10 +26,7 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::{
-    command::mixin::SourcePosMixin,
-    parse::{model::Bms, random::rng::RandRng},
-};
+use crate::bms::{ast::rng::RandRng, command::mixin::SourcePosMixin, parse::model::Bms};
 
 use self::{
     lex::{BmsLexOutput, LexWarning},

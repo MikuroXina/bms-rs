@@ -6,6 +6,9 @@
 // Re-export main types from bms module
 pub use super::{BmsOutput, BmsWarning, Decimal, parse_bms};
 
+// Re-export from ast module
+pub use super::ast::rng::{RandRng, Rng, RngMock};
+
 // Re-export from command module
 pub use super::command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume};
 
@@ -17,11 +20,15 @@ pub use super::command::{
         convert_key_channel_between, read_channel_beat,
     },
     graphics::{Argb, PixelPoint, PixelSize, Rgb},
+    mixin::{SourcePosMixin, SourcePosMixinExt},
     time::{ObjTime, Track},
 };
 
 // Re-export from lex module
 pub use super::lex::{BmsLexOutput, LexWarning, TokenIter, TokenStream};
+
+// Re-export from lex submodules
+pub use super::lex::token::{Token, TokenWithPos};
 
 // Re-export from parse module
 pub use super::parse::{BmsParseOutput, ParseWarning, ParseWarningWithPos};
@@ -41,14 +48,7 @@ pub use super::parse::{
         AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
         DefDuplication, DuplicationWorkaround, PromptHandler,
     },
-    random::{
-        ControlFlowRule,
-        rng::{RandRng, Rng, RngMock},
-    },
 };
-
-// Re-export from lex submodules
-pub use super::lex::token::TokenWithPos;
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

@@ -24,10 +24,10 @@ use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::{ParseWarning, ParseWarningWithPos};
-use crate::{
-    bms::{lex::token::TokenWithPos, parse::TokenIter},
+use crate::bms::{
     command::mixin::SourcePosMixinExt,
+    lex::{TokenIter, token::TokenWithPos},
+    parse::{ParseWarning, ParseWarningWithPos},
 };
 
 /// Parses and executes control flow constructs in a BMS token stream.
@@ -116,12 +116,10 @@ mod tests {
 
     use super::*;
     use crate::bms::{
+        ast::ast_build::{CaseBranch, CaseBranchValue, Unit},
         command::mixin::SourcePosMixinExt,
+        lex::TokenIter,
         lex::token::Token,
-        parse::{
-            TokenIter,
-            random::ast_build::{CaseBranch, CaseBranchValue, Unit},
-        },
     };
 
     struct DummyRng;
