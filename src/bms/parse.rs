@@ -81,9 +81,9 @@ pub struct BmsParseOutput {
 }
 
 /// The type of parsing tokens iter.
-pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
+pub struct TokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
 
-impl<'a> BmsParseTokenIter<'a> {
+impl<'a> TokenIter<'a> {
     /// Create iter from BmsLexOutput reference.
     pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
         Self(value.tokens.tokens().iter().peekable())
@@ -94,26 +94,26 @@ impl<'a> BmsParseTokenIter<'a> {
     }
 }
 
-impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
+impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a> {
     fn from(value: &'a BmsLexOutput<'a>) -> Self {
         Self(value.tokens.tokens().iter().peekable())
     }
 }
 
-impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
+impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenIter<'a> {
     fn from(value: &'a T) -> Self {
         Self(value.as_ref().iter().peekable())
     }
 }
 
-impl<'a> Deref for BmsParseTokenIter<'a> {
+impl<'a> Deref for TokenIter<'a> {
     type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> DerefMut for BmsParseTokenIter<'a> {
+impl<'a> DerefMut for TokenIter<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -122,7 +122,7 @@ impl<'a> DerefMut for BmsParseTokenIter<'a> {
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: impl Into<BmsParseTokenIter<'a>>,
+        token_iter: impl Into<TokenIter<'a>>,
         rng: impl Rng,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {

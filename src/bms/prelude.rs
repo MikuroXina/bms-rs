@@ -24,7 +24,7 @@ pub use super::command::{
 pub use super::lex::{BmsLexOutput, LexWarning, TokenStream};
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, BmsParseTokenIter, ParseWarning, ParseWarningWithPos};
+pub use super::parse::{BmsParseOutput, TokenIter, ParseWarning, ParseWarningWithPos};
 
 // Re-export from parse submodules
 pub use super::parse::{

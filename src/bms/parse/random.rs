@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use super::{ParseWarning, ParseWarningWithPos};
 use crate::{
-    bms::{lex::token::TokenWithPos, parse::BmsParseTokenIter},
+    bms::{lex::token::TokenWithPos, parse::TokenIter},
     command::mixin::SourcePosMixinExt,
 };
 
@@ -35,7 +35,7 @@ use crate::{
 /// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
 /// from control flow constructs and then executing them using the provided random number generator.
 pub(super) fn parse_control_flow<'a>(
-    token_stream: &mut BmsParseTokenIter<'a>,
+    token_stream: &mut TokenIter<'a>,
     mut rng: impl Rng,
 ) -> (Vec<&'a TokenWithPos<'a>>, Vec<ParseWarningWithPos>) {
     let (ast, errors) = build_control_flow_ast(token_stream);
@@ -119,7 +119,7 @@ mod tests {
         command::mixin::SourcePosMixinExt,
         lex::token::Token,
         parse::{
-            BmsParseTokenIter,
+            TokenIter,
             random::ast_build::{CaseBranch, CaseBranchValue, Unit},
         },
     };
@@ -158,7 +158,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -277,7 +277,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
