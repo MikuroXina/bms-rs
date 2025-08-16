@@ -84,7 +84,7 @@ impl<'a> AstRoot<'a> {
 /// Each variant represents a specific type of control flow violation or malformed construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ControlFlowRule {
+pub enum AstBuildWarning {
     /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
     #[error("unmatched end if")]
     UnmatchedEndIf,
@@ -129,9 +129,9 @@ pub enum ControlFlowRule {
     UnmatchedDef,
 }
 
-impl SourcePosMixinExt for ControlFlowRule {}
+impl SourcePosMixinExt for AstBuildWarning {}
 
-impl ControlFlowRule {
+impl AstBuildWarning {
     /// Convert the control flow rule to a parse warning with a given token.
     pub fn into_wrapper(self, token: &TokenWithPos) -> ParseWarningWithPos {
         ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)

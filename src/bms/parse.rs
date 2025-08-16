@@ -10,7 +10,7 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildOutput, AstParseOutput, AstRoot, ControlFlowRule, rng::Rng},
+    ast::{AstBuildOutput, AstParseOutput, AstRoot, AstBuildWarning, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -35,7 +35,7 @@ pub enum ParseWarning {
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(#[from] ControlFlowRule),
+    ViolateControlFlowRule(#[from] AstBuildWarning),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
