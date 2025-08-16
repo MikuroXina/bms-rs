@@ -80,38 +80,6 @@ impl<'a> TokenStream<'a> {
     pub fn tokens_mut(&mut self) -> &mut [TokenWithPos<'a>] {
         &mut self.tokens
     }
-
-    /// Analyzes and converts the BMS format text into [`TokenStream`].
-    /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {
-        let mut cursor = Cursor::new(source);
-
-        let mut tokens = vec![];
-        let mut warnings = vec![];
-        while !cursor.is_end() {
-            match Token::parse(&mut cursor) {
-                Ok(content) => {
-                    tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
-                }
-                Err(warning) => {
-                    warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))
-                }
-            };
-        }
-
-        let case_sensitive = tokens
-            .iter()
-            .any(|token| matches!(token.content(), Token::Base62));
-        if !case_sensitive {
-            for token in &mut tokens {
-                token.content_mut().make_id_uppercase();
-            }
-        }
-        BmsLexOutput {
-            tokens: TokenStream { tokens },
-            lex_warnings: warnings,
-        }
-    }
 }
 
 /// The type of parsing tokens iter.
@@ -150,6 +118,40 @@ impl<'a> Deref for TokenIter<'a> {
 impl<'a> DerefMut for TokenIter<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<'a> TokenStream<'a> {
+    /// Analyzes and converts the BMS format text into [`TokenStream`].
+    /// Use this function when you want to parse the BMS format text with a custom channel parser.
+    pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {
+        let mut cursor = Cursor::new(source);
+
+        let mut tokens = vec![];
+        let mut warnings = vec![];
+        while !cursor.is_end() {
+            match Token::parse(&mut cursor) {
+                Ok(content) => {
+                    tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
+                }
+                Err(warning) => {
+                    warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))
+                }
+            };
+        }
+
+        let case_sensitive = tokens
+            .iter()
+            .any(|token| matches!(token.content(), Token::Base62));
+        if !case_sensitive {
+            for token in &mut tokens {
+                token.content_mut().make_id_uppercase();
+            }
+        }
+        BmsLexOutput {
+            tokens: TokenStream { tokens },
+            lex_warnings: warnings,
+        }
     }
 }
 
