@@ -6,30 +6,26 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
-pub mod random;
-
-use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
 use crate::bms::{
+    ast::{AstBuildOutput, AstBuildWarning, AstParseOutput, AstRoot, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
-        mixin::{SourcePosMixin, SourcePosMixinExt},
+        mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
-    lex::token::TokenWithPos,
-    parse::random::parse_control_flow,
+    lex::{TokenIter, TokenRefIter},
+    prelude::SourcePosMixinExt,
 };
 
 use self::{
     check_playing::{PlayingError, PlayingWarning},
     model::Bms,
     prompt::PromptHandler,
-    random::{ControlFlowRule, rng::Rng},
 };
-use super::lex::BmsLexOutput;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -40,7 +36,7 @@ pub enum ParseWarning {
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(#[from] ControlFlowRule),
+    AstBuild(#[from] AstBuildWarning),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -57,8 +53,6 @@ pub enum ParseWarning {
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
 }
-
-impl SourcePosMixinExt for ParseWarning {}
 
 /// type alias of core::result::Result<T, ParseWarning>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
@@ -80,55 +74,50 @@ pub struct BmsParseOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-/// The type of parsing tokens iter.
-pub struct BmsParseTokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
-
-impl<'a> BmsParseTokenIter<'a> {
-    /// Create iter from BmsLexOutput reference.
-    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
-    }
-    /// Create iter from TokenWithPos list reference.
-    pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
-        Self(value.iter().peekable())
-    }
-}
-
-impl<'a> From<&'a BmsLexOutput<'a>> for BmsParseTokenIter<'a> {
-    fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
-    }
-}
-
-impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for BmsParseTokenIter<'a> {
-    fn from(value: &'a T) -> Self {
-        Self(value.as_ref().iter().peekable())
-    }
-}
-
-impl<'a> Deref for BmsParseTokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for BmsParseTokenIter<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: impl Into<BmsParseTokenIter<'a>>,
+        token_iter: impl Into<TokenIter<'a>>,
         rng: impl Rng,
+        prompt_handler: impl PromptHandler,
+    ) -> BmsParseOutput {
+        let AstBuildOutput {
+            root,
+            ast_build_warnings,
+        } = AstRoot::build(&mut token_iter.into());
+        let AstParseOutput { tokens } = root.parse(rng);
+        // Build Bms without AST.
+        let BmsParseOutput {
+            bms,
+            parse_warnings,
+            playing_warnings,
+            playing_errors,
+        } = Bms::from_token_stream_without_ast(&tokens.tokens, prompt_handler);
+        let new_parse_warnings = ast_build_warnings
+            .into_iter()
+            .map(|w| {
+                let (content, r, c) = w.into();
+                ParseWarning::AstBuild(content).into_wrapper_manual(r, c)
+            })
+            .chain(parse_warnings)
+            .collect();
+        BmsParseOutput {
+            bms,
+            parse_warnings: new_parse_warnings,
+            playing_warnings,
+            playing_errors,
+        }
+    }
+
+    /// Parses a token stream into [`Bms`] without AST.
+    pub fn from_token_stream_without_ast<'a>(
+        token_iter: impl Into<TokenRefIter<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
-        let (continue_tokens, mut parse_warnings) = parse_control_flow(&mut token_iter.into(), rng);
         let mut bms = Bms::default();
-        for &token in continue_tokens.iter() {
+        let iter: TokenRefIter<'a> = token_iter.into();
+        let mut parse_warnings = vec![];
+        for token in iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error.into_wrapper(token));
             }

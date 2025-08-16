@@ -7,6 +7,8 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
+use std::ops::{Deref, DerefMut};
+
 use thiserror::Error;
 
 use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
@@ -44,7 +46,8 @@ pub enum LexWarning {
     OutOfBase62,
 }
 
-impl SourcePosMixinExt for LexWarning {}
+/// A [`LexWarning`] type with position information.
+pub type LexWarningWithPos = SourcePosMixin<LexWarning>;
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
@@ -56,7 +59,7 @@ pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
     /// warnings
-    pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
+    pub lex_warnings: Vec<LexWarningWithPos>,
 }
 
 /// A list of tokens.
@@ -78,7 +81,111 @@ impl<'a> TokenStream<'a> {
     pub fn tokens_mut(&mut self) -> &mut [TokenWithPos<'a>] {
         &mut self.tokens
     }
+}
 
+/// The type of parsing tokens iter.
+pub struct TokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
+
+impl<'a> TokenIter<'a> {
+    /// Create iter from BmsLexOutput reference.
+    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
+        Self(value.tokens.tokens().iter().peekable())
+    }
+    /// Create iter from TokenWithPos list reference.
+    pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
+        Self(value.iter().peekable())
+    }
+}
+
+impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a> {
+    fn from(value: &'a BmsLexOutput<'a>) -> Self {
+        Self(value.tokens.tokens().iter().peekable())
+    }
+}
+
+impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenIter<'a> {
+    fn from(value: &'a T) -> Self {
+        Self(value.as_ref().iter().peekable())
+    }
+}
+
+impl<'a> Deref for TokenIter<'a> {
+    type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for TokenIter<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// A list of tokens.
+/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct TokenRefStream<'a> {
+    /// The tokens.
+    pub tokens: Vec<&'a TokenWithPos<'a>>,
+}
+
+impl<'a> TokenRefStream<'a> {
+    /// Returns a slice of tokens.
+    pub fn tokens(&self) -> &[&'a TokenWithPos<'a>] {
+        &self.tokens
+    }
+
+    /// Returns a mutable slice of tokens.
+    pub fn tokens_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
+        &mut self.tokens
+    }
+}
+
+/// The type of parsing tokens iter.
+pub struct TokenRefIter<'a>(std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>);
+
+impl<'a> TokenRefIter<'a> {
+    /// Create iter from TokenWithPos list reference.
+    pub fn from_ref_slice(value: &'a [&'a TokenWithPos<'a>]) -> Self {
+        Self(value.iter().peekable())
+    }
+}
+
+impl<'a> From<&'a TokenRefStream<'a>> for TokenRefIter<'a> {
+    fn from(value: &'a TokenRefStream<'a>) -> Self {
+        Self(value.tokens.iter().peekable())
+    }
+}
+
+impl<'a, T: AsRef<[&'a TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenRefIter<'a> {
+    fn from(value: &'a T) -> Self {
+        Self(value.as_ref().iter().peekable())
+    }
+}
+
+impl<'a> Deref for TokenRefIter<'a> {
+    type Target = std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for TokenRefIter<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> Iterator for TokenRefIter<'a> {
+    type Item = &'a TokenWithPos<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().copied()
+    }
+}
+
+impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
     pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {

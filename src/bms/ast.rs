@@ -19,29 +19,62 @@ mod ast_build;
 mod ast_parse;
 pub mod rng;
 
-use ast_build::build_control_flow_ast;
-use ast_parse::parse_control_flow_ast;
 use rng::Rng;
 use thiserror::Error;
 
-use super::{ParseWarning, ParseWarningWithPos};
-use crate::{
-    bms::{lex::token::TokenWithPos, parse::BmsParseTokenIter},
-    command::mixin::SourcePosMixinExt,
+use crate::bms::{
+    command::mixin::SourcePosMixin,
+    lex::{TokenIter, TokenRefStream},
 };
 
-/// Parses and executes control flow constructs in a BMS token stream.
-///
-/// This function processes a stream of BMS tokens, building an Abstract Syntax Tree (AST)
-/// from control flow constructs and then executing them using the provided random number generator.
-pub(super) fn parse_control_flow<'a>(
-    token_stream: &mut BmsParseTokenIter<'a>,
-    mut rng: impl Rng,
-) -> (Vec<&'a TokenWithPos<'a>>, Vec<ParseWarningWithPos>) {
-    let (ast, errors) = build_control_flow_ast(token_stream);
-    let mut ast_iter = ast.into_iter().peekable();
-    let tokens: Vec<&'a TokenWithPos<'a>> = parse_control_flow_ast(&mut ast_iter, &mut rng);
-    (tokens, errors)
+use self::{
+    ast_build::{Unit, build_control_flow_ast},
+    ast_parse::parse_control_flow_ast,
+};
+
+/// The root of the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AstRoot<'a> {
+    /// The units of the AST.
+    pub units: Vec<Unit<'a>>,
+}
+
+/// The output of building the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AstBuildOutput<'a> {
+    /// The units of the AST.
+    pub root: AstRoot<'a>,
+    /// The errors that occurred during building.
+    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+}
+
+impl<'a> AstRoot<'a> {
+    /// Builds the AST from a token stream.
+    pub fn build(token_stream: &mut TokenIter<'a>) -> AstBuildOutput<'a> {
+        let (units, errors) = build_control_flow_ast(token_stream);
+        AstBuildOutput {
+            root: AstRoot { units },
+            ast_build_warnings: errors,
+        }
+    }
+}
+
+/// The output of parsing the AST.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AstParseOutput<'a> {
+    /// The tokens that were parsed.
+    pub tokens: TokenRefStream<'a>,
+}
+
+impl<'a> AstRoot<'a> {
+    /// Parses the AST using a random number generator.
+    pub fn parse(self, mut rng: impl Rng) -> AstParseOutput<'a> {
+        let mut ast_iter = self.units.into_iter().peekable();
+        let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
+        AstParseOutput {
+            tokens: TokenRefStream { tokens },
+        }
+    }
 }
 
 /// Control flow parsing errors and warnings.
@@ -50,7 +83,7 @@ pub(super) fn parse_control_flow<'a>(
 /// Each variant represents a specific type of control flow violation or malformed construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ControlFlowRule {
+pub enum AstBuildWarning {
     /// An `#ENDIF` token was encountered without a corresponding `#IF` token.
     #[error("unmatched end if")]
     UnmatchedEndIf,
@@ -95,18 +128,8 @@ pub enum ControlFlowRule {
     UnmatchedDef,
 }
 
-impl SourcePosMixinExt for ControlFlowRule {}
-
-impl ControlFlowRule {
-    /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &TokenWithPos) -> ParseWarningWithPos {
-        ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)
-    }
-    /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarningWithPos {
-        ParseWarning::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
-    }
-}
+/// A [`AstBuildWarning`] type with position information.
+pub type AstBuildWarningWithPos = SourcePosMixin<AstBuildWarning>;
 
 #[cfg(test)]
 mod tests {
@@ -116,12 +139,10 @@ mod tests {
 
     use super::*;
     use crate::bms::{
+        ast::ast_build::{CaseBranch, CaseBranchValue, Unit},
         command::mixin::SourcePosMixinExt,
+        lex::TokenIter,
         lex::token::Token,
-        parse::{
-            BmsParseTokenIter,
-            random::ast_build::{CaseBranch, CaseBranchValue, Unit},
-        },
     };
 
     struct DummyRng;
@@ -158,7 +179,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -277,7 +298,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut BmsParseTokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))

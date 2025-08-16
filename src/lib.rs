@@ -122,4 +122,4 @@
 pub mod bms;
 pub mod bmson;
 
-pub use bms::{command, lex, parse};
+pub use bms::{ast, command, lex, parse};
