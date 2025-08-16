@@ -8,16 +8,13 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
-use crate::{
-    bms::{
-        Decimal,
-        command::{
-            JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
-            graphics::Argb, time::Track,
-        },
-        prelude::read_channel_beat,
+use crate::bms::{
+    Decimal,
+    command::{
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
+        mixin::SourcePosMixin, time::Track,
     },
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+    prelude::read_channel_beat,
 };
 
 #[cfg(feature = "minor-command")]
@@ -298,8 +295,6 @@ pub enum Token<'a> {
     #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
 }
-
-impl SourcePosMixinExt for Token<'_> {}
 
 /// A token with position information.
 pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;

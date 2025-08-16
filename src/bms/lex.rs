@@ -46,7 +46,8 @@ pub enum LexWarning {
     OutOfBase62,
 }
 
-impl SourcePosMixinExt for LexWarning {}
+/// A [`LexWarning`] type with position information.
+pub type LexWarningWithPos = SourcePosMixin<LexWarning>;
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
@@ -58,7 +59,7 @@ pub struct BmsLexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
     /// warnings
-    pub lex_warnings: Vec<SourcePosMixin<LexWarning>>,
+    pub lex_warnings: Vec<LexWarningWithPos>,
 }
 
 /// A list of tokens.

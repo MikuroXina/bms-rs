@@ -23,9 +23,8 @@ use rng::Rng;
 use thiserror::Error;
 
 use crate::bms::{
-    command::mixin::SourcePosMixinExt,
-    lex::{TokenIter, TokenRefStream, token::TokenWithPos},
-    parse::{ParseWarning, ParseWarningWithPos},
+    command::mixin::SourcePosMixin,
+    lex::{TokenIter, TokenRefStream},
 };
 
 use self::{
@@ -46,7 +45,7 @@ pub struct AstBuildOutput<'a> {
     /// The units of the AST.
     pub root: AstRoot<'a>,
     /// The errors that occurred during building.
-    pub ast_build_warnings: Vec<ParseWarningWithPos>,
+    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
 }
 
 impl<'a> AstRoot<'a> {
@@ -129,18 +128,8 @@ pub enum AstBuildWarning {
     UnmatchedDef,
 }
 
-impl SourcePosMixinExt for AstBuildWarning {}
-
-impl AstBuildWarning {
-    /// Convert the control flow rule to a parse warning with a given token.
-    pub fn into_wrapper(self, token: &TokenWithPos) -> ParseWarningWithPos {
-        ParseWarning::ViolateControlFlowRule(self).into_wrapper(token)
-    }
-    /// Convert the control flow rule to a parse warning with a given row and column.
-    pub fn into_wrapper_manual(self, row: usize, col: usize) -> ParseWarningWithPos {
-        ParseWarning::ViolateControlFlowRule(self).into_wrapper_manual(row, col)
-    }
-}
+/// A [`AstBuildWarning`] type with position information.
+pub type AstBuildWarningWithPos = SourcePosMixin<AstBuildWarning>;
 
 #[cfg(test)]
 mod tests {

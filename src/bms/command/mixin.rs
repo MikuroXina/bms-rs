@@ -3,8 +3,6 @@
 //! - `SourcePosMixin` is a generic wrapper that attaches position information (row/column) to a value.
 //! - `SourcePosMixinExt` is a trait that provides extension methods for `SourcePosMixin`, providing more convenient methods to create `SourcePosMixin` instances.
 
-use num::BigUint;
-
 /// A generic wrapper that attaches position information (row/column) to a value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -35,6 +33,11 @@ impl<T> SourcePosMixin<T> {
     /// Returns the wrapped content as a mutable reference.
     pub fn content_mut(&mut self) -> &mut T {
         &mut self.content
+    }
+
+    /// Leans the content out of the wrapper.
+    pub fn into_content(self) -> T {
+        self.content
     }
 
     /// Returns the row number of the source position.
@@ -108,28 +111,4 @@ pub trait SourcePosMixinExt {
     }
 }
 
-impl<T> SourcePosMixinExt for SourcePosMixin<T> {}
-
-// Provide extension methods for commonly wrapped inner types.
-// Note: We intentionally implement per-type instead of a blanket impl to avoid coherence
-// issues with other specific impls in modules like `ast::structure`.
-impl SourcePosMixinExt for String {}
-impl SourcePosMixinExt for BigUint {}
-impl SourcePosMixinExt for u8 {}
-impl SourcePosMixinExt for u16 {}
-impl SourcePosMixinExt for u32 {}
-impl SourcePosMixinExt for u64 {}
-impl SourcePosMixinExt for u128 {}
-impl SourcePosMixinExt for usize {}
-impl SourcePosMixinExt for i8 {}
-impl SourcePosMixinExt for i16 {}
-impl SourcePosMixinExt for i32 {}
-impl SourcePosMixinExt for i64 {}
-impl SourcePosMixinExt for i128 {}
-impl SourcePosMixinExt for isize {}
-impl SourcePosMixinExt for f32 {}
-impl SourcePosMixinExt for f64 {}
-impl SourcePosMixinExt for bool {}
-impl SourcePosMixinExt for char {}
-impl SourcePosMixinExt for &str {}
-impl SourcePosMixinExt for &[u8] {}
+impl<T> SourcePosMixinExt for T {}

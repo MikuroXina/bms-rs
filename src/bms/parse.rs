@@ -10,14 +10,15 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildOutput, AstParseOutput, AstRoot, AstBuildWarning, rng::Rng},
+    ast::{AstBuildOutput, AstBuildWarning, AstParseOutput, AstRoot, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
-        mixin::{SourcePosMixin, SourcePosMixinExt},
+        mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
     lex::{TokenIter, TokenRefIter},
+    prelude::SourcePosMixinExt,
 };
 
 use self::{
@@ -35,7 +36,7 @@ pub enum ParseWarning {
     SyntaxError(String),
     /// Violation of control flow rule.
     #[error("violate control flow rule: {0}")]
-    ViolateControlFlowRule(#[from] AstBuildWarning),
+    AstBuild(#[from] AstBuildWarning),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -52,8 +53,6 @@ pub enum ParseWarning {
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
 }
-
-impl SourcePosMixinExt for ParseWarning {}
 
 /// type alias of core::result::Result<T, ParseWarning>
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
@@ -96,6 +95,10 @@ impl Bms {
         } = Bms::from_token_stream_without_ast(&tokens.tokens, prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
+            .map(|w| {
+                let (content, r, c) = w.into();
+                ParseWarning::AstBuild(content).into_wrapper_manual(r, c)
+            })
             .chain(parse_warnings)
             .collect();
         BmsParseOutput {
