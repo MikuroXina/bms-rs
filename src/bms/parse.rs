@@ -84,7 +84,7 @@ impl Bms {
         let AstBuildOutput {
             root,
             ast_build_warnings,
-        } = AstRoot::build(&mut token_iter.into());
+        } = AstRoot::from_token_stream(&mut token_iter.into());
         let AstParseOutput { tokens } = root.parse(rng);
         // Build Bms without AST.
         let BmsParseOutput {
