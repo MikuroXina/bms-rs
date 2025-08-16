@@ -8,8 +8,6 @@ pub mod model;
 pub mod prompt;
 pub mod random;
 
-use std::ops::{Deref, DerefMut};
-
 use thiserror::Error;
 
 use crate::bms::{
@@ -19,7 +17,7 @@ use crate::bms::{
         mixin::{SourcePosMixin, SourcePosMixinExt},
         time::{ObjTime, Track},
     },
-    lex::token::TokenWithPos,
+    lex::TokenIter,
     parse::random::parse_control_flow,
 };
 
@@ -29,7 +27,6 @@ use self::{
     prompt::PromptHandler,
     random::{ControlFlowRule, rng::Rng},
 };
-use super::lex::BmsLexOutput;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -78,45 +75,6 @@ pub struct BmsParseOutput {
     pub playing_warnings: Vec<PlayingWarning>,
     /// Errors that occurred during playing.
     pub playing_errors: Vec<PlayingError>,
-}
-
-/// The type of parsing tokens iter.
-pub struct TokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
-
-impl<'a> TokenIter<'a> {
-    /// Create iter from BmsLexOutput reference.
-    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
-    }
-    /// Create iter from TokenWithPos list reference.
-    pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
-        Self(value.iter().peekable())
-    }
-}
-
-impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a> {
-    fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
-    }
-}
-
-impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenIter<'a> {
-    fn from(value: &'a T) -> Self {
-        Self(value.as_ref().iter().peekable())
-    }
-}
-
-impl<'a> Deref for TokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for TokenIter<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 impl Bms {

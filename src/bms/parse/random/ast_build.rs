@@ -4,7 +4,7 @@ use num::BigUint;
 
 use crate::{
     bms::lex::token::{Token, TokenWithPos},
-    parse::{TokenIter, ParseWarningWithPos, random::ControlFlowRule},
+    parse::{ParseWarningWithPos, TokenIter, random::ControlFlowRule},
 };
 
 /// An unit of AST which represents individual scoped commands of BMS source.
@@ -130,9 +130,7 @@ fn parse_unit_or_block<'a>(
 
 /// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
 /// Supports Case/Def branches, error detection, and nested structures.
-fn parse_switch_block<'a>(
-    iter: &mut TokenIter<'a>,
-) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
+fn parse_switch_block<'a>(iter: &mut TokenIter<'a>) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
     let token = iter.next().unwrap();
     use Token::*;
     let block_value = match token.content() {
@@ -303,9 +301,7 @@ fn parse_case_or_def_body<'a>(
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
 /// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, report error.
 /// - Supports nested structures; recursively handle other block types.
-fn parse_random_block<'a>(
-    iter: &mut TokenIter<'a>,
-) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
+fn parse_random_block<'a>(iter: &mut TokenIter<'a>) -> (Unit<'a>, Vec<ParseWarningWithPos>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     use Token::*;
@@ -501,9 +497,7 @@ fn parse_random_block<'a>(
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
 /// - If EndIf is encountered, consume it automatically.
-fn parse_if_block_body<'a>(
-    iter: &mut TokenIter<'a>,
-) -> (Vec<Unit<'a>>, Vec<ParseWarningWithPos>) {
+fn parse_if_block_body<'a>(iter: &mut TokenIter<'a>) -> (Vec<Unit<'a>>, Vec<ParseWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     use Token::*;

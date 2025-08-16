@@ -21,10 +21,10 @@ pub use super::command::{
 };
 
 // Re-export from lex module
-pub use super::lex::{BmsLexOutput, LexWarning, TokenStream};
+pub use super::lex::{BmsLexOutput, LexWarning, TokenIter, TokenStream};
 
 // Re-export from parse module
-pub use super::parse::{BmsParseOutput, TokenIter, ParseWarning, ParseWarningWithPos};
+pub use super::parse::{BmsParseOutput, ParseWarning, ParseWarningWithPos};
 
 // Re-export from parse submodules
 pub use super::parse::{
