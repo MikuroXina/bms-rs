@@ -83,11 +83,11 @@
 //! #00211:0303030303
 //! ```
 //!
-//! ## Header command
+//! ### Header command
 //!
 //! Header commands are used to express the metadata of the music or the definition for note arrangement.
 //!
-//! ## Message command
+//! ### Message command
 //!
 //! Message command starts with `#XXXYY:ZZ...`. `XXX` is the number of the measure, `YY` is the channel of the message, and `ZZ...` is the object id sequence.
 //!
