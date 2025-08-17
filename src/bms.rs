@@ -26,13 +26,13 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::bms::{ast::rng::RandRng, command::mixin::SourcePosMixin, parse::model::Bms};
-
 use self::{
-    lex::{BmsLexOutput, LexWarning},
+    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::RandRng},
+    lex::{LexOutput, LexWarningWithPos},
     parse::{
-        BmsParseOutput, ParseWarningWithPos,
-        check_playing::{PlayingError, PlayingWarning},
+        ParseOutput, ParseWarningWithPos,
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
+        model::Bms,
     },
 };
 
@@ -49,10 +49,13 @@ pub type Decimal = GenericDecimal<BigUint, usize>;
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    LexWarning(#[from] SourcePosMixin<LexWarning>),
+    Lex(#[from] LexWarningWithPos),
+    /// An error comes from AST builder.
+    #[error("Warn: ast_build: {0}")]
+    AstBuild(#[from] AstBuildWarningWithPos),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarningWithPos(#[from] ParseWarningWithPos),
+    Parse(#[from] ParseWarningWithPos),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -91,33 +94,37 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     use rand::{SeedableRng, rngs::StdRng};
 
     // Parse tokens using default channel parser
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = lex::TokenStream::parse_lex(source);
 
     // Convert lex warnings to BmsWarning
-    let mut warnings: Vec<BmsWarning> = lex_warnings
-        .into_iter()
-        .map(BmsWarning::LexWarning)
-        .collect();
+    let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
+    // Build AST
+    let AstBuildOutput {
+        root,
+        ast_build_warnings,
+    } = AstRoot::from_token_stream(&tokens);
+    warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
+    // Parse AST
+    let AstParseOutput { token_refs } = root.parse(rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert parse warnings to BmsWarning
-    warnings.extend(
-        parse_warnings
-            .into_iter()
-            .map(BmsWarning::ParseWarningWithPos),
-    );
+    warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
+
+    let PlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing();
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

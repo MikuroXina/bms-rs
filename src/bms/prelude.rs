@@ -6,7 +6,10 @@
 // Re-export types from bms module
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
-    ast::rng::{RandRng, Rng, RngMock},
+    ast::{
+        AstBuildOutput, AstParseOutput, AstRoot,
+        rng::{RandRng, Rng, RngMock},
+    },
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
@@ -20,12 +23,12 @@ pub use super::{
         time::{ObjTime, Track},
     },
     lex::{
-        BmsLexOutput, LexWarning, TokenRefStream, TokenStream,
+        LexOutput, LexWarning, TokenRefStream, TokenStream,
         token::{Token, TokenWithPos},
     },
     parse::{
-        BmsParseOutput, ParseWarning, ParseWarningWithPos,
-        check_playing::{PlayingError, PlayingWarning},
+        ParseOutput, ParseWarning, ParseWarningWithPos,
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
             Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},

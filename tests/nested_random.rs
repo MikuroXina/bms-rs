@@ -41,17 +41,26 @@ fn nested_random() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
+
+    let AstBuildOutput {
+        root,
+        ast_build_warnings,
+    } = AstRoot::from_token_stream(&tokens);
+    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -86,13 +95,20 @@ fn nested_random() {
             }
         ]
     );
+    let AstBuildOutput {
+        root,
+        ast_build_warnings,
+    } = AstRoot::from_token_stream(&tokens);
+    assert_eq!(ast_build_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -128,12 +144,20 @@ fn nested_random() {
         ]
     );
 
+    let AstBuildOutput {
+        root,
+        ast_build_warnings,
+    } = AstRoot::from_token_stream(&tokens);
+    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),

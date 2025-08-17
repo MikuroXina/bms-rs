@@ -1,23 +1,24 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_playing_conditions_empty_bms() {
     // Create an empty BMS content
     let source = "#PLAYER 1\n#GENRE Test\n#TITLE Test\n#ARTIST Test\n";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
+    let ParseOutput {
+        bms,
         parse_warnings,
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+
+    let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -33,19 +34,21 @@ fn test_playing_conditions_with_bpm_and_notes() {
     // Create a BMS content with BPM and notes
     let source =
         "#PLAYER 1\n#GENRE Test\n#TITLE Test\n#ARTIST Test\n#BPM 120\n#TOTAL 100\n#00111:0101";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
+    let ParseOutput {
+        bms,
         parse_warnings,
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+
+    let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -58,7 +61,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
 fn test_playing_conditions_with_bpm_change_only() {
     // Create a BMS content with only BPM change (no STARTBPM)
     let source = "#PLAYER 1\n#GENRE Test\n#TITLE Test\n#ARTIST Test\n#BPM08 120\n#00111:0101";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
@@ -75,13 +78,15 @@ fn test_playing_conditions_with_bpm_change_only() {
         |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+
+    let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -98,21 +103,23 @@ fn test_playing_conditions_invisible_notes_only() {
     // Create a BMS content with only invisible notes
     let source =
         "#PLAYER 1\n#GENRE Test\n#TITLE Test\n#ARTIST Test\n#BPM 120\n#TOTAL 100\n#00131:0101";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
-    let BmsParseOutput {
-        bms: _,
+    let ParseOutput {
+        bms,
         parse_warnings,
-        playing_warnings,
-        playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
+
+    let PlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing();
 
     // Should have both NoDisplayableNotes and NoPlayableNotes warnings
     assert!(playing_warnings.contains(&PlayingWarning::NoDisplayableNotes));

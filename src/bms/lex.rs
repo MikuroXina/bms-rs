@@ -7,8 +7,6 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
-use std::ops::{Deref, DerefMut};
-
 use thiserror::Error;
 
 use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
@@ -55,7 +53,7 @@ pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct BmsLexOutput<'a> {
+pub struct LexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
     /// warnings
@@ -69,31 +67,6 @@ pub struct BmsLexOutput<'a> {
 pub struct TokenStream<'a> {
     /// The tokens.
     pub tokens: Vec<TokenWithPos<'a>>,
-}
-
-impl<'a> AsRef<[TokenWithPos<'a>]> for TokenStream<'a> {
-    fn as_ref(&self) -> &[TokenWithPos<'a>] {
-        &self.tokens
-    }
-}
-
-impl<'a> AsMut<[TokenWithPos<'a>]> for TokenStream<'a> {
-    fn as_mut(&mut self) -> &mut [TokenWithPos<'a>] {
-        &mut self.tokens
-    }
-}
-
-impl<'a> Deref for TokenStream<'a> {
-    type Target = Vec<TokenWithPos<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.tokens
-    }
-}
-
-impl<'a> DerefMut for TokenStream<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tokens
-    }
 }
 
 impl<'a> IntoIterator for TokenStream<'a> {
@@ -121,31 +94,6 @@ pub struct TokenRefStream<'a> {
     pub token_refs: Vec<&'a TokenWithPos<'a>>,
 }
 
-impl<'a> AsRef<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
-    fn as_ref(&self) -> &[&'a TokenWithPos<'a>] {
-        &self.token_refs
-    }
-}
-
-impl<'a> AsMut<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
-    fn as_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
-        &mut self.token_refs
-    }
-}
-
-impl<'a> Deref for TokenRefStream<'a> {
-    type Target = Vec<&'a TokenWithPos<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.token_refs
-    }
-}
-
-impl<'a> DerefMut for TokenRefStream<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.token_refs
-    }
-}
-
 impl<'a> IntoIterator for TokenRefStream<'a> {
     type Item = &'a TokenWithPos<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
@@ -165,7 +113,7 @@ impl<'a> IntoIterator for &'a TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str) -> BmsLexOutput<'a> {
+    pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
         let mut tokens = vec![];
@@ -189,7 +137,7 @@ impl<'a> TokenStream<'a> {
                 token.content_mut().make_id_uppercase();
             }
         }
-        BmsLexOutput {
+        LexOutput {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,
         }
@@ -208,7 +156,7 @@ mod tests {
             channel::{Channel, Key, NoteKind, PlayerSide},
             time::Track,
         },
-        lex::{BmsLexOutput, TokenStream, token::Token::*},
+        lex::{LexOutput, TokenStream, token::Token::*},
     };
 
     #[test]
@@ -235,7 +183,7 @@ mod tests {
 #00211:00020202
 ";
 
-        let BmsLexOutput {
+        let LexOutput {
             tokens,
             lex_warnings: warnings,
         } = TokenStream::parse_lex(SRC);

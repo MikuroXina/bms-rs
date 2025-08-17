@@ -1,23 +1,18 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -42,20 +37,16 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -86,20 +77,16 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -124,7 +111,7 @@ fn test_j219() {
 #[test]
 fn test_blank() {
     let source = include_str!("files/dive_withblank.bme");
-    let BmsLexOutput {
+    let LexOutput {
         tokens: _,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
@@ -147,20 +134,16 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info

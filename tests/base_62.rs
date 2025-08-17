@@ -1,9 +1,8 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_not_base_62() {
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(
@@ -13,11 +12,11 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 1);
@@ -29,7 +28,7 @@ fn test_not_base_62() {
 
 #[test]
 fn test_base_62() {
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(
@@ -41,11 +40,11 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 2);

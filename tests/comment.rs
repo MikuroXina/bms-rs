@@ -1,4 +1,4 @@
-use bms_rs::bms::lex::{BmsLexOutput, TokenStream, token::Token};
+use bms_rs::bms::lex::{LexOutput, TokenStream, token::Token};
 
 #[test]
 fn test_comment() {
@@ -9,7 +9,7 @@ fn test_comment() {
 
     This is the fourth comment";
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(text);

@@ -1,28 +1,23 @@
-#![cfg(feature = "minor-command")]
-
+#[cfg(feature = "minor-command")]
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_atbga_parsing() {
     let source = r#"
 #TITLE Test BMS
 #@BGA01 02 10 20 100 200 30 40
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
@@ -38,25 +33,22 @@ fn test_atbga_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_bga_parsing() {
     let source = r#"
 #TITLE Test BMS
 #BGA01 02 10 20 110 220 30 40
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #BGA is parsed correctly
@@ -73,25 +65,22 @@ fn test_bga_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_exrank_parsing() {
     let source = r#"
 #TITLE Test BMS
 #EXRANK01 2
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXRANK is parsed correctly
@@ -105,25 +94,22 @@ fn test_exrank_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_exwav_parsing() {
     let source = r#"
 #TITLE Test BMS
 #EXWAV01 pvf 10000 0 48000 test.wav
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXWAV is parsed correctly
@@ -140,25 +126,22 @@ fn test_exwav_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_changeoption_parsing() {
     let source = r#"
 #TITLE Test BMS
 #CHANGEOPTION01 test_option
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
@@ -172,25 +155,22 @@ fn test_changeoption_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_text_parsing() {
     let source = r#"
 #TITLE Test BMS
 #TEXT01 test_text
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #TEXT is parsed correctly
@@ -204,6 +184,7 @@ fn test_text_parsing() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_notes_parse_extended_tokens() {
     let source = r#"
 #TITLE Test BMS
@@ -213,20 +194,16 @@ fn test_notes_parse_extended_tokens() {
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
@@ -258,6 +235,7 @@ fn test_notes_parse_extended_tokens() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_token_parsing_comprehensive() {
     let source = r#"
 #TITLE Test BMS
@@ -277,20 +255,16 @@ fn test_token_parsing_comprehensive() {
 #CHANGEOPTION01 test_option
 #TEXT01 test_text
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that all new tokens are parsed correctly
@@ -347,13 +321,14 @@ fn test_token_parsing_comprehensive() {
 }
 
 #[test]
+#[cfg(feature = "minor-command")]
 fn test_exwav_out_of_range_values() {
     // Test pan value out of range
     let source = r#"
 #TITLE Test BMS
 #EXWAV01 p 10001 test.wav
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
@@ -365,15 +340,11 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("pan value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput {
+    let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Test volume value out of range
@@ -381,7 +352,7 @@ fn test_exwav_out_of_range_values() {
 #TITLE Test BMS
 #EXWAV01 v 1 test.wav
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
@@ -393,15 +364,11 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("volume value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput {
+    let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Test frequency value out of range
@@ -409,7 +376,7 @@ fn test_exwav_out_of_range_values() {
 #TITLE Test BMS
 #EXWAV01 f 99 test.wav
 "#;
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
@@ -421,14 +388,10 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("frequency value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let BmsParseOutput {
+    let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        RngMock([BigUint::from(1u64)]),
-        AlwaysWarnAndUseOlder,
-    );
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }

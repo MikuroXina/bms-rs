@@ -10,7 +10,7 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildOutput, AstBuildWarning, AstParseOutput, AstRoot, rng::Rng},
+    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -21,11 +21,7 @@ use crate::bms::{
     prelude::SourcePosMixinExt,
 };
 
-use self::{
-    check_playing::{PlayingError, PlayingWarning},
-    model::Bms,
-    prompt::PromptHandler,
-};
+use self::{model::Bms, prompt::PromptHandler};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -34,9 +30,6 @@ pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
-    /// Violation of control flow rule.
-    #[error("violate control flow rule: {0}")]
-    AstBuild(#[from] AstBuildWarning),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -63,57 +56,19 @@ pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BmsParseOutput {
+pub struct ParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
-    /// Warnings that occurred during playing.
-    pub playing_warnings: Vec<PlayingWarning>,
-    /// Errors that occurred during playing.
-    pub playing_errors: Vec<PlayingError>,
 }
 
 impl Bms {
-    /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
+    /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
-        rng: impl Rng,
-        prompt_handler: impl PromptHandler,
-    ) -> BmsParseOutput {
-        let AstBuildOutput {
-            root,
-            ast_build_warnings,
-        } = AstRoot::from_token_stream(token_iter);
-        let AstParseOutput { tokens } = root.parse(rng);
-        // Build Bms without AST.
-        let BmsParseOutput {
-            bms,
-            parse_warnings,
-            playing_warnings,
-            playing_errors,
-        } = Bms::from_token_stream_without_ast(tokens.iter().cloned(), prompt_handler);
-        let new_parse_warnings = ast_build_warnings
-            .into_iter()
-            .map(|w| {
-                let (content, r, c) = w.into();
-                ParseWarning::AstBuild(content).into_wrapper_manual(r, c)
-            })
-            .chain(parse_warnings)
-            .collect();
-        BmsParseOutput {
-            bms,
-            parse_warnings: new_parse_warnings,
-            playing_warnings,
-            playing_errors,
-        }
-    }
-
-    /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream_without_ast<'a>(
-        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
-    ) -> BmsParseOutput {
+    ) -> ParseOutput {
         let mut bms = Bms::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
@@ -122,13 +77,45 @@ impl Bms {
             }
         }
 
-        let (playing_warnings, playing_errors) = bms.check_playing();
-
-        BmsParseOutput {
+        ParseOutput {
             bms,
             parse_warnings,
-            playing_warnings,
-            playing_errors,
+        }
+    }
+}
+
+/// Bms Parse Output with AST
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ParseOutputWithAst {
+    /// The output Bms.
+    pub bms: Bms,
+    /// Warnings that occurred during AST building.
+    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+    /// Warnings that occurred during parsing.
+    pub parse_warnings: Vec<ParseWarningWithPos>,
+}
+
+impl Bms {
+    /// Parses a token stream into [`Bms`] with AST.
+    pub fn from_token_stream_with_ast<'a>(
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        rng: impl Rng,
+        prompt_handler: impl PromptHandler,
+    ) -> ParseOutputWithAst {
+        let AstBuildOutput {
+            root,
+            ast_build_warnings,
+        } = AstRoot::from_token_stream(token_iter);
+        let AstParseOutput { token_refs } = root.parse(rng);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(token_refs, prompt_handler);
+        ParseOutputWithAst {
+            bms,
+            ast_build_warnings,
+            parse_warnings,
         }
     }
 }

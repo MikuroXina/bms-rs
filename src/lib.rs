@@ -32,18 +32,27 @@
 //! use bms_rs::bms::prelude::*;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
-//! let BmsLexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
+//! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
+//! assert_eq!(ast_build_warnings, vec![]);
 //! let rng = RandRng(StdRng::seed_from_u64(42));
-//! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
-//!     &tokens, rng, AlwaysWarnAndUseNewer
-//!     );
+//! let AstParseOutput { token_refs } = root.parse(rng);
+//! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
+//!     &token_refs, AlwaysWarnAndUseNewer
+//! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
+//! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
+//! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
+//! println!("Artist: {}", bms.header.artist.as_deref().unwrap_or("Unknown"));
+//! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 //! ```
+//!
+//! - Note: You can also use [`bms::parse::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
 //!
 //! # Features
 //!
