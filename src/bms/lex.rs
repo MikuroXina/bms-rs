@@ -80,7 +80,7 @@ pub struct TokenStream<'a> {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenRefStream<'a> {
     /// The tokens.
-    pub tokens: Vec<&'a TokenWithPos<'a>>,
+    pub token_refs: Vec<&'a TokenWithPos<'a>>,
 }
 
 /// The type of parsing tokens iter.
@@ -126,7 +126,7 @@ impl<'a> TokenIter<'a, std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'
     /// Create iter from [`TokenRefStream`] reference.
     pub fn from_token_ref_stream(value: &'a TokenRefStream<'a>) -> Self {
         // 由于TokenRefStream存储的是&'a TokenWithPos<'a>，我们需要将其转换为Iterator<Item = &'a TokenWithPos<'a>>
-        let iter = value.tokens.iter().cloned();
+        let iter = value.token_refs.iter().cloned();
         Self {
             iter: iter.peekable(),
         }

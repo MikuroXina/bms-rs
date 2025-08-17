@@ -74,7 +74,7 @@ impl<'a> AstRoot<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         AstParseOutput {
-            tokens: TokenRefStream { tokens },
+            tokens: TokenRefStream { token_refs: tokens },
         }
     }
 }
