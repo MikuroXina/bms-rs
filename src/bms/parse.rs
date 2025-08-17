@@ -76,7 +76,7 @@ pub struct BmsParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream<'a>(
+    pub fn from_token_stream_with_ast<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
@@ -92,7 +92,7 @@ impl Bms {
             parse_warnings,
             playing_warnings,
             playing_errors,
-        } = Bms::from_token_stream_without_ast(tokens.iter().cloned(), prompt_handler);
+        } = Bms::from_token_stream(tokens.iter().cloned(), prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
             .map(|w| {
@@ -110,7 +110,7 @@ impl Bms {
     }
 
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream_without_ast<'a>(
+    pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {

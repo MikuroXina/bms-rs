@@ -56,6 +56,16 @@ impl<T> SourcePosMixin<T> {
     }
 }
 
+impl<T> SourcePosMixin<T> {
+    /// Maps the content of the wrapper.
+    pub fn map<U, F>(self, f: F) -> SourcePosMixin<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        SourcePosMixin::new(f(self.content), self.row, self.column)
+    }
+}
+
 impl<T: std::fmt::Display> std::fmt::Display for SourcePosMixin<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

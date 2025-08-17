@@ -6,7 +6,10 @@
 // Re-export types from bms module
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
-    ast::rng::{RandRng, Rng, RngMock},
+    ast::{
+        AstBuildOutput, AstParseOutput, AstRoot,
+        rng::{RandRng, Rng, RngMock},
+    },
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{

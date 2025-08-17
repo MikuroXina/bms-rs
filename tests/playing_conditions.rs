@@ -17,7 +17,7 @@ fn test_playing_conditions_empty_bms() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -45,7 +45,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -81,7 +81,7 @@ fn test_playing_conditions_with_bpm_change_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -110,7 +110,7 @@ fn test_playing_conditions_invisible_notes_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 

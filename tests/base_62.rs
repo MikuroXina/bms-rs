@@ -17,7 +17,7 @@ fn test_not_base_62() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream_with_ast(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 1);
@@ -45,7 +45,7 @@ fn test_base_62() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream_with_ast(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 2);

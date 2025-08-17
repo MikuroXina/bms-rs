@@ -26,13 +26,13 @@ pub mod prelude;
 
 use thiserror::Error;
 
-use crate::bms::{ast::rng::RandRng, command::mixin::SourcePosMixin, parse::model::Bms};
-
 use self::{
-    lex::{BmsLexOutput, LexWarning},
+    ast::{AstBuildOutput, AstParseOutput, AstRoot, rng::RandRng},
+    lex::{BmsLexOutput, LexWarningWithPos},
     parse::{
-        BmsParseOutput, ParseWarningWithPos,
+        BmsParseOutput, ParseWarning, ParseWarningWithPos,
         check_playing::{PlayingError, PlayingWarning},
+        model::Bms,
     },
 };
 
@@ -49,10 +49,10 @@ pub type Decimal = GenericDecimal<BigUint, usize>;
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    LexWarning(#[from] SourcePosMixin<LexWarning>),
+    Lex(#[from] LexWarningWithPos),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    ParseWarningWithPos(#[from] ParseWarningWithPos),
+    Parse(#[from] ParseWarningWithPos),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -97,27 +97,33 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     } = lex::TokenStream::parse_lex(source);
 
     // Convert lex warnings to BmsWarning
-    let mut warnings: Vec<BmsWarning> = lex_warnings
-        .into_iter()
-        .map(BmsWarning::LexWarning)
-        .collect();
+    let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
+    // Build AST
+    let AstBuildOutput {
+        root,
+        ast_build_warnings,
+    } = AstRoot::from_token_stream(&tokens);
+    warnings.extend(
+        ast_build_warnings
+            .into_iter()
+            .map(|w| w.map(ParseWarning::AstBuild))
+            .map(BmsWarning::Parse),
+    );
+    // Parse AST
+    let AstParseOutput { tokens } = root.parse(rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let BmsParseOutput {
         bms,
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(&tokens, rng, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream(&tokens, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert parse warnings to BmsWarning
-    warnings.extend(
-        parse_warnings
-            .into_iter()
-            .map(BmsWarning::ParseWarningWithPos),
-    );
+    warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

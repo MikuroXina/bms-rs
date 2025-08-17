@@ -51,7 +51,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -92,7 +92,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -133,7 +133,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),

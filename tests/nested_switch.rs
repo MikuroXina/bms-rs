@@ -30,7 +30,7 @@ fn switch() {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -67,7 +67,7 @@ fn nested_switch_simpler() {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -121,7 +121,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -162,7 +162,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -203,7 +203,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -281,7 +281,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -322,7 +322,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -363,7 +363,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -441,7 +441,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -482,7 +482,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -523,7 +523,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -598,7 +598,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -627,7 +627,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -656,7 +656,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -678,7 +678,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -714,7 +714,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -750,7 +750,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),

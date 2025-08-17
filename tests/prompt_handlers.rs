@@ -60,7 +60,7 @@ fn test_always_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseOlder);
+    } = Bms::from_token_stream_with_ast(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseOlder);
 
     // Should have no warnings since AlwaysUseOlder handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -177,7 +177,7 @@ fn test_always_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
+    } = Bms::from_token_stream_with_ast(&tokens, RngMock([BigUint::from(1u64)]), AlwaysUseNewer);
 
     // Should have no warnings since AlwaysUseNewer handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -294,7 +294,7 @@ fn test_always_warn_and_use_older() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
+    } = Bms::from_token_stream_with_ast(
         &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
@@ -419,7 +419,7 @@ fn test_always_warn_and_use_newer() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
+    } = Bms::from_token_stream_with_ast(
         &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseNewer,
