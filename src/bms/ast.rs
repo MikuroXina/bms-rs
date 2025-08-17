@@ -66,7 +66,7 @@ impl<'a> AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstParseOutput<'a> {
     /// The tokens that were parsed.
-    pub tokens: TokenRefStream<'a>,
+    pub token_refs: TokenRefStream<'a>,
 }
 
 impl<'a> AstRoot<'a> {
@@ -75,7 +75,7 @@ impl<'a> AstRoot<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         AstParseOutput {
-            tokens: TokenRefStream { token_refs: tokens },
+            token_refs: TokenRefStream { token_refs: tokens },
         }
     }
 }

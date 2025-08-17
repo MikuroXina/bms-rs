@@ -28,7 +28,7 @@ use thiserror::Error;
 
 use self::{
     ast::{AstBuildOutput, AstParseOutput, AstRoot, rng::RandRng},
-    lex::{BmsLexOutput, LexWarningWithPos},
+    lex::{BmsLexOutput, LexWarningWithPos, TokenRefStream},
     parse::{
         BmsParseOutput, ParseWarning, ParseWarningWithPos,
         check_playing::{PlayingError, PlayingWarning},
@@ -113,7 +113,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
             .map(BmsWarning::Parse),
     );
     // Parse AST
-    let AstParseOutput { tokens } = root.parse(rng);
+    let AstParseOutput { token_refs: tokens } = TokenRefStream::from_ast_root(root, rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let BmsParseOutput {
         bms,
