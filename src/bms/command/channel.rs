@@ -670,6 +670,10 @@ impl JavaRandom {
 }
 
 /// A modifier that rotates the lanes of a [`KeyLayoutConverter`].
+/// 
+/// Its action is similar to beatoraja's lane rotation. 
+/// 
+/// - References: https://github.com/exch-bms2/beatoraja/blob/7d16ed08b2505139241aae470478ad104dc75408/src/bms/player/beatoraja/pattern/LaneShuffleModifier.java#L135
 #[derive(Debug, Clone)]
 pub struct RotateShuffleModifier {
     /// The side of the player to shuffle.
@@ -688,6 +692,7 @@ impl RotateShuffleModifier {
     }
 
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
+        // TODO: Lacks of test cases
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
         if keys.is_empty() {
@@ -725,6 +730,8 @@ impl KeyLayoutConverter for RotateShuffleModifier {
 /// A modifier that randomly shuffles the lanes of a [`KeyLayoutConverter`].
 ///
 /// Its action is similar to beatoraja's lane shuffle.
+/// 
+/// - References: https://github.com/exch-bms2/beatoraja/blob/7d16ed08b2505139241aae470478ad104dc75408/src/bms/player/beatoraja/pattern/LaneShuffleModifier.java#L155
 #[derive(Debug, Clone)]
 pub struct RandomShuffleModifier {
     /// The side of the player to shuffle.
