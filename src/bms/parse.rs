@@ -92,7 +92,7 @@ impl Bms {
             parse_warnings,
             playing_warnings,
             playing_errors,
-        } = Bms::from_token_stream_without_ast(tokens.into_iter(), prompt_handler);
+        } = Bms::from_token_stream_without_ast(&tokens, prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
             .map(|w| {
