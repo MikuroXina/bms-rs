@@ -99,6 +99,10 @@ impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> TokenIter<'a, T> {
     pub fn new(iter: Peekable<T>) -> Self {
         Self { iter }
     }
+    /// Create iter from [`Iterator`].
+    pub fn from_iterator(value: T) -> Self {
+        Self::new(value.peekable())
+    }
 }
 
 impl<'a> TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
@@ -119,6 +123,12 @@ impl<'a> TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
 impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<Peekable<T>> for TokenIter<'a, T> {
     fn from(value: Peekable<T>) -> Self {
         Self::new(value)
+    }
+}
+
+impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<T> for TokenIter<'a, T> {
+    fn from(value: T) -> Self {
+        Self::from_iterator(value)
     }
 }
 
