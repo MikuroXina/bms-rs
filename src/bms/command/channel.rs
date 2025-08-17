@@ -241,6 +241,29 @@ pub enum Key {
     FreeZone = 201,
 }
 
+impl Key {
+    /// Returns whether the key is a keyboard key.
+    pub const fn is_in_keypad(&self) -> bool {
+        matches!(
+            self,
+            Self::Key1
+                | Self::Key2
+                | Self::Key3
+                | Self::Key4
+                | Self::Key5
+                | Self::Key6
+                | Self::Key7
+                | Self::Key8
+                | Self::Key9
+                | Self::Key10
+                | Self::Key11
+                | Self::Key12
+                | Self::Key13
+                | Self::Key14
+        )
+    }
+}
+
 /// Reads a channel from a string.
 ///
 /// For general part, please call this function when using other functions.
@@ -560,28 +583,11 @@ impl KeyChannelMode for KeyChannelModeDscOctFp {
     }
 }
 
-const KEY_DEFS: [Key; 14] = [
-    Key::Key1,
-    Key::Key2,
-    Key::Key3,
-    Key::Key4,
-    Key::Key5,
-    Key::Key6,
-    Key::Key7,
-    Key::Key8,
-    Key::Key9,
-    Key::Key10,
-    Key::Key11,
-    Key::Key12,
-    Key::Key13,
-    Key::Key14,
-];
-
 /// Mirror the note of player 1 side.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyChannelModeMirror {
     side: PlayerSide,
-    key_count: usize,
+    keys: Vec<Key>,
 }
 
 impl KeyChannelMode for KeyChannelModeMirror {
@@ -590,11 +596,15 @@ impl KeyChannelMode for KeyChannelModeMirror {
     }
 
     fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        let key_count = self.key_count;
         let (side, mut key) = beat_map.into_tuple();
-        // Note: [`Key`] is 1-indexed, so we need to subtract 1 from the key count.
-        if side == self.side && (key as u64 as usize) <= key_count {
-            key = KEY_DEFS[key_count - (key as u64 as usize)];
+        if side == self.side
+            && let Some(position) = self.keys.iter().position(|k| k == &key)
+        {
+            let mirror_index = self.keys.len().saturating_sub(position + 1);
+            let Some(mirror_key) = self.keys.get(mirror_index) else {
+                return beat_map;
+            };
+            key = *mirror_key;
         }
         BeatModeMap::new(side, key)
     }
@@ -624,7 +634,7 @@ mod channel_mode_tests {
         .collect::<Vec<_>>();
         let mut mode = KeyChannelModeMirror {
             side: PlayerSide::Player1,
-            key_count: 3,
+            keys: vec![Key::Key1, Key::Key2, Key::Key3],
         };
         let expected = vec![
             (PlayerSide::Player1, Key::Key3),
