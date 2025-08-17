@@ -10,6 +10,7 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
+    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -78,6 +79,42 @@ impl Bms {
 
         ParseOutput {
             bms,
+            parse_warnings,
+        }
+    }
+}
+
+/// Bms Parse Output with AST
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ParseOutputWithAst {
+    /// The output Bms.
+    pub bms: Bms,
+    /// Warnings that occurred during AST building.
+    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+    /// Warnings that occurred during parsing.
+    pub parse_warnings: Vec<ParseWarningWithPos>,
+}
+
+impl Bms {
+    /// Parses a token stream into [`Bms`] with AST.
+    pub fn from_token_stream_with_ast<'a>(
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        rng: impl Rng,
+        prompt_handler: impl PromptHandler,
+    ) -> ParseOutputWithAst {
+        let AstBuildOutput {
+            root,
+            ast_build_warnings,
+        } = AstRoot::from_token_stream(token_iter);
+        let AstParseOutput { token_refs } = root.parse(rng);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(token_refs, prompt_handler);
+        ParseOutputWithAst {
+            bms,
+            ast_build_warnings,
             parse_warnings,
         }
     }
