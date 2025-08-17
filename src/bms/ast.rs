@@ -41,7 +41,7 @@ pub struct AstRoot<'a> {
 
 /// The output of building the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AstBuildOutput<'a> {
+pub struct BmsAstBuildOutput<'a> {
     /// The units of the AST.
     pub root: AstRoot<'a>,
     /// The errors that occurred during building.
@@ -52,10 +52,10 @@ impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
     pub fn from_token_stream(
         token_stream: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
-    ) -> AstBuildOutput<'a> {
+    ) -> BmsAstBuildOutput<'a> {
         let mut token_iter = token_stream.into_iter().peekable();
         let (units, errors) = build_control_flow_ast(&mut token_iter);
-        AstBuildOutput {
+        BmsAstBuildOutput {
             root: AstRoot { units },
             ast_build_warnings: errors,
         }
@@ -64,17 +64,17 @@ impl<'a> AstRoot<'a> {
 
 /// The output of parsing the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AstParseOutput<'a> {
+pub struct BmsAstParseOutput<'a> {
     /// The tokens that were parsed.
     pub token_refs: TokenRefStream<'a>,
 }
 
 impl<'a> AstRoot<'a> {
     /// Parses the AST using a random number generator.
-    pub fn parse(self, mut rng: impl Rng) -> AstParseOutput<'a> {
+    pub fn parse(self, mut rng: impl Rng) -> BmsAstParseOutput<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
-        AstParseOutput {
+        BmsAstParseOutput {
             token_refs: TokenRefStream { token_refs: tokens },
         }
     }

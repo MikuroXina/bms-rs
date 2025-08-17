@@ -27,7 +27,7 @@ pub mod prelude;
 use thiserror::Error;
 
 use self::{
-    ast::{AstBuildOutput, AstParseOutput, AstRoot, rng::RandRng},
+    ast::{AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::RandRng},
     lex::{BmsLexOutput, LexWarningWithPos, TokenRefStream},
     parse::{
         BmsParseOutput, ParseWarning, ParseWarningWithPos,
@@ -102,7 +102,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
     // Build AST
-    let AstBuildOutput {
+    let BmsAstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
@@ -113,7 +113,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
             .map(BmsWarning::Parse),
     );
     // Parse AST
-    let AstParseOutput { token_refs: tokens } = TokenRefStream::from_ast_root(root, rng);
+    let BmsAstParseOutput { token_refs: tokens } = TokenRefStream::from_ast_root(root, rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let BmsParseOutput {
         bms,

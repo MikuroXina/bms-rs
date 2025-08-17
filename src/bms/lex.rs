@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstParseOutput, AstRoot, rng::Rng},
+    ast::{AstRoot, BmsAstParseOutput, rng::Rng},
     command::mixin::{SourcePosMixin, SourcePosMixinExt},
 };
 
@@ -201,7 +201,7 @@ impl<'a> TokenStream<'a> {
 
 impl<'a> TokenRefStream<'a> {
     /// Analyzes and converts the [`AstRoot`] into [`TokenRefStream`].
-    pub fn from_ast_root(root: AstRoot<'a>, rng: impl Rng) -> AstParseOutput<'a> {
+    pub fn from_ast_root(root: AstRoot<'a>, rng: impl Rng) -> BmsAstParseOutput<'a> {
         root.parse(rng)
     }
 }

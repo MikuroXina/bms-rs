@@ -10,7 +10,7 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildOutput, AstBuildWarning, AstParseOutput, AstRoot, rng::Rng},
+    ast::{AstBuildWarning, AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -81,11 +81,11 @@ impl Bms {
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
-        let AstBuildOutput {
+        let BmsAstBuildOutput {
             root,
             ast_build_warnings,
         } = AstRoot::from_token_stream(token_iter);
-        let AstParseOutput { token_refs: tokens } = root.parse(rng);
+        let BmsAstParseOutput { token_refs: tokens } = root.parse(rng);
         // Build Bms without AST.
         let BmsParseOutput {
             bms,

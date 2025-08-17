@@ -35,10 +35,10 @@
 //! let BmsLexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
-//! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
+//! let BmsAstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
 //! assert_eq!(ast_build_warnings, vec![]);
 //! let rng = RandRng(StdRng::seed_from_u64(42));
-//! let AstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
+//! let BmsAstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
 //! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );

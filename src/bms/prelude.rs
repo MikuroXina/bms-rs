@@ -7,7 +7,7 @@
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
     ast::{
-        AstBuildOutput, AstParseOutput, AstRoot,
+        AstRoot, BmsAstBuildOutput, BmsAstParseOutput,
         rng::{RandRng, Rng, RngMock},
     },
     command::{
