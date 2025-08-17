@@ -22,7 +22,7 @@ use crate::bms::{
 };
 
 use self::{
-    check_playing::{PlayingError, PlayingWarning},
+    check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
     model::Bms,
     prompt::PromptHandler,
 };
@@ -122,7 +122,10 @@ impl Bms {
             }
         }
 
-        let (playing_warnings, playing_errors) = bms.check_playing();
+        let BmsPlayingCheckOutput {
+            playing_warnings,
+            playing_errors,
+        } = bms.check_playing();
 
         BmsParseOutput {
             bms,

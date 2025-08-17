@@ -28,7 +28,7 @@ pub use super::{
     },
     parse::{
         BmsParseOutput, ParseWarning, ParseWarningWithPos,
-        check_playing::{PlayingError, PlayingWarning},
+        check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
             Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},

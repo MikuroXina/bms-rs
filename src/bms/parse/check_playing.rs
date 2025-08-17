@@ -41,29 +41,39 @@ pub enum PlayingError {
     NoNotes,
 }
 
+/// Output of checking for playing warnings and errors.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BmsPlayingCheckOutput {
+    /// List of [`PlayingWarning`]s.
+    pub playing_warnings: Vec<PlayingWarning>,
+    /// List of [`PlayingError`]s.
+    pub playing_errors: Vec<PlayingError>,
+}
+
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub(crate) fn check_playing(&self) -> (Vec<PlayingWarning>, Vec<PlayingError>) {
-        let mut warnings = Vec::new();
-        let mut errors = Vec::new();
+    pub(crate) fn check_playing(&self) -> BmsPlayingCheckOutput {
+        let mut playing_warnings = Vec::new();
+        let mut playing_errors = Vec::new();
 
         // Check for TotalUndefined warning
         if self.header.total.is_none() {
-            warnings.push(PlayingWarning::TotalUndefined);
+            playing_warnings.push(PlayingWarning::TotalUndefined);
         }
 
         // Check for BPM-related conditions
         if self.arrangers.bpm.is_none() {
             if self.arrangers.bpm_changes.is_empty() {
-                errors.push(PlayingError::BpmUndefined);
+                playing_errors.push(PlayingError::BpmUndefined);
             } else {
-                warnings.push(PlayingWarning::StartBpmUndefined);
+                playing_warnings.push(PlayingWarning::StartBpmUndefined);
             }
         }
 
         // Check for notes
         if self.notes.objs.is_empty() {
-            errors.push(PlayingError::NoNotes);
+            playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
             let has_displayable = self.notes.all_notes().any(|note| {
@@ -73,16 +83,19 @@ impl Bms {
                 )
             });
             if !has_displayable {
-                warnings.push(PlayingWarning::NoDisplayableNotes);
+                playing_warnings.push(PlayingWarning::NoDisplayableNotes);
             }
 
             // Check for playable notes (all except Invisible)
             let has_playable = self.notes.all_notes().any(|note| note.kind.is_playable());
             if !has_playable {
-                warnings.push(PlayingWarning::NoPlayableNotes);
+                playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }
         }
 
-        (warnings, errors)
+        BmsPlayingCheckOutput {
+            playing_warnings,
+            playing_errors,
+        }
     }
 }
