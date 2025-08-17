@@ -17,7 +17,7 @@ fn test_playing_conditions_empty_bms() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -45,7 +45,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -66,12 +66,12 @@ fn test_playing_conditions_with_bpm_change_only() {
 
     assert!(
         !tokens
-            .tokens()
+            .tokens
             .iter()
             .any(|t| matches!(&t.content(), Token::Bpm(bpm) if bpm == &Decimal::from(120)))
     );
     let obj_id = ObjId::try_from("08").unwrap();
-    assert!(tokens.tokens().iter().any(
+    assert!(tokens.tokens.iter().any(
         |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
@@ -81,7 +81,7 @@ fn test_playing_conditions_with_bpm_change_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -110,7 +110,7 @@ fn test_playing_conditions_invisible_notes_only() {
         parse_warnings,
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream(tokens.tokens(), rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 

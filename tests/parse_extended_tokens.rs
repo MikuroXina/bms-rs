@@ -19,7 +19,7 @@ fn test_atbga_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -53,7 +53,7 @@ fn test_bga_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -88,7 +88,7 @@ fn test_exrank_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -120,7 +120,7 @@ fn test_exwav_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -155,7 +155,7 @@ fn test_changeoption_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -187,7 +187,7 @@ fn test_text_parsing() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -223,7 +223,7 @@ fn test_notes_parse_extended_tokens() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -287,7 +287,7 @@ fn test_token_parsing_comprehensive() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -370,7 +370,7 @@ fn test_exwav_out_of_range_values() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -398,7 +398,7 @@ fn test_exwav_out_of_range_values() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -426,7 +426,7 @@ fn test_exwav_out_of_range_values() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );

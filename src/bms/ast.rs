@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixin,
-    lex::{TokenIter, TokenRefStream},
+    lex::{TokenRefStream, token::TokenWithPos},
 };
 
 use self::{
@@ -50,8 +50,11 @@ pub struct AstBuildOutput<'a> {
 
 impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
-    pub fn build(token_stream: &mut TokenIter<'a>) -> AstBuildOutput<'a> {
-        let (units, errors) = build_control_flow_ast(token_stream);
+    pub fn from_token_stream(
+        token_stream: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+    ) -> AstBuildOutput<'a> {
+        let mut token_iter = token_stream.into_iter().peekable();
+        let (units, errors) = build_control_flow_ast(&mut token_iter);
         AstBuildOutput {
             root: AstRoot { units },
             ast_build_warnings: errors,
@@ -72,7 +75,7 @@ impl<'a> AstRoot<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
         AstParseOutput {
-            tokens: TokenRefStream { tokens },
+            tokens: TokenRefStream { token_refs: tokens },
         }
     }
 }
@@ -141,7 +144,6 @@ mod tests {
     use crate::bms::{
         ast::ast_build::{CaseBranch, CaseBranchValue, Unit},
         command::mixin::SourcePosMixinExt,
-        lex::TokenIter,
         lex::token::Token,
     };
 
@@ -179,7 +181,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -298,7 +300,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut TokenIter::from_tokens(&tokens));
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
