@@ -50,8 +50,8 @@ pub struct AstBuildOutput<'a> {
 
 impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
-    pub fn from_token_stream(
-        token_stream: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+    pub fn from_token_stream<T: Iterator<Item = &'a TokenWithPos<'a>>>(
+        token_stream: &mut TokenIter<'a, T>,
     ) -> AstBuildOutput<'a> {
         let (units, errors) = build_control_flow_ast(token_stream);
         AstBuildOutput {

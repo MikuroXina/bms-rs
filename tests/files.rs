@@ -14,7 +14,7 @@ fn test_lal() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -52,7 +52,7 @@ fn test_nc() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -96,7 +96,7 @@ fn test_j219() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );
@@ -157,7 +157,7 @@ fn test_bemuse_ext() {
         parse_warnings,
         ..
     } = Bms::from_token_stream(
-        tokens.tokens(),
+        &tokens,
         RngMock([BigUint::from(1u64)]),
         AlwaysWarnAndUseOlder,
     );

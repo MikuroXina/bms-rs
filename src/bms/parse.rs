@@ -76,8 +76,8 @@ pub struct BmsParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream<'a>(
-        token_iter: impl Into<TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>>,
+    pub fn from_token_stream<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+        token_iter: impl Into<TokenIter<'a, T>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {

@@ -75,8 +75,8 @@ pub enum CaseBranchValue {
 
 /// The main entry for building the control flow AST. Traverses the TokenWithPos stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
-pub(super) fn build_control_flow_ast<'a>(
-    tokens_iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    tokens_iter: &mut TokenIter<'a, T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
@@ -111,8 +111,8 @@ pub(super) fn build_control_flow_ast<'a>(
 }
 
 /// Handle a single TokenWithPos: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithPos node.
-fn parse_unit_or_block<'a>(
-    iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    iter: &mut TokenIter<'a, T>,
 ) -> Option<(Unit<'a>, Vec<AstBuildWarningWithPos>)> {
     let token = iter.peek()?;
     use Token::*;
@@ -126,9 +126,8 @@ fn parse_unit_or_block<'a>(
             Some((unit, errs))
         }
         content if !content.is_control_flow_token() => {
-            let t = *token;
             iter.next();
-            Some((Unit::TokenWithPos(t), Vec::new()))
+            Some((Unit::TokenWithPos(token), Vec::new()))
         }
         _ => None,
     }
@@ -136,8 +135,8 @@ fn parse_unit_or_block<'a>(
 
 /// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
 /// Supports Case/Def branches, error detection, and nested structures.
-fn parse_switch_block<'a>(
-    iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    iter: &mut TokenIter<'a, T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithPos>) {
     let token = iter.next().unwrap();
     use Token::*;
@@ -269,13 +268,13 @@ fn parse_switch_block<'a>(
 
 /// Parse the body of a Case/Def branch until a branch-terminating TokenWithPos is encountered.
 /// Supports nested blocks, prioritizing parse_unit_or_block.
-fn parse_case_or_def_body<'a>(
-    iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    iter: &mut TokenIter<'a, T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     use Token::*;
-    while let Some(&token) = iter.peek() {
+    while let Some(token) = iter.peek() {
         if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
             break;
         }
@@ -309,8 +308,8 @@ fn parse_case_or_def_body<'a>(
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
 /// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, report error.
 /// - Supports nested structures; recursively handle other block types.
-fn parse_random_block<'a>(
-    iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    iter: &mut TokenIter<'a, T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithPos>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
@@ -327,7 +326,7 @@ fn parse_random_block<'a>(
     };
     let mut errors = Vec::new();
     // 2. Main loop, process the contents inside the Random block
-    while let Some(&token) = iter.peek() {
+    while let Some(token) = iter.peek() {
         match token.content() {
             // 2.1 Handle If branch
             If(if_val) => {
@@ -507,8 +506,8 @@ fn parse_random_block<'a>(
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
 /// - If EndIf is encountered, consume it automatically.
-fn parse_if_block_body<'a>(
-    iter: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+    iter: &mut TokenIter<'a, T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();

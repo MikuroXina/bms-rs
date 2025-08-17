@@ -74,16 +74,13 @@ pub struct TokenStream<'a> {
     pub tokens: Vec<TokenWithPos<'a>>,
 }
 
-impl<'a> TokenStream<'a> {
-    /// Returns a slice of tokens.
-    pub fn tokens(&self) -> &[TokenWithPos<'a>] {
-        &self.tokens
-    }
-
-    /// Returns a mutable slice of tokens.
-    pub fn tokens_mut(&mut self) -> &mut [TokenWithPos<'a>] {
-        &mut self.tokens
-    }
+/// A list of tokens reference.
+/// This is a wrapper of [`Vec<&'a TokenWithPos<'a>>`] that provides some additional methods.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct TokenRefStream<'a> {
+    /// The tokens.
+    pub tokens: Vec<&'a TokenWithPos<'a>>,
 }
 
 /// The type of parsing tokens iter.
@@ -94,7 +91,10 @@ where
     iter: Peekable<T>,
 }
 
-impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> TokenIter<'a, T> {
+impl<'a, T> TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
     /// Create iter from [`Peekable`] iterator.
     pub fn new(iter: Peekable<T>) -> Self {
         Self { iter }
@@ -112,21 +112,50 @@ impl<'a> TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
     }
     /// Create iter from [`BmsLexOutput`] reference.
     pub fn from_lex_output(value: &'a BmsLexOutput<'a>) -> Self {
-        Self::from_tokens(value.tokens.tokens())
+        Self::from_tokens(&value.tokens.tokens)
     }
     /// Create iter from [`TokenStream`] reference.
     pub fn from_token_stream(value: &'a TokenStream<'a>) -> Self {
-        Self::from_tokens(value.tokens())
+        Self::from_tokens(&value.tokens)
     }
 }
 
-impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<Peekable<T>> for TokenIter<'a, T> {
+impl<'a> TokenIter<'a, std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>> {
+    /// Create iter from [`TokenRefStream`] reference.
+    /// 从 [`TokenRefStream`] 引用创建迭代器。
+    /// Create iter from [`TokenRefStream`] reference.
+    pub fn from_token_ref_stream(value: &'a TokenRefStream<'a>) -> Self {
+        // 由于TokenRefStream存储的是&'a TokenWithPos<'a>，我们需要将其转换为Iterator<Item = &'a TokenWithPos<'a>>
+        let iter = value.tokens.iter().cloned();
+        Self {
+            iter: iter.peekable(),
+        }
+    }
+}
+
+impl<'a, T> TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
+    /// Peek the next token.
+    pub fn peek(&mut self) -> Option<&'a TokenWithPos<'a>> {
+        self.iter.peek().cloned()
+    }
+}
+
+impl<'a, T> From<Peekable<T>> for TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
     fn from(value: Peekable<T>) -> Self {
         Self::new(value)
     }
 }
 
-impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<T> for TokenIter<'a, T> {
+impl<'a, T> From<T> for TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
     fn from(value: T) -> Self {
         Self::from_iterator(value)
     }
@@ -135,6 +164,20 @@ impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<T> for TokenIter<'a, T> 
 impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
     fn from(value: &'a BmsLexOutput<'a>) -> Self {
         Self::from_lex_output(value)
+    }
+}
+
+impl<'a> From<&'a TokenStream<'a>> for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
+    fn from(value: &'a TokenStream<'a>) -> Self {
+        Self::from_token_stream(value)
+    }
+}
+
+impl<'a> From<&'a TokenRefStream<'a>>
+    for TokenIter<'a, std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>>
+{
+    fn from(value: &'a TokenRefStream<'a>) -> Self {
+        Self::from_token_ref_stream(value)
     }
 }
 
@@ -250,7 +293,7 @@ mod tests {
         assert_eq!(warnings, vec![]);
         assert_eq!(
             tokens
-                .tokens()
+                .tokens
                 .iter()
                 .cloned()
                 .map(|t| t.content().clone())
