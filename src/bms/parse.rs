@@ -17,7 +17,7 @@ use crate::bms::{
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
-    lex::{TokenIter, TokenRefIter},
+    lex::{TokenIter, token::TokenWithPos},
     prelude::SourcePosMixinExt,
 };
 
@@ -77,7 +77,7 @@ pub struct BmsParseOutput {
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
     pub fn from_token_stream<'a>(
-        token_iter: impl Into<TokenIter<'a>>,
+        token_iter: impl Into<TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
@@ -92,7 +92,7 @@ impl Bms {
             parse_warnings,
             playing_warnings,
             playing_errors,
-        } = Bms::from_token_stream_without_ast(&tokens.tokens, prompt_handler);
+        } = Bms::from_token_stream_without_ast(tokens.iter().cloned().peekable(), prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
             .map(|w| {
@@ -110,12 +110,12 @@ impl Bms {
     }
 
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream_without_ast<'a>(
-        token_iter: impl Into<TokenRefIter<'a>>,
+    pub fn from_token_stream_without_ast<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+        token_iter: impl Into<TokenIter<'a, T>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let mut bms = Bms::default();
-        let iter: TokenRefIter<'a> = token_iter.into();
+        let iter: TokenIter<'a, T> = token_iter.into();
         let mut parse_warnings = vec![];
         for token in iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {

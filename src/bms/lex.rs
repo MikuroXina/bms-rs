@@ -7,7 +7,10 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
-use std::ops::{Deref, DerefMut};
+use std::{
+    iter::Peekable,
+    ops::{Deref, DerefMut},
+};
 
 use thiserror::Error;
 
@@ -84,104 +87,75 @@ impl<'a> TokenStream<'a> {
 }
 
 /// The type of parsing tokens iter.
-pub struct TokenIter<'a>(std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>);
+pub struct TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
+    iter: Peekable<T>,
+}
 
-impl<'a> TokenIter<'a> {
-    /// Create iter from BmsLexOutput reference.
-    pub fn from_lex_output(value: &'a BmsLexOutput) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
+impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> TokenIter<'a, T> {
+    /// Create iter from [`Peekable`] iterator.
+    pub fn new(iter: Peekable<T>) -> Self {
+        Self { iter }
     }
-    /// Create iter from TokenWithPos list reference.
+}
+
+impl<'a> TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
+    /// Create iter from [`TokenWithPos`] list reference.
     pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
-        Self(value.iter().peekable())
+        Self::new(value.iter().peekable())
+    }
+    /// Create iter from [`BmsLexOutput`] reference.
+    pub fn from_lex_output(value: &'a BmsLexOutput<'a>) -> Self {
+        Self::from_tokens(value.tokens.tokens())
+    }
+    /// Create iter from [`TokenStream`] reference.
+    pub fn from_token_stream(value: &'a TokenStream<'a>) -> Self {
+        Self::from_tokens(value.tokens())
     }
 }
 
-impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a> {
+impl<'a, T: Iterator<Item = &'a TokenWithPos<'a>>> From<Peekable<T>> for TokenIter<'a, T> {
+    fn from(value: Peekable<T>) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
     fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self(value.tokens.tokens().iter().peekable())
+        Self::from_lex_output(value)
     }
 }
 
-impl<'a, T: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenIter<'a> {
-    fn from(value: &'a T) -> Self {
-        Self(value.as_ref().iter().peekable())
+impl<'a, C: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a C>
+    for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>
+{
+    fn from(value: &'a C) -> Self {
+        Self::from_tokens(value.as_ref())
     }
 }
 
-impl<'a> Deref for TokenIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
+impl<'a> Deref for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
+    type Target = Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.iter
     }
 }
 
-impl<'a> DerefMut for TokenIter<'a> {
+impl<'a> DerefMut for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.iter
     }
 }
 
-/// A list of tokens.
-/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct TokenRefStream<'a> {
-    /// The tokens.
-    pub tokens: Vec<&'a TokenWithPos<'a>>,
-}
-
-impl<'a> TokenRefStream<'a> {
-    /// Returns a slice of tokens.
-    pub fn tokens(&self) -> &[&'a TokenWithPos<'a>] {
-        &self.tokens
-    }
-
-    /// Returns a mutable slice of tokens.
-    pub fn tokens_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
-        &mut self.tokens
-    }
-}
-
-/// The type of parsing tokens iter.
-pub struct TokenRefIter<'a>(std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>);
-
-impl<'a> TokenRefIter<'a> {
-    /// Create iter from TokenWithPos list reference.
-    pub fn from_ref_slice(value: &'a [&'a TokenWithPos<'a>]) -> Self {
-        Self(value.iter().peekable())
-    }
-}
-
-impl<'a> From<&'a TokenRefStream<'a>> for TokenRefIter<'a> {
-    fn from(value: &'a TokenRefStream<'a>) -> Self {
-        Self(value.tokens.iter().peekable())
-    }
-}
-
-impl<'a, T: AsRef<[&'a TokenWithPos<'a>]> + ?Sized> From<&'a T> for TokenRefIter<'a> {
-    fn from(value: &'a T) -> Self {
-        Self(value.as_ref().iter().peekable())
-    }
-}
-
-impl<'a> Deref for TokenRefIter<'a> {
-    type Target = std::iter::Peekable<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<'a> DerefMut for TokenRefIter<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<'a> Iterator for TokenRefIter<'a> {
+impl<'a, T> Iterator for TokenIter<'a, T>
+where
+    T: Iterator<Item = &'a TokenWithPos<'a>>,
+{
     type Item = &'a TokenWithPos<'a>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().copied()
+        self.iter.next()
     }
 }
 

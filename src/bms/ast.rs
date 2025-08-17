@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixin,
-    lex::{TokenIter, TokenRefStream},
+    lex::{TokenIter, token::TokenWithPos},
 };
 
 use self::{
@@ -50,7 +50,9 @@ pub struct AstBuildOutput<'a> {
 
 impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
-    pub fn from_token_stream(token_stream: &mut TokenIter<'a>) -> AstBuildOutput<'a> {
+    pub fn from_token_stream(
+        token_stream: &mut TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>,
+    ) -> AstBuildOutput<'a> {
         let (units, errors) = build_control_flow_ast(token_stream);
         AstBuildOutput {
             root: AstRoot { units },
@@ -63,7 +65,7 @@ impl<'a> AstRoot<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstParseOutput<'a> {
     /// The tokens that were parsed.
-    pub tokens: TokenRefStream<'a>,
+    pub tokens: Vec<&'a TokenWithPos<'a>>,
 }
 
 impl<'a> AstRoot<'a> {
@@ -71,9 +73,7 @@ impl<'a> AstRoot<'a> {
     pub fn parse(self, mut rng: impl Rng) -> AstParseOutput<'a> {
         let mut ast_iter = self.units.into_iter().peekable();
         let tokens = parse_control_flow_ast(&mut ast_iter, &mut rng);
-        AstParseOutput {
-            tokens: TokenRefStream { tokens },
-        }
+        AstParseOutput { tokens }
     }
 }
 
