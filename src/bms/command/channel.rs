@@ -583,11 +583,13 @@ impl KeyChannelMode for KeyChannelModeDscOctFp {
     }
 }
 
-/// Mirror the note of player 1 side.
+/// Mirror the note of a [`PlayerSide`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyChannelModeMirror {
-    side: PlayerSide,
-    keys: Vec<Key>,
+    /// The side of the player to mirror.
+    pub side: PlayerSide,
+    /// A list of [`Key`]s to mirror. Usually, it should be the keys that actually used in the song.
+    pub keys: Vec<Key>,
 }
 
 impl KeyChannelMode for KeyChannelModeMirror {
