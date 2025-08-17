@@ -74,6 +74,19 @@ pub struct TokenStream<'a> {
     pub tokens: Vec<TokenWithPos<'a>>,
 }
 
+impl<'a> Deref for TokenStream<'a> {
+    type Target = Vec<TokenWithPos<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.tokens
+    }
+}
+
+impl<'a> DerefMut for TokenStream<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tokens
+    }
+}
+
 /// A list of tokens reference.
 /// This is a wrapper of [`Vec<&'a TokenWithPos<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,6 +94,19 @@ pub struct TokenStream<'a> {
 pub struct TokenRefStream<'a> {
     /// The tokens.
     pub token_refs: Vec<&'a TokenWithPos<'a>>,
+}
+
+impl<'a> Deref for TokenRefStream<'a> {
+    type Target = Vec<&'a TokenWithPos<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.token_refs
+    }
+}
+
+impl<'a> DerefMut for TokenRefStream<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.token_refs
+    }
 }
 
 /// The type of parsing tokens iter.

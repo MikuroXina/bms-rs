@@ -92,7 +92,7 @@ impl Bms {
             parse_warnings,
             playing_warnings,
             playing_errors,
-        } = Bms::from_token_stream_without_ast(&tokens, prompt_handler);
+        } = Bms::from_token_stream_without_ast(tokens.iter().cloned(), prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
             .map(|w| {
@@ -110,13 +110,13 @@ impl Bms {
     }
 
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream_without_ast<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
-        token_iter: impl Into<TokenIter<'a, T>>,
+    pub fn from_token_stream_without_ast<'a>(
+        token_iter: impl Iterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let mut bms = Bms::default();
         let mut parse_warnings = vec![];
-        for token in token_iter.into() {
+        for token in token_iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
                 parse_warnings.push(error.into_wrapper(token));
             }
