@@ -357,23 +357,17 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     Some(Channel::Note { kind, side, key })
 }
 
-/// Trait for key channel mode implementations.
+/// Trait for converting between different key channel modes and the standard Beat mode.
 ///
 /// This trait defines the interface for converting between different key channel modes
-/// and the standard Beat mode. Each mode implementation should provide methods to
-/// convert from its own format to Beat format and vice versa.
-pub trait KeyChannelMode {
-    /// Convert from this mode's format to Beat mode format.
+/// and the standard Beat mode. Each mode implementation should provide a method to
+/// convert between its own format and Beat format.
+pub trait BeatModeMapConverter {
+    /// Convert a BeatModeMap between this mode's format and Beat mode format.
     ///
-    /// This method takes a (PlayerSide, Key) pair in this mode's format and converts
-    /// it to the equivalent BeatModeMap in Beat mode format.
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap;
-
-    /// Convert from Beat mode format to this mode's format.
-    ///
-    /// This method takes a BeatModeMap in Beat mode format and converts
-    /// it to the equivalent (PlayerSide, Key) pair in this mode's format.
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap;
+    /// This method takes a BeatModeMap and converts it between this mode's format
+    /// and the standard Beat mode format.
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap;
 }
 
 /// Intermediate representation for Beat mode format.
@@ -417,19 +411,6 @@ impl From<BeatModeMap> for (PlayerSide, Key) {
     }
 }
 
-/// Convert a key/channel between two different key channel modes.
-///
-/// This function takes two key channel modes and a (PlayerSide, Key) pair,
-/// and converts it to the equivalent (PlayerSide, Key) pair in the destination mode.
-pub fn convert_key_channel_between(
-    src: &mut impl KeyChannelMode,
-    dst: &mut impl KeyChannelMode,
-    beat_map: BeatModeMap,
-) -> BeatModeMap {
-    let beat_map = src.to_beat(beat_map);
-    dst.map_from_beat(beat_map)
-}
-
 /// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
 /// It is the default type of key parsing.
 ///
@@ -438,12 +419,8 @@ pub fn convert_key_channel_between(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChannelModeBeat;
 
-impl KeyChannelMode for KeyChannelModeBeat {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        beat_map
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModeBeat {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         beat_map
     }
 }
@@ -455,19 +432,8 @@ impl KeyChannelMode for KeyChannelModeBeat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChannelModePmsBmeType;
 
-impl KeyChannelMode for KeyChannelModePmsBmeType {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        use Key::*;
-        let side = beat_map.side();
-        let key = match beat_map.key() {
-            Key8 => Scratch,
-            Key9 => FreeZone,
-            other => other,
-        };
-        BeatModeMap::new(side, key)
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModePmsBmeType {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         use Key::*;
         match beat_map.key() {
             Scratch => BeatModeMap::new(beat_map.side(), Key8),
@@ -477,29 +443,22 @@ impl KeyChannelMode for KeyChannelModePmsBmeType {
     }
 }
 
-/// PMS
+/// PMS - converts from PMS format to Beat format
+///   
+/// - Lanes:
+///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModePmsToBeat;
+
+/// PMS - converts from Beat format to PMS format
 ///   
 /// - Lanes:
 ///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
-///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModePms;
+pub struct KeyChannelModePmsFromBeat;
 
-impl KeyChannelMode for KeyChannelModePms {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        use Key::*;
-        use PlayerSide::*;
-        match beat_map.into_tuple() {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => beat_map,
-            (Player1, Key6) => BeatModeMap::new(Player2, Key2),
-            (Player1, Key7) => BeatModeMap::new(Player2, Key3),
-            (Player1, Key8) => BeatModeMap::new(Player2, Key4),
-            (Player1, Key9) => BeatModeMap::new(Player2, Key5),
-            other => other.into(),
-        }
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModePmsToBeat {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         use Key::*;
         use PlayerSide::*;
         match (beat_map.side(), beat_map.key()) {
@@ -513,6 +472,21 @@ impl KeyChannelMode for KeyChannelModePms {
     }
 }
 
+impl BeatModeMapConverter for KeyChannelModePmsFromBeat {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+        use Key::*;
+        use PlayerSide::*;
+        match beat_map.into_tuple() {
+            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => beat_map,
+            (Player1, Key6) => BeatModeMap::new(Player2, Key2),
+            (Player1, Key7) => BeatModeMap::new(Player2, Key3),
+            (Player1, Key8) => BeatModeMap::new(Player2, Key4),
+            (Player1, Key9) => BeatModeMap::new(Player2, Key5),
+            other => other.into(),
+        }
+    }
+}
+
 /// Beat nanasi/angolmois
 ///
 /// - Lanes:
@@ -521,17 +495,8 @@ impl KeyChannelMode for KeyChannelModePms {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChannelModeBeatNanasi;
 
-impl KeyChannelMode for KeyChannelModeBeatNanasi {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        use Key::*;
-        let key = match beat_map.key() {
-            FootPedal => FreeZone,
-            other => other,
-        };
-        BeatModeMap::new(beat_map.side(), key)
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModeBeatNanasi {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         use Key::*;
         let key = match beat_map.key() {
             FreeZone => FootPedal,
@@ -541,33 +506,22 @@ impl KeyChannelMode for KeyChannelModeBeatNanasi {
     }
 }
 
-/// DSC & OCT/FP
+/// DSC & OCT/FP - converts from DSC/OCT/FP format to Beat format
+///   
+/// - Lanes:
+///   - This -> Beat: reverse of Beat -> this mapping
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChannelModeDscOctFpToBeat;
+
+/// DSC & OCT/FP - converts from Beat format to DSC/OCT/FP format
 ///   
 /// - Lanes:
 ///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
-///   - This -> Beat: reverse of above
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChannelModeDscOctFp;
+pub struct KeyChannelModeDscOctFpFromBeat;
 
-impl KeyChannelMode for KeyChannelModeDscOctFp {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        use Key::*;
-        use PlayerSide::*;
-        match beat_map.into_tuple() {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch) => beat_map,
-            (Player1, ScratchExtra) => BeatModeMap::new(Player2, Scratch),
-            (Player1, FootPedal) => BeatModeMap::new(Player2, Key1),
-            (Player1, Key8) => BeatModeMap::new(Player2, Key2),
-            (Player1, Key9) => BeatModeMap::new(Player2, Key3),
-            (Player1, Key10) => BeatModeMap::new(Player2, Key4),
-            (Player1, Key11) => BeatModeMap::new(Player2, Key5),
-            (Player1, Key12) => BeatModeMap::new(Player2, Key6),
-            (Player1, Key13) => BeatModeMap::new(Player2, Key7),
-            (s, other) => BeatModeMap::new(s, other),
-        }
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModeDscOctFpToBeat {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         use Key::*;
         use PlayerSide::*;
         match (beat_map.side(), beat_map.key()) {
@@ -581,6 +535,25 @@ impl KeyChannelMode for KeyChannelModeDscOctFp {
             (Player2, Key7) => BeatModeMap::new(Player1, Key13),
             (Player2, Scratch) => BeatModeMap::new(Player1, ScratchExtra),
             (s, k) => BeatModeMap::new(s, k),
+        }
+    }
+}
+
+impl BeatModeMapConverter for KeyChannelModeDscOctFpFromBeat {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+        use Key::*;
+        use PlayerSide::*;
+        match beat_map.into_tuple() {
+            (Player1, Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch) => beat_map,
+            (Player1, ScratchExtra) => BeatModeMap::new(Player2, Scratch),
+            (Player1, FootPedal) => BeatModeMap::new(Player2, Key1),
+            (Player1, Key8) => BeatModeMap::new(Player2, Key2),
+            (Player1, Key9) => BeatModeMap::new(Player2, Key3),
+            (Player1, Key10) => BeatModeMap::new(Player2, Key4),
+            (Player1, Key11) => BeatModeMap::new(Player2, Key5),
+            (Player1, Key12) => BeatModeMap::new(Player2, Key6),
+            (Player1, Key13) => BeatModeMap::new(Player2, Key7),
+            (s, other) => BeatModeMap::new(s, other),
         }
     }
 }
@@ -601,12 +574,8 @@ impl KeyChannelModeMirror {
     }
 }
 
-impl KeyChannelMode for KeyChannelModeMirror {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        beat_map
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for KeyChannelModeMirror {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         let (side, mut key) = beat_map.into_tuple();
         if side == self.side
             && let Some(position) = self.keys.iter().position(|k| k == &key)
@@ -671,7 +640,7 @@ impl JavaRandom {
     }
 }
 
-/// A modifier that rotates the lanes of a [`KeyChannelMode`].
+/// A modifier that rotates the lanes of a [`BeatModeMapConverter`].
 #[derive(Debug, Clone)]
 pub struct LaneRotateShuffleModifier {
     /// The side of the player to shuffle.
@@ -712,12 +681,8 @@ impl LaneRotateShuffleModifier {
     }
 }
 
-impl KeyChannelMode for LaneRotateShuffleModifier {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        beat_map
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for LaneRotateShuffleModifier {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         let (side, key) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
@@ -728,7 +693,7 @@ impl KeyChannelMode for LaneRotateShuffleModifier {
     }
 }
 
-/// A modifier that shuffles the lanes of a [`KeyChannelMode`].
+/// A modifier that shuffles the lanes of a [`BeatModeMapConverter`].
 ///
 /// Its action is similar to beatoraja's lane shuffle.
 #[derive(Debug, Clone)]
@@ -766,12 +731,8 @@ impl LaneRandomShuffleModifier {
     }
 }
 
-impl KeyChannelMode for LaneRandomShuffleModifier {
-    fn to_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
-        beat_map
-    }
-
-    fn map_from_beat(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
+impl BeatModeMapConverter for LaneRandomShuffleModifier {
+    fn convert(&mut self, beat_map: BeatModeMap) -> BeatModeMap {
         let (side, key) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
@@ -824,7 +785,7 @@ mod channel_mode_tests {
         .map(|(side, key)| BeatModeMap::new(side, key))
         .collect::<Vec<_>>();
         for (i, beat_map) in keys.iter().enumerate() {
-            let beat_map = mode.map_from_beat(*beat_map);
+            let beat_map = mode.convert(*beat_map);
             assert_eq!(beat_map, expected[i]);
         }
     }
@@ -892,7 +853,7 @@ mod channel_mode_tests {
                 LaneRandomShuffleModifier::new(PlayerSide::Player1, init_keys.to_vec(), *seed);
             let result_values = init_keys
                 .into_iter()
-                .map(|k| rnd.map_from_beat(BeatModeMap::new(PlayerSide::Player1, k)))
+                .map(|k| rnd.convert(BeatModeMap::new(PlayerSide::Player1, k)))
                 .map(|v| v.key() as usize)
                 .collect::<Vec<_>>();
             println!("  Expected: {:?}", list);
