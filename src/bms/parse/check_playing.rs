@@ -53,7 +53,7 @@ pub struct BmsPlayingCheckOutput {
 
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub(crate) fn check_playing(&self) -> BmsPlayingCheckOutput {
+    pub fn check_playing(&self) -> BmsPlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
 

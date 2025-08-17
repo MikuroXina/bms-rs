@@ -21,11 +21,7 @@ use crate::bms::{
     prelude::SourcePosMixinExt,
 };
 
-use self::{
-    check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
-    model::Bms,
-    prompt::PromptHandler,
-};
+use self::{model::Bms, prompt::PromptHandler};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -68,10 +64,6 @@ pub struct BmsParseOutput {
     pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
-    /// Warnings that occurred during playing.
-    pub playing_warnings: Vec<PlayingWarning>,
-    /// Errors that occurred during playing.
-    pub playing_errors: Vec<PlayingError>,
 }
 
 impl Bms {
@@ -90,8 +82,6 @@ impl Bms {
         let BmsParseOutput {
             bms,
             parse_warnings,
-            playing_warnings,
-            playing_errors,
         } = Bms::from_token_stream(tokens.iter().cloned(), prompt_handler);
         let new_parse_warnings = ast_build_warnings
             .into_iter()
@@ -104,8 +94,6 @@ impl Bms {
         BmsParseOutput {
             bms,
             parse_warnings: new_parse_warnings,
-            playing_warnings,
-            playing_errors,
         }
     }
 
@@ -122,16 +110,9 @@ impl Bms {
             }
         }
 
-        let BmsPlayingCheckOutput {
-            playing_warnings,
-            playing_errors,
-        } = bms.check_playing();
-
         BmsParseOutput {
             bms,
             parse_warnings,
-            playing_warnings,
-            playing_errors,
         }
     }
 }

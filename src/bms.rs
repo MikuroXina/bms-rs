@@ -31,7 +31,7 @@ use self::{
     lex::{BmsLexOutput, LexWarningWithPos, TokenRefStream},
     parse::{
         BmsParseOutput, ParseWarning, ParseWarningWithPos,
-        check_playing::{PlayingError, PlayingWarning},
+        check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
         model::Bms,
     },
 };
@@ -118,12 +118,15 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     let BmsParseOutput {
         bms,
         parse_warnings,
-        playing_warnings,
-        playing_errors,
     } = Bms::from_token_stream(&tokens, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert parse warnings to BmsWarning
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
+
+    let BmsPlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing();
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

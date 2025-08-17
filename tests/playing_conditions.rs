@@ -13,11 +13,14 @@ fn test_playing_conditions_empty_bms() {
 
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
-        bms: _,
+        bms,
         parse_warnings,
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+
+    let BmsPlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -41,11 +44,14 @@ fn test_playing_conditions_with_bpm_and_notes() {
 
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
-        bms: _,
+        bms,
         parse_warnings,
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+
+    let BmsPlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -79,9 +85,12 @@ fn test_playing_conditions_with_bpm_change_only() {
     let BmsParseOutput {
         bms,
         parse_warnings,
+    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+
+    let BmsPlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = bms.check_playing();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -106,13 +115,16 @@ fn test_playing_conditions_invisible_notes_only() {
 
     let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
-        bms: _,
+        bms,
         parse_warnings,
-        playing_warnings,
-        playing_errors,
     } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
+
+    let BmsPlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing();
 
     // Should have both NoDisplayableNotes and NoPlayableNotes warnings
     assert!(playing_warnings.contains(&PlayingWarning::NoDisplayableNotes));

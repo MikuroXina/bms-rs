@@ -39,13 +39,21 @@
 //! assert_eq!(ast_build_warnings, vec![]);
 //! let rng = RandRng(StdRng::seed_from_u64(42));
 //! let BmsAstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
-//! let BmsParseOutput { bms, parse_warnings, playing_warnings, playing_errors } = Bms::from_token_stream(
+//! let BmsParseOutput { bms, parse_warnings } = Bms::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
+//! let BmsPlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
+//! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
+//! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
+//! println!("Lex warnings: {:?}", lex_warnings);
+//! println!("Ast build warnings: {:?}", ast_build_warnings);
+//! println!("Parse warnings: {:?}", parse_warnings);
+//! println!("Playing warnings: {:?}", playing_warnings);
+//! println!("Playing errors: {:?}", playing_errors);
 //! ```
 //!
 //! # Features
