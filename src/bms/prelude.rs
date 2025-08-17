@@ -13,10 +13,10 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            BeatModeMap, BeatModeMapConverter, Channel, Key, KeyChannelModeBeat,
-            KeyChannelModeBeatNanasi, KeyChannelModeDscOctFpFromBeat, KeyChannelModeDscOctFpToBeat,
-            KeyChannelModePmsBmeType, KeyChannelModePmsFromBeat, KeyChannelModePmsToBeat, NoteKind,
-            PlayerSide, read_channel_beat,
+            BeatLayout, Channel, DscOctFpFromBeatLayout, DscOctFpToBeatLayout, Key,
+            KeyLayoutConverter, KeyMapping, MirrorLayout, NoteKind, PlayerSide,
+            PmsBmeFromBeatLayout, PmsFromBeatLayout, PmsToBeatLayout, RandomShuffleModifier,
+            RotateShuffleModifier, read_channel_beat,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         mixin::{SourcePosMixin, SourcePosMixinExt},

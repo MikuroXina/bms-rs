@@ -24,7 +24,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{BeatModeMap, BeatModeMapConverter, Channel, Key, NoteKind},
+        channel::{Channel, Key, KeyLayoutConverter, KeyMapping, NoteKind},
         graphics::Argb,
         time::{ObjTime, Track},
     },
@@ -1796,14 +1796,14 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
 impl Bms {
     /// Convert the key and channel mode between two different modes.
     ///
-    /// By default, the key and channel mode is [`crate::bms::command::channel::KeyChannelModeBeat`].
-    pub fn convert_key_channel(&mut self, converter: &mut impl BeatModeMapConverter) {
+    /// By default, the key and channel mode is [`crate::bms::command::channel::BeatLayout`].
+    pub fn convert_key_channel(&mut self, converter: &mut impl KeyLayoutConverter) {
         self.notes.objs.iter_mut().for_each(|(_, objs)| {
             objs.iter_mut().for_each(|Obj { side, key, .. }| {
-                let beat_map = BeatModeMap::new(*side, *key);
-                let new_beat_map = converter.convert(beat_map);
-                *side = new_beat_map.side();
-                *key = new_beat_map.key();
+                let key_mapping = KeyMapping::new(*side, *key);
+                let new_key_mapping = converter.convert(key_mapping);
+                *side = new_key_mapping.side();
+                *key = new_key_mapping.key();
             });
         });
     }
