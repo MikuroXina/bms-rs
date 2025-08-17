@@ -2,7 +2,7 @@ use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_not_base_62() {
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(
@@ -12,7 +12,7 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -28,7 +28,7 @@ fn test_not_base_62() {
 
 #[test]
 fn test_base_62() {
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(
@@ -40,7 +40,7 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..

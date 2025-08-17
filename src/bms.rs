@@ -27,11 +27,11 @@ pub mod prelude;
 use thiserror::Error;
 
 use self::{
-    ast::{AstBuildWarningWithPos, AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::RandRng},
-    lex::{BmsLexOutput, LexWarningWithPos, TokenRefStream},
+    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::RandRng},
+    lex::{LexOutput, LexWarningWithPos, TokenRefStream},
     parse::{
-        BmsParseOutput, ParseWarningWithPos,
-        check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
+        ParseOutput, ParseWarningWithPos,
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::Bms,
     },
 };
@@ -94,7 +94,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     use rand::{SeedableRng, rngs::StdRng};
 
     // Parse tokens using default channel parser
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = lex::TokenStream::parse_lex(source);
@@ -105,15 +105,15 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
     // Build AST
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
     // Parse AST
-    let BmsAstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
+    let AstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
     } = Bms::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
@@ -121,7 +121,7 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     // Convert parse warnings to BmsWarning
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
-    let BmsPlayingCheckOutput {
+    let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
     } = bms.check_playing();

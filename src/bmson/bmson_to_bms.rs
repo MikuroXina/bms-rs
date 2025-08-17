@@ -305,7 +305,7 @@ impl Bms {
             );
         }
 
-        let BmsPlayingCheckOutput {
+        let PlayingCheckOutput {
             playing_warnings,
             playing_errors,
         } = bms.check_playing();

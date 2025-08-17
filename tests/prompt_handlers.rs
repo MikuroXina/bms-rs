@@ -55,7 +55,7 @@ fn test_always_use_older() {
     .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -172,7 +172,7 @@ fn test_always_use_newer() {
     .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -289,7 +289,7 @@ fn test_always_warn_and_use_older() {
     .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -410,7 +410,7 @@ fn test_always_warn_and_use_newer() {
     .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
 
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..

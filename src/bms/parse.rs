@@ -55,7 +55,7 @@ pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BmsParseOutput {
+pub struct ParseOutput {
     /// The output Bms.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
@@ -67,7 +67,7 @@ impl Bms {
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
-    ) -> BmsParseOutput {
+    ) -> ParseOutput {
         let mut bms = Bms::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
@@ -76,7 +76,7 @@ impl Bms {
             }
         }
 
-        BmsParseOutput {
+        ParseOutput {
             bms,
             parse_warnings,
         }

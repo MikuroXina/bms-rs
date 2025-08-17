@@ -20,19 +20,19 @@ fn switch() {
 
         #00114:00000044
     ";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms: _,
         parse_warnings,
         ..
@@ -63,19 +63,19 @@ fn nested_switch_simpler() {
 
         #ENDSW
     ";
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms: _,
         parse_warnings,
         ..
@@ -123,19 +123,19 @@ fn nested_switch() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -175,14 +175,14 @@ fn nested_switch() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -222,14 +222,14 @@ fn nested_switch() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -301,19 +301,19 @@ fn nested_random_in_switch() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -353,14 +353,14 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -400,14 +400,14 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -479,19 +479,19 @@ fn nested_switch_in_random() {
     let id55 = "55".try_into().unwrap();
     let id66 = "66".try_into().unwrap();
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -531,14 +531,14 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -578,14 +578,14 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -652,21 +652,21 @@ fn test_switch_insane() {
     #ENDSW
     ";
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(SRC);
     assert_eq!(lex_warnings, vec![]);
 
     // CASE 1, RANDOM 1
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -694,14 +694,14 @@ fn test_switch_insane() {
     );
 
     // CASE 1, RANDOM 2
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -729,14 +729,14 @@ fn test_switch_insane() {
     );
 
     // CASE 2
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -757,14 +757,14 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 1
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(3u64), BigUint::from(1u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -799,14 +799,14 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 2
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(3u64), BigUint::from(2u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -841,14 +841,14 @@ fn test_switch_insane() {
     );
 
     // CASE 4 (DEFAULT)
-    let BmsAstBuildOutput {
+    let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(4u64)]);
-    let BmsAstParseOutput { token_refs } = root.parse(rng);
-    let BmsParseOutput {
+    let AstParseOutput { token_refs } = root.parse(rng);
+    let ParseOutput {
         bms,
         parse_warnings,
         ..

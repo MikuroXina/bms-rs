@@ -3,12 +3,12 @@ use bms_rs::bms::prelude::*;
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -37,12 +37,12 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -77,12 +77,12 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..
@@ -111,7 +111,7 @@ fn test_j219() {
 #[test]
 fn test_blank() {
     let source = include_str!("files/dive_withblank.bme");
-    let BmsLexOutput {
+    let LexOutput {
         tokens: _,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
@@ -134,12 +134,12 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let BmsParseOutput {
+    let ParseOutput {
         bms,
         parse_warnings,
         ..

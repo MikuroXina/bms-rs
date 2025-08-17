@@ -1,11 +1,11 @@
-use bms_rs::bms::lex::{BmsLexOutput, TokenStream, token::Token};
+use bms_rs::bms::lex::{LexOutput, TokenStream, token::Token};
 
 #[test]
 fn test_cursor_with_no_ending_return_and_newline() {
     // With no "\r\n"
     let text = r"#TITLE Sample";
 
-    let BmsLexOutput {
+    let LexOutput {
         tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(text);

@@ -44,7 +44,7 @@ pub enum PlayingError {
 /// Output of checking for playing warnings and errors.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BmsPlayingCheckOutput {
+pub struct PlayingCheckOutput {
     /// List of [`PlayingWarning`]s.
     pub playing_warnings: Vec<PlayingWarning>,
     /// List of [`PlayingError`]s.
@@ -53,7 +53,7 @@ pub struct BmsPlayingCheckOutput {
 
 impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub fn check_playing(&self) -> BmsPlayingCheckOutput {
+    pub fn check_playing(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
 
@@ -93,7 +93,7 @@ impl Bms {
             }
         }
 
-        BmsPlayingCheckOutput {
+        PlayingCheckOutput {
             playing_warnings,
             playing_errors,
         }

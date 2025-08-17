@@ -7,7 +7,7 @@
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
     ast::{
-        AstRoot, BmsAstBuildOutput, BmsAstParseOutput,
+        AstBuildOutput, AstParseOutput, AstRoot,
         rng::{RandRng, Rng, RngMock},
     },
     command::{
@@ -23,12 +23,12 @@ pub use super::{
         time::{ObjTime, Track},
     },
     lex::{
-        BmsLexOutput, LexWarning, TokenRefStream, TokenStream,
+        LexOutput, LexWarning, TokenRefStream, TokenStream,
         token::{Token, TokenWithPos},
     },
     parse::{
-        BmsParseOutput, ParseWarning, ParseWarningWithPos,
-        check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
+        ParseOutput, ParseWarning, ParseWarningWithPos,
+        check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
             Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
