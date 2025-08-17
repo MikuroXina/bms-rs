@@ -423,9 +423,16 @@ impl KeyLayoutConverter for BeatLayout {
 /// - Lanes:
 ///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PmsBmeFromBeatLayout;
+pub struct PmsBmeLayout;
 
-impl KeyLayoutConverter for PmsBmeFromBeatLayout {
+/// PMS BME-type layout converter to Beat format.
+///
+/// - Lanes:
+///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PmsBmeToBeatLayout;
+
+impl KeyLayoutConverter for PmsBmeLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
         match key_mapping.key() {
@@ -435,13 +442,6 @@ impl KeyLayoutConverter for PmsBmeFromBeatLayout {
         }
     }
 }
-
-/// PMS BME-type layout, supports 9K/18K.
-///
-/// - Lanes:
-///   - Chars: '1'..'9', '6'->Key8, '7'->Key9, '8'->Key6, '9'->Key7
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PmsBmeToBeatLayout;
 
 impl KeyLayoutConverter for PmsBmeToBeatLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
@@ -454,21 +454,21 @@ impl KeyLayoutConverter for PmsBmeToBeatLayout {
     }
 }
 
-/// PMS layout - converts from PMS format to Beat format
+/// PMS layout - supports 9K/18K with player side mapping.
+///   
+/// - Lanes:
+///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PmsLayout;
+
+/// PMS layout converter to Beat format.
 ///   
 /// - Lanes:
 ///   - This -> Beat: Key6..Key9 => (P2,Key2..Key5); Key1..Key5 => (P1,Key1..Key5)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PmsToBeatLayout;
 
-/// PMS layout - converts from Beat format to PMS format
-///   
-/// - Lanes:
-///   - Beat -> this: (P2,Key2..Key5) remapped to (P1,Key6..Key9); (P1,Key1..Key5) unchanged
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PmsFromBeatLayout;
-
-impl KeyLayoutConverter for PmsToBeatLayout {
+impl KeyLayoutConverter for PmsLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
@@ -483,7 +483,7 @@ impl KeyLayoutConverter for PmsToBeatLayout {
     }
 }
 
-impl KeyLayoutConverter for PmsFromBeatLayout {
+impl KeyLayoutConverter for PmsToBeatLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
@@ -506,6 +506,13 @@ impl KeyLayoutConverter for PmsFromBeatLayout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BeatNanasiLayout;
 
+/// Beat nanasi/angolmois layout converter to Beat format.
+///
+/// - Lanes:
+///   - This -> Beat: FootPedal=>FreeZone
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BeatNanasiToBeatLayout;
+
 impl KeyLayoutConverter for BeatNanasiLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
@@ -517,21 +524,32 @@ impl KeyLayoutConverter for BeatNanasiLayout {
     }
 }
 
-/// DSC & OCT/FP layout - converts from DSC/OCT/FP format to Beat format
+impl KeyLayoutConverter for BeatNanasiToBeatLayout {
+    fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
+        use Key::*;
+        let key = match key_mapping.key() {
+            FootPedal => FreeZone,
+            other => other,
+        };
+        KeyMapping::new(key_mapping.side(), key)
+    }
+}
+
+/// DSC & OCT/FP layout - supports extended keys and player side mapping.
+///   
+/// - Lanes:
+///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DscOctFpLayout;
+
+/// DSC & OCT/FP layout converter to Beat format.
 ///   
 /// - Lanes:
 ///   - This -> Beat: reverse of Beat -> this mapping
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DscOctFpToBeatLayout;
 
-/// DSC & OCT/FP layout - converts from Beat format to DSC/OCT/FP format
-///   
-/// - Lanes:
-///   - Beat -> this: (P2,Key1)=>FootPedal, (P2,Key2..Key7)=>Key8..Key13, (P2,Scratch)=>ScratchExtra; (P1,Key1..Key7|Scratch) unchanged; side becomes P1
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DscOctFpFromBeatLayout;
-
-impl KeyLayoutConverter for DscOctFpToBeatLayout {
+impl KeyLayoutConverter for DscOctFpLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
@@ -550,7 +568,7 @@ impl KeyLayoutConverter for DscOctFpToBeatLayout {
     }
 }
 
-impl KeyLayoutConverter for DscOctFpFromBeatLayout {
+impl KeyLayoutConverter for DscOctFpToBeatLayout {
     fn convert(&mut self, key_mapping: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
