@@ -392,6 +392,19 @@ impl From<BeatModeMap> for (PlayerSide, Key) {
     }
 }
 
+/// Convert a key/channel between two different key channel modes.
+///
+/// This function takes two key channel modes and a (PlayerSide, Key) pair,
+/// and converts it to the equivalent (PlayerSide, Key) pair in the destination mode.
+pub fn convert_key_channel_between(
+    src: &mut impl KeyChannelMode,
+    dst: &mut impl KeyChannelMode,
+    beat_map: BeatModeMap,
+) -> BeatModeMap {
+    let beat_map = src.to_beat(beat_map);
+    dst.map_from_beat(beat_map)
+}
+
 /// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
 /// It is the default type of key parsing.
 ///
@@ -585,19 +598,6 @@ impl KeyChannelMode for KeyChannelModeMirror {
         }
         BeatModeMap::new(side, key)
     }
-}
-
-/// Convert a key/channel between two different key channel modes.
-///
-/// This function takes two key channel modes and a (PlayerSide, Key) pair,
-/// and converts it to the equivalent (PlayerSide, Key) pair in the destination mode.
-pub fn convert_key_channel_between(
-    src: &mut impl KeyChannelMode,
-    dst: &mut impl KeyChannelMode,
-    beat_map: BeatModeMap,
-) -> BeatModeMap {
-    let beat_map = src.to_beat(beat_map);
-    dst.map_from_beat(beat_map)
 }
 
 #[cfg(test)]
