@@ -10,7 +10,6 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildWarning, AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::Rng},
     command::{
         ObjId,
         channel::Channel,
@@ -30,9 +29,6 @@ pub enum ParseWarning {
     /// Syntax formed from the commands was invalid.
     #[error("syntax error: {0}")]
     SyntaxError(String),
-    /// Violation of control flow rule.
-    #[error("violate control flow rule: {0}")]
-    AstBuild(#[from] AstBuildWarning),
     /// The object has required but not defined,
     #[error("undefined object: {0:?}")]
     UndefinedObject(ObjId),
@@ -67,36 +63,6 @@ pub struct BmsParseOutput {
 }
 
 impl Bms {
-    /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream_with_ast<'a>(
-        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
-        rng: impl Rng,
-        prompt_handler: impl PromptHandler,
-    ) -> BmsParseOutput {
-        let BmsAstBuildOutput {
-            root,
-            ast_build_warnings,
-        } = AstRoot::from_token_stream(token_iter);
-        let BmsAstParseOutput { token_refs: tokens } = root.parse(rng);
-        // Build Bms without AST.
-        let BmsParseOutput {
-            bms,
-            parse_warnings,
-        } = Bms::from_token_stream(tokens.iter().cloned(), prompt_handler);
-        let new_parse_warnings = ast_build_warnings
-            .into_iter()
-            .map(|w| {
-                let (content, r, c) = w.into();
-                ParseWarning::AstBuild(content).into_wrapper_manual(r, c)
-            })
-            .chain(parse_warnings)
-            .collect();
-        BmsParseOutput {
-            bms,
-            parse_warnings: new_parse_warnings,
-        }
-    }
-
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,

@@ -7,8 +7,6 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
-use std::ops::{Deref, DerefMut};
-
 use thiserror::Error;
 
 use crate::bms::{
@@ -74,31 +72,6 @@ pub struct TokenStream<'a> {
     pub tokens: Vec<TokenWithPos<'a>>,
 }
 
-impl<'a> AsRef<[TokenWithPos<'a>]> for TokenStream<'a> {
-    fn as_ref(&self) -> &[TokenWithPos<'a>] {
-        &self.tokens
-    }
-}
-
-impl<'a> AsMut<[TokenWithPos<'a>]> for TokenStream<'a> {
-    fn as_mut(&mut self) -> &mut [TokenWithPos<'a>] {
-        &mut self.tokens
-    }
-}
-
-impl<'a> Deref for TokenStream<'a> {
-    type Target = Vec<TokenWithPos<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.tokens
-    }
-}
-
-impl<'a> DerefMut for TokenStream<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.tokens
-    }
-}
-
 impl<'a> IntoIterator for TokenStream<'a> {
     type Item = TokenWithPos<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
@@ -122,31 +95,6 @@ impl<'a> IntoIterator for &'a TokenStream<'a> {
 pub struct TokenRefStream<'a> {
     /// The tokens.
     pub token_refs: Vec<&'a TokenWithPos<'a>>,
-}
-
-impl<'a> AsRef<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
-    fn as_ref(&self) -> &[&'a TokenWithPos<'a>] {
-        &self.token_refs
-    }
-}
-
-impl<'a> AsMut<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
-    fn as_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
-        &mut self.token_refs
-    }
-}
-
-impl<'a> Deref for TokenRefStream<'a> {
-    type Target = Vec<&'a TokenWithPos<'a>>;
-    fn deref(&self) -> &Self::Target {
-        &self.token_refs
-    }
-}
-
-impl<'a> DerefMut for TokenRefStream<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.token_refs
-    }
 }
 
 impl<'a> IntoIterator for TokenRefStream<'a> {

@@ -1,5 +1,4 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
 
 #[test]
 fn test_playing_conditions_empty_bms() {
@@ -11,11 +10,10 @@ fn test_playing_conditions_empty_bms() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     let BmsPlayingCheckOutput {
         playing_warnings,
@@ -42,11 +40,10 @@ fn test_playing_conditions_with_bpm_and_notes() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     let BmsPlayingCheckOutput {
         playing_warnings,
@@ -81,11 +78,10 @@ fn test_playing_conditions_with_bpm_change_only() {
         |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
     ));
 
-    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     let BmsPlayingCheckOutput {
         playing_warnings,
@@ -113,11 +109,10 @@ fn test_playing_conditions_invisible_notes_only() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let rng = RngMock([BigUint::from(1u64)]);
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream_with_ast(&tokens, rng, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 

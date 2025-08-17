@@ -27,10 +27,10 @@ pub mod prelude;
 use thiserror::Error;
 
 use self::{
-    ast::{AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::RandRng},
+    ast::{AstBuildWarningWithPos, AstRoot, BmsAstBuildOutput, BmsAstParseOutput, rng::RandRng},
     lex::{BmsLexOutput, LexWarningWithPos, TokenRefStream},
     parse::{
-        BmsParseOutput, ParseWarning, ParseWarningWithPos,
+        BmsParseOutput, ParseWarningWithPos,
         check_playing::{BmsPlayingCheckOutput, PlayingError, PlayingWarning},
         model::Bms,
     },
@@ -50,6 +50,9 @@ pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
     Lex(#[from] LexWarningWithPos),
+    /// An error comes from AST builder.
+    #[error("Warn: ast_build: {0}")]
+    AstBuild(#[from] AstBuildWarningWithPos),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithPos),
@@ -106,19 +109,14 @@ pub fn parse_bms(source: &str) -> BmsOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
-    warnings.extend(
-        ast_build_warnings
-            .into_iter()
-            .map(|w| w.map(ParseWarning::AstBuild))
-            .map(BmsWarning::Parse),
-    );
+    warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
     // Parse AST
-    let BmsAstParseOutput { token_refs: tokens } = TokenRefStream::from_ast_root(root, rng);
+    let BmsAstParseOutput { token_refs } = TokenRefStream::from_ast_root(root, rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let BmsParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(&tokens, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert parse warnings to BmsWarning
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
