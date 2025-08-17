@@ -17,7 +17,7 @@ use crate::bms::{
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
-    lex::{TokenIter, token::TokenWithPos},
+    lex::token::TokenWithPos,
     prelude::SourcePosMixinExt,
 };
 
@@ -76,15 +76,15 @@ pub struct BmsParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] with a random generator [`Rng`].
-    pub fn from_token_stream<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
-        token_iter: impl Into<TokenIter<'a, T>>,
+    pub fn from_token_stream<'a>(
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let AstBuildOutput {
             root,
             ast_build_warnings,
-        } = AstRoot::from_token_stream(&mut token_iter.into());
+        } = AstRoot::from_token_stream(token_iter);
         let AstParseOutput { tokens } = root.parse(rng);
         // Build Bms without AST.
         let BmsParseOutput {
@@ -111,7 +111,7 @@ impl Bms {
 
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream_without_ast<'a>(
-        token_iter: impl Iterator<Item = &'a TokenWithPos<'a>>,
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> BmsParseOutput {
         let mut bms = Bms::default();

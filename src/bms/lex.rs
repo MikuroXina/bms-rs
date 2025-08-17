@@ -7,10 +7,7 @@ mod command_impl;
 mod cursor;
 pub mod token;
 
-use std::{
-    iter::Peekable,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use thiserror::Error;
 
@@ -74,6 +71,18 @@ pub struct TokenStream<'a> {
     pub tokens: Vec<TokenWithPos<'a>>,
 }
 
+impl<'a> AsRef<[TokenWithPos<'a>]> for TokenStream<'a> {
+    fn as_ref(&self) -> &[TokenWithPos<'a>] {
+        &self.tokens
+    }
+}
+
+impl<'a> AsMut<[TokenWithPos<'a>]> for TokenStream<'a> {
+    fn as_mut(&mut self) -> &mut [TokenWithPos<'a>] {
+        &mut self.tokens
+    }
+}
+
 impl<'a> Deref for TokenStream<'a> {
     type Target = Vec<TokenWithPos<'a>>;
     fn deref(&self) -> &Self::Target {
@@ -87,6 +96,22 @@ impl<'a> DerefMut for TokenStream<'a> {
     }
 }
 
+impl<'a> IntoIterator for TokenStream<'a> {
+    type Item = TokenWithPos<'a>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.tokens.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a TokenStream<'a> {
+    type Item = &'a TokenWithPos<'a>;
+    type IntoIter = std::slice::Iter<'a, TokenWithPos<'a>>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.tokens.iter()
+    }
+}
+
 /// A list of tokens reference.
 /// This is a wrapper of [`Vec<&'a TokenWithPos<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +119,18 @@ impl<'a> DerefMut for TokenStream<'a> {
 pub struct TokenRefStream<'a> {
     /// The tokens.
     pub token_refs: Vec<&'a TokenWithPos<'a>>,
+}
+
+impl<'a> AsRef<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
+    fn as_ref(&self) -> &[&'a TokenWithPos<'a>] {
+        &self.token_refs
+    }
+}
+
+impl<'a> AsMut<[&'a TokenWithPos<'a>]> for TokenRefStream<'a> {
+    fn as_mut(&mut self) -> &mut [&'a TokenWithPos<'a>] {
+        &mut self.token_refs
+    }
 }
 
 impl<'a> Deref for TokenRefStream<'a> {
@@ -109,132 +146,19 @@ impl<'a> DerefMut for TokenRefStream<'a> {
     }
 }
 
-/// The type of parsing tokens iter.
-pub struct TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
-    iter: Peekable<T>,
-}
-
-impl<'a, T> TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
-    /// Create iter from [`Peekable`] iterator.
-    pub fn new(iter: Peekable<T>) -> Self {
-        Self { iter }
-    }
-    /// Create iter from [`Iterator`].
-    pub fn from_iterator(value: T) -> Self {
-        Self::new(value.peekable())
-    }
-}
-
-impl<'a> TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
-    /// Create iter from [`TokenWithPos`] list reference.
-    pub fn from_tokens(value: &'a [TokenWithPos<'a>]) -> Self {
-        Self::new(value.iter().peekable())
-    }
-    /// Create iter from [`BmsLexOutput`] reference.
-    pub fn from_lex_output(value: &'a BmsLexOutput<'a>) -> Self {
-        Self::from_tokens(&value.tokens.tokens)
-    }
-    /// Create iter from [`TokenStream`] reference.
-    pub fn from_token_stream(value: &'a TokenStream<'a>) -> Self {
-        Self::from_tokens(&value.tokens)
-    }
-}
-
-impl<'a> TokenIter<'a, std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>> {
-    /// Create iter from [`TokenRefStream`] reference.
-    /// 从 [`TokenRefStream`] 引用创建迭代器。
-    /// Create iter from [`TokenRefStream`] reference.
-    pub fn from_token_ref_stream(value: &'a TokenRefStream<'a>) -> Self {
-        // 由于TokenRefStream存储的是&'a TokenWithPos<'a>，我们需要将其转换为Iterator<Item = &'a TokenWithPos<'a>>
-        let iter = value.token_refs.iter().cloned();
-        Self {
-            iter: iter.peekable(),
-        }
-    }
-}
-
-impl<'a, T> TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
-    /// Peek the next token.
-    pub fn peek(&mut self) -> Option<&'a TokenWithPos<'a>> {
-        self.iter.peek().cloned()
-    }
-}
-
-impl<'a, T> From<Peekable<T>> for TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
-    fn from(value: Peekable<T>) -> Self {
-        Self::new(value)
-    }
-}
-
-impl<'a, T> From<T> for TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
-    fn from(value: T) -> Self {
-        Self::from_iterator(value)
-    }
-}
-
-impl<'a> From<&'a BmsLexOutput<'a>> for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
-    fn from(value: &'a BmsLexOutput<'a>) -> Self {
-        Self::from_lex_output(value)
-    }
-}
-
-impl<'a> From<&'a TokenStream<'a>> for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
-    fn from(value: &'a TokenStream<'a>) -> Self {
-        Self::from_token_stream(value)
-    }
-}
-
-impl<'a> From<&'a TokenRefStream<'a>>
-    for TokenIter<'a, std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>>
-{
-    fn from(value: &'a TokenRefStream<'a>) -> Self {
-        Self::from_token_ref_stream(value)
-    }
-}
-
-impl<'a, C: AsRef<[TokenWithPos<'a>]> + ?Sized> From<&'a C>
-    for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>>
-{
-    fn from(value: &'a C) -> Self {
-        Self::from_tokens(value.as_ref())
-    }
-}
-
-impl<'a> Deref for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
-    type Target = Peekable<std::slice::Iter<'a, TokenWithPos<'a>>>;
-    fn deref(&self) -> &Self::Target {
-        &self.iter
-    }
-}
-
-impl<'a> DerefMut for TokenIter<'a, std::slice::Iter<'a, TokenWithPos<'a>>> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.iter
-    }
-}
-
-impl<'a, T> Iterator for TokenIter<'a, T>
-where
-    T: Iterator<Item = &'a TokenWithPos<'a>>,
-{
+impl<'a> IntoIterator for TokenRefStream<'a> {
     type Item = &'a TokenWithPos<'a>;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.token_refs.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a TokenRefStream<'a> {
+    type Item = &'a TokenWithPos<'a>;
+    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.token_refs.iter().cloned()
     }
 }
 
