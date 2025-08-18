@@ -245,23 +245,23 @@ pub enum Key {
 
 impl Key {
     /// Returns whether the key is a keyboard key.
-    pub const fn is_in_keypad(&self) -> bool {
+    pub const fn is_keyxx(&self) -> bool {
+        use Key::*;
         matches!(
             self,
-            Self::Key1
-                | Self::Key2
-                | Self::Key3
-                | Self::Key4
-                | Self::Key5
-                | Self::Key6
-                | Self::Key7
-                | Self::Key8
-                | Self::Key9
-                | Self::Key10
-                | Self::Key11
-                | Self::Key12
-                | Self::Key13
-                | Self::Key14
+            Key1 | Key2
+                | Key3
+                | Key4
+                | Key5
+                | Key6
+                | Key7
+                | Key8
+                | Key9
+                | Key10
+                | Key11
+                | Key12
+                | Key13
+                | Key14
         )
     }
 }
