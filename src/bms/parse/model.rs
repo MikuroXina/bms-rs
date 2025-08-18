@@ -25,7 +25,9 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyLayoutMapper, KeyMapping, NoteKind, convert_key_mapping_between,
+            Channel, Key, KeyMapping, NoteKind,
+            converter::KeyLayoutConverter,
+            mapper::{KeyLayoutMapper, convert_key_mapping_between},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -1796,10 +1798,10 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
 }
 
 impl Bms {
-    /// Convert the key and channel mode between two different modes.
+    /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
     ///
-    /// By default, the key and channel mode is [`crate::bms::command::channel::KeyChannelModeBeat`].
-    pub fn convert_key_channel_between(
+    /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
+    pub fn convert_key_between_modes(
         &mut self,
         mut from: impl KeyLayoutMapper,
         mut to: impl KeyLayoutMapper,
@@ -1808,6 +1810,18 @@ impl Bms {
             objs.iter_mut().for_each(|Obj { side, key, .. }| {
                 let beat_map = KeyMapping::new(*side, *key);
                 let new_beat_map = convert_key_mapping_between(&mut from, &mut to, beat_map);
+                *side = new_beat_map.side();
+                *key = new_beat_map.key();
+            });
+        });
+    }
+
+    /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
+    pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
+        self.notes.objs.iter_mut().for_each(|(_, objs)| {
+            objs.iter_mut().for_each(|Obj { side, key, .. }| {
+                let beat_map = KeyMapping::new(*side, *key);
+                let new_beat_map = converter.convert(beat_map);
                 *side = new_beat_map.side();
                 *key = new_beat_map.key();
             });
