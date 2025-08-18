@@ -362,7 +362,7 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
 /// This trait defines the interface for converting between different key channel modes
 /// and the standard Beat mode. Each mode implementation should provide methods to
 /// convert from its own format to Beat format and vice versa.
-pub trait KeyLayoutConverter {
+pub trait KeyLayoutMapper {
     /// Convert from this mode's format to Beat mode format.
     ///
     /// This method takes a (PlayerSide, Key) pair in this mode's format and converts
@@ -421,9 +421,9 @@ impl From<KeyMapping> for (PlayerSide, Key) {
 ///
 /// This function takes two key channel modes and a (PlayerSide, Key) pair,
 /// and converts it to the equivalent (PlayerSide, Key) pair in the destination mode.
-pub fn convert_key_layout_between(
-    src: &mut impl KeyLayoutConverter,
-    dst: &mut impl KeyLayoutConverter,
+pub fn convert_key_mapping_between(
+    src: &mut impl KeyLayoutMapper,
+    dst: &mut impl KeyLayoutMapper,
     beat_map: KeyMapping,
 ) -> KeyMapping {
     let beat_map = src.to_beat(beat_map);
@@ -438,7 +438,7 @@ pub fn convert_key_layout_between(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutBeat;
 
-impl KeyLayoutConverter for KeyLayoutBeat {
+impl KeyLayoutMapper for KeyLayoutBeat {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         beat_map
     }
@@ -455,7 +455,7 @@ impl KeyLayoutConverter for KeyLayoutBeat {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutPmsBmeType;
 
-impl KeyLayoutConverter for KeyLayoutPmsBmeType {
+impl KeyLayoutMapper for KeyLayoutPmsBmeType {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         let side = beat_map.side();
@@ -485,7 +485,7 @@ impl KeyLayoutConverter for KeyLayoutPmsBmeType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutPms;
 
-impl KeyLayoutConverter for KeyLayoutPms {
+impl KeyLayoutMapper for KeyLayoutPms {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
@@ -521,7 +521,7 @@ impl KeyLayoutConverter for KeyLayoutPms {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutBeatNanasi;
 
-impl KeyLayoutConverter for KeyLayoutBeatNanasi {
+impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         let key = match beat_map.key() {
@@ -549,7 +549,7 @@ impl KeyLayoutConverter for KeyLayoutBeatNanasi {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyLayoutDscOctFp;
 
-impl KeyLayoutConverter for KeyLayoutDscOctFp {
+impl KeyLayoutMapper for KeyLayoutDscOctFp {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
@@ -601,7 +601,7 @@ impl KeyChannelModeMirror {
     }
 }
 
-impl KeyLayoutConverter for KeyChannelModeMirror {
+impl KeyLayoutMapper for KeyChannelModeMirror {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         beat_map
     }
@@ -712,7 +712,7 @@ impl LaneRotateShuffleModifier {
     }
 }
 
-impl KeyLayoutConverter for LaneRotateShuffleModifier {
+impl KeyLayoutMapper for LaneRotateShuffleModifier {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         beat_map
     }
@@ -766,7 +766,7 @@ impl LaneRandomShuffleModifier {
     }
 }
 
-impl KeyLayoutConverter for LaneRandomShuffleModifier {
+impl KeyLayoutMapper for LaneRandomShuffleModifier {
     fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         beat_map
     }
