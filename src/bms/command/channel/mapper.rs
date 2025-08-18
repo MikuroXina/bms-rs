@@ -12,7 +12,7 @@ pub trait KeyLayoutMapper {
     ///
     /// This method takes a (PlayerSide, Key) pair in this mode's format and converts
     /// it to the equivalent BeatModeMap in Beat mode format.
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping;
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping;
 
     /// Convert from Beat mode format to this mode's format.
     ///
@@ -30,7 +30,7 @@ pub fn convert_key_mapping_between(
     dst: &mut impl KeyLayoutMapper,
     beat_map: KeyMapping,
 ) -> KeyMapping {
-    let beat_map = src.to_beat(beat_map);
+    let beat_map = src.map_to_beat(beat_map);
     dst.map_from_beat(beat_map)
 }
 
@@ -43,7 +43,7 @@ pub fn convert_key_mapping_between(
 pub struct KeyLayoutBeat;
 
 impl KeyLayoutMapper for KeyLayoutBeat {
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         beat_map
     }
 
@@ -60,7 +60,7 @@ impl KeyLayoutMapper for KeyLayoutBeat {
 pub struct KeyLayoutPmsBmeType;
 
 impl KeyLayoutMapper for KeyLayoutPmsBmeType {
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         let side = beat_map.side();
         let key = match beat_map.key() {
@@ -90,7 +90,7 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
 pub struct KeyLayoutPms;
 
 impl KeyLayoutMapper for KeyLayoutPms {
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
         match beat_map.into_tuple() {
@@ -126,7 +126,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
 pub struct KeyLayoutBeatNanasi;
 
 impl KeyLayoutMapper for KeyLayoutBeatNanasi {
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         let key = match beat_map.key() {
             FootPedal => FreeZone,
@@ -154,7 +154,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
 pub struct KeyLayoutDscOctFp;
 
 impl KeyLayoutMapper for KeyLayoutDscOctFp {
-    fn to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn map_to_beat(&mut self, beat_map: KeyMapping) -> KeyMapping {
         use Key::*;
         use PlayerSide::*;
         match beat_map.into_tuple() {
