@@ -25,7 +25,7 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            BeatModeMap, Channel, Key, KeyChannelMode, NoteKind, convert_key_channel_between,
+            Channel, Key, KeyLayoutConverter, KeyMapping, NoteKind, convert_key_layout_between,
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -1801,13 +1801,13 @@ impl Bms {
     /// By default, the key and channel mode is [`crate::bms::command::channel::KeyChannelModeBeat`].
     pub fn convert_key_channel_between(
         &mut self,
-        mut from: impl KeyChannelMode,
-        mut to: impl KeyChannelMode,
+        mut from: impl KeyLayoutConverter,
+        mut to: impl KeyLayoutConverter,
     ) {
         self.notes.objs.iter_mut().for_each(|(_, objs)| {
             objs.iter_mut().for_each(|Obj { side, key, .. }| {
-                let beat_map = BeatModeMap::new(*side, *key);
-                let new_beat_map = convert_key_channel_between(&mut from, &mut to, beat_map);
+                let beat_map = KeyMapping::new(*side, *key);
+                let new_beat_map = convert_key_layout_between(&mut from, &mut to, beat_map);
                 *side = new_beat_map.side();
                 *key = new_beat_map.key();
             });
