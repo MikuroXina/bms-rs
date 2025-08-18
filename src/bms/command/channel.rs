@@ -605,7 +605,7 @@ pub trait KeyLayoutConverter {
 }
 
 impl KeyLayoutConvertMirror {
-    /// Create a new [`KeyChannelModeMirror`] with the given [`PlayerSide`] and [`Key`]s.
+    /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
     pub fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
         Self { side, keys }
     }
@@ -688,7 +688,7 @@ pub struct KeyLayoutConvertLaneRotateShuffle {
 }
 
 impl KeyLayoutConvertLaneRotateShuffle {
-    /// Create a new [`LaneRotateShuffleModifier`] with the given [`PlayerSide`], [`Key`]s and seed.
+    /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
         KeyLayoutConvertLaneRotateShuffle {
             side,
@@ -731,7 +731,7 @@ impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
     }
 }
 
-/// A modifier that shuffles the lanes of a [`KeyChannelMode`].
+/// A modifier that shuffles the lanes of a [`KeyMapping`].
 ///
 /// Its action is similar to beatoraja's lane shuffle.
 #[derive(Debug, Clone)]
@@ -743,7 +743,7 @@ pub struct KeyLayoutConvertLaneRandomShuffle {
 }
 
 impl KeyLayoutConvertLaneRandomShuffle {
-    /// Create a new [`LaneRandomShuffleModifier`] with the given [`PlayerSide`], [`Key`]s and seed.
+    /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
         KeyLayoutConvertLaneRandomShuffle {
             side,
