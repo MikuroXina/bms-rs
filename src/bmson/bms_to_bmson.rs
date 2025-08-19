@@ -240,7 +240,7 @@ impl Bms {
                         // Normal note
                         let duration = self
                             .notes
-                            .next_obj_by_key(note.key, note.offset)
+                            .next_obj_by_key(note.side, note.key, note.offset)
                             .map(|next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
                             })

@@ -208,8 +208,8 @@ pub struct Notes {
     /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
     /// Index for fast key lookup. Used for LN/landmine logic.
-    /// Maps each key (lane) to a sorted map of times and object IDs for efficient note lookup.
-    pub ids_by_key: HashMap<Key, BTreeMap<ObjTime, ObjId>>,
+    /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
+    pub ids_by_key: HashMap<(PlayerSide, Key), BTreeMap<ObjTime, ObjId>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -1066,8 +1066,10 @@ impl Bms {
                     .notes
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let Obj { offset, key, .. } = &end_note;
-                let (_, &begin_id) = self.notes.ids_by_key[key]
+                let Obj {
+                    offset, key, side, ..
+                } = &end_note;
+                let (_, &begin_id) = self.notes.ids_by_key[&(*side, *key)]
                     .range(..offset)
                     .last()
                     .ok_or_else(|| {
@@ -1464,9 +1466,9 @@ impl Notes {
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
-    pub fn next_obj_by_key(&self, key: Key, time: ObjTime) -> Option<&Obj> {
+    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
         self.ids_by_key
-            .get(&key)?
+            .get(&(side, key))?
             .range((Bound::Excluded(time), Bound::Unbounded))
             .next()
             .and_then(|(_, id)| {
@@ -1482,7 +1484,7 @@ impl Notes {
     pub fn push_note(&mut self, note: Obj) {
         self.objs.entry(note.obj).or_default().push(note.clone());
         self.ids_by_key
-            .entry(note.key)
+            .entry((note.side, note.key))
             .or_default()
             .insert(note.offset, note.obj);
     }
@@ -1490,7 +1492,7 @@ impl Notes {
     /// Removes the latest note from the notes.
     pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            if let Some(key_map) = self.ids_by_key.get_mut(&removed.key) {
+            if let Some(key_map) = self.ids_by_key.get_mut(&(removed.side, removed.key)) {
                 key_map.remove(&removed.offset);
             }
         })
@@ -1500,7 +1502,7 @@ impl Notes {
     pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                if let Some(key_map) = self.ids_by_key.get_mut(&item.key) {
+                if let Some(key_map) = self.ids_by_key.get_mut(&(item.side, item.key)) {
                     key_map.remove(&item.offset);
                 }
             }
