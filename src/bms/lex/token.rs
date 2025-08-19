@@ -11,8 +11,11 @@ use num::BigUint;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourcePosMixin, time::Track,
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
+        channel::{Channel, Key, NoteKind, PlayerSide},
+        graphics::Argb,
+        mixin::SourcePosMixin,
+        time::Track,
     },
     prelude::read_channel_beat,
 };
@@ -1428,9 +1431,9 @@ impl<'a> std::fmt::Display for Token<'a> {
                 f,
                 "#LNMODE {}",
                 match mode {
-                    crate::bms::command::LnMode::Ln => 1,
-                    crate::bms::command::LnMode::Cn => 2,
-                    crate::bms::command::LnMode::Hcn => 3,
+                    LnMode::Ln => 1,
+                    LnMode::Cn => 2,
+                    LnMode::Hcn => 3,
                 }
             ),
             Token::LnObj(id) => write!(f, "#LNOBJ {}", id),
@@ -1450,155 +1453,131 @@ impl<'a> std::fmt::Display for Token<'a> {
             } => {
                 // Convert channel back to string representation
                 match channel {
-                    crate::bms::command::channel::Channel::BgaBase => {
+                    Channel::BgaBase => {
                         write!(f, "#{:03}04:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BgaLayer => {
+                    Channel::BgaLayer => {
                         write!(f, "#{:03}07:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BgaPoor => {
+                    Channel::BgaPoor => {
                         write!(f, "#{:03}06:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Bgm => {
+                    Channel::Bgm => {
                         write!(f, "#{:03}01:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BpmChangeU8 => {
+                    Channel::BpmChangeU8 => {
                         write!(f, "#{:03}03:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BpmChange => {
+                    Channel::BpmChange => {
                         write!(f, "#{:03}08:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::ChangeOption => {
+                    Channel::ChangeOption => {
                         write!(f, "#{:03}A6:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Note { kind, side, key } => {
+                    Channel::Note { kind, side, key } => {
                         let kind_char = match (kind, side) {
-                            (
-                                crate::bms::command::channel::NoteKind::Visible,
-                                crate::bms::command::channel::PlayerSide::Player1,
-                            ) => '1',
-                            (
-                                crate::bms::command::channel::NoteKind::Visible,
-                                crate::bms::command::channel::PlayerSide::Player2,
-                            ) => '2',
-                            (
-                                crate::bms::command::channel::NoteKind::Invisible,
-                                crate::bms::command::channel::PlayerSide::Player1,
-                            ) => '3',
-                            (
-                                crate::bms::command::channel::NoteKind::Invisible,
-                                crate::bms::command::channel::PlayerSide::Player2,
-                            ) => '4',
-                            (
-                                crate::bms::command::channel::NoteKind::Long,
-                                crate::bms::command::channel::PlayerSide::Player1,
-                            ) => '5',
-                            (
-                                crate::bms::command::channel::NoteKind::Long,
-                                crate::bms::command::channel::PlayerSide::Player2,
-                            ) => '6',
-                            (
-                                crate::bms::command::channel::NoteKind::Landmine,
-                                crate::bms::command::channel::PlayerSide::Player1,
-                            ) => 'D',
-                            (
-                                crate::bms::command::channel::NoteKind::Landmine,
-                                crate::bms::command::channel::PlayerSide::Player2,
-                            ) => 'E',
+                            (NoteKind::Visible, PlayerSide::Player1) => '1',
+                            (NoteKind::Visible, PlayerSide::Player2) => '2',
+                            (NoteKind::Invisible, PlayerSide::Player1) => '3',
+                            (NoteKind::Invisible, PlayerSide::Player2) => '4',
+                            (NoteKind::Long, PlayerSide::Player1) => '5',
+                            (NoteKind::Long, PlayerSide::Player2) => '6',
+                            (NoteKind::Landmine, PlayerSide::Player1) => 'D',
+                            (NoteKind::Landmine, PlayerSide::Player2) => 'E',
                         };
                         let key_char = match key {
-                            crate::bms::command::channel::Key::Key1 => '1',
-                            crate::bms::command::channel::Key::Key2 => '2',
-                            crate::bms::command::channel::Key::Key3 => '3',
-                            crate::bms::command::channel::Key::Key4 => '4',
-                            crate::bms::command::channel::Key::Key5 => '5',
-                            crate::bms::command::channel::Key::Key6 => '8',
-                            crate::bms::command::channel::Key::Key7 => '9',
-                            crate::bms::command::channel::Key::Key8 => '8',
-                            crate::bms::command::channel::Key::Key9 => '9',
-                            crate::bms::command::channel::Key::Key10 => 'A',
-                            crate::bms::command::channel::Key::Key11 => 'B',
-                            crate::bms::command::channel::Key::Key12 => 'C',
-                            crate::bms::command::channel::Key::Key13 => 'D',
-                            crate::bms::command::channel::Key::Key14 => 'E',
-                            crate::bms::command::channel::Key::Scratch => '6',
-                            crate::bms::command::channel::Key::ScratchExtra => '7',
-                            crate::bms::command::channel::Key::FootPedal => 'F',
-                            crate::bms::command::channel::Key::FreeZone => '7',
+                            Key::Key1 => '1',
+                            Key::Key2 => '2',
+                            Key::Key3 => '3',
+                            Key::Key4 => '4',
+                            Key::Key5 => '5',
+                            Key::Key6 => '8',
+                            Key::Key7 => '9',
+                            Key::Key8 => '8',
+                            Key::Key9 => '9',
+                            Key::Key10 => 'A',
+                            Key::Key11 => 'B',
+                            Key::Key12 => 'C',
+                            Key::Key13 => 'D',
+                            Key::Key14 => 'E',
+                            Key::Scratch => '6',
+                            Key::ScratchExtra => '7',
+                            Key::FootPedal => 'F',
+                            Key::FreeZone => '7',
                         };
                         let channel_str = format!("{}{}", kind_char, key_char);
                         write!(f, "#{:03}{}:{}", track.0, channel_str, message)
                     }
-                    crate::bms::command::channel::Channel::SectionLen => {
+                    Channel::SectionLen => {
                         write!(f, "#{:03}02:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Stop => {
+                    Channel::Stop => {
                         write!(f, "#{:03}09:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Scroll => {
+                    Channel::Scroll => {
                         write!(f, "#{:03}SC:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Speed => {
+                    Channel::Speed => {
                         write!(f, "#{:03}SP:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::Seek => {
+                    Channel::Seek => {
                         write!(f, "#{:03}05:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BgaLayer2 => {
+                    Channel::BgaLayer2 => {
                         write!(f, "#{:03}0A:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaBaseOpacity => {
+                    Channel::BgaBaseOpacity => {
                         write!(f, "#{:03}0B:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaLayerOpacity => {
+                    Channel::BgaLayerOpacity => {
                         write!(f, "#{:03}0C:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaLayer2Opacity => {
+                    Channel::BgaLayer2Opacity => {
                         write!(f, "#{:03}0D:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaPoorOpacity => {
+                    Channel::BgaPoorOpacity => {
                         write!(f, "#{:03}0E:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::BgmVolume => {
+                    Channel::BgmVolume => {
                         write!(f, "#{:03}97:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::KeyVolume => {
+                    Channel::KeyVolume => {
                         write!(f, "#{:03}98:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Text => {
+                    Channel::Text => {
                         write!(f, "#{:03}99:{}", track.0, message)
                     }
-                    crate::bms::command::channel::Channel::Judge => {
+                    Channel::Judge => {
                         write!(f, "#{:03}A0:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaBaseArgb => {
+                    Channel::BgaBaseArgb => {
                         write!(f, "#{:03}A1:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaLayerArgb => {
+                    Channel::BgaLayerArgb => {
                         write!(f, "#{:03}A2:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaLayer2Argb => {
+                    Channel::BgaLayer2Argb => {
                         write!(f, "#{:03}A3:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaPoorArgb => {
+                    Channel::BgaPoorArgb => {
                         write!(f, "#{:03}A4:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::BgaKeybound => {
+                    Channel::BgaKeybound => {
                         write!(f, "#{:03}A5:{}", track.0, message)
                     }
                     #[cfg(feature = "minor-command")]
-                    crate::bms::command::channel::Channel::Option => {
+                    Channel::Option => {
                         write!(f, "#{:03}A6:{}", track.0, message)
                     }
                 }
@@ -1616,9 +1595,9 @@ impl<'a> std::fmt::Display for Token<'a> {
                 f,
                 "#PLAYER {}",
                 match mode {
-                    crate::bms::command::PlayerMode::Single => 1,
-                    crate::bms::command::PlayerMode::Two => 2,
-                    crate::bms::command::PlayerMode::Double => 3,
+                    PlayerMode::Single => 1,
+                    PlayerMode::Two => 2,
+                    PlayerMode::Double => 3,
                 }
             ),
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {}", level),
@@ -1626,9 +1605,9 @@ impl<'a> std::fmt::Display for Token<'a> {
                 f,
                 "#POORBGA {}",
                 match mode {
-                    crate::bms::command::PoorMode::Interrupt => 0,
-                    crate::bms::command::PoorMode::Overlay => 1,
-                    crate::bms::command::PoorMode::Hidden => 2,
+                    PoorMode::Interrupt => 0,
+                    PoorMode::Overlay => 1,
+                    PoorMode::Hidden => 2,
                 }
             ),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
@@ -1686,10 +1665,12 @@ impl<'a> std::fmt::Display for Token<'a> {
             Token::Wav(id, path) => write!(f, "#WAV{} {}", id, path.display()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
+                use crate::bms::command::minor_command::WavCmdParam;
+
                 let param = match ev.param {
-                    crate::bms::command::minor_command::WavCmdParam::Pitch => "00",
-                    crate::bms::command::minor_command::WavCmdParam::Volume => "01",
-                    crate::bms::command::minor_command::WavCmdParam::Time => "02",
+                    WavCmdParam::Pitch => "00",
+                    WavCmdParam::Volume => "01",
+                    WavCmdParam::Time => "02",
                 };
                 write!(f, "#WAVCMD {} {} {}", param, ev.wav_index, ev.value)
             }
