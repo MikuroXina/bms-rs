@@ -245,7 +245,7 @@ pub enum Key {
 }
 
 impl Key {
-    /// Returns whether the key is a keyboard key.
+    /// Returns whether the key expected a piano keyboard.
     pub const fn is_keyxx(&self) -> bool {
         use Key::*;
         matches!(
