@@ -25,7 +25,7 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind,
+            Channel, Key, KeyMapping, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
