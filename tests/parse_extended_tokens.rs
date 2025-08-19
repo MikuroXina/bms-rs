@@ -119,8 +119,8 @@ fn test_exwav_parsing() {
             .contains_key(&ObjId::try_from(['0', '1']).unwrap())
     );
     let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(exwav_def.pan.value(), 10000);
-    assert_eq!(exwav_def.volume.value(), 0);
+    assert_eq!(exwav_def.pan.map(|p| p.value()), Some(10000));
+    assert_eq!(exwav_def.volume.map(|v| v.value()), Some(0));
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
     assert_eq!(exwav_def.path.to_string_lossy(), "test.wav");
 }

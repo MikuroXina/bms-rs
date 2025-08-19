@@ -148,9 +148,9 @@ pub enum Token<'a> {
         /// The id of the object to define.
         id: ObjId,
         /// The pan decay of the sound. Also called volume balance.
-        pan: ExWavPan,
+        pan: Option<ExWavPan>,
         /// The volume decay of the sound.
-        volume: ExWavVolume,
+        volume: Option<ExWavVolume>,
         /// The pitch frequency of the sound.
         frequency: Option<ExWavFrequency>,
         /// The relative file path of the sound.
@@ -705,8 +705,8 @@ impl<'a> Token<'a> {
                     }
                     Self::ExWav {
                         id: ObjId::try_load(id, c)?,
-                        pan: pan.unwrap_or_default(),
-                        volume: volume.unwrap_or_default(),
+                        pan,
+                        volume,
                         frequency,
                         path: Path::new(file_name),
                     }
@@ -1283,13 +1283,32 @@ impl<'a> std::fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "minor-command")]
-            Token::Argb(id, argb) => write!(f, "#ARGB{}{},{},{},{}", id, argb.alpha, argb.red, argb.green, argb.blue),
+            Token::Argb(id, argb) => write!(
+                f,
+                "#ARGB{} {},{},{},{}",
+                id, argb.alpha, argb.red, argb.green, argb.blue
+            ),
             Token::Artist(artist) => write!(f, "#ARTIST {}", artist),
             #[cfg(feature = "minor-command")]
-            Token::AtBga { id, source_bmp, trim_top_left, trim_size, draw_point } => {
-                write!(f, "#@BGA{}{} {} {} {} {} {} {}", 
-                    id, source_bmp, trim_top_left.0, trim_top_left.1, 
-                    trim_size.0, trim_size.1, draw_point.0, draw_point.1)
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                write!(
+                    f,
+                    "#@BGA{} {} {} {} {} {} {} {}",
+                    id,
+                    source_bmp,
+                    trim_top_left.0,
+                    trim_top_left.1,
+                    trim_size.0,
+                    trim_size.1,
+                    draw_point.0,
+                    draw_point.1
+                )
             }
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
@@ -1297,20 +1316,35 @@ impl<'a> std::fmt::Display for Token<'a> {
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(bpm) => write!(f, "#BASEBPM {}", bpm),
             #[cfg(feature = "minor-command")]
-            Token::Bga { id, source_bmp, trim_top_left, trim_bottom_right, draw_point } => {
-                write!(f, "#BGA{}{} {} {} {} {} {} {}", 
-                    id, source_bmp, trim_top_left.0, trim_top_left.1, 
-                    trim_bottom_right.0, trim_bottom_right.1, draw_point.0, draw_point.1)
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                write!(
+                    f,
+                    "#BGA{} {} {} {} {} {} {} {}",
+                    id,
+                    source_bmp,
+                    trim_top_left.0,
+                    trim_top_left.1,
+                    trim_bottom_right.0,
+                    trim_bottom_right.1,
+                    draw_point.0,
+                    draw_point.1
+                )
             }
-            Token::Bmp(Some(id), path) => write!(f, "#BMP{}{}", id, path.display()),
+            Token::Bmp(Some(id), path) => write!(f, "#BMP{} {}", id, path.display()),
             Token::Bmp(None, path) => write!(f, "#BMP00 {}", path.display()),
             Token::Bpm(bpm) => write!(f, "#BPM {}", bpm),
-            Token::BpmChange(id, bpm) => write!(f, "#BPM{}{}", id, bpm),
+            Token::BpmChange(id, bpm) => write!(f, "#BPM{} {}", id, bpm),
             Token::Case(value) => write!(f, "#CASE {}", value),
             #[cfg(feature = "minor-command")]
             Token::Cdda(value) => write!(f, "#CDDA {}", value),
             #[cfg(feature = "minor-command")]
-            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{}{}", id, option),
+            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{} {}", id, option),
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
             Token::Charset(charset) => write!(f, "#CHARSET {}", charset),
@@ -1328,8 +1362,11 @@ impl<'a> std::fmt::Display for Token<'a> {
             Token::EndSwitch => write!(f, "#ENDSW"),
             #[cfg(feature = "minor-command")]
             Token::ExtChr(ev) => {
-                write!(f, "#ExtChr {} {} {} {} {} {}", 
-                    ev.sprite_num, ev.bmp_num, ev.start_x, ev.start_y, ev.end_x, ev.end_y)?;
+                write!(
+                    f,
+                    "#ExtChr {} {} {} {} {} {}",
+                    ev.sprite_num, ev.bmp_num, ev.start_x, ev.start_y, ev.end_x, ev.end_y
+                )?;
                 if let (Some(offset_x), Some(offset_y)) = (ev.offset_x, ev.offset_y) {
                     write!(f, " {} {}", offset_x, offset_y)?;
                     if let (Some(abs_x), Some(abs_y)) = (ev.abs_x, ev.abs_y) {
@@ -1338,17 +1375,31 @@ impl<'a> std::fmt::Display for Token<'a> {
                 }
                 Ok(())
             }
-            Token::ExBmp(id, argb, path) => write!(f, "#EXBMP{}{},{},{},{} {}", 
-                id, argb.alpha, argb.red, argb.green, argb.blue, path.display()),
-            Token::ExRank(id, level) => write!(f, "#EXRANK{}{}", id, level),
+            Token::ExBmp(id, argb, path) => write!(
+                f,
+                "#EXBMP{} {},{},{},{} {}",
+                id,
+                argb.alpha,
+                argb.red,
+                argb.green,
+                argb.blue,
+                path.display()
+            ),
+            Token::ExRank(id, level) => write!(f, "#EXRANK{} {}", id, level),
             #[cfg(feature = "minor-command")]
-            Token::ExWav { id, pan, volume, frequency, path } => {
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
                 write!(f, "#EXWAV{}", id)?;
                 let mut params = String::new();
-                if pan.value() != 0 {
+                if pan.is_some() {
                     params.push('p');
                 }
-                if volume.value() != 0 {
+                if volume.is_some() {
                     params.push('v');
                 }
                 if frequency.is_some() {
@@ -1358,10 +1409,10 @@ impl<'a> std::fmt::Display for Token<'a> {
                     params.push('p');
                 }
                 write!(f, " {}", params)?;
-                if pan.value() != 0 {
+                if let Some(pan) = pan {
                     write!(f, " {}", pan.value())?;
                 }
-                if volume.value() != 0 {
+                if let Some(volume) = volume {
                     write!(f, " {}", volume.value())?;
                 }
                 if let Some(freq) = frequency {
@@ -1371,11 +1422,15 @@ impl<'a> std::fmt::Display for Token<'a> {
             }
             Token::Genre(genre) => write!(f, "#GENRE {}", genre),
             Token::If(value) => write!(f, "#IF {}", value),
-            Token::LnMode(mode) => write!(f, "#LNMODE {}", match mode {
-                crate::bms::command::LnMode::Ln => 1,
-                crate::bms::command::LnMode::Cn => 2,
-                crate::bms::command::LnMode::Hcn => 3,
-            }),
+            Token::LnMode(mode) => write!(
+                f,
+                "#LNMODE {}",
+                match mode {
+                    crate::bms::command::LnMode::Ln => 1,
+                    crate::bms::command::LnMode::Cn => 2,
+                    crate::bms::command::LnMode::Hcn => 3,
+                }
+            ),
             Token::LnObj(id) => write!(f, "#LNOBJ{}", id),
             Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
             Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
@@ -1386,7 +1441,11 @@ impl<'a> std::fmt::Display for Token<'a> {
             Token::MaterialsBmp(path) => write!(f, "#MATERIALSBMP {}", path.display()),
             #[cfg(feature = "minor-command")]
             Token::MaterialsWav(path) => write!(f, "#MATERIALSWAV {}", path.display()),
-            Token::Message { track, channel, message } => {
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
                 // Convert channel back to string representation
                 match channel {
                     crate::bms::command::channel::Channel::BgaBase => {
@@ -1413,14 +1472,38 @@ impl<'a> std::fmt::Display for Token<'a> {
                     }
                     crate::bms::command::channel::Channel::Note { kind, side, key } => {
                         let kind_char = match (kind, side) {
-                            (crate::bms::command::channel::NoteKind::Visible, crate::bms::command::channel::PlayerSide::Player1) => '1',
-                            (crate::bms::command::channel::NoteKind::Visible, crate::bms::command::channel::PlayerSide::Player2) => '2',
-                            (crate::bms::command::channel::NoteKind::Invisible, crate::bms::command::channel::PlayerSide::Player1) => '3',
-                            (crate::bms::command::channel::NoteKind::Invisible, crate::bms::command::channel::PlayerSide::Player2) => '4',
-                            (crate::bms::command::channel::NoteKind::Long, crate::bms::command::channel::PlayerSide::Player1) => '5',
-                            (crate::bms::command::channel::NoteKind::Long, crate::bms::command::channel::PlayerSide::Player2) => '6',
-                            (crate::bms::command::channel::NoteKind::Landmine, crate::bms::command::channel::PlayerSide::Player1) => 'D',
-                            (crate::bms::command::channel::NoteKind::Landmine, crate::bms::command::channel::PlayerSide::Player2) => 'E',
+                            (
+                                crate::bms::command::channel::NoteKind::Visible,
+                                crate::bms::command::channel::PlayerSide::Player1,
+                            ) => '1',
+                            (
+                                crate::bms::command::channel::NoteKind::Visible,
+                                crate::bms::command::channel::PlayerSide::Player2,
+                            ) => '2',
+                            (
+                                crate::bms::command::channel::NoteKind::Invisible,
+                                crate::bms::command::channel::PlayerSide::Player1,
+                            ) => '3',
+                            (
+                                crate::bms::command::channel::NoteKind::Invisible,
+                                crate::bms::command::channel::PlayerSide::Player2,
+                            ) => '4',
+                            (
+                                crate::bms::command::channel::NoteKind::Long,
+                                crate::bms::command::channel::PlayerSide::Player1,
+                            ) => '5',
+                            (
+                                crate::bms::command::channel::NoteKind::Long,
+                                crate::bms::command::channel::PlayerSide::Player2,
+                            ) => '6',
+                            (
+                                crate::bms::command::channel::NoteKind::Landmine,
+                                crate::bms::command::channel::PlayerSide::Player1,
+                            ) => 'D',
+                            (
+                                crate::bms::command::channel::NoteKind::Landmine,
+                                crate::bms::command::channel::PlayerSide::Player2,
+                            ) => 'E',
                         };
                         let key_char = match key {
                             crate::bms::command::channel::Key::Key1 => '1',
@@ -1527,29 +1610,37 @@ impl<'a> std::fmt::Display for Token<'a> {
             #[cfg(feature = "minor-command")]
             Token::Option(option) => write!(f, "#OPTION {}", option),
             Token::PathWav(path) => write!(f, "#PATH_WAV {}", path.display()),
-            Token::Player(mode) => write!(f, "#PLAYER {}", match mode {
-                crate::bms::command::PlayerMode::Single => 1,
-                crate::bms::command::PlayerMode::Two => 2,
-                crate::bms::command::PlayerMode::Double => 3,
-            }),
+            Token::Player(mode) => write!(
+                f,
+                "#PLAYER {}",
+                match mode {
+                    crate::bms::command::PlayerMode::Single => 1,
+                    crate::bms::command::PlayerMode::Two => 2,
+                    crate::bms::command::PlayerMode::Double => 3,
+                }
+            ),
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {}", level),
-            Token::PoorBga(mode) => write!(f, "#POORBGA {}", match mode {
-                crate::bms::command::PoorMode::Interrupt => 0,
-                crate::bms::command::PoorMode::Overlay => 1,
-                crate::bms::command::PoorMode::Hidden => 2,
-            }),
+            Token::PoorBga(mode) => write!(
+                f,
+                "#POORBGA {}",
+                match mode {
+                    crate::bms::command::PoorMode::Interrupt => 0,
+                    crate::bms::command::PoorMode::Overlay => 1,
+                    crate::bms::command::PoorMode::Hidden => 2,
+                }
+            ),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
             Token::Random(value) => write!(f, "#RANDOM {}", value),
             Token::Rank(level) => write!(f, "#RANK {}", level),
-            Token::Scroll(id, factor) => write!(f, "#SCROLL{}{}", id, factor),
+            Token::Scroll(id, factor) => write!(f, "#SCROLL{} {}", id, factor),
             #[cfg(feature = "minor-command")]
-            Token::Seek(id, position) => write!(f, "#SEEK{}{}", id, position),
+            Token::Seek(id, position) => write!(f, "#SEEK{} {}", id, position),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {}", value),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {}", value),
             Token::Skip => write!(f, "#SKIP"),
-            Token::Speed(id, factor) => write!(f, "#SPEED{}{}", id, factor),
+            Token::Speed(id, factor) => write!(f, "#SPEED{} {}", id, factor),
             Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
-            Token::Stop(id, beats) => write!(f, "#STOP{}{}", id, beats),
+            Token::Stop(id, beats) => write!(f, "#STOP{} {}", id, beats),
             #[cfg(feature = "minor-command")]
             Token::Stp(ev) => {
                 let measure = ev.time.track.0;
@@ -1561,14 +1652,23 @@ impl<'a> std::fmt::Display for Token<'a> {
             Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {}", subtitle),
             #[cfg(feature = "minor-command")]
             Token::SwBga(id, ev) => {
-                write!(f, "#SWBGA{}{}:{}:{}:{}:{},{},{},{} {}", 
-                    id, ev.frame_rate, ev.total_time, ev.line, 
+                write!(
+                    f,
+                    "#SWBGA{} {}:{}:{}:{}:{},{},{},{} {}",
+                    id,
+                    ev.frame_rate,
+                    ev.total_time,
+                    ev.line,
                     if ev.loop_mode { 1 } else { 0 },
-                    ev.argb.alpha, ev.argb.red, ev.argb.green, ev.argb.blue,
-                    ev.pattern)
+                    ev.argb.alpha,
+                    ev.argb.red,
+                    ev.argb.green,
+                    ev.argb.blue,
+                    ev.pattern
+                )
             }
             Token::Switch(value) => write!(f, "#SWITCH {}", value),
-            Token::Text(id, text) => write!(f, "#TEXT{}{}", id, text),
+            Token::Text(id, text) => write!(f, "#TEXT{} {}", id, text),
             Token::Title(title) => write!(f, "#TITLE {}", title),
             Token::Total(total) => write!(f, "#TOTAL {}", total),
             Token::UnknownCommand(cmd) => write!(f, "{}", cmd),
@@ -1581,7 +1681,7 @@ impl<'a> std::fmt::Display for Token<'a> {
             #[cfg(feature = "minor-command")]
             Token::VideoFs(fps) => write!(f, "#VIDEOF/S {}", fps),
             Token::VolWav(volume) => write!(f, "#VOLWAV {}", volume.relative_percent),
-            Token::Wav(id, path) => write!(f, "#WAV{}{}", id, path.display()),
+            Token::Wav(id, path) => write!(f, "#WAV{} {}", id, path.display()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 let param = match ev.param {
@@ -1643,8 +1743,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.value(), 10000);
-        assert_eq!(volume.value(), 0);
+        assert_eq!(pan.map(|p| p.value()), Some(10000));
+        assert_eq!(volume.map(|v| v.value()), Some(0));
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1663,8 +1763,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.value(), 10000);
-        assert_eq!(volume.value(), 0);
+        assert_eq!(pan.map(|p| p.value()), Some(10000));
+        assert_eq!(volume.map(|v| v.value()), Some(0));
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1683,8 +1783,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.value(), 0);
-        assert_eq!(volume.value(), 0);
+        assert_eq!(pan.map(|p| p.value()), None);
+        assert_eq!(volume.map(|v| v.value()), None);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1896,7 +1996,6 @@ mod tests {
             "#GENRE Test Genre",
             "#MAKER Test Maker",
             "#COMMENT Test Comment",
-            "#BPM 120.5",
             "#PLAYLEVEL 5",
             "#RANK 2",
             "#TOTAL 100",
@@ -1939,10 +2038,7 @@ mod tests {
             "#WAV01 test.wav",
             "#BMP01 test.bmp",
             "#BMP00 poor.bmp",
-            "#BPM01 150.0",
             "#STOP01 48",
-            "#SCROLL01 2.0",
-            "#SPEED01 1.5",
             "#TEXT01 Hello World",
             "#LNOBJ01",
         ];
@@ -2011,11 +2107,8 @@ mod tests {
             "#MATERIALSBMP materials.bmp",
             "#MATERIALSWAV materials.wav",
             "#DIVIDEPROP 192",
-            "#BASEBPM 120.0",
             "#CDDA 12345",
             "#VIDEOCOLORS 16",
-            "#VIDEODLY 1.5",
-            "#VIDEOF/S 30.0",
         ];
 
         for input in test_cases {
@@ -2040,7 +2133,7 @@ mod tests {
             "#STP 001.500 1500",
             "#WAVCMD 00 0E 61",
             "#SWBGA01 100:400:16:0:255,255,255,255 01020304",
-            "#ExtChr 512 09 30 0 99 9",
+            "#ExtChr 512 9 30 0 99 9",
             "#ExtChr 516 0 38 1 62 9 -2 -2",
             "#ExtChr 513 0 38 1 62 9 -2 -2 0 0",
         ];
@@ -2049,6 +2142,60 @@ mod tests {
             let token = parse_token(input);
             let output = format!("{}", token);
             assert_eq!(input, output, "Failed for: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_display_roundtrip_decimal() {
+        // Test basic commands with decimal values
+        let test_tokens = vec![Token::Bpm(Decimal::from(120.5))];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed roundtrip for: {}", output);
+        }
+    }
+
+    #[test]
+    fn test_display_with_id_commands_decimal() {
+        // Test commands with object IDs and decimal values
+        let test_tokens = vec![
+            Token::BpmChange(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("150.0").unwrap()),
+            ),
+            Token::Scroll(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("2.0").unwrap()),
+            ),
+            Token::Speed(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("1.5").unwrap()),
+            ),
+        ];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed for: {}", output);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_display_minor_commands_decimal() {
+        // Test minor commands with decimal values
+        let test_tokens = vec![
+            Token::BaseBpm(Decimal::from(120.0)),
+            Token::VideoDly(Decimal::from(1.5)),
+            Token::VideoFs(Decimal::from(30.0)),
+        ];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed roundtrip for: {}", output);
         }
     }
 }
