@@ -13,9 +13,15 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            BeatModeMap, Channel, Key, KeyChannelMode, KeyChannelModeBeat,
-            KeyChannelModeBeatNanasi, KeyChannelModeDscOctFp, KeyChannelModePms,
-            KeyChannelModePmsBmeType, NoteKind, PlayerSide, convert_key_channel_between,
+            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            converter::{
+                KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
+                KeyLayoutConvertMirror, KeyLayoutConverter,
+            },
+            mapper::{
+                KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
+                KeyLayoutPms, KeyLayoutPmsBmeType,
+            },
             read_channel_beat,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
