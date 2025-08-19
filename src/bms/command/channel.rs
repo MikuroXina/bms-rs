@@ -358,43 +358,14 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     Some(Channel::Note { kind, side, key })
 }
 
-/// Intermediate representation for Beat mode format.
-///
-/// This type represents a (PlayerSide, Key) pair in the standard Beat mode format,
-/// which serves as the common intermediate representation for all key channel mode conversions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyMapping(pub PlayerSide, pub Key);
-
-impl KeyMapping {
-    /// Create a new BeatModeMap from a PlayerSide and Key.
-    pub fn new(side: PlayerSide, key: Key) -> Self {
-        KeyMapping(side, key)
-    }
-
-    /// Get the PlayerSide from this BeatModeMap.
-    pub fn side(&self) -> PlayerSide {
-        self.0
-    }
-
-    /// Get the Key from this BeatModeMap.
-    pub fn key(&self) -> Key {
-        self.1
-    }
-
-    /// Deconstruct into a (PlayerSide, Key) tuple.
-    pub fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.0, self.1)
-    }
-}
-
-impl From<(PlayerSide, Key)> for KeyMapping {
-    fn from((side, key): (PlayerSide, Key)) -> Self {
-        KeyMapping::new(side, key)
-    }
-}
-
-impl From<KeyMapping> for (PlayerSide, Key) {
-    fn from(beat_map: KeyMapping) -> Self {
-        beat_map.into_tuple()
-    }
+/// A trait for key mapping storage structure.
+pub trait KeyMapping {
+    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
+    fn new(side: PlayerSide, key: Key) -> Self;
+    /// Get the PlayerSide from this KeyMapping.
+    fn side(&self) -> PlayerSide;
+    /// Get the [`Key`] from this [`KeyMapping`].
+    fn key(&self) -> Key;
+    /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
+    fn into_tuple(self) -> (PlayerSide, Key);
 }

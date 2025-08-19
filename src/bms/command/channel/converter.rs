@@ -11,7 +11,7 @@ use super::{Key, KeyMapping, PlayerSide};
 ///   - [`KeyLayoutConverter`] can convert into another key layout. It's one-way.
 pub trait KeyLayoutConverter {
     /// Convert a [`KeyMapping`] to another key layout.
-    fn convert(&mut self, beat_map: KeyMapping) -> KeyMapping;
+    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T;
 }
 
 impl KeyLayoutConvertMirror {
@@ -31,18 +31,18 @@ pub struct KeyLayoutConvertMirror {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
-    fn convert(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, mut key) = beat_map.into_tuple();
         if side == self.side
             && let Some(position) = self.keys.iter().position(|k| k == &key)
         {
             let mirror_index = self.keys.len().saturating_sub(position + 1);
             let Some(mirror_key) = self.keys.get(mirror_index) else {
-                return beat_map;
+                return T::new(side, key);
             };
             key = *mirror_key;
         }
-        KeyMapping::new(side, key)
+        T::new(side, key)
     }
 }
 
@@ -139,13 +139,13 @@ impl KeyLayoutConvertLaneRotateShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
-    fn convert(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, key) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            KeyMapping::new(side, new_key)
+            T::new(side, new_key)
         } else {
-            beat_map
+            T::new(side, key)
         }
     }
 }
@@ -189,19 +189,21 @@ impl KeyLayoutConvertLaneRandomShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
-    fn convert(&mut self, beat_map: KeyMapping) -> KeyMapping {
+    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, key) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            KeyMapping::new(side, new_key)
+            T::new(side, new_key)
         } else {
-            beat_map
+            T::new(side, key)
         }
     }
 }
 
 #[cfg(test)]
 mod channel_mode_tests {
+    use crate::bms::prelude::KeyLayoutBeat;
+
     use super::*;
 
     #[test]
@@ -220,7 +222,7 @@ mod channel_mode_tests {
             (PlayerSide::Player2, Key::Key5),
         ]
         .into_iter()
-        .map(|(side, key)| KeyMapping::new(side, key))
+        .map(|(side, key)| KeyLayoutBeat::new(side, key))
         .collect::<Vec<_>>();
         let mut mode = KeyLayoutConvertMirror {
             side: PlayerSide::Player1,
@@ -240,7 +242,7 @@ mod channel_mode_tests {
             (PlayerSide::Player2, Key::Key5),
         ]
         .into_iter()
-        .map(|(side, key)| KeyMapping::new(side, key))
+        .map(|(side, key)| KeyLayoutBeat::new(side, key))
         .collect::<Vec<_>>();
         assert_eq!(result, expected);
     }
@@ -311,7 +313,7 @@ mod channel_mode_tests {
             );
             let result_values = init_keys
                 .into_iter()
-                .map(|k| rnd.convert(KeyMapping::new(PlayerSide::Player1, k)))
+                .map(|k| rnd.convert(KeyLayoutBeat::new(PlayerSide::Player1, k)))
                 .map(|v| v.key() as usize)
                 .collect::<Vec<_>>();
             println!("  Expected: {:?}", list);

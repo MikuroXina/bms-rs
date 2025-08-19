@@ -27,7 +27,7 @@ use crate::bms::{
         channel::{
             Channel, Key, KeyMapping, NoteKind,
             converter::KeyLayoutConverter,
-            mapper::{KeyLayoutMapper, convert_key_mapping_between},
+            mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -1801,17 +1801,14 @@ impl Bms {
     /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
     ///
     /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
-    pub fn convert_key_between_modes(
-        &mut self,
-        mut from: impl KeyLayoutMapper,
-        mut to: impl KeyLayoutMapper,
-    ) {
+    pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
         self.notes.objs.iter_mut().for_each(|(_, objs)| {
             objs.iter_mut().for_each(|Obj { side, key, .. }| {
-                let beat_map = KeyMapping::new(*side, *key);
-                let new_beat_map = convert_key_mapping_between(&mut from, &mut to, beat_map);
-                *side = new_beat_map.side();
-                *key = new_beat_map.key();
+                let ori_map = Src::new(*side, *key);
+                let beat_map = ori_map.to_beat();
+                let dst_map = Dst::from_beat(beat_map);
+                *side = dst_map.side();
+                *key = dst_map.key();
             });
         });
     }
@@ -1820,7 +1817,7 @@ impl Bms {
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         self.notes.objs.iter_mut().for_each(|(_, objs)| {
             objs.iter_mut().for_each(|Obj { side, key, .. }| {
-                let beat_map = KeyMapping::new(*side, *key);
+                let beat_map = KeyLayoutBeat::new(*side, *key);
                 let new_beat_map = converter.convert(beat_map);
                 *side = new_beat_map.side();
                 *key = new_beat_map.key();

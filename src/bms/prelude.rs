@@ -20,7 +20,7 @@ pub use super::{
             },
             mapper::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
-                KeyLayoutPms, KeyLayoutPmsBmeType, convert_key_mapping_between,
+                KeyLayoutPms, KeyLayoutPmsBmeType,
             },
             read_channel_beat,
         },
