@@ -1936,21 +1936,21 @@ mod tests {
     fn test_display_with_id_commands() {
         // Test commands with object IDs
         let test_cases = vec![
-            ("#WAV01 test.wav", "#WAV01 test.wav"),
-            ("#BMP01 test.bmp", "#BMP01 test.bmp"),
-            ("#BMP00 poor.bmp", "#BMP00 poor.bmp"),
-            ("#BPM01 150.0", "#BPM01 150.0"),
-            ("#STOP01 48", "#STOP01 48"),
-            ("#SCROLL01 2.0", "#SCROLL01 2.0"),
-            ("#SPEED01 1.5", "#SPEED01 1.5"),
-            ("#TEXT01 Hello World", "#TEXT01 Hello World"),
-            ("#LNOBJ01", "#LNOBJ01"),
+            "#WAV01 test.wav",
+            "#BMP01 test.bmp",
+            "#BMP00 poor.bmp",
+            "#BPM01 150.0",
+            "#STOP01 48",
+            "#SCROLL01 2.0",
+            "#SPEED01 1.5",
+            "#TEXT01 Hello World",
+            "#LNOBJ01",
         ];
 
-        for (input, expected) in test_cases {
+        for input in test_cases {
             let token = parse_token(input);
             let output = format!("{}", token);
-            assert_eq!(expected, output, "Failed for: {}", input);
+            assert_eq!(input, output, "Failed for: {}", input);
         }
     }
 
@@ -2030,25 +2030,25 @@ mod tests {
     fn test_display_complex_commands() {
         // Test complex commands with multiple parameters
         let test_cases = vec![
-            ("#EXBMP01 255,0,0,0 exbmp.png", "#EXBMP01 255,0,0,0 exbmp.png"),
-            ("#EXRANK01 2", "#EXRANK01 2"),
-            ("#EXWAV01 pvf 10000 0 48000 ex.wav", "#EXWAV01 pvf 10000 0 48000 ex.wav"),
-            ("#@BGA01 02 1 2 3 4 5 6", "#@BGA01 02 1 2 3 4 5 6"),
-            ("#BGA01 02 1 2 3 4 5 6", "#BGA01 02 1 2 3 4 5 6"),
-            ("#CHANGEOPTION01 opt", "#CHANGEOPTION01 opt"),
-            ("#ARGB01 255,255,255,255", "#ARGB01 255,255,255,255"),
-            ("#STP 001.500 1500", "#STP 001.500 1500"),
-            ("#WAVCMD 00 0E 61", "#WAVCMD 00 0E 61"),
-            ("#SWBGA01 100:400:16:0:255,255,255,255 01020304", "#SWBGA01 100:400:16:0:255,255,255,255 01020304"),
-            ("#ExtChr 512 09 30 0 99 9", "#ExtChr 512 9 30 0 99 9"),
-            ("#ExtChr 516 0 38 1 62 9 -2 -2", "#ExtChr 516 0 38 1 62 9 -2 -2"),
-            ("#ExtChr 513 0 38 1 62 9 -2 -2 0 0", "#ExtChr 513 0 38 1 62 9 -2 -2 0 0"),
+            "#EXBMP01 255,0,0,0 exbmp.png",
+            "#EXRANK01 2",
+            "#EXWAV01 pvf 10000 0 48000 ex.wav",
+            "#@BGA01 02 1 2 3 4 5 6",
+            "#BGA01 02 1 2 3 4 5 6",
+            "#CHANGEOPTION01 opt",
+            "#ARGB01 255,255,255,255",
+            "#STP 001.500 1500",
+            "#WAVCMD 00 0E 61",
+            "#SWBGA01 100:400:16:0:255,255,255,255 01020304",
+            "#ExtChr 512 09 30 0 99 9",
+            "#ExtChr 516 0 38 1 62 9 -2 -2",
+            "#ExtChr 513 0 38 1 62 9 -2 -2 0 0",
         ];
 
-        for (input, expected) in test_cases {
+        for input in test_cases {
             let token = parse_token(input);
             let output = format!("{}", token);
-            assert_eq!(expected, output, "Failed for: {}", input);
+            assert_eq!(input, output, "Failed for: {}", input);
         }
     }
 }
