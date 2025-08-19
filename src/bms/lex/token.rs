@@ -811,8 +811,10 @@ impl<'a> Token<'a> {
                     let option = c.next_line_remaining();
                     Self::ChangeOption(ObjId::try_load(id, c)?, option)
                 }
-                lnobj if lnobj.starts_with("#LNOBJ") => {
-                    let id = lnobj.trim_start_matches("#LNOBJ");
+                "#LNOBJ" => {
+                    let id = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
                     Self::LnObj(ObjId::try_load(id, c)?)
                 }
                 message
@@ -1431,7 +1433,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                     crate::bms::command::LnMode::Hcn => 3,
                 }
             ),
-            Token::LnObj(id) => write!(f, "#LNOBJ{}", id),
+            Token::LnObj(id) => write!(f, "#LNOBJ {}", id),
             Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
             Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
             Token::Maker(maker) => write!(f, "#MAKER {}", maker),
@@ -1850,7 +1852,7 @@ mod tests {
 
     #[test]
     fn test_lnobj() {
-        let Token::LnObj(id) = parse_token("#LNOBJ01") else {
+        let Token::LnObj(id) = parse_token("#LNOBJ 01") else {
             panic!("Not LnObj");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -2040,7 +2042,7 @@ mod tests {
             "#BMP00 poor.bmp",
             "#STOP01 48",
             "#TEXT01 Hello World",
-            "#LNOBJ01",
+            "#LNOBJ 01",
         ];
 
         for input in test_cases {
