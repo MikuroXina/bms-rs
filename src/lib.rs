@@ -64,11 +64,11 @@
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
-//! 
+//!
 //! // Build AST from tokens
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
 //! assert_eq!(ast_build_warnings, vec![]);
-//! 
+//!
 //! // Extract tokens back from AST (inverse operation)
 //! let extracted_tokens = root.extract();
 //! ```
