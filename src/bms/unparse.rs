@@ -44,40 +44,7 @@ impl Bms {
         let mut tokens = Vec::new();
 
         // Build reverse lookup maps for efficient ObjId finding
-        let bpm_reverse_map: HashMap<&Decimal, ObjId> = self
-            .scope_defines
-            .bpm_defs
-            .iter()
-            .map(|(obj_id, bpm)| (bpm, *obj_id))
-            .collect();
-
-        let stop_reverse_map: HashMap<&Decimal, ObjId> = self
-            .scope_defines
-            .stop_defs
-            .iter()
-            .map(|(obj_id, duration)| (duration, *obj_id))
-            .collect();
-
-        let scroll_reverse_map: HashMap<&Decimal, ObjId> = self
-            .scope_defines
-            .scroll_defs
-            .iter()
-            .map(|(obj_id, factor)| (factor, *obj_id))
-            .collect();
-
-        let speed_reverse_map: HashMap<&Decimal, ObjId> = self
-            .scope_defines
-            .speed_defs
-            .iter()
-            .map(|(obj_id, factor)| (factor, *obj_id))
-            .collect();
-
-        let judge_reverse_map: HashMap<&JudgeLevel, ObjId> = self
-            .scope_defines
-            .exrank_defs
-            .iter()
-            .map(|(obj_id, exrank_def)| (&exrank_def.judge_level, *obj_id))
-            .collect();
+        let convert_params = ConvertNotesParams::new(self);
 
         #[cfg(feature = "minor-command")]
         let argb_reverse_map: HashMap<&Argb, ObjId> = self
@@ -85,37 +52,6 @@ impl Bms {
             .argb_defs
             .iter()
             .map(|(obj_id, argb)| (argb, *obj_id))
-            .collect();
-
-        #[cfg(feature = "minor-command")]
-        let swbga_reverse_map: HashMap<&SwBgaEvent, ObjId> = self
-            .scope_defines
-            .swbga_events
-            .iter()
-            .map(|(obj_id, swbga_event)| (swbga_event, *obj_id))
-            .collect();
-
-        let text_reverse_map: HashMap<&String, ObjId> = self
-            .others
-            .texts
-            .iter()
-            .map(|(obj_id, text)| (text, *obj_id))
-            .collect();
-
-        #[cfg(feature = "minor-command")]
-        let option_reverse_map: HashMap<&String, ObjId> = self
-            .others
-            .change_options
-            .iter()
-            .map(|(obj_id, option)| (option, *obj_id))
-            .collect();
-
-        #[cfg(feature = "minor-command")]
-        let seek_reverse_map: HashMap<&Decimal, ObjId> = self
-            .others
-            .seek_events
-            .iter()
-            .map(|(obj_id, seek_time)| (seek_time, *obj_id))
             .collect();
 
         // Convert header information
@@ -151,23 +87,7 @@ impl Bms {
         self.convert_arrangers(&mut tokens);
 
         // Convert notes and audio files
-        self.convert_notes(
-            &mut tokens,
-            ConvertNotesParams {
-                bpm_reverse_map: &bpm_reverse_map,
-                stop_reverse_map: &stop_reverse_map,
-                scroll_reverse_map: &scroll_reverse_map,
-                speed_reverse_map: &speed_reverse_map,
-                judge_reverse_map: &judge_reverse_map,
-                #[cfg(feature = "minor-command")]
-                swbga_reverse_map: &swbga_reverse_map,
-                text_reverse_map: &text_reverse_map,
-                #[cfg(feature = "minor-command")]
-                option_reverse_map: &option_reverse_map,
-                #[cfg(feature = "minor-command")]
-                seek_reverse_map: &seek_reverse_map,
-            },
-        );
+        self.convert_notes(&mut tokens, convert_params);
 
         // Convert graphics
         self.convert_graphics(
@@ -399,11 +319,7 @@ impl Bms {
         }
     }
 
-    fn convert_notes<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        params: ConvertNotesParams<'_, 'a>,
-    ) {
+    fn convert_notes<'a>(&'a self, tokens: &mut Vec<Token<'a>>, params: ConvertNotesParams<'a>) {
         let ConvertNotesParams {
             bpm_reverse_map,
             stop_reverse_map,
@@ -836,19 +752,104 @@ impl Bms {
 }
 
 #[derive(Debug)]
-struct ConvertNotesParams<'a, 'b> {
-    bpm_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
-    stop_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
-    scroll_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
-    speed_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
-    judge_reverse_map: &'a HashMap<&'b JudgeLevel, ObjId>,
+struct ConvertNotesParams<'a> {
+    bpm_reverse_map: HashMap<&'a Decimal, ObjId>,
+    stop_reverse_map: HashMap<&'a Decimal, ObjId>,
+    scroll_reverse_map: HashMap<&'a Decimal, ObjId>,
+    speed_reverse_map: HashMap<&'a Decimal, ObjId>,
+    judge_reverse_map: HashMap<&'a JudgeLevel, ObjId>,
     #[cfg(feature = "minor-command")]
-    swbga_reverse_map: &'a HashMap<&'b SwBgaEvent, ObjId>,
-    text_reverse_map: &'a HashMap<&'b String, ObjId>,
+    swbga_reverse_map: HashMap<&'a SwBgaEvent, ObjId>,
+    text_reverse_map: HashMap<&'a String, ObjId>,
     #[cfg(feature = "minor-command")]
-    option_reverse_map: &'a HashMap<&'b String, ObjId>,
+    option_reverse_map: HashMap<&'a String, ObjId>,
     #[cfg(feature = "minor-command")]
-    seek_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
+    seek_reverse_map: HashMap<&'a Decimal, ObjId>,
+}
+
+impl<'a> ConvertNotesParams<'a> {
+    fn new(bms: &'a Bms) -> Self {
+        let bpm_reverse_map: HashMap<&'a Decimal, ObjId> = bms
+            .scope_defines
+            .bpm_defs
+            .iter()
+            .map(|(obj_id, bpm)| (bpm, *obj_id))
+            .collect();
+
+        let stop_reverse_map: HashMap<&'a Decimal, ObjId> = bms
+            .scope_defines
+            .stop_defs
+            .iter()
+            .map(|(obj_id, duration)| (duration, *obj_id))
+            .collect();
+
+        let scroll_reverse_map: HashMap<&'a Decimal, ObjId> = bms
+            .scope_defines
+            .scroll_defs
+            .iter()
+            .map(|(obj_id, factor)| (factor, *obj_id))
+            .collect();
+
+        let speed_reverse_map: HashMap<&'a Decimal, ObjId> = bms
+            .scope_defines
+            .speed_defs
+            .iter()
+            .map(|(obj_id, factor)| (factor, *obj_id))
+            .collect();
+
+        let judge_reverse_map: HashMap<&'a JudgeLevel, ObjId> = bms
+            .scope_defines
+            .exrank_defs
+            .iter()
+            .map(|(obj_id, exrank_def)| (&exrank_def.judge_level, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let swbga_reverse_map: HashMap<&'a SwBgaEvent, ObjId> = bms
+            .scope_defines
+            .swbga_events
+            .iter()
+            .map(|(obj_id, swbga_event)| (swbga_event, *obj_id))
+            .collect();
+
+        let text_reverse_map: HashMap<&'a String, ObjId> = bms
+            .others
+            .texts
+            .iter()
+            .map(|(obj_id, text)| (text, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let option_reverse_map: HashMap<&'a String, ObjId> = bms
+            .others
+            .change_options
+            .iter()
+            .map(|(obj_id, option)| (option, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let seek_reverse_map: HashMap<&'a Decimal, ObjId> = bms
+            .others
+            .seek_events
+            .iter()
+            .map(|(obj_id, seek_time)| (seek_time, *obj_id))
+            .collect();
+
+        Self {
+            bpm_reverse_map,
+            stop_reverse_map,
+            scroll_reverse_map,
+            speed_reverse_map,
+            judge_reverse_map,
+            #[cfg(feature = "minor-command")]
+            swbga_reverse_map,
+            text_reverse_map,
+            #[cfg(feature = "minor-command")]
+            option_reverse_map,
+            #[cfg(feature = "minor-command")]
+            seek_reverse_map,
+        }
+    }
 }
 
 #[cfg(test)]
