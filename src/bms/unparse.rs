@@ -4,8 +4,6 @@
 
 use fraction::ToPrimitive;
 
-#[cfg(feature = "minor-command")]
-use crate::bms::command::channel::Key;
 use crate::bms::{
     Decimal,
     command::{
@@ -655,14 +653,6 @@ impl Bms {
             }
         };
         format!("{:02X}", level_u8)
-    }
-
-    #[cfg(feature = "minor-command")]
-    #[allow(dead_code)]
-    fn bga_keybound_to_message(&self, _key: Key) -> String {
-        // Convert key to hex format
-        // This is a placeholder implementation
-        "00".to_string()
     }
 
     #[cfg(feature = "minor-command")]
