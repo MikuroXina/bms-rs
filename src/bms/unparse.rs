@@ -399,7 +399,6 @@ impl Bms {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn convert_notes<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
