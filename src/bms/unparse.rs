@@ -2,13 +2,14 @@
 //! Note that this conversion may not preserve all original formatting and comments, but it will
 //! generate valid BMS tokens that represent the same musical data.
 
-use fraction::ToPrimitive;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PoorMode, Volume,
         channel::{Channel, NoteKind},
+        graphics::Argb,
         time::Track,
     },
     lex::token::Token,
@@ -42,32 +43,81 @@ impl Bms {
         let mut tokens = Vec::new();
 
         // Build reverse lookup maps for efficient ObjId finding
-        let bpm_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+        let bpm_reverse_map: BTreeMap<&Decimal, ObjId> = self
             .scope_defines
             .bpm_defs
             .iter()
             .map(|(obj_id, bpm)| (bpm, *obj_id))
             .collect();
 
-        let stop_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+        let stop_reverse_map: BTreeMap<&Decimal, ObjId> = self
             .scope_defines
             .stop_defs
             .iter()
             .map(|(obj_id, duration)| (duration, *obj_id))
             .collect();
 
-        let scroll_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+        let scroll_reverse_map: BTreeMap<&Decimal, ObjId> = self
             .scope_defines
             .scroll_defs
             .iter()
             .map(|(obj_id, factor)| (factor, *obj_id))
             .collect();
 
-        let speed_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+        let speed_reverse_map: BTreeMap<&Decimal, ObjId> = self
             .scope_defines
             .speed_defs
             .iter()
             .map(|(obj_id, factor)| (factor, *obj_id))
+            .collect();
+
+        let judge_reverse_map: HashMap<&JudgeLevel, ObjId> = self
+            .scope_defines
+            .exrank_defs
+            .iter()
+            .map(|(obj_id, exrank_def)| (&exrank_def.judge_level, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let argb_reverse_map: HashMap<&Argb, ObjId> = self
+            .scope_defines
+            .argb_defs
+            .iter()
+            .map(|(obj_id, argb)| (argb, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let swbga_reverse_map: HashMap<
+            &crate::bms::command::minor_command::SwBgaEvent,
+            ObjId,
+        > = self
+            .scope_defines
+            .swbga_events
+            .iter()
+            .map(|(obj_id, swbga_event)| (swbga_event, *obj_id))
+            .collect();
+
+        let text_reverse_map: HashMap<&String, ObjId> = self
+            .others
+            .texts
+            .iter()
+            .map(|(obj_id, text)| (text, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let option_reverse_map: HashMap<&String, ObjId> = self
+            .others
+            .change_options
+            .iter()
+            .map(|(obj_id, option)| (option, *obj_id))
+            .collect();
+
+        #[cfg(feature = "minor-command")]
+        let seek_reverse_map: HashMap<&Decimal, ObjId> = self
+            .others
+            .seek_events
+            .iter()
+            .map(|(obj_id, seek_time)| (seek_time, *obj_id))
             .collect();
 
         // Convert header information
@@ -75,6 +125,12 @@ impl Bms {
 
         // Convert scope definitions
         self.convert_scope_defines(&mut tokens);
+
+        // Convert change option definitions
+        #[cfg(feature = "minor-command")]
+        for (obj_id, option) in &self.others.change_options {
+            tokens.push(Token::ChangeOption(*obj_id, option));
+        }
 
         // Convert arrangers (timing data)
         self.convert_arrangers(&mut tokens);
@@ -86,10 +142,23 @@ impl Bms {
             &stop_reverse_map,
             &scroll_reverse_map,
             &speed_reverse_map,
+            &judge_reverse_map,
+            #[cfg(feature = "minor-command")]
+            #[cfg(feature = "minor-command")]
+            &swbga_reverse_map,
+            &text_reverse_map,
+            #[cfg(feature = "minor-command")]
+            &option_reverse_map,
+            #[cfg(feature = "minor-command")]
+            &seek_reverse_map,
         );
 
         // Convert graphics
-        self.convert_graphics(&mut tokens);
+        self.convert_graphics(
+            &mut tokens,
+            #[cfg(feature = "minor-command")]
+            &argb_reverse_map,
+        );
 
         // Convert others
         self.convert_others(&mut tokens);
@@ -314,13 +383,22 @@ impl Bms {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn convert_notes<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        bpm_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
-        stop_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
-        scroll_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
-        speed_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
+        bpm_reverse_map: &BTreeMap<&Decimal, ObjId>,
+        stop_reverse_map: &BTreeMap<&Decimal, ObjId>,
+        scroll_reverse_map: &BTreeMap<&Decimal, ObjId>,
+        speed_reverse_map: &BTreeMap<&Decimal, ObjId>,
+        judge_reverse_map: &HashMap<&JudgeLevel, ObjId>,
+        #[cfg(feature = "minor-command")] swbga_reverse_map: &HashMap<
+            &crate::bms::command::minor_command::SwBgaEvent,
+            ObjId,
+        >,
+        text_reverse_map: &HashMap<&String, ObjId>,
+        #[cfg(feature = "minor-command")] option_reverse_map: &HashMap<&String, ObjId>,
+        #[cfg(feature = "minor-command")] seek_reverse_map: &HashMap<&Decimal, ObjId>,
     ) {
         let notes = &self.notes;
 
@@ -466,8 +544,12 @@ impl Bms {
             for (time, seek_obj) in &notes.seek_events {
                 let track = time.track.0;
                 let channel = Channel::Seek;
-                let seek_time_u8 = seek_obj.position.to_u8().unwrap_or(0);
-                let message = format!("{:02X}", seek_time_u8);
+                // Find the ObjId that corresponds to this seek time in others.seek_events
+                let obj_id = seek_reverse_map
+                    .get(&seek_obj.position)
+                    .copied()
+                    .unwrap_or(ObjId::null());
+                let message = obj_id.to_string();
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -480,19 +562,12 @@ impl Bms {
         for (time, text_obj) in &notes.text_events {
             let track = time.track.0;
             let channel = Channel::Text;
-            let message: String = text_obj
-                .text
-                .chars()
-                .take(2)
-                .map(|c| {
-                    let byte = if c as u32 <= u8::MAX as u32 {
-                        c as u8
-                    } else {
-                        b'?'
-                    };
-                    format!("{:02X}", byte)
-                })
-                .collect();
+            // Find the ObjId that corresponds to this text in others.texts
+            let obj_id = text_reverse_map
+                .get(&text_obj.text)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -504,20 +579,12 @@ impl Bms {
         for (time, judge_obj) in &notes.judge_events {
             let track = time.track.0;
             let channel = Channel::Judge;
-            let level_u8 = match judge_obj.judge_level {
-                JudgeLevel::Easy => 1,
-                JudgeLevel::Normal => 2,
-                JudgeLevel::Hard => 3,
-                JudgeLevel::VeryHard => 0,
-                JudgeLevel::OtherInt(n) => {
-                    if n >= 0 && n <= u8::MAX as i64 {
-                        n as u8
-                    } else {
-                        0
-                    }
-                }
-            };
-            let message = format!("{:02X}", level_u8);
+            // Find the ObjId that corresponds to this judge level in scope_defines
+            let obj_id = judge_reverse_map
+                .get(&judge_obj.judge_level)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -528,12 +595,15 @@ impl Bms {
         #[cfg(feature = "minor-command")]
         {
             // Convert BGA keybound events
-            for time in notes.bga_keybound_events.keys() {
+            for (time, keybound_obj) in &notes.bga_keybound_events {
                 let track = time.track.0;
                 let channel = Channel::BgaKeybound;
-                // BgaKeyboundObj doesn't have a key field, it has an event field
-                // This needs to be handled differently
-                let message = "00".to_string(); // Placeholder
+                // Find the ObjId that corresponds to this event in scope_defines.swbga_events
+                let obj_id = swbga_reverse_map
+                    .get(&keybound_obj.event)
+                    .copied()
+                    .unwrap_or(ObjId::null());
+                let message = obj_id.to_string();
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -545,19 +615,12 @@ impl Bms {
             for (time, option_obj) in &notes.option_events {
                 let track = time.track.0;
                 let channel = Channel::Option;
-                let message: String = option_obj
-                    .option
-                    .chars()
-                    .take(2)
-                    .map(|c| {
-                        let byte = if c as u32 <= u8::MAX as u32 {
-                            c as u8
-                        } else {
-                            b'?'
-                        };
-                        format!("{:02X}", byte)
-                    })
-                    .collect();
+                // Find the ObjId that corresponds to this option in others.change_options
+                let obj_id = option_reverse_map
+                    .get(&option_obj.option)
+                    .copied()
+                    .unwrap_or(ObjId::null());
+                let message = obj_id.to_string();
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -567,7 +630,11 @@ impl Bms {
         }
     }
 
-    fn convert_graphics<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
+    fn convert_graphics<'a>(
+        &'a self,
+        tokens: &mut Vec<Token<'a>>,
+        #[cfg(feature = "minor-command")] argb_reverse_map: &HashMap<&Argb, ObjId>,
+    ) {
         let graphics = &self.graphics;
 
         if let Some(video_file) = &graphics.video_file {
@@ -598,6 +665,65 @@ impl Bms {
 
             if let Some(video_fs) = &graphics.video_fs {
                 tokens.push(Token::VideoFs(video_fs.clone()));
+            }
+
+            // Convert BGA changes
+            for (time, bga_obj) in &graphics.bga_changes {
+                let track = time.track.0;
+                let channel = bga_obj.layer.to_channel();
+                let message = bga_obj.id.to_string();
+                tokens.push(Token::Message {
+                    track: Track(track),
+                    channel,
+                    message: message.into(),
+                });
+            }
+
+            // Convert BGA opacity changes
+            for (layer, opacity_changes) in &graphics.bga_opacity_changes {
+                for (time, opacity_obj) in opacity_changes {
+                    let track = time.track.0;
+                    let channel = match layer {
+                        crate::bms::parse::model::obj::BgaLayer::Base => Channel::BgaBaseOpacity,
+                        crate::bms::parse::model::obj::BgaLayer::Overlay => {
+                            Channel::BgaLayerOpacity
+                        }
+                        crate::bms::parse::model::obj::BgaLayer::Overlay2 => {
+                            Channel::BgaLayer2Opacity
+                        }
+                        crate::bms::parse::model::obj::BgaLayer::Poor => Channel::BgaPoorOpacity,
+                    };
+                    let message = format!("{:02X}", opacity_obj.opacity);
+                    tokens.push(Token::Message {
+                        track: Track(track),
+                        channel,
+                        message: message.into(),
+                    });
+                }
+            }
+
+            // Convert BGA ARGB changes
+            for (layer, argb_changes) in &graphics.bga_argb_changes {
+                for (time, argb_obj) in argb_changes {
+                    let track = time.track.0;
+                    let channel = match layer {
+                        crate::bms::parse::model::obj::BgaLayer::Base => Channel::BgaBaseArgb,
+                        crate::bms::parse::model::obj::BgaLayer::Overlay => Channel::BgaLayerArgb,
+                        crate::bms::parse::model::obj::BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
+                        crate::bms::parse::model::obj::BgaLayer::Poor => Channel::BgaPoorArgb,
+                    };
+                    // Find the ObjId that corresponds to this ARGB value in scope_defines
+                    let obj_id = argb_reverse_map
+                        .get(&argb_obj.argb)
+                        .copied()
+                        .unwrap_or(ObjId::null());
+                    let message = obj_id.to_string();
+                    tokens.push(Token::Message {
+                        track: Track(track),
+                        channel,
+                        message: message.into(),
+                    });
+                }
             }
         }
     }
