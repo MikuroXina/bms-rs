@@ -145,10 +145,15 @@ mod tests {
         let ast_root = AstRoot { units };
         let extracted = ast_root.extract();
 
-        assert_eq!(extracted.tokens.len(), 3);
-        assert!(matches!(extracted.tokens[0].content(), Title("11000000")));
-        assert!(matches!(extracted.tokens[1].content(), Title("00220000")));
-        assert!(matches!(extracted.tokens[2].content(), Title("00000044")));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![Title("11000000"), Title("00220000"), Title("00000044"),]
+        );
     }
 
     #[test]
@@ -181,14 +186,22 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Random, If, Title1, Title2, EndIf, EndRandom
-        assert_eq!(extracted.tokens.len(), 6);
-        assert!(matches!(extracted.tokens[0].content(), Random(_)));
-        assert!(matches!(extracted.tokens[1].content(), If(_)));
-        assert!(matches!(extracted.tokens[2].content(), Title("00550000")));
-        assert!(matches!(extracted.tokens[3].content(), Title("00006600")));
-        assert!(matches!(extracted.tokens[4].content(), EndIf));
-        assert!(matches!(extracted.tokens[5].content(), EndRandom));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Random(BigUint::from(1u32)),
+                If(BigUint::from(1u32)),
+                Title("00550000"),
+                Title("00006600"),
+                EndIf,
+                EndRandom,
+            ]
+        );
     }
 
     #[test]
@@ -219,14 +232,22 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Switch, Case, Title1, Title2, Skip, EndSwitch
-        assert_eq!(extracted.tokens.len(), 6);
-        assert!(matches!(extracted.tokens[0].content(), Switch(_)));
-        assert!(matches!(extracted.tokens[1].content(), Case(_)));
-        assert!(matches!(extracted.tokens[2].content(), Title("11111111")));
-        assert!(matches!(extracted.tokens[3].content(), Title("22222222")));
-        assert!(matches!(extracted.tokens[4].content(), Skip));
-        assert!(matches!(extracted.tokens[5].content(), EndSwitch));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(1u32)),
+                Case(BigUint::from(1u32)),
+                Title("11111111"),
+                Title("22222222"),
+                Skip,
+                EndSwitch,
+            ]
+        );
     }
 
     #[test]
@@ -257,14 +278,22 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Switch, Def, Title1, Title2, Skip, EndSwitch
-        assert_eq!(extracted.tokens.len(), 6);
-        assert!(matches!(extracted.tokens[0].content(), Switch(_)));
-        assert!(matches!(extracted.tokens[1].content(), Def));
-        assert!(matches!(extracted.tokens[2].content(), Title("33333333")));
-        assert!(matches!(extracted.tokens[3].content(), Title("44444444")));
-        assert!(matches!(extracted.tokens[4].content(), Skip));
-        assert!(matches!(extracted.tokens[5].content(), EndSwitch));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(2u32)),
+                Def,
+                Title("33333333"),
+                Title("44444444"),
+                Skip,
+                EndSwitch,
+            ]
+        );
     }
 
     #[test]
@@ -281,10 +310,15 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Random, EndRandom (no If/EndIf because no branches)
-        assert_eq!(extracted.tokens.len(), 2);
-        assert!(matches!(extracted.tokens[0].content(), Token::Random(_)));
-        assert!(matches!(extracted.tokens[1].content(), Token::EndRandom));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![Token::Random(BigUint::from(1u32)), Token::EndRandom,]
+        );
     }
 
     #[test]
@@ -300,10 +334,15 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Switch, EndSwitch (no Case/Def because no cases)
-        assert_eq!(extracted.tokens.len(), 2);
-        assert!(matches!(extracted.tokens[0].content(), Token::Switch(_)));
-        assert!(matches!(extracted.tokens[1].content(), Token::EndSwitch));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![Token::Switch(BigUint::from(1u32)), Token::EndSwitch,]
+        );
     }
 
     #[test]
@@ -356,32 +395,26 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Random, If(1), Branch1_Token1, Branch1_Token2, EndIf, If(2), Branch2_Token1, Branch2_Token2, EndIf, EndRandom
-        assert_eq!(extracted.tokens.len(), 10);
-        assert!(matches!(extracted.tokens[0].content(), Random(_)));
-        // First branch (value 1)
-        assert!(matches!(extracted.tokens[1].content(), If(_)));
-        assert!(matches!(
-            extracted.tokens[2].content(),
-            Title("Branch1_Token1")
-        ));
-        assert!(matches!(
-            extracted.tokens[3].content(),
-            Title("Branch1_Token2")
-        ));
-        assert!(matches!(extracted.tokens[4].content(), EndIf));
-        // Second branch (value 2)
-        assert!(matches!(extracted.tokens[5].content(), If(_)));
-        assert!(matches!(
-            extracted.tokens[6].content(),
-            Title("Branch2_Token1")
-        ));
-        assert!(matches!(
-            extracted.tokens[7].content(),
-            Title("Branch2_Token2")
-        ));
-        assert!(matches!(extracted.tokens[8].content(), EndIf));
-        assert!(matches!(extracted.tokens[9].content(), EndRandom));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Random(BigUint::from(2u32)),
+                If(BigUint::from(1u32)),
+                Title("Branch1_Token1"),
+                Title("Branch1_Token2"),
+                EndIf,
+                If(BigUint::from(2u32)),
+                Title("Branch2_Token1"),
+                Title("Branch2_Token2"),
+                EndIf,
+                EndRandom,
+            ]
+        );
     }
 
     #[test]
@@ -445,42 +478,454 @@ mod tests {
         };
         let extracted = ast_root.extract();
 
-        // Should contain: Switch, Case(1), Case1_Token1, Case1_Token2, Skip, Case(2), Case2_Token1, Case2_Token2, Skip, Def, Def_Token1, Def_Token2, Skip, EndSwitch
-        assert_eq!(extracted.tokens.len(), 14);
-        assert!(matches!(extracted.tokens[0].content(), Switch(_)));
-        // Case 1
-        assert!(matches!(extracted.tokens[1].content(), Case(_)));
-        assert!(matches!(
-            extracted.tokens[2].content(),
-            Title("Case1_Token1")
-        ));
-        assert!(matches!(
-            extracted.tokens[3].content(),
-            Title("Case1_Token2")
-        ));
-        assert!(matches!(extracted.tokens[4].content(), Skip));
-        // Case 2
-        assert!(matches!(extracted.tokens[5].content(), Case(_)));
-        assert!(matches!(
-            extracted.tokens[6].content(),
-            Title("Case2_Token1")
-        ));
-        assert!(matches!(
-            extracted.tokens[7].content(),
-            Title("Case2_Token2")
-        ));
-        assert!(matches!(extracted.tokens[8].content(), Skip));
-        // Def
-        assert!(matches!(extracted.tokens[9].content(), Def));
-        assert!(matches!(
-            extracted.tokens[10].content(),
-            Title("Def_Token1")
-        ));
-        assert!(matches!(
-            extracted.tokens[11].content(),
-            Title("Def_Token2")
-        ));
-        assert!(matches!(extracted.tokens[12].content(), Skip));
-        assert!(matches!(extracted.tokens[13].content(), EndSwitch));
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(3u32)),
+                Case(BigUint::from(1u32)),
+                Title("Case1_Token1"),
+                Title("Case1_Token2"),
+                Skip,
+                Case(BigUint::from(2u32)),
+                Title("Case2_Token1"),
+                Title("Case2_Token2"),
+                Skip,
+                Def,
+                Title("Def_Token1"),
+                Title("Def_Token2"),
+                Skip,
+                EndSwitch,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_def_first_in_switch() {
+        use Token::*;
+
+        // Create Def branch first, then Case branches
+        let def_tokens = vec![Title("DefFirst_Token1"), Title("DefFirst_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let case_tokens_1 = vec![Title("Case1_Token1"), Title("Case1_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let case_tokens_2 = vec![Title("Case2_Token1"), Title("Case2_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let def_branch = CaseBranch {
+            value: CaseBranchValue::Def,
+            tokens: def_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let case_branch_1 = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: case_tokens_1
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let case_branch_2 = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(2u32)),
+            tokens: case_tokens_2
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        // Def first, then Case branches
+        let switch_block = Unit::SwitchBlock {
+            value: BlockValue::Random {
+                max: BigUint::from(2u32),
+            },
+            cases: vec![def_branch, case_branch_1, case_branch_2],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![switch_block],
+        };
+        let extracted = ast_root.extract();
+
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(2u32)),
+                Def,
+                Title("DefFirst_Token1"),
+                Title("DefFirst_Token2"),
+                Skip,
+                Case(BigUint::from(1u32)),
+                Title("Case1_Token1"),
+                Title("Case1_Token2"),
+                Skip,
+                Case(BigUint::from(2u32)),
+                Title("Case2_Token1"),
+                Title("Case2_Token2"),
+                Skip,
+                EndSwitch,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_nested_random_in_switch() {
+        use Token::*;
+
+        // Create a Switch block with nested Random block
+        let nested_random_tokens = vec![Title("NestedRandom_Token1"), Title("NestedRandom_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let _case_tokens = vec![Title("Case_Token1"), Title("Case_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        // Create nested Random block
+        let nested_if_branch = IfBranch {
+            value: BigUint::from(1u32),
+            tokens: nested_random_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let mut nested_branches = HashMap::new();
+        nested_branches.insert(BigUint::from(1u32), nested_if_branch);
+
+        let nested_random_block = Unit::RandomBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            if_blocks: vec![IfBlock {
+                branches: nested_branches,
+            }],
+        };
+
+        let case_branch = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: vec![nested_random_block],
+        };
+
+        let switch_block = Unit::SwitchBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            cases: vec![case_branch],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![switch_block],
+        };
+        let extracted = ast_root.extract();
+
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(1u32)),
+                Case(BigUint::from(1u32)),
+                Random(BigUint::from(1u32)),
+                If(BigUint::from(1u32)),
+                Title("NestedRandom_Token1"),
+                Title("NestedRandom_Token2"),
+                EndIf,
+                EndRandom,
+                Skip,
+                EndSwitch,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_nested_switch_in_random() {
+        use Token::*;
+
+        // Create a Random block with nested Switch block
+        let nested_switch_tokens = vec![Title("NestedSwitch_Token1"), Title("NestedSwitch_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let _if_tokens = vec![Title("If_Token1"), Title("If_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        // Create nested Switch block
+        let nested_case_branch = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: nested_switch_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let nested_switch_block = Unit::SwitchBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            cases: vec![nested_case_branch],
+        };
+
+        let if_branch = IfBranch {
+            value: BigUint::from(1u32),
+            tokens: vec![nested_switch_block],
+        };
+
+        let mut branches = HashMap::new();
+        branches.insert(BigUint::from(1u32), if_branch);
+
+        let random_block = Unit::RandomBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            if_blocks: vec![IfBlock { branches }],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![random_block],
+        };
+        let extracted = ast_root.extract();
+
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Random(BigUint::from(1u32)),
+                If(BigUint::from(1u32)),
+                Switch(BigUint::from(1u32)),
+                Case(BigUint::from(1u32)),
+                Title("NestedSwitch_Token1"),
+                Title("NestedSwitch_Token2"),
+                Skip,
+                EndSwitch,
+                EndIf,
+                EndRandom,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_complex_nested_structure() {
+        use Token::*;
+
+        // Create a complex nested structure: Switch -> Case -> Random -> If -> Switch -> Case
+        let innermost_tokens = vec![Title("Innermost_Token1"), Title("Innermost_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let _middle_tokens = vec![Title("Middle_Token1"), Title("Middle_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let _outer_tokens = vec![Title("Outer_Token1"), Title("Outer_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        // Innermost Switch block
+        let innermost_case = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: innermost_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let innermost_switch = Unit::SwitchBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            cases: vec![innermost_case],
+        };
+
+        // Middle Random block
+        let middle_if_branch = IfBranch {
+            value: BigUint::from(1u32),
+            tokens: vec![innermost_switch],
+        };
+
+        let mut middle_branches = HashMap::new();
+        middle_branches.insert(BigUint::from(1u32), middle_if_branch);
+
+        let middle_random = Unit::RandomBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            if_blocks: vec![IfBlock {
+                branches: middle_branches,
+            }],
+        };
+
+        // Outer Switch block
+        let outer_case = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: vec![middle_random],
+        };
+
+        let outer_switch = Unit::SwitchBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            cases: vec![outer_case],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![outer_switch],
+        };
+        let extracted = ast_root.extract();
+
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(1u32)),
+                Case(BigUint::from(1u32)),
+                Random(BigUint::from(1u32)),
+                If(BigUint::from(1u32)),
+                Switch(BigUint::from(1u32)),
+                Case(BigUint::from(1u32)),
+                Title("Innermost_Token1"),
+                Title("Innermost_Token2"),
+                Skip,
+                EndSwitch,
+                EndIf,
+                EndRandom,
+                Skip,
+                EndSwitch,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extract_multiple_def_branches() {
+        use Token::*;
+
+        // Create a Switch block with multiple Def branches (this should be handled gracefully)
+        let def_tokens_1 = vec![Title("Def1_Token1"), Title("Def1_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let def_tokens_2 = vec![Title("Def2_Token1"), Title("Def2_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let case_tokens = vec![Title("Case_Token1"), Title("Case_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let def_branch_1 = CaseBranch {
+            value: CaseBranchValue::Def,
+            tokens: def_tokens_1
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let def_branch_2 = CaseBranch {
+            value: CaseBranchValue::Def,
+            tokens: def_tokens_2
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let case_branch = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: case_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        // Multiple Def branches
+        let switch_block = Unit::SwitchBlock {
+            value: BlockValue::Set {
+                value: BigUint::from(1u32),
+            },
+            cases: vec![def_branch_1, def_branch_2, case_branch],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![switch_block],
+        };
+        let extracted = ast_root.extract();
+
+        assert_eq!(
+            extracted
+                .tokens
+                .iter()
+                .map(|t| t.content())
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Switch(BigUint::from(1u32)),
+                Def,
+                Title("Def1_Token1"),
+                Title("Def1_Token2"),
+                Skip,
+                Def,
+                Title("Def2_Token1"),
+                Title("Def2_Token2"),
+                Skip,
+                Case(BigUint::from(1u32)),
+                Title("Case_Token1"),
+                Title("Case_Token2"),
+                Skip,
+                EndSwitch,
+            ]
+        );
     }
 }
