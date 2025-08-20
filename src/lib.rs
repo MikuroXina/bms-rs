@@ -69,7 +69,7 @@
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
 //! assert_eq!(ast_build_warnings, vec![]);
 //!
-//! // Extract tokens back from AST (inverse operation)
+//! // Extract tokens back from AST
 //! let extracted_tokens = root.extract();
 //! ```
 //!
