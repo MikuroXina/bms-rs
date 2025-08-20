@@ -5,29 +5,34 @@ use crate::bms::{
 };
 
 /// Recursively extracts tokens from AST units.
-pub(super) fn extract_units<'a>(units: Vec<Unit<'a>>, tokens: &mut Vec<TokenWithPos<'a>>) {
+pub(super) fn extract_units<'a>(
+    units: impl IntoIterator<Item = Unit<'a>>,
+) -> Vec<TokenWithPos<'a>> {
+    let mut tokens = Vec::new();
     for unit in units {
         match unit {
             Unit::TokenWithPos(token) => {
                 tokens.push(token.clone());
             }
             Unit::RandomBlock { value, if_blocks } => {
-                extract_random_block(value, if_blocks, tokens);
+                tokens.extend(extract_random_block(value, if_blocks));
             }
             Unit::SwitchBlock { value, cases } => {
-                extract_switch_block(value, cases, tokens);
+                tokens.extend(extract_switch_block(value, cases));
             }
         }
     }
+    tokens
 }
 
 /// Extracts all tokens from a Random block.
 /// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
     value: BlockValue,
-    if_blocks: Vec<IfBlock<'a>>,
-    tokens: &mut Vec<TokenWithPos<'a>>,
-) {
+    if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
+) -> Vec<TokenWithPos<'a>> {
+    let mut tokens = Vec::new();
+
     // Add the Random token
     let random_value = match &value {
         BlockValue::Random { max } => max.clone(),
@@ -50,7 +55,7 @@ fn extract_random_block<'a>(
                 tokens.push(if_token);
 
                 // Extract all tokens in this branch
-                extract_units(branch.tokens.clone(), tokens);
+                tokens.extend(extract_units(branch.tokens.clone()));
 
                 // Add the EndIf token
                 let endif_token = SourcePosMixin::new(Token::EndIf, 0, 0);
@@ -62,15 +67,18 @@ fn extract_random_block<'a>(
     // Add the EndRandom token
     let endrandom_token = SourcePosMixin::new(Token::EndRandom, 0, 0);
     tokens.push(endrandom_token);
+
+    tokens
 }
 
 /// Extracts all tokens from a Switch block.
 /// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
     value: BlockValue,
-    cases: Vec<CaseBranch<'a>>,
-    tokens: &mut Vec<TokenWithPos<'a>>,
-) {
+    cases: impl IntoIterator<Item = CaseBranch<'a>>,
+) -> Vec<TokenWithPos<'a>> {
+    let mut tokens = Vec::new();
+
     // Add the Switch token
     let switch_value = match &value {
         BlockValue::Random { max } => max.clone(),
@@ -89,7 +97,7 @@ fn extract_switch_block<'a>(
                 tokens.push(case_token);
 
                 // Extract all tokens in this case
-                extract_units(case.tokens, tokens);
+                tokens.extend(extract_units(case.tokens));
 
                 // Add the Skip token
                 let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
@@ -101,7 +109,7 @@ fn extract_switch_block<'a>(
                 tokens.push(def_token);
 
                 // Extract all tokens in this def branch
-                extract_units(case.tokens, tokens);
+                tokens.extend(extract_units(case.tokens));
 
                 // Add the Skip token
                 let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
@@ -113,6 +121,8 @@ fn extract_switch_block<'a>(
     // Add the EndSwitch token
     let endswitch_token = SourcePosMixin::new(Token::EndSwitch, 0, 0);
     tokens.push(endswitch_token);
+
+    tokens
 }
 
 #[cfg(test)]

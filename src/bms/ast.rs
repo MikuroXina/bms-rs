@@ -87,8 +87,7 @@ impl<'a> AstRoot<'a> {
     /// including all branches in Random and Switch blocks. This serves as the inverse of
     /// [`AstRoot::from_token_stream`].
     pub fn extract(self) -> TokenStream<'a> {
-        let mut tokens = Vec::new();
-        ast_extract::extract_units(self.units, &mut tokens);
+        let tokens = ast_extract::extract_units(self.units);
         TokenStream { tokens }
     }
 }
