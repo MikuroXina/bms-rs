@@ -609,6 +609,10 @@ impl Bms {
     fn obj_ids_to_message(&self, obj_ids: &[ObjId], _time: &ObjTime) -> String {
         // This is a simplified implementation
         // In a real implementation, you would need to handle the timing properly
+        if obj_ids.is_empty() {
+            return "00".to_string(); // Return empty object ID for no objects
+        }
+        
         obj_ids
             .iter()
             .map(|id| {
@@ -651,7 +655,9 @@ impl Bms {
     fn volume_to_message(&self, volume: Volume) -> String {
         // Convert volume to hex format
         let volume_u8 = volume.relative_percent;
-        format!("{:02X}", volume_u8)
+        // Ensure volume is within valid range (0-255)
+        let clamped_volume = volume_u8.clamp(0, 255);
+        format!("{:02X}", clamped_volume)
     }
 
     #[cfg(feature = "minor-command")]
@@ -665,7 +671,15 @@ impl Bms {
         // Convert text to hex format (simplified)
         text.chars()
             .take(2)
-            .map(|c| format!("{:02X}", c as u8))
+            .map(|c| {
+                // Safely convert char to u8, handling potential overflow
+                let byte = if c as u32 <= u8::MAX as u32 {
+                    c as u8
+                } else {
+                    b'?' // Use question mark for invalid characters
+                };
+                format!("{:02X}", byte)
+            })
             .collect()
     }
 
@@ -676,7 +690,14 @@ impl Bms {
             JudgeLevel::Normal => 2,
             JudgeLevel::Hard => 3,
             JudgeLevel::VeryHard => 0,
-            JudgeLevel::OtherInt(n) => n as u8,
+            JudgeLevel::OtherInt(n) => {
+                // Safely convert to u8, handling potential overflow
+                if n >= 0 && n <= u8::MAX as i64 {
+                    n as u8
+                } else {
+                    0 // Default to 0 for out-of-range values
+                }
+            }
         };
         format!("{:02X}", level_u8)
     }
@@ -695,7 +716,15 @@ impl Bms {
         option
             .chars()
             .take(2)
-            .map(|c| format!("{:02X}", c as u8))
+            .map(|c| {
+                // Safely convert char to u8, handling potential overflow
+                let byte = if c as u32 <= u8::MAX as u32 {
+                    c as u8
+                } else {
+                    b'?' // Use question mark for invalid characters
+                };
+                format!("{:02X}", byte)
+            })
             .collect()
     }
 }
