@@ -47,6 +47,7 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
+        to_tokens::BmsToTokensOutput,
     },
     parse_bms,
 };
