@@ -2,7 +2,7 @@
 //! Note that this conversion may not preserve all original formatting and comments, but it will
 //! generate valid BMS tokens that represent the same musical data.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
@@ -44,28 +44,28 @@ impl Bms {
         let mut tokens = Vec::new();
 
         // Build reverse lookup maps for efficient ObjId finding
-        let bpm_reverse_map: BTreeMap<&Decimal, ObjId> = self
+        let bpm_reverse_map: HashMap<&Decimal, ObjId> = self
             .scope_defines
             .bpm_defs
             .iter()
             .map(|(obj_id, bpm)| (bpm, *obj_id))
             .collect();
 
-        let stop_reverse_map: BTreeMap<&Decimal, ObjId> = self
+        let stop_reverse_map: HashMap<&Decimal, ObjId> = self
             .scope_defines
             .stop_defs
             .iter()
             .map(|(obj_id, duration)| (duration, *obj_id))
             .collect();
 
-        let scroll_reverse_map: BTreeMap<&Decimal, ObjId> = self
+        let scroll_reverse_map: HashMap<&Decimal, ObjId> = self
             .scope_defines
             .scroll_defs
             .iter()
             .map(|(obj_id, factor)| (factor, *obj_id))
             .collect();
 
-        let speed_reverse_map: BTreeMap<&Decimal, ObjId> = self
+        let speed_reverse_map: HashMap<&Decimal, ObjId> = self
             .scope_defines
             .speed_defs
             .iter()
@@ -402,10 +402,10 @@ impl Bms {
     fn convert_notes<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        bpm_reverse_map: &BTreeMap<&Decimal, ObjId>,
-        stop_reverse_map: &BTreeMap<&Decimal, ObjId>,
-        scroll_reverse_map: &BTreeMap<&Decimal, ObjId>,
-        speed_reverse_map: &BTreeMap<&Decimal, ObjId>,
+        bpm_reverse_map: &HashMap<&Decimal, ObjId>,
+        stop_reverse_map: &HashMap<&Decimal, ObjId>,
+        scroll_reverse_map: &HashMap<&Decimal, ObjId>,
+        speed_reverse_map: &HashMap<&Decimal, ObjId>,
         judge_reverse_map: &HashMap<&JudgeLevel, ObjId>,
         #[cfg(feature = "minor-command")] swbga_reverse_map: &HashMap<&SwBgaEvent, ObjId>,
         text_reverse_map: &HashMap<&String, ObjId>,
