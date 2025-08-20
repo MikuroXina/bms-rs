@@ -4,6 +4,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+#[cfg(feature = "minor-command")]
+use crate::bms::command::minor_command::SwBgaEvent;
 use crate::bms::{
     Decimal,
     command::{
@@ -13,7 +15,7 @@ use crate::bms::{
         time::Track,
     },
     lex::token::Token,
-    parse::model::Bms,
+    parse::model::{Bms, obj::Obj},
 };
 
 /// Output of the conversion from `Bms` to `Vec<Token>`.
@@ -87,10 +89,7 @@ impl Bms {
             .collect();
 
         #[cfg(feature = "minor-command")]
-        let swbga_reverse_map: HashMap<
-            &crate::bms::command::minor_command::SwBgaEvent,
-            ObjId,
-        > = self
+        let swbga_reverse_map: HashMap<&SwBgaEvent, ObjId> = self
             .scope_defines
             .swbga_events
             .iter()
@@ -409,10 +408,7 @@ impl Bms {
         scroll_reverse_map: &BTreeMap<&Decimal, ObjId>,
         speed_reverse_map: &BTreeMap<&Decimal, ObjId>,
         judge_reverse_map: &HashMap<&JudgeLevel, ObjId>,
-        #[cfg(feature = "minor-command")] swbga_reverse_map: &HashMap<
-            &crate::bms::command::minor_command::SwBgaEvent,
-            ObjId,
-        >,
+        #[cfg(feature = "minor-command")] swbga_reverse_map: &HashMap<&SwBgaEvent, ObjId>,
         text_reverse_map: &HashMap<&String, ObjId>,
         #[cfg(feature = "minor-command")] option_reverse_map: &HashMap<&String, ObjId>,
         #[cfg(feature = "minor-command")] seek_reverse_map: &HashMap<&Decimal, ObjId>,
@@ -704,16 +700,14 @@ impl Bms {
             // Convert BGA opacity changes
             for (layer, opacity_changes) in &graphics.bga_opacity_changes {
                 for (time, opacity_obj) in opacity_changes {
+                    use crate::bms::parse::model::obj::BgaLayer;
+
                     let track = time.track.0;
                     let channel = match layer {
-                        crate::bms::parse::model::obj::BgaLayer::Base => Channel::BgaBaseOpacity,
-                        crate::bms::parse::model::obj::BgaLayer::Overlay => {
-                            Channel::BgaLayerOpacity
-                        }
-                        crate::bms::parse::model::obj::BgaLayer::Overlay2 => {
-                            Channel::BgaLayer2Opacity
-                        }
-                        crate::bms::parse::model::obj::BgaLayer::Poor => Channel::BgaPoorOpacity,
+                        BgaLayer::Base => Channel::BgaBaseOpacity,
+                        BgaLayer::Overlay => Channel::BgaLayerOpacity,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
+                        BgaLayer::Poor => Channel::BgaPoorOpacity,
                     };
                     let message = format!("{:02X}", opacity_obj.opacity);
                     tokens.push(Token::Message {
@@ -727,12 +721,14 @@ impl Bms {
             // Convert BGA ARGB changes
             for (layer, argb_changes) in &graphics.bga_argb_changes {
                 for (time, argb_obj) in argb_changes {
+                    use crate::bms::parse::model::obj::BgaLayer;
+
                     let track = time.track.0;
                     let channel = match layer {
-                        crate::bms::parse::model::obj::BgaLayer::Base => Channel::BgaBaseArgb,
-                        crate::bms::parse::model::obj::BgaLayer::Overlay => Channel::BgaLayerArgb,
-                        crate::bms::parse::model::obj::BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
-                        crate::bms::parse::model::obj::BgaLayer::Poor => Channel::BgaPoorArgb,
+                        BgaLayer::Base => Channel::BgaBaseArgb,
+                        BgaLayer::Overlay => Channel::BgaLayerArgb,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
+                        BgaLayer::Poor => Channel::BgaPoorArgb,
                     };
                     // Find the ObjId that corresponds to this ARGB value in scope_defines
                     let obj_id = argb_reverse_map
@@ -808,7 +804,7 @@ impl Bms {
 
     // Helper methods for converting various data types to message format
 
-    fn obj_to_channel(&self, obj: &crate::bms::parse::model::obj::Obj) -> Channel {
+    fn obj_to_channel(&self, obj: &Obj) -> Channel {
         match obj.kind {
             NoteKind::Visible => Channel::Note {
                 kind: NoteKind::Visible,
