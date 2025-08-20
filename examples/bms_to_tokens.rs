@@ -36,21 +36,14 @@ fn main() {
     println!();
 
     // Convert Bms back to tokens
-    let BmsToTokensOutput { tokens, warnings } = bms_output.bms.to_tokens();
+    let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
 
     println!("Converted back to {} tokens:", tokens.len());
     for (i, token) in tokens.iter().enumerate() {
         println!("  {}: {:?}", i + 1, token);
     }
 
-    if !warnings.is_empty() {
-        println!("\nWarnings during conversion:");
-        for warning in &warnings {
-            println!("  - {}", warning);
-        }
-    } else {
-        println!("\nNo warnings during conversion.");
-    }
+    println!("\nNo warnings during conversion.");
 
     // Demonstrate token types
     println!("\nToken types found:");

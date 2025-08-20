@@ -22,29 +22,6 @@ use crate::bms::{
 pub struct BmsToTokensOutput<'a> {
     /// The converted tokens.
     pub tokens: Vec<Token<'a>>,
-    /// Warnings that occurred during the conversion.
-    pub warnings: Vec<BmsToTokensWarning>,
-}
-
-/// Warnings that occur during conversion from `Bms` to `Vec<Token>`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, thiserror::Error)]
-#[non_exhaustive]
-pub enum BmsToTokensWarning {
-    /// The object ID was out of range and could not be converted.
-    #[error("object ID was out of range and could not be converted")]
-    ObjIdOutOfRange,
-    /// The BPM value was invalid and default value was used.
-    #[error("BPM value was invalid, using default value")]
-    InvalidBpm,
-    /// The stop duration was invalid and default value was used.
-    #[error("stop duration was invalid, using default value")]
-    InvalidStopDuration,
-    /// The scrolling factor was invalid and default value was used.
-    #[error("scrolling factor was invalid, using default value")]
-    InvalidScrollingFactor,
-    /// The speed factor was invalid and default value was used.
-    #[error("speed factor was invalid, using default value")]
-    InvalidSpeedFactor,
 }
 
 impl Bms {
@@ -60,33 +37,31 @@ impl Bms {
     ///
     /// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
     /// let bms_output = parse_bms(source);
-    /// let BmsToTokensOutput { tokens, warnings } = bms_output.bms.to_tokens();
+    /// let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
     /// println!("Generated {} tokens", tokens.len());
-    /// println!("Warnings: {:?}", warnings);
     /// ```
     pub fn to_tokens(&self) -> BmsToTokensOutput<'_> {
         let mut tokens = Vec::new();
-        let mut warnings = Vec::new();
 
         // Convert header information
         self.convert_header(&mut tokens);
 
         // Convert scope definitions
-        self.convert_scope_defines(&mut tokens, &mut warnings);
+        self.convert_scope_defines(&mut tokens);
 
         // Convert arrangers (timing data)
-        self.convert_arrangers(&mut tokens, &mut warnings);
+        self.convert_arrangers(&mut tokens);
 
         // Convert notes and audio files
-        self.convert_notes(&mut tokens, &mut warnings);
+        self.convert_notes(&mut tokens);
 
         // Convert graphics
-        self.convert_graphics(&mut tokens, &mut warnings);
+        self.convert_graphics(&mut tokens);
 
         // Convert others
-        self.convert_others(&mut tokens, &mut warnings);
+        self.convert_others(&mut tokens);
 
-        BmsToTokensOutput { tokens, warnings }
+        BmsToTokensOutput { tokens }
     }
 
     fn convert_header<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
@@ -186,11 +161,7 @@ impl Bms {
         }
     }
 
-    fn convert_scope_defines<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut [BmsToTokensWarning],
-    ) {
+    fn convert_scope_defines<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let scope_defines = &self.scope_defines;
 
         // Convert BPM definitions
@@ -270,11 +241,7 @@ impl Bms {
         }
     }
 
-    fn convert_arrangers<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut [BmsToTokensWarning],
-    ) {
+    fn convert_arrangers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let arrangers = &self.arrangers;
 
         // Convert initial BPM
@@ -314,11 +281,7 @@ impl Bms {
         }
     }
 
-    fn convert_notes<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut [BmsToTokensWarning],
-    ) {
+    fn convert_notes<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let notes = &self.notes;
 
         // Convert WAV file definitions
@@ -502,11 +465,7 @@ impl Bms {
         }
     }
 
-    fn convert_graphics<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut [BmsToTokensWarning],
-    ) {
+    fn convert_graphics<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let graphics = &self.graphics;
 
         if let Some(video_file) = &graphics.video_file {
@@ -541,11 +500,7 @@ impl Bms {
         }
     }
 
-    fn convert_others<'a>(
-        &'a self,
-        tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut [BmsToTokensWarning],
-    ) {
+    fn convert_others<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let others = &self.others;
 
         #[cfg(feature = "minor-command")]
@@ -612,7 +567,7 @@ impl Bms {
         if obj_ids.is_empty() {
             return "00".to_string(); // Return empty object ID for no objects
         }
-        
+
         obj_ids
             .iter()
             .map(|id| {
@@ -738,9 +693,8 @@ mod tests {
     fn test_bms_to_tokens_basic() {
         let source = "#TITLE Test Song\n#BPM 120\n#ARTIST Test Artist";
         let bms_output = parse_bms(source);
-        let BmsToTokensOutput { tokens, warnings } = bms_output.bms.to_tokens();
+        let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
 
-        assert!(warnings.is_empty());
         assert!(!tokens.is_empty());
 
         // Check that we have the expected tokens
@@ -766,9 +720,8 @@ mod tests {
     fn test_bms_to_tokens_with_notes() {
         let source = "#TITLE Test Song\n#BPM 120\n#WAV01 test.wav\n#00101:01";
         let bms_output = parse_bms(source);
-        let BmsToTokensOutput { tokens, warnings } = bms_output.bms.to_tokens();
+        let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
 
-        assert!(warnings.is_empty());
         assert!(!tokens.is_empty());
 
         // Check that we have WAV definition
