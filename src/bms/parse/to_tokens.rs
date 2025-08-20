@@ -232,7 +232,7 @@ impl Bms {
             }
 
             // Convert WAVCMD events
-            for (_wav_index, wavcmd_event) in &scope_defines.wavcmd_events {
+            for wavcmd_event in scope_defines.wavcmd_events.values() {
                 tokens.push(Token::WavCmd(*wavcmd_event));
             }
 
@@ -283,7 +283,7 @@ impl Bms {
         }
 
         // Convert section length changes
-        for (_track, _section_len_obj) in &arrangers.section_len_changes {
+        for _section_len_obj in arrangers.section_len_changes.values() {
             // Section length changes are handled in message format
             // We'll handle them in the notes conversion section
         }
@@ -303,7 +303,7 @@ impl Bms {
         #[cfg(feature = "minor-command")]
         {
             // Convert STP events
-            for (_time, stp_event) in &arrangers.stp_events {
+            for stp_event in arrangers.stp_events.values() {
                 tokens.push(Token::Stp(*stp_event));
             }
 
@@ -475,7 +475,7 @@ impl Bms {
         #[cfg(feature = "minor-command")]
         {
             // Convert BGA keybound events
-            for (time, _bga_keybound_obj) in &notes.bga_keybound_events {
+            for time in notes.bga_keybound_events.keys() {
                 let track = time.track.0;
                 let channel = Channel::BgaKeybound;
                 // BgaKeyboundObj doesn't have a key field, it has an event field
@@ -612,9 +612,9 @@ impl Bms {
         obj_ids
             .iter()
             .map(|id| {
-                let id_str = id.to_string();
+                
                 // Convert the string to a hex representation
-                id_str
+                id.to_string()
             })
             .collect()
     }
