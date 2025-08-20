@@ -51,11 +51,11 @@ pub struct ExWavDef {
     /// The pan of the sound. Also called volume balance.
     /// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
     /// Default: 0.
-    pub pan: Option<ExWavPan>,
+    pub pan: ExWavPan,
     /// The volume of the sound.
     /// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
     /// Default: 0.
-    pub volume: Option<ExWavVolume>,
+    pub volume: ExWavVolume,
     /// The frequency of the sound. Unit: Hz.
     /// Range: [100, 100000].
     /// Default: None.

@@ -151,9 +151,9 @@ pub enum Token<'a> {
         /// The id of the object to define.
         id: ObjId,
         /// The pan decay of the sound. Also called volume balance.
-        pan: Option<ExWavPan>,
+        pan: ExWavPan,
         /// The volume decay of the sound.
-        volume: Option<ExWavVolume>,
+        volume: ExWavVolume,
         /// The pitch frequency of the sound.
         frequency: Option<ExWavFrequency>,
         /// The relative file path of the sound.
@@ -708,8 +708,8 @@ impl<'a> Token<'a> {
                     }
                     Self::ExWav {
                         id: ObjId::try_load(id, c)?,
-                        pan,
-                        volume,
+                        pan: pan.unwrap_or_default(),
+                        volume: volume.unwrap_or_default(),
                         frequency,
                         path: Path::new(file_name),
                     }
@@ -1401,10 +1401,10 @@ impl<'a> std::fmt::Display for Token<'a> {
             } => {
                 write!(f, "#EXWAV{}", id)?;
                 let mut params = String::new();
-                if pan.is_some() {
+                if *pan != ExWavPan::default() {
                     params.push('p');
                 }
-                if volume.is_some() {
+                if *volume != ExWavVolume::default() {
                     params.push('v');
                 }
                 if frequency.is_some() {
@@ -1414,10 +1414,10 @@ impl<'a> std::fmt::Display for Token<'a> {
                     params.push('p');
                 }
                 write!(f, " {}", params)?;
-                if let Some(pan) = pan {
+                if *pan != ExWavPan::default() {
                     write!(f, " {}", pan.value())?;
                 }
-                if let Some(volume) = volume {
+                if *volume != ExWavVolume::default() {
                     write!(f, " {}", volume.value())?;
                 }
                 if let Some(freq) = frequency {
@@ -1733,8 +1733,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.map(|p| p.value()), Some(10000));
-        assert_eq!(volume.map(|v| v.value()), Some(0));
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1753,8 +1753,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.map(|p| p.value()), Some(10000));
-        assert_eq!(volume.map(|v| v.value()), Some(0));
+        assert_eq!(pan.value(), 10000);
+        assert_eq!(volume.value(), 0);
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1773,8 +1773,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.map(|p| p.value()), None);
-        assert_eq!(volume.map(|v| v.value()), None);
+        assert_eq!(pan, ExWavPan::default());
+        assert_eq!(volume, ExWavVolume::default());
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -2115,7 +2115,7 @@ mod tests {
         let test_cases = vec![
             "#EXBMP01 255,0,0,0 exbmp.png",
             "#EXRANK01 2",
-            "#EXWAV01 pvf 10000 0 48000 ex.wav",
+            "#EXWAV01 pvf 10000 -1000 48000 ex.wav",
             "#@BGA01 02 1 2 3 4 5 6",
             "#BGA01 02 1 2 3 4 5 6",
             "#CHANGEOPTION01 opt",

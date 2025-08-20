@@ -158,8 +158,8 @@ fn test_prelude_minor_command_imports() {
     // Test ExWavDef
     let _ex_wav_def = ExWavDef {
         id: ObjId::try_from([b'A', b'1']).unwrap(),
-        pan: Some(_ex_wav_pan),
-        volume: Some(_ex_wav_volume),
+        pan: _ex_wav_pan,
+        volume: _ex_wav_volume,
         frequency: Some(_ex_wav_frequency),
         path: "test.wav".into(),
     };
