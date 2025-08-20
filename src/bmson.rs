@@ -29,6 +29,7 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
+pub mod parse;
 pub mod pulse;
 
 use std::num::NonZeroU8;
@@ -38,6 +39,56 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::bms::command::LnMode;
 
 use self::{fin_f64::FinF64, pulse::PulseNumber};
+
+/// An error occurred when parsing the BMSON format file.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, thiserror::Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BmsonWarning {
+    /// A warning from JSON parsing.
+    #[error("JSON parsing warning: {0}")]
+    JsonParsing(String),
+    /// A warning for missing required field.
+    #[error("Missing required field: {0}")]
+    MissingRequiredField(String),
+    /// A warning for invalid field value.
+    #[error("Invalid field value: {0}")]
+    InvalidFieldValue(String),
+    /// A warning for invalid field type.
+    #[error("Invalid field type: {0}")]
+    InvalidFieldType(String),
+}
+
+/// Output of parsing a BMSON file.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BmsonOutput {
+    /// The parsed BMSON data.
+    pub bmson: Bmson,
+    /// Warnings that occurred during parsing.
+    pub warnings: Vec<BmsonWarning>,
+}
+
+/// Parse a BMSON file from source text.
+///
+/// This function provides a convenient way to parse a BMSON file in one step.
+/// It uses a fault-tolerant JSON parser that continues parsing even when encountering
+/// JSON format errors, issuing warnings instead of failing.
+///
+/// # Example
+///
+/// ```
+/// use bms_rs::bmson::{parse_bmson, BmsonOutput};
+///
+/// let source = r#"{"version": "1.0.0", "info": {"title": "Test Song", "artist": "Test Artist", "genre": "Test", "level": 5, "init_bpm": 120.0, "total": 100.0}, "sound_channels": []}"#;
+/// let BmsonOutput { bmson, warnings } = parse_bmson(source);
+/// println!("Title: {}", bmson.info.title);
+/// println!("Artist: {}", bmson.info.artist);
+/// println!("Warnings: {:?}", warnings);
+/// ```
+pub fn parse_bmson(source: &str) -> BmsonOutput {
+    parse::parse_bmson(source)
+}
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
