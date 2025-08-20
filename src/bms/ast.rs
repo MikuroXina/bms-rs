@@ -16,6 +16,7 @@
 //! allowing the parser to continue processing while providing detailed error information.
 
 mod ast_build;
+mod ast_extract;
 mod ast_parse;
 pub mod rng;
 
@@ -24,7 +25,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixin,
-    lex::{TokenRefStream, token::TokenWithPos},
+    lex::{TokenRefStream, TokenStream, token::TokenWithPos},
 };
 
 use self::{
@@ -77,6 +78,17 @@ impl<'a> AstRoot<'a> {
         AstParseOutput {
             token_refs: TokenRefStream { token_refs: tokens },
         }
+    }
+}
+
+impl<'a> AstRoot<'a> {
+    /// Extracts all tokens from the AST and returns them as a TokenStream.
+    /// This function flattens the AST structure and returns ALL tokens contained in the AST,
+    /// including all branches in Random and Switch blocks. This serves as the inverse of
+    /// [`AstRoot::from_token_stream`].
+    pub fn extract(self) -> TokenStream<'a> {
+        let tokens = ast_extract::extract_units(self.units);
+        TokenStream { tokens }
     }
 }
 
