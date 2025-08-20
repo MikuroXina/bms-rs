@@ -144,6 +144,17 @@ impl<'a> TokenStream<'a> {
     }
 }
 
+impl<'a> TokenStream<'a> {
+    /// Unparse the [`TokenStream`] to a vector of strings.
+    pub fn unparse_lex(&self) -> Vec<String> {
+        self.tokens
+            .iter()
+            .map(|token| token.content())
+            .map(|token| token.to_string())
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{path::Path, str::FromStr};

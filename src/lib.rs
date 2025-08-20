@@ -67,6 +67,17 @@
 //! println!("Generated {} tokens", tokens.len());
 //! ```
 //!
+//! You can also convert tokens back to strings using [`TokenStream::unparse_lex`]:
+//!
+//! ```rust
+//! use bms_rs::bms::lex::TokenStream;
+//!
+//! let source = "#TITLE Test Song\n#BPM 120";
+//! let token_stream = TokenStream::parse_lex(source);
+//! let strings: Vec<String> = token_stream.tokens.unparse_lex();
+//! println!("Generated {} strings", strings.len());
+//! ```
+//!
 //! # Features
 //!
 //! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
