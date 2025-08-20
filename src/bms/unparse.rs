@@ -293,9 +293,14 @@ impl Bms {
         }
 
         // Convert section length changes
-        for _section_len_obj in arrangers.section_len_changes.values() {
-            // Section length changes are handled in message format
-            // We'll handle them in the notes conversion section
+        for (track, section_len_obj) in &arrangers.section_len_changes {
+            let channel = Channel::SectionLen;
+            let message = section_len_obj.length.to_string();
+            tokens.push(Token::Message {
+                track: *track,
+                channel,
+                message: message.into(),
+            });
         }
 
         #[cfg(feature = "minor-command")]
@@ -895,5 +900,43 @@ mod tests {
         }
 
         assert!(has_wav);
+    }
+
+    #[test]
+    fn test_bms_to_tokens_with_section_len_changes() {
+        let source = "#TITLE Test Song\n#BPM 120\n#00102:0.75\n#00202:1.25";
+        let bms_output = parse_bms(source);
+        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
+
+        assert!(!tokens.is_empty());
+
+        // Check that we have section length change messages
+        let mut has_section_len_1 = false;
+        let mut has_section_len_2 = false;
+
+        for token in &tokens {
+            if let Token::Message {
+                track,
+                channel,
+                message,
+            } = token
+                && *channel == Channel::SectionLen
+            {
+                if track.0 == 1 && message == "0.75" {
+                    has_section_len_1 = true;
+                } else if track.0 == 2 && message == "1.25" {
+                    has_section_len_2 = true;
+                }
+            }
+        }
+
+        assert!(
+            has_section_len_1,
+            "Should have section length change for track 1"
+        );
+        assert!(
+            has_section_len_2,
+            "Should have section length change for track 2"
+        );
     }
 }
