@@ -54,6 +54,19 @@
 //!
 //! - Note: You can also use [`bms::parse::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
 //!
+//! ## Converting BMS back to Tokens
+//!
+//! You can convert a parsed [`Bms`] object back to tokens using the [`Bms::unparse`] method:
+//!
+//! ```rust
+//! use bms_rs::bms::{parse_bms, prelude::BmsUnparseOutput};
+//!
+//! let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
+//! let bms_output = parse_bms(source);
+//! let BmsUnparseOutput { tokens }: BmsUnparseOutput = bms_output.bms.unparse();
+//! println!("Generated {} tokens", tokens.len());
+//! ```
+//!
 //! # Features
 //!
 //! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
