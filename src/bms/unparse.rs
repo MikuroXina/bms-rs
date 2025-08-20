@@ -153,19 +153,20 @@ impl Bms {
         // Convert notes and audio files
         self.convert_notes(
             &mut tokens,
-            &bpm_reverse_map,
-            &stop_reverse_map,
-            &scroll_reverse_map,
-            &speed_reverse_map,
-            &judge_reverse_map,
-            #[cfg(feature = "minor-command")]
-            #[cfg(feature = "minor-command")]
-            &swbga_reverse_map,
-            &text_reverse_map,
-            #[cfg(feature = "minor-command")]
-            &option_reverse_map,
-            #[cfg(feature = "minor-command")]
-            &seek_reverse_map,
+            ConvertNotesParams {
+                bpm_reverse_map: &bpm_reverse_map,
+                stop_reverse_map: &stop_reverse_map,
+                scroll_reverse_map: &scroll_reverse_map,
+                speed_reverse_map: &speed_reverse_map,
+                judge_reverse_map: &judge_reverse_map,
+                #[cfg(feature = "minor-command")]
+                swbga_reverse_map: &swbga_reverse_map,
+                text_reverse_map: &text_reverse_map,
+                #[cfg(feature = "minor-command")]
+                option_reverse_map: &option_reverse_map,
+                #[cfg(feature = "minor-command")]
+                seek_reverse_map: &seek_reverse_map,
+            },
         );
 
         // Convert graphics
@@ -402,16 +403,22 @@ impl Bms {
     fn convert_notes<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        bpm_reverse_map: &HashMap<&Decimal, ObjId>,
-        stop_reverse_map: &HashMap<&Decimal, ObjId>,
-        scroll_reverse_map: &HashMap<&Decimal, ObjId>,
-        speed_reverse_map: &HashMap<&Decimal, ObjId>,
-        judge_reverse_map: &HashMap<&JudgeLevel, ObjId>,
-        #[cfg(feature = "minor-command")] swbga_reverse_map: &HashMap<&SwBgaEvent, ObjId>,
-        text_reverse_map: &HashMap<&String, ObjId>,
-        #[cfg(feature = "minor-command")] option_reverse_map: &HashMap<&String, ObjId>,
-        #[cfg(feature = "minor-command")] seek_reverse_map: &HashMap<&Decimal, ObjId>,
+        params: ConvertNotesParams<'_, 'a>,
     ) {
+        let ConvertNotesParams {
+            bpm_reverse_map,
+            stop_reverse_map,
+            scroll_reverse_map,
+            speed_reverse_map,
+            judge_reverse_map,
+            #[cfg(feature = "minor-command")]
+            swbga_reverse_map,
+            text_reverse_map,
+            #[cfg(feature = "minor-command")]
+            option_reverse_map,
+            #[cfg(feature = "minor-command")]
+            seek_reverse_map,
+        } = params;
         let notes = &self.notes;
 
         // Convert WAV file definitions
@@ -827,6 +834,22 @@ impl Bms {
             },
         }
     }
+}
+
+#[derive(Debug)]
+struct ConvertNotesParams<'a, 'b> {
+    bpm_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
+    stop_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
+    scroll_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
+    speed_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
+    judge_reverse_map: &'a HashMap<&'b JudgeLevel, ObjId>,
+    #[cfg(feature = "minor-command")]
+    swbga_reverse_map: &'a HashMap<&'b SwBgaEvent, ObjId>,
+    text_reverse_map: &'a HashMap<&'b String, ObjId>,
+    #[cfg(feature = "minor-command")]
+    option_reverse_map: &'a HashMap<&'b String, ObjId>,
+    #[cfg(feature = "minor-command")]
+    seek_reverse_map: &'a HashMap<&'b Decimal, ObjId>,
 }
 
 #[cfg(test)]
