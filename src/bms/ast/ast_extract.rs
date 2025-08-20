@@ -1,5 +1,3 @@
-use num::BigUint;
-
 use crate::bms::{
     ast::ast_build::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     command::mixin::SourcePosMixin,
@@ -11,9 +9,10 @@ use crate::bms::{
 
 use super::AstRoot;
 
-/// Extracts tokens from the AST and returns them as a TokenStream.
-/// This function flattens the AST structure by resolving all control flow constructs
-/// and returning the actual tokens that would be executed, including control flow tokens.
+/// Extracts all tokens from the AST and returns them as a TokenStream.
+/// This function flattens the AST structure and returns ALL tokens contained in the AST,
+/// including all branches in Random and Switch blocks. This serves as the inverse of
+/// AstRoot::from_token_stream.
 pub fn extract_ast_root<'a>(ast_root: AstRoot<'a>) -> TokenStream<'a> {
     let mut tokens = Vec::new();
     extract_units(ast_root.units, &mut tokens);
@@ -37,9 +36,8 @@ fn extract_units<'a>(units: Vec<Unit<'a>>, tokens: &mut Vec<TokenWithPos<'a>>) {
     }
 }
 
-/// Extracts tokens from a Random block.
-/// For Random blocks, we need to select one of the If branches based on the block value.
-/// Also includes the control flow tokens in the output.
+/// Extracts all tokens from a Random block.
+/// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
     value: BlockValue,
     if_blocks: Vec<IfBlock<'a>>,
@@ -51,48 +49,28 @@ fn extract_random_block<'a>(
         BlockValue::Set { value } => value.clone(),
     };
 
-    // Create a dummy token for Random command
     let random_token = SourcePosMixin::new(Token::Random(random_value), 0, 0);
     tokens.push(random_token);
 
-    let selected_value = match &value {
-        BlockValue::Random { max: _ } => {
-            // For Random blocks, we need to select a value between 1 and max
-            // Since we don't have access to RNG here, we'll use the first available branch
-            // or default to 1 if no branches are available
-            if if_blocks.is_empty() {
-                BigUint::from(1u32)
-            } else {
-                let first_block = &if_blocks[0];
-                if first_block.branches.is_empty() {
-                    BigUint::from(1u32)
-                } else {
-                    // Use the first available key instead of unwrap
-                    if let Some(first_key) = first_block.branches.keys().next() {
-                        first_key.clone()
-                    } else {
-                        BigUint::from(1u32)
-                    }
-                }
-            }
-        }
-        BlockValue::Set { value } => value.clone(),
-    };
-
-    // Find the matching If branch
+    // Extract all If blocks and their branches
     for if_block in if_blocks {
-        let selected_value_ref = &selected_value;
-        if let Some(branch) = if_block.branches.get(selected_value_ref) {
-            // Add the If token
-            let if_token = SourcePosMixin::new(Token::If(selected_value_ref.clone()), 0, 0);
-            tokens.push(if_token);
+        // Sort branch keys for consistent output order
+        let mut branch_keys: Vec<_> = if_block.branches.keys().collect();
+        branch_keys.sort();
 
-            extract_units(branch.tokens.clone(), tokens);
+        for branch_key in branch_keys {
+            if let Some(branch) = if_block.branches.get(branch_key) {
+                // Add the If token
+                let if_token = SourcePosMixin::new(Token::If(branch_key.clone()), 0, 0);
+                tokens.push(if_token);
 
-            // Add the EndIf token
-            let endif_token = SourcePosMixin::new(Token::EndIf, 0, 0);
-            tokens.push(endif_token);
-            break;
+                // Extract all tokens in this branch
+                extract_units(branch.tokens.clone(), tokens);
+
+                // Add the EndIf token
+                let endif_token = SourcePosMixin::new(Token::EndIf, 0, 0);
+                tokens.push(endif_token);
+            }
         }
     }
 
@@ -101,9 +79,8 @@ fn extract_random_block<'a>(
     tokens.push(endrandom_token);
 }
 
-/// Extracts tokens from a Switch block.
-/// For Switch blocks, we need to select one of the Case branches based on the block value.
-/// Also includes the control flow tokens in the output.
+/// Extracts all tokens from a Switch block.
+/// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
     value: BlockValue,
     cases: Vec<CaseBranch<'a>>,
@@ -118,52 +95,32 @@ fn extract_switch_block<'a>(
     let switch_token = SourcePosMixin::new(Token::Switch(switch_value), 0, 0);
     tokens.push(switch_token);
 
-    let selected_value = match &value {
-        BlockValue::Random { max: _ } => {
-            // For Switch blocks with Random, we need to select a value between 1 and max
-            // Since we don't have access to RNG here, we'll use the first available case
-            // or default to 1 if no cases are available
-            if cases.is_empty() {
-                BigUint::from(1u32)
-            } else {
-                match &cases[0].value {
-                    CaseBranchValue::Case(value) => value.clone(),
-                    CaseBranchValue::Def => BigUint::from(1u32),
-                }
-            }
-        }
-        BlockValue::Set { value } => value.clone(),
-    };
-
-    // Find the matching Case branch
+    // Extract all case branches
     for case in cases {
         match &case.value {
             CaseBranchValue::Case(case_value) => {
-                if case_value == &selected_value {
-                    // Add the Case token
-                    let case_token = SourcePosMixin::new(Token::Case(case_value.clone()), 0, 0);
-                    tokens.push(case_token);
+                // Add the Case token
+                let case_token = SourcePosMixin::new(Token::Case(case_value.clone()), 0, 0);
+                tokens.push(case_token);
 
-                    extract_units(case.tokens, tokens);
-
-                    // Add the Skip token
-                    let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
-                    tokens.push(skip_token);
-                    break;
-                }
-            }
-            CaseBranchValue::Def => {
-                // Store Def branch for fallback
-                // Add the Def token
-                let def_token = SourcePosMixin::new(Token::Def, 0, 0);
-                tokens.push(def_token);
-
+                // Extract all tokens in this case
                 extract_units(case.tokens, tokens);
 
                 // Add the Skip token
                 let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
                 tokens.push(skip_token);
-                break;
+            }
+            CaseBranchValue::Def => {
+                // Add the Def token
+                let def_token = SourcePosMixin::new(Token::Def, 0, 0);
+                tokens.push(def_token);
+
+                // Extract all tokens in this def branch
+                extract_units(case.tokens, tokens);
+
+                // Add the Skip token
+                let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
+                tokens.push(skip_token);
             }
         }
     }
@@ -176,6 +133,8 @@ fn extract_switch_block<'a>(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use num::BigUint;
 
     use super::*;
     use crate::bms::{
@@ -357,5 +316,183 @@ mod tests {
         assert_eq!(extracted.tokens.len(), 2);
         assert!(matches!(extracted.tokens[0].content(), Token::Switch(_)));
         assert!(matches!(extracted.tokens[1].content(), Token::EndSwitch));
+    }
+
+    #[test]
+    fn test_extract_multiple_random_branches() {
+        use Token::*;
+
+        // Create two different If branches
+        let if_tokens_1 = vec![Title("Branch1_Token1"), Title("Branch1_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let if_tokens_2 = vec![Title("Branch2_Token1"), Title("Branch2_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let if_branch_1 = IfBranch {
+            value: BigUint::from(1u32),
+            tokens: if_tokens_1
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let if_branch_2 = IfBranch {
+            value: BigUint::from(2u32),
+            tokens: if_tokens_2
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let mut branches = HashMap::new();
+        branches.insert(BigUint::from(1u32), if_branch_1);
+        branches.insert(BigUint::from(2u32), if_branch_2);
+
+        let if_block = IfBlock { branches };
+        let random_block = Unit::RandomBlock {
+            value: BlockValue::Random {
+                max: BigUint::from(2u32),
+            },
+            if_blocks: vec![if_block],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![random_block],
+        };
+        let extracted = extract_ast_root(ast_root);
+
+        // Should contain: Random, If(1), Branch1_Token1, Branch1_Token2, EndIf, If(2), Branch2_Token1, Branch2_Token2, EndIf, EndRandom
+        assert_eq!(extracted.tokens.len(), 10);
+        assert!(matches!(extracted.tokens[0].content(), Random(_)));
+        // First branch (value 1)
+        assert!(matches!(extracted.tokens[1].content(), If(_)));
+        assert!(matches!(
+            extracted.tokens[2].content(),
+            Title("Branch1_Token1")
+        ));
+        assert!(matches!(
+            extracted.tokens[3].content(),
+            Title("Branch1_Token2")
+        ));
+        assert!(matches!(extracted.tokens[4].content(), EndIf));
+        // Second branch (value 2)
+        assert!(matches!(extracted.tokens[5].content(), If(_)));
+        assert!(matches!(
+            extracted.tokens[6].content(),
+            Title("Branch2_Token1")
+        ));
+        assert!(matches!(
+            extracted.tokens[7].content(),
+            Title("Branch2_Token2")
+        ));
+        assert!(matches!(extracted.tokens[8].content(), EndIf));
+        assert!(matches!(extracted.tokens[9].content(), EndRandom));
+    }
+
+    #[test]
+    fn test_extract_multiple_switch_cases() {
+        use Token::*;
+
+        // Create Case branch 1
+        let case_tokens_1 = vec![Title("Case1_Token1"), Title("Case1_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        // Create Case branch 2
+        let case_tokens_2 = vec![Title("Case2_Token1"), Title("Case2_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        // Create Def branch
+        let def_tokens = vec![Title("Def_Token1"), Title("Def_Token2")]
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .collect::<Vec<_>>();
+
+        let case_branch_1 = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(1u32)),
+            tokens: case_tokens_1
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let case_branch_2 = CaseBranch {
+            value: CaseBranchValue::Case(BigUint::from(2u32)),
+            tokens: case_tokens_2
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let def_branch = CaseBranch {
+            value: CaseBranchValue::Def,
+            tokens: def_tokens
+                .iter()
+                .map(Unit::TokenWithPos)
+                .collect::<Vec<_>>(),
+        };
+
+        let switch_block = Unit::SwitchBlock {
+            value: BlockValue::Random {
+                max: BigUint::from(3u32),
+            },
+            cases: vec![case_branch_1, case_branch_2, def_branch],
+        };
+
+        let ast_root = AstRoot {
+            units: vec![switch_block],
+        };
+        let extracted = extract_ast_root(ast_root);
+
+        // Should contain: Switch, Case(1), Case1_Token1, Case1_Token2, Skip, Case(2), Case2_Token1, Case2_Token2, Skip, Def, Def_Token1, Def_Token2, Skip, EndSwitch
+        assert_eq!(extracted.tokens.len(), 14);
+        assert!(matches!(extracted.tokens[0].content(), Switch(_)));
+        // Case 1
+        assert!(matches!(extracted.tokens[1].content(), Case(_)));
+        assert!(matches!(
+            extracted.tokens[2].content(),
+            Title("Case1_Token1")
+        ));
+        assert!(matches!(
+            extracted.tokens[3].content(),
+            Title("Case1_Token2")
+        ));
+        assert!(matches!(extracted.tokens[4].content(), Skip));
+        // Case 2
+        assert!(matches!(extracted.tokens[5].content(), Case(_)));
+        assert!(matches!(
+            extracted.tokens[6].content(),
+            Title("Case2_Token1")
+        ));
+        assert!(matches!(
+            extracted.tokens[7].content(),
+            Title("Case2_Token2")
+        ));
+        assert!(matches!(extracted.tokens[8].content(), Skip));
+        // Def
+        assert!(matches!(extracted.tokens[9].content(), Def));
+        assert!(matches!(
+            extracted.tokens[10].content(),
+            Title("Def_Token1")
+        ));
+        assert!(matches!(
+            extracted.tokens[11].content(),
+            Title("Def_Token2")
+        ));
+        assert!(matches!(extracted.tokens[12].content(), Skip));
+        assert!(matches!(extracted.tokens[13].content(), EndSwitch));
     }
 }
