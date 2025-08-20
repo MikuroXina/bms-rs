@@ -11,8 +11,11 @@ use num::BigUint;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourcePosMixin, time::Track,
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
+        channel::{Channel, Key, NoteKind, PlayerSide},
+        graphics::Argb,
+        mixin::SourcePosMixin,
+        time::Track,
     },
     prelude::read_channel_beat,
 };
@@ -811,8 +814,10 @@ impl<'a> Token<'a> {
                     let option = c.next_line_remaining();
                     Self::ChangeOption(ObjId::try_load(id, c)?, option)
                 }
-                lnobj if lnobj.starts_with("#LNOBJ") => {
-                    let id = lnobj.trim_start_matches("#LNOBJ");
+                "#LNOBJ" => {
+                    let id = c
+                        .next_token()
+                        .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
                     Self::LnObj(ObjId::try_load(id, c)?)
                 }
                 message
@@ -1279,6 +1284,407 @@ impl<'a> Token<'a> {
     }
 }
 
+impl<'a> std::fmt::Display for Token<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "minor-command")]
+            Token::Argb(id, argb) => write!(
+                f,
+                "#ARGB{} {},{},{},{}",
+                id, argb.alpha, argb.red, argb.green, argb.blue
+            ),
+            Token::Artist(artist) => write!(f, "#ARTIST {}", artist),
+            #[cfg(feature = "minor-command")]
+            Token::AtBga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_size,
+                draw_point,
+            } => {
+                write!(
+                    f,
+                    "#@BGA{} {} {} {} {} {} {} {}",
+                    id,
+                    source_bmp,
+                    trim_top_left.0,
+                    trim_top_left.1,
+                    trim_size.0,
+                    trim_size.1,
+                    draw_point.0,
+                    draw_point.1
+                )
+            }
+            Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
+            Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
+            Token::Base62 => write!(f, "#BASE 62"),
+            #[cfg(feature = "minor-command")]
+            Token::BaseBpm(bpm) => write!(f, "#BASEBPM {}", bpm),
+            #[cfg(feature = "minor-command")]
+            Token::Bga {
+                id,
+                source_bmp,
+                trim_top_left,
+                trim_bottom_right,
+                draw_point,
+            } => {
+                write!(
+                    f,
+                    "#BGA{} {} {} {} {} {} {} {}",
+                    id,
+                    source_bmp,
+                    trim_top_left.0,
+                    trim_top_left.1,
+                    trim_bottom_right.0,
+                    trim_bottom_right.1,
+                    draw_point.0,
+                    draw_point.1
+                )
+            }
+            Token::Bmp(Some(id), path) => write!(f, "#BMP{} {}", id, path.display()),
+            Token::Bmp(None, path) => write!(f, "#BMP00 {}", path.display()),
+            Token::Bpm(bpm) => write!(f, "#BPM {}", bpm),
+            Token::BpmChange(id, bpm) => write!(f, "#BPM{} {}", id, bpm),
+            Token::Case(value) => write!(f, "#CASE {}", value),
+            #[cfg(feature = "minor-command")]
+            Token::Cdda(value) => write!(f, "#CDDA {}", value),
+            #[cfg(feature = "minor-command")]
+            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{} {}", id, option),
+            #[cfg(feature = "minor-command")]
+            Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
+            Token::Charset(charset) => write!(f, "#CHARSET {}", charset),
+            Token::Comment(comment) => write!(f, "#COMMENT {}", comment),
+            Token::Def => write!(f, "#DEF"),
+            Token::DefExRank(value) => write!(f, "#DEFEXRANK {}", value),
+            Token::Difficulty(diff) => write!(f, "#DIFFICULTY {}", diff),
+            #[cfg(feature = "minor-command")]
+            Token::DivideProp(prop) => write!(f, "#DIVIDEPROP {}", prop),
+            Token::Else => write!(f, "#ELSE"),
+            Token::ElseIf(value) => write!(f, "#ELSEIF {}", value),
+            Token::Email(email) => write!(f, "%EMAIL {}", email),
+            Token::EndIf => write!(f, "#ENDIF"),
+            Token::EndRandom => write!(f, "#ENDRANDOM"),
+            Token::EndSwitch => write!(f, "#ENDSW"),
+            #[cfg(feature = "minor-command")]
+            Token::ExtChr(ev) => {
+                write!(
+                    f,
+                    "#ExtChr {} {} {} {} {} {}",
+                    ev.sprite_num, ev.bmp_num, ev.start_x, ev.start_y, ev.end_x, ev.end_y
+                )?;
+                if let (Some(offset_x), Some(offset_y)) = (ev.offset_x, ev.offset_y) {
+                    write!(f, " {} {}", offset_x, offset_y)?;
+                    if let (Some(abs_x), Some(abs_y)) = (ev.abs_x, ev.abs_y) {
+                        write!(f, " {} {}", abs_x, abs_y)?;
+                    }
+                }
+                Ok(())
+            }
+            Token::ExBmp(id, argb, path) => write!(
+                f,
+                "#EXBMP{} {},{},{},{} {}",
+                id,
+                argb.alpha,
+                argb.red,
+                argb.green,
+                argb.blue,
+                path.display()
+            ),
+            Token::ExRank(id, level) => write!(f, "#EXRANK{} {}", id, level),
+            #[cfg(feature = "minor-command")]
+            Token::ExWav {
+                id,
+                pan,
+                volume,
+                frequency,
+                path,
+            } => {
+                write!(f, "#EXWAV{}", id)?;
+                let mut params = String::new();
+                if *pan != ExWavPan::default() {
+                    params.push('p');
+                }
+                if *volume != ExWavVolume::default() {
+                    params.push('v');
+                }
+                if frequency.is_some() {
+                    params.push('f');
+                }
+                if params.is_empty() {
+                    params.push('p');
+                }
+                write!(f, " {}", params)?;
+                if *pan != ExWavPan::default() {
+                    write!(f, " {}", pan.value())?;
+                }
+                if *volume != ExWavVolume::default() {
+                    write!(f, " {}", volume.value())?;
+                }
+                if let Some(freq) = frequency {
+                    write!(f, " {}", freq.value())?;
+                }
+                write!(f, " {}", path.display())
+            }
+            Token::Genre(genre) => write!(f, "#GENRE {}", genre),
+            Token::If(value) => write!(f, "#IF {}", value),
+            Token::LnMode(mode) => write!(
+                f,
+                "#LNMODE {}",
+                match mode {
+                    LnMode::Ln => 1,
+                    LnMode::Cn => 2,
+                    LnMode::Hcn => 3,
+                }
+            ),
+            Token::LnObj(id) => write!(f, "#LNOBJ {}", id),
+            Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
+            Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
+            Token::Maker(maker) => write!(f, "#MAKER {}", maker),
+            #[cfg(feature = "minor-command")]
+            Token::Materials(path) => write!(f, "#MATERIALS {}", path.display()),
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsBmp(path) => write!(f, "#MATERIALSBMP {}", path.display()),
+            #[cfg(feature = "minor-command")]
+            Token::MaterialsWav(path) => write!(f, "#MATERIALSWAV {}", path.display()),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => fmt_message(f, track, channel, message),
+            #[cfg(feature = "minor-command")]
+            Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
+            Token::Movie(path) => write!(f, "#MOVIE {}", path.display()),
+            Token::NotACommand(content) => write!(f, "{}", content),
+            #[cfg(feature = "minor-command")]
+            Token::OctFp => write!(f, "#OCT/FP"),
+            #[cfg(feature = "minor-command")]
+            Token::Option(option) => write!(f, "#OPTION {}", option),
+            Token::PathWav(path) => write!(f, "#PATH_WAV {}", path.display()),
+            Token::Player(mode) => write!(
+                f,
+                "#PLAYER {}",
+                match mode {
+                    PlayerMode::Single => 1,
+                    PlayerMode::Two => 2,
+                    PlayerMode::Double => 3,
+                }
+            ),
+            Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {}", level),
+            Token::PoorBga(mode) => write!(
+                f,
+                "#POORBGA {}",
+                match mode {
+                    PoorMode::Interrupt => 0,
+                    PoorMode::Overlay => 1,
+                    PoorMode::Hidden => 2,
+                }
+            ),
+            Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
+            Token::Random(value) => write!(f, "#RANDOM {}", value),
+            Token::Rank(level) => write!(f, "#RANK {}", level),
+            Token::Scroll(id, factor) => write!(f, "#SCROLL{} {}", id, factor),
+            #[cfg(feature = "minor-command")]
+            Token::Seek(id, position) => write!(f, "#SEEK{} {}", id, position),
+            Token::SetRandom(value) => write!(f, "#SETRANDOM {}", value),
+            Token::SetSwitch(value) => write!(f, "#SETSWITCH {}", value),
+            Token::Skip => write!(f, "#SKIP"),
+            Token::Speed(id, factor) => write!(f, "#SPEED{} {}", id, factor),
+            Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
+            Token::Stop(id, beats) => write!(f, "#STOP{} {}", id, beats),
+            #[cfg(feature = "minor-command")]
+            Token::Stp(ev) => {
+                let measure = ev.time.track.0;
+                let pos = (ev.time.numerator * 1000 / ev.time.denominator) as u16;
+                let ms = ev.duration.as_millis() as u32;
+                write!(f, "#STP {:03}.{:03} {}", measure, pos, ms)
+            }
+            Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {}", sub_artist),
+            Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {}", subtitle),
+            #[cfg(feature = "minor-command")]
+            Token::SwBga(id, ev) => {
+                write!(
+                    f,
+                    "#SWBGA{} {}:{}:{}:{}:{},{},{},{} {}",
+                    id,
+                    ev.frame_rate,
+                    ev.total_time,
+                    ev.line,
+                    if ev.loop_mode { 1 } else { 0 },
+                    ev.argb.alpha,
+                    ev.argb.red,
+                    ev.argb.green,
+                    ev.argb.blue,
+                    ev.pattern
+                )
+            }
+            Token::Switch(value) => write!(f, "#SWITCH {}", value),
+            Token::Text(id, text) => write!(f, "#TEXT{} {}", id, text),
+            Token::Title(title) => write!(f, "#TITLE {}", title),
+            Token::Total(total) => write!(f, "#TOTAL {}", total),
+            Token::UnknownCommand(cmd) => write!(f, "{}", cmd),
+            Token::Url(url) => write!(f, "%URL {}", url),
+            #[cfg(feature = "minor-command")]
+            Token::VideoColors(colors) => write!(f, "#VIDEOCOLORS {}", colors),
+            #[cfg(feature = "minor-command")]
+            Token::VideoDly(delay) => write!(f, "#VIDEODLY {}", delay),
+            Token::VideoFile(path) => write!(f, "#VIDEOFILE {}", path.display()),
+            #[cfg(feature = "minor-command")]
+            Token::VideoFs(fps) => write!(f, "#VIDEOF/S {}", fps),
+            Token::VolWav(volume) => write!(f, "#VOLWAV {}", volume.relative_percent),
+            Token::Wav(id, path) => write!(f, "#WAV{} {}", id, path.display()),
+            #[cfg(feature = "minor-command")]
+            Token::WavCmd(ev) => {
+                use crate::bms::command::minor_command::WavCmdParam;
+
+                let param = match ev.param {
+                    WavCmdParam::Pitch => "00",
+                    WavCmdParam::Volume => "01",
+                    WavCmdParam::Time => "02",
+                };
+                write!(f, "#WAVCMD {} {} {}", param, ev.wav_index, ev.value)
+            }
+        }
+    }
+}
+
+fn fmt_message(
+    f: &mut std::fmt::Formatter<'_>,
+    track: &Track,
+    channel: &Channel,
+    message: &str,
+) -> std::fmt::Result {
+    // Convert channel back to string representation
+    match channel {
+        Channel::BgaBase => {
+            write!(f, "#{:03}04:{}", track.0, message)
+        }
+        Channel::BgaLayer => {
+            write!(f, "#{:03}07:{}", track.0, message)
+        }
+        Channel::BgaPoor => {
+            write!(f, "#{:03}06:{}", track.0, message)
+        }
+        Channel::Bgm => {
+            write!(f, "#{:03}01:{}", track.0, message)
+        }
+        Channel::BpmChangeU8 => {
+            write!(f, "#{:03}03:{}", track.0, message)
+        }
+        Channel::BpmChange => {
+            write!(f, "#{:03}08:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::ChangeOption => {
+            write!(f, "#{:03}A6:{}", track.0, message)
+        }
+        Channel::Note { kind, side, key } => {
+            let kind_char = match (kind, side) {
+                (NoteKind::Visible, PlayerSide::Player1) => '1',
+                (NoteKind::Visible, PlayerSide::Player2) => '2',
+                (NoteKind::Invisible, PlayerSide::Player1) => '3',
+                (NoteKind::Invisible, PlayerSide::Player2) => '4',
+                (NoteKind::Long, PlayerSide::Player1) => '5',
+                (NoteKind::Long, PlayerSide::Player2) => '6',
+                (NoteKind::Landmine, PlayerSide::Player1) => 'D',
+                (NoteKind::Landmine, PlayerSide::Player2) => 'E',
+            };
+            let key_char = match key {
+                Key::Key1 => '1',
+                Key::Key2 => '2',
+                Key::Key3 => '3',
+                Key::Key4 => '4',
+                Key::Key5 => '5',
+                Key::Key6 => '8',
+                Key::Key7 => '9',
+                Key::Key8 => '8',
+                Key::Key9 => '9',
+                Key::Key10 => 'A',
+                Key::Key11 => 'B',
+                Key::Key12 => 'C',
+                Key::Key13 => 'D',
+                Key::Key14 => 'E',
+                Key::Scratch => '6',
+                Key::ScratchExtra => '7',
+                Key::FootPedal => 'F',
+                Key::FreeZone => '7',
+            };
+            let channel_str = format!("{}{}", kind_char, key_char);
+            write!(f, "#{:03}{}:{}", track.0, channel_str, message)
+        }
+        Channel::SectionLen => {
+            write!(f, "#{:03}02:{}", track.0, message)
+        }
+        Channel::Stop => {
+            write!(f, "#{:03}09:{}", track.0, message)
+        }
+        Channel::Scroll => {
+            write!(f, "#{:03}SC:{}", track.0, message)
+        }
+        Channel::Speed => {
+            write!(f, "#{:03}SP:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::Seek => {
+            write!(f, "#{:03}05:{}", track.0, message)
+        }
+        Channel::BgaLayer2 => {
+            write!(f, "#{:03}0A:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaBaseOpacity => {
+            write!(f, "#{:03}0B:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaLayerOpacity => {
+            write!(f, "#{:03}0C:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaLayer2Opacity => {
+            write!(f, "#{:03}0D:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaPoorOpacity => {
+            write!(f, "#{:03}0E:{}", track.0, message)
+        }
+        Channel::BgmVolume => {
+            write!(f, "#{:03}97:{}", track.0, message)
+        }
+        Channel::KeyVolume => {
+            write!(f, "#{:03}98:{}", track.0, message)
+        }
+        Channel::Text => {
+            write!(f, "#{:03}99:{}", track.0, message)
+        }
+        Channel::Judge => {
+            write!(f, "#{:03}A0:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaBaseArgb => {
+            write!(f, "#{:03}A1:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaLayerArgb => {
+            write!(f, "#{:03}A2:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaLayer2Argb => {
+            write!(f, "#{:03}A3:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaPoorArgb => {
+            write!(f, "#{:03}A4:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::BgaKeybound => {
+            write!(f, "#{:03}A5:{}", track.0, message)
+        }
+        #[cfg(feature = "minor-command")]
+        Channel::Option => {
+            write!(f, "#{:03}A6:{}", track.0, message)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "minor-command")]
@@ -1367,8 +1773,8 @@ mod tests {
             panic!("Not ExWav");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
-        assert_eq!(pan.value(), 0);
-        assert_eq!(volume.value(), 0);
+        assert_eq!(pan, ExWavPan::default());
+        assert_eq!(volume, ExWavVolume::default());
         assert_eq!(frequency.map(|f| f.value()), Some(48000));
         assert_eq!(file, Path::new("ex.wav"));
     }
@@ -1434,7 +1840,7 @@ mod tests {
 
     #[test]
     fn test_lnobj() {
-        let Token::LnObj(id) = parse_token("#LNOBJ01") else {
+        let Token::LnObj(id) = parse_token("#LNOBJ 01") else {
             panic!("Not LnObj");
         };
         assert_eq!(format!("{id:?}"), "ObjId(\"01\")");
@@ -1569,5 +1975,217 @@ mod tests {
         assert_eq!(ev.offset_y, Some(-2));
         assert_eq!(ev.abs_x, Some(0));
         assert_eq!(ev.abs_y, Some(0));
+    }
+
+    #[test]
+    fn test_display_roundtrip() {
+        // Test basic commands
+        let test_cases = vec![
+            "#ARTIST Test Artist",
+            "#TITLE Test Title",
+            "#GENRE Test Genre",
+            "#MAKER Test Maker",
+            "#COMMENT Test Comment",
+            "#PLAYLEVEL 5",
+            "#RANK 2",
+            "#TOTAL 100",
+            "#PLAYER 1",
+            "#DIFFICULTY 3",
+            "#BASE 62",
+            "#LNTYPE 1",
+            "#LNTYPE 2",
+            "#VOLWAV 100",
+            "#BANNER banner.png",
+            "#BACKBMP back.png",
+            "#STAGEFILE stage.png",
+            "#PATH_WAV /path/to/wav",
+            "#VIDEOFILE video.mp4",
+            "#MOVIE movie.mp4",
+            "#PREVIEW preview.wav",
+            "%EMAIL test@example.com",
+            "%URL http://example.com",
+            "#CHARSET UTF-8",
+            "#DEFEXRANK 100",
+            "#LNMODE 1",
+            "#LNMODE 2",
+            "#LNMODE 3",
+            "#POORBGA 0",
+            "#POORBGA 1",
+            "#POORBGA 2",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_display_with_id_commands() {
+        // Test commands with object IDs
+        let test_cases = vec![
+            "#WAV01 test.wav",
+            "#BMP01 test.bmp",
+            "#BMP00 poor.bmp",
+            "#STOP01 48",
+            "#TEXT01 Hello World",
+            "#LNOBJ 01",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed for: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_display_control_flow() {
+        // Test control flow commands
+        let test_cases = vec![
+            "#RANDOM 5",
+            "#SETRANDOM 3",
+            "#IF 2",
+            "#ELSEIF 4",
+            "#ELSE",
+            "#ENDIF",
+            "#ENDRANDOM",
+            "#SWITCH 3",
+            "#SETSWITCH 1",
+            "#CASE 2",
+            "#DEF",
+            "#SKIP",
+            "#ENDSW",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_display_message() {
+        // Test message commands
+        let test_cases = vec![
+            "#00101:01020304",
+            "#00204:01020304",
+            "#00308:01020304",
+            "#004SC:01020304",
+            "#005SP:01020304",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_display_minor_commands() {
+        // Test minor commands
+        let test_cases = vec![
+            "#OCT/FP",
+            "#OPTION Test Option",
+            "#MIDIFILE test.mid",
+            "#CHARFILE test.chp",
+            "#MATERIALS /path/to/materials",
+            "#MATERIALSBMP materials.bmp",
+            "#MATERIALSWAV materials.wav",
+            "#DIVIDEPROP 192",
+            "#CDDA 12345",
+            "#VIDEOCOLORS 16",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed roundtrip for: {}", input);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_display_complex_commands() {
+        // Test complex commands with multiple parameters
+        let test_cases = vec![
+            "#EXBMP01 255,0,0,0 exbmp.png",
+            "#EXRANK01 2",
+            "#EXWAV01 pvf 10000 -1000 48000 ex.wav",
+            "#@BGA01 02 1 2 3 4 5 6",
+            "#BGA01 02 1 2 3 4 5 6",
+            "#CHANGEOPTION01 opt",
+            "#ARGB01 255,255,255,255",
+            "#STP 001.500 1500",
+            "#WAVCMD 00 0E 61",
+            "#SWBGA01 100:400:16:0:255,255,255,255 01020304",
+            "#ExtChr 512 9 30 0 99 9",
+            "#ExtChr 516 0 38 1 62 9 -2 -2",
+            "#ExtChr 513 0 38 1 62 9 -2 -2 0 0",
+        ];
+
+        for input in test_cases {
+            let token = parse_token(input);
+            let output = format!("{}", token);
+            assert_eq!(input, output, "Failed for: {}", input);
+        }
+    }
+
+    #[test]
+    fn test_display_roundtrip_decimal() {
+        // Test basic commands with decimal values
+        let test_tokens = vec![Token::Bpm(Decimal::from(120.5))];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed roundtrip for: {}", output);
+        }
+    }
+
+    #[test]
+    fn test_display_with_id_commands_decimal() {
+        // Test commands with object IDs and decimal values
+        let test_tokens = vec![
+            Token::BpmChange(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("150.0").unwrap()),
+            ),
+            Token::Scroll(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("2.0").unwrap()),
+            ),
+            Token::Speed(
+                ObjId::try_from("01").unwrap(),
+                Decimal::from_fraction(GenericFraction::from_str("1.5").unwrap()),
+            ),
+        ];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed for: {}", output);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "minor-command")]
+    fn test_display_minor_commands_decimal() {
+        // Test minor commands with decimal values
+        let test_tokens = vec![
+            Token::BaseBpm(Decimal::from(120.0)),
+            Token::VideoDly(Decimal::from(1.5)),
+            Token::VideoFs(Decimal::from(30.0)),
+        ];
+
+        for token in test_tokens {
+            let output = format!("{}", token);
+            let parsed_token = parse_token(&output);
+            assert_eq!(token, parsed_token, "Failed roundtrip for: {}", output);
+        }
     }
 }

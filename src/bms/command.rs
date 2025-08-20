@@ -70,6 +70,18 @@ impl<'a> TryFrom<&'a str> for JudgeLevel {
     }
 }
 
+impl std::fmt::Display for JudgeLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JudgeLevel::VeryHard => write!(f, "0"),
+            JudgeLevel::Hard => write!(f, "1"),
+            JudgeLevel::Normal => write!(f, "2"),
+            JudgeLevel::Easy => write!(f, "3"),
+            JudgeLevel::OtherInt(value) => write!(f, "{}", value),
+        }
+    }
+}
+
 fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
@@ -119,7 +131,7 @@ impl std::fmt::Debug for ObjId {
 
 impl std::fmt::Display for ObjId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ObjId: {}{}", self.0[0] as char, self.0[1] as char)
+        write!(f, "{}{}", self.0[0] as char, self.0[1] as char)
     }
 }
 
