@@ -25,7 +25,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourcePosMixin,
-    lex::{TokenRefStream, token::TokenWithPos},
+    lex::{TokenRefStream, TokenStream, token::TokenWithPos},
 };
 
 use self::{
@@ -79,12 +79,17 @@ impl<'a> AstRoot<'a> {
             token_refs: TokenRefStream { token_refs: tokens },
         }
     }
+}
 
-    /// Extracts tokens from the AST and returns them as a TokenStream.
-    /// This method flattens the AST structure by resolving all control flow constructs
-    /// and returning the actual tokens that would be executed.
-    pub fn extract(self) -> crate::bms::lex::TokenStream<'a> {
-        ast_extract::extract_ast_root(self)
+impl<'a> AstRoot<'a> {
+    /// Extracts all tokens from the AST and returns them as a TokenStream.
+    /// This function flattens the AST structure and returns ALL tokens contained in the AST,
+    /// including all branches in Random and Switch blocks. This serves as the inverse of
+    /// [`AstRoot::from_token_stream`].
+    pub fn extract(self) -> TokenStream<'a> {
+        let mut tokens = Vec::new();
+        ast_extract::extract_units(self.units, &mut tokens);
+        TokenStream { tokens }
     }
 }
 

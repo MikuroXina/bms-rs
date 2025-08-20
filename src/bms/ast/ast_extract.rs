@@ -1,26 +1,11 @@
 use crate::bms::{
     ast::ast_build::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     command::mixin::SourcePosMixin,
-    lex::{
-        TokenStream,
-        token::{Token, TokenWithPos},
-    },
+    lex::token::{Token, TokenWithPos},
 };
 
-use super::AstRoot;
-
-/// Extracts all tokens from the AST and returns them as a TokenStream.
-/// This function flattens the AST structure and returns ALL tokens contained in the AST,
-/// including all branches in Random and Switch blocks. This serves as the inverse of
-/// AstRoot::from_token_stream.
-pub fn extract_ast_root<'a>(ast_root: AstRoot<'a>) -> TokenStream<'a> {
-    let mut tokens = Vec::new();
-    extract_units(ast_root.units, &mut tokens);
-    TokenStream { tokens }
-}
-
 /// Recursively extracts tokens from AST units.
-fn extract_units<'a>(units: Vec<Unit<'a>>, tokens: &mut Vec<TokenWithPos<'a>>) {
+pub(super) fn extract_units<'a>(units: Vec<Unit<'a>>, tokens: &mut Vec<TokenWithPos<'a>>) {
     for unit in units {
         match unit {
             Unit::TokenWithPos(token) => {
@@ -138,7 +123,10 @@ mod tests {
 
     use super::*;
     use crate::bms::{
-        ast::ast_build::{IfBlock, IfBranch},
+        ast::{
+            AstRoot,
+            ast_build::{IfBlock, IfBranch},
+        },
         command::mixin::SourcePosMixinExt,
         lex::token::Token,
     };
@@ -155,7 +143,7 @@ mod tests {
         let units = tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>();
 
         let ast_root = AstRoot { units };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         assert_eq!(extracted.tokens.len(), 3);
         assert!(matches!(extracted.tokens[0].content(), Title("11000000")));
@@ -191,7 +179,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![random_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Random, If, Title1, Title2, EndIf, EndRandom
         assert_eq!(extracted.tokens.len(), 6);
@@ -229,7 +217,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![switch_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Switch, Case, Title1, Title2, Skip, EndSwitch
         assert_eq!(extracted.tokens.len(), 6);
@@ -267,7 +255,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![switch_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Switch, Def, Title1, Title2, Skip, EndSwitch
         assert_eq!(extracted.tokens.len(), 6);
@@ -291,7 +279,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![random_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Random, EndRandom (no If/EndIf because no branches)
         assert_eq!(extracted.tokens.len(), 2);
@@ -310,7 +298,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![switch_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Switch, EndSwitch (no Case/Def because no cases)
         assert_eq!(extracted.tokens.len(), 2);
@@ -366,7 +354,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![random_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Random, If(1), Branch1_Token1, Branch1_Token2, EndIf, If(2), Branch2_Token1, Branch2_Token2, EndIf, EndRandom
         assert_eq!(extracted.tokens.len(), 10);
@@ -455,7 +443,7 @@ mod tests {
         let ast_root = AstRoot {
             units: vec![switch_block],
         };
-        let extracted = extract_ast_root(ast_root);
+        let extracted = ast_root.extract();
 
         // Should contain: Switch, Case(1), Case1_Token1, Case1_Token2, Skip, Case(2), Case2_Token1, Case2_Token2, Skip, Def, Def_Token1, Def_Token2, Skip, EndSwitch
         assert_eq!(extracted.tokens.len(), 14);
