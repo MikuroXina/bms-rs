@@ -1,8 +1,6 @@
-//! Convert Bms to Vec<Token>.
-//!
-//! This module provides functionality to convert a parsed Bms object back to a vector of tokens.
-//! Note that this conversion may not preserve all original formatting and comments,
-//! but it will generate valid BMS tokens that represent the same musical data.
+//! This module provides functionality to convert a parsed [`Bms`] object back to a vector of tokens.
+//! Note that this conversion may not preserve all original formatting and comments, but it will
+//! generate valid BMS tokens that represent the same musical data.
 
 use fraction::ToPrimitive;
 
@@ -27,9 +25,9 @@ pub struct BmsToTokensOutput<'a> {
 }
 
 impl Bms {
-    /// Convert `Bms` to `Vec<Token>`.
+    /// Convert [`Bms`] to [`Vec<Token>`].
     ///
-    /// This method converts a parsed Bms object back to a vector of tokens.
+    /// This method converts a parsed [`Bms`] object back to a vector of tokens.
     /// The tokens are generated in a logical order that should produce a valid BMS file.
     ///
     /// # Example

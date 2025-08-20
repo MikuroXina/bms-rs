@@ -23,6 +23,7 @@ pub mod command;
 pub mod lex;
 pub mod parse;
 pub mod prelude;
+pub mod unparse;
 
 use thiserror::Error;
 

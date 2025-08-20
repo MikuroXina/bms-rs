@@ -47,9 +47,9 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
-        to_tokens::BmsToTokensOutput,
     },
     parse_bms,
+    unparse::BmsToTokensOutput,
 };
 
 // Re-export minor command types when feature is enabled

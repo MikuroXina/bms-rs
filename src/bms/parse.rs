@@ -6,7 +6,6 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
-pub mod to_tokens;
 
 use thiserror::Error;
 
