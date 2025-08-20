@@ -10,7 +10,7 @@
 //!
 //! For most use cases, you can use the [`bms::parse_bms`] function to parse a BMS file in one step:
 //!
-//! ```
+//! ```rust
 //! use bms_rs::bms::{parse_bms, BmsOutput};
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
@@ -27,7 +27,7 @@
 //!
 //! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
-//! ```
+//! ```rust
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::prelude::*;
 //!
@@ -76,6 +76,25 @@
 //! let token_stream = TokenStream::parse_lex(source);
 //! let strings: Vec<String> = token_stream.tokens.unparse_lex();
 //! println!("Generated {} strings", strings.len());
+//! ```
+//!
+//! ## AST Extraction Usage
+//!
+//! You can also extract tokens back from an AST using the [`bms::ast::AstRoot::extract`] method, which serves as the inverse of [`bms::ast::AstRoot::from_token_stream`]:
+//!
+//! ```rust
+//! use bms_rs::bms::prelude::*;
+//!
+//! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
+//! assert_eq!(lex_warnings, vec![]);
+//!
+//! // Build AST from tokens
+//! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
+//! assert_eq!(ast_build_warnings, vec![]);
+//!
+//! // Extract tokens back from AST
+//! let extracted_tokens = root.extract();
 //! ```
 //!
 //! # Features
