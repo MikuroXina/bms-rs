@@ -49,7 +49,7 @@ pub use super::{
         },
     },
     parse_bms,
-    unparse::BmsToTokensOutput,
+    unparse::BmsUnparseOutput,
 };
 
 // Re-export minor command types when feature is enabled

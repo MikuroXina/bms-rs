@@ -19,7 +19,7 @@ use crate::bms::{
 
 /// Output of the conversion from `Bms` to `Vec<Token>`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct BmsToTokensOutput<'a> {
+pub struct BmsUnparseOutput<'a> {
     /// The converted tokens.
     pub tokens: Vec<Token<'a>>,
 }
@@ -33,14 +33,14 @@ impl Bms {
     /// # Example
     ///
     /// ```rust
-    /// use bms_rs::bms::{parse_bms, prelude::BmsToTokensOutput};
+    /// use bms_rs::bms::{parse_bms, prelude::BmsUnparseOutput};
     ///
     /// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
     /// let bms_output = parse_bms(source);
-    /// let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
+    /// let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
     /// println!("Generated {} tokens", tokens.len());
     /// ```
-    pub fn to_tokens(&self) -> BmsToTokensOutput<'_> {
+    pub fn unparse(&self) -> BmsUnparseOutput<'_> {
         let mut tokens = Vec::new();
 
         // Convert header information
@@ -61,7 +61,7 @@ impl Bms {
         // Convert others
         self.convert_others(&mut tokens);
 
-        BmsToTokensOutput { tokens }
+        BmsUnparseOutput { tokens }
     }
 
     fn convert_header<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
@@ -693,7 +693,7 @@ mod tests {
     fn test_bms_to_tokens_basic() {
         let source = "#TITLE Test Song\n#BPM 120\n#ARTIST Test Artist";
         let bms_output = parse_bms(source);
-        let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
+        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
 
         assert!(!tokens.is_empty());
 
@@ -720,7 +720,7 @@ mod tests {
     fn test_bms_to_tokens_with_notes() {
         let source = "#TITLE Test Song\n#BPM 120\n#WAV01 test.wav\n#00101:01";
         let bms_output = parse_bms(source);
-        let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
+        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
 
         assert!(!tokens.is_empty());
 

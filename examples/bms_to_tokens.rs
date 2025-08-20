@@ -4,7 +4,7 @@
 //! This can be useful for serialization, debugging, or other purposes where you need
 //! to work with the token representation of BMS data.
 
-use bms_rs::bms::{parse_bms, prelude::BmsToTokensOutput};
+use bms_rs::bms::{parse_bms, prelude::BmsUnparseOutput};
 
 fn main() {
     // Parse a simple BMS file
@@ -36,7 +36,7 @@ fn main() {
     println!();
 
     // Convert Bms back to tokens
-    let BmsToTokensOutput { tokens } = bms_output.bms.to_tokens();
+    let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
 
     println!("Converted back to {} tokens:", tokens.len());
     for (i, token) in tokens.iter().enumerate() {
