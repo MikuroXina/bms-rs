@@ -16,6 +16,7 @@
 //! allowing the parser to continue processing while providing detailed error information.
 
 mod ast_build;
+mod ast_extract;
 mod ast_parse;
 pub mod rng;
 
@@ -77,6 +78,13 @@ impl<'a> AstRoot<'a> {
         AstParseOutput {
             token_refs: TokenRefStream { token_refs: tokens },
         }
+    }
+
+    /// Extracts tokens from the AST and returns them as a TokenStream.
+    /// This method flattens the AST structure by resolving all control flow constructs
+    /// and returning the actual tokens that would be executed.
+    pub fn extract(self) -> crate::bms::lex::TokenStream<'a> {
+        ast_extract::extract_ast_root(self)
     }
 }
 
