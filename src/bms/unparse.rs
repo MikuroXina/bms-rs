@@ -9,7 +9,7 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PoorMode, Volume,
         channel::{Channel, NoteKind},
-        time::{ObjTime, Track},
+        time::Track,
     },
     lex::token::Token,
     parse::model::Bms,
@@ -41,6 +41,35 @@ impl Bms {
     pub fn unparse(&self) -> BmsUnparseOutput<'_> {
         let mut tokens = Vec::new();
 
+        // Build reverse lookup maps for efficient ObjId finding
+        let bpm_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+            .scope_defines
+            .bpm_defs
+            .iter()
+            .map(|(obj_id, bpm)| (bpm, *obj_id))
+            .collect();
+
+        let stop_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+            .scope_defines
+            .stop_defs
+            .iter()
+            .map(|(obj_id, duration)| (duration, *obj_id))
+            .collect();
+
+        let scroll_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+            .scope_defines
+            .scroll_defs
+            .iter()
+            .map(|(obj_id, factor)| (factor, *obj_id))
+            .collect();
+
+        let speed_reverse_map: std::collections::BTreeMap<&Decimal, ObjId> = self
+            .scope_defines
+            .speed_defs
+            .iter()
+            .map(|(obj_id, factor)| (factor, *obj_id))
+            .collect();
+
         // Convert header information
         self.convert_header(&mut tokens);
 
@@ -51,7 +80,13 @@ impl Bms {
         self.convert_arrangers(&mut tokens);
 
         // Convert notes and audio files
-        self.convert_notes(&mut tokens);
+        self.convert_notes(
+            &mut tokens,
+            &bpm_reverse_map,
+            &stop_reverse_map,
+            &scroll_reverse_map,
+            &speed_reverse_map,
+        );
 
         // Convert graphics
         self.convert_graphics(&mut tokens);
@@ -279,7 +314,14 @@ impl Bms {
         }
     }
 
-    fn convert_notes<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
+    fn convert_notes<'a>(
+        &'a self,
+        tokens: &mut Vec<Token<'a>>,
+        bpm_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
+        stop_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
+        scroll_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
+        speed_reverse_map: &std::collections::BTreeMap<&Decimal, ObjId>,
+    ) {
         let notes = &self.notes;
 
         // Convert WAV file definitions
@@ -296,7 +338,11 @@ impl Bms {
         for (time, bgm_ids) in &notes.bgms {
             let track = time.track.0;
             let channel = Channel::Bgm;
-            let message = self.obj_ids_to_message(bgm_ids, time);
+            let message = if bgm_ids.is_empty() {
+                "00".to_string()
+            } else {
+                bgm_ids.iter().map(|id| id.to_string()).collect()
+            };
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -309,7 +355,7 @@ impl Bms {
             for obj in objs {
                 let track = obj.offset.track.0;
                 let channel = self.obj_to_channel(obj);
-                let message = self.obj_id_to_message(*obj_id, &obj.offset);
+                let message = obj_id.to_string();
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -322,7 +368,12 @@ impl Bms {
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
             let track = time.track.0;
             let channel = Channel::BpmChangeU8;
-            let message = self.bpm_to_message(bpm_obj.bpm.clone());
+            // Find the ObjId that corresponds to this BPM value in scope_defines
+            let obj_id = bpm_reverse_map
+                .get(&bpm_obj.bpm)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -334,7 +385,12 @@ impl Bms {
         for (time, stop_obj) in &self.arrangers.stops {
             let track = time.track.0;
             let channel = Channel::Stop;
-            let message = self.stop_to_message(stop_obj.duration.clone());
+            // Find the ObjId that corresponds to this duration value in scope_defines
+            let obj_id = stop_reverse_map
+                .get(&stop_obj.duration)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -346,7 +402,12 @@ impl Bms {
         for (time, scroll_obj) in &self.arrangers.scrolling_factor_changes {
             let track = time.track.0;
             let channel = Channel::Scroll;
-            let message = self.scroll_to_message(scroll_obj.factor.clone());
+            // Find the ObjId that corresponds to this factor value in scope_defines
+            let obj_id = scroll_reverse_map
+                .get(&scroll_obj.factor)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -358,7 +419,12 @@ impl Bms {
         for (time, speed_obj) in &self.arrangers.speed_factor_changes {
             let track = time.track.0;
             let channel = Channel::Speed;
-            let message = self.speed_to_message(speed_obj.factor.clone());
+            // Find the ObjId that corresponds to this factor value in scope_defines
+            let obj_id = speed_reverse_map
+                .get(&speed_obj.factor)
+                .copied()
+                .unwrap_or(ObjId::null());
+            let message = obj_id.to_string();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -370,9 +436,9 @@ impl Bms {
         for (time, bgm_volume_obj) in &notes.bgm_volume_changes {
             let track = time.track.0;
             let channel = Channel::BgmVolume;
-            let message = self.volume_to_message(Volume {
-                relative_percent: bgm_volume_obj.volume,
-            });
+            let volume_u8 = bgm_volume_obj.volume;
+            let clamped_volume = volume_u8.clamp(0, 255);
+            let message = format!("{:02X}", clamped_volume);
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -384,9 +450,9 @@ impl Bms {
         for (time, key_volume_obj) in &notes.key_volume_changes {
             let track = time.track.0;
             let channel = Channel::KeyVolume;
-            let message = self.volume_to_message(Volume {
-                relative_percent: key_volume_obj.volume,
-            });
+            let volume_u8 = key_volume_obj.volume;
+            let clamped_volume = volume_u8.clamp(0, 255);
+            let message = format!("{:02X}", clamped_volume);
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -400,7 +466,8 @@ impl Bms {
             for (time, seek_obj) in &notes.seek_events {
                 let track = time.track.0;
                 let channel = Channel::Seek;
-                let message = self.seek_to_message(seek_obj.position.clone());
+                let seek_time_u8 = seek_obj.position.to_u8().unwrap_or(0);
+                let message = format!("{:02X}", seek_time_u8);
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -413,7 +480,19 @@ impl Bms {
         for (time, text_obj) in &notes.text_events {
             let track = time.track.0;
             let channel = Channel::Text;
-            let message = self.text_to_message(&text_obj.text);
+            let message: String = text_obj
+                .text
+                .chars()
+                .take(2)
+                .map(|c| {
+                    let byte = if c as u32 <= u8::MAX as u32 {
+                        c as u8
+                    } else {
+                        b'?'
+                    };
+                    format!("{:02X}", byte)
+                })
+                .collect();
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -425,7 +504,20 @@ impl Bms {
         for (time, judge_obj) in &notes.judge_events {
             let track = time.track.0;
             let channel = Channel::Judge;
-            let message = self.judge_to_message(judge_obj.judge_level);
+            let level_u8 = match judge_obj.judge_level {
+                JudgeLevel::Easy => 1,
+                JudgeLevel::Normal => 2,
+                JudgeLevel::Hard => 3,
+                JudgeLevel::VeryHard => 0,
+                JudgeLevel::OtherInt(n) => {
+                    if n >= 0 && n <= u8::MAX as i64 {
+                        n as u8
+                    } else {
+                        0
+                    }
+                }
+            };
+            let message = format!("{:02X}", level_u8);
             tokens.push(Token::Message {
                 track: Track(track),
                 channel,
@@ -453,7 +545,19 @@ impl Bms {
             for (time, option_obj) in &notes.option_events {
                 let track = time.track.0;
                 let channel = Channel::Option;
-                let message = self.option_to_message(&option_obj.option);
+                let message: String = option_obj
+                    .option
+                    .chars()
+                    .take(2)
+                    .map(|c| {
+                        let byte = if c as u32 <= u8::MAX as u32 {
+                            c as u8
+                        } else {
+                            b'?'
+                        };
+                        format!("{:02X}", byte)
+                    })
+                    .collect();
                 tokens.push(Token::Message {
                     track: Track(track),
                     channel,
@@ -557,120 +661,6 @@ impl Bms {
                 key: obj.key,
             },
         }
-    }
-
-    fn obj_ids_to_message(&self, obj_ids: &[ObjId], _time: &ObjTime) -> String {
-        // This is a simplified implementation
-        // In a real implementation, you would need to handle the timing properly
-        if obj_ids.is_empty() {
-            return "00".to_string(); // Return empty object ID for no objects
-        }
-
-        obj_ids
-            .iter()
-            .map(|id| {
-                // Convert the string to a hex representation
-                id.to_string()
-            })
-            .collect()
-    }
-
-    fn obj_id_to_message(&self, obj_id: ObjId, _time: &ObjTime) -> String {
-        // This is a simplified implementation
-        // In a real implementation, you would need to handle the timing properly
-        obj_id.to_string()
-    }
-
-    fn bpm_to_message(&self, bpm: Decimal) -> String {
-        // Convert BPM to hex format
-        let bpm_u8 = bpm.to_u8().unwrap_or(120);
-        format!("{:02X}", bpm_u8)
-    }
-
-    fn stop_to_message(&self, duration: Decimal) -> String {
-        // Convert stop duration to hex format
-        let duration_u8 = duration.to_u8().unwrap_or(0);
-        format!("{:02X}", duration_u8)
-    }
-
-    fn scroll_to_message(&self, factor: Decimal) -> String {
-        // Convert scroll factor to hex format
-        let factor_u8 = factor.to_u8().unwrap_or(1);
-        format!("{:02X}", factor_u8)
-    }
-
-    fn speed_to_message(&self, factor: Decimal) -> String {
-        // Convert speed factor to hex format
-        let factor_u8 = factor.to_u8().unwrap_or(1);
-        format!("{:02X}", factor_u8)
-    }
-
-    fn volume_to_message(&self, volume: Volume) -> String {
-        // Convert volume to hex format
-        let volume_u8 = volume.relative_percent;
-        // Ensure volume is within valid range (0-255)
-        let clamped_volume = volume_u8.clamp(0, 255);
-        format!("{:02X}", clamped_volume)
-    }
-
-    #[cfg(feature = "minor-command")]
-    fn seek_to_message(&self, seek_time: Decimal) -> String {
-        // Convert seek time to hex format
-        let seek_time_u8 = seek_time.to_u8().unwrap_or(0);
-        format!("{:02X}", seek_time_u8)
-    }
-
-    fn text_to_message(&self, text: &str) -> String {
-        // Convert text to hex format (simplified)
-        text.chars()
-            .take(2)
-            .map(|c| {
-                // Safely convert char to u8, handling potential overflow
-                let byte = if c as u32 <= u8::MAX as u32 {
-                    c as u8
-                } else {
-                    b'?' // Use question mark for invalid characters
-                };
-                format!("{:02X}", byte)
-            })
-            .collect()
-    }
-
-    fn judge_to_message(&self, level: JudgeLevel) -> String {
-        // Convert judge level to hex format
-        let level_u8 = match level {
-            JudgeLevel::Easy => 1,
-            JudgeLevel::Normal => 2,
-            JudgeLevel::Hard => 3,
-            JudgeLevel::VeryHard => 0,
-            JudgeLevel::OtherInt(n) => {
-                // Safely convert to u8, handling potential overflow
-                if n >= 0 && n <= u8::MAX as i64 {
-                    n as u8
-                } else {
-                    0 // Default to 0 for out-of-range values
-                }
-            }
-        };
-        format!("{:02X}", level_u8)
-    }
-
-    #[cfg(feature = "minor-command")]
-    fn option_to_message(&self, option: &str) -> String {
-        // Convert option to hex format (simplified)
-        option
-            .chars()
-            .take(2)
-            .map(|c| {
-                // Safely convert char to u8, handling potential overflow
-                let byte = if c as u32 <= u8::MAX as u32 {
-                    c as u8
-                } else {
-                    b'?' // Use question mark for invalid characters
-                };
-                format!("{:02X}", byte)
-            })
-            .collect()
     }
 }
 
