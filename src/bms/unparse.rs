@@ -102,6 +102,26 @@ impl Bms {
         BmsUnparseOutput { tokens }
     }
 
+    /// Converts header information to tokens.
+    ///
+    /// This function handles the conversion of BMS header metadata including:
+    /// - Player mode (#PLAYER)
+    /// - Genre information (#GENRE)
+    /// - Title and subtitle (#TITLE, #SUBTITLE)
+    /// - Artist and sub-artist (#ARTIST, #SUBARTIST)
+    /// - Maker information (#MAKER)
+    /// - Comments (#COMMENT)
+    /// - Contact information (#EMAIL, #URL)
+    /// - Difficulty settings (#PLAYLEVEL, #RANK, #DIFFICULTY)
+    /// - Total value (#TOTAL)
+    /// - Volume settings (#VOLWAV)
+    /// - Long note type (#LNTYPE)
+    /// - Background image (#BACKBMP)
+    /// - Stage file (#STAGEFILE)
+    /// - Banner image (#BANNER)
+    /// - Long note mode (#LNMODE)
+    /// - Preview music (#PREVIEW)
+    /// - Movie file (#MOVIE)
     fn convert_header<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let header = &self.header;
 
@@ -199,6 +219,20 @@ impl Bms {
         }
     }
 
+    /// Converts scope definitions to tokens.
+    ///
+    /// This function handles the conversion of BMS scope definitions including:
+    /// - BPM definitions (#BPMxx)
+    /// - Stop definitions (#STOPxx)
+    /// - Scroll speed definitions (#SCROLLxx)
+    /// - Speed factor definitions (#SPEEDxx)
+    /// - EXRANK definitions (#EXRANKxx)
+    /// - EXWAV definitions (#EXWAVxx) [minor-command feature]
+    /// - WAVCMD events (#WAVCMDxx) [minor-command feature]
+    /// - @BGA definitions (#@BGAxx) [minor-command feature]
+    /// - BGA definitions (#BGAxx) [minor-command feature]
+    /// - SWBGA events (#SWBGAxx) [minor-command feature]
+    /// - ARGB definitions (#ARGBxx) [minor-command feature]
     fn convert_scope_defines<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let scope_defines = &self.scope_defines;
 
@@ -279,11 +313,19 @@ impl Bms {
         }
     }
 
-    /// These are handled in [`Self::convert_notes`]:
-    /// - BPM changes
-    /// - Stops
-    /// - Scrolling factor changes
-    /// - Speed factor changes
+    /// Converts arrangers (timing data) to tokens.
+    ///
+    /// This function handles the conversion of BMS timing and arrangement data including:
+    /// - Initial BPM (#BPM)
+    /// - Section length changes (#SECLEN)
+    /// - STP events (#STP) [minor-command feature]
+    /// - Base BPM (#BASEBPM) [minor-command feature]
+    ///
+    /// Note: The following timing events are handled in [`Self::convert_notes`]:
+    /// - BPM changes (message format)
+    /// - Stops (message format)
+    /// - Scrolling factor changes (message format)
+    /// - Speed factor changes (message format)
     fn convert_arrangers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let arrangers = &self.arrangers;
 
@@ -317,6 +359,24 @@ impl Bms {
         }
     }
 
+    /// Converts notes and audio files to tokens.
+    ///
+    /// This function handles the conversion of BMS note data and audio resources including:
+    /// - WAV file definitions (#WAVxx)
+    /// - BMP file definitions (#BMPxx)
+    /// - BGM objects (message format)
+    /// - Note objects (message format)
+    /// - BPM changes (message format)
+    /// - Stops (message format)
+    /// - Scrolling factor changes (message format)
+    /// - Speed factor changes (message format)
+    /// - BGM volume changes (message format)
+    /// - Key volume changes (message format)
+    /// - Seek events (message format) [minor-command feature]
+    /// - Text events (message format)
+    /// - Judge events (message format)
+    /// - BGA keybound events (message format) [minor-command feature]
+    /// - Option events (message format) [minor-command feature]
     fn convert_notes<'a>(&'a self, tokens: &mut Vec<Token<'a>>, params: ConvertNotesParams<'a>) {
         let ConvertNotesParams {
             bpm_reverse_map,
@@ -562,6 +622,20 @@ impl Bms {
         }
     }
 
+    /// Converts graphics and visual elements to tokens.
+    ///
+    /// This function handles the conversion of BMS graphics and visual data including:
+    /// - Video file (#VIDEOFILE)
+    /// - Poor background image (#POORBMP)
+    /// - Poor BGA mode (#POORBGA)
+    /// - Character file (#CHARFILE) [minor-command feature]
+    /// - Video colors (#VIDEOCOLORS) [minor-command feature]
+    /// - Video delay (#VIDEODLY) [minor-command feature]
+    /// - Video frame rate (#VIDEOFS) [minor-command feature]
+    /// - Materials BMP files (#MATERIALSBMP) [minor-command feature]
+    /// - BGA changes (message format) [minor-command feature]
+    /// - BGA opacity changes (message format) [minor-command feature]
+    /// - BGA ARGB changes (message format) [minor-command feature]
     fn convert_graphics<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
@@ -665,6 +739,19 @@ impl Bms {
         }
     }
 
+    /// Converts miscellaneous and other BMS elements to tokens.
+    ///
+    /// This function handles the conversion of various BMS elements including:
+    /// - Options (#OPTION) [minor-command feature]
+    /// - Octave flag (#OCTFP) [minor-command feature]
+    /// - CDDA values (#CDDA) [minor-command feature]
+    /// - Seek events (#SEEKxx) [minor-command feature]
+    /// - Extended character events (#EXTCHRxx) [minor-command feature]
+    /// - Text definitions (#TEXTxx)
+    /// - Non-command lines
+    /// - Unknown command lines
+    /// - Divide property (#DIVIDEPROP) [minor-command feature]
+    /// - Materials path (#MATERIALS) [minor-command feature]
     fn convert_others<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let others = &self.others;
 
