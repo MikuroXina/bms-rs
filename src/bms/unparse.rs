@@ -16,6 +16,7 @@ use crate::bms::{
     lex::token::Token,
     parse::model::{Bms, obj::Obj},
 };
+use num::ToPrimitive;
 
 /// Output of the conversion from `Bms` to `Vec<Token>`.
 #[derive(Debug, Clone, PartialEq)]
@@ -437,18 +438,31 @@ impl Bms {
         // Convert BPM changes (message format)
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
             let track = time.track.0;
-            let channel = Channel::BpmChangeU8;
-            // Find the ObjId that corresponds to this BPM value in scope_defines
-            let obj_id = bpm_reverse_map
-                .get(&bpm_obj.bpm)
-                .copied()
-                .unwrap_or(ObjId::null());
-            let message = obj_id.to_string();
-            tokens.push(Token::Message {
-                track: Track(track),
-                channel,
-                message: message.into(),
-            });
+
+            // Try to find the ObjId that corresponds to this BPM value in scope_defines
+            let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
+
+            if let Some(obj_id) = obj_id {
+                // Use BpmChange channel when we have a valid object ID reference
+                let channel = Channel::BpmChange;
+                let message = obj_id.to_string();
+                tokens.push(Token::Message {
+                    track: Track(track),
+                    channel,
+                    message: message.into(),
+                });
+            } else {
+                // Use BpmChangeU8 channel for direct BPM values (0-255 range)
+                let channel = Channel::BpmChangeU8;
+                // Convert BPM to hex format (00-FF)
+                let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
+                let message = format!("{:02X}", bpm_u8);
+                tokens.push(Token::Message {
+                    track: Track(track),
+                    channel,
+                    message: message.into(),
+                });
+            }
         }
 
         // Convert stops (message format)
@@ -1025,5 +1039,85 @@ mod tests {
             has_section_len_2,
             "Should have section length change for track 2"
         );
+    }
+
+    #[test]
+    fn test_bms_to_tokens_with_bpm_changes() {
+        // Test BPM changes with object ID references (Channel::BpmChange)
+        let source = "#TITLE Test Song\n#BPM 120\n#BPM01 150\n#BPM02 180\n#00108:01\n#00208:02";
+        let bms_output = parse_bms(source);
+        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
+
+        assert!(!tokens.is_empty());
+
+        // Check that we have BPM definitions
+        let mut has_bpm_01 = false;
+        let mut has_bpm_02 = false;
+        let mut has_bpm_change_1 = false;
+        let mut has_bpm_change_2 = false;
+
+        for token in &tokens {
+            match token {
+                Token::BpmChange(obj_id, bpm) => {
+                    if obj_id.to_string() == "01" && bpm.to_f64().unwrap_or(0.0) == 150.0 {
+                        has_bpm_01 = true;
+                    } else if obj_id.to_string() == "02" && bpm.to_f64().unwrap_or(0.0) == 180.0 {
+                        has_bpm_02 = true;
+                    }
+                }
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => {
+                    if *channel == Channel::BpmChange {
+                        if track.0 == 1 && message == "01" {
+                            has_bpm_change_1 = true;
+                        } else if track.0 == 2 && message == "02" {
+                            has_bpm_change_2 = true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        assert!(has_bpm_01, "Should have BPM definition for 01");
+        assert!(has_bpm_02, "Should have BPM definition for 02");
+        assert!(has_bpm_change_1, "Should have BPM change for track 1");
+        assert!(has_bpm_change_2, "Should have BPM change for track 2");
+    }
+
+    #[test]
+    fn test_bms_to_tokens_with_bpm_changes_u8() {
+        // Test BPM changes with direct values (Channel::BpmChangeU8)
+        let source = "#TITLE Test Song\n#BPM 120\n#00103:78\n#00203:96";
+        let bms_output = parse_bms(source);
+        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
+
+        assert!(!tokens.is_empty());
+
+        // Check that we have BPM changes using BpmChangeU8 channel
+        let mut has_bpm_change_1 = false;
+        let mut has_bpm_change_2 = false;
+
+        for token in &tokens {
+            if let Token::Message {
+                track,
+                channel,
+                message,
+            } = token
+                && *channel == Channel::BpmChangeU8
+            {
+                if track.0 == 1 && message == "78" {
+                    has_bpm_change_1 = true;
+                } else if track.0 == 2 && message == "96" {
+                    has_bpm_change_2 = true;
+                }
+            }
+        }
+
+        assert!(has_bpm_change_1, "Should have BPM change U8 for track 1");
+        assert!(has_bpm_change_2, "Should have BPM change U8 for track 2");
     }
 }
