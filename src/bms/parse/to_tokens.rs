@@ -6,11 +6,13 @@
 
 use fraction::ToPrimitive;
 
+#[cfg(feature = "minor-command")]
+use crate::bms::command::channel::Key;
 use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PoorMode, Volume,
-        channel::{Channel, Key, NoteKind},
+        channel::{Channel, NoteKind},
         time::{ObjTime, Track},
     },
     lex::token::Token,
