@@ -132,6 +132,23 @@ impl Bms {
             tokens.push(Token::ChangeOption(*obj_id, option));
         }
 
+        // Convert WAV path root
+        if let Some(wav_path_root) = &self.notes.wav_path_root {
+            tokens.push(Token::PathWav(wav_path_root));
+        }
+
+        // Convert MIDI file
+        #[cfg(feature = "minor-command")]
+        if let Some(midi_file) = &self.notes.midi_file {
+            tokens.push(Token::MidiFile(midi_file));
+        }
+
+        // Convert materials WAV
+        #[cfg(feature = "minor-command")]
+        for material_wav in &self.notes.materials_wav {
+            tokens.push(Token::MaterialsWav(material_wav));
+        }
+
         // Convert arrangers (timing data)
         self.convert_arrangers(&mut tokens);
 
@@ -667,6 +684,11 @@ impl Bms {
                 tokens.push(Token::VideoFs(video_fs.clone()));
             }
 
+            // Convert materials BMP
+            for material_bmp in &graphics.materials_bmp {
+                tokens.push(Token::MaterialsBmp(material_bmp));
+            }
+
             // Convert BGA changes
             for (time, bga_obj) in &graphics.bga_changes {
                 let track = time.track.0;
@@ -759,6 +781,28 @@ impl Bms {
         // Convert text definitions
         for (obj_id, text) in &others.texts {
             tokens.push(Token::Text(*obj_id, text));
+        }
+
+        // Convert non-command lines
+        for non_command_line in &others.non_command_lines {
+            tokens.push(Token::NotACommand(non_command_line));
+        }
+
+        // Convert unknown command lines
+        for unknown_command_line in &others.unknown_command_lines {
+            tokens.push(Token::UnknownCommand(unknown_command_line));
+        }
+
+        // Convert divide property
+        #[cfg(feature = "minor-command")]
+        if let Some(divide_prop) = &others.divide_prop {
+            tokens.push(Token::DivideProp(divide_prop));
+        }
+
+        // Convert materials path
+        #[cfg(feature = "minor-command")]
+        if let Some(materials_path) = &others.materials_path {
+            tokens.push(Token::Materials(materials_path));
         }
     }
 
