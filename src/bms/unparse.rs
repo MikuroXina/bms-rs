@@ -5,13 +5,12 @@
 use std::collections::{BTreeMap, HashMap};
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::SwBgaEvent;
+use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PoorMode, Volume,
         channel::{Channel, NoteKind},
-        graphics::Argb,
         time::Track,
     },
     lex::token::Token,
