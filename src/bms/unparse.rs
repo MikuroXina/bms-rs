@@ -279,6 +279,11 @@ impl Bms {
         }
     }
 
+    /// These are handled in [`Self::convert_notes`]:
+    /// - BPM changes
+    /// - Stops
+    /// - Scrolling factor changes
+    /// - Speed factor changes
     fn convert_arrangers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         let arrangers = &self.arrangers;
 
@@ -292,18 +297,6 @@ impl Bms {
             // Section length changes are handled in message format
             // We'll handle them in the notes conversion section
         }
-
-        // Convert BPM changes (these are handled in message format)
-        // We'll handle them in the notes conversion section
-
-        // Convert stops (these are handled in message format)
-        // We'll handle them in the notes conversion section
-
-        // Convert scrolling factor changes (these are handled in message format)
-        // We'll handle them in the notes conversion section
-
-        // Convert speed factor changes (these are handled in message format)
-        // We'll handle them in the notes conversion section
 
         #[cfg(feature = "minor-command")]
         {
