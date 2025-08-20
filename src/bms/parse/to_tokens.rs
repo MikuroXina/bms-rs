@@ -189,7 +189,7 @@ impl Bms {
     fn convert_scope_defines<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut Vec<BmsToTokensWarning>,
+        _warnings: &mut [BmsToTokensWarning],
     ) {
         let scope_defines = &self.scope_defines;
 
@@ -273,7 +273,7 @@ impl Bms {
     fn convert_arrangers<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut Vec<BmsToTokensWarning>,
+        _warnings: &mut [BmsToTokensWarning],
     ) {
         let arrangers = &self.arrangers;
 
@@ -317,7 +317,7 @@ impl Bms {
     fn convert_notes<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut Vec<BmsToTokensWarning>,
+        _warnings: &mut [BmsToTokensWarning],
     ) {
         let notes = &self.notes;
 
@@ -505,7 +505,7 @@ impl Bms {
     fn convert_graphics<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut Vec<BmsToTokensWarning>,
+        _warnings: &mut [BmsToTokensWarning],
     ) {
         let graphics = &self.graphics;
 
@@ -544,7 +544,7 @@ impl Bms {
     fn convert_others<'a>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-        _warnings: &mut Vec<BmsToTokensWarning>,
+        _warnings: &mut [BmsToTokensWarning],
     ) {
         let others = &self.others;
 
@@ -612,7 +612,6 @@ impl Bms {
         obj_ids
             .iter()
             .map(|id| {
-                
                 // Convert the string to a hex representation
                 id.to_string()
             })
