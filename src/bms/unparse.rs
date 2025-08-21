@@ -14,10 +14,7 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     lex::token::Token,
-    parse::model::{
-        Bms,
-        obj::{BpmChangeObj, Obj},
-    },
+    parse::model::{Bms, obj::Obj},
 };
 use num::ToPrimitive;
 
@@ -408,8 +405,7 @@ impl Bms {
             tokens.push(Token::Bmp(Some(*obj_id), &bmp.file));
         }
 
-        // Convert BGM objects
-        // Group BGM objects by track
+        // Convert BGM objects - group by track and use LCM to combine compatible objects
         let mut bgms_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
         for (time, bgm_ids) in &notes.bgms {
             for &bgm_id in bgm_ids {
@@ -420,294 +416,239 @@ impl Bms {
             }
         }
 
-        Self::generate_multi_line_messages(
-            &bgms_by_track,
-            |bgm_id| bgm_id.to_string(),
-            Channel::Bgm,
-            tokens,
-        );
+        for (track_num, events) in bgms_by_track {
+            // Group events by their original message context using LCM
+            let mut message_groups: Vec<Vec<(ObjTime, ObjId)>> = Vec::new();
 
-        // Convert note objects
-        // Group note objects by track and channel
-        let mut notes_by_track_and_channel: HashMap<u64, HashMap<Channel, Vec<(ObjTime, ObjId)>>> =
-            HashMap::new();
-        for (obj_id, objs) in &notes.objs {
-            for obj in objs {
-                let track = obj.offset.track.0;
-                let channel = self.obj_to_channel(obj);
-                notes_by_track_and_channel
-                    .entry(track)
-                    .or_default()
-                    .entry(channel)
-                    .or_default()
-                    .push((obj.offset, *obj_id));
+            for (time, bgm_id) in events {
+                // Find a compatible group or create a new one
+                let mut added_to_group = false;
+
+                for group in &mut message_groups {
+                    // Check if this object can be combined with existing group
+                    // We can combine if the LCM of all denominators creates a reasonable message length
+                    let group_denominators: Vec<u64> =
+                        group.iter().map(|(t, _)| t.denominator).collect();
+                    let mut all_denominators = group_denominators.clone();
+                    all_denominators.push(time.denominator);
+
+                    let lcm_result = all_denominators.iter().copied().fold(1u64, num::integer::lcm);
+
+                    // Only combine if LCM is reasonable (≤ 16 positions = 32 characters)
+                    if lcm_result <= 16 {
+                        // Check if all objects fit without collision
+                        let mut positions: Vec<u64> = group
+                            .iter()
+                            .map(|(t, _)| t.numerator * lcm_result / t.denominator)
+                            .collect();
+                        let new_position = time.numerator * lcm_result / time.denominator;
+                        positions.push(new_position);
+
+                        // Check for collisions
+                        positions.sort();
+                        let has_collision = positions.windows(2).any(|w| w[0] == w[1]);
+
+                        if !has_collision {
+                            group.push((time, bgm_id));
+                            added_to_group = true;
+                            break;
+                        }
+                    }
+                }
+
+                if !added_to_group {
+                    message_groups.push(vec![(time, bgm_id)]);
+                }
+            }
+
+            // Generate message for each group
+            for group in message_groups {
+                let group_lcm = group
+                    .iter()
+                    .map(|(t, _)| t.denominator)
+                    .fold(1u64, num::integer::lcm);
+
+                let message_length = group_lcm * 2;
+                let mut message_chars = vec!['0'; message_length as usize];
+
+                // Place each object at its scaled position
+                for (time, bgm_id) in group {
+                    let scaled_position = time.numerator * group_lcm / time.denominator;
+                    let pos = (scaled_position * 2) as usize;
+                    if pos + 1 < message_chars.len() {
+                        let bgm_str = bgm_id.to_string();
+                        message_chars[pos] = bgm_str.chars().nth(0).unwrap_or('0');
+                        message_chars[pos + 1] = bgm_str.chars().nth(1).unwrap_or('0');
+                    }
+                }
+
+                let message = message_chars.into_iter().collect::<String>();
+                tokens.push(Token::Message {
+                    track: Track(track_num),
+                    channel: Channel::Bgm,
+                    message: message.into(),
+                });
             }
         }
 
-        for (track_num, notes_by_channel) in notes_by_track_and_channel {
-            for (channel, notes) in notes_by_channel {
-                Self::generate_multi_line_messages(
-                    &HashMap::from([(track_num, notes)]),
-                    |obj_id| obj_id.to_string(),
+        // Convert note objects - preserve duplicates by generating one message per object
+        for (obj_id, objs) in &notes.objs {
+            for obj in objs {
+                let channel = self.obj_to_channel(obj);
+                Self::generate_single_object_message(
+                    obj.offset,
+                    obj_id.to_string(),
                     channel,
                     tokens,
                 );
             }
         }
 
-        // Convert BPM changes (message format)
-        // Group BPM changes by track and channel type
-        let mut bpm_changes_by_track: HashMap<u64, Vec<(ObjTime, BpmChangeObj)>> = HashMap::new();
+        // Convert BPM changes - preserve duplicates by generating one message per object
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
-            bpm_changes_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, bpm_obj.clone()));
-        }
+            // Try to find the ObjId that corresponds to this BPM value in scope_defines
+            let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
 
-        // Separate BPM changes by channel type
-        let mut bpm_change_refs_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
-        let mut bpm_change_u8s_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
-
-        for (track_num, bpm_changes) in bpm_changes_by_track {
-            for (time, bpm_obj) in bpm_changes {
-                // Try to find the ObjId that corresponds to this BPM value in scope_defines
-                let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
-
-                if let Some(obj_id) = obj_id {
-                    // Use BpmChange channel when we have a valid object ID reference
-                    bpm_change_refs_by_track
-                        .entry(track_num)
-                        .or_default()
-                        .push((time, obj_id));
-                } else {
-                    // Use BpmChangeU8 channel for direct BPM values (0-255 range)
-                    let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
-                    bpm_change_u8s_by_track
-                        .entry(track_num)
-                        .or_default()
-                        .push((time, bpm_u8));
-                }
+            if let Some(obj_id) = obj_id {
+                // Use BpmChange channel when we have a valid object ID reference
+                Self::generate_single_object_message(
+                    *time,
+                    obj_id.to_string(),
+                    Channel::BpmChange,
+                    tokens,
+                );
+            } else {
+                // Use BpmChangeU8 channel for direct BPM values (0-255 range)
+                let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
+                Self::generate_single_object_message(
+                    *time,
+                    format!("{:02X}", bpm_u8),
+                    Channel::BpmChangeU8,
+                    tokens,
+                );
             }
         }
 
-        // Generate messages for BpmChange references
-        Self::generate_multi_line_messages(
-            &bpm_change_refs_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::BpmChange,
-            tokens,
-        );
-
-        // Generate messages for BpmChangeU8 direct values
-        Self::generate_multi_line_messages(
-            &bpm_change_u8s_by_track,
-            |bpm_u8| format!("{:02X}", bpm_u8),
-            Channel::BpmChangeU8,
-            tokens,
-        );
-
-        // Convert stops (message format)
-        let mut stops_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        // Convert stops - preserve duplicates by generating one message per object
         for (time, stop_obj) in &self.arrangers.stops {
             let obj_id = stop_reverse_map
                 .get(&stop_obj.duration)
                 .copied()
                 .unwrap_or(ObjId::null());
-            stops_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, obj_id));
+            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Stop, tokens);
         }
 
-        Self::generate_multi_line_messages(
-            &stops_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::Stop,
-            tokens,
-        );
-
-        // Convert scrolling factors (message format)
-        let mut scrolls_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        // Convert scrolling factors - preserve duplicates by generating one message per object
         for (time, scroll_obj) in &self.arrangers.scrolling_factor_changes {
             let obj_id = scroll_reverse_map
                 .get(&scroll_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            scrolls_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, obj_id));
+            Self::generate_single_object_message(
+                *time,
+                obj_id.to_string(),
+                Channel::Scroll,
+                tokens,
+            );
         }
 
-        Self::generate_multi_line_messages(
-            &scrolls_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::Scroll,
-            tokens,
-        );
-
-        // Convert speed factors (message format)
-        let mut speeds_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        // Convert speed factors - preserve duplicates by generating one message per object
         for (time, speed_obj) in &self.arrangers.speed_factor_changes {
             let obj_id = speed_reverse_map
                 .get(&speed_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            speeds_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, obj_id));
+            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Speed, tokens);
         }
 
-        Self::generate_multi_line_messages(
-            &speeds_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::Speed,
-            tokens,
-        );
-
-        // Convert BGM volume changes
-        let mut bgm_volumes_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
+        // Convert BGM volume changes - preserve duplicates by generating one message per object
         for (time, bgm_volume_obj) in &notes.bgm_volume_changes {
             let volume_u8 = bgm_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            bgm_volumes_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, clamped_volume));
+            Self::generate_single_object_message(
+                *time,
+                format!("{:02X}", clamped_volume),
+                Channel::BgmVolume,
+                tokens,
+            );
         }
 
-        Self::generate_multi_line_messages(
-            &bgm_volumes_by_track,
-            |volume| format!("{:02X}", volume),
-            Channel::BgmVolume,
-            tokens,
-        );
-
-        // Convert KEY volume changes
-        let mut key_volumes_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
+        // Convert KEY volume changes - preserve duplicates by generating one message per object
         for (time, key_volume_obj) in &notes.key_volume_changes {
             let volume_u8 = key_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            key_volumes_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, clamped_volume));
+            Self::generate_single_object_message(
+                *time,
+                format!("{:02X}", clamped_volume),
+                Channel::KeyVolume,
+                tokens,
+            );
         }
-
-        Self::generate_multi_line_messages(
-            &key_volumes_by_track,
-            |volume| format!("{:02X}", volume),
-            Channel::KeyVolume,
-            tokens,
-        );
 
         #[cfg(feature = "minor-command")]
         {
-            // Convert seek events
-            let mut seek_events_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+            // Convert seek events - preserve duplicates by generating one message per object
             for (time, seek_obj) in &notes.seek_events {
                 let obj_id = seek_reverse_map
                     .get(&seek_obj.position)
                     .copied()
                     .unwrap_or(ObjId::null());
-                seek_events_by_track
-                    .entry(time.track.0)
-                    .or_default()
-                    .push((*time, obj_id));
+                Self::generate_single_object_message(
+                    *time,
+                    obj_id.to_string(),
+                    Channel::Seek,
+                    tokens,
+                );
             }
-
-            Self::generate_multi_line_messages(
-                &seek_events_by_track,
-                |obj_id| obj_id.to_string(),
-                Channel::Seek,
-                tokens,
-            );
         }
 
-        // Convert text events
-        let mut text_events_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        // Convert text events - preserve duplicates by generating one message per object
         for (time, text_obj) in &notes.text_events {
             let obj_id = text_reverse_map
                 .get(&text_obj.text)
                 .copied()
                 .unwrap_or(ObjId::null());
-            text_events_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, obj_id));
+            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Text, tokens);
         }
 
-        Self::generate_multi_line_messages(
-            &text_events_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::Text,
-            tokens,
-        );
-
-        // Convert judge events
-        let mut judge_events_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        // Convert judge events - preserve duplicates by generating one message per object
         for (time, judge_obj) in &notes.judge_events {
             let obj_id = judge_reverse_map
                 .get(&judge_obj.judge_level)
                 .copied()
                 .unwrap_or(ObjId::null());
-            judge_events_by_track
-                .entry(time.track.0)
-                .or_default()
-                .push((*time, obj_id));
+            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Judge, tokens);
         }
-
-        Self::generate_multi_line_messages(
-            &judge_events_by_track,
-            |obj_id| obj_id.to_string(),
-            Channel::Judge,
-            tokens,
-        );
 
         #[cfg(feature = "minor-command")]
         {
-            // Convert BGA keybound events
-            let mut bga_keybound_events_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> =
-                HashMap::new();
+            // Convert BGA keybound events - preserve duplicates by generating one message per object
             for (time, keybound_obj) in &notes.bga_keybound_events {
                 let obj_id = swbga_reverse_map
                     .get(&keybound_obj.event)
                     .copied()
                     .unwrap_or(ObjId::null());
-                bga_keybound_events_by_track
-                    .entry(time.track.0)
-                    .or_default()
-                    .push((*time, obj_id));
+                Self::generate_single_object_message(
+                    *time,
+                    obj_id.to_string(),
+                    Channel::BgaKeybound,
+                    tokens,
+                );
             }
 
-            Self::generate_multi_line_messages(
-                &bga_keybound_events_by_track,
-                |obj_id| obj_id.to_string(),
-                Channel::BgaKeybound,
-                tokens,
-            );
-
-            // Convert option events
-            let mut option_events_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+            // Convert option events - preserve duplicates by generating one message per object
             for (time, option_obj) in &notes.option_events {
                 let obj_id = option_reverse_map
                     .get(&option_obj.option)
                     .copied()
                     .unwrap_or(ObjId::null());
-                option_events_by_track
-                    .entry(time.track.0)
-                    .or_default()
-                    .push((*time, obj_id));
+                Self::generate_single_object_message(
+                    *time,
+                    obj_id.to_string(),
+                    Channel::Option,
+                    tokens,
+                );
             }
-
-            Self::generate_multi_line_messages(
-                &option_events_by_track,
-                |obj_id| obj_id.to_string(),
-                Channel::Option,
-                tokens,
-            );
         }
     }
 
@@ -767,34 +708,18 @@ impl Bms {
                 tokens.push(Token::MaterialsBmp(material_bmp));
             }
 
-            // Convert BGA changes
-            let mut bga_changes_by_track_and_channel: HashMap<
-                u64,
-                HashMap<Channel, Vec<(ObjTime, ObjId)>>,
-            > = HashMap::new();
+            // Convert BGA changes - preserve duplicates by generating one message per object
             for (time, bga_obj) in &graphics.bga_changes {
-                let track = time.track.0;
                 let channel = bga_obj.layer.to_channel();
-                bga_changes_by_track_and_channel
-                    .entry(track)
-                    .or_default()
-                    .entry(channel)
-                    .or_default()
-                    .push((*time, bga_obj.id));
+                Self::generate_single_object_message(
+                    *time,
+                    bga_obj.id.to_string(),
+                    channel,
+                    tokens,
+                );
             }
 
-            for (track_num, bga_changes_by_channel) in bga_changes_by_track_and_channel {
-                for (channel, bga_changes) in bga_changes_by_channel {
-                    Self::generate_multi_line_messages(
-                        &HashMap::from([(track_num, bga_changes)]),
-                        |obj_id| obj_id.to_string(),
-                        channel,
-                        tokens,
-                    );
-                }
-            }
-
-            // Convert BGA opacity changes
+            // Convert BGA opacity changes - preserve duplicates by generating one message per object
             for (layer, opacity_changes) in &graphics.bga_opacity_changes {
                 use crate::bms::parse::model::obj::BgaLayer;
 
@@ -805,23 +730,17 @@ impl Bms {
                     BgaLayer::Poor => Channel::BgaPoorOpacity,
                 };
 
-                let mut opacity_changes_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
                 for (time, opacity_obj) in opacity_changes {
-                    opacity_changes_by_track
-                        .entry(time.track.0)
-                        .or_default()
-                        .push((*time, opacity_obj.opacity));
+                    Self::generate_single_object_message(
+                        *time,
+                        format!("{:02X}", opacity_obj.opacity),
+                        channel,
+                        tokens,
+                    );
                 }
-
-                Self::generate_multi_line_messages(
-                    &opacity_changes_by_track,
-                    |opacity| format!("{:02X}", opacity),
-                    channel,
-                    tokens,
-                );
             }
 
-            // Convert BGA ARGB changes
+            // Convert BGA ARGB changes - preserve duplicates by generating one message per object
             for (layer, argb_changes) in &graphics.bga_argb_changes {
                 use crate::bms::parse::model::obj::BgaLayer;
 
@@ -832,25 +751,19 @@ impl Bms {
                     BgaLayer::Poor => Channel::BgaPoorArgb,
                 };
 
-                let mut argb_changes_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
                 for (time, argb_obj) in argb_changes {
                     // Find the ObjId that corresponds to this ARGB value in scope_defines
                     let obj_id = argb_reverse_map
                         .get(&argb_obj.argb)
                         .copied()
                         .unwrap_or(ObjId::null());
-                    argb_changes_by_track
-                        .entry(time.track.0)
-                        .or_default()
-                        .push((*time, obj_id));
+                    Self::generate_single_object_message(
+                        *time,
+                        obj_id.to_string(),
+                        channel,
+                        tokens,
+                    );
                 }
-
-                Self::generate_multi_line_messages(
-                    &argb_changes_by_track,
-                    |obj_id| obj_id.to_string(),
-                    channel,
-                    tokens,
-                );
             }
         }
     }
@@ -924,73 +837,32 @@ impl Bms {
         }
     }
 
-    // Helper methods for converting various data types to message format
-
-    /// Generate multiple message strings for events grouped by track and measure
-    fn generate_multi_line_messages<T: Clone>(
-        events_by_track: &HashMap<u64, Vec<(ObjTime, T)>>,
-        value_to_string: impl Fn(&T) -> String,
+    /// Generate a single message for one object at a specific time
+    fn generate_single_object_message(
+        time: ObjTime,
+        value_str: String,
         channel: Channel,
         tokens: &mut Vec<Token<'_>>,
     ) {
-        for (track_num, events) in events_by_track {
-            // Group events by measure
-            let mut events_by_measure: HashMap<u64, Vec<(ObjTime, T)>> = HashMap::new();
-            for (time, value) in events {
-                let measure_num = time.track.0; // Use track number as measure number
-                events_by_measure
-                    .entry(measure_num)
-                    .or_default()
-                    .push((*time, value.clone()));
-            }
+        // For BGM and other objects, we need to recreate the original message format
+        // The message length should match the original message that was parsed
+        let message_length = time.denominator * 2;
+        let mut message_chars = vec!['0'; message_length as usize];
 
-            for (_measure_num, measure_events) in events_by_measure {
-                // Determine message length based on the denominator
-                // If denominator <= 8, use denominator * 2 characters
-                // Otherwise, use 16 characters (8 positions * 2 chars each)
-                let message_length = if measure_events.iter().any(|(time, _)| time.denominator <= 8)
-                {
-                    measure_events
-                        .iter()
-                        .map(|(time, _)| time.denominator)
-                        .max()
-                        .unwrap_or(8)
-                        * 2
-                } else {
-                    16
-                };
-
-                let mut message_chars = vec!['0'; message_length as usize];
-
-                for (time, value) in measure_events {
-                    // Calculate position within the measure
-                    let position_in_measure = time.numerator; // Use numerator directly as position within measure
-
-                    // Scale to the number of positions in the message
-                    let num_positions = message_length / 2;
-                    let position = if time.denominator <= num_positions {
-                        position_in_measure as usize
-                    } else {
-                        (position_in_measure * num_positions / time.denominator) as usize
-                    };
-
-                    // Place the value at the calculated position
-                    let value_str = value_to_string(&value);
-                    let pos = position * 2;
-                    if pos + 1 < message_chars.len() {
-                        message_chars[pos] = value_str.chars().nth(0).unwrap_or('0');
-                        message_chars[pos + 1] = value_str.chars().nth(1).unwrap_or('0');
-                    }
-                }
-
-                let message = message_chars.into_iter().collect::<String>();
-                tokens.push(Token::Message {
-                    track: Track(*track_num),
-                    channel,
-                    message: message.into(),
-                });
-            }
+        // Place the object at its position
+        let position = time.numerator as usize;
+        let pos = position * 2;
+        if pos + 1 < message_chars.len() {
+            message_chars[pos] = value_str.chars().nth(0).unwrap_or('0');
+            message_chars[pos + 1] = value_str.chars().nth(1).unwrap_or('0');
         }
+
+        let message = message_chars.into_iter().collect::<String>();
+        tokens.push(Token::Message {
+            track: time.track,
+            channel,
+            message: message.into(),
+        });
     }
 
     fn obj_to_channel(&self, obj: &Obj) -> Channel {
@@ -1120,6 +992,11 @@ impl<'a> ConvertNotesParams<'a> {
     }
 }
 
+
+
+
+
+
 #[cfg(test)]
 mod tests {
     use crate::bms::prelude::{AlwaysUseNewer, SourcePosMixinExt};
@@ -1201,6 +1078,59 @@ mod tests {
             tokens: regenerated_tokens,
         } = bms.unparse();
 
+        assert_eq!(
+            regenerated_tokens
+                .iter()
+                .filter(|t| matches!(
+                    t,
+                    Token::Message {
+                        channel: Channel::Bgm,
+                        track: Track(0),
+                        ..
+                    }
+                ))
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Token::Message {
+                    track: Track(0),
+                    channel: Channel::Bgm,
+                    message: "0101".into(),
+                },
+                Token::Message {
+                    track: Track(0),
+                    channel: Channel::Bgm,
+                    message: "0101".into(),
+                },
+            ]
+        );
+        assert_eq!(
+            regenerated_tokens
+                .iter()
+                .filter(|t| matches!(
+                    t,
+                    Token::Message {
+                        channel: Channel::Bgm,
+                        track: Track(1),
+                        ..
+                    }
+                ))
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![
+                Token::Message {
+                    track: Track(1),
+                    channel: Channel::Bgm,
+                    message: "0202".into(),
+                },
+                Token::Message {
+                    track: Track(1),
+                    channel: Channel::Bgm,
+                    message: "0202".into(),
+                },
+            ]
+        );
+
         // Compare using HashSet
         let original_set: HashSet<_> = original_tokens.iter().collect();
         let regenerated_set: HashSet<_> = regenerated_tokens.iter().collect();
@@ -1212,6 +1142,148 @@ mod tests {
             original_set.iter().collect::<Vec<_>>(),
             regenerated_tokens.iter().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn test_0101_message_roundtrip() {
+        // Test roundtrip of "0101" message
+        let original_tokens = vec![
+            Token::Title("Test Song"),
+            Token::Bpm(Decimal::from(120)),
+            Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+            Token::Message {
+                track: Track(0),
+                channel: Channel::Bgm,
+                message: "0101".into(),
+            },
+            Token::Message {
+                track: Track(0),
+                channel: Channel::Bgm,
+                message: "0101".into(),
+            },
+        ];
+
+        let token_stream = TokenStream {
+            tokens: original_tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| t.clone().into_wrapper_manual(i, i))
+                .collect::<Vec<_>>(),
+        };
+
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(&token_stream, AlwaysUseNewer);
+        assert_eq!(parse_warnings, vec![]);
+
+        // Verify that the message was parsed correctly
+        let bgm_events: Vec<_> = bms.notes.bgms.iter().collect();
+        println!("BGM events: {:?}", bgm_events);
+
+        // Should have 2 events with duplicated objects
+        assert_eq!(bgm_events.len(), 2);
+
+        // Convert BMS back to tokens
+        let BmsUnparseOutput {
+            tokens: regenerated_tokens,
+        } = bms.unparse();
+
+        // Find BGM messages
+        let bgm_messages: Vec<_> = regenerated_tokens
+            .iter()
+            .filter_map(|token| {
+                if let Token::Message {
+                    track,
+                    channel,
+                    message,
+                } = token
+                {
+                    if *channel == Channel::Bgm {
+                        Some((track.0, message.as_ref()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        println!("Regenerated BGM messages: {:?}", bgm_messages);
+
+        // Should have 2 messages with "0101"
+        assert_eq!(bgm_messages.len(), 2);
+        for (track, message) in bgm_messages {
+            assert_eq!(track, 0);
+            assert_eq!(message, "0101");
+        }
+    }
+
+    #[test]
+    fn test_0101_message_parsing() {
+        // Test parsing of "0101" message
+        let original_tokens = vec![
+            Token::Title("Test Song"),
+            Token::Bpm(Decimal::from(120)),
+            Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+            Token::Message {
+                track: Track(0),
+                channel: Channel::Bgm,
+                message: "0101".into(), // 4 characters = 2 positions
+            },
+        ];
+
+        let token_stream = TokenStream {
+            tokens: original_tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| t.clone().into_wrapper_manual(i, i))
+                .collect::<Vec<_>>(),
+        };
+
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(&token_stream, AlwaysUseNewer);
+        assert_eq!(parse_warnings, vec![]);
+
+        // Verify that the message was parsed correctly
+        let bgm_events: Vec<_> = bms.notes.bgms.iter().collect();
+        println!("BGM events: {:?}", bgm_events);
+
+        // Should have 2 events: ObjTime(0,0,2) and ObjTime(0,1,2)
+        assert_eq!(bgm_events.len(), 2);
+
+        let (time1, ids1) = bgm_events[0];
+        let (time2, ids2) = bgm_events[1];
+
+        println!(
+            "Time1: track={}, numerator={}, denominator={}",
+            time1.track.0, time1.numerator, time1.denominator
+        );
+        println!(
+            "Time2: track={}, numerator={}, denominator={}",
+            time2.track.0, time2.numerator, time2.denominator
+        );
+
+        // Due to fraction reduction, denominators may be different
+        // First object: ObjTime(0,0,2) -> ObjTime(0,0,1) after reduction
+        // Second object: ObjTime(0,1,2) -> ObjTime(0,1,2) after reduction
+        assert_eq!(time1.denominator, 1);
+        assert_eq!(time2.denominator, 2);
+
+        // One should have numerator = 0, the other numerator = 1
+        assert!(
+            (time1.numerator == 0 && time2.numerator == 1)
+                || (time1.numerator == 1 && time2.numerator == 0)
+        );
+
+        // Both should have the same ObjId "01"
+        assert_eq!(ids1.len(), 1);
+        assert_eq!(ids2.len(), 1);
+        assert_eq!(ids1[0], ObjId::try_from("01").unwrap());
+        assert_eq!(ids2[0], ObjId::try_from("01").unwrap());
     }
 
     #[test]
@@ -1262,7 +1334,12 @@ mod tests {
         let bgm_messages: Vec<_> = regenerated_tokens
             .iter()
             .filter_map(|token| {
-                if let Token::Message { track, channel, message } = token {
+                if let Token::Message {
+                    track,
+                    channel,
+                    message,
+                } = token
+                {
                     if *channel == Channel::Bgm {
                         Some((track.0, message.as_ref()))
                     } else {
