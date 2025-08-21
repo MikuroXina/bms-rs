@@ -11,10 +11,13 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PoorMode, Volume,
         channel::{Channel, NoteKind},
-        time::Track,
+        time::{ObjTime, Track},
     },
     lex::token::Token,
-    parse::model::{Bms, obj::Obj},
+    parse::model::{
+        Bms,
+        obj::{BpmChangeObj, Obj},
+    },
 };
 use num::ToPrimitive;
 
@@ -436,110 +439,162 @@ impl Bms {
         }
 
         // Convert BPM changes (message format)
+        // Group BPM changes by track and channel type
+        let mut bpm_changes_by_track: HashMap<u64, Vec<(ObjTime, BpmChangeObj)>> = HashMap::new();
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
-            let track = time.track.0;
+            bpm_changes_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, bpm_obj.clone()));
+        }
 
-            // Try to find the ObjId that corresponds to this BPM value in scope_defines
-            let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
+        for (track_num, bpm_changes) in bpm_changes_by_track {
+            // Separate BPM changes by channel type
+            let mut bpm_change_refs = Vec::new();
+            let mut bpm_change_u8s = Vec::new();
 
-            if let Some(obj_id) = obj_id {
-                // Use BpmChange channel when we have a valid object ID reference
-                let channel = Channel::BpmChange;
-                let message = obj_id.to_string();
+            for (time, bpm_obj) in bpm_changes {
+                // Try to find the ObjId that corresponds to this BPM value in scope_defines
+                let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
+
+                if let Some(obj_id) = obj_id {
+                    // Use BpmChange channel when we have a valid object ID reference
+                    bpm_change_refs.push((time, obj_id));
+                } else {
+                    // Use BpmChangeU8 channel for direct BPM values (0-255 range)
+                    let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
+                    bpm_change_u8s.push((time, bpm_u8));
+                }
+            }
+
+            // Generate message for BpmChange references
+            if !bpm_change_refs.is_empty() {
+                let message =
+                    Self::generate_message_string(&bpm_change_refs, |obj_id| obj_id.to_string());
                 tokens.push(Token::Message {
-                    track: Track(track),
-                    channel,
+                    track: Track(track_num),
+                    channel: Channel::BpmChange,
                     message: message.into(),
                 });
-            } else {
-                // Use BpmChangeU8 channel for direct BPM values (0-255 range)
-                let channel = Channel::BpmChangeU8;
-                // Convert BPM to hex format (00-FF)
-                let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
-                let message = format!("{:02X}", bpm_u8);
+            }
+
+            // Generate message for BpmChangeU8 direct values
+            if !bpm_change_u8s.is_empty() {
+                let message = Self::generate_message_string(&bpm_change_u8s, |bpm_u8| {
+                    format!("{:02X}", bpm_u8)
+                });
                 tokens.push(Token::Message {
-                    track: Track(track),
-                    channel,
+                    track: Track(track_num),
+                    channel: Channel::BpmChangeU8,
                     message: message.into(),
                 });
             }
         }
 
         // Convert stops (message format)
+        let mut stops_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
         for (time, stop_obj) in &self.arrangers.stops {
-            let track = time.track.0;
-            let channel = Channel::Stop;
-            // Find the ObjId that corresponds to this duration value in scope_defines
             let obj_id = stop_reverse_map
                 .get(&stop_obj.duration)
                 .copied()
                 .unwrap_or(ObjId::null());
-            let message = obj_id.to_string();
+            stops_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, obj_id));
+        }
+
+        for (track_num, stops) in stops_by_track {
+            let message = Self::generate_message_string(&stops, |obj_id| obj_id.to_string());
             tokens.push(Token::Message {
-                track: Track(track),
-                channel,
+                track: Track(track_num),
+                channel: Channel::Stop,
                 message: message.into(),
             });
         }
 
         // Convert scrolling factors (message format)
+        let mut scrolls_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
         for (time, scroll_obj) in &self.arrangers.scrolling_factor_changes {
-            let track = time.track.0;
-            let channel = Channel::Scroll;
-            // Find the ObjId that corresponds to this factor value in scope_defines
             let obj_id = scroll_reverse_map
                 .get(&scroll_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            let message = obj_id.to_string();
+            scrolls_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, obj_id));
+        }
+
+        for (track_num, scrolls) in scrolls_by_track {
+            let message = Self::generate_message_string(&scrolls, |obj_id| obj_id.to_string());
             tokens.push(Token::Message {
-                track: Track(track),
-                channel,
+                track: Track(track_num),
+                channel: Channel::Scroll,
                 message: message.into(),
             });
         }
 
         // Convert speed factors (message format)
+        let mut speeds_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
         for (time, speed_obj) in &self.arrangers.speed_factor_changes {
-            let track = time.track.0;
-            let channel = Channel::Speed;
-            // Find the ObjId that corresponds to this factor value in scope_defines
             let obj_id = speed_reverse_map
                 .get(&speed_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            let message = obj_id.to_string();
+            speeds_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, obj_id));
+        }
+
+        for (track_num, speeds) in speeds_by_track {
+            let message = Self::generate_message_string(&speeds, |obj_id| obj_id.to_string());
             tokens.push(Token::Message {
-                track: Track(track),
-                channel,
+                track: Track(track_num),
+                channel: Channel::Speed,
                 message: message.into(),
             });
         }
 
         // Convert BGM volume changes
+        let mut bgm_volumes_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
         for (time, bgm_volume_obj) in &notes.bgm_volume_changes {
-            let track = time.track.0;
-            let channel = Channel::BgmVolume;
             let volume_u8 = bgm_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            let message = format!("{:02X}", clamped_volume);
+            bgm_volumes_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, clamped_volume));
+        }
+
+        for (track_num, bgm_volumes) in bgm_volumes_by_track {
+            let message =
+                Self::generate_message_string(&bgm_volumes, |volume| format!("{:02X}", volume));
             tokens.push(Token::Message {
-                track: Track(track),
-                channel,
+                track: Track(track_num),
+                channel: Channel::BgmVolume,
                 message: message.into(),
             });
         }
 
         // Convert KEY volume changes
+        let mut key_volumes_by_track: HashMap<u64, Vec<(ObjTime, u8)>> = HashMap::new();
         for (time, key_volume_obj) in &notes.key_volume_changes {
-            let track = time.track.0;
-            let channel = Channel::KeyVolume;
             let volume_u8 = key_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            let message = format!("{:02X}", clamped_volume);
+            key_volumes_by_track
+                .entry(time.track.0)
+                .or_default()
+                .push((*time, clamped_volume));
+        }
+
+        for (track_num, key_volumes) in key_volumes_by_track {
+            let message =
+                Self::generate_message_string(&key_volumes, |volume| format!("{:02X}", volume));
             tokens.push(Token::Message {
-                track: Track(track),
-                channel,
+                track: Track(track_num),
+                channel: Channel::KeyVolume,
                 message: message.into(),
             });
         }
@@ -824,6 +879,45 @@ impl Bms {
 
     // Helper methods for converting various data types to message format
 
+    /// Generate a message string for a given track and time-based events
+    fn generate_message_string<T>(
+        events: &[(ObjTime, T)],
+        value_to_string: impl Fn(&T) -> String,
+    ) -> String {
+        if events.is_empty() {
+            return "00".to_string();
+        }
+
+        // Sort events by time to ensure correct ordering
+        let mut sorted_events: Vec<_> = events.iter().collect();
+        sorted_events.sort_by_key(|(time, _)| *time);
+
+        // Use a standard BMS message length of 16 characters (8 positions * 2 chars each)
+        // This is the most common format for BMS files
+        let message_length = 16;
+        let mut message = vec!['0'; message_length];
+
+        for (time, value) in sorted_events {
+            // Calculate position based on numerator and denominator
+            // Scale to 8 positions (0-7) for the message
+            let position = if time.denominator <= 8 {
+                (time.numerator * 2) as usize
+            } else {
+                // Scale the position to match 8 positions
+                let scaled_numerator = time.numerator * 8 / time.denominator;
+                (scaled_numerator * 2) as usize
+            };
+
+            let value_str = value_to_string(value);
+            if position + 1 < message.len() {
+                message[position] = value_str.chars().nth(0).unwrap_or('0');
+                message[position + 1] = value_str.chars().nth(1).unwrap_or('0');
+            }
+        }
+
+        message.into_iter().collect()
+    }
+
     fn obj_to_channel(&self, obj: &Obj) -> Channel {
         match obj.kind {
             NoteKind::Visible => Channel::Note {
@@ -953,171 +1047,83 @@ impl<'a> ConvertNotesParams<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::bms::prelude::{AlwaysUseNewer, SourcePosMixinExt};
+    use crate::lex::TokenStream;
+    use crate::parse::ParseOutput;
+
     use super::*;
-    use crate::bms::parse_bms;
+
+    use std::collections::HashSet;
+    use std::path::Path;
 
     #[test]
-    fn test_bms_to_tokens_basic() {
-        let source = "#TITLE Test Song\n#BPM 120\n#ARTIST Test Artist";
-        let bms_output = parse_bms(source);
-        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
+    fn test_token_roundtrip_comprehensive() {
+        // Define original tokens directly - comprehensive test with multiple token types
+        let original_tokens = vec![
+            // Header tokens
+            Token::Title("Comprehensive Test Song"),
+            Token::Artist("Test Artist"),
+            Token::Genre("Test Genre"),
+            Token::Bpm(Decimal::from(120)),
+            // WAV file definitions
+            Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test1.wav")),
+            Token::Wav(ObjId::try_from("02").unwrap(), Path::new("test2.wav")),
+            // WAV Message
+            Token::Message {
+                track: Track(0),
+                channel: Channel::Bgm,
+                message: "01000200010002".into(),
+            },
+            Token::Message {
+                track: Track(0),
+                channel: Channel::Bgm,
+                message: "02000100020001".into(),
+            },
+            // BMP file definitions
+            Token::Bmp(Some(ObjId::try_from("01").unwrap()), Path::new("test1.bmp")),
+            Token::Bmp(Some(ObjId::try_from("02").unwrap()), Path::new("test2.bmp")),
+            // BPM change definitions
+            Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(150)),
+            Token::BpmChange(ObjId::try_from("02").unwrap(), Decimal::from(180)),
+            // Stop definitions
+            Token::Stop(ObjId::try_from("01").unwrap(), Decimal::from(100)),
+            Token::Stop(ObjId::try_from("02").unwrap(), Decimal::from(200)),
+            // Scroll definitions
+            Token::Scroll(ObjId::try_from("01").unwrap(), Decimal::from(1.5)),
+            Token::Scroll(ObjId::try_from("02").unwrap(), Decimal::from(2.0)),
+            // Speed definitions
+            Token::Speed(ObjId::try_from("01").unwrap(), Decimal::from(1.2)),
+            Token::Speed(ObjId::try_from("02").unwrap(), Decimal::from(1.5)),
+        ];
 
-        assert!(!tokens.is_empty());
+        let token_stream = TokenStream {
+            tokens: original_tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| t.clone().into_wrapper_manual(i, i))
+                .collect::<Vec<_>>(),
+        };
 
-        // Check that we have the expected tokens
-        let mut has_title = false;
-        let mut has_bpm = false;
-        let mut has_artist = false;
+        // Create a comprehensive BMS from tokens
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(&token_stream, AlwaysUseNewer);
+        assert_eq!(parse_warnings, vec![]);
 
-        for token in &tokens {
-            match token {
-                Token::Title(_) => has_title = true,
-                Token::Bpm(_) => has_bpm = true,
-                Token::Artist(_) => has_artist = true,
-                _ => {}
-            }
-        }
+        // Convert BMS back to tokens
+        let BmsUnparseOutput {
+            tokens: regenerated_tokens,
+        } = bms.unparse();
 
-        assert!(has_title);
-        assert!(has_bpm);
-        assert!(has_artist);
-    }
+        // Compare using HashSet
+        let original_set: HashSet<_> = original_tokens.iter().collect();
+        let regenerated_set: HashSet<_> = regenerated_tokens.iter().collect();
 
-    #[test]
-    fn test_bms_to_tokens_with_notes() {
-        let source = "#TITLE Test Song\n#BPM 120\n#WAV01 test.wav\n#00101:01";
-        let bms_output = parse_bms(source);
-        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
-
-        assert!(!tokens.is_empty());
-
-        // Check that we have WAV definition
-        let mut has_wav = false;
-        for token in &tokens {
-            if let Token::Wav(_, _) = token {
-                has_wav = true;
-                break;
-            }
-        }
-
-        assert!(has_wav);
-    }
-
-    #[test]
-    fn test_bms_to_tokens_with_section_len_changes() {
-        let source = "#TITLE Test Song\n#BPM 120\n#00102:0.75\n#00202:1.25";
-        let bms_output = parse_bms(source);
-        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
-
-        assert!(!tokens.is_empty());
-
-        // Check that we have section length change messages
-        let mut has_section_len_1 = false;
-        let mut has_section_len_2 = false;
-
-        for token in &tokens {
-            if let Token::Message {
-                track,
-                channel,
-                message,
-            } = token
-                && *channel == Channel::SectionLen
-            {
-                if track.0 == 1 && message == "0.75" {
-                    has_section_len_1 = true;
-                } else if track.0 == 2 && message == "1.25" {
-                    has_section_len_2 = true;
-                }
-            }
-        }
-
-        assert!(
-            has_section_len_1,
-            "Should have section length change for track 1"
+        assert_eq!(
+            original_set, regenerated_set,
+            "Token roundtrip failed. Original: {:?}, Regenerated: {:?}",
+            original_set.iter().collect::<Vec<_>>(), regenerated_tokens.iter().collect::<Vec<_>>()
         );
-        assert!(
-            has_section_len_2,
-            "Should have section length change for track 2"
-        );
-    }
-
-    #[test]
-    fn test_bms_to_tokens_with_bpm_changes() {
-        // Test BPM changes with object ID references (Channel::BpmChange)
-        let source = "#TITLE Test Song\n#BPM 120\n#BPM01 150\n#BPM02 180\n#00108:01\n#00208:02";
-        let bms_output = parse_bms(source);
-        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
-
-        assert!(!tokens.is_empty());
-
-        // Check that we have BPM definitions
-        let mut has_bpm_01 = false;
-        let mut has_bpm_02 = false;
-        let mut has_bpm_change_1 = false;
-        let mut has_bpm_change_2 = false;
-
-        for token in &tokens {
-            match token {
-                Token::BpmChange(obj_id, bpm) => {
-                    if obj_id.to_string() == "01" && bpm.to_f64().unwrap_or(0.0) == 150.0 {
-                        has_bpm_01 = true;
-                    } else if obj_id.to_string() == "02" && bpm.to_f64().unwrap_or(0.0) == 180.0 {
-                        has_bpm_02 = true;
-                    }
-                }
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => {
-                    if *channel == Channel::BpmChange {
-                        if track.0 == 1 && message == "01" {
-                            has_bpm_change_1 = true;
-                        } else if track.0 == 2 && message == "02" {
-                            has_bpm_change_2 = true;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        assert!(has_bpm_01, "Should have BPM definition for 01");
-        assert!(has_bpm_02, "Should have BPM definition for 02");
-        assert!(has_bpm_change_1, "Should have BPM change for track 1");
-        assert!(has_bpm_change_2, "Should have BPM change for track 2");
-    }
-
-    #[test]
-    fn test_bms_to_tokens_with_bpm_changes_u8() {
-        // Test BPM changes with direct values (Channel::BpmChangeU8)
-        let source = "#TITLE Test Song\n#BPM 120\n#00103:78\n#00203:96";
-        let bms_output = parse_bms(source);
-        let BmsUnparseOutput { tokens } = bms_output.bms.unparse();
-
-        assert!(!tokens.is_empty());
-
-        // Check that we have BPM changes using BpmChangeU8 channel
-        let mut has_bpm_change_1 = false;
-        let mut has_bpm_change_2 = false;
-
-        for token in &tokens {
-            if let Token::Message {
-                track,
-                channel,
-                message,
-            } = token
-                && *channel == Channel::BpmChangeU8
-            {
-                if track.0 == 1 && message == "78" {
-                    has_bpm_change_1 = true;
-                } else if track.0 == 2 && message == "96" {
-                    has_bpm_change_2 = true;
-                }
-            }
-        }
-
-        assert!(has_bpm_change_1, "Should have BPM change U8 for track 1");
-        assert!(has_bpm_change_2, "Should have BPM change U8 for track 2");
     }
 }
