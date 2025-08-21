@@ -406,249 +406,176 @@ impl Bms {
         }
 
         // Convert BGM objects - group by track and use LCM to combine compatible objects
-        let mut bgms_by_track: HashMap<u64, Vec<(ObjTime, ObjId)>> = HashMap::new();
+        let mut bgms_by_track: HashMap<u64, Vec<(ObjTime, String)>> = HashMap::new();
         for (time, bgm_ids) in &notes.bgms {
             for &bgm_id in bgm_ids {
                 bgms_by_track
                     .entry(time.track.0)
                     .or_default()
-                    .push((*time, bgm_id));
+                    .push((*time, bgm_id.to_string()));
             }
         }
 
+        // Process BGM events using LCM-based grouping
         for (track_num, events) in bgms_by_track {
-            // Group events by their original message context using LCM
-            let mut message_groups: Vec<Vec<(ObjTime, ObjId)>> = Vec::new();
-
-            for (time, bgm_id) in events {
-                // Find a compatible group or create a new one
-                let mut added_to_group = false;
-
-                for group in &mut message_groups {
-                    // Check if this object can be combined with existing group
-                    // We can combine if the LCM of all denominators creates a reasonable message length
-                    let group_denominators: Vec<u64> =
-                        group.iter().map(|(t, _)| t.denominator).collect();
-                    let mut all_denominators = group_denominators.clone();
-                    all_denominators.push(time.denominator);
-
-                    let lcm_result = all_denominators.iter().copied().fold(1u64, num::integer::lcm);
-
-                    // Only combine if LCM is reasonable (≤ 16 positions = 32 characters)
-                    if lcm_result <= 16 {
-                        // Check if all objects fit without collision
-                        let mut positions: Vec<u64> = group
-                            .iter()
-                            .map(|(t, _)| t.numerator * lcm_result / t.denominator)
-                            .collect();
-                        let new_position = time.numerator * lcm_result / time.denominator;
-                        positions.push(new_position);
-
-                        // Check for collisions
-                        positions.sort();
-                        let has_collision = positions.windows(2).any(|w| w[0] == w[1]);
-
-                        if !has_collision {
-                            group.push((time, bgm_id));
-                            added_to_group = true;
-                            break;
-                        }
-                    }
-                }
-
-                if !added_to_group {
-                    message_groups.push(vec![(time, bgm_id)]);
-                }
-            }
-
-            // Generate message for each group
-            for group in message_groups {
-                let group_lcm = group
-                    .iter()
-                    .map(|(t, _)| t.denominator)
-                    .fold(1u64, num::integer::lcm);
-
-                let message_length = group_lcm * 2;
-                let mut message_chars = vec!['0'; message_length as usize];
-
-                // Place each object at its scaled position
-                for (time, bgm_id) in group {
-                    let scaled_position = time.numerator * group_lcm / time.denominator;
-                    let pos = (scaled_position * 2) as usize;
-                    if pos + 1 < message_chars.len() {
-                        let bgm_str = bgm_id.to_string();
-                        message_chars[pos] = bgm_str.chars().nth(0).unwrap_or('0');
-                        message_chars[pos + 1] = bgm_str.chars().nth(1).unwrap_or('0');
-                    }
-                }
-
-                let message = message_chars.into_iter().collect::<String>();
-                tokens.push(Token::Message {
-                    track: Track(track_num),
-                    channel: Channel::Bgm,
-                    message: message.into(),
-                });
-            }
+            Self::process_events_with_lcm(events, Channel::Bgm, Track(track_num), tokens);
         }
 
-        // Convert note objects - preserve duplicates by generating one message per object
+        // Convert note objects - group by track and channel, use LCM to combine compatible objects
+        let mut notes_by_track_channel: HashMap<(u64, Channel), Vec<(ObjTime, String)>> =
+            HashMap::new();
         for (obj_id, objs) in &notes.objs {
             for obj in objs {
                 let channel = self.obj_to_channel(obj);
-                Self::generate_single_object_message(
-                    obj.offset,
-                    obj_id.to_string(),
-                    channel,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((obj.offset.track.0, channel))
+                    .or_default()
+                    .push((obj.offset, obj_id.to_string()));
             }
         }
 
-        // Convert BPM changes - preserve duplicates by generating one message per object
+        // Convert BPM changes - group by track and channel
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
-            // Try to find the ObjId that corresponds to this BPM value in scope_defines
             let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
-
             if let Some(obj_id) = obj_id {
-                // Use BpmChange channel when we have a valid object ID reference
-                Self::generate_single_object_message(
-                    *time,
-                    obj_id.to_string(),
-                    Channel::BpmChange,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((time.track.0, Channel::BpmChange))
+                    .or_default()
+                    .push((*time, obj_id.to_string()));
             } else {
-                // Use BpmChangeU8 channel for direct BPM values (0-255 range)
                 let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
-                Self::generate_single_object_message(
-                    *time,
-                    format!("{:02X}", bpm_u8),
-                    Channel::BpmChangeU8,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((time.track.0, Channel::BpmChangeU8))
+                    .or_default()
+                    .push((*time, format!("{:02X}", bpm_u8)));
             }
         }
 
-        // Convert stops - preserve duplicates by generating one message per object
+        // Convert stops - group by track and channel
         for (time, stop_obj) in &self.arrangers.stops {
             let obj_id = stop_reverse_map
                 .get(&stop_obj.duration)
                 .copied()
                 .unwrap_or(ObjId::null());
-            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Stop, tokens);
+            notes_by_track_channel
+                .entry((time.track.0, Channel::Stop))
+                .or_default()
+                .push((*time, obj_id.to_string()));
         }
 
-        // Convert scrolling factors - preserve duplicates by generating one message per object
+        // Convert scrolling factors - group by track and channel
         for (time, scroll_obj) in &self.arrangers.scrolling_factor_changes {
             let obj_id = scroll_reverse_map
                 .get(&scroll_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            Self::generate_single_object_message(
-                *time,
-                obj_id.to_string(),
-                Channel::Scroll,
-                tokens,
-            );
+            notes_by_track_channel
+                .entry((time.track.0, Channel::Scroll))
+                .or_default()
+                .push((*time, obj_id.to_string()));
         }
 
-        // Convert speed factors - preserve duplicates by generating one message per object
+        // Convert speed factors - group by track and channel
         for (time, speed_obj) in &self.arrangers.speed_factor_changes {
             let obj_id = speed_reverse_map
                 .get(&speed_obj.factor)
                 .copied()
                 .unwrap_or(ObjId::null());
-            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Speed, tokens);
+            notes_by_track_channel
+                .entry((time.track.0, Channel::Speed))
+                .or_default()
+                .push((*time, obj_id.to_string()));
         }
 
-        // Convert BGM volume changes - preserve duplicates by generating one message per object
+        // Convert BGM volume changes - group by track and channel
         for (time, bgm_volume_obj) in &notes.bgm_volume_changes {
             let volume_u8 = bgm_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            Self::generate_single_object_message(
-                *time,
-                format!("{:02X}", clamped_volume),
-                Channel::BgmVolume,
-                tokens,
-            );
+            notes_by_track_channel
+                .entry((time.track.0, Channel::BgmVolume))
+                .or_default()
+                .push((*time, format!("{:02X}", clamped_volume)));
         }
 
-        // Convert KEY volume changes - preserve duplicates by generating one message per object
+        // Convert KEY volume changes - group by track and channel
         for (time, key_volume_obj) in &notes.key_volume_changes {
             let volume_u8 = key_volume_obj.volume;
             let clamped_volume = volume_u8.clamp(0, 255);
-            Self::generate_single_object_message(
-                *time,
-                format!("{:02X}", clamped_volume),
-                Channel::KeyVolume,
-                tokens,
-            );
+            notes_by_track_channel
+                .entry((time.track.0, Channel::KeyVolume))
+                .or_default()
+                .push((*time, format!("{:02X}", clamped_volume)));
         }
 
         #[cfg(feature = "minor-command")]
         {
-            // Convert seek events - preserve duplicates by generating one message per object
+            // Convert seek events - group by track and channel
             for (time, seek_obj) in &notes.seek_events {
                 let obj_id = seek_reverse_map
                     .get(&seek_obj.position)
                     .copied()
                     .unwrap_or(ObjId::null());
-                Self::generate_single_object_message(
-                    *time,
-                    obj_id.to_string(),
-                    Channel::Seek,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((time.track.0, Channel::Seek))
+                    .or_default()
+                    .push((*time, obj_id.to_string()));
             }
         }
 
-        // Convert text events - preserve duplicates by generating one message per object
+        // Convert text events - group by track and channel
         for (time, text_obj) in &notes.text_events {
             let obj_id = text_reverse_map
                 .get(&text_obj.text)
                 .copied()
                 .unwrap_or(ObjId::null());
-            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Text, tokens);
+            notes_by_track_channel
+                .entry((time.track.0, Channel::Text))
+                .or_default()
+                .push((*time, obj_id.to_string()));
         }
 
-        // Convert judge events - preserve duplicates by generating one message per object
+        // Convert judge events - group by track and channel
         for (time, judge_obj) in &notes.judge_events {
             let obj_id = judge_reverse_map
                 .get(&judge_obj.judge_level)
                 .copied()
                 .unwrap_or(ObjId::null());
-            Self::generate_single_object_message(*time, obj_id.to_string(), Channel::Judge, tokens);
+            notes_by_track_channel
+                .entry((time.track.0, Channel::Judge))
+                .or_default()
+                .push((*time, obj_id.to_string()));
         }
 
         #[cfg(feature = "minor-command")]
         {
-            // Convert BGA keybound events - preserve duplicates by generating one message per object
+            // Convert BGA keybound events - group by track and channel
             for (time, keybound_obj) in &notes.bga_keybound_events {
                 let obj_id = swbga_reverse_map
                     .get(&keybound_obj.event)
                     .copied()
                     .unwrap_or(ObjId::null());
-                Self::generate_single_object_message(
-                    *time,
-                    obj_id.to_string(),
-                    Channel::BgaKeybound,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((time.track.0, Channel::BgaKeybound))
+                    .or_default()
+                    .push((*time, obj_id.to_string()));
             }
 
-            // Convert option events - preserve duplicates by generating one message per object
+            // Convert option events - group by track and channel
             for (time, option_obj) in &notes.option_events {
                 let obj_id = option_reverse_map
                     .get(&option_obj.option)
                     .copied()
                     .unwrap_or(ObjId::null());
-                Self::generate_single_object_message(
-                    *time,
-                    obj_id.to_string(),
-                    Channel::Option,
-                    tokens,
-                );
+                notes_by_track_channel
+                    .entry((time.track.0, Channel::Option))
+                    .or_default()
+                    .push((*time, obj_id.to_string()));
             }
+        }
+
+        // Process all grouped events using LCM-based grouping
+        for ((track_num, channel), events) in notes_by_track_channel {
+            Self::process_events_with_lcm(events, channel, Track(track_num), tokens);
         }
     }
 
@@ -708,18 +635,19 @@ impl Bms {
                 tokens.push(Token::MaterialsBmp(material_bmp));
             }
 
-            // Convert BGA changes - preserve duplicates by generating one message per object
+            // Convert BGA changes - group by track and channel, use LCM to combine compatible objects
+            let mut bga_by_track_channel: HashMap<(u64, Channel), Vec<(ObjTime, String)>> =
+                HashMap::new();
+
             for (time, bga_obj) in &graphics.bga_changes {
                 let channel = bga_obj.layer.to_channel();
-                Self::generate_single_object_message(
-                    *time,
-                    bga_obj.id.to_string(),
-                    channel,
-                    tokens,
-                );
+                bga_by_track_channel
+                    .entry((time.track.0, channel))
+                    .or_default()
+                    .push((*time, bga_obj.id.to_string()));
             }
 
-            // Convert BGA opacity changes - preserve duplicates by generating one message per object
+            // Convert BGA opacity changes - group by track and channel
             for (layer, opacity_changes) in &graphics.bga_opacity_changes {
                 use crate::bms::parse::model::obj::BgaLayer;
 
@@ -731,16 +659,14 @@ impl Bms {
                 };
 
                 for (time, opacity_obj) in opacity_changes {
-                    Self::generate_single_object_message(
-                        *time,
-                        format!("{:02X}", opacity_obj.opacity),
-                        channel,
-                        tokens,
-                    );
+                    bga_by_track_channel
+                        .entry((time.track.0, channel))
+                        .or_default()
+                        .push((*time, format!("{:02X}", opacity_obj.opacity)));
                 }
             }
 
-            // Convert BGA ARGB changes - preserve duplicates by generating one message per object
+            // Convert BGA ARGB changes - group by track and channel
             for (layer, argb_changes) in &graphics.bga_argb_changes {
                 use crate::bms::parse::model::obj::BgaLayer;
 
@@ -757,13 +683,16 @@ impl Bms {
                         .get(&argb_obj.argb)
                         .copied()
                         .unwrap_or(ObjId::null());
-                    Self::generate_single_object_message(
-                        *time,
-                        obj_id.to_string(),
-                        channel,
-                        tokens,
-                    );
+                    bga_by_track_channel
+                        .entry((time.track.0, channel))
+                        .or_default()
+                        .push((*time, obj_id.to_string()));
                 }
+            }
+
+            // Process all BGA grouped events using LCM-based grouping
+            for ((track_num, channel), events) in bga_by_track_channel {
+                Self::process_events_with_lcm(events, channel, Track(track_num), tokens);
             }
         }
     }
@@ -837,32 +766,87 @@ impl Bms {
         }
     }
 
-    /// Generate a single message for one object at a specific time
-    fn generate_single_object_message(
-        time: ObjTime,
-        value_str: String,
+    /// Process events using LCM-based grouping to combine compatible objects
+    fn process_events_with_lcm(
+        events: Vec<(ObjTime, String)>,
         channel: Channel,
+        track: Track,
         tokens: &mut Vec<Token<'_>>,
     ) {
-        // For BGM and other objects, we need to recreate the original message format
-        // The message length should match the original message that was parsed
-        let message_length = time.denominator * 2;
-        let mut message_chars = vec!['0'; message_length as usize];
+        // Group events by their original message context using LCM
+        let mut message_groups: Vec<Vec<(ObjTime, String)>> = Vec::new();
 
-        // Place the object at its position
-        let position = time.numerator as usize;
-        let pos = position * 2;
-        if pos + 1 < message_chars.len() {
-            message_chars[pos] = value_str.chars().nth(0).unwrap_or('0');
-            message_chars[pos + 1] = value_str.chars().nth(1).unwrap_or('0');
+        for (time, value_str) in events {
+            // Find a compatible group or create a new one
+            let mut added_to_group = false;
+
+            for group in &mut message_groups {
+                // Check if this object can be combined with existing group
+                // We can combine if the LCM of all denominators creates a reasonable message length
+                let group_denominators: Vec<u64> =
+                    group.iter().map(|(t, _)| t.denominator).collect();
+                let mut all_denominators = group_denominators.clone();
+                all_denominators.push(time.denominator);
+
+                let lcm_result = all_denominators
+                    .iter()
+                    .copied()
+                    .fold(1u64, num::integer::lcm);
+
+                // Only combine if LCM is reasonable (≤ 16 positions = 32 characters)
+                if lcm_result <= 16 {
+                    // Check if all objects fit without collision
+                    let mut positions: Vec<u64> = group
+                        .iter()
+                        .map(|(t, _)| t.numerator * lcm_result / t.denominator)
+                        .collect();
+                    let new_position = time.numerator * lcm_result / time.denominator;
+                    positions.push(new_position);
+
+                    // Check for collisions
+                    positions.sort();
+                    let has_collision = positions.windows(2).any(|w| w[0] == w[1]);
+
+                    if !has_collision {
+                        group.push((time, value_str.clone()));
+                        added_to_group = true;
+                        break;
+                    }
+                }
+            }
+
+            if !added_to_group {
+                message_groups.push(vec![(time, value_str)]);
+            }
         }
 
-        let message = message_chars.into_iter().collect::<String>();
-        tokens.push(Token::Message {
-            track: time.track,
-            channel,
-            message: message.into(),
-        });
+        // Generate message for each group
+        for group in message_groups {
+            let group_lcm = group
+                .iter()
+                .map(|(t, _)| t.denominator)
+                .fold(1u64, num::integer::lcm);
+
+            let message_length = group_lcm * 2;
+            let mut message_chars = vec!['0'; message_length as usize];
+
+            // Place each object at its scaled position
+            for (time, value_str) in group {
+                let scaled_position = time.numerator * group_lcm / time.denominator;
+                let pos = (scaled_position * 2) as usize;
+                if pos + 1 < message_chars.len() {
+                    message_chars[pos] = value_str.chars().nth(0).unwrap_or('0');
+                    message_chars[pos + 1] = value_str.chars().nth(1).unwrap_or('0');
+                }
+            }
+
+            let message = message_chars.into_iter().collect::<String>();
+            tokens.push(Token::Message {
+                track,
+                channel,
+                message: message.into(),
+            });
+        }
     }
 
     fn obj_to_channel(&self, obj: &Obj) -> Channel {
@@ -991,11 +975,6 @@ impl<'a> ConvertNotesParams<'a> {
         }
     }
 }
-
-
-
-
-
 
 #[cfg(test)]
 mod tests {
