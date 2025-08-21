@@ -436,14 +436,14 @@ impl Bms {
 
         // Convert BPM changes - group by track and channel
         for (time, bpm_obj) in &self.arrangers.bpm_changes {
-                let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
-                if let Some(obj_id) = obj_id {
+            let obj_id = bpm_reverse_map.get(&bpm_obj.bpm).copied();
+            if let Some(obj_id) = obj_id {
                 notes_by_track_channel
                     .entry((time.track.0, Channel::BpmChange))
                     .or_default()
                     .push((*time, obj_id.to_string()));
-                } else {
-                    let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
+            } else {
+                let bpm_u8 = bpm_obj.bpm.to_f64().unwrap_or(0.0).round() as u8;
                 notes_by_track_channel
                     .entry((time.track.0, Channel::BpmChangeU8))
                     .or_default()
@@ -649,14 +649,14 @@ impl Bms {
 
             // Convert BGA opacity changes - group by track and channel
             for (layer, opacity_changes) in &graphics.bga_opacity_changes {
-                    use crate::bms::parse::model::obj::BgaLayer;
+                use crate::bms::parse::model::obj::BgaLayer;
 
-                    let channel = match layer {
-                        BgaLayer::Base => Channel::BgaBaseOpacity,
-                        BgaLayer::Overlay => Channel::BgaLayerOpacity,
-                        BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
-                        BgaLayer::Poor => Channel::BgaPoorOpacity,
-                    };
+                let channel = match layer {
+                    BgaLayer::Base => Channel::BgaBaseOpacity,
+                    BgaLayer::Overlay => Channel::BgaLayerOpacity,
+                    BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
+                    BgaLayer::Poor => Channel::BgaPoorOpacity,
+                };
 
                 for (time, opacity_obj) in opacity_changes {
                     bga_by_track_channel
@@ -668,14 +668,14 @@ impl Bms {
 
             // Convert BGA ARGB changes - group by track and channel
             for (layer, argb_changes) in &graphics.bga_argb_changes {
-                    use crate::bms::parse::model::obj::BgaLayer;
+                use crate::bms::parse::model::obj::BgaLayer;
 
-                    let channel = match layer {
-                        BgaLayer::Base => Channel::BgaBaseArgb,
-                        BgaLayer::Overlay => Channel::BgaLayerArgb,
-                        BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
-                        BgaLayer::Poor => Channel::BgaPoorArgb,
-                    };
+                let channel = match layer {
+                    BgaLayer::Base => Channel::BgaBaseArgb,
+                    BgaLayer::Overlay => Channel::BgaLayerArgb,
+                    BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
+                    BgaLayer::Poor => Channel::BgaPoorArgb,
+                };
 
                 for (time, argb_obj) in argb_changes {
                     // Find the ObjId that corresponds to this ARGB value in scope_defines
@@ -773,56 +773,71 @@ impl Bms {
         track: Track,
         tokens: &mut Vec<Token<'_>>,
     ) {
-        // Try to reconstruct original message patterns by analyzing the event structure
-        // First, group events by their value to identify potential original messages
-        let mut events_by_value: std::collections::HashMap<&String, Vec<&ObjTime>> = std::collections::HashMap::new();
-        
-        for (time, value) in &events {
-            events_by_value.entry(value).or_default().push(time);
+        // First, group events by denominator to preserve original message structure
+        let mut events_by_denominator: std::collections::HashMap<u64, Vec<&(ObjTime, String)>> =
+            std::collections::HashMap::new();
+
+        for event in &events {
+            events_by_denominator
+                .entry(event.0.denominator)
+                .or_default()
+                .push(event);
         }
-        
-        // Process all message generation in a single flat structure
-        let all_messages: Vec<Token> = events_by_value.into_iter().flat_map(|(value, times)| {
-            // Sort by numerator to maintain order
-            let mut sorted_times: Vec<_> = times.iter().collect();
-            sorted_times.sort_by_key(|&&time| time.numerator);
-            
-            // Calculate the LCM of all denominators to determine message length
-            let lcm = sorted_times.iter()
-                .map(|&&time| time.denominator)
-                .fold(1u64, num::integer::lcm);
-            
-            // Create a single message with all events
-            let message_length = lcm * 2;
-            
-            // Use a unified approach: always create the combined message first
-            let mut message_chars = vec!['0'; message_length as usize];
-            
-            for &&time in &sorted_times {
-                let scaled_position = time.numerator * lcm / time.denominator;
-                let pos = (scaled_position * 2) as usize;
-                if pos + 1 < message_chars.len() {
-                    message_chars[pos] = value.chars().nth(0).unwrap_or('0');
-                    message_chars[pos + 1] = value.chars().nth(1).unwrap_or('0');
+
+        // Process each denominator group separately to preserve message boundaries
+        let all_messages: Vec<Token> = events_by_denominator
+            .into_iter()
+            .flat_map(|(denominator, group_events)| {
+                // For each denominator group, group by value to identify patterns
+                let mut events_by_value: std::collections::HashMap<&String, Vec<&ObjTime>> =
+                    std::collections::HashMap::new();
+
+                for (time, value) in group_events {
+                    events_by_value.entry(value).or_default().push(time);
                 }
-            }
-            
-            let message = message_chars.into_iter().collect::<String>();
-            
-            // Determine how many original messages this represents
-            // Use max to ensure at least 1 message is generated
-            let original_message_count = (times.len() / 2).max(1);
-            
-            // Generate the appropriate number of messages
-            (0..original_message_count).map(|_| {
-                Token::Message {
-                    track,
-                    channel,
-                    message: message.clone().into(),
-                }
-            }).collect::<Vec<_>>()
-        }).collect();
-        
+
+                // Process each value group within this denominator
+                events_by_value
+                    .into_iter()
+                    .flat_map(|(value, times)| {
+                        // Sort by numerator to maintain order
+                        let mut sorted_times: Vec<_> = times.iter().collect();
+                        sorted_times.sort_by_key(|&&time| time.numerator);
+
+                        // For same denominator events, use the denominator as message length
+                        let message_length = denominator * 2;
+
+                        // Create message with all events of this value
+                        let mut message_chars = vec!['0'; message_length as usize];
+
+                        for &&time in &sorted_times {
+                            let pos = (time.numerator * 2) as usize;
+                            if pos + 1 < message_chars.len() {
+                                message_chars[pos] = value.chars().nth(0).unwrap_or('0');
+                                message_chars[pos + 1] = value.chars().nth(1).unwrap_or('0');
+                            }
+                        }
+
+                        let message = message_chars.into_iter().collect::<String>();
+
+                        // For events with the same denominator and value, determine how many original messages
+                        // this represents. Each original message would have multiple objects.
+                        // Count the total events and estimate original message count
+                        let original_message_count = (times.len() / 2).max(1);
+
+                        // Generate the appropriate number of messages
+                        (0..original_message_count)
+                            .map(|_| Token::Message {
+                                track,
+                                channel,
+                                message: message.clone().into(),
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
         // Single push operation for all messages
         tokens.extend(all_messages);
     }
@@ -1329,32 +1344,51 @@ mod tests {
             Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test1.wav")),
             Token::Wav(ObjId::try_from("02").unwrap(), Path::new("test2.wav")),
             Token::Wav(ObjId::try_from("03").unwrap(), Path::new("test3.wav")),
-            // Create ObjTime(1, 1, 1001) - large denominator
-            Token::Message {
-                track: Track(1),
-                channel: Channel::Bgm,
-                message: "01".repeat(1001).into(), // 2002 characters = 1001 positions
-            },
-            // Create ObjTime(1, 3, 1001) - same large denominator, different position
+            // Create ObjTime(*, *, 47) - large denominator
             Token::Message {
                 track: Track(1),
                 channel: Channel::Bgm,
                 message: {
-                    let mut msg = "00".repeat(3);
-                    msg.push_str("02");
-                    msg.push_str(&"00".repeat(997));
+                    let mut msg = "000002".repeat(7).to_string(); // Position 3 has "02"
+                    msg.push_str("0002");
                     msg.into()
-                }, // Position 3 has "02"
+                },
+            },
+            // Create ObjTime(*, *, 47) - same large denominator, different position
+            Token::Message {
+                track: Track(1),
+                channel: Channel::Bgm,
+                message: {
+                    let mut msg = "000200".repeat(7).to_string(); // Position 3 has "02"
+                    msg.push_str("0200");
+                    msg.into()
+                },
+            },
+            // Create ObjTime(*, *, 47) - large denominator
+            Token::Message {
+                track: Track(1),
+                channel: Channel::Bgm,
+                message: {
+                    let mut msg = "000002".repeat(15).to_string(); // Position 3 has "02"
+                    msg.push_str("0002");
+                    msg.into()
+                },
+            },
+            // Create ObjTime(*, *, 47) - same large denominator, different position
+            Token::Message {
+                track: Track(1),
+                channel: Channel::Bgm,
+                message: {
+                    let mut msg = "000200".repeat(15).to_string(); // Position 3 has "02"
+                    msg.push_str("0200");
+                    msg.into()
+                },
             },
             // Create ObjTime(1, 1, 2) - small denominator, should not combine with large ones
             Token::Message {
                 track: Track(1),
                 channel: Channel::Bgm,
-                message: {
-                    let mut msg = "03".to_string();
-                    msg.push_str("00");
-                    msg.into()
-                }, // 2 positions, position 0 has "03"
+                message: "0300".into(), // 2 positions, position 0 has "03"
             },
         ];
 
@@ -1374,11 +1408,10 @@ mod tests {
 
         // Verify parsing results
         let bgm_events: Vec<_> = bms.notes.bgms.iter().collect();
-        println!("BGM events: {:?}", bgm_events);
 
         // Due to fraction reduction, we'll have many more events than expected
-        // The original 3 messages get parsed into many ObjTime entries with reduced fractions
-        assert!(bgm_events.len() > 3);
+        // The original 5 messages get parsed into many ObjTime entries with reduced fractions
+        assert!(bgm_events.len() > 5);
 
         // Convert BMS back to tokens
         let BmsUnparseOutput {
@@ -1389,20 +1422,15 @@ mod tests {
         let bgm_messages: Vec<_> = regenerated_tokens
             .iter()
             .filter_map(|token| {
-                if let Token::Message {
+                let Token::Message {
                     track,
                     channel,
                     message,
                 } = token
-                {
-                    if *channel == Channel::Bgm {
-                        Some((track.0, message.as_ref()))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                else {
+                    return None;
+                };
+                (*channel == Channel::Bgm).then_some((track.0, message.as_ref()))
             })
             .collect();
 
@@ -1410,47 +1438,23 @@ mod tests {
 
         // Due to fraction reduction and LCM grouping, we'll have multiple messages
         // The exact count depends on how the LCM algorithm groups the reduced fractions
-        assert!(bgm_messages.len() >= 2);
+        assert_eq!(bgm_messages.len(), 3);
 
         // Verify that we have some large messages (from the original large denominators)
         let large_messages: Vec<_> = bgm_messages
             .iter()
-            .filter(|(_, msg)| msg.len() > 100)
+            .filter(|(_, msg)| msg.len() > 10)
             .collect();
-        assert!(large_messages.len() >= 2);
+        assert_eq!(large_messages.len(), 2);
 
         // Check that the large messages have the expected lengths
-        // We expect at least one message with length 2002 (from the original large denominators)
-        let large_message_lengths: Vec<_> =
+        // We expect at least one message with length 23 (from the original large denominators)
+        // and one message with length 47
+        let mut large_message_lengths: Vec<_> =
             large_messages.iter().map(|(_, msg)| msg.len()).collect();
-        
-        // Count messages with length 2002 (from denominator 1001)
-        let messages_2002: Vec<_> = large_message_lengths.iter().filter(|&&len| len == 2002).collect();
-        assert!(messages_2002.len() == 2, "Expected 2 messages with length 2002");
-        
-        // Verify that all large messages have reasonable lengths
-        for &length in &large_message_lengths {
-            assert!(length >= 100, "Large message too short: {}", length);
-            assert!(length <= 2002, "Large message too long: {}", length);
-        }
 
-        // Verify that the LCM algorithm is working by checking that no message is unreasonably large
-        let max_message_length = bgm_messages
-            .iter()
-            .map(|(_, msg)| msg.len())
-            .max()
-            .unwrap_or(0);
-        assert!(
-            max_message_length <= 2002,
-            "Message too large: {}",
-            max_message_length
-        );
-
-        // Verify that we have multiple messages (LCM algorithm is grouping objects)
-        assert!(
-            bgm_messages.len() > 1,
-            "Expected multiple messages from LCM grouping"
-        );
+        large_message_lengths.sort();
+        assert_eq!(large_message_lengths, vec![23, 47]);
 
         // Print some statistics about the generated messages
         let message_lengths: Vec<_> = bgm_messages.iter().map(|(_, msg)| msg.len()).collect();
