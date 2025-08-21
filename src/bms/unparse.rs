@@ -937,14 +937,14 @@ impl Bms {
             // Group events by measure
             let mut events_by_measure: HashMap<u64, Vec<(ObjTime, T)>> = HashMap::new();
             for (time, value) in events {
-                let measure_num = time.numerator / time.denominator;
+                let measure_num = time.track.0; // Use track number as measure number
                 events_by_measure
                     .entry(measure_num)
                     .or_default()
                     .push((*time, value.clone()));
             }
 
-            for (measure_num, measure_events) in events_by_measure {
+            for (_measure_num, measure_events) in events_by_measure {
                 // Determine message length based on the denominator
                 // If denominator <= 8, use denominator * 2 characters
                 // Otherwise, use 16 characters (8 positions * 2 chars each)
@@ -964,8 +964,7 @@ impl Bms {
 
                 for (time, value) in measure_events {
                     // Calculate position within the measure
-                    let measure_start = measure_num * time.denominator;
-                    let position_in_measure = time.numerator - measure_start;
+                    let position_in_measure = time.numerator; // Use numerator directly as position within measure
 
                     // Scale to the number of positions in the message
                     let num_positions = message_length / 2;
@@ -1213,5 +1212,76 @@ mod tests {
             original_set.iter().collect::<Vec<_>>(),
             regenerated_tokens.iter().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn test_objtime_2_2_7_specific() {
+        // Test specifically for ObjTime(2,2,7) handling
+        let original_tokens = vec![
+            Token::Title("Test Song"),
+            Token::Bpm(Decimal::from(120)),
+            Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+            // This should create an ObjTime(2,2,7) when parsed
+            Token::Message {
+                track: Track(2),
+                channel: Channel::Bgm,
+                message: "00000100000000".into(), // 14 characters = 7 positions, position 2 has "01"
+            },
+        ];
+
+        let token_stream = TokenStream {
+            tokens: original_tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| t.clone().into_wrapper_manual(i, i))
+                .collect::<Vec<_>>(),
+        };
+
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(&token_stream, AlwaysUseNewer);
+        assert_eq!(parse_warnings, vec![]);
+
+        // Verify that ObjTime(2,2,7) was created
+        let bgm_events: Vec<_> = bms.notes.bgms.iter().collect();
+        assert_eq!(bgm_events.len(), 1);
+        let (obj_time, bgm_ids) = bgm_events[0];
+        assert_eq!(obj_time.track.0, 2);
+        assert_eq!(obj_time.numerator, 2); // Position 2 (0-indexed)
+        assert_eq!(obj_time.denominator, 7); // 7 positions
+        assert_eq!(bgm_ids.len(), 1);
+        assert_eq!(bgm_ids[0], ObjId::try_from("01").unwrap());
+
+        // Convert BMS back to tokens
+        let BmsUnparseOutput {
+            tokens: regenerated_tokens,
+        } = bms.unparse();
+
+        // Find the BGM message in regenerated tokens
+        let bgm_messages: Vec<_> = regenerated_tokens
+            .iter()
+            .filter_map(|token| {
+                if let Token::Message { track, channel, message } = token {
+                    if *channel == Channel::Bgm {
+                        Some((track.0, message.as_ref()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(bgm_messages.len(), 1);
+        let (track, message) = bgm_messages[0];
+        assert_eq!(track, 2);
+        // The message should be 14 characters (7 positions * 2 chars each)
+        assert_eq!(message.len(), 14);
+        // Position 2 should have "01"
+        assert_eq!(&message[4..6], "01");
+        // Verify the complete message
+        assert_eq!(message, "00000100000000");
     }
 }
