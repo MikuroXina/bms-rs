@@ -8,6 +8,7 @@ use std::time::Duration;
 use fraction::GenericFraction;
 use num::BigUint;
 
+use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
@@ -305,902 +306,893 @@ pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
         let channel_parser = read_channel_beat;
-        loop {
-            let command = c
-                .next_token()
-                .ok_or_else(|| c.make_err_expected_token("command"))?;
+        let command = c
+            .next_token()
+            .ok_or_else(|| c.make_err_expected_token("command"))?;
 
-            break Ok(match command.to_uppercase().as_str() {
-                // Part: Normal
-                "#PLAYER" => Self::Player(PlayerMode::from(c)?),
-                "#GENRE" => Self::Genre(c.next_line_remaining()),
-                "#TITLE" => Self::Title(c.next_line_remaining()),
-                "#SUBTITLE" => Self::SubTitle(c.next_line_remaining()),
-                "#ARTIST" => Self::Artist(c.next_line_remaining()),
-                "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
-                "#DIFFICULTY" => Self::Difficulty(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("difficulty"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?,
-                ),
-                "#STAEGFILE" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("stage filename"));
+        let token = match command.to_uppercase().as_str() {
+            // Part: Normal
+            "#PLAYER" => Self::Player(PlayerMode::from(c)?),
+            "#GENRE" => Self::Genre(c.next_line_remaining()),
+            "#TITLE" => Self::Title(c.next_line_remaining()),
+            "#SUBTITLE" => Self::SubTitle(c.next_line_remaining()),
+            "#ARTIST" => Self::Artist(c.next_line_remaining()),
+            "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
+            "#DIFFICULTY" => Self::Difficulty(
+                c.next_token()
+                    .ok_or_else(|| c.make_err_expected_token("difficulty"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?,
+            ),
+            "#STAEGFILE" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("stage filename"));
+                }
+                Self::StageFile(Path::new(file_name))
+            }
+            "#BANNER" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("banner filename"));
+                }
+                Self::Banner(Path::new(file_name))
+            }
+            "#BACKBMP" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("backbmp filename"));
+                }
+                Self::BackBmp(Path::new(file_name))
+            }
+            "#TOTAL" => {
+                let s = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::Total(v)
+            }
+            "#BPM" => {
+                let s = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("bpm"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::Bpm(v)
+            }
+            "#PLAYLEVEL" => Self::PlayLevel(
+                c.next_token()
+                    .ok_or_else(|| c.make_err_expected_token("play level"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?,
+            ),
+            "#RANK" => Self::Rank(JudgeLevel::try_read(c)?),
+            "#LNTYPE" => {
+                if c.next_token() == Some("2") {
+                    Self::LnTypeMgq
+                } else {
+                    Self::LnTypeRdm
+                }
+            }
+            // Part: ControlFlow/Random
+            "#RANDOM" => {
+                let rand_max = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("random max"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::Random(rand_max)
+            }
+            "#SETRANDOM" => {
+                let rand_value = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("random value"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::SetRandom(rand_value)
+            }
+            "#IF" => {
+                let rand_target = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("random target"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::If(rand_target)
+            }
+            "#ELSEIF" => {
+                let rand_target = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("random target"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::ElseIf(rand_target)
+            }
+            "#ELSE" => Self::Else,
+            "#ENDIF" => Self::EndIf,
+            "#ENDRANDOM" => Self::EndRandom,
+            // Part: ControlFlow/Switch
+            "#SWITCH" => {
+                let switch_max = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("switch max"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::Switch(switch_max)
+            }
+            "#SETSWITCH" => {
+                let switch_value = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("switch value"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::SetSwitch(switch_value)
+            }
+            "#CASE" => {
+                let case_value = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("switch case value"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::Case(case_value)
+            }
+            "#SKIP" => Self::Skip,
+            "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
+            "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
+            // Part: Normal 2
+            "#STAGEFILE" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("splashscreen image filename"));
+                }
+                Self::StageFile(Path::new(file_name))
+            }
+            "#VOLWAV" => {
+                let volume = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("volume"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::VolWav(Volume {
+                    relative_percent: volume,
+                })
+            }
+            "#BASE" => {
+                let base = c.next_line_remaining();
+                if base != "62" {
+                    return Err(LexWarning::OutOfBase62);
+                }
+                Self::Base62
+            }
+            "#COMMENT" => {
+                let comment = c.next_line_remaining();
+                Self::Comment(comment)
+            }
+            "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
+            "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
+            #[cfg(feature = "minor-command")]
+            "#OCT/FP" => Self::OctFp,
+            #[cfg(feature = "minor-command")]
+            "#OPTION" => Self::Option(c.next_line_remaining()),
+            "#PATH_WAV" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("wav root path"));
+                }
+                Self::PathWav(Path::new(file_name))
+            }
+            "#MAKER" => Self::Maker(c.next_line_remaining()),
+            #[cfg(feature = "minor-command")]
+            "#MIDIFILE" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("midi filename"));
+                }
+                Self::MidiFile(Path::new(file_name))
+            }
+            "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
+            "#VIDEOFILE" => {
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("video filename"));
+                }
+                Self::VideoFile(Path::new(file_name))
+            }
+            // Part: Command with lane and arg
+            // Place ahead of WAV to avoid being parsed as WAV.
+            #[cfg(feature = "minor-command")]
+            wavcmd if wavcmd.starts_with("#WAVCMD") => {
+                let param = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
+                let param = match param {
+                    "00" => WavCmdParam::Pitch,
+                    "01" => WavCmdParam::Volume,
+                    "02" => WavCmdParam::Time,
+                    _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
+                };
+                let wav_index = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
+                let wav_index = ObjId::try_load(wav_index, c)?;
+                let value = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
+                let value: u32 = value
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
+                // Validity check
+                match param {
+                    WavCmdParam::Pitch if !(0..=127).contains(&value) => {
+                        return Err(c.make_err_expected_token("pitch 0-127"));
                     }
-                    Self::StageFile(Path::new(file_name))
-                }
-                "#BANNER" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("banner filename"));
+                    WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
                     }
-                    Self::Banner(Path::new(file_name))
+                    _ => {}
                 }
-                "#BACKBMP" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("backbmp filename"));
-                    }
-                    Self::BackBmp(Path::new(file_name))
+                Self::WavCmd(WavCmdEvent {
+                    param,
+                    wav_index,
+                    value,
+                })
+            }
+            wav if wav.starts_with("#WAV") => {
+                let id = command.trim_start_matches("#WAV");
+                let str = c.next_line_remaining();
+                if str.is_empty() {
+                    return Err(c.make_err_expected_token("key audio filename"));
                 }
-                "#TOTAL" => {
-                    let s = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Total(v)
+                let filename = Path::new(str);
+                Self::Wav(ObjId::try_load(id, c)?, filename)
+            }
+            bmp if bmp.starts_with("#BMP") => {
+                let id = command.trim_start_matches("#BMP");
+                let str = c.next_line_remaining();
+                if str.is_empty() {
+                    return Err(c.make_err_expected_token("key audio filename"));
                 }
-                "#BPM" => {
-                    let s = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Bpm(v)
+                let filename = Path::new(str);
+                if id == "00" {
+                    Self::Bmp(None, filename)
+                } else {
+                    Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
                 }
-                "#PLAYLEVEL" => Self::PlayLevel(
-                    c.next_token()
-                        .ok_or_else(|| c.make_err_expected_token("play level"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?,
-                ),
-                "#RANK" => Self::Rank(JudgeLevel::try_read(c)?),
-                "#LNTYPE" => {
-                    if c.next_token() == Some("2") {
-                        Self::LnTypeMgq
-                    } else {
-                        Self::LnTypeRdm
-                    }
+            }
+            bpm if bpm.starts_with("#BPM") => {
+                let id = command.trim_start_matches("#BPM");
+                let s_bpm = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("bpm"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s_bpm)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::BpmChange(ObjId::try_load(id, c)?, v)
+            }
+            stop if stop.starts_with("#STOP") => {
+                let id = command.trim_start_matches("#STOP");
+                let s_stop = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s_stop)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::Stop(ObjId::try_load(id, c)?, v)
+            }
+            scroll if scroll.starts_with("#SCROLL") => {
+                let id = command.trim_start_matches("#SCROLL");
+                let s_scroll = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("scroll"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s_scroll)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::Scroll(ObjId::try_load(id, c)?, v)
+            }
+            speed if speed.starts_with("#SPEED") => {
+                let id = command.trim_start_matches("#SPEED");
+                let s_speed = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(s_speed)
+                        .map_err(|_| c.make_err_expected_token("decimal"))?,
+                );
+                Self::Speed(ObjId::try_load(id, c)?, v)
+            }
+            exbmp if exbmp.starts_with("#EXBMP") => {
+                let id = exbmp.trim_start_matches("#EXBMP");
+                let argb = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("argb"))?;
+                let filename = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("filename"))?;
+
+                let parts: Vec<&str> = argb.split(',').collect();
+                if parts.len() != 4 {
+                    return Err(c.make_err_expected_token("expected 4 comma-separated values"));
                 }
-                // Part: ControlFlow/Random
-                "#RANDOM" => {
-                    let rand_max = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Random(rand_max)
-                }
-                "#SETRANDOM" => {
-                    let rand_value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::SetRandom(rand_value)
-                }
-                "#IF" => {
-                    let rand_target = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::If(rand_target)
-                }
-                "#ELSEIF" => {
-                    let rand_target = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("random target"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::ElseIf(rand_target)
-                }
-                "#ELSE" => Self::Else,
-                "#ENDIF" => Self::EndIf,
-                "#ENDRANDOM" => Self::EndRandom,
-                // Part: ControlFlow/Switch
-                "#SWITCH" => {
-                    let switch_max = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch max"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Switch(switch_max)
-                }
-                "#SETSWITCH" => {
-                    let switch_value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::SetSwitch(switch_value)
-                }
-                "#CASE" => {
-                    let case_value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("switch case value"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Case(case_value)
-                }
-                "#SKIP" => Self::Skip,
-                "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
-                "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
-                // Part: Normal 2
-                "#STAGEFILE" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("splashscreen image filename"));
-                    }
-                    Self::StageFile(Path::new(file_name))
-                }
-                "#VOLWAV" => {
-                    let volume = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("volume"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::VolWav(Volume {
-                        relative_percent: volume,
-                    })
-                }
-                "#BASE" => {
-                    let base = c.next_line_remaining();
-                    if base != "62" {
-                        eprintln!("unknown base declared: {base:?}");
-                        continue;
-                    }
-                    Self::Base62
-                }
-                "#COMMENT" => {
-                    let comment = c.next_line_remaining();
-                    Self::Comment(comment)
-                }
-                "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
-                "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
-                #[cfg(feature = "minor-command")]
-                "#OCT/FP" => Self::OctFp,
-                #[cfg(feature = "minor-command")]
-                "#OPTION" => Self::Option(c.next_line_remaining()),
-                "#PATH_WAV" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("wav root path"));
-                    }
-                    Self::PathWav(Path::new(file_name))
-                }
-                "#MAKER" => Self::Maker(c.next_line_remaining()),
-                #[cfg(feature = "minor-command")]
-                "#MIDIFILE" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("midi filename"));
-                    }
-                    Self::MidiFile(Path::new(file_name))
-                }
-                "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
-                "#VIDEOFILE" => {
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("video filename"));
-                    }
-                    Self::VideoFile(Path::new(file_name))
-                }
-                // Part: Command with lane and arg
-                // Place ahead of WAV to avoid being parsed as WAV.
-                #[cfg(feature = "minor-command")]
-                wavcmd if wavcmd.starts_with("#WAVCMD") => {
-                    let param = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
-                    let param = match param {
-                        "00" => WavCmdParam::Pitch,
-                        "01" => WavCmdParam::Volume,
-                        "02" => WavCmdParam::Time,
-                        _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
-                    };
-                    let wav_index = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
-                    let wav_index = ObjId::try_load(wav_index, c)?;
-                    let value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
-                    let value: u32 = value
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
-                    // Validity check
+                let alpha = parts[0]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                let red = parts[1]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                let green = parts[2]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                let blue = parts[3]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+
+                Self::ExBmp(
+                    ObjId::try_load(id, c)?,
+                    Argb {
+                        alpha,
+                        red,
+                        green,
+                        blue,
+                    },
+                    Path::new(filename),
+                )
+            }
+            exrank if exrank.starts_with("#EXRANK") => {
+                let id = exrank.trim_start_matches("#EXRANK");
+                let judge_level = JudgeLevel::try_read(c)?;
+                Self::ExRank(ObjId::try_load(id, c)?, judge_level)
+            }
+            #[cfg(feature = "minor-command")]
+            exwav if exwav.starts_with("#EXWAV") => {
+                let id = exwav.trim_start_matches("#EXWAV");
+                let pvf_params = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("param1"))?;
+                let mut pan = None;
+                let mut volume = None;
+                let mut frequency = None;
+                for param in pvf_params.bytes() {
                     match param {
-                        WavCmdParam::Pitch if !(0..=127).contains(&value) => {
-                            return Err(c.make_err_expected_token("pitch 0-127"));
+                        b'p' => {
+                            let pan_value: i64 = c
+                                .next_token()
+                                .ok_or_else(|| c.make_err_expected_token("pan"))?
+                                .parse()
+                                .map_err(|_| c.make_err_expected_token("integer"))?;
+                            pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
+                                c.make_err_expected_token("pan value out of range [-10000, 10000]")
+                            })?)
                         }
-                        WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
+                        b'v' => {
+                            let volume_value: i64 = c
+                                .next_token()
+                                .ok_or_else(|| c.make_err_expected_token("volume"))?
+                                .parse()
+                                .map_err(|_| c.make_err_expected_token("integer"))?;
+                            volume = Some(ExWavVolume::try_from(volume_value).map_err(|_| {
+                                c.make_err_expected_token("volume value out of range [-10000, 0]")
+                            })?)
                         }
-                        _ => {}
-                    }
-                    Self::WavCmd(WavCmdEvent {
-                        param,
-                        wav_index,
-                        value,
-                    })
-                }
-                wav if wav.starts_with("#WAV") => {
-                    let id = command.trim_start_matches("#WAV");
-                    let str = c.next_line_remaining();
-                    if str.is_empty() {
-                        return Err(c.make_err_expected_token("key audio filename"));
-                    }
-                    let filename = Path::new(str);
-                    Self::Wav(ObjId::try_load(id, c)?, filename)
-                }
-                bmp if bmp.starts_with("#BMP") => {
-                    let id = command.trim_start_matches("#BMP");
-                    let str = c.next_line_remaining();
-                    if str.is_empty() {
-                        return Err(c.make_err_expected_token("key audio filename"));
-                    }
-                    let filename = Path::new(str);
-                    if id == "00" {
-                        Self::Bmp(None, filename)
-                    } else {
-                        Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
-                    }
-                }
-                bpm if bpm.starts_with("#BPM") => {
-                    let id = command.trim_start_matches("#BPM");
-                    let s_bpm = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s_bpm)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::BpmChange(ObjId::try_load(id, c)?, v)
-                }
-                stop if stop.starts_with("#STOP") => {
-                    let id = command.trim_start_matches("#STOP");
-                    let s_stop = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s_stop)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Stop(ObjId::try_load(id, c)?, v)
-                }
-                scroll if scroll.starts_with("#SCROLL") => {
-                    let id = command.trim_start_matches("#SCROLL");
-                    let s_scroll = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("scroll"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s_scroll)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Scroll(ObjId::try_load(id, c)?, v)
-                }
-                speed if speed.starts_with("#SPEED") => {
-                    let id = command.trim_start_matches("#SPEED");
-                    let s_speed = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(s_speed)
-                            .map_err(|_| c.make_err_expected_token("decimal"))?,
-                    );
-                    Self::Speed(ObjId::try_load(id, c)?, v)
-                }
-                exbmp if exbmp.starts_with("#EXBMP") => {
-                    let id = exbmp.trim_start_matches("#EXBMP");
-                    let argb = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("argb"))?;
-                    let filename = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("filename"))?;
-
-                    let parts: Vec<&str> = argb.split(',').collect();
-                    if parts.len() != 4 {
-                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
-                    }
-                    let alpha = parts[0]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
-                    let red = parts[1]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
-                    let green = parts[2]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
-                    let blue = parts[3]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
-
-                    Self::ExBmp(
-                        ObjId::try_load(id, c)?,
-                        Argb {
-                            alpha,
-                            red,
-                            green,
-                            blue,
-                        },
-                        Path::new(filename),
-                    )
-                }
-                exrank if exrank.starts_with("#EXRANK") => {
-                    let id = exrank.trim_start_matches("#EXRANK");
-                    let judge_level = JudgeLevel::try_read(c)?;
-                    Self::ExRank(ObjId::try_load(id, c)?, judge_level)
-                }
-                #[cfg(feature = "minor-command")]
-                exwav if exwav.starts_with("#EXWAV") => {
-                    let id = exwav.trim_start_matches("#EXWAV");
-                    let pvf_params = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("param1"))?;
-                    let mut pan = None;
-                    let mut volume = None;
-                    let mut frequency = None;
-                    for param in pvf_params.bytes() {
-                        match param {
-                            b'p' => {
-                                let pan_value: i64 = c
-                                    .next_token()
-                                    .ok_or_else(|| c.make_err_expected_token("pan"))?
-                                    .parse()
-                                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                                pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
+                        b'f' => {
+                            let frequency_value: u64 = c
+                                .next_token()
+                                .ok_or_else(|| c.make_err_expected_token("frequency"))?
+                                .parse()
+                                .map_err(|_| c.make_err_expected_token("integer"))?;
+                            frequency =
+                                Some(ExWavFrequency::try_from(frequency_value).map_err(|_| {
                                     c.make_err_expected_token(
-                                        "pan value out of range [-10000, 10000]",
+                                        "frequency value out of range [100, 100000]",
                                     )
                                 })?)
-                            }
-                            b'v' => {
-                                let volume_value: i64 = c
-                                    .next_token()
-                                    .ok_or_else(|| c.make_err_expected_token("volume"))?
-                                    .parse()
-                                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                                volume =
-                                    Some(ExWavVolume::try_from(volume_value).map_err(|_| {
-                                        c.make_err_expected_token(
-                                            "volume value out of range [-10000, 0]",
-                                        )
-                                    })?)
-                            }
-                            b'f' => {
-                                let frequency_value: u64 = c
-                                    .next_token()
-                                    .ok_or_else(|| c.make_err_expected_token("frequency"))?
-                                    .parse()
-                                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                                frequency = Some(
-                                    ExWavFrequency::try_from(frequency_value).map_err(|_| {
-                                        c.make_err_expected_token(
-                                            "frequency value out of range [100, 100000]",
-                                        )
-                                    })?,
-                                )
-                            }
-                            _ => return Err(c.make_err_expected_token("expected p, v or f")),
                         }
-                    }
-                    let file_name = c.next_line_remaining();
-                    if file_name.is_empty() {
-                        return Err(c.make_err_expected_token("filename"));
-                    }
-                    Self::ExWav {
-                        id: ObjId::try_load(id, c)?,
-                        pan: pan.unwrap_or_default(),
-                        volume: volume.unwrap_or_default(),
-                        frequency,
-                        path: Path::new(file_name),
+                        _ => return Err(c.make_err_expected_token("expected p, v or f")),
                     }
                 }
-                text if text.starts_with("#TEXT") => {
-                    let id = text.trim_start_matches("#TEXT");
-                    let content = c.next_line_remaining();
-                    Self::Text(ObjId::try_load(id, c)?, content)
+                let file_name = c.next_line_remaining();
+                if file_name.is_empty() {
+                    return Err(c.make_err_expected_token("filename"));
                 }
-                #[cfg(feature = "minor-command")]
-                atbga if atbga.starts_with("#@BGA") => {
-                    let id = atbga.trim_start_matches("#@BGA");
-                    let source_bmp = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
-                    let sx = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("sx"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let sy = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("sy"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let w = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("w"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let h = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("h"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let dx = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("dx"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let dy = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("dy"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::AtBga {
-                        id: ObjId::try_load(id, c)?,
-                        source_bmp: ObjId::try_load(source_bmp, c)?,
-                        trim_top_left: (sx, sy),
-                        trim_size: (w, h),
-                        draw_point: (dx, dy),
-                    }
+                Self::ExWav {
+                    id: ObjId::try_load(id, c)?,
+                    pan: pan.unwrap_or_default(),
+                    volume: volume.unwrap_or_default(),
+                    frequency,
+                    path: Path::new(file_name),
                 }
-                #[cfg(feature = "minor-command")]
-                bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
-                    let id = bga.trim_start_matches("#BGA");
-                    // Cannot use next_line_remaining here because the remaining args
-                    let source_bmp = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
-                    let x1 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("x1"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let y1 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("y1"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let x2 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("x2"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let y2 = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("y2"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let dx = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("dx"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    let dy = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("dy"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer"))?;
-                    Self::Bga {
-                        id: ObjId::try_load(id, c)?,
-                        source_bmp: ObjId::try_load(source_bmp, c)?,
-                        trim_top_left: (x1, y1),
-                        trim_bottom_right: (x2, y2),
-                        draw_point: (dx, dy),
-                    }
+            }
+            text if text.starts_with("#TEXT") => {
+                let id = text.trim_start_matches("#TEXT");
+                let content = c.next_line_remaining();
+                Self::Text(ObjId::try_load(id, c)?, content)
+            }
+            #[cfg(feature = "minor-command")]
+            atbga if atbga.starts_with("#@BGA") => {
+                let id = atbga.trim_start_matches("#@BGA");
+                let source_bmp = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                let sx = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("sx"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let sy = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("sy"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let w = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("w"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let h = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("h"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let dx = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("dx"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let dy = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("dy"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::AtBga {
+                    id: ObjId::try_load(id, c)?,
+                    source_bmp: ObjId::try_load(source_bmp, c)?,
+                    trim_top_left: (sx, sy),
+                    trim_size: (w, h),
+                    draw_point: (dx, dy),
                 }
-                #[cfg(feature = "minor-command")]
-                changeoption if changeoption.starts_with("#CHANGEOPTION") => {
-                    let id = changeoption.trim_start_matches("#CHANGEOPTION");
-                    let option = c.next_line_remaining();
-                    Self::ChangeOption(ObjId::try_load(id, c)?, option)
+            }
+            #[cfg(feature = "minor-command")]
+            bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
+                let id = bga.trim_start_matches("#BGA");
+                // Cannot use next_line_remaining here because the remaining args
+                let source_bmp = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
+                let x1 = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("x1"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let y1 = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("y1"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let x2 = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("x2"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let y2 = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("y2"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let dx = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("dx"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                let dy = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("dy"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer"))?;
+                Self::Bga {
+                    id: ObjId::try_load(id, c)?,
+                    source_bmp: ObjId::try_load(source_bmp, c)?,
+                    trim_top_left: (x1, y1),
+                    trim_bottom_right: (x2, y2),
+                    draw_point: (dx, dy),
                 }
-                "#LNOBJ" => {
-                    let id = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
-                    Self::LnObj(ObjId::try_load(id, c)?)
-                }
-                message
-                    if message.starts_with('#')
-                        && message.chars().nth(6) == Some(':')
-                        && 8 <= message.len() =>
-                {
-                    let track = command[1..4]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("[000-999]"))?;
-                    let channel = &command[4..6];
+            }
+            #[cfg(feature = "minor-command")]
+            changeoption if changeoption.starts_with("#CHANGEOPTION") => {
+                let id = changeoption.trim_start_matches("#CHANGEOPTION");
+                let option = c.next_line_remaining();
+                Self::ChangeOption(ObjId::try_load(id, c)?, option)
+            }
+            "#LNOBJ" => {
+                let id = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
+                Self::LnObj(ObjId::try_load(id, c)?)
+            }
+            message
+                if message.starts_with('#')
+                    && message.chars().nth(6) == Some(':')
+                    && 8 <= message.len() =>
+            {
+                let track = command[1..4]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
+                let channel = &command[4..6];
 
-                    let message = &command[7..];
-                    Self::Message {
-                        track: Track(track),
-                        channel: channel_parser(channel)
-                            .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
-                        message: Cow::Borrowed(message),
-                    }
+                let message = &command[7..];
+                Self::Message {
+                    track: Track(track),
+                    channel: channel_parser(channel)
+                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
+                    message: Cow::Borrowed(message),
                 }
-                // New command parsing
-                #[cfg(feature = "minor-command")]
-                extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
-                    // Allow multiple spaces between parameters
-                    let mut params = c.next_line_remaining().split_whitespace();
-                    let sprite_num = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
+            }
+            // New command parsing
+            #[cfg(feature = "minor-command")]
+            extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
+                // Allow multiple spaces between parameters
+                let mut params = c.next_line_remaining().split_whitespace();
+                let sprite_num = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
+                let bmp_num = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
+                // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
+                let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
+                    -stripped
+                        .parse::<i32>()
+                        .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
+                } else if bmp_num.starts_with("0x")
+                    || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
+                {
+                    i32::from_str_radix(bmp_num, 16)
+                        .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
+                } else {
+                    bmp_num
                         .parse()
-                        .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
-                    let bmp_num = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
-                    // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
-                    let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
-                        -stripped
-                            .parse::<i32>()
-                            .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
-                    } else if bmp_num.starts_with("0x")
-                        || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
-                    {
-                        i32::from_str_radix(bmp_num, 16)
-                            .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
-                    } else {
-                        bmp_num
-                            .parse()
-                            .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
-                    };
-                    let start_x = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("start_x"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("start_x i32"))?;
-                    let start_y = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("start_y"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("start_y i32"))?;
-                    let end_x = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("end_x"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("end_x i32"))?;
-                    let end_y = params
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("end_y"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("end_y i32"))?;
-                    // offsetX/offsetY are optional
-                    let offset_x = params.next().and_then(|v| v.parse().ok());
-                    let offset_y = params.next().and_then(|v| v.parse().ok());
-                    // x/y are optional, only present if offset exists
-                    let abs_x = params.next().and_then(|v| v.parse().ok());
-                    let abs_y = params.next().and_then(|v| v.parse().ok());
-                    Self::ExtChr(ExtChrEvent {
-                        sprite_num,
-                        bmp_num,
-                        start_x,
-                        start_y,
-                        end_x,
-                        end_y,
-                        offset_x,
-                        offset_y,
-                        abs_x,
-                        abs_y,
-                    })
+                        .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
+                };
+                let start_x = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("start_x"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("start_x i32"))?;
+                let start_y = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("start_y"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("start_y i32"))?;
+                let end_x = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("end_x"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("end_x i32"))?;
+                let end_y = params
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("end_y"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("end_y i32"))?;
+                // offsetX/offsetY are optional
+                let offset_x = params.next().and_then(|v| v.parse().ok());
+                let offset_y = params.next().and_then(|v| v.parse().ok());
+                // x/y are optional, only present if offset exists
+                let abs_x = params.next().and_then(|v| v.parse().ok());
+                let abs_y = params.next().and_then(|v| v.parse().ok());
+                Self::ExtChr(ExtChrEvent {
+                    sprite_num,
+                    bmp_num,
+                    start_x,
+                    start_y,
+                    end_x,
+                    end_y,
+                    offset_x,
+                    offset_y,
+                    abs_x,
+                    abs_y,
+                })
+            }
+            #[cfg(feature = "minor-command")]
+            charfile if charfile.starts_with("#CHARFILE") => {
+                let path = c
+                    .next_token()
+                    .map(Path::new)
+                    .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
+                Self::CharFile(path)
+            }
+            song if song.starts_with("#SONG") => {
+                let id = song.trim_start_matches("#SONG");
+                let content = c.next_line_remaining();
+                Self::Text(ObjId::try_load(id, c)?, content)
+            }
+            exbpm if exbpm.starts_with("#EXBPM") => {
+                let id = exbpm.trim_start_matches("#EXBPM");
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::from_str(v).map_err(|_| c.make_err_expected_token("f64"))?,
+                );
+                Self::BpmChange(ObjId::try_load(id, c)?, v)
+            }
+            #[cfg(feature = "minor-command")]
+            "#BASEBPM" => {
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?,
+                );
+                Self::BaseBpm(v)
+            }
+            #[cfg(feature = "minor-command")]
+            stp if stp.starts_with("#STP") => {
+                // Parse xxx.yyy zzzz
+                let xy = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("stp format [xxx.yyy] zzzz"))?;
+                let ms = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("stp format xxx.yyy [zzzz]"))?;
+                let ms: u32 = ms
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("")
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
+                let (measure, pos) = xy.split_once('.').unwrap_or((xy, "000"));
+                if measure.len() != 3 || pos.len() != 3 {
+                    return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
                 }
-                #[cfg(feature = "minor-command")]
-                charfile if charfile.starts_with("#CHARFILE") => {
-                    let path = c
-                        .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
-                    Self::CharFile(path)
+                let measure: u16 = measure
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("stp measure u16"))?;
+                let pos: u16 = pos
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
+                let time =
+                    crate::bms::command::time::ObjTime::new(measure as u64, pos as u64, 1000);
+                let duration = Duration::from_millis(ms as u64);
+                Self::Stp(StpEvent { time, duration })
+            }
+            #[cfg(feature = "minor-command")]
+            "#CDDA" => {
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("cdda value"))?;
+                let v = BigUint::parse_bytes(v.as_bytes(), 10)
+                    .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
+                Self::Cdda(v)
+            }
+            #[cfg(feature = "minor-command")]
+            swbga if swbga.starts_with("#SWBGA") => {
+                let id = swbga.trim_start_matches("#SWBGA");
+                // Parse fr:time:line:loop:a,r,g,b pattern
+                let params = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
+                let mut parts = params.split(':');
+                let frame_rate = parts
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("swbga frame_rate"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga frame_rate u32"))?;
+                let total_time = parts
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("swbga total_time"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga total_time u32"))?;
+                let line = parts
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("swbga line"))?
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga line u8"))?;
+                let loop_mode = parts
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("swbga loop"))?
+                    .parse::<u8>()
+                    .map_err(|_| c.make_err_expected_token("swbga loop 0/1"))?;
+                let loop_mode = match loop_mode {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(c.make_err_expected_token("swbga loop 0/1")),
+                };
+                let argb_str = parts
+                    .next()
+                    .ok_or_else(|| c.make_err_expected_token("swbga argb"))?;
+                let argb_parts: Vec<&str> = argb_str.split(',').collect();
+                if argb_parts.len() != 4 {
+                    return Err(c.make_err_expected_token("swbga argb 4 values"));
                 }
-                song if song.starts_with("#SONG") => {
-                    let id = song.trim_start_matches("#SONG");
-                    let content = c.next_line_remaining();
-                    Self::Text(ObjId::try_load(id, c)?, content)
-                }
-                exbpm if exbpm.starts_with("#EXBPM") => {
-                    let id = exbpm.trim_start_matches("#EXBPM");
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::from_str(v)
-                            .map_err(|_| c.make_err_expected_token("f64"))?,
-                    );
-                    Self::BpmChange(ObjId::try_load(id, c)?, v)
-                }
-                #[cfg(feature = "minor-command")]
-                "#BASEBPM" => {
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::<BigUint>::from_str(v)
-                            .map_err(|_| c.make_err_expected_token("f64"))?,
-                    );
-                    Self::BaseBpm(v)
-                }
-                #[cfg(feature = "minor-command")]
-                stp if stp.starts_with("#STP") => {
-                    // Parse xxx.yyy zzzz
-                    let xy = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stp format [xxx.yyy] zzzz"))?;
-                    let ms = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("stp format xxx.yyy [zzzz]"))?;
-                    let ms: u32 = ms
-                        .split_whitespace()
-                        .next()
-                        .unwrap_or("")
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
-                    let (measure, pos) = xy.split_once('.').unwrap_or((xy, "000"));
-                    if measure.len() != 3 || pos.len() != 3 {
-                        return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
-                    }
-                    let measure: u16 = measure
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("stp measure u16"))?;
-                    let pos: u16 = pos
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
-                    let time =
-                        crate::bms::command::time::ObjTime::new(measure as u64, pos as u64, 1000);
-                    let duration = Duration::from_millis(ms as u64);
-                    Self::Stp(StpEvent { time, duration })
-                }
-                #[cfg(feature = "minor-command")]
-                "#CDDA" => {
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("cdda value"))?;
-                    let v = BigUint::parse_bytes(v.as_bytes(), 10)
-                        .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
-                    Self::Cdda(v)
-                }
-                #[cfg(feature = "minor-command")]
-                swbga if swbga.starts_with("#SWBGA") => {
-                    let id = swbga.trim_start_matches("#SWBGA");
-                    // Parse fr:time:line:loop:a,r,g,b pattern
-                    let params = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
-                    let mut parts = params.split(':');
-                    let frame_rate = parts
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("swbga frame_rate"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga frame_rate u32"))?;
-                    let total_time = parts
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("swbga total_time"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga total_time u32"))?;
-                    let line = parts
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("swbga line"))?
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga line u8"))?;
-                    let loop_mode = parts
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("swbga loop"))?
-                        .parse::<u8>()
-                        .map_err(|_| c.make_err_expected_token("swbga loop 0/1"))?;
-                    let loop_mode = match loop_mode {
-                        0 => false,
-                        1 => true,
-                        _ => return Err(c.make_err_expected_token("swbga loop 0/1")),
-                    };
-                    let argb_str = parts
-                        .next()
-                        .ok_or_else(|| c.make_err_expected_token("swbga argb"))?;
-                    let argb_parts: Vec<&str> = argb_str.split(',').collect();
-                    if argb_parts.len() != 4 {
-                        return Err(c.make_err_expected_token("swbga argb 4 values"));
-                    }
-                    let alpha = argb_parts[0]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga argb alpha"))?;
-                    let red = argb_parts[1]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga argb red"))?;
-                    let green = argb_parts[2]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga argb green"))?;
-                    let blue = argb_parts[3]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("swbga argb blue"))?;
-                    let pattern = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("swbga pattern"))?
-                        .to_string();
-                    Self::SwBga(
-                        ObjId::try_load(id, c)?,
-                        SwBgaEvent {
-                            frame_rate,
-                            total_time,
-                            line,
-                            loop_mode,
-                            argb: Argb {
-                                alpha,
-                                red,
-                                green,
-                                blue,
-                            },
-                            pattern,
-                        },
-                    )
-                }
-                #[cfg(feature = "minor-command")]
-                argb if argb.starts_with("#ARGB") => {
-                    let id = argb.trim_start_matches("#ARGB");
-                    let argb_str = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("argb value"))?;
-                    let parts: Vec<&str> = argb_str.split(',').collect();
-                    if parts.len() != 4 {
-                        return Err(c.make_err_expected_token("expected 4 comma-separated values"));
-                    }
-                    let alpha = parts[0]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
-                    let red = parts[1]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid red value"))?;
-                    let green = parts[2]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid green value"))?;
-                    let blue = parts[3]
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
-                    Self::Argb(
-                        ObjId::try_load(id, c)?,
-                        Argb {
+                let alpha = argb_parts[0]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga argb alpha"))?;
+                let red = argb_parts[1]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga argb red"))?;
+                let green = argb_parts[2]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga argb green"))?;
+                let blue = argb_parts[3]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("swbga argb blue"))?;
+                let pattern = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("swbga pattern"))?
+                    .to_string();
+                Self::SwBga(
+                    ObjId::try_load(id, c)?,
+                    SwBgaEvent {
+                        frame_rate,
+                        total_time,
+                        line,
+                        loop_mode,
+                        argb: Argb {
                             alpha,
                             red,
                             green,
                             blue,
                         },
-                    )
+                        pattern,
+                    },
+                )
+            }
+            #[cfg(feature = "minor-command")]
+            argb if argb.starts_with("#ARGB") => {
+                let id = argb.trim_start_matches("#ARGB");
+                let argb_str = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("argb value"))?;
+                let parts: Vec<&str> = argb_str.split(',').collect();
+                if parts.len() != 4 {
+                    return Err(c.make_err_expected_token("expected 4 comma-separated values"));
                 }
-                #[cfg(feature = "minor-command")]
-                videofs if videofs.starts_with("#VIDEOF/S") => {
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::<BigUint>::from_str(v)
-                            .map_err(|_| c.make_err_expected_token("f64"))?,
-                    );
-                    Self::VideoFs(v)
-                }
-                #[cfg(feature = "minor-command")]
-                videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
-                    let v = v
-                        .parse::<u8>()
-                        .map_err(|_| c.make_err_expected_token("u8"))?;
-                    Self::VideoColors(v)
-                }
-                #[cfg(feature = "minor-command")]
-                videodly if videodly.starts_with("#VIDEODLY") => {
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::<BigUint>::from_str(v)
-                            .map_err(|_| c.make_err_expected_token("f64"))?,
-                    );
-                    Self::VideoDly(v)
-                }
-                #[cfg(feature = "minor-command")]
-                seek if seek.starts_with("#SEEK") => {
-                    let id = seek.trim_start_matches("#SEEK");
-                    let v = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("seek value"))?;
-                    let v = Decimal::from_fraction(
-                        GenericFraction::<BigUint>::from_str(v)
-                            .map_err(|_| c.make_err_expected_token("f64"))?,
-                    );
-                    Self::Seek(ObjId::try_load(id, c)?, v)
-                }
-                #[cfg(feature = "minor-command")]
-                materialswav if materialswav.starts_with("#MATERIALSWAV") => {
-                    let path = c
-                        .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
-                    Self::MaterialsWav(path)
-                }
-                #[cfg(feature = "minor-command")]
-                materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
-                    let path = c
-                        .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
-                    Self::MaterialsBmp(path)
-                }
-                #[cfg(feature = "minor-command")]
-                divideprop if divideprop.starts_with("#DIVIDEPROP") => {
-                    let s = c.next_line_remaining();
-                    Self::DivideProp(s)
-                }
-                #[cfg(feature = "minor-command")]
-                materials if materials.starts_with("#MATERIALS") => {
-                    let s = c.next_line_remaining();
-                    Self::Materials(Path::new(s))
-                }
-                charset if charset.starts_with("#CHARSET") => {
-                    let s = c.next_line_remaining();
-                    Self::Charset(s)
-                }
-                defexrank if defexrank.starts_with("#DEFEXRANK") => {
-                    let value = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
-                    let value = value
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("u64"))?;
-                    Self::DefExRank(value)
-                }
-                preview if preview.starts_with("#PREVIEW") => {
-                    let path = c
-                        .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("preview filename"))?;
-                    Self::Preview(path)
-                }
-                lnmode if lnmode.starts_with("#LNMODE") => {
-                    let mode = c
-                        .next_token()
-                        .ok_or_else(|| c.make_err_expected_token("lnmode value"))?;
-                    let mode: u8 = mode
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
-                    let mode = match mode {
-                        1 => LnMode::Ln,
-                        2 => LnMode::Cn,
-                        3 => LnMode::Hcn,
-                        _ => return Err(c.make_err_expected_token("lnmode 1-3")),
-                    };
-                    Self::LnMode(mode)
-                }
-                movie if movie.starts_with("#MOVIE") => {
-                    let path = c
-                        .next_token()
-                        .map(Path::new)
-                        .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
-                    Self::Movie(path)
-                }
-                // Unknown command & Not a command
-                command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
-                _not_command => Self::NotACommand(c.next_line_entire()),
-            });
-        }
+                let alpha = parts[0]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
+                let red = parts[1]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid red value"))?;
+                let green = parts[2]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid green value"))?;
+                let blue = parts[3]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
+                Self::Argb(
+                    ObjId::try_load(id, c)?,
+                    Argb {
+                        alpha,
+                        red,
+                        green,
+                        blue,
+                    },
+                )
+            }
+            #[cfg(feature = "minor-command")]
+            videofs if videofs.starts_with("#VIDEOF/S") => {
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?,
+                );
+                Self::VideoFs(v)
+            }
+            #[cfg(feature = "minor-command")]
+            videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
+                let v = v
+                    .parse::<u8>()
+                    .map_err(|_| c.make_err_expected_token("u8"))?;
+                Self::VideoColors(v)
+            }
+            #[cfg(feature = "minor-command")]
+            videodly if videodly.starts_with("#VIDEODLY") => {
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?,
+                );
+                Self::VideoDly(v)
+            }
+            #[cfg(feature = "minor-command")]
+            seek if seek.starts_with("#SEEK") => {
+                let id = seek.trim_start_matches("#SEEK");
+                let v = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("seek value"))?;
+                let v = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(v)
+                        .map_err(|_| c.make_err_expected_token("f64"))?,
+                );
+                Self::Seek(ObjId::try_load(id, c)?, v)
+            }
+            #[cfg(feature = "minor-command")]
+            materialswav if materialswav.starts_with("#MATERIALSWAV") => {
+                let path = c
+                    .next_token()
+                    .map(Path::new)
+                    .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
+                Self::MaterialsWav(path)
+            }
+            #[cfg(feature = "minor-command")]
+            materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
+                let path = c
+                    .next_token()
+                    .map(Path::new)
+                    .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
+                Self::MaterialsBmp(path)
+            }
+            #[cfg(feature = "minor-command")]
+            divideprop if divideprop.starts_with("#DIVIDEPROP") => {
+                let s = c.next_line_remaining();
+                Self::DivideProp(s)
+            }
+            #[cfg(feature = "minor-command")]
+            materials if materials.starts_with("#MATERIALS") => {
+                let s = c.next_line_remaining();
+                Self::Materials(Path::new(s))
+            }
+            charset if charset.starts_with("#CHARSET") => {
+                let s = c.next_line_remaining();
+                Self::Charset(s)
+            }
+            defexrank if defexrank.starts_with("#DEFEXRANK") => {
+                let value = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
+                let value = value
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("u64"))?;
+                Self::DefExRank(value)
+            }
+            preview if preview.starts_with("#PREVIEW") => {
+                let path = c
+                    .next_token()
+                    .map(Path::new)
+                    .ok_or_else(|| c.make_err_expected_token("preview filename"))?;
+                Self::Preview(path)
+            }
+            lnmode if lnmode.starts_with("#LNMODE") => {
+                let mode = c
+                    .next_token()
+                    .ok_or_else(|| c.make_err_expected_token("lnmode value"))?;
+                let mode: u8 = mode
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
+                let mode = match mode {
+                    1 => LnMode::Ln,
+                    2 => LnMode::Cn,
+                    3 => LnMode::Hcn,
+                    _ => return Err(c.make_err_expected_token("lnmode 1-3")),
+                };
+                Self::LnMode(mode)
+            }
+            movie if movie.starts_with("#MOVIE") => {
+                let path = c
+                    .next_token()
+                    .map(Path::new)
+                    .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
+                Self::Movie(path)
+            }
+            // Unknown command & Not a command
+            command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
+            _not_command => Self::NotACommand(c.next_line_entire()),
+        };
+        Ok(token)
     }
 
     pub(crate) fn make_id_uppercase(&mut self) {
