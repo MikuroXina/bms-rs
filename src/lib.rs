@@ -11,10 +11,18 @@
 //! For most use cases, you can use the [`bms::parse_bms`] function to parse a BMS file in one step:
 //!
 //! ```rust
+//! #[cfg(feature = "rand")]
 //! use bms_rs::bms::{parse_bms, BmsOutput};
+//! #[cfg(not(feature = "rand"))]
+//! use bms_rs::bms::{ast::rng::RngMock, parse_bms_with_rng, BmsOutput};
+//! #[cfg(not(feature = "rand"))]
+//! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
+//! #[cfg(feature = "rand")]
 //! let BmsOutput { bms, warnings } = parse_bms(&source);
+//! #[cfg(not(feature = "rand"))]
+//! let BmsOutput { bms, warnings } = parse_bms_with_rng(&source, RngMock([BigUint::from(1u64)]));
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
@@ -28,8 +36,10 @@
 //! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```rust
+//! #[cfg(feature = "rand")]
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::prelude::*;
+//! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
@@ -37,9 +47,10 @@
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
 //! assert_eq!(ast_build_warnings, vec![]);
-//! let rng = RandRng(StdRng::seed_from_u64(42));
-//! let AstParseOutput { token_refs, ast_parse_warnings } = root.parse(rng);
-//! assert_eq!(ast_parse_warnings, vec![]);
+//! #[cfg(feature = "rand")]
+//! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
+//! #[cfg(not(feature = "rand"))]
+//! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
 //! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );

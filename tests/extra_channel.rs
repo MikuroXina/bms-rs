@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use num::BigUint;
 
 #[test]
 fn test_channel_volume() {
@@ -7,7 +8,7 @@ fn test_channel_volume() {
     #00198:22232425
     #00297:05060708
     "#;
-    let BmsOutput { bms, warnings } = parse_bms(src);
+    let BmsOutput { bms, warnings } = parse_bms_with_rng(src, RngMock([BigUint::from(1u64)]));
     assert!(
         warnings
             .into_iter()
@@ -52,7 +53,7 @@ fn test_channel_text() {
     #00199:01000200
     #00299:02000100
     "#;
-    let BmsOutput { bms, warnings } = parse_bms(src);
+    let BmsOutput { bms, warnings } = parse_bms_with_rng(src, RngMock([BigUint::from(1u64)]));
     assert_eq!(
         warnings
             .into_iter()
@@ -91,7 +92,7 @@ fn test_channel_judge() {
     #001A0:01000200
     #002A0:02000100
     "#;
-    let BmsOutput { bms, warnings } = parse_bms(src);
+    let BmsOutput { bms, warnings } = parse_bms_with_rng(src, RngMock([BigUint::from(1u64)]));
     assert_eq!(
         warnings
             .into_iter()
@@ -135,7 +136,7 @@ fn test_bga_opacity_channels() {
     #0010D:A0
     #0010E:B0
     "#;
-    let BmsOutput { bms, warnings } = parse_bms(src);
+    let BmsOutput { bms, warnings } = parse_bms_with_rng(src, RngMock([BigUint::from(1u64)]));
     assert_eq!(
         warnings
             .into_iter()
@@ -219,7 +220,7 @@ fn test_bga_argb_channels() {
     #001A3:03010204
     #001A4:04010203
     "#;
-    let BmsOutput { bms, warnings } = parse_bms(src);
+    let BmsOutput { bms, warnings } = parse_bms_with_rng(src, RngMock([BigUint::from(1u64)]));
     assert_eq!(
         warnings
             .into_iter()

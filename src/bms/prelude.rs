@@ -8,7 +8,7 @@ pub use super::{
     BmsOutput, BmsWarning, Decimal,
     ast::{
         AstBuildOutput, AstParseOutput, AstRoot,
-        rng::{RandRng, Rng, RngMock},
+        rng::{Rng, RngMock},
     },
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
@@ -48,8 +48,12 @@ pub use super::{
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
     },
-    parse_bms,
+    parse_bms_with_rng,
 };
+
+// Re-export related members when `rand` feature is enabled
+#[cfg(feature = "rand")]
+pub use super::{ast::rng::RandRng, parse_bms};
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]
