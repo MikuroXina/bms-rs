@@ -1,15 +1,18 @@
 use num::BigUint;
 
+use crate::bms::command::mixin::SourcePosMixinExt;
 use crate::bms::lex::token::TokenWithPos;
 
 use super::ast_build::*;
 use super::rng::Rng;
+use super::{AstParseWarning, AstParseWarningWithPos};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> Vec<&'a TokenWithPos<'a>> {
+) -> (Vec<&'a TokenWithPos<'a>>, Vec<AstParseWarningWithPos>) {
     let mut result = Vec::new();
+    let mut warnings = Vec::new();
     for unit in iter.by_ref() {
         match unit {
             Unit::TokenWithPos(token) => {
@@ -22,7 +25,19 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
                         } else {
-                            rng.generate(BigUint::from(1u64)..=max)
+                            let expected_range = BigUint::from(1u64)..=max.clone();
+                            let generated = rng.generate(expected_range.clone());
+                            // Check if generated value is within expected range
+                            if generated < BigUint::from(1u64) || generated > max {
+                                warnings.push(
+                                    AstParseWarning::RandomValueOutOfRange {
+                                        expected_range,
+                                        actual_value: generated.clone(),
+                                    }
+                                    .into_wrapper_manual(0, 0),
+                                );
+                            }
+                            generated
                         }
                     }
                     BlockValue::Set { value } => value,
@@ -35,7 +50,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                     .next()
                 {
                     let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
+                    let (branch_tokens, branch_warnings) =
+                        parse_control_flow_ast(&mut branch_iter, rng);
+                    result.extend(branch_tokens);
+                    warnings.extend(branch_warnings);
                     found = true;
                 }
                 // If not found, try to find the 0 (else) branch
@@ -46,9 +64,12 @@ pub(super) fn parse_control_flow_ast<'a>(
                         .next()
                 {
                     let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
-                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
+                    let (branch_tokens, branch_warnings) =
+                        parse_control_flow_ast(&mut branch_iter, rng);
+                    result.extend(branch_tokens);
+                    warnings.extend(branch_warnings);
                 }
-                // If none found, do nothing
+                // If no matching branch found, do nothing (this is normal behavior)
             }
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
@@ -56,7 +77,19 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if max == BigUint::from(0u64) {
                             BigUint::from(0u64)
                         } else {
-                            rng.generate(BigUint::from(1u64)..=max)
+                            let expected_range = BigUint::from(1u64)..=max.clone();
+                            let generated = rng.generate(expected_range.clone());
+                            // Check if generated value is within expected range
+                            if generated < BigUint::from(1u64) || generated > max {
+                                warnings.push(
+                                    AstParseWarning::SwitchValueOutOfRange {
+                                        expected_range,
+                                        actual_value: generated.clone(),
+                                    }
+                                    .into_wrapper_manual(0, 0),
+                                );
+                            }
+                            generated
                         }
                     }
                     BlockValue::Set { value } => value,
@@ -67,7 +100,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                     match &case.value {
                         CaseBranchValue::Case(val) if *val == switch_val => {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
+                            let (case_tokens, case_warnings) =
+                                parse_control_flow_ast(&mut case_iter, rng);
+                            result.extend(case_tokens);
+                            warnings.extend(case_warnings);
                             found = true;
                             break;
                         }
@@ -79,15 +115,19 @@ pub(super) fn parse_control_flow_ast<'a>(
                     for case in &cases {
                         if let CaseBranchValue::Def = case.value {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
+                            let (case_tokens, case_warnings) =
+                                parse_control_flow_ast(&mut case_iter, rng);
+                            result.extend(case_tokens);
+                            warnings.extend(case_warnings);
                             break;
                         }
                     }
                 }
+                // If no matching case found, do nothing (this is normal behavior)
             }
         }
     }
-    result
+    (result, warnings)
 }
 
 #[cfg(test)]
@@ -143,7 +183,7 @@ mod tests {
         ];
         let mut rng = DummyRng;
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {
@@ -187,7 +227,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {
@@ -225,7 +265,7 @@ mod tests {
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
-        let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng);
+        let (tokens2, _warnings2) = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match t.content() {
@@ -282,7 +322,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {

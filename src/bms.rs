@@ -27,7 +27,10 @@ pub mod prelude;
 use thiserror::Error;
 
 use self::{
-    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::RandRng},
+    ast::{
+        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
+        rng::RandRng,
+    },
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,
@@ -53,6 +56,9 @@ pub enum BmsWarning {
     /// An error comes from AST builder.
     #[error("Warn: ast_build: {0}")]
     AstBuild(#[from] AstBuildWarningWithPos),
+    /// An error comes from AST parser.
+    #[error("Warn: ast_parse: {0}")]
+    AstParse(#[from] AstParseWarningWithPos),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithPos),
@@ -111,7 +117,11 @@ pub fn parse_bms(source: &str) -> BmsOutput {
     } = AstRoot::from_token_stream(&tokens);
     warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
     // Parse AST
-    let AstParseOutput { token_refs } = root.parse(rng);
+    let AstParseOutput {
+        token_refs,
+        ast_parse_warnings,
+    } = root.parse(rng);
+    warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let ParseOutput {
         bms,

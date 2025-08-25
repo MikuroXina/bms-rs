@@ -107,7 +107,7 @@ impl Bms {
             root,
             ast_build_warnings,
         } = AstRoot::from_token_stream(token_iter);
-        let AstParseOutput { token_refs } = root.parse(rng);
+        let AstParseOutput { token_refs, .. } = root.parse(rng);
         let ParseOutput {
             bms,
             parse_warnings,

@@ -54,7 +54,11 @@ fn nested_random() {
     assert_eq!(ast_build_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
+    let AstParseOutput {
+        token_refs,
+        ast_parse_warnings,
+    } = root.parse(rng);
+    assert_eq!(ast_parse_warnings, vec![]);
 
     let ParseOutput {
         bms,
@@ -102,7 +106,11 @@ fn nested_random() {
     assert_eq!(ast_build_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
+    let AstParseOutput {
+        token_refs,
+        ast_parse_warnings,
+    } = root.parse(rng);
+    assert_eq!(ast_parse_warnings, vec![]);
 
     let ParseOutput {
         bms,
@@ -151,7 +159,11 @@ fn nested_random() {
     assert_eq!(ast_build_warnings, vec![]);
 
     let rng = RngMock([BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
+    let AstParseOutput {
+        token_refs,
+        ast_parse_warnings,
+    } = root.parse(rng);
+    assert_eq!(ast_parse_warnings, vec![]);
 
     let ParseOutput {
         bms,
