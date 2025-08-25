@@ -4,7 +4,10 @@ use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithPos};
 use core::ops::RangeInclusive;
 
 use super::rng::Rng;
-use super::{AstParseWarning, AstParseWarningWithPos, ast_build::*};
+use super::{
+    AstParseWarning, AstParseWarningWithPos,
+    structure::{BlockValue, CaseBranchValue, Unit},
+};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
@@ -130,7 +133,11 @@ mod tests {
     use num::BigUint;
 
     use super::*;
-    use crate::{bms::lex::token::Token, command::mixin::SourcePosMixinExt};
+    use crate::{
+        ast::structure::{CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+        bms::lex::token::Token,
+        command::mixin::SourcePosMixinExt,
+    };
 
     struct DummyRng;
     impl Rng for DummyRng {

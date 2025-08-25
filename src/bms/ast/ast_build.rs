@@ -3,72 +3,15 @@ use std::{collections::HashMap, iter::Peekable};
 use num::BigUint;
 
 use crate::bms::{
-    ast::AstBuildWarningWithPos,
+    ast::{
+        AstBuildWarningWithPos,
+        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+    },
     command::mixin::SourcePosMixinExt,
     lex::token::{Token, TokenWithPos},
 };
 
 use super::AstBuildWarning;
-
-/// An unit of AST which represents individual scoped commands of BMS source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Unit<'a> {
-    /// A token that is not a control flow token.
-    TokenWithPos(&'a TokenWithPos<'a>),
-    /// A Random block. Can contain multiple If blocks.
-    RandomBlock {
-        value: BlockValue,
-        if_blocks: Vec<IfBlock<'a>>,
-    },
-    /// A Switch block.
-    /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
-    /// If there is no other Case branch activated, Def branch will be activated.
-    /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
-    SwitchBlock {
-        value: BlockValue,
-        cases: Vec<CaseBranch<'a>>,
-    },
-}
-
-/// The value of a Random/Switch block.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BlockValue {
-    /// For Random/Switch, value ranges in [1, max].
-    /// IfBranch value must ranges in [1, max].
-    Random { max: BigUint },
-    /// For SetRandom/SetSwitch.
-    /// IfBranch value has no limit.
-    Set { value: BigUint },
-}
-
-/// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfBlock<'a> {
-    pub branches: HashMap<BigUint, IfBranch<'a>>,
-}
-
-/// The If branch of a If block.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfBranch<'a> {
-    pub value: BigUint,
-    pub tokens: Vec<Unit<'a>>,
-}
-
-/// The define of a Case/Def branch in a Switch block.
-/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CaseBranch<'a> {
-    pub value: CaseBranchValue,
-    pub tokens: Vec<Unit<'a>>,
-}
-
-/// The type note of a Case/Def branch.
-/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CaseBranchValue {
-    Case(BigUint),
-    Def,
-}
 
 /// The main entry for building the control flow AST. Traverses the TokenWithPos stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.

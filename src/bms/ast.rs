@@ -19,6 +19,7 @@ mod ast_build;
 mod ast_extract;
 mod ast_parse;
 pub mod rng;
+pub mod structure;
 
 use core::ops::RangeInclusive;
 use num::BigUint;
@@ -30,10 +31,7 @@ use crate::bms::{
     lex::{TokenRefStream, TokenStream, token::TokenWithPos},
 };
 
-use self::{
-    ast_build::{Unit, build_control_flow_ast},
-    ast_parse::parse_control_flow_ast,
-};
+use self::{ast_build::build_control_flow_ast, ast_parse::parse_control_flow_ast, structure::Unit};
 
 /// The root of the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -195,7 +193,7 @@ mod tests {
 
     use super::*;
     use crate::bms::{
-        ast::ast_build::{CaseBranch, CaseBranchValue, Unit},
+        ast::structure::{CaseBranch, CaseBranchValue, Unit},
         command::mixin::SourcePosMixinExt,
         lex::token::Token,
     };

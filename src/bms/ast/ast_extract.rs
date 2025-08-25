@@ -1,5 +1,5 @@
 use crate::bms::{
-    ast::ast_build::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
+    ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     command::mixin::SourcePosMixin,
     lex::token::{Token, TokenWithPos},
 };
@@ -135,7 +135,7 @@ mod tests {
     use crate::bms::{
         ast::{
             AstRoot,
-            ast_build::{IfBlock, IfBranch},
+            structure::{IfBlock, IfBranch},
         },
         command::mixin::SourcePosMixinExt,
         lex::token::Token,
