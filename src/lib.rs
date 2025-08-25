@@ -48,9 +48,11 @@
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
 //! assert_eq!(ast_build_warnings, vec![]);
 //! #[cfg(feature = "rand")]
-//! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
+//! let rng = RandRng(StdRng::seed_from_u64(42));
 //! #[cfg(not(feature = "rand"))]
-//! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
+//! let rng = RngMock([BigUint::from(1u64)]);
+//! let AstParseOutput { token_refs, ast_parse_warnings } = root.parse(rng);
+//! assert_eq!(ast_parse_warnings, vec![]);
 //! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );

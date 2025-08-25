@@ -21,24 +21,21 @@ pub(super) fn parse_control_flow_ast<'a>(
             Unit::RandomBlock { value, if_blocks } => {
                 // Select branch
                 let branch_val = match value {
+                    BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
                     BlockValue::Random { max } => {
-                        if max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            let expected_range = BigUint::from(1u64)..=max.clone();
-                            let generated = rng.generate(expected_range.clone());
-                            // Check if generated value is within expected range
-                            if expected_range.contains(&generated) {
-                                warnings.push(
-                                    AstParseWarning::RandomValueOutOfRange {
-                                        expected_range,
-                                        actual_value: generated.clone(),
-                                    }
-                                    .into_wrapper_manual(0, 0),
-                                );
-                            }
-                            generated
+                        let expected_range = BigUint::from(1u64)..=max.clone();
+                        let generated = rng.generate(expected_range.clone());
+                        // Check if generated value is within expected range
+                        if !expected_range.contains(&generated) {
+                            warnings.push(
+                                AstParseWarning::RandomValueOutOfRange {
+                                    expected_range,
+                                    actual_value: generated.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        generated
                     }
                     BlockValue::Set { value } => value,
                 };
@@ -73,24 +70,21 @@ pub(super) fn parse_control_flow_ast<'a>(
             }
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
+                    BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
                     BlockValue::Random { max } => {
-                        if max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            let expected_range = BigUint::from(1u64)..=max.clone();
-                            let generated = rng.generate(expected_range.clone());
-                            // Check if generated value is within expected range
-                            if generated < BigUint::from(1u64) || generated > max {
-                                warnings.push(
-                                    AstParseWarning::SwitchValueOutOfRange {
-                                        expected_range,
-                                        actual_value: generated.clone(),
-                                    }
-                                    .into_wrapper_manual(0, 0),
-                                );
-                            }
-                            generated
+                        let expected_range = BigUint::from(1u64)..=max.clone();
+                        let generated = rng.generate(expected_range.clone());
+                        // Check if generated value is within expected range
+                        if !expected_range.contains(&generated) {
+                            warnings.push(
+                                AstParseWarning::SwitchValueOutOfRange {
+                                    expected_range,
+                                    actual_value: generated.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        generated
                     }
                     BlockValue::Set { value } => value,
                 };

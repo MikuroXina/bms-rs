@@ -29,7 +29,10 @@ use thiserror::Error;
 #[cfg(feature = "rand")]
 use self::ast::rng::RandRng;
 use self::{
-    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
+    ast::{
+        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
+        rng::Rng,
+    },
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,
