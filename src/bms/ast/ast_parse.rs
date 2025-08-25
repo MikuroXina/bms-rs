@@ -20,24 +20,22 @@ pub(super) fn parse_control_flow_ast<'a>(
             Unit::RandomBlock { value, if_blocks } => {
                 // Select branch
                 let branch_val = match value {
+                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
+                        BigUint::from(0u64)
+                    }
                     BlockValue::Random { ref max } => {
-                        if *max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            let expected: RangeInclusive<BigUint> =
-                                BigUint::from(1u64)..=max.clone();
-                            let v = rng.generate(expected.clone());
-                            if v < BigUint::from(1u64) || v > *max {
-                                warnings.push(
-                                    AstParseWarning::RandomGeneratedValueOutOfRange {
-                                        expected: expected.clone(),
-                                        actual: v.clone(),
-                                    }
-                                    .into_wrapper_manual(0, 0),
-                                );
-                            }
-                            v
+                        let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
+                        let v = rng.generate(expected.clone());
+                        if !expected.contains(&v) {
+                            warnings.push(
+                                AstParseWarning::RandomGeneratedValueOutOfRange {
+                                    expected: expected.clone(),
+                                    actual: v.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        v
                     }
                     BlockValue::Set { value } => value,
                 };
@@ -70,24 +68,22 @@ pub(super) fn parse_control_flow_ast<'a>(
             }
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
+                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
+                        BigUint::from(0u64)
+                    }
                     BlockValue::Random { ref max } => {
-                        if *max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            let expected: RangeInclusive<BigUint> =
-                                BigUint::from(1u64)..=max.clone();
-                            let v = rng.generate(expected.clone());
-                            if v < BigUint::from(1u64) || v > *max {
-                                warnings.push(
-                                    AstParseWarning::SwitchGeneratedValueOutOfRange {
-                                        expected: expected.clone(),
-                                        actual: v.clone(),
-                                    }
-                                    .into_wrapper_manual(0, 0),
-                                );
-                            }
-                            v
+                        let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
+                        let v = rng.generate(expected.clone());
+                        if !expected.contains(&v) {
+                            warnings.push(
+                                AstParseWarning::SwitchGeneratedValueOutOfRange {
+                                    expected: expected.clone(),
+                                    actual: v.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        v
                     }
                     BlockValue::Set { value } => value,
                 };
