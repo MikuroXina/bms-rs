@@ -29,7 +29,10 @@ use thiserror::Error;
 #[cfg(feature = "rand")]
 use self::ast::rng::RandRng;
 use self::{
-    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
+    ast::{
+        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
+        rng::Rng,
+    },
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,
@@ -55,6 +58,9 @@ pub enum BmsWarning {
     /// An error comes from AST builder.
     #[error("Warn: ast_build: {0}")]
     AstBuild(#[from] AstBuildWarningWithPos),
+    /// A warning comes from AST parsing.
+    #[error("Warn: ast_parse: {0}")]
+    AstParse(#[from] AstParseWarningWithPos),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithPos),
@@ -122,14 +128,15 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
     warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
 
     // Parse AST
-    let AstParseOutput { token_refs } = root.parse(rng);
+    let (AstParseOutput { token_refs }, ast_parse_warnings) = root.parse_with_warnings(rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let ParseOutput {
         bms,
         parse_warnings,
     } = Bms::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
 
-    // Convert parse warnings to BmsWarning
+    // Convert ast-parse and parse warnings to BmsWarning
+    warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
     let PlayingCheckOutput {

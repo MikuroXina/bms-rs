@@ -1,15 +1,17 @@
 use num::BigUint;
 
-use crate::bms::lex::token::TokenWithPos;
+use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithPos};
+use core::ops::RangeInclusive;
 
-use super::ast_build::*;
 use super::rng::Rng;
+use super::{AstParseWarning, AstParseWarningWithPos, ast_build::*};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> Vec<&'a TokenWithPos<'a>> {
+) -> (Vec<&'a TokenWithPos<'a>>, Vec<AstParseWarningWithPos>) {
     let mut result = Vec::new();
+    let mut warnings = Vec::new();
     for unit in iter.by_ref() {
         match unit {
             Unit::TokenWithPos(token) => {
@@ -18,12 +20,22 @@ pub(super) fn parse_control_flow_ast<'a>(
             Unit::RandomBlock { value, if_blocks } => {
                 // Select branch
                 let branch_val = match value {
-                    BlockValue::Random { max } => {
-                        if max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            rng.generate(BigUint::from(1u64)..=max)
+                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
+                        BigUint::from(0u64)
+                    }
+                    BlockValue::Random { ref max } => {
+                        let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
+                        let v = rng.generate(expected.clone());
+                        if !expected.contains(&v) {
+                            warnings.push(
+                                AstParseWarning::RandomGeneratedValueOutOfRange {
+                                    expected: expected.clone(),
+                                    actual: v.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        v
                     }
                     BlockValue::Set { value } => value,
                 };
@@ -35,7 +47,9 @@ pub(super) fn parse_control_flow_ast<'a>(
                     .next()
                 {
                     let mut branch_iter = branch.tokens.clone().into_iter().peekable();
-                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
+                    let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
+                    result.extend(tokens);
+                    warnings.extend(inner_warnings);
                     found = true;
                 }
                 // If not found, try to find the 0 (else) branch
@@ -46,18 +60,30 @@ pub(super) fn parse_control_flow_ast<'a>(
                         .next()
                 {
                     let mut branch_iter = else_branch.tokens.clone().into_iter().peekable();
-                    result.extend(parse_control_flow_ast(&mut branch_iter, rng));
+                    let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
+                    result.extend(tokens);
+                    warnings.extend(inner_warnings);
                 }
                 // If none found, do nothing
             }
             Unit::SwitchBlock { value, cases } => {
                 let switch_val = match value {
-                    BlockValue::Random { max } => {
-                        if max == BigUint::from(0u64) {
-                            BigUint::from(0u64)
-                        } else {
-                            rng.generate(BigUint::from(1u64)..=max)
+                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
+                        BigUint::from(0u64)
+                    }
+                    BlockValue::Random { ref max } => {
+                        let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
+                        let v = rng.generate(expected.clone());
+                        if !expected.contains(&v) {
+                            warnings.push(
+                                AstParseWarning::SwitchGeneratedValueOutOfRange {
+                                    expected: expected.clone(),
+                                    actual: v.clone(),
+                                }
+                                .into_wrapper_manual(0, 0),
+                            );
                         }
+                        v
                     }
                     BlockValue::Set { value } => value,
                 };
@@ -67,7 +93,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                     match &case.value {
                         CaseBranchValue::Case(val) if *val == switch_val => {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
+                            let (tokens, inner_warnings) =
+                                parse_control_flow_ast(&mut case_iter, rng);
+                            result.extend(tokens);
+                            warnings.extend(inner_warnings);
                             found = true;
                             break;
                         }
@@ -79,7 +108,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                     for case in &cases {
                         if let CaseBranchValue::Def = case.value {
                             let mut case_iter = case.tokens.clone().into_iter().peekable();
-                            result.extend(parse_control_flow_ast(&mut case_iter, rng));
+                            let (tokens, inner_warnings) =
+                                parse_control_flow_ast(&mut case_iter, rng);
+                            result.extend(tokens);
+                            warnings.extend(inner_warnings);
                             break;
                         }
                     }
@@ -87,7 +119,7 @@ pub(super) fn parse_control_flow_ast<'a>(
             }
         }
     }
-    result
+    (result, warnings)
 }
 
 #[cfg(test)]
@@ -143,7 +175,7 @@ mod tests {
         ];
         let mut rng = DummyRng;
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {
@@ -187,7 +219,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {
@@ -225,7 +257,7 @@ mod tests {
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
-        let tokens2 = parse_control_flow_ast(&mut iter2, &mut rng);
+        let (tokens2, _warnings) = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
             .filter_map(|t| match t.content() {
@@ -282,7 +314,7 @@ mod tests {
             }],
         }];
         let mut iter = units.into_iter().peekable();
-        let tokens = parse_control_flow_ast(&mut iter, &mut rng);
+        let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
             .filter_map(|t| match t.content() {
