@@ -300,11 +300,11 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 }
 
 /// Parse a Random/SetRandom block until EndRandom or auto-completion termination.
-/// Supports nesting, error detection, and records errors when non-control-flow Tokens appear outside IfBlock.
+/// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside IfBlock.
 /// Design:
 /// - After entering Random/SetRandom, loop through Tokens.
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, report error.
+/// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, auto-close the block.
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     iter: &mut Peekable<T>,
@@ -474,18 +474,10 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             SetSwitch(_) | Switch(_) | Case(_) | Def | Skip => {
                 break;
             }
-            // 4. Handle non-control-flow TokenWithPos: prioritize parse_unit_or_block; if not in any IfBlock, report error
+            // 4. Handle non-control-flow TokenWithPos: auto-close Random block when encountering non-control-flow commands
+            content if !content.is_control_flow_token() => break,
             _ => {
-                if let Some((_unit, mut errs)) = parse_unit_or_block(iter) {
-                    // This TokenWithPos does not belong to any IfBlock, discard directly and record error
-                    errors.push(
-                        AstBuildWarning::UnmatchedTokenInRandomBlock
-                            .into_wrapper_manual(token.row(), token.column()),
-                    );
-                    errors.append(&mut errs);
-                } else {
-                    iter.next();
-                }
+                iter.next();
             }
         }
     }
@@ -922,24 +914,80 @@ mod tests {
     }
 
     #[test]
-    fn test_unmatched_token_in_random_block() {
+    fn test_auto_close_random_block_on_non_control_flow() {
         use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
-            Title("A"), // Not in any IfBlock
-            If(BigUint::from(1u64)),
-            Title("B"),
-            EndIf,
-            EndRandom,
+            Title("A"), // Not in any IfBlock, should auto-close Random block
+            Title("B"), // This should be outside the Random block
         ]
         .into_iter()
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
-        assert_eq!(
-            errors,
-            vec![AstBuildWarning::UnmatchedTokenInRandomBlock.into_wrapper(&tokens[1])]
-        );
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        // Should not produce any errors, Random block should auto-close
+        assert_eq!(errors, vec![]);
+        // Should have three units: RandomBlock and two TokenWithPos
+        assert_eq!(ast.len(), 3);
+        // First unit should be RandomBlock
+        let Unit::RandomBlock { if_blocks, .. } = &ast[0] else {
+            panic!("First unit should be RandomBlock, got: {:?}", ast[0]);
+        };
+        // RandomBlock should be empty (no If blocks)
+        assert_eq!(if_blocks.len(), 0);
+        // Second unit should be the first Title token
+        let Unit::TokenWithPos(token) = &ast[1] else {
+            panic!("Second unit should be TokenWithPos, got: {:?}", ast[1]);
+        };
+        assert!(matches!(token.content(), Title("A")));
+        // Third unit should be the second Title token
+        let Unit::TokenWithPos(token) = &ast[2] else {
+            panic!("Third unit should be TokenWithPos, got: {:?}", ast[2]);
+        };
+        assert!(matches!(token.content(), Title("B")));
+    }
+
+    #[test]
+    fn test_auto_close_random_block_with_multiple_if_blocks() {
+        use Token::*;
+        // This simulates the scenario from the reference:
+        // #RANDOM 2
+        // #IF 1
+        // #00112:00220000
+        // #ENDIF
+        // #IF 2
+        // #00113:00003300
+        // #ENDIF
+        // #00114:00000044  <- This should auto-close the Random block
+        let tokens = vec![
+            Random(BigUint::from(2u64)),
+            If(BigUint::from(1u64)),
+            Title("00112:00220000"),
+            EndIf,
+            If(BigUint::from(2u64)),
+            Title("00113:00003300"),
+            EndIf,
+            Title("00114:00000044"), // This should auto-close the Random block
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        // Should not produce any errors
+        assert_eq!(errors, vec![]);
+        // Should have two units: RandomBlock and TokenWithPos
+        assert_eq!(ast.len(), 2);
+        // First unit should be RandomBlock with two If blocks
+        let Unit::RandomBlock { if_blocks, .. } = &ast[0] else {
+            panic!("First unit should be RandomBlock, got: {:?}", ast[0]);
+        };
+        assert_eq!(if_blocks.len(), 2);
+        // Second unit should be the final Title token
+        let Unit::TokenWithPos(token) = &ast[1] else {
+            panic!("Second unit should be TokenWithPos, got: {:?}", ast[1]);
+        };
+        assert!(matches!(token.content(), Title("00114:00000044")));
     }
 }
