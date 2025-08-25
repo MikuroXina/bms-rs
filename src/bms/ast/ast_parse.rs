@@ -28,7 +28,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                             let expected_range = BigUint::from(1u64)..=max.clone();
                             let generated = rng.generate(expected_range.clone());
                             // Check if generated value is within expected range
-                            if generated < BigUint::from(1u64) || generated > max {
+                            if expected_range.contains(&generated) {
                                 warnings.push(
                                     AstParseWarning::RandomValueOutOfRange {
                                         expected_range,
