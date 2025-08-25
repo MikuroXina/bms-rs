@@ -200,7 +200,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     // If the iterator has ended, also break (i.e., automatically complete EndSwitch)
     (
         Unit::SwitchBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             cases,
         },
         errors,
@@ -427,7 +427,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     // 5. Return AST node
     (
         Unit::RandomBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             if_blocks,
         },
         errors,

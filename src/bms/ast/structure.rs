@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use num::BigUint;
 
-use crate::bms::lex::token::TokenWithPos;
+use crate::bms::{command::mixin::SourcePosMixin, lex::token::TokenWithPos};
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,7 +14,7 @@ pub enum Unit<'a> {
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         /// The value of the Random block.
-        value: BlockValue,
+        value: SourcePosMixin<BlockValue>,
         /// The If blocks in the Random block.
         if_blocks: Vec<IfBlock<'a>>,
     },
@@ -24,7 +24,7 @@ pub enum Unit<'a> {
     /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
     SwitchBlock {
         /// The value of the Switch block.
-        value: BlockValue,
+        value: SourcePosMixin<BlockValue>,
         /// The Case branches in the Switch block.
         cases: Vec<CaseBranch<'a>>,
     },

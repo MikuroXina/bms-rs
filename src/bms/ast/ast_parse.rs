@@ -22,11 +22,10 @@ pub(super) fn parse_control_flow_ast<'a>(
             }
             Unit::RandomBlock { value, if_blocks } => {
                 // Select branch
-                let branch_val = match value {
-                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
-                        BigUint::from(0u64)
-                    }
-                    BlockValue::Random { ref max } => {
+                let (row, col) = (value.row(), value.column());
+                let branch_val = match value.into_content() {
+                    BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
+                    BlockValue::Random { max } => {
                         let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
                         let v = rng.generate(expected.clone());
                         if !expected.contains(&v) {
@@ -35,7 +34,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                                     expected: expected.clone(),
                                     actual: v.clone(),
                                 }
-                                .into_wrapper_manual(0, 0),
+                                .into_wrapper_manual(row, col),
                             );
                         }
                         v
@@ -70,11 +69,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                 // If none found, do nothing
             }
             Unit::SwitchBlock { value, cases } => {
-                let switch_val = match value {
-                    BlockValue::Random { ref max } if *max == BigUint::from(0u64) => {
-                        BigUint::from(0u64)
-                    }
-                    BlockValue::Random { ref max } => {
+                let (row, col) = (value.row(), value.column());
+                let switch_val = match value.into_content() {
+                    BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
+                    BlockValue::Random { max } => {
                         let expected: RangeInclusive<BigUint> = BigUint::from(1u64)..=max.clone();
                         let v = rng.generate(expected.clone());
                         if !expected.contains(&v) {
@@ -83,7 +81,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                                     expected: expected.clone(),
                                     actual: v.clone(),
                                 }
-                                .into_wrapper_manual(0, 0),
+                                .into_wrapper_manual(row, col),
                             );
                         }
                         v
@@ -165,7 +163,8 @@ mod tests {
             Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
-                },
+                }
+                .into_wrapper_manual(114, 514),
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
                 }],
@@ -173,7 +172,8 @@ mod tests {
             Unit::SwitchBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
-                },
+                }
+                .into_wrapper_manual(114, 514),
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX)),
                     units: vec![Unit::TokenWithPos(&t_case)],
@@ -209,7 +209,8 @@ mod tests {
                 units: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(2u64),
-                    },
+                    }
+                    .into_wrapper_manual(114, 514),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(2u64)),
                         units: vec![Unit::TokenWithPos(&t_switch_in_random)],
@@ -220,7 +221,8 @@ mod tests {
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
@@ -243,7 +245,8 @@ mod tests {
             units: vec![Unit::RandomBlock {
                 value: BlockValue::Set {
                     value: BigUint::from(2u64),
-                },
+                }
+                .into_wrapper_manual(114, 514),
                 if_blocks: vec![{
                     let mut b = HashMap::new();
                     b.insert(
@@ -260,7 +263,8 @@ mod tests {
         let units2 = vec![Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
@@ -289,13 +293,15 @@ mod tests {
                 units: vec![Unit::SwitchBlock {
                     value: BlockValue::Set {
                         value: BigUint::from(1u64),
-                    },
+                    }
+                    .into_wrapper_manual(114, 514),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(1u64)),
                         units: vec![Unit::RandomBlock {
                             value: BlockValue::Set {
                                 value: BigUint::from(1u64),
-                            },
+                            }
+                            .into_wrapper_manual(114, 514),
                             if_blocks: vec![{
                                 let mut b = HashMap::new();
                                 b.insert(
@@ -315,7 +321,8 @@ mod tests {
         let units = vec![Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
