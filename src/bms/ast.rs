@@ -120,9 +120,6 @@ pub enum AstBuildWarning {
     /// An `#IF` branch value exceeds the maximum value of its random block.
     #[error("if branch value out of range in random block")]
     RandomIfBranchValueOutOfRange,
-    /// Tokens were found between `#RANDOM` and `#IF` that should not be there.
-    #[error("unmatched token in random block, e.g. Tokens between Random and If.")]
-    UnmatchedTokenInRandomBlock,
     /// A duplicate `#CASE` value was found in a switch block.
     #[error("duplicate case value in switch block")]
     SwitchDuplicateCaseValue,
