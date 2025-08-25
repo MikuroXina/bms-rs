@@ -14,6 +14,41 @@ use crate::bms::command::{
 
 use super::model::{Bms, obj::Obj};
 
+// Helper: collect referenced ObjIds from a definition map by comparing values.
+fn referenced_ids_by_value<'a, T, K: PartialEq + 'a>(
+    defs: &std::collections::HashMap<ObjId, T>,
+    def_to_key: impl Fn(&T) -> &K,
+    used_keys: impl IntoIterator<Item = &'a K>,
+) -> std::collections::HashSet<ObjId> {
+    let mut set = std::collections::HashSet::new();
+    for key in used_keys {
+        if let Some(id) = defs.iter().find_map(|(id, v)| {
+            if def_to_key(v) == key {
+                Some(*id)
+            } else {
+                None
+            }
+        }) {
+            set.insert(id);
+        }
+    }
+    set
+}
+
+// Helper: push unused definition warnings for ids in `defs` not present in `used`.
+fn push_unused_warnings<D>(
+    warnings: &mut Vec<ValidityWarning>,
+    defs: &std::collections::HashMap<ObjId, D>,
+    used: &std::collections::HashSet<ObjId>,
+    mk_warn: impl Fn(ObjId) -> ValidityWarning,
+) {
+    for id in defs.keys() {
+        if !used.contains(id) {
+            warnings.push(mk_warn(*id));
+        }
+    }
+}
+
 /// Warnings for validity check. These issues may degrade experience but are not fatal.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -313,202 +348,148 @@ impl Bms {
 
         //    - Unused defines in ScopeDefines and Others
         if !self.scope_defines.bpm_defs.is_empty() {
-            // Gather from messages that referenced ids via reverse-lookup of bpm value
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .arrangers
-                .bpm_changes
-                .values()
-                .filter_map(|c| {
-                    // We can't invert bpm->id; check by reverse lookup in defs
-                    self.scope_defines
-                        .bpm_defs
-                        .iter()
-                        .find_map(|(id, v)| if v == &c.bpm { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.bpm_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedBpmDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.bpm_defs,
+                |v| v,
+                self.arrangers.bpm_changes.values().map(|c| &c.bpm),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.bpm_defs,
+                &referenced,
+                ValidityWarning::UnusedBpmDef,
+            );
         }
         if !self.scope_defines.stop_defs.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .arrangers
-                .stops
-                .values()
-                .filter_map(|s| {
-                    // Reverse-lookup duration -> id
-                    self.scope_defines
-                        .stop_defs
-                        .iter()
-                        .find_map(|(id, v)| if v == &s.duration { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.stop_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedStopDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.stop_defs,
+                |v| v,
+                self.arrangers.stops.values().map(|s| &s.duration),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.stop_defs,
+                &referenced,
+                ValidityWarning::UnusedStopDef,
+            );
         }
         if !self.scope_defines.scroll_defs.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .arrangers
-                .scrolling_factor_changes
-                .values()
-                .filter_map(|sc| {
-                    self.scope_defines
-                        .scroll_defs
-                        .iter()
-                        .find_map(|(id, v)| if v == &sc.factor { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.scroll_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedScrollDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.scroll_defs,
+                |v| v,
+                self.arrangers
+                    .scrolling_factor_changes
+                    .values()
+                    .map(|sc| &sc.factor),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.scroll_defs,
+                &referenced,
+                ValidityWarning::UnusedScrollDef,
+            );
         }
         if !self.scope_defines.speed_defs.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .arrangers
-                .speed_factor_changes
-                .values()
-                .filter_map(|sp| {
-                    self.scope_defines
-                        .speed_defs
-                        .iter()
-                        .find_map(|(id, v)| if v == &sp.factor { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.speed_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedSpeedDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.speed_defs,
+                |v| v,
+                self.arrangers
+                    .speed_factor_changes
+                    .values()
+                    .map(|sp| &sp.factor),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.speed_defs,
+                &referenced,
+                ValidityWarning::UnusedSpeedDef,
+            );
         }
         if !self.scope_defines.exrank_defs.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .notes
-                .judge_events
-                .values()
-                .filter_map(|j| {
-                    self.scope_defines
-                        .exrank_defs
-                        .iter()
-                        .find_map(|(id, v)| if v.judge_level == j.judge_level { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.exrank_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedExRankDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.exrank_defs,
+                |v| &v.judge_level,
+                self.notes.judge_events.values().map(|j| &j.judge_level),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.exrank_defs,
+                &referenced,
+                ValidityWarning::UnusedExRankDef,
+            );
         }
         if !self.others.texts.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .notes
-                .text_events
-                .values()
-                .filter_map(|t| {
-                    self.others
-                        .texts
-                        .iter()
-                        .find_map(|(id, v)| if v == &t.text { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.others.texts.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedTextDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.others.texts,
+                |v| v,
+                self.notes.text_events.values().map(|t| &t.text),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.others.texts,
+                &referenced,
+                ValidityWarning::UnusedTextDef,
+            );
         }
         #[cfg(feature = "minor-command")]
         if !self.others.seek_events.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .notes
-                .seek_events
-                .values()
-                .filter_map(|e| {
-                    self.others
-                        .seek_events
-                        .iter()
-                        .find_map(|(id, v)| if v == &e.position { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.others.seek_events.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedSeekDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.others.seek_events,
+                |v| v,
+                self.notes.seek_events.values().map(|e| &e.position),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.others.seek_events,
+                &referenced,
+                ValidityWarning::UnusedSeekDef,
+            );
         }
         #[cfg(feature = "minor-command")]
         if !self.others.change_options.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .notes
-                .option_events
-                .values()
-                .filter_map(|e| {
-                    self.others
-                        .change_options
-                        .iter()
-                        .find_map(|(id, v)| if v == &e.option { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.others.change_options.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedChangeOptionDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.others.change_options,
+                |v| v,
+                self.notes.option_events.values().map(|e| &e.option),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.others.change_options,
+                &referenced,
+                ValidityWarning::UnusedChangeOptionDef,
+            );
         }
         #[cfg(feature = "minor-command")]
         if !self.scope_defines.argb_defs.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .graphics
-                .bga_argb_changes
-                .values()
-                .flat_map(|m| m.values())
-                .filter_map(|a| {
-                    self.scope_defines
-                        .argb_defs
-                        .iter()
-                        .find_map(|(id, v)| if v == &a.argb { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.argb_defs.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedArgbDef(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.argb_defs,
+                |v| v,
+                self.graphics
+                    .bga_argb_changes
+                    .values()
+                    .flat_map(|m| m.values())
+                    .map(|a| &a.argb),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.argb_defs,
+                &referenced,
+                ValidityWarning::UnusedArgbDef,
+            );
         }
         #[cfg(feature = "minor-command")]
         if !self.scope_defines.swbga_events.is_empty() {
-            use std::collections::HashSet;
-            let referenced: HashSet<_> = self
-                .notes
-                .bga_keybound_events
-                .values()
-                .filter_map(|e| {
-                    self.scope_defines
-                        .swbga_events
-                        .iter()
-                        .find_map(|(id, v)| if v == &e.event { Some(*id) } else { None })
-                })
-                .collect();
-            for id in self.scope_defines.swbga_events.keys() {
-                if !referenced.contains(id) {
-                    validity_warnings.push(ValidityWarning::UnusedSwBgaEvent(*id));
-                }
-            }
+            let referenced = referenced_ids_by_value(
+                &self.scope_defines.swbga_events,
+                |v| v,
+                self.notes.bga_keybound_events.values().map(|e| &e.event),
+            );
+            push_unused_warnings(
+                &mut validity_warnings,
+                &self.scope_defines.swbga_events,
+                &referenced,
+                ValidityWarning::UnusedSwBgaEvent,
+            );
         }
 
         ValidityCheckOutput {
