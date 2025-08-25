@@ -6,6 +6,7 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
+pub mod validity;
 
 use thiserror::Error;
 

@@ -17,16 +17,20 @@
 //! use bms_rs::bms::{ast::rng::RngMock, parse_bms_with_rng, BmsOutput};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
+//! use bms_rs::bms::BmsWarning;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
 //! let BmsOutput { bms, warnings } = parse_bms(&source);
 //! #[cfg(not(feature = "rand"))]
 //! let BmsOutput { bms, warnings } = parse_bms_with_rng(&source, RngMock([BigUint::from(1u64)]));
-//! assert_eq!(warnings, vec![]);
+//! // Generally, having validity_warnings are very usual.
+//! assert_eq!(
+//!     warnings.into_iter().filter(|w| !matches!(w, BmsWarning::ValidityWarning(_))).collect::<Vec<BmsWarning>>(),
+//!     vec![],
+//! );
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
-//! println!("Warnings: {:?}", warnings);
 //! ```
 //!
 //! ## Advanced Usage
@@ -59,6 +63,9 @@
 //! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
+//! let ValidityCheckOutput { validity_warnings: _, validity_errors } = bms.check_validity();
+//! // Generally, having validity_errors are very unusual.
+//! assert_eq!(validity_errors, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("Artist: {}", bms.header.artist.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
