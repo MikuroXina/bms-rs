@@ -97,7 +97,7 @@
 //!
 //! - `bmson` feature enables the BMSON format support.
 //! - `serde` feature enables the `serde` support. It supports [`serde::Serialize`] for all the definications in this crate, and [`serde::Deserialize`] for all the result types.
-//! - `rand` feature enables the random number generator support. It supports [`bms::parse::random::rng::RandRng`].
+//! - `rand` feature enables the random number generator support. It supports [`crate::bms::ast::rng::RandRng`].
 //!
 //! ## Optional Features
 //!
