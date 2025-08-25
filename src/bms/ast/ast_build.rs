@@ -475,14 +475,9 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 break;
             }
             // 4. Handle non-control-flow TokenWithPos: auto-close Random block when encountering non-control-flow commands
+            content if !content.is_control_flow_token() => break,
             _ => {
-                // Check if this is a non-control-flow token that should auto-close the Random block
-                if !token.content().is_control_flow_token() {
-                    // Auto-close the Random block, don't consume this token
-                    break;
-                } else {
-                    iter.next();
-                }
+                iter.next();
             }
         }
     }
