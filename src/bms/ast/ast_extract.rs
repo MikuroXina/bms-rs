@@ -28,13 +28,13 @@ pub(super) fn extract_units<'a>(
 /// Extracts all tokens from a Random block.
 /// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
-    value: BlockValue,
+    value: SourcePosMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Random token
-    let random_value = match &value {
+    let random_value = match value.content() {
         BlockValue::Random { max } => max.clone(),
         BlockValue::Set { value } => value.clone(),
     };
@@ -74,13 +74,13 @@ fn extract_random_block<'a>(
 /// Extracts all tokens from a Switch block.
 /// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
-    value: BlockValue,
+    value: SourcePosMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Switch token
-    let switch_value = match &value {
+    let switch_value = match value.content() {
         BlockValue::Random { max } => max.clone(),
         BlockValue::Set { value } => value.clone(),
     };
@@ -187,7 +187,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![if_block],
         };
 
@@ -234,7 +235,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![case_branch],
         };
         let ast_root = AstRoot {
@@ -280,7 +282,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(2u32), // Different from any case
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![def_branch],
         };
         let ast_root = AstRoot {
@@ -311,7 +314,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![],
         };
 
@@ -336,7 +340,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![],
         };
         let ast_root = AstRoot {
@@ -396,7 +401,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![if_block],
         };
 
@@ -479,7 +485,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Random {
                 max: BigUint::from(3u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![case_branch_1, case_branch_2, def_branch],
         };
 
@@ -565,7 +572,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![def_branch, case_branch_1, case_branch_2],
         };
 
@@ -632,7 +640,8 @@ mod tests {
         let nested_random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![IfBlock {
                 branches: nested_branches,
             }],
@@ -646,7 +655,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![case_branch],
         };
 
@@ -706,7 +716,8 @@ mod tests {
         let nested_switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![nested_case_branch],
         };
 
@@ -721,7 +732,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![IfBlock { branches }],
         };
 
@@ -787,7 +799,8 @@ mod tests {
         let innermost_switch = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![innermost_case],
         };
 
@@ -803,7 +816,8 @@ mod tests {
         let middle_random = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             if_blocks: vec![IfBlock {
                 branches: middle_branches,
             }],
@@ -818,7 +832,8 @@ mod tests {
         let outer_switch = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![outer_case],
         };
 
@@ -904,7 +919,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(0, 0),
             cases: vec![def_branch_1, def_branch_2, case_branch],
         };
 

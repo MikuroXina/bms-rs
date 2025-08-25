@@ -4,7 +4,7 @@ use num::BigUint;
 
 use crate::bms::{
     ast::AstBuildWarningWithPos,
-    command::mixin::SourcePosMixinExt,
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
@@ -17,7 +17,7 @@ pub enum Unit<'a> {
     TokenWithPos(&'a TokenWithPos<'a>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
-        value: BlockValue,
+        value: SourcePosMixin<BlockValue>,
         if_blocks: Vec<IfBlock<'a>>,
     },
     /// A Switch block.
@@ -25,7 +25,7 @@ pub enum Unit<'a> {
     /// If there is no other Case branch activated, Def branch will be activated.
     /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
     SwitchBlock {
-        value: BlockValue,
+        value: SourcePosMixin<BlockValue>,
         cases: Vec<CaseBranch<'a>>,
     },
 }
@@ -257,7 +257,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     // If the iterator has ended, also break (i.e., automatically complete EndSwitch)
     (
         Unit::SwitchBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             cases,
         },
         errors,
@@ -492,7 +492,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     // 5. Return AST node
     (
         Unit::RandomBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             if_blocks,
         },
         errors,
