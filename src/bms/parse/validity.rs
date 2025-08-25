@@ -9,7 +9,7 @@ use thiserror::Error;
 use crate::bms::command::{
     ObjId,
     channel::{Key, PlayerSide},
-    time::ObjTime,
+    time::{ObjTime, Track},
 };
 
 use super::model::{Bms, obj::Obj};
@@ -25,6 +25,47 @@ pub enum ValidityWarning {
     /// Defined BMP object id is never referenced by any BGA change.
     #[error("Unused BMP object id: {0:?}")]
     UnusedBmpObjectId(ObjId),
+    /// Text content is empty at the time.
+    #[error("Empty text content at {0:?}")]
+    EmptyTextAt(ObjTime),
+    /// Option content is empty at the time.
+    #[cfg(feature = "minor-command")]
+    #[error("Empty option content at {0:?}")]
+    EmptyOptionAt(ObjTime),
+    /// Unused BPM definition id in `ScopeDefines.bpm_defs`.
+    #[error("Unused BPM definition object id: {0:?}")]
+    UnusedBpmDef(ObjId),
+    /// Unused STOP definition id in `ScopeDefines.stop_defs`.
+    #[error("Unused STOP definition object id: {0:?}")]
+    UnusedStopDef(ObjId),
+    /// Unused SCROLL definition id in `ScopeDefines.scroll_defs`.
+    #[error("Unused SCROLL definition object id: {0:?}")]
+    UnusedScrollDef(ObjId),
+    /// Unused SPEED definition id in `ScopeDefines.speed_defs`.
+    #[error("Unused SPEED definition object id: {0:?}")]
+    UnusedSpeedDef(ObjId),
+    /// Unused EXRANK definition id in `ScopeDefines.exrank_defs`.
+    #[error("Unused EXRANK definition object id: {0:?}")]
+    UnusedExRankDef(ObjId),
+    /// Unused TEXT definition id in `Others.texts`.
+    #[error("Unused TEXT definition object id: {0:?}")]
+    UnusedTextDef(ObjId),
+    /// Unused SEEK definition id in `Others.seek_events`.
+    #[cfg(feature = "minor-command")]
+    #[error("Unused SEEK definition object id: {0:?}")]
+    UnusedSeekDef(ObjId),
+    /// Unused CHANGE OPTION definition id in `Others.change_options`.
+    #[cfg(feature = "minor-command")]
+    #[error("Unused CHANGEOPTION definition object id: {0:?}")]
+    UnusedChangeOptionDef(ObjId),
+    /// Unused ARGB definition id in `ScopeDefines.argb_defs`.
+    #[cfg(feature = "minor-command")]
+    #[error("Unused ARGB definition object id: {0:?}")]
+    UnusedArgbDef(ObjId),
+    /// Unused SWBGA event id in `ScopeDefines.swbga_events`.
+    #[cfg(feature = "minor-command")]
+    #[error("Unused SWBGA event object id: {0:?}")]
+    UnusedSwBgaEvent(ObjId),
 }
 
 /// Errors for validity check. These issues likely break playback correctness.
@@ -55,6 +96,36 @@ pub enum ValidityError {
         /// Expected object id that should be mapped at this timestamp.
         expected: ObjId,
     },
+    /// Orphan entry found in `ids_by_key`: mapping exists but no actual note at that time.
+    #[error(
+        "Orphan key index mapping at time {time:?} (side={side:?}, key={key:?}), mapped to {mapped:?} but note not found"
+    )]
+    IdsByKeyOrphanMapping {
+        /// Player side where the mapping is placed.
+        side: PlayerSide,
+        /// Key lane where the mapping is placed.
+        key: Key,
+        /// Timestamp of the mapping.
+        time: ObjTime,
+        /// Mapped object id.
+        mapped: ObjId,
+    },
+    /// Invalid BPM value (must be > 0).
+    #[error("Invalid BPM value at {0:?} (must be > 0)")]
+    InvalidBpmValue(ObjTime),
+    /// Invalid section length value (must be > 0).
+    #[error("Invalid section length for track {0:?} (must be > 0)")]
+    InvalidSectionLen(Track),
+    /// Invalid stop duration (must be > 0).
+    #[error("Invalid stop duration at {0:?} (must be > 0)")]
+    InvalidStopDuration(ObjTime),
+    /// Invalid speed factor (must be > 0).
+    #[error("Invalid speed factor at {0:?} (must be > 0)")]
+    InvalidSpeedFactor(ObjTime),
+    /// Invalid seek position (must be >= 0).
+    #[cfg(feature = "minor-command")]
+    #[error("Invalid seek position at {0:?} (must be >= 0)")]
+    InvalidSeekPosition(ObjTime),
 }
 
 /// Output of validity checks.
@@ -120,7 +191,7 @@ impl Bms {
             }
         }
 
-        // 4) Check BGMs reference valid WAV ids.
+        // 1.2) Check BGMs reference valid WAV ids.
         for obj_ids in self.notes.bgms.values() {
             for obj_id in obj_ids {
                 if !self.notes.wav_files.contains_key(obj_id) {
@@ -129,10 +200,80 @@ impl Bms {
             }
         }
 
-        // 4.2) Check BGAs reference valid BMP ids.
+        // 1.3) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
                 validity_errors.push(ValidityError::MissingBmpForBga(bga_obj.id));
+            }
+        }
+
+        // 2) Validate arranger objects' value ranges.
+        for bpm in self.arrangers.bpm_changes.values() {
+            if bpm.bpm <= crate::bms::Decimal::from(0u8) {
+                validity_errors.push(ValidityError::InvalidBpmValue(bpm.time));
+            }
+        }
+        for sec in self.arrangers.section_len_changes.values() {
+            if sec.length <= crate::bms::Decimal::from(0u8) {
+                validity_errors.push(ValidityError::InvalidSectionLen(sec.track));
+            }
+        }
+        for stop in self.arrangers.stops.values() {
+            if stop.duration <= crate::bms::Decimal::from(0u8) {
+                validity_errors.push(ValidityError::InvalidStopDuration(stop.time));
+            }
+        }
+        // Scroll factor: no restriction other than being finite (Decimal is always finite), so no check
+        for speed in self.arrangers.speed_factor_changes.values() {
+            if speed.factor <= crate::bms::Decimal::from(0u8) {
+                validity_errors.push(ValidityError::InvalidSpeedFactor(speed.time));
+            }
+        }
+
+        // 3) Validate graphics minor-command objects.
+        // BGA opacity: u8 (0..=255) and 0 is allowed; no check
+
+        // 4) Validate note event value ranges and content.
+        // BGM/KEY volume: u8 (0..=255) and 0 is allowed; no check
+        #[cfg(feature = "minor-command")]
+        {
+            for s in self.notes.seek_events.values() {
+                if s.position < crate::bms::Decimal::from(0u8) {
+                    validity_errors.push(ValidityError::InvalidSeekPosition(s.time));
+                }
+            }
+        }
+        for t in self.notes.text_events.values() {
+            if t.text.is_empty() {
+                validity_warnings.push(ValidityWarning::EmptyTextAt(t.time));
+            }
+        }
+        #[cfg(feature = "minor-command")]
+        {
+            for o in self.notes.option_events.values() {
+                if o.option.is_empty() {
+                    validity_warnings.push(ValidityWarning::EmptyOptionAt(o.time));
+                }
+            }
+        }
+
+        // 5) Check for orphan entries in ids_by_key (present mapping but no note object at that time).
+        for ((side, key), time_map) in &self.notes.ids_by_key {
+            for (time, mapped) in time_map {
+                let no_note = self
+                    .notes
+                    .objs
+                    .get(mapped)
+                    .map(|list| list.iter().all(|n| n.offset != *time))
+                    .unwrap_or(true);
+                if no_note {
+                    validity_errors.push(ValidityError::IdsByKeyOrphanMapping {
+                        side: *side,
+                        key: *key,
+                        time: *time,
+                        mapped: *mapped,
+                    });
+                }
             }
         }
 
@@ -166,6 +307,206 @@ impl Bms {
             for defined in self.graphics.bmp_files.keys() {
                 if !used_bmps.contains(defined) {
                     validity_warnings.push(ValidityWarning::UnusedBmpObjectId(*defined));
+                }
+            }
+        }
+
+        //    - Unused defines in ScopeDefines and Others
+        if !self.scope_defines.bpm_defs.is_empty() {
+            // Gather from messages that referenced ids via reverse-lookup of bpm value
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .arrangers
+                .bpm_changes
+                .values()
+                .filter_map(|c| {
+                    // We can't invert bpm->id; check by reverse lookup in defs
+                    self.scope_defines
+                        .bpm_defs
+                        .iter()
+                        .find_map(|(id, v)| if v == &c.bpm { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.bpm_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedBpmDef(*id));
+                }
+            }
+        }
+        if !self.scope_defines.stop_defs.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .arrangers
+                .stops
+                .values()
+                .filter_map(|s| {
+                    // Reverse-lookup duration -> id
+                    self.scope_defines
+                        .stop_defs
+                        .iter()
+                        .find_map(|(id, v)| if v == &s.duration { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.stop_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedStopDef(*id));
+                }
+            }
+        }
+        if !self.scope_defines.scroll_defs.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .arrangers
+                .scrolling_factor_changes
+                .values()
+                .filter_map(|sc| {
+                    self.scope_defines
+                        .scroll_defs
+                        .iter()
+                        .find_map(|(id, v)| if v == &sc.factor { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.scroll_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedScrollDef(*id));
+                }
+            }
+        }
+        if !self.scope_defines.speed_defs.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .arrangers
+                .speed_factor_changes
+                .values()
+                .filter_map(|sp| {
+                    self.scope_defines
+                        .speed_defs
+                        .iter()
+                        .find_map(|(id, v)| if v == &sp.factor { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.speed_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedSpeedDef(*id));
+                }
+            }
+        }
+        if !self.scope_defines.exrank_defs.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .notes
+                .judge_events
+                .values()
+                .filter_map(|j| {
+                    self.scope_defines
+                        .exrank_defs
+                        .iter()
+                        .find_map(|(id, v)| if v.judge_level == j.judge_level { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.exrank_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedExRankDef(*id));
+                }
+            }
+        }
+        if !self.others.texts.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .notes
+                .text_events
+                .values()
+                .filter_map(|t| {
+                    self.others
+                        .texts
+                        .iter()
+                        .find_map(|(id, v)| if v == &t.text { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.others.texts.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedTextDef(*id));
+                }
+            }
+        }
+        #[cfg(feature = "minor-command")]
+        if !self.others.seek_events.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .notes
+                .seek_events
+                .values()
+                .filter_map(|e| {
+                    self.others
+                        .seek_events
+                        .iter()
+                        .find_map(|(id, v)| if v == &e.position { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.others.seek_events.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedSeekDef(*id));
+                }
+            }
+        }
+        #[cfg(feature = "minor-command")]
+        if !self.others.change_options.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .notes
+                .option_events
+                .values()
+                .filter_map(|e| {
+                    self.others
+                        .change_options
+                        .iter()
+                        .find_map(|(id, v)| if v == &e.option { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.others.change_options.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedChangeOptionDef(*id));
+                }
+            }
+        }
+        #[cfg(feature = "minor-command")]
+        if !self.scope_defines.argb_defs.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .graphics
+                .bga_argb_changes
+                .values()
+                .flat_map(|m| m.values())
+                .filter_map(|a| {
+                    self.scope_defines
+                        .argb_defs
+                        .iter()
+                        .find_map(|(id, v)| if v == &a.argb { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.argb_defs.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedArgbDef(*id));
+                }
+            }
+        }
+        #[cfg(feature = "minor-command")]
+        if !self.scope_defines.swbga_events.is_empty() {
+            use std::collections::HashSet;
+            let referenced: HashSet<_> = self
+                .notes
+                .bga_keybound_events
+                .values()
+                .filter_map(|e| {
+                    self.scope_defines
+                        .swbga_events
+                        .iter()
+                        .find_map(|(id, v)| if v == &e.event { Some(*id) } else { None })
+                })
+                .collect();
+            for id in self.scope_defines.swbga_events.keys() {
+                if !referenced.contains(id) {
+                    validity_warnings.push(ValidityWarning::UnusedSwBgaEvent(*id));
                 }
             }
         }
