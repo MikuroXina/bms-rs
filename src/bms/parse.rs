@@ -10,7 +10,10 @@ pub mod prompt;
 use thiserror::Error;
 
 use crate::bms::{
-    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
+    ast::{
+        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
+        rng::Rng,
+    },
     command::{
         ObjId,
         channel::Channel,
@@ -92,6 +95,8 @@ pub struct ParseOutputWithAst {
     pub bms: Bms,
     /// Warnings that occurred during AST building.
     pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+    /// Warnings that occurred during AST parsing (RNG execution stage).
+    pub ast_parse_warnings: Vec<AstParseWarningWithPos>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
@@ -107,7 +112,7 @@ impl Bms {
             root,
             ast_build_warnings,
         } = AstRoot::from_token_stream(token_iter);
-        let AstParseOutput { token_refs } = root.parse(rng);
+        let (AstParseOutput { token_refs }, ast_parse_warnings) = root.parse_with_warnings(rng);
         let ParseOutput {
             bms,
             parse_warnings,
@@ -115,6 +120,7 @@ impl Bms {
         ParseOutputWithAst {
             bms,
             ast_build_warnings,
+            ast_parse_warnings,
             parse_warnings,
         }
     }
