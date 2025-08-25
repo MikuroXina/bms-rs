@@ -1,6 +1,6 @@
 use crate::bms::{
     ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    command::mixin::SourcePosMixin,
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
@@ -28,18 +28,19 @@ pub(super) fn extract_units<'a>(
 /// Extracts all tokens from a Random block.
 /// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
-    value: BlockValue,
+    value: SourcePosMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Random token
-    let random_value = match &value {
-        BlockValue::Random { max } => max.clone(),
-        BlockValue::Set { value } => value.clone(),
+    let (row, col) = (value.row(), value.column());
+    let random_value = match value.into_content() {
+        BlockValue::Random { max } => max,
+        BlockValue::Set { value } => value,
     };
 
-    let random_token = SourcePosMixin::new(Token::Random(random_value), 0, 0);
+    let random_token = Token::Random(random_value).into_wrapper_manual(row, col);
     tokens.push(random_token);
 
     // Extract all If blocks and their branches
@@ -51,21 +52,21 @@ fn extract_random_block<'a>(
         for branch_key in branch_keys {
             if let Some(branch) = if_block.branches.get(branch_key) {
                 // Add the If token
-                let if_token = SourcePosMixin::new(Token::If(branch_key.clone()), 0, 0);
+                let if_token = Token::If(branch_key.clone()).into_wrapper_manual(row, col);
                 tokens.push(if_token);
 
                 // Extract all tokens in this branch
                 tokens.extend(extract_units(branch.units.clone()));
 
                 // Add the EndIf token
-                let endif_token = SourcePosMixin::new(Token::EndIf, 0, 0);
+                let endif_token = Token::EndIf.into_wrapper_manual(row, col);
                 tokens.push(endif_token);
             }
         }
     }
 
     // Add the EndRandom token
-    let endrandom_token = SourcePosMixin::new(Token::EndRandom, 0, 0);
+    let endrandom_token = Token::EndRandom.into_wrapper_manual(row, col);
     tokens.push(endrandom_token);
 
     tokens
@@ -74,18 +75,19 @@ fn extract_random_block<'a>(
 /// Extracts all tokens from a Switch block.
 /// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
-    value: BlockValue,
+    value: SourcePosMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Switch token
-    let switch_value = match &value {
-        BlockValue::Random { max } => max.clone(),
-        BlockValue::Set { value } => value.clone(),
+    let (row, col) = (value.row(), value.column());
+    let switch_value = match value.into_content() {
+        BlockValue::Random { max } => max,
+        BlockValue::Set { value } => value,
     };
 
-    let switch_token = SourcePosMixin::new(Token::Switch(switch_value), 0, 0);
+    let switch_token = Token::Switch(switch_value).into_wrapper_manual(row, col);
     tokens.push(switch_token);
 
     // Extract all case branches
@@ -93,33 +95,33 @@ fn extract_switch_block<'a>(
         match &case.value {
             CaseBranchValue::Case(case_value) => {
                 // Add the Case token
-                let case_token = SourcePosMixin::new(Token::Case(case_value.clone()), 0, 0);
+                let case_token = Token::Case(case_value.clone()).into_wrapper_manual(row, col);
                 tokens.push(case_token);
 
                 // Extract all tokens in this case
                 tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
-                let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
+                let skip_token = Token::Skip.into_wrapper_manual(row, col);
                 tokens.push(skip_token);
             }
             CaseBranchValue::Def => {
                 // Add the Def token
-                let def_token = SourcePosMixin::new(Token::Def, 0, 0);
+                let def_token = Token::Def.into_wrapper_manual(row, col);
                 tokens.push(def_token);
 
                 // Extract all tokens in this def branch
                 tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
-                let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
+                let skip_token = Token::Skip.into_wrapper_manual(row, col);
                 tokens.push(skip_token);
             }
         }
     }
 
     // Add the EndSwitch token
-    let endswitch_token = SourcePosMixin::new(Token::EndSwitch, 0, 0);
+    let endswitch_token = Token::EndSwitch.into_wrapper_manual(row, col);
     tokens.push(endswitch_token);
 
     tokens
@@ -187,7 +189,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![if_block],
         };
 
@@ -234,7 +237,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![case_branch],
         };
         let ast_root = AstRoot {
@@ -280,7 +284,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(2u32), // Different from any case
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![def_branch],
         };
         let ast_root = AstRoot {
@@ -311,7 +316,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![],
         };
 
@@ -336,7 +342,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![],
         };
         let ast_root = AstRoot {
@@ -396,7 +403,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![if_block],
         };
 
@@ -479,7 +487,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Random {
                 max: BigUint::from(3u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![case_branch_1, case_branch_2, def_branch],
         };
 
@@ -565,7 +574,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![def_branch, case_branch_1, case_branch_2],
         };
 
@@ -632,7 +642,8 @@ mod tests {
         let nested_random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![IfBlock {
                 branches: nested_branches,
             }],
@@ -646,7 +657,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![case_branch],
         };
 
@@ -706,7 +718,8 @@ mod tests {
         let nested_switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![nested_case_branch],
         };
 
@@ -721,7 +734,8 @@ mod tests {
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![IfBlock { branches }],
         };
 
@@ -787,7 +801,8 @@ mod tests {
         let innermost_switch = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![innermost_case],
         };
 
@@ -803,7 +818,8 @@ mod tests {
         let middle_random = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             if_blocks: vec![IfBlock {
                 branches: middle_branches,
             }],
@@ -818,7 +834,8 @@ mod tests {
         let outer_switch = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![outer_case],
         };
 
@@ -904,7 +921,8 @@ mod tests {
         let switch_block = Unit::SwitchBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
-            },
+            }
+            .into_wrapper_manual(114, 514),
             cases: vec![def_branch_1, def_branch_2, case_branch],
         };
 
