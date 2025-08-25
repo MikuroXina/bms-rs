@@ -188,7 +188,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(0, 0),
+            .into_wrapper(&value),
             if_blocks: vec![if_block],
         };
 
