@@ -55,7 +55,7 @@ fn extract_random_block<'a>(
                 tokens.push(if_token);
 
                 // Extract all tokens in this branch
-                tokens.extend(extract_units(branch.tokens.clone()));
+                tokens.extend(extract_units(branch.units.clone()));
 
                 // Add the EndIf token
                 let endif_token = SourcePosMixin::new(Token::EndIf, 0, 0);
@@ -97,7 +97,7 @@ fn extract_switch_block<'a>(
                 tokens.push(case_token);
 
                 // Extract all tokens in this case
-                tokens.extend(extract_units(case.tokens));
+                tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
                 let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
@@ -109,7 +109,7 @@ fn extract_switch_block<'a>(
                 tokens.push(def_token);
 
                 // Extract all tokens in this def branch
-                tokens.extend(extract_units(case.tokens));
+                tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
                 let skip_token = SourcePosMixin::new(Token::Skip, 0, 0);
@@ -177,7 +177,7 @@ mod tests {
 
         let if_branch = IfBranch {
             value: BigUint::from(1u32),
-            tokens: if_tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>(),
+            units: if_tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>(),
         };
 
         let mut branches = HashMap::new();
@@ -225,7 +225,7 @@ mod tests {
 
         let case_branch = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: case_tokens
+            units: case_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -271,7 +271,7 @@ mod tests {
 
         let def_branch = CaseBranch {
             value: CaseBranchValue::Def,
-            tokens: def_tokens
+            units: def_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -374,7 +374,7 @@ mod tests {
 
         let if_branch_1 = IfBranch {
             value: BigUint::from(1u32),
-            tokens: if_tokens_1
+            units: if_tokens_1
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -382,7 +382,7 @@ mod tests {
 
         let if_branch_2 = IfBranch {
             value: BigUint::from(2u32),
-            tokens: if_tokens_2
+            units: if_tokens_2
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -454,7 +454,7 @@ mod tests {
 
         let case_branch_1 = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: case_tokens_1
+            units: case_tokens_1
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -462,7 +462,7 @@ mod tests {
 
         let case_branch_2 = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(2u32)),
-            tokens: case_tokens_2
+            units: case_tokens_2
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -470,7 +470,7 @@ mod tests {
 
         let def_branch = CaseBranch {
             value: CaseBranchValue::Def,
-            tokens: def_tokens
+            units: def_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -539,7 +539,7 @@ mod tests {
 
         let def_branch = CaseBranch {
             value: CaseBranchValue::Def,
-            tokens: def_tokens
+            units: def_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -547,7 +547,7 @@ mod tests {
 
         let case_branch_1 = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: case_tokens_1
+            units: case_tokens_1
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -555,7 +555,7 @@ mod tests {
 
         let case_branch_2 = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(2u32)),
-            tokens: case_tokens_2
+            units: case_tokens_2
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -620,7 +620,7 @@ mod tests {
         // Create nested Random block
         let nested_if_branch = IfBranch {
             value: BigUint::from(1u32),
-            tokens: nested_random_tokens
+            units: nested_random_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -640,7 +640,7 @@ mod tests {
 
         let case_branch = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: vec![nested_random_block],
+            units: vec![nested_random_block],
         };
 
         let switch_block = Unit::SwitchBlock {
@@ -697,7 +697,7 @@ mod tests {
         // Create nested Switch block
         let nested_case_branch = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: nested_switch_tokens
+            units: nested_switch_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -712,7 +712,7 @@ mod tests {
 
         let if_branch = IfBranch {
             value: BigUint::from(1u32),
-            tokens: vec![nested_switch_block],
+            units: vec![nested_switch_block],
         };
 
         let mut branches = HashMap::new();
@@ -778,7 +778,7 @@ mod tests {
         // Innermost Switch block
         let innermost_case = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: innermost_tokens
+            units: innermost_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -794,7 +794,7 @@ mod tests {
         // Middle Random block
         let middle_if_branch = IfBranch {
             value: BigUint::from(1u32),
-            tokens: vec![innermost_switch],
+            units: vec![innermost_switch],
         };
 
         let mut middle_branches = HashMap::new();
@@ -812,7 +812,7 @@ mod tests {
         // Outer Switch block
         let outer_case = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: vec![middle_random],
+            units: vec![middle_random],
         };
 
         let outer_switch = Unit::SwitchBlock {
@@ -878,7 +878,7 @@ mod tests {
 
         let def_branch_1 = CaseBranch {
             value: CaseBranchValue::Def,
-            tokens: def_tokens_1
+            units: def_tokens_1
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -886,7 +886,7 @@ mod tests {
 
         let def_branch_2 = CaseBranch {
             value: CaseBranchValue::Def,
-            tokens: def_tokens_2
+            units: def_tokens_2
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),
@@ -894,7 +894,7 @@ mod tests {
 
         let case_branch = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)),
-            tokens: case_tokens
+            units: case_tokens
                 .iter()
                 .map(Unit::TokenWithPos)
                 .collect::<Vec<_>>(),

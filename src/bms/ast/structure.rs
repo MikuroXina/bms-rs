@@ -60,7 +60,7 @@ pub struct IfBranch<'a> {
     /// The value of the If branch.
     pub value: BigUint,
     /// The units in the If branch.
-    pub tokens: Vec<Unit<'a>>,
+    pub units: Vec<Unit<'a>>,
 }
 
 /// The define of a Case/Def branch in a Switch block.
@@ -70,7 +70,7 @@ pub struct CaseBranch<'a> {
     /// The value of the Case/Def branch.
     pub value: CaseBranchValue,
     /// The units in the Case/Def branch.
-    pub tokens: Vec<Unit<'a>>,
+    pub units: Vec<Unit<'a>>,
 }
 
 /// The type note of a Case/Def branch.

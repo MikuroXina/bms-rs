@@ -245,7 +245,7 @@ mod tests {
         else {
             panic!("Case(1) not found");
         };
-        println!("Case(1) tokens: {:#?}", case1.tokens);
+        println!("Case(1) tokens: {:#?}", case1.units);
         assert_eq!(errors, vec![]);
         assert!(matches!(&ast[0], Unit::TokenWithPos(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
@@ -253,7 +253,7 @@ mod tests {
         let Unit::SwitchBlock { cases, .. } = &ast[1] else {
             panic!("AST structure error");
         };
-        let Some(CaseBranch { tokens, .. }) = cases
+        let Some(CaseBranch { units: tokens, .. }) = cases
             .iter()
             .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
         else {
@@ -270,7 +270,7 @@ mod tests {
                 .branches
                 .get(&BigUint::from(1u64))
                 .unwrap()
-                .tokens
+                .units
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),
@@ -283,7 +283,7 @@ mod tests {
                 .branches
                 .get(&BigUint::from(2u64))
                 .unwrap()
-                .tokens
+                .units
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),
@@ -291,7 +291,7 @@ mod tests {
                 })
                 .any(|u| matches!(u.content(), Title("00006600")))
         );
-        let Some(CaseBranch { tokens, .. }) = cases
+        let Some(CaseBranch { units: tokens, .. }) = cases
             .iter()
             .find(|c| c.value == CaseBranchValue::Case(BigUint::from(2u64)))
         else {
@@ -364,7 +364,7 @@ mod tests {
         else {
             panic!("Case(1) not found");
         };
-        println!("Case(1) tokens: {:#?}", case1.tokens);
+        println!("Case(1) tokens: {:#?}", case1.units);
         let mut rng = DummyRng;
         let mut ast_iter = ast.clone().into_iter().peekable();
         let (_tokens, _warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
