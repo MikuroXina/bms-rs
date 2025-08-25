@@ -49,6 +49,20 @@ fn push_unused_warnings<D>(
     }
 }
 
+// Helper: push unused definition warnings by an on-demand predicate over ids.
+fn push_unused_by_predicate<'a>(
+    warnings: &mut Vec<ValidityWarning>,
+    ids: impl IntoIterator<Item = &'a ObjId>,
+    is_used: impl Fn(&ObjId) -> bool,
+    mk_warn: impl Fn(ObjId) -> ValidityWarning,
+) {
+    for id in ids {
+        if !is_used(id) {
+            warnings.push(mk_warn(*id));
+        }
+    }
+}
+
 /// Warnings for validity check. These issues may degrade experience but are not fatal.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -315,35 +329,29 @@ impl Bms {
         // 6) Unused definitions (warnings only).
         //    - WAV definitions that are never used by any note/BGM.
         if !self.notes.wav_files.is_empty() {
-            use std::collections::HashSet;
-            let used_wavs: HashSet<_> = self
-                .notes
-                .objs
-                .keys()
-                .copied()
-                .chain(self.notes.bgms.values().flatten().copied())
-                .collect();
-            for defined in self.notes.wav_files.keys() {
-                if !used_wavs.contains(defined) {
-                    validity_warnings.push(ValidityWarning::UnusedWavObjectId(*defined));
-                }
-            }
+            push_unused_by_predicate(
+                &mut validity_warnings,
+                self.notes.wav_files.keys(),
+                |id| {
+                    self.notes.objs.contains_key(id)
+                        || self
+                            .notes
+                            .bgms
+                            .values()
+                            .any(|vec_ids| vec_ids.iter().any(|x| x == id))
+                },
+                ValidityWarning::UnusedWavObjectId,
+            );
         }
 
         //    - BMP definitions that are never used by any BGA change.
         if !self.graphics.bmp_files.is_empty() {
-            use std::collections::HashSet;
-            let used_bmps: HashSet<_> = self
-                .graphics
-                .bga_changes()
-                .values()
-                .map(|bga| bga.id)
-                .collect();
-            for defined in self.graphics.bmp_files.keys() {
-                if !used_bmps.contains(defined) {
-                    validity_warnings.push(ValidityWarning::UnusedBmpObjectId(*defined));
-                }
-            }
+            push_unused_by_predicate(
+                &mut validity_warnings,
+                self.graphics.bmp_files.keys(),
+                |id| self.graphics.bga_changes().values().any(|b| &b.id == id),
+                ValidityWarning::UnusedBmpObjectId,
+            );
         }
 
         //    - Unused defines in ScopeDefines and Others
@@ -496,5 +504,135 @@ impl Bms {
             validity_warnings,
             validity_errors,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bms::command::{
+        channel::{Key, NoteKind, PlayerSide},
+        time::ObjTime,
+    };
+    use crate::bms::parse::model::{Notes, obj::Obj};
+
+    fn t(track: u64, num: u64, den: u64) -> ObjTime {
+        ObjTime::new(track, num, den)
+    }
+
+    #[test]
+    fn test_unused_wav_bmp_detection() {
+        let mut bms = Bms::default();
+        // Define WAV and BMP but never used
+        let wav_id = crate::bms::command::ObjId::try_from("01").unwrap();
+        bms.notes.wav_files.insert(wav_id, "a.wav".into());
+        let bmp_id = crate::bms::command::ObjId::try_from("02").unwrap();
+        bms.graphics.bmp_files.insert(
+            bmp_id,
+            crate::bms::parse::model::def::Bmp {
+                file: "a.bmp".into(),
+                transparent_color: crate::bms::command::graphics::Argb::default(),
+            },
+        );
+
+        let out = bms.check_validity();
+        assert!(
+            out.validity_warnings
+                .contains(&ValidityWarning::UnusedWavObjectId(wav_id))
+        );
+        assert!(
+            out.validity_warnings
+                .contains(&ValidityWarning::UnusedBmpObjectId(bmp_id))
+        );
+        assert!(out.validity_errors.is_empty());
+    }
+
+    #[test]
+    fn test_missing_wav_for_note() {
+        let mut bms = Bms::default();
+        let id = crate::bms::command::ObjId::try_from("0A").unwrap();
+        let time = t(1, 0, 4);
+        // Insert note via push_note to keep ids_by_key consistent
+        let mut notes = Notes::default();
+        notes.push_note(Obj {
+            offset: time,
+            kind: NoteKind::Visible,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id,
+        });
+        bms.notes = notes;
+        // No WAV defined for id
+        let out = bms.check_validity();
+        assert!(
+            out.validity_errors
+                .contains(&ValidityError::MissingWavForNote(id))
+        );
+    }
+
+    #[test]
+    fn test_missing_bmp_for_bga() {
+        let mut bms = Bms::default();
+        let id = crate::bms::command::ObjId::try_from("0B").unwrap();
+        let time = t(1, 0, 4);
+        bms.graphics.bga_changes.insert(
+            time,
+            crate::bms::parse::model::obj::BgaObj {
+                time,
+                id,
+                layer: crate::bms::parse::model::obj::BgaLayer::Base,
+            },
+        );
+        let out = bms.check_validity();
+        assert!(
+            out.validity_errors
+                .contains(&ValidityError::MissingBmpForBga(id))
+        );
+    }
+
+    #[test]
+    fn test_ids_by_key_orphan_mapping() {
+        let mut bms = Bms::default();
+        let id = crate::bms::command::ObjId::try_from("0C").unwrap();
+        let time = t(1, 0, 4);
+        bms.notes
+            .ids_by_key
+            .entry((PlayerSide::Player1, Key::Key1))
+            .or_default()
+            .insert(time, id);
+        // No corresponding note in notes.objs at this time
+        let out = bms.check_validity();
+        assert!(out.validity_errors.iter().any(
+            |e| matches!(e, ValidityError::IdsByKeyOrphanMapping { time: t0, .. } if *t0 == time)
+        ));
+    }
+
+    #[test]
+    fn test_empty_text_warning_and_unused_bpm_def() {
+        let mut bms = Bms::default();
+        // Empty text event -> warning
+        let time = t(1, 0, 4);
+        bms.notes.text_events.insert(
+            time,
+            crate::bms::parse::model::obj::TextObj {
+                time,
+                text: String::new(),
+            },
+        );
+        // Add an unused BPM def
+        let bpm_id = crate::bms::command::ObjId::try_from("0D").unwrap();
+        bms.scope_defines
+            .bpm_defs
+            .insert(bpm_id, crate::bms::Decimal::from(120u32));
+
+        let out = bms.check_validity();
+        assert!(
+            out.validity_warnings
+                .contains(&ValidityWarning::EmptyTextAt(time))
+        );
+        assert!(
+            out.validity_warnings
+                .contains(&ValidityWarning::UnusedBpmDef(bpm_id))
+        );
     }
 }
