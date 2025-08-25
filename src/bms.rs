@@ -26,8 +26,10 @@ pub mod prelude;
 
 use thiserror::Error;
 
+#[cfg(feature = "rand")]
+use self::ast::rng::RandRng;
 use self::{
-    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::RandRng},
+    ast::{AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstRoot, rng::Rng},
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,
@@ -90,9 +92,20 @@ pub struct BmsOutput {
 /// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 /// println!("Warnings: {:?}", warnings);
 /// ```
+#[cfg(feature = "rand")]
 pub fn parse_bms(source: &str) -> BmsOutput {
     use rand::{SeedableRng, rngs::StdRng};
 
+    // Parse BMS using default RNG and prompt handler
+    let rng = RandRng(StdRng::from_os_rng());
+    parse_bms_with_rng(source, rng)
+}
+
+/// Parse a BMS file from source text using a custom random number generator.
+///
+/// This function provides a convenient way to parse a BMS file in one step.
+/// It uses the default channel parser and a custom random number generator.
+pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -101,15 +114,13 @@ pub fn parse_bms(source: &str) -> BmsOutput {
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
-
-    // Parse BMS using default RNG and prompt handler
-    let rng = RandRng(StdRng::from_os_rng());
     // Build AST
     let AstBuildOutput {
         root,
         ast_build_warnings,
     } = AstRoot::from_token_stream(&tokens);
     warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
+
     // Parse AST
     let AstParseOutput { token_refs } = root.parse(rng);
     // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
