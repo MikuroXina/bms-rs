@@ -126,7 +126,7 @@ pub(super) fn parse_control_flow_ast<'a>(
 #[cfg(test)]
 mod tests {
     use core::ops::RangeInclusive;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use num::BigUint;
 
@@ -151,7 +151,7 @@ mod tests {
         // If/Case value is very large under SetRandom/SetSwitch
         let t_if = Title("LARGE_IF").into_wrapper_manual(0, 0);
         let t_case = Title("LARGE_CASE").into_wrapper_manual(0, 0);
-        let mut if_branches = HashMap::new();
+        let mut if_branches = BTreeMap::new();
         if_branches.insert(BigUint::from(u64::MAX), vec![Unit::TokenWithPos(&t_if)]);
         let units = vec![
             Unit::RandomBlock {
@@ -195,7 +195,7 @@ mod tests {
         let mut rng = DummyRng;
         // Random outer, Switch inner
         let t_switch_in_random = Title("SWITCH_IN_RANDOM").into_wrapper_manual(0, 0);
-        let mut if_branches = HashMap::new();
+        let mut if_branches = BTreeMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             vec![Unit::SwitchBlock {
@@ -239,7 +239,7 @@ mod tests {
                 }
                 .into_wrapper_manual(14, 23),
                 if_blocks: vec![{
-                    let mut b = HashMap::new();
+                    let mut b = BTreeMap::new();
                     b.insert(
                         BigUint::from(2u64),
                         vec![Unit::TokenWithPos(&t_random_in_switch)],
@@ -273,7 +273,7 @@ mod tests {
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
         let t_deep_nested = Title("DEEP_NESTED").into_wrapper_manual(0, 0);
-        let mut if_branches = HashMap::new();
+        let mut if_branches = BTreeMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             vec![Unit::SwitchBlock {
@@ -289,7 +289,7 @@ mod tests {
                         }
                         .into_wrapper_manual(14, 23),
                         if_blocks: vec![{
-                            let mut b = HashMap::new();
+                            let mut b = BTreeMap::new();
                             b.insert(
                                 BigUint::from(1u64),
                                 vec![Unit::TokenWithPos(&t_deep_nested)],

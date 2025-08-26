@@ -119,7 +119,7 @@ fn extract_switch_block<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use num::BigUint;
 
@@ -166,7 +166,7 @@ mod tests {
 
         let if_branch = if_tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>();
 
-        let mut branches = HashMap::new();
+        let mut branches = BTreeMap::new();
         branches.insert(BigUint::from(1u32), if_branch);
 
         let if_block = IfBlock { branches };
@@ -373,7 +373,7 @@ mod tests {
             .map(Unit::TokenWithPos)
             .collect::<Vec<_>>();
 
-        let mut branches = HashMap::new();
+        let mut branches = BTreeMap::new();
         branches.insert(BigUint::from(1u32), if_branch_1);
         branches.insert(BigUint::from(2u32), if_branch_2);
 
@@ -611,7 +611,7 @@ mod tests {
             .map(Unit::TokenWithPos)
             .collect::<Vec<_>>();
 
-        let mut nested_branches = HashMap::new();
+        let mut nested_branches = BTreeMap::new();
         nested_branches.insert(BigUint::from(1u32), nested_if_branch);
 
         let nested_random_block = Unit::RandomBlock {
@@ -700,7 +700,7 @@ mod tests {
 
         let if_branch = vec![nested_switch_block];
 
-        let mut branches = HashMap::new();
+        let mut branches = BTreeMap::new();
         branches.insert(BigUint::from(1u32), if_branch);
 
         let random_block = Unit::RandomBlock {
@@ -781,7 +781,7 @@ mod tests {
         // Middle Random block
         let middle_if_branch = vec![innermost_switch];
 
-        let mut middle_branches = HashMap::new();
+        let mut middle_branches = BTreeMap::new();
         middle_branches.insert(BigUint::from(1u32), middle_if_branch);
 
         let middle_random = Unit::RandomBlock {

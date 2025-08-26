@@ -1,6 +1,6 @@
 //! The structure of the AST.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use num::BigUint;
 
@@ -51,7 +51,7 @@ pub enum BlockValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
     /// The branches of the If block.
-    pub branches: HashMap<BigUint, Vec<Unit<'a>>>,
+    pub branches: BTreeMap<BigUint, Vec<Unit<'a>>>,
 }
 
 /// The define of a Case/Def branch in a Switch block.

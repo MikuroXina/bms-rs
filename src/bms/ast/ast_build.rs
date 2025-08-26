@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::{collections::BTreeMap, iter::Peekable};
 
 use num::BigUint;
 
@@ -272,7 +272,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
-                let mut branches = HashMap::new();
+                let mut branches = BTreeMap::new();
                 let mut seen_if_values = std::collections::HashSet::new();
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
