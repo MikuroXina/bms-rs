@@ -8,10 +8,13 @@ use std::collections::{HashMap, HashSet};
 
 use thiserror::Error;
 
-use crate::bms::command::{
-    ObjId,
-    channel::{Key, PlayerSide},
-    time::{ObjTime, Track},
+use crate::bms::{
+    Decimal,
+    command::{
+        ObjId,
+        channel::{Key, PlayerSide},
+        time::{ObjTime, Track},
+    },
 };
 
 use super::model::{Bms, obj::Obj};
@@ -290,23 +293,23 @@ impl Bms {
 
         // 2) Validate arranger objects' value ranges.
         for bpm in self.arrangers.bpm_changes.values() {
-            if bpm.bpm <= crate::bms::Decimal::from(0u8) {
+            if bpm.bpm <= Decimal::from(0u8) {
                 invalid.push(ValidityInvalid::InvalidBpmValue(bpm.time));
             }
         }
         for sec in self.arrangers.section_len_changes.values() {
-            if sec.length <= crate::bms::Decimal::from(0u8) {
+            if sec.length <= Decimal::from(0u8) {
                 invalid.push(ValidityInvalid::InvalidSectionLen(sec.track));
             }
         }
         for stop in self.arrangers.stops.values() {
-            if stop.duration <= crate::bms::Decimal::from(0u8) {
+            if stop.duration <= Decimal::from(0u8) {
                 invalid.push(ValidityInvalid::InvalidStopDuration(stop.time));
             }
         }
         // Scroll factor: no restriction other than being finite (Decimal is always finite), so no check
         for speed in self.arrangers.speed_factor_changes.values() {
-            if speed.factor <= crate::bms::Decimal::from(0u8) {
+            if speed.factor <= Decimal::from(0u8) {
                 invalid.push(ValidityInvalid::InvalidSpeedFactor(speed.time));
             }
         }
@@ -319,7 +322,7 @@ impl Bms {
         #[cfg(feature = "minor-command")]
         {
             for s in self.notes.seek_events.values() {
-                if s.position < crate::bms::Decimal::from(0u8) {
+                if s.position < Decimal::from(0u8) {
                     invalid.push(ValidityInvalid::InvalidSeekPosition(s.time));
                 }
             }
