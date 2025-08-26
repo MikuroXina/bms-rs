@@ -247,7 +247,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content() == &CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -261,7 +261,7 @@ mod tests {
         };
         let Some(CaseBranch { units: tokens, .. }) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content() == &CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };
@@ -276,6 +276,7 @@ mod tests {
                 .branches
                 .get(&BigUint::from(1u64))
                 .unwrap()
+                .content()
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),
@@ -288,6 +289,7 @@ mod tests {
                 .branches
                 .get(&BigUint::from(2u64))
                 .unwrap()
+                .content()
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),
@@ -297,7 +299,7 @@ mod tests {
         );
         let Some(CaseBranch { units: tokens, .. }) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(2u64)))
+            .find(|c| c.value.content() == &CaseBranchValue::Case(BigUint::from(2u64)))
         else {
             panic!("Case(2) not found");
         };
@@ -364,7 +366,7 @@ mod tests {
         };
         let Some(case1) = cases
             .iter()
-            .find(|c| c.value == CaseBranchValue::Case(BigUint::from(1u64)))
+            .find(|c| c.value.content() == &CaseBranchValue::Case(BigUint::from(1u64)))
         else {
             panic!("Case(1) not found");
         };

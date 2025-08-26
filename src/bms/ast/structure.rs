@@ -31,7 +31,7 @@ pub enum Unit<'a> {
 }
 
 /// The value of a Random/Switch block.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BlockValue {
     /// For Random/Switch, value ranges in [1, max].
     /// IfBranch value must ranges in [1, max].
@@ -51,7 +51,7 @@ pub enum BlockValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
     /// The branches of the If block.
-    pub branches: BTreeMap<BigUint, Vec<Unit<'a>>>,
+    pub branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>>,
 }
 
 /// The define of a Case/Def branch in a Switch block.
@@ -59,14 +59,14 @@ pub struct IfBlock<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseBranch<'a> {
     /// The value of the Case/Def branch.
-    pub value: CaseBranchValue,
+    pub value: SourcePosMixin<CaseBranchValue>,
     /// The units in the Case/Def branch.
     pub units: Vec<Unit<'a>>,
 }
 
 /// The type note of a Case/Def branch.
 /// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CaseBranchValue {
     /// A Case branch.
     Case(BigUint),

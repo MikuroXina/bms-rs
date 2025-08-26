@@ -7,7 +7,7 @@ use crate::bms::{
         AstBuildWarningWithPos,
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
-    command::mixin::SourcePosMixinExt,
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
@@ -95,6 +95,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     let mut seen_def = false;
     let mut errors = Vec::new();
     while let Some(next) = iter.peek() {
+        let (row, col) = (next.row(), next.column());
         match next.content() {
             Case(case_val) => {
                 // Check for duplicates
@@ -134,7 +135,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Case(case_val.clone()),
+                    value: CaseBranchValue::Case(case_val.clone()).into_wrapper_manual(row, col),
                     units: tokens,
                 });
                 if iter
@@ -165,7 +166,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Def,
+                    value: CaseBranchValue::Def.into_wrapper_manual(row, col),
                     units: tokens,
                 });
                 if iter
@@ -268,11 +269,13 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     let mut errors = Vec::new();
     // 2. Main loop, process the contents inside the Random block
     while let Some(&token) = iter.peek() {
+        let (row, col) = (token.row(), token.column());
         match token.content() {
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
-                let mut branches = BTreeMap::new();
+                let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
+                    BTreeMap::new();
                 let mut seen_if_values = std::collections::HashSet::new();
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
@@ -295,14 +298,14 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         seen_if_values.insert(if_val);
                         let (tokens, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
-                        branches.insert(if_val.clone(), tokens);
+                        branches.insert(if_val.clone(), tokens.into_wrapper_manual(row, col));
                     }
                 } else {
                     // SetRandom branch has no range limit
                     seen_if_values.insert(if_val);
                     let (tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(if_val.clone(), tokens);
+                    branches.insert(if_val.clone(), tokens.into_wrapper_manual(row, col));
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some((token, elif_val)) = iter
@@ -315,6 +318,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     })
                     .next()
                 {
+                    let (row, col) = (token.row(), token.column());
                     if seen_if_values.contains(elif_val) {
                         errors.push(
                             AstBuildWarning::RandomDuplicateIfBranchValue
@@ -341,7 +345,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     seen_if_values.insert(elif_val);
                     let (elif_tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(elif_val.clone(), elif_tokens);
+                    branches.insert(elif_val.clone(), elif_tokens.into_wrapper_manual(row, col));
                 }
                 // 2.3 Check for redundant ElseIf
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
@@ -356,7 +360,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     iter.next();
                     let (etokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(BigUint::from(0u64), etokens);
+                    branches.insert(BigUint::from(0u64), etokens.into_wrapper_manual(row, col));
                 }
                 // 2.5 Check for redundant Else
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
@@ -478,7 +482,7 @@ mod tests {
             panic!("AST structure error, ast: {ast:?}");
         };
         let Some(_case1) = cases.iter().find(
-            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+            |c| matches!(c.value.content(), CaseBranchValue::Case(val) if val == &BigUint::from(1u64)),
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
@@ -488,7 +492,7 @@ mod tests {
             panic!("AST structure error, ast: {ast:?}");
         };
         let Some(CaseBranch { units: _, .. }) = cases.iter().find(
-            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+            |c| matches!(c.value.content(), CaseBranchValue::Case(val) if val == &BigUint::from(1u64)),
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
@@ -548,7 +552,7 @@ mod tests {
         assert_eq!(if_blocks.len(), 2);
         let all_titles: Vec<_> = if_blocks
             .iter()
-            .flat_map(|blk| blk.branches.values())
+            .flat_map(|blk| blk.branches.values().map(|v| v.content()))
             .flatten()
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
@@ -601,6 +605,7 @@ mod tests {
         for blk in if_blocks {
             for branch in blk.branches.values() {
                 if branch
+                    .content()
                     .iter()
                     .any(|u| matches!(&u, Unit::RandomBlock { .. }))
                 {
@@ -652,7 +657,7 @@ mod tests {
         let Some(b1) = branches1.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.iter().find(|u| {
+        let Some(_) = b1.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -663,7 +668,7 @@ mod tests {
         let Some(b2) = branches1.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.iter().find(|u| {
+        let Some(_) = b2.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -674,7 +679,7 @@ mod tests {
         let Some(belse) = branches1.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.iter().find(|u| {
+        let Some(_) = belse.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -686,7 +691,7 @@ mod tests {
         let Some(b1) = branches2.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.iter().find(|u| {
+        let Some(_) = b1.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -697,7 +702,7 @@ mod tests {
         let Some(b2) = branches2.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.iter().find(|u| {
+        let Some(_) = b2.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -708,7 +713,7 @@ mod tests {
         let Some(belse) = branches2.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.iter().find(|u| {
+        let Some(_) = belse.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
