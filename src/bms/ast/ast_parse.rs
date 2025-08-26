@@ -1,6 +1,6 @@
 use num::BigUint;
 
-use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithPos};
+use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenRefWithPos};
 use core::ops::RangeInclusive;
 
 use super::rng::Rng;
@@ -12,12 +12,13 @@ use super::{
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> (Vec<&'a TokenWithPos<'a>>, Vec<AstParseWarningWithPos>) {
-    let mut result = Vec::new();
+) -> (Vec<TokenRefWithPos<'a>>, Vec<AstParseWarningWithPos>) {
+    let mut result: Vec<TokenRefWithPos<'a>> = Vec::new();
     let mut warnings = Vec::new();
     for unit in iter.by_ref() {
         match unit {
             Unit::TokenWithPos(token) => {
+                // Convert &TokenWithPos<'a> -> TokenRefWithPos<'a>
                 result.push(token);
             }
             Unit::RandomBlock { value, if_blocks } => {
@@ -154,7 +155,7 @@ mod tests {
         let mut if_branches = BTreeMap::new();
         if_branches.insert(
             BigUint::from(u64::MAX),
-            vec![Unit::TokenWithPos(&t_if)].into_wrapper_manual(14, 23),
+            vec![Unit::TokenWithPos(t_if.inner_ref())].into_wrapper_manual(14, 23),
         );
         let units = vec![
             Unit::RandomBlock {
@@ -174,7 +175,7 @@ mod tests {
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX))
                         .into_wrapper_manual(14, 23),
-                    units: vec![Unit::TokenWithPos(&t_case)],
+                    units: vec![Unit::TokenWithPos(t_case.inner_ref())],
                 }],
             },
         ];
@@ -183,8 +184,8 @@ mod tests {
         let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t.content() {
-                Title(s) => Some(*s),
+            .filter_map(|t| match **t.content() {
+                Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -209,7 +210,7 @@ mod tests {
                 .into_wrapper_manual(14, 23),
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(2u64)).into_wrapper_manual(14, 23),
-                    units: vec![Unit::TokenWithPos(&t_switch_in_random)],
+                    units: vec![Unit::TokenWithPos(t_switch_in_random.inner_ref())],
                 }],
             }]
             .into_wrapper_manual(14, 23),
@@ -227,8 +228,8 @@ mod tests {
         let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t.content() {
-                Title(s) => Some(*s),
+            .filter_map(|t| match **t.content() {
+                Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -247,7 +248,8 @@ mod tests {
                     let mut b = BTreeMap::new();
                     b.insert(
                         BigUint::from(2u64),
-                        vec![Unit::TokenWithPos(&t_random_in_switch)].into_wrapper_manual(14, 23),
+                        vec![Unit::TokenWithPos(t_random_in_switch.inner_ref())]
+                            .into_wrapper_manual(14, 23),
                     );
                     IfBlock { branches: b }
                 }],
@@ -264,8 +266,8 @@ mod tests {
         let (tokens2, _warnings) = parse_control_flow_ast(&mut iter2, &mut rng);
         let titles2: Vec<_> = tokens2
             .iter()
-            .filter_map(|t| match t.content() {
-                Title(s) => Some(*s),
+            .filter_map(|t| match **t.content() {
+                Title(s) => Some(s),
                 _ => None,
             })
             .collect();
@@ -297,7 +299,7 @@ mod tests {
                             let mut b = BTreeMap::new();
                             b.insert(
                                 BigUint::from(1u64),
-                                vec![Unit::TokenWithPos(&t_deep_nested)]
+                                vec![Unit::TokenWithPos(t_deep_nested.inner_ref())]
                                     .into_wrapper_manual(14, 23),
                             );
                             IfBlock { branches: b }
@@ -321,8 +323,8 @@ mod tests {
         let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
         let titles: Vec<_> = tokens
             .iter()
-            .filter_map(|t| match t.content() {
-                Title(s) => Some(*s),
+            .filter_map(|t| match **t.content() {
+                Title(s) => Some(s),
                 _ => None,
             })
             .collect();

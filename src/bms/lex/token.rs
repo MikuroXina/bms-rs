@@ -303,6 +303,9 @@ pub enum Token<'a> {
 /// A token with position information.
 pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
+/// A reference to a token with position information.
+pub type TokenRefWithPos<'a> = SourcePosMixin<&'a Token<'a>>;
+
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
         let channel_parser = read_channel_beat;

@@ -27,8 +27,8 @@ use rng::Rng;
 use thiserror::Error;
 
 use crate::bms::{
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
-    lex::{TokenRefStream, TokenStream, token::TokenWithPos},
+    command::mixin::SourcePosMixin,
+    lex::{TokenRefStream, TokenStream, token::TokenRefWithPos},
 };
 
 use self::{ast_build::build_control_flow_ast, ast_parse::parse_control_flow_ast, structure::Unit};
@@ -52,7 +52,7 @@ pub struct AstBuildOutput<'a> {
 impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
     pub fn from_token_stream(
-        token_stream: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        token_stream: impl IntoIterator<Item = TokenRefWithPos<'a>>,
     ) -> AstBuildOutput<'a> {
         let mut token_iter = token_stream.into_iter().peekable();
         let (units, errors) = build_control_flow_ast(&mut token_iter);
@@ -88,13 +88,7 @@ impl<'a> AstRoot<'a> {
     /// [`AstRoot::from_token_stream`].
     pub fn extract(self) -> TokenStream<'a> {
         let tokens = ast_extract::extract_units(self.units);
-        TokenStream {
-            tokens: tokens
-                .into_iter()
-                .enumerate()
-                .map(|(i, t)| t.into_wrapper_manual(i + 1, 1))
-                .collect(),
-        }
+        TokenStream { tokens }
     }
 }
 
@@ -238,7 +232,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().map(|t| t.inner_ref()).collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -315,7 +310,7 @@ mod tests {
         let expected = ["11000000", "00003300", "00000044"];
         assert_eq!(tokens.len(), 3);
         for (i, t) in tokens.iter().enumerate() {
-            assert_eq!(t.content(), &Title(expected[i]));
+            assert!(matches!(**t.content(), Title(s) if s == expected[i]));
         }
         assert_eq!(errors, vec![]);
     }
@@ -357,7 +352,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().map(|t| t.inner_ref()).collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))

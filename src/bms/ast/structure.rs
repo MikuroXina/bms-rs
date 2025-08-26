@@ -4,13 +4,13 @@ use std::collections::BTreeMap;
 
 use num::BigUint;
 
-use crate::bms::{command::mixin::SourcePosMixin, lex::token::TokenWithPos};
+use crate::bms::{command::mixin::SourcePosMixin, lex::token::TokenRefWithPos};
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unit<'a> {
     /// A token that is not a control flow token.
-    TokenWithPos(&'a TokenWithPos<'a>),
+    TokenWithPos(TokenRefWithPos<'a>),
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         /// The value of the Random block.

@@ -52,7 +52,7 @@
 //! #[cfg(not(feature = "rand"))]
 //! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
 //! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
-//!     &token_refs, AlwaysWarnAndUseNewer
+//!     token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
