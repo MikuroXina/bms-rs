@@ -5,7 +5,7 @@ use num::BigUint;
 use crate::bms::{
     ast::{
         AstBuildWarningWithPos,
-        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::mixin::SourcePosMixinExt,
     lex::token::{Token, TokenWithPos},
@@ -295,26 +295,14 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         seen_if_values.insert(if_val);
                         let (tokens, mut errs) = parse_if_block_body(iter);
                         errors.append(&mut errs);
-                        branches.insert(
-                            if_val.clone(),
-                            IfBranch {
-                                value: if_val.clone(),
-                                units: tokens,
-                            },
-                        );
+                        branches.insert(if_val.clone(), tokens);
                     }
                 } else {
                     // SetRandom branch has no range limit
                     seen_if_values.insert(if_val);
                     let (tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(
-                        if_val.clone(),
-                        IfBranch {
-                            value: if_val.clone(),
-                            units: tokens,
-                        },
-                    );
+                    branches.insert(if_val.clone(), tokens);
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some((token, elif_val)) = iter
@@ -353,13 +341,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     seen_if_values.insert(elif_val);
                     let (elif_tokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(
-                        elif_val.clone(),
-                        IfBranch {
-                            value: elif_val.clone(),
-                            units: elif_tokens,
-                        },
-                    );
+                    branches.insert(elif_val.clone(), elif_tokens);
                 }
                 // 2.3 Check for redundant ElseIf
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
@@ -374,13 +356,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     iter.next();
                     let (etokens, mut errs) = parse_if_block_body(iter);
                     errors.append(&mut errs);
-                    branches.insert(
-                        BigUint::from(0u64),
-                        IfBranch {
-                            value: BigUint::from(0u64),
-                            units: etokens,
-                        },
-                    );
+                    branches.insert(BigUint::from(0u64), etokens);
                 }
                 // 2.5 Check for redundant Else
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
@@ -573,7 +549,7 @@ mod tests {
         let all_titles: Vec<_> = if_blocks
             .iter()
             .flat_map(|blk| blk.branches.values())
-            .flat_map(|b| &b.units)
+            .flatten()
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
@@ -625,7 +601,6 @@ mod tests {
         for blk in if_blocks {
             for branch in blk.branches.values() {
                 if branch
-                    .units
                     .iter()
                     .any(|u| matches!(&u, Unit::RandomBlock { .. }))
                 {
@@ -677,7 +652,7 @@ mod tests {
         let Some(b1) = branches1.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.units.iter().find(|u| {
+        let Some(_) = b1.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -688,7 +663,7 @@ mod tests {
         let Some(b2) = branches1.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.units.iter().find(|u| {
+        let Some(_) = b2.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -699,7 +674,7 @@ mod tests {
         let Some(belse) = branches1.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.units.iter().find(|u| {
+        let Some(_) = belse.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -711,7 +686,7 @@ mod tests {
         let Some(b1) = branches2.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.units.iter().find(|u| {
+        let Some(_) = b1.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -722,7 +697,7 @@ mod tests {
         let Some(b2) = branches2.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.units.iter().find(|u| {
+        let Some(_) = b2.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -733,7 +708,7 @@ mod tests {
         let Some(belse) = branches2.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.units.iter().find(|u| {
+        let Some(_) = belse.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };

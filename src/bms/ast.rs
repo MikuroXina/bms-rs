@@ -276,7 +276,6 @@ mod tests {
                 .branches
                 .get(&BigUint::from(1u64))
                 .unwrap()
-                .units
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),
@@ -289,7 +288,6 @@ mod tests {
                 .branches
                 .get(&BigUint::from(2u64))
                 .unwrap()
-                .units
                 .iter()
                 .filter_map(|u| match u {
                     Unit::TokenWithPos(token) => Some(token),

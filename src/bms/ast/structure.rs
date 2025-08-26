@@ -51,16 +51,7 @@ pub enum BlockValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
     /// The branches of the If block.
-    pub branches: HashMap<BigUint, IfBranch<'a>>,
-}
-
-/// The If branch of a If block.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfBranch<'a> {
-    /// The value of the If branch.
-    pub value: BigUint,
-    /// The units in the If branch.
-    pub units: Vec<Unit<'a>>,
+    pub branches: HashMap<BigUint, Vec<Unit<'a>>>,
 }
 
 /// The define of a Case/Def branch in a Switch block.

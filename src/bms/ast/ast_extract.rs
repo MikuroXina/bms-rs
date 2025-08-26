@@ -1,5 +1,5 @@
 use crate::bms::{
-    ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+    ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     command::mixin::SourcePosMixin,
     lex::token::Token,
 };
@@ -42,9 +42,9 @@ fn extract_random_block<'a>(
 
     // Extract all If blocks and their branches
     for IfBlock { branches } in if_blocks {
-        for (_branch_key, IfBranch { value, units }) in branches {
+        for (branch_key, units) in branches {
             // Add the If token
-            let if_token = Token::If(value);
+            let if_token = Token::If(branch_key);
             tokens.push(if_token);
 
             // Extract all tokens in this branch
@@ -125,10 +125,7 @@ mod tests {
 
     use super::*;
     use crate::bms::{
-        ast::{
-            AstRoot,
-            structure::{IfBlock, IfBranch},
-        },
+        ast::{AstRoot, structure::IfBlock},
         command::mixin::SourcePosMixinExt,
         lex::token::Token,
     };
@@ -167,10 +164,7 @@ mod tests {
             .map(|(i, t)| t.into_wrapper_manual(i, i))
             .collect::<Vec<_>>();
 
-        let if_branch = IfBranch {
-            value: BigUint::from(1u32),
-            units: if_tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>(),
-        };
+        let if_branch = if_tokens.iter().map(Unit::TokenWithPos).collect::<Vec<_>>();
 
         let mut branches = HashMap::new();
         branches.insert(BigUint::from(1u32), if_branch);
@@ -369,21 +363,15 @@ mod tests {
             .map(|(i, t)| t.into_wrapper_manual(i, i))
             .collect::<Vec<_>>();
 
-        let if_branch_1 = IfBranch {
-            value: BigUint::from(1u32),
-            units: if_tokens_1
-                .iter()
-                .map(Unit::TokenWithPos)
-                .collect::<Vec<_>>(),
-        };
+        let if_branch_1 = if_tokens_1
+            .iter()
+            .map(Unit::TokenWithPos)
+            .collect::<Vec<_>>();
 
-        let if_branch_2 = IfBranch {
-            value: BigUint::from(2u32),
-            units: if_tokens_2
-                .iter()
-                .map(Unit::TokenWithPos)
-                .collect::<Vec<_>>(),
-        };
+        let if_branch_2 = if_tokens_2
+            .iter()
+            .map(Unit::TokenWithPos)
+            .collect::<Vec<_>>();
 
         let mut branches = HashMap::new();
         branches.insert(BigUint::from(1u32), if_branch_1);
@@ -618,13 +606,10 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Create nested Random block
-        let nested_if_branch = IfBranch {
-            value: BigUint::from(1u32),
-            units: nested_random_tokens
-                .iter()
-                .map(Unit::TokenWithPos)
-                .collect::<Vec<_>>(),
-        };
+        let nested_if_branch = nested_random_tokens
+            .iter()
+            .map(Unit::TokenWithPos)
+            .collect::<Vec<_>>();
 
         let mut nested_branches = HashMap::new();
         nested_branches.insert(BigUint::from(1u32), nested_if_branch);
@@ -713,10 +698,7 @@ mod tests {
             cases: vec![nested_case_branch],
         };
 
-        let if_branch = IfBranch {
-            value: BigUint::from(1u32),
-            units: vec![nested_switch_block],
-        };
+        let if_branch = vec![nested_switch_block];
 
         let mut branches = HashMap::new();
         branches.insert(BigUint::from(1u32), if_branch);
@@ -797,10 +779,7 @@ mod tests {
         };
 
         // Middle Random block
-        let middle_if_branch = IfBranch {
-            value: BigUint::from(1u32),
-            units: vec![innermost_switch],
-        };
+        let middle_if_branch = vec![innermost_switch];
 
         let mut middle_branches = HashMap::new();
         middle_branches.insert(BigUint::from(1u32), middle_if_branch);

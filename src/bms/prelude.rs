@@ -10,7 +10,7 @@ pub use super::{
         AstBuildOutput, AstBuildWarning, AstBuildWarningWithPos, AstParseOutput, AstParseWarning,
         AstParseWarningWithPos, AstRoot,
         rng::{Rng, RngMock},
-        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
