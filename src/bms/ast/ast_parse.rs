@@ -33,7 +33,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                             warnings.push(
                                 AstParseWarning::RandomGeneratedValueOutOfRange {
                                     expected: expected.clone(),
-                                    actual: v.clone(),
+                                    actual: v.clone().into_wrapper_manual(row, col),
                                 }
                                 .into_wrapper_manual(row, col),
                             );
@@ -80,7 +80,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                             warnings.push(
                                 AstParseWarning::SwitchGeneratedValueOutOfRange {
                                     expected: expected.clone(),
-                                    actual: v.clone(),
+                                    actual: v.clone().into_wrapper_manual(row, col),
                                 }
                                 .into_wrapper_manual(row, col),
                             );
