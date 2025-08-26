@@ -27,7 +27,7 @@ use rng::Rng;
 use thiserror::Error;
 
 use crate::bms::{
-    command::mixin::SourcePosMixin,
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
     lex::{TokenRefStream, TokenStream, token::TokenWithPos},
 };
 
@@ -88,7 +88,13 @@ impl<'a> AstRoot<'a> {
     /// [`AstRoot::from_token_stream`].
     pub fn extract(self) -> TokenStream<'a> {
         let tokens = ast_extract::extract_units(self.units);
-        TokenStream { tokens }
+        TokenStream {
+            tokens: tokens
+                .into_iter()
+                .enumerate()
+                .map(|(i, t)| t.into_wrapper_manual(i + 1, 1))
+                .collect(),
+        }
     }
 }
 

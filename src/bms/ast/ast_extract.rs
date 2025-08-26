@@ -1,18 +1,16 @@
 use crate::bms::{
-    ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
-    lex::token::{Token, TokenWithPos},
+    ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, IfBranch, Unit},
+    command::mixin::SourcePosMixin,
+    lex::token::Token,
 };
 
 /// Recursively extracts tokens from AST units.
-pub(super) fn extract_units<'a>(
-    units: impl IntoIterator<Item = Unit<'a>>,
-) -> Vec<TokenWithPos<'a>> {
+pub(super) fn extract_units<'a>(units: impl IntoIterator<Item = Unit<'a>>) -> Vec<Token<'a>> {
     let mut tokens = Vec::new();
     for unit in units {
         match unit {
             Unit::TokenWithPos(token) => {
-                tokens.push(token.clone());
+                tokens.push(token.content().clone());
             }
             Unit::RandomBlock { value, if_blocks } => {
                 tokens.extend(extract_random_block(value, if_blocks));
@@ -30,43 +28,36 @@ pub(super) fn extract_units<'a>(
 fn extract_random_block<'a>(
     value: SourcePosMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
-) -> Vec<TokenWithPos<'a>> {
+) -> Vec<Token<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Random token
-    let (row, col) = (value.row(), value.column());
     let random_value = match value.into_content() {
         BlockValue::Random { max } => max,
         BlockValue::Set { value } => value,
     };
 
-    let random_token = Token::Random(random_value).into_wrapper_manual(row, col);
+    let random_token = Token::Random(random_value);
     tokens.push(random_token);
 
     // Extract all If blocks and their branches
-    for if_block in if_blocks {
-        // Sort branch keys for consistent output order
-        let mut branch_keys: Vec<_> = if_block.branches.keys().collect();
-        branch_keys.sort();
+    for IfBlock { branches } in if_blocks {
+        for (_branch_key, IfBranch { value, units }) in branches {
+            // Add the If token
+            let if_token = Token::If(value);
+            tokens.push(if_token);
 
-        for branch_key in branch_keys {
-            if let Some(branch) = if_block.branches.get(branch_key) {
-                // Add the If token
-                let if_token = Token::If(branch_key.clone()).into_wrapper_manual(row, col);
-                tokens.push(if_token);
+            // Extract all tokens in this branch
+            tokens.extend(extract_units(units));
 
-                // Extract all tokens in this branch
-                tokens.extend(extract_units(branch.units.clone()));
-
-                // Add the EndIf token
-                let endif_token = Token::EndIf.into_wrapper_manual(row, col);
-                tokens.push(endif_token);
-            }
+            // Add the EndIf token
+            let endif_token = Token::EndIf;
+            tokens.push(endif_token);
         }
     }
 
     // Add the EndRandom token
-    let endrandom_token = Token::EndRandom.into_wrapper_manual(row, col);
+    let endrandom_token = Token::EndRandom;
     tokens.push(endrandom_token);
 
     tokens
@@ -77,17 +68,16 @@ fn extract_random_block<'a>(
 fn extract_switch_block<'a>(
     value: SourcePosMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
-) -> Vec<TokenWithPos<'a>> {
+) -> Vec<Token<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Switch token
-    let (row, col) = (value.row(), value.column());
     let switch_value = match value.into_content() {
         BlockValue::Random { max } => max,
         BlockValue::Set { value } => value,
     };
 
-    let switch_token = Token::Switch(switch_value).into_wrapper_manual(row, col);
+    let switch_token = Token::Switch(switch_value);
     tokens.push(switch_token);
 
     // Extract all case branches
@@ -95,33 +85,33 @@ fn extract_switch_block<'a>(
         match &case.value {
             CaseBranchValue::Case(case_value) => {
                 // Add the Case token
-                let case_token = Token::Case(case_value.clone()).into_wrapper_manual(row, col);
+                let case_token = Token::Case(case_value.clone());
                 tokens.push(case_token);
 
                 // Extract all tokens in this case
                 tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
-                let skip_token = Token::Skip.into_wrapper_manual(row, col);
+                let skip_token = Token::Skip;
                 tokens.push(skip_token);
             }
             CaseBranchValue::Def => {
                 // Add the Def token
-                let def_token = Token::Def.into_wrapper_manual(row, col);
+                let def_token = Token::Def;
                 tokens.push(def_token);
 
                 // Extract all tokens in this def branch
                 tokens.extend(extract_units(case.units));
 
                 // Add the Skip token
-                let skip_token = Token::Skip.into_wrapper_manual(row, col);
+                let skip_token = Token::Skip;
                 tokens.push(skip_token);
             }
         }
     }
 
     // Add the EndSwitch token
-    let endswitch_token = Token::EndSwitch.into_wrapper_manual(row, col);
+    let endswitch_token = Token::EndSwitch;
     tokens.push(endswitch_token);
 
     tokens
