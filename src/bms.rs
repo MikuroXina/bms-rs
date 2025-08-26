@@ -35,7 +35,6 @@ use self::{
         ParseOutput, ParseWarningWithPos,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::Bms,
-        validity::{ValidityCheckOutput, ValidityError, ValidityWarning},
     },
 };
 
@@ -65,12 +64,6 @@ pub enum BmsWarning {
     /// An error for playing.
     #[error("Error: playing: {0}")]
     PlayingError(#[from] PlayingError),
-    /// A warning for validity.
-    #[error("Warn: validity: {0}")]
-    ValidityWarning(#[from] ValidityWarning),
-    /// An error for validity.
-    #[error("Error: validity: {0}")]
-    ValidityError(#[from] ValidityError),
 }
 
 /// Output of parsing a BMS file.
@@ -149,21 +142,6 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput {
 
     // Convert playing errors to BmsWarning
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
-
-    let ValidityCheckOutput {
-        validity_warnings,
-        validity_errors,
-    } = bms.check_validity();
-
-    // Convert validity warnings to BmsWarning
-    warnings.extend(
-        validity_warnings
-            .into_iter()
-            .map(BmsWarning::ValidityWarning),
-    );
-
-    // Convert validity errors to BmsWarning
-    warnings.extend(validity_errors.into_iter().map(BmsWarning::ValidityError));
 
     BmsOutput { bms, warnings }
 }
