@@ -190,7 +190,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![if_block],
         };
 
@@ -238,7 +238,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![case_branch],
         };
         let ast_root = AstRoot {
@@ -285,7 +285,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(2u32), // Different from any case
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![def_branch],
         };
         let ast_root = AstRoot {
@@ -317,7 +317,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![],
         };
 
@@ -343,7 +343,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![],
         };
         let ast_root = AstRoot {
@@ -404,7 +404,7 @@ mod tests {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![if_block],
         };
 
@@ -488,7 +488,7 @@ mod tests {
             value: BlockValue::Random {
                 max: BigUint::from(3u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![case_branch_1, case_branch_2, def_branch],
         };
 
@@ -575,7 +575,7 @@ mod tests {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![def_branch, case_branch_1, case_branch_2],
         };
 
@@ -643,7 +643,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: nested_branches,
             }],
@@ -658,7 +658,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![case_branch],
         };
 
@@ -719,7 +719,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![nested_case_branch],
         };
 
@@ -735,7 +735,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock { branches }],
         };
 
@@ -802,7 +802,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![innermost_case],
         };
 
@@ -819,7 +819,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: middle_branches,
             }],
@@ -835,7 +835,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![outer_case],
         };
 
@@ -922,7 +922,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases: vec![def_branch_1, def_branch_2, case_branch],
         };
 

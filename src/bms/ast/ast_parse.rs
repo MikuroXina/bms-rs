@@ -164,7 +164,7 @@ mod tests {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
                 }
-                .into_wrapper_manual(114, 514),
+                .into_wrapper_manual(14, 23),
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
                 }],
@@ -173,7 +173,7 @@ mod tests {
                 value: BlockValue::Set {
                     value: BigUint::from(u64::MAX),
                 }
-                .into_wrapper_manual(114, 514),
+                .into_wrapper_manual(14, 23),
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX)),
                     units: vec![Unit::TokenWithPos(&t_case)],
@@ -210,7 +210,7 @@ mod tests {
                     value: BlockValue::Set {
                         value: BigUint::from(2u64),
                     }
-                    .into_wrapper_manual(114, 514),
+                    .into_wrapper_manual(14, 23),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(2u64)),
                         units: vec![Unit::TokenWithPos(&t_switch_in_random)],
@@ -222,7 +222,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
@@ -246,7 +246,7 @@ mod tests {
                 value: BlockValue::Set {
                     value: BigUint::from(2u64),
                 }
-                .into_wrapper_manual(114, 514),
+                .into_wrapper_manual(14, 23),
                 if_blocks: vec![{
                     let mut b = HashMap::new();
                     b.insert(
@@ -264,7 +264,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             cases,
         }];
         let mut iter2 = units2.into_iter().peekable();
@@ -294,14 +294,14 @@ mod tests {
                     value: BlockValue::Set {
                         value: BigUint::from(1u64),
                     }
-                    .into_wrapper_manual(114, 514),
+                    .into_wrapper_manual(14, 23),
                     cases: vec![CaseBranch {
                         value: CaseBranchValue::Case(BigUint::from(1u64)),
                         units: vec![Unit::RandomBlock {
                             value: BlockValue::Set {
                                 value: BigUint::from(1u64),
                             }
-                            .into_wrapper_manual(114, 514),
+                            .into_wrapper_manual(14, 23),
                             if_blocks: vec![{
                                 let mut b = HashMap::new();
                                 b.insert(
@@ -322,7 +322,7 @@ mod tests {
             value: BlockValue::Set {
                 value: BigUint::from(1u64),
             }
-            .into_wrapper_manual(114, 514),
+            .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
             }],
