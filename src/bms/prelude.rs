@@ -47,7 +47,10 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
-        validity::{ValidityCheckOutput, ValidityError, ValidityWarning},
+        validity::{
+            ValidityCheckOutput, ValidityEmpty, ValidityInvalid, ValidityMapping, ValidityMissing,
+            ValidityUnused,
+        },
     },
     parse_bms_with_rng,
 };

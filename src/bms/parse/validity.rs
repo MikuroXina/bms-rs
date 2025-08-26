@@ -35,52 +35,45 @@ fn referenced_ids_by_value<'a, T, K: PartialEq + 'a>(
     set
 }
 
-// Helper: push unused definition warnings for ids in `defs` not present in `used`.
-fn push_unused_warnings<D>(
-    warnings: &mut Vec<ValidityWarning>,
+// Helper: push unused definition entries for ids in `defs` not present in `used`.
+fn push_unused_warnings<D, E>(
+    entries: &mut Vec<E>,
     defs: &std::collections::HashMap<ObjId, D>,
     used: &std::collections::HashSet<ObjId>,
-    mk_warn: impl Fn(ObjId) -> ValidityWarning,
+    mk_entry: impl Fn(ObjId) -> E,
 ) {
     for id in defs.keys() {
         if !used.contains(id) {
-            warnings.push(mk_warn(*id));
+            entries.push(mk_entry(*id));
         }
     }
 }
 
-// Helper: push unused definition warnings by an on-demand predicate over ids.
-fn push_unused_by_predicate<'a>(
-    warnings: &mut Vec<ValidityWarning>,
+// Helper: push unused definition entries by an on-demand predicate over ids.
+fn push_unused_by_predicate<'a, E>(
+    entries: &mut Vec<E>,
     ids: impl IntoIterator<Item = &'a ObjId>,
     is_used: impl Fn(&ObjId) -> bool,
-    mk_warn: impl Fn(ObjId) -> ValidityWarning,
+    mk_entry: impl Fn(ObjId) -> E,
 ) {
     for id in ids {
         if !is_used(id) {
-            warnings.push(mk_warn(*id));
+            entries.push(mk_entry(*id));
         }
     }
 }
 
-/// Warnings for validity check. These issues may degrade experience but are not fatal.
+/// Unused-related validity entries.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValidityWarning {
+pub enum ValidityUnused {
     /// Defined WAV object id is never referenced by any note/BGM.
     #[error("Unused WAV object id: {0:?}")]
     UnusedWavObjectId(ObjId),
     /// Defined BMP object id is never referenced by any BGA change.
     #[error("Unused BMP object id: {0:?}")]
     UnusedBmpObjectId(ObjId),
-    /// Text content is empty at the time.
-    #[error("Empty text content at {0:?}")]
-    EmptyTextAt(ObjTime),
-    /// Option content is empty at the time.
-    #[cfg(feature = "minor-command")]
-    #[error("Empty option content at {0:?}")]
-    EmptyOptionAt(ObjTime),
     /// Unused BPM definition id in `ScopeDefines.bpm_defs`.
     #[error("Unused BPM definition object id: {0:?}")]
     UnusedBpmDef(ObjId),
@@ -117,11 +110,25 @@ pub enum ValidityWarning {
     UnusedSwBgaEvent(ObjId),
 }
 
-/// Errors for validity check. These issues likely break playback correctness.
+/// Empty-related validity entries.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValidityError {
+pub enum ValidityEmpty {
+    /// Text content is empty at the time.
+    #[error("Empty text content at {0:?}")]
+    EmptyTextAt(ObjTime),
+    /// Option content is empty at the time.
+    #[cfg(feature = "minor-command")]
+    #[error("Empty option content at {0:?}")]
+    EmptyOptionAt(ObjTime),
+}
+
+/// Missing-related validity entries.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ValidityMissing {
     /// A note references an ObjId without a corresponding WAV definition.
     #[error("Missing WAV definition for note object id: {0:?}")]
     MissingWavForNote(ObjId),
@@ -131,6 +138,13 @@ pub enum ValidityError {
     /// A BGA change references an ObjId without a corresponding BMP/EXBMP definition.
     #[error("Missing BMP definition for BGA object id: {0:?}")]
     MissingBmpForBga(ObjId),
+}
+
+/// Mapping-related validity entries.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ValidityMapping {
     /// The per-key time index (`ids_by_key`) is missing or mismatched for an existing note.
     #[error(
         "Key index mismatch for note at time {time:?} (side={side:?}, key={key:?}), expected mapping to {expected:?}"
@@ -159,6 +173,13 @@ pub enum ValidityError {
         /// Mapped object id.
         mapped: ObjId,
     },
+}
+
+/// Invalid-related validity entries.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ValidityInvalid {
     /// Invalid BPM value (must be > 0).
     #[error("Invalid BPM value at {0:?} (must be > 0)")]
     InvalidBpmValue(ObjTime),
@@ -181,10 +202,16 @@ pub enum ValidityError {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ValidityCheckOutput {
-    /// List of non-fatal warnings discovered by the validator.
-    pub validity_warnings: Vec<ValidityWarning>,
-    /// List of fatal errors discovered by the validator.
-    pub validity_errors: Vec<ValidityError>,
+    /// Unused-related findings.
+    pub unused: Vec<ValidityUnused>,
+    /// Empty-related findings.
+    pub empty: Vec<ValidityEmpty>,
+    /// Missing-related findings.
+    pub missing: Vec<ValidityMissing>,
+    /// Mapping-related findings.
+    pub mapping: Vec<ValidityMapping>,
+    /// Invalid-related findings.
+    pub invalid: Vec<ValidityInvalid>,
 }
 
 impl Bms {
@@ -193,13 +220,16 @@ impl Bms {
     /// This performs basic referential integrity checks and data invariants that
     /// are required for correct playback, separate from parse-time checks.
     pub fn check_validity(&self) -> ValidityCheckOutput {
-        let mut validity_warnings = Vec::new();
-        let mut validity_errors = Vec::new();
+        let mut unused = Vec::new();
+        let mut empty = Vec::new();
+        let mut missing = Vec::new();
+        let mut mapping = Vec::new();
+        let mut invalid = Vec::new();
 
         // 1) Check that every used ObjId in notes has a corresponding WAV definition.
         for (obj_id, notes) in &self.notes.objs {
             if !self.notes.wav_files.contains_key(obj_id) {
-                validity_errors.push(ValidityError::MissingWavForNote(*obj_id));
+                missing.push(ValidityMissing::MissingWavForNote(*obj_id));
             }
 
             // 2) Ensure ids_by_key contains the expected mapping for each note entry.
@@ -214,7 +244,7 @@ impl Bms {
                 if let Some(key_map) = self.notes.ids_by_key.get(&(*side, *key)) {
                     if let Some(mapped) = key_map.get(offset) {
                         if mapped != obj {
-                            validity_errors.push(ValidityError::IdsByKeyMismatch {
+                            mapping.push(ValidityMapping::IdsByKeyMismatch {
                                 side: *side,
                                 key: *key,
                                 time: *offset,
@@ -222,7 +252,7 @@ impl Bms {
                             });
                         }
                     } else {
-                        validity_errors.push(ValidityError::IdsByKeyMismatch {
+                        mapping.push(ValidityMapping::IdsByKeyMismatch {
                             side: *side,
                             key: *key,
                             time: *offset,
@@ -230,7 +260,7 @@ impl Bms {
                         });
                     }
                 } else {
-                    validity_errors.push(ValidityError::IdsByKeyMismatch {
+                    mapping.push(ValidityMapping::IdsByKeyMismatch {
                         side: *side,
                         key: *key,
                         time: *offset,
@@ -244,7 +274,7 @@ impl Bms {
         for obj_ids in self.notes.bgms.values() {
             for obj_id in obj_ids {
                 if !self.notes.wav_files.contains_key(obj_id) {
-                    validity_errors.push(ValidityError::MissingWavForBgm(*obj_id));
+                    missing.push(ValidityMissing::MissingWavForBgm(*obj_id));
                 }
             }
         }
@@ -252,30 +282,30 @@ impl Bms {
         // 1.3) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
-                validity_errors.push(ValidityError::MissingBmpForBga(bga_obj.id));
+                missing.push(ValidityMissing::MissingBmpForBga(bga_obj.id));
             }
         }
 
         // 2) Validate arranger objects' value ranges.
         for bpm in self.arrangers.bpm_changes.values() {
             if bpm.bpm <= crate::bms::Decimal::from(0u8) {
-                validity_errors.push(ValidityError::InvalidBpmValue(bpm.time));
+                invalid.push(ValidityInvalid::InvalidBpmValue(bpm.time));
             }
         }
         for sec in self.arrangers.section_len_changes.values() {
             if sec.length <= crate::bms::Decimal::from(0u8) {
-                validity_errors.push(ValidityError::InvalidSectionLen(sec.track));
+                invalid.push(ValidityInvalid::InvalidSectionLen(sec.track));
             }
         }
         for stop in self.arrangers.stops.values() {
             if stop.duration <= crate::bms::Decimal::from(0u8) {
-                validity_errors.push(ValidityError::InvalidStopDuration(stop.time));
+                invalid.push(ValidityInvalid::InvalidStopDuration(stop.time));
             }
         }
         // Scroll factor: no restriction other than being finite (Decimal is always finite), so no check
         for speed in self.arrangers.speed_factor_changes.values() {
             if speed.factor <= crate::bms::Decimal::from(0u8) {
-                validity_errors.push(ValidityError::InvalidSpeedFactor(speed.time));
+                invalid.push(ValidityInvalid::InvalidSpeedFactor(speed.time));
             }
         }
 
@@ -288,20 +318,20 @@ impl Bms {
         {
             for s in self.notes.seek_events.values() {
                 if s.position < crate::bms::Decimal::from(0u8) {
-                    validity_errors.push(ValidityError::InvalidSeekPosition(s.time));
+                    invalid.push(ValidityInvalid::InvalidSeekPosition(s.time));
                 }
             }
         }
         for t in self.notes.text_events.values() {
             if t.text.is_empty() {
-                validity_warnings.push(ValidityWarning::EmptyTextAt(t.time));
+                empty.push(ValidityEmpty::EmptyTextAt(t.time));
             }
         }
         #[cfg(feature = "minor-command")]
         {
             for o in self.notes.option_events.values() {
                 if o.option.is_empty() {
-                    validity_warnings.push(ValidityWarning::EmptyOptionAt(o.time));
+                    empty.push(ValidityEmpty::EmptyOptionAt(o.time));
                 }
             }
         }
@@ -316,7 +346,7 @@ impl Bms {
                     .map(|list| list.iter().all(|n| n.offset != *time))
                     .unwrap_or(true);
                 if no_note {
-                    validity_errors.push(ValidityError::IdsByKeyOrphanMapping {
+                    mapping.push(ValidityMapping::IdsByKeyOrphanMapping {
                         side: *side,
                         key: *key,
                         time: *time,
@@ -330,7 +360,7 @@ impl Bms {
         //    - WAV definitions that are never used by any note/BGM.
         if !self.notes.wav_files.is_empty() {
             push_unused_by_predicate(
-                &mut validity_warnings,
+                &mut unused,
                 self.notes.wav_files.keys(),
                 |id| {
                     self.notes.objs.contains_key(id)
@@ -340,17 +370,17 @@ impl Bms {
                             .values()
                             .any(|vec_ids| vec_ids.iter().any(|x| x == id))
                 },
-                ValidityWarning::UnusedWavObjectId,
+                ValidityUnused::UnusedWavObjectId,
             );
         }
 
         //    - BMP definitions that are never used by any BGA change.
         if !self.graphics.bmp_files.is_empty() {
             push_unused_by_predicate(
-                &mut validity_warnings,
+                &mut unused,
                 self.graphics.bmp_files.keys(),
                 |id| self.graphics.bga_changes().values().any(|b| &b.id == id),
-                ValidityWarning::UnusedBmpObjectId,
+                ValidityUnused::UnusedBmpObjectId,
             );
         }
 
@@ -362,10 +392,10 @@ impl Bms {
                 self.arrangers.bpm_changes.values().map(|c| &c.bpm),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.bpm_defs,
                 &referenced,
-                ValidityWarning::UnusedBpmDef,
+                ValidityUnused::UnusedBpmDef,
             );
         }
         if !self.scope_defines.stop_defs.is_empty() {
@@ -375,10 +405,10 @@ impl Bms {
                 self.arrangers.stops.values().map(|s| &s.duration),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.stop_defs,
                 &referenced,
-                ValidityWarning::UnusedStopDef,
+                ValidityUnused::UnusedStopDef,
             );
         }
         if !self.scope_defines.scroll_defs.is_empty() {
@@ -391,10 +421,10 @@ impl Bms {
                     .map(|sc| &sc.factor),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.scroll_defs,
                 &referenced,
-                ValidityWarning::UnusedScrollDef,
+                ValidityUnused::UnusedScrollDef,
             );
         }
         if !self.scope_defines.speed_defs.is_empty() {
@@ -407,10 +437,10 @@ impl Bms {
                     .map(|sp| &sp.factor),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.speed_defs,
                 &referenced,
-                ValidityWarning::UnusedSpeedDef,
+                ValidityUnused::UnusedSpeedDef,
             );
         }
         if !self.scope_defines.exrank_defs.is_empty() {
@@ -420,10 +450,10 @@ impl Bms {
                 self.notes.judge_events.values().map(|j| &j.judge_level),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.exrank_defs,
                 &referenced,
-                ValidityWarning::UnusedExRankDef,
+                ValidityUnused::UnusedExRankDef,
             );
         }
         if !self.others.texts.is_empty() {
@@ -433,10 +463,10 @@ impl Bms {
                 self.notes.text_events.values().map(|t| &t.text),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.others.texts,
                 &referenced,
-                ValidityWarning::UnusedTextDef,
+                ValidityUnused::UnusedTextDef,
             );
         }
         #[cfg(feature = "minor-command")]
@@ -447,10 +477,10 @@ impl Bms {
                 self.notes.seek_events.values().map(|e| &e.position),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.others.seek_events,
                 &referenced,
-                ValidityWarning::UnusedSeekDef,
+                ValidityUnused::UnusedSeekDef,
             );
         }
         #[cfg(feature = "minor-command")]
@@ -461,10 +491,10 @@ impl Bms {
                 self.notes.option_events.values().map(|e| &e.option),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.others.change_options,
                 &referenced,
-                ValidityWarning::UnusedChangeOptionDef,
+                ValidityUnused::UnusedChangeOptionDef,
             );
         }
         #[cfg(feature = "minor-command")]
@@ -479,10 +509,10 @@ impl Bms {
                     .map(|a| &a.argb),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.argb_defs,
                 &referenced,
-                ValidityWarning::UnusedArgbDef,
+                ValidityUnused::UnusedArgbDef,
             );
         }
         #[cfg(feature = "minor-command")]
@@ -493,16 +523,19 @@ impl Bms {
                 self.notes.bga_keybound_events.values().map(|e| &e.event),
             );
             push_unused_warnings(
-                &mut validity_warnings,
+                &mut unused,
                 &self.scope_defines.swbga_events,
                 &referenced,
-                ValidityWarning::UnusedSwBgaEvent,
+                ValidityUnused::UnusedSwBgaEvent,
             );
         }
 
         ValidityCheckOutput {
-            validity_warnings,
-            validity_errors,
+            unused,
+            empty,
+            missing,
+            mapping,
+            invalid,
         }
     }
 }
@@ -537,14 +570,17 @@ mod tests {
 
         let out = bms.check_validity();
         assert!(
-            out.validity_warnings
-                .contains(&ValidityWarning::UnusedWavObjectId(wav_id))
+            out.unused
+                .contains(&ValidityUnused::UnusedWavObjectId(wav_id))
         );
         assert!(
-            out.validity_warnings
-                .contains(&ValidityWarning::UnusedBmpObjectId(bmp_id))
+            out.unused
+                .contains(&ValidityUnused::UnusedBmpObjectId(bmp_id))
         );
-        assert!(out.validity_errors.is_empty());
+        assert!(out.empty.is_empty());
+        assert!(out.missing.is_empty());
+        assert!(out.mapping.is_empty());
+        assert!(out.invalid.is_empty());
     }
 
     #[test]
@@ -565,8 +601,8 @@ mod tests {
         // No WAV defined for id
         let out = bms.check_validity();
         assert!(
-            out.validity_errors
-                .contains(&ValidityError::MissingWavForNote(id))
+            out.missing
+                .contains(&ValidityMissing::MissingWavForNote(id))
         );
     }
 
@@ -584,10 +620,7 @@ mod tests {
             },
         );
         let out = bms.check_validity();
-        assert!(
-            out.validity_errors
-                .contains(&ValidityError::MissingBmpForBga(id))
-        );
+        assert!(out.missing.contains(&ValidityMissing::MissingBmpForBga(id)));
     }
 
     #[test]
@@ -602,8 +635,8 @@ mod tests {
             .insert(time, id);
         // No corresponding note in notes.objs at this time
         let out = bms.check_validity();
-        assert!(out.validity_errors.iter().any(
-            |e| matches!(e, ValidityError::IdsByKeyOrphanMapping { time: t0, .. } if *t0 == time)
+        assert!(out.mapping.iter().any(
+            |e| matches!(e, ValidityMapping::IdsByKeyOrphanMapping { time: t0, .. } if *t0 == time)
         ));
     }
 
@@ -626,13 +659,7 @@ mod tests {
             .insert(bpm_id, crate::bms::Decimal::from(120u32));
 
         let out = bms.check_validity();
-        assert!(
-            out.validity_warnings
-                .contains(&ValidityWarning::EmptyTextAt(time))
-        );
-        assert!(
-            out.validity_warnings
-                .contains(&ValidityWarning::UnusedBpmDef(bpm_id))
-        );
+        assert!(out.empty.contains(&ValidityEmpty::EmptyTextAt(time)));
+        assert!(out.unused.contains(&ValidityUnused::UnusedBpmDef(bpm_id)));
     }
 }
