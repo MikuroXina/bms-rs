@@ -4,6 +4,8 @@
 //! the parsing process. It can be used after editing `Bms` in-memory to ensure
 //! referential integrity and basic invariants required for correct playback.
 
+use std::collections::{HashMap, HashSet};
+
 use thiserror::Error;
 
 use crate::bms::command::{
@@ -16,11 +18,11 @@ use super::model::{Bms, obj::Obj};
 
 // Helper: collect referenced ObjIds from a definition map by comparing values.
 fn referenced_ids_by_value<'a, T, K: PartialEq + 'a>(
-    defs: &std::collections::HashMap<ObjId, T>,
+    defs: &HashMap<ObjId, T>,
     def_to_key: impl Fn(&T) -> &K,
     used_keys: impl IntoIterator<Item = &'a K>,
-) -> std::collections::HashSet<ObjId> {
-    let mut set = std::collections::HashSet::new();
+) -> HashSet<ObjId> {
+    let mut set = HashSet::new();
     for key in used_keys {
         if let Some(id) = defs.iter().find_map(|(id, v)| {
             if def_to_key(v) == key {
@@ -38,8 +40,8 @@ fn referenced_ids_by_value<'a, T, K: PartialEq + 'a>(
 // Helper: push unused definition entries for ids in `defs` not present in `used`.
 fn push_unused_warnings<D, E>(
     entries: &mut Vec<E>,
-    defs: &std::collections::HashMap<ObjId, D>,
-    used: &std::collections::HashSet<ObjId>,
+    defs: &HashMap<ObjId, D>,
+    used: &HashSet<ObjId>,
     mk_entry: impl Fn(ObjId) -> E,
 ) {
     for id in defs.keys() {
@@ -543,11 +545,20 @@ impl Bms {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bms::command::{
-        channel::{Key, NoteKind, PlayerSide},
-        time::ObjTime,
+    use crate::bms::{
+        Decimal,
+        command::{
+            ObjId,
+            channel::{Key, NoteKind, PlayerSide},
+            graphics::Argb,
+            time::ObjTime,
+        },
+        parse::model::{
+            Notes,
+            def::Bmp,
+            obj::{BgaLayer, BgaObj, Obj, TextObj},
+        },
     };
-    use crate::bms::parse::model::{Notes, obj::Obj};
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
         ObjTime::new(track, num, den)
@@ -557,14 +568,14 @@ mod tests {
     fn test_unused_wav_bmp_detection() {
         let mut bms = Bms::default();
         // Define WAV and BMP but never used
-        let wav_id = crate::bms::command::ObjId::try_from("01").unwrap();
+        let wav_id = ObjId::try_from("01").unwrap();
         bms.notes.wav_files.insert(wav_id, "a.wav".into());
-        let bmp_id = crate::bms::command::ObjId::try_from("02").unwrap();
+        let bmp_id = ObjId::try_from("02").unwrap();
         bms.graphics.bmp_files.insert(
             bmp_id,
-            crate::bms::parse::model::def::Bmp {
+            Bmp {
                 file: "a.bmp".into(),
-                transparent_color: crate::bms::command::graphics::Argb::default(),
+                transparent_color: Argb::default(),
             },
         );
 
@@ -586,7 +597,7 @@ mod tests {
     #[test]
     fn test_missing_wav_for_note() {
         let mut bms = Bms::default();
-        let id = crate::bms::command::ObjId::try_from("0A").unwrap();
+        let id = ObjId::try_from("0A").unwrap();
         let time = t(1, 0, 4);
         // Insert note via push_note to keep ids_by_key consistent
         let mut notes = Notes::default();
@@ -609,14 +620,14 @@ mod tests {
     #[test]
     fn test_missing_bmp_for_bga() {
         let mut bms = Bms::default();
-        let id = crate::bms::command::ObjId::try_from("0B").unwrap();
+        let id = ObjId::try_from("0B").unwrap();
         let time = t(1, 0, 4);
         bms.graphics.bga_changes.insert(
             time,
-            crate::bms::parse::model::obj::BgaObj {
+            BgaObj {
                 time,
                 id,
-                layer: crate::bms::parse::model::obj::BgaLayer::Base,
+                layer: BgaLayer::Base,
             },
         );
         let out = bms.check_validity();
@@ -626,7 +637,7 @@ mod tests {
     #[test]
     fn test_ids_by_key_orphan_mapping() {
         let mut bms = Bms::default();
-        let id = crate::bms::command::ObjId::try_from("0C").unwrap();
+        let id = ObjId::try_from("0C").unwrap();
         let time = t(1, 0, 4);
         bms.notes
             .ids_by_key
@@ -647,16 +658,16 @@ mod tests {
         let time = t(1, 0, 4);
         bms.notes.text_events.insert(
             time,
-            crate::bms::parse::model::obj::TextObj {
+            TextObj {
                 time,
                 text: String::new(),
             },
         );
         // Add an unused BPM def
-        let bpm_id = crate::bms::command::ObjId::try_from("0D").unwrap();
+        let bpm_id = ObjId::try_from("0D").unwrap();
         bms.scope_defines
             .bpm_defs
-            .insert(bpm_id, crate::bms::Decimal::from(120u32));
+            .insert(bpm_id, Decimal::from(120u32));
 
         let out = bms.check_validity();
         assert!(out.empty.contains(&ValidityEmpty::EmptyTextAt(time)));
