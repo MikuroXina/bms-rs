@@ -194,8 +194,10 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 errors.push(AstBuildWarning::UnmatchedEndRandom.into_wrapper(next));
                 iter.next();
             }
-            // Automatically complete EndSwitch: break when encountering Random/SetRandom/If/EndRandom/EndIf
+            // Automatically complete EndSwitch: break when encountering Random/SetRandom/If
             Random(_) | SetRandom(_) | If(_) => {
+                // Treat the current token as the ENDSW position
+                end_sw = ().into_wrapper(next);
                 break;
             }
             _ => {
