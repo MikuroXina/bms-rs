@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, iter::Peekable};
+use std::{
+    collections::{BTreeMap, HashSet},
+    iter::Peekable,
+};
 
 use num::BigUint;
 
@@ -87,7 +90,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
         _ => unreachable!(),
     };
     let mut cases = Vec::new();
-    let mut seen_case_values = std::collections::HashSet::new();
+    let mut seen_case_values = HashSet::new();
     let max_value = match &block_value {
         BlockValue::Random { max } => Some(max.clone()),
         BlockValue::Set { value: _ } => None,
@@ -276,10 +279,11 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
+                // Modify this `std::option::Option` can cause type inference error
                 let mut current_if_end: std::option::Option<SourcePosMixin<()>> = None;
                 let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
                     BTreeMap::new();
-                let mut seen_if_values = std::collections::HashSet::new();
+                let mut seen_if_values = HashSet::new();
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
                     errors.push(AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(token));
@@ -435,10 +439,11 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 ) -> (
     Vec<Unit<'a>>,
     Vec<AstBuildWarningWithPos>,
-    std::option::Option<SourcePosMixin<()>>,
+    Option<SourcePosMixin<()>>,
 ) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
+    // Modify this `std::option::Option` can cause type inference error
     let mut end_if_pos: std::option::Option<SourcePosMixin<()>> = None;
     use Token::*;
     while let Some(token) = iter.peek() {
