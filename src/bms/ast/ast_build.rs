@@ -281,8 +281,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
-                // Modify this `std::option::Option` can cause type inference error
-                let mut current_if_end: std::option::Option<SourcePosMixin<()>> = None;
+                let mut current_if_end = None::<SourcePosMixin<()>>;
                 let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
                     BTreeMap::new();
                 let mut seen_if_values = HashSet::new();
@@ -458,8 +457,7 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 ) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    // Modify this `std::option::Option` can cause type inference error
-    let mut end_if_pos: std::option::Option<SourcePosMixin<()>> = None;
+    let mut end_if_pos = None::<SourcePosMixin<()>>;
     use Token::*;
     while let Some(token) = iter.peek() {
         match token.content() {
