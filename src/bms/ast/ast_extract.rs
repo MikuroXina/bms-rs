@@ -14,8 +14,12 @@ pub(super) fn extract_units<'a>(
             Unit::TokenWithPos(token) => {
                 tokens.push((*token).clone());
             }
-            Unit::RandomBlock { value, if_blocks } => {
-                tokens.extend(extract_random_block(value, if_blocks));
+            Unit::RandomBlock {
+                value,
+                if_blocks,
+                end_random,
+            } => {
+                tokens.extend(extract_random_block(value, if_blocks, end_random));
             }
             Unit::SwitchBlock {
                 value,
@@ -34,6 +38,7 @@ pub(super) fn extract_units<'a>(
 fn extract_random_block<'a>(
     value: SourcePosMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
+    end_random: SourcePosMixin<()>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens: Vec<TokenWithPos<'a>> = Vec::new();
 
@@ -66,10 +71,8 @@ fn extract_random_block<'a>(
         }
     }
 
-    // Add the EndRandom token; position synthesized relative to last token
-    let (endrandom_row, endrandom_column) =
-        tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
-    tokens.push(Token::EndRandom.into_wrapper_manual(endrandom_row + 1, endrandom_column));
+    // Add the EndRandom token at recorded position
+    tokens.push(Token::EndRandom.into_wrapper(&end_random));
 
     tokens
 }
@@ -191,6 +194,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             if_blocks: vec![if_block],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         let ast_root = AstRoot {
@@ -320,6 +324,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             if_blocks: vec![],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         let ast_root = AstRoot {
@@ -405,6 +410,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             if_blocks: vec![if_block],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         let ast_root = AstRoot {
@@ -649,6 +655,7 @@ mod tests {
                 branches: nested_branches,
                 end_if: None,
             }],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         let case_branch = CaseBranch {
@@ -741,6 +748,7 @@ mod tests {
                 branches,
                 end_if: None,
             }],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         let ast_root = AstRoot {
@@ -829,6 +837,7 @@ mod tests {
                 branches: middle_branches,
                 end_if: None,
             }],
+            end_random: ().into_wrapper_manual(15, 23),
         };
 
         // Outer Switch block

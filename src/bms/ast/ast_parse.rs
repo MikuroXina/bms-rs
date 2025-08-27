@@ -168,6 +168,7 @@ mod tests {
                     branches: if_branches.clone(),
                     end_if: None,
                 }],
+                end_random: ().into_wrapper_manual(14, 23),
             },
             Unit::SwitchBlock {
                 value: BlockValue::Set {
@@ -228,6 +229,7 @@ mod tests {
                 branches: if_branches,
                 end_if: None,
             }],
+            end_random: ().into_wrapper_manual(14, 23),
         }];
         let mut iter = units.into_iter().peekable();
         let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);
@@ -260,6 +262,7 @@ mod tests {
                         end_if: None,
                     }
                 }],
+                end_random: ().into_wrapper_manual(14, 23),
             }],
         }];
         let units2 = vec![Unit::SwitchBlock {
@@ -315,6 +318,7 @@ mod tests {
                                 end_if: None,
                             }
                         }],
+                        end_random: ().into_wrapper_manual(14, 23),
                     }],
                 }],
                 end_sw: ().into_wrapper_manual(14, 23),
@@ -331,6 +335,7 @@ mod tests {
                 branches: if_branches,
                 end_if: None,
             }],
+            end_random: ().into_wrapper_manual(14, 23),
         }];
         let mut iter = units.into_iter().peekable();
         let (tokens, _warnings) = parse_control_flow_ast(&mut iter, &mut rng);

@@ -396,8 +396,17 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             }
             // 3.1 Termination: EndRandom encountered, block ends
             EndRandom => {
+                // Record ENDRANDOM and close block
+                let end_random = ().into_wrapper(token);
                 iter.next();
-                break;
+                return (
+                    Unit::RandomBlock {
+                        value: block_value.into_wrapper(token),
+                        if_blocks,
+                        end_random,
+                    },
+                    errors,
+                );
             }
             // 3.2 Error: EndIf/EndSwitch encountered, record error and skip
             EndIf => {
@@ -420,10 +429,14 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
         }
     }
     // 5. Return AST node
+    // Auto-completed ENDRANDOM at current peek or header position
+    let end_pos_token = iter.peek().copied().unwrap_or(token);
+    let end_random = ().into_wrapper(end_pos_token);
     (
         Unit::RandomBlock {
             value: block_value.into_wrapper(token),
             if_blocks,
+            end_random,
         },
         errors,
     )

@@ -17,6 +17,8 @@ pub enum Unit<'a> {
         value: SourcePosMixin<BlockValue>,
         /// The If blocks in the Random block.
         if_blocks: Vec<IfBlock<'a>>,
+        /// The ENDRANDOM position in the BMS source.
+        end_random: SourcePosMixin<()>,
     },
     /// A Switch block.
     /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
