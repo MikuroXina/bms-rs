@@ -17,8 +17,6 @@ pub enum Unit<'a> {
         value: SourcePosMixin<BlockValue>,
         /// The If blocks in the Random block.
         if_blocks: Vec<IfBlock<'a>>,
-        /// The ENDIF position in the BMS source if exists.
-        end_if: Option<SourcePosMixin<()>>,
     },
     /// A Switch block.
     /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
@@ -56,6 +54,8 @@ pub enum BlockValue {
 pub struct IfBlock<'a> {
     /// The branches of the If block.
     pub branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>>,
+    /// The ENDIF position in the BMS source if exists for this IfBlock.
+    pub end_if: Option<SourcePosMixin<()>>,
 }
 
 /// The define of a Case/Def branch in a Switch block.

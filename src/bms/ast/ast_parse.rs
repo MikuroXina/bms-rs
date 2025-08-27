@@ -20,7 +20,9 @@ pub(super) fn parse_control_flow_ast<'a>(
             Unit::TokenWithPos(token) => {
                 result.push(token);
             }
-            Unit::RandomBlock { value, if_blocks } => {
+            Unit::RandomBlock {
+                value, if_blocks, ..
+            } => {
                 // Select branch
                 let (row, col) = (value.row(), value.column());
                 let branch_val = match value.into_content() {
@@ -68,7 +70,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 }
                 // If none found, do nothing
             }
-            Unit::SwitchBlock { value, cases } => {
+            Unit::SwitchBlock { value, cases, .. } => {
                 let (row, col) = (value.row(), value.column());
                 let switch_val = match value.into_content() {
                     BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
@@ -164,6 +166,7 @@ mod tests {
                 .into_wrapper_manual(14, 23),
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
+                    end_if: None,
                 }],
             },
             Unit::SwitchBlock {
@@ -176,6 +179,7 @@ mod tests {
                         .into_wrapper_manual(14, 23),
                     units: vec![Unit::TokenWithPos(&t_case)],
                 }],
+                end_sw: ().into_wrapper_manual(14, 23),
             },
         ];
         let mut rng = DummyRng;
@@ -211,6 +215,7 @@ mod tests {
                     value: CaseBranchValue::Case(BigUint::from(2u64)).into_wrapper_manual(14, 23),
                     units: vec![Unit::TokenWithPos(&t_switch_in_random)],
                 }],
+                end_sw: ().into_wrapper_manual(14, 23),
             }]
             .into_wrapper_manual(14, 23),
         );
@@ -221,6 +226,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
+                end_if: None,
             }],
         }];
         let mut iter = units.into_iter().peekable();
@@ -249,7 +255,10 @@ mod tests {
                         BigUint::from(2u64),
                         vec![Unit::TokenWithPos(&t_random_in_switch)].into_wrapper_manual(14, 23),
                     );
-                    IfBlock { branches: b }
+                    IfBlock {
+                        branches: b,
+                        end_if: None,
+                    }
                 }],
             }],
         }];
@@ -259,6 +268,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases,
+            end_sw: ().into_wrapper_manual(14, 23),
         }];
         let mut iter2 = units2.into_iter().peekable();
         let (tokens2, _warnings) = parse_control_flow_ast(&mut iter2, &mut rng);
@@ -300,10 +310,14 @@ mod tests {
                                 vec![Unit::TokenWithPos(&t_deep_nested)]
                                     .into_wrapper_manual(14, 23),
                             );
-                            IfBlock { branches: b }
+                            IfBlock {
+                                branches: b,
+                                end_if: None,
+                            }
                         }],
                     }],
                 }],
+                end_sw: ().into_wrapper_manual(14, 23),
             }]
             .into_wrapper_manual(14, 23),
         );
@@ -315,6 +329,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
+                end_if: None,
             }],
         }];
         let mut iter = units.into_iter().peekable();

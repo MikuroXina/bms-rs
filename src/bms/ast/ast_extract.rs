@@ -17,8 +17,12 @@ pub(super) fn extract_units<'a>(
             Unit::RandomBlock { value, if_blocks } => {
                 tokens.extend(extract_random_block(value, if_blocks));
             }
-            Unit::SwitchBlock { value, cases } => {
-                tokens.extend(extract_switch_block(value, cases));
+            Unit::SwitchBlock {
+                value,
+                cases,
+                end_sw,
+            } => {
+                tokens.extend(extract_switch_block(value, cases, end_sw));
             }
         }
     }
@@ -33,44 +37,39 @@ fn extract_random_block<'a>(
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens: Vec<TokenWithPos<'a>> = Vec::new();
 
-    // Add the Random token
-    let (random_row, random_column) = value.as_pos();
-    let random_value = match value.into_content() {
+    let random_value = match value.content().clone() {
         BlockValue::Random { max } => max,
         BlockValue::Set { value } => value,
     };
 
-    let random_token = Token::Random(random_value).into_wrapper_manual(random_row, random_column);
-    tokens.push(random_token);
+    // Add the Random token at the original header position
+    tokens.push(Token::Random(random_value).into_wrapper(&value));
 
     // Extract all If blocks and their branches
-    for IfBlock { branches } in if_blocks {
+    for IfBlock { branches, end_if } in if_blocks {
         for (branch_key, units) in branches {
-            // Add the If token
-            let (units, if_row, if_column) = <(Vec<Unit<'_>>, usize, usize)>::from(units);
-            let if_token = Token::If(branch_key).into_wrapper_manual(if_row, if_column);
+            // Add the If token using the branch wrapper position
+            let if_token = Token::If(branch_key).into_wrapper(&units);
             tokens.push(if_token);
 
             // Extract all tokens in this branch
-            tokens.extend(extract_units(units));
+            let units_vec = units.content().clone();
+            tokens.extend(extract_units(units_vec));
 
-            // Add the EndIf token
-            let (endif_row, endif_column) = tokens
-                .last()
-                .map(|t| t.as_pos())
-                .unwrap_or((if_row, if_column));
-            let endif_token = Token::EndIf.into_wrapper_manual(endif_row + 1, endif_column);
-            tokens.push(endif_token);
+            // Add the EndIf token, prefer recorded end_if position if available
+            if let Some(ref pos) = end_if {
+                tokens.push(Token::EndIf.into_wrapper(pos));
+            } else {
+                let (if_row, if_column) = tokens.last().map(|t| t.as_pos()).unwrap_or((0, 0));
+                tokens.push(Token::EndIf.into_wrapper_manual(if_row + 1, if_column));
+            }
         }
     }
 
-    // Add the EndRandom token
-    let (endrandom_row, endrandom_column) = tokens
-        .last()
-        .map(|t| t.as_pos())
-        .unwrap_or((random_row, random_column));
-    let endrandom_token = Token::EndRandom.into_wrapper_manual(endrandom_row + 1, endrandom_column);
-    tokens.push(endrandom_token);
+    // Add the EndRandom token; position synthesized relative to last token
+    let (endrandom_row, endrandom_column) =
+        tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
+    tokens.push(Token::EndRandom.into_wrapper_manual(endrandom_row + 1, endrandom_column));
 
     tokens
 }
@@ -80,66 +79,52 @@ fn extract_random_block<'a>(
 fn extract_switch_block<'a>(
     value: SourcePosMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
+    end_sw: SourcePosMixin<()>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
     // Add the Switch token
-    let (switch_value, switch_row, switch_column) = value.into();
-    let switch_value = match switch_value {
+    let switch_value = match value.content().clone() {
         BlockValue::Random { max } => max,
         BlockValue::Set { value } => value,
     };
 
-    let switch_token = Token::Switch(switch_value).into_wrapper_manual(switch_row, switch_column);
-    tokens.push(switch_token);
+    tokens.push(Token::Switch(switch_value).into_wrapper(&value));
 
     // Extract all case branches
     for CaseBranch { value, units } in cases {
-        let (case_value, case_row, case_column) = value.into();
-        match case_value {
+        match value.content().clone() {
             CaseBranchValue::Case(case_value) => {
                 // Add the Case token
-                let case_token =
-                    Token::Case(case_value.clone()).into_wrapper_manual(case_row, case_column);
-                tokens.push(case_token);
+                tokens.push(Token::Case(case_value.clone()).into_wrapper(&value));
 
                 // Extract all tokens in this case
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (skip_row, skip_column) = tokens
-                    .last()
-                    .map(|t| t.as_pos())
-                    .unwrap_or((case_row, case_column));
+                let (skip_row, skip_column) =
+                    tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
                 let skip_token = Token::Skip.into_wrapper_manual(skip_row + 1, skip_column);
                 tokens.push(skip_token);
             }
             CaseBranchValue::Def => {
                 // Add the Def token
-                let def_token = Token::Def.into_wrapper_manual(case_row, case_column);
-                tokens.push(def_token);
+                tokens.push(Token::Def.into_wrapper(&value));
 
                 // Extract all tokens in this def branch
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (skip_row, skip_column) = tokens
-                    .last()
-                    .map(|t| t.as_pos())
-                    .unwrap_or((case_row, case_column));
+                let (skip_row, skip_column) =
+                    tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
                 let skip_token = Token::Skip.into_wrapper_manual(skip_row + 1, skip_column);
                 tokens.push(skip_token);
             }
         }
     }
 
-    // Add the EndSwitch token
-    let (endswitch_row, endswitch_column) = tokens
-        .last()
-        .map(|t| t.as_pos())
-        .unwrap_or((switch_row, switch_column));
-    let endswitch_token = Token::EndSwitch.into_wrapper_manual(endswitch_row + 1, endswitch_column);
-    tokens.push(endswitch_token);
+    // Add the EndSwitch token at recorded ENDSW position
+    tokens.push(Token::EndSwitch.into_wrapper(&end_sw));
 
     tokens
 }
@@ -196,7 +181,10 @@ mod tests {
         let mut branches = BTreeMap::new();
         branches.insert(BigUint::from(1u32), if_branch.into_wrapper_manual(14, 23));
 
-        let if_block = IfBlock { branches };
+        let if_block = IfBlock {
+            branches,
+            end_if: None,
+        };
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
                 value: BigUint::from(1u32),
@@ -251,6 +239,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![case_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
         let ast_root = AstRoot {
             units: vec![switch_block],
@@ -298,6 +287,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![def_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
         let ast_root = AstRoot {
             units: vec![switch_block],
@@ -356,6 +346,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
         let ast_root = AstRoot {
             units: vec![switch_block],
@@ -404,7 +395,10 @@ mod tests {
         branches.insert(BigUint::from(1u32), if_branch_1.into_wrapper_manual(14, 23));
         branches.insert(BigUint::from(2u32), if_branch_2.into_wrapper_manual(14, 23));
 
-        let if_block = IfBlock { branches };
+        let if_block = IfBlock {
+            branches,
+            end_if: None,
+        };
         let random_block = Unit::RandomBlock {
             value: BlockValue::Random {
                 max: BigUint::from(2u32),
@@ -495,6 +489,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![case_branch_1, case_branch_2, def_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let ast_root = AstRoot {
@@ -582,6 +577,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![def_branch, case_branch_1, case_branch_2],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let ast_root = AstRoot {
@@ -651,6 +647,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: nested_branches,
+                end_if: None,
             }],
         };
 
@@ -665,6 +662,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![case_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let ast_root = AstRoot {
@@ -726,6 +724,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![nested_case_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let if_branch = vec![nested_switch_block];
@@ -738,7 +737,10 @@ mod tests {
                 value: BigUint::from(1u32),
             }
             .into_wrapper_manual(14, 23),
-            if_blocks: vec![IfBlock { branches }],
+            if_blocks: vec![IfBlock {
+                branches,
+                end_if: None,
+            }],
         };
 
         let ast_root = AstRoot {
@@ -806,6 +808,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![innermost_case],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         // Middle Random block
@@ -824,6 +827,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: middle_branches,
+                end_if: None,
             }],
         };
 
@@ -839,6 +843,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![outer_case],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let ast_root = AstRoot {
@@ -926,6 +931,7 @@ mod tests {
             }
             .into_wrapper_manual(14, 23),
             cases: vec![def_branch_1, def_branch_2, case_branch],
+            end_sw: ().into_wrapper_manual(14, 23),
         };
 
         let ast_root = AstRoot {
