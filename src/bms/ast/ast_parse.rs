@@ -188,8 +188,8 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert!(titles.iter().any(|s| (*s).to_string() == "LARGE_IF"));
-        assert!(titles.iter().any(|s| (*s).to_string() == "LARGE_CASE"));
+        assert!(titles.iter().any(|s| **s == "LARGE_IF"));
+        assert!(titles.iter().any(|s| **s == "LARGE_CASE"));
     }
 
     #[test]
@@ -232,11 +232,7 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert!(
-            titles
-                .iter()
-                .any(|s| (*s).to_string() == "SWITCH_IN_RANDOM")
-        );
+        assert!(titles.iter().any(|s| **s == "SWITCH_IN_RANDOM"));
 
         // Switch outer, Random inner
         let t_random_in_switch = Title("RANDOM_IN_SWITCH").into_wrapper_manual(0, 0);
@@ -273,11 +269,7 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert!(
-            titles2
-                .iter()
-                .any(|s| (*s).to_string() == "RANDOM_IN_SWITCH")
-        );
+        assert!(titles2.iter().any(|s| **s == "RANDOM_IN_SWITCH"));
     }
 
     #[test]
@@ -334,6 +326,6 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert!(titles.iter().any(|s| (*s).to_string() == "DEEP_NESTED"));
+        assert!(titles.iter().any(|s| **s == "DEEP_NESTED"));
     }
 }

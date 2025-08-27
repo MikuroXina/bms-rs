@@ -232,8 +232,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -352,8 +351,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
