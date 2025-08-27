@@ -12,7 +12,7 @@ pub(super) fn extract_units<'a>(
     for unit in units {
         match unit {
             Unit::TokenWithPos(token) => {
-                tokens.push(token.map(|t| t.clone()));
+                tokens.push((*token).clone());
             }
             Unit::RandomBlock { value, if_blocks } => {
                 tokens.extend(extract_random_block(value, if_blocks));
@@ -168,7 +168,7 @@ mod tests {
 
         let units = tokens
             .iter()
-            .map(|t| Unit::TokenWithPos(t.inner_ref()))
+            .map(|t| Unit::TokenWithPos(t))
             .collect::<Vec<_>>();
 
         let ast_root = AstRoot { units };
@@ -196,7 +196,7 @@ mod tests {
 
         let if_branch = if_tokens
             .iter()
-            .map(|t| Unit::TokenWithPos(t.inner_ref()))
+            .map(|t| Unit::TokenWithPos(t))
             .collect::<Vec<_>>();
 
         let mut branches = BTreeMap::new();
@@ -247,7 +247,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: case_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -294,7 +294,7 @@ mod tests {
             value: CaseBranchValue::Def.into_wrapper_manual(14, 23),
             units: def_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -398,12 +398,12 @@ mod tests {
 
         let if_branch_1 = if_tokens_1
             .iter()
-            .map(|t| Unit::TokenWithPos(t.inner_ref()))
+            .map(|t| Unit::TokenWithPos(t))
             .collect::<Vec<_>>();
 
         let if_branch_2 = if_tokens_2
             .iter()
-            .map(|t| Unit::TokenWithPos(t.inner_ref()))
+            .map(|t| Unit::TokenWithPos(t))
             .collect::<Vec<_>>();
 
         let mut branches = BTreeMap::new();
@@ -475,7 +475,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: case_tokens_1
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -483,7 +483,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(2u32)).into_wrapper_manual(14, 23),
             units: case_tokens_2
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -491,7 +491,7 @@ mod tests {
             value: CaseBranchValue::Def.into_wrapper_manual(14, 23),
             units: def_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -561,7 +561,7 @@ mod tests {
             value: CaseBranchValue::Def.into_wrapper_manual(14, 23),
             units: def_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -569,7 +569,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: case_tokens_1
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -577,7 +577,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(2u32)).into_wrapper_manual(14, 23),
             units: case_tokens_2
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -641,7 +641,7 @@ mod tests {
         // Create nested Random block
         let nested_if_branch = nested_random_tokens
             .iter()
-            .map(|t| Unit::TokenWithPos(t.inner_ref()))
+            .map(|t| Unit::TokenWithPos(t))
             .collect::<Vec<_>>();
 
         let mut nested_branches = BTreeMap::new();
@@ -722,7 +722,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: nested_switch_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -802,7 +802,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: innermost_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -905,7 +905,7 @@ mod tests {
             value: CaseBranchValue::Def.into_wrapper_manual(14, 23),
             units: def_tokens_1
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -913,7 +913,7 @@ mod tests {
             value: CaseBranchValue::Def.into_wrapper_manual(14, 23),
             units: def_tokens_2
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 
@@ -921,7 +921,7 @@ mod tests {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_manual(14, 23),
             units: case_tokens
                 .iter()
-                .map(|t| Unit::TokenWithPos(t.inner_ref()))
+                .map(|t| Unit::TokenWithPos(t))
                 .collect::<Vec<_>>(),
         };
 

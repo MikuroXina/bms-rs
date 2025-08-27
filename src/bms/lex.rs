@@ -13,7 +13,7 @@ use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
 
 use self::{
     cursor::Cursor,
-    token::{Token, TokenRefWithPos, TokenWithPos},
+    token::{Token, TokenWithPos},
 };
 
 /// An error occurred when lexical analysis.
@@ -78,13 +78,10 @@ impl<'a> IntoIterator for TokenStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenStream<'a> {
-    type Item = TokenRefWithPos<'a>;
-    type IntoIter = std::iter::Map<
-        std::slice::Iter<'a, TokenWithPos<'a>>,
-        fn(&'a TokenWithPos<'a>) -> TokenRefWithPos<'a>,
-    >;
+    type Item = &'a TokenWithPos<'a>;
+    type IntoIter = std::slice::Iter<'a, TokenWithPos<'a>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.tokens.iter().map(|t| t.inner_ref())
+        self.tokens.iter()
     }
 }
 
@@ -94,11 +91,11 @@ impl<'a> IntoIterator for &'a TokenStream<'a> {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenRefStream<'a> {
     /// The tokens.
-    pub token_refs: Vec<TokenRefWithPos<'a>>,
+    pub token_refs: Vec<&'a TokenWithPos<'a>>,
 }
 
 impl<'a> IntoIterator for TokenRefStream<'a> {
-    type Item = TokenRefWithPos<'a>;
+    type Item = &'a TokenWithPos<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.into_iter()
@@ -106,8 +103,8 @@ impl<'a> IntoIterator for TokenRefStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenRefStream<'a> {
-    type Item = TokenRefWithPos<'a>;
-    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, TokenRefWithPos<'a>>>;
+    type Item = &'a TokenWithPos<'a>;
+    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.iter().cloned()
     }

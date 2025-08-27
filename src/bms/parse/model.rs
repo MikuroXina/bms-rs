@@ -32,7 +32,7 @@ use crate::bms::{
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::{Token, TokenRefWithPos},
+    lex::token::{Token, TokenWithPos},
 };
 
 #[cfg(feature = "minor-command")]
@@ -316,7 +316,7 @@ pub struct Others {
 impl Bms {
     pub(crate) fn parse(
         &mut self,
-        token: &TokenRefWithPos,
+        token: &TokenWithPos,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match token.content() {

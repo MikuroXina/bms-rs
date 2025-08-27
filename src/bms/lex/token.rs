@@ -303,8 +303,7 @@ pub enum Token<'a> {
 /// A token with position information.
 pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
-/// A reference to a token with position information.
-pub type TokenRefWithPos<'a> = SourcePosMixin<&'a Token<'a>>;
+// TokenRefWithPos has been removed. Use &'a TokenWithPos<'a> instead.
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {

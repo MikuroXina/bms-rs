@@ -32,7 +32,7 @@ pub use super::{
     },
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
-        token::{Token, TokenRefWithPos, TokenWithPos},
+        token::{Token, TokenWithPos},
     },
     parse::{
         ParseOutput, ParseWarning, ParseWarningWithPos,

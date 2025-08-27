@@ -20,7 +20,7 @@ use crate::bms::{
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
-    lex::token::TokenRefWithPos,
+    lex::token::TokenWithPos,
     prelude::SourcePosMixinExt,
 };
 
@@ -69,14 +69,14 @@ pub struct ParseOutput {
 impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
-        token_iter: impl IntoIterator<Item = TokenRefWithPos<'a>>,
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput {
         let mut bms = Bms::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
-            if let Err(error) = bms.parse(&token, &mut prompt_handler) {
-                parse_warnings.push(error.into_wrapper(&token));
+            if let Err(error) = bms.parse(token, &mut prompt_handler) {
+                parse_warnings.push(error.into_wrapper(token));
             }
         }
 
@@ -104,7 +104,7 @@ pub struct ParseOutputWithAst {
 impl Bms {
     /// Parses a token stream into [`Bms`] with AST.
     pub fn from_token_stream_with_ast<'a>(
-        token_iter: impl IntoIterator<Item = TokenRefWithPos<'a>>,
+        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> ParseOutputWithAst {
