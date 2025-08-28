@@ -289,40 +289,35 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
                     errors.push(AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(token));
-                    let (_, mut errs, end_if) = parse_if_block_body(iter);
+                    let (_, mut errs, end_if) = parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
-                    if current_if_end.is_none() {
-                        current_if_end = Some(end_if);
-                    }
+                    current_if_end = current_if_end.or(Some(end_if));
                 } else if let Some(ref max) = max_value {
                     // Check if If branch value is out-of-range
                     if !(&BigUint::from(1u64)..=max).contains(&if_val) {
                         errors.push(
                             AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
-                        let (_, mut errs, end_if) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        if current_if_end.is_none() {
-                            current_if_end = Some(end_if);
-                        }
+                        current_if_end = current_if_end.or(Some(end_if));
                     } else {
                         seen_if_values.insert(if_val);
-                        let (tokens, mut errs, end_if) = parse_if_block_body(iter);
+                        let (tokens, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
                         branches.insert(if_val.clone(), tokens.into_wrapper(token));
-                        if current_if_end.is_none() {
-                            current_if_end = Some(end_if);
-                        }
+                        current_if_end = current_if_end.or(Some(end_if));
                     }
                 } else {
                     // SetRandom branch has no range limit
                     seen_if_values.insert(if_val);
-                    let (tokens, mut errs, end_if) = parse_if_block_body(iter);
+                    let (tokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
                     branches.insert(if_val.clone(), tokens.into_wrapper(token));
-                    if current_if_end.is_none() {
-                        current_if_end = Some(end_if);
-                    }
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
                 while let Some((&token, elif_val)) = iter
@@ -340,11 +335,10 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                             AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(token),
                         );
                         iter.next();
-                        let (_, mut errs, end_if) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        if current_if_end.is_none() {
-                            current_if_end = Some(end_if);
-                        }
+                        current_if_end = current_if_end.or(Some(end_if));
                         continue;
                     }
                     if let Some(ref max) = max_value
@@ -354,21 +348,19 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                             AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
                         iter.next();
-                        let (_, mut errs, end_if) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        if current_if_end.is_none() {
-                            current_if_end = Some(end_if);
-                        }
+                        current_if_end = current_if_end.or(Some(end_if));
                         continue;
                     }
                     iter.next();
                     seen_if_values.insert(elif_val);
-                    let (elif_tokens, mut errs, end_if) = parse_if_block_body(iter);
+                    let (elif_tokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
                     branches.insert(elif_val.clone(), elif_tokens.into_wrapper(token));
-                    if current_if_end.is_none() {
-                        current_if_end = Some(end_if);
-                    }
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.3 Check for redundant ElseIf
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
@@ -378,12 +370,11 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 // 2.4 Handle Else branch, branch value is 0
                 if let Some(_token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
                     iter.next();
-                    let (etokens, mut errs, end_if) = parse_if_block_body(iter);
+                    let (etokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
                     branches.insert(BigUint::from(0u64), etokens.into_wrapper(token));
-                    if current_if_end.is_none() {
-                        current_if_end = Some(end_if);
-                    }
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.5 Check for redundant Else
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
@@ -453,6 +444,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 /// - If EndIf is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     iter: &mut Peekable<T>,
+    default_end_pos: SourcePosMixin<()>,
 ) -> (
     Vec<Unit<'a>>,
     Vec<AstBuildWarningWithPos>,
@@ -502,7 +494,7 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             break;
         }
     }
-    let end_if_pos = fallback_pos.unwrap_or_else(|| ().into_wrapper_manual(0, 0));
+    let end_if_pos = fallback_pos.unwrap_or(default_end_pos);
     (result, errors, end_if_pos)
 }
 
