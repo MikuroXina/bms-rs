@@ -14,20 +14,6 @@ use crate::bms::command::{
 
 use super::model::{Bms, obj::Obj};
 
-/// Empty-related validity entries.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValidityEmpty {
-    /// Text content is empty at the time.
-    #[error("Empty text content at {0:?}")]
-    EmptyTextAt(ObjTime),
-    /// Option content is empty at the time.
-    #[cfg(feature = "minor-command")]
-    #[error("Empty option content at {0:?}")]
-    EmptyOptionAt(ObjTime),
-}
-
 /// Missing-related validity entries.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -140,8 +126,6 @@ pub enum ValidityInvalid {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ValidityCheckOutput {
-    /// Empty-related findings.
-    pub empty: Vec<ValidityEmpty>,
     /// Missing-related findings.
     pub missing: Vec<ValidityMissing>,
     /// Mapping-related findings.
@@ -156,7 +140,6 @@ impl Bms {
     /// This performs basic referential integrity checks and data invariants that
     /// are required for correct playback, separate from parse-time checks.
     pub fn check_validity(&self) -> ValidityCheckOutput {
-        let mut empty = Vec::new();
         let mut missing = Vec::new();
         let mut mapping = Vec::new();
         let mut invalid = Vec::new();
@@ -221,23 +204,7 @@ impl Bms {
             }
         }
 
-        // 2) Validate note event value ranges and content.
-        // BGM/KEY volume: u8 (0..=255) and 0 is allowed; no check
-        for t in self.notes.text_events.values() {
-            if t.text.is_empty() {
-                empty.push(ValidityEmpty::EmptyTextAt(t.time));
-            }
-        }
-        #[cfg(feature = "minor-command")]
-        {
-            for o in self.notes.option_events.values() {
-                if o.option.is_empty() {
-                    empty.push(ValidityEmpty::EmptyOptionAt(o.time));
-                }
-            }
-        }
-
-        // 3) Check for orphan entries in ids_by_key (present mapping but no note object at that time).
+        // 2) Check for orphan entries in ids_by_key (present mapping but no note object at that time).
         for ((side, key), time_map) in &self.notes.ids_by_key {
             for (time, mapped) in time_map {
                 let no_note = self
@@ -257,7 +224,7 @@ impl Bms {
             }
         }
 
-        // 3.1) Placement/overlap checks for notes on lanes.
+        // 3) Placement/overlap checks for notes on lanes.
         //      - Visible notes in section 000
         //      - Overlap: visible single vs single (same time, same lane)
         //      - Overlap: visible single within long interval (same lane)
@@ -375,7 +342,6 @@ impl Bms {
         }
 
         ValidityCheckOutput {
-            empty,
             missing,
             mapping,
             invalid,
@@ -394,7 +360,7 @@ mod tests {
         },
         parse::model::{
             Notes,
-            obj::{BgaLayer, BgaObj, Obj, TextObj},
+            obj::{BgaLayer, BgaObj, Obj},
         },
     };
 
@@ -419,10 +385,7 @@ mod tests {
         bms.notes = notes;
         // No WAV defined for id
         let out = bms.check_validity();
-        assert!(
-            out.missing
-                .contains(&ValidityMissing::WavForNote(id))
-        );
+        assert!(out.missing.contains(&ValidityMissing::WavForNote(id)));
     }
 
     #[test]
@@ -457,22 +420,6 @@ mod tests {
         assert!(out.mapping.iter().any(
             |e| matches!(e, ValidityMapping::IdsByKeyOrphanMapping { time: t0, .. } if *t0 == time)
         ));
-    }
-
-    #[test]
-    fn test_empty_text_warning() {
-        let mut bms = Bms::default();
-        // Empty text event -> warning
-        let time = t(1, 0, 4);
-        bms.notes.text_events.insert(
-            time,
-            TextObj {
-                time,
-                text: String::new(),
-            },
-        );
-        let out = bms.check_validity();
-        assert!(out.empty.contains(&ValidityEmpty::EmptyTextAt(time)));
     }
 
     #[test]
