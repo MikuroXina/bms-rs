@@ -61,13 +61,8 @@ fn extract_random_block<'a>(
             let units_vec = units.content().clone();
             tokens.extend(extract_units(units_vec));
 
-            // Add the EndIf token, prefer recorded end_if position if available
-            if let Some(ref pos) = end_if {
-                tokens.push(Token::EndIf.into_wrapper(pos));
-            } else {
-                let (if_row, if_column) = tokens.last().map(|t| t.as_pos()).unwrap_or((0, 0));
-                tokens.push(Token::EndIf.into_wrapper_manual(if_row + 1, if_column));
-            }
+            // Add the EndIf token at recorded position
+            tokens.push(Token::EndIf.into_wrapper(&end_if));
         }
     }
 
@@ -186,7 +181,7 @@ mod tests {
 
         let if_block = IfBlock {
             branches,
-            end_if: None,
+            end_if: ().into_wrapper_manual(0, 0),
         };
         let random_block = Unit::RandomBlock {
             value: BlockValue::Set {
@@ -402,7 +397,7 @@ mod tests {
 
         let if_block = IfBlock {
             branches,
-            end_if: None,
+            end_if: ().into_wrapper_manual(0, 0),
         };
         let random_block = Unit::RandomBlock {
             value: BlockValue::Random {
@@ -653,7 +648,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: nested_branches,
-                end_if: None,
+                end_if: ().into_wrapper_manual(0, 0),
             }],
             end_random: ().into_wrapper_manual(15, 23),
         };
@@ -746,7 +741,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches,
-                end_if: None,
+                end_if: ().into_wrapper_manual(0, 0),
             }],
             end_random: ().into_wrapper_manual(15, 23),
         };
@@ -835,7 +830,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: middle_branches,
-                end_if: None,
+                end_if: ().into_wrapper_manual(0, 0),
             }],
             end_random: ().into_wrapper_manual(15, 23),
         };

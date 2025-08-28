@@ -56,8 +56,10 @@ pub enum BlockValue {
 pub struct IfBlock<'a> {
     /// The branches of the If block.
     pub branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>>,
-    /// The ENDIF position in the BMS source if exists for this IfBlock.
-    pub end_if: Option<SourcePosMixin<()>>,
+    /// The ENDIF position in the BMS source for this IfBlock.
+    /// If there is no matching `#ENDIF`, this falls back to the position of the last token
+    /// inside the If block (or the current peek position when the block is empty).
+    pub end_if: SourcePosMixin<()>,
 }
 
 /// The define of a Case/Def branch in a Switch block.

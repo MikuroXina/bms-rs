@@ -166,7 +166,7 @@ mod tests {
                 .into_wrapper_manual(14, 23),
                 if_blocks: vec![IfBlock {
                     branches: if_branches.clone(),
-                    end_if: None,
+                    end_if: ().into_wrapper_manual(14, 23),
                 }],
                 end_random: ().into_wrapper_manual(14, 23),
             },
@@ -227,7 +227,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
-                end_if: None,
+                end_if: ().into_wrapper_manual(14, 23),
             }],
             end_random: ().into_wrapper_manual(14, 23),
         }];
@@ -259,7 +259,7 @@ mod tests {
                     );
                     IfBlock {
                         branches: b,
-                        end_if: None,
+                        end_if: ().into_wrapper_manual(14, 23),
                     }
                 }],
                 end_random: ().into_wrapper_manual(14, 23),
@@ -315,7 +315,7 @@ mod tests {
                             );
                             IfBlock {
                                 branches: b,
-                                end_if: None,
+                                end_if: ().into_wrapper_manual(14, 23),
                             }
                         }],
                         end_random: ().into_wrapper_manual(14, 23),
@@ -333,7 +333,7 @@ mod tests {
             .into_wrapper_manual(14, 23),
             if_blocks: vec![IfBlock {
                 branches: if_branches,
-                end_if: None,
+                end_if: ().into_wrapper_manual(14, 23),
             }],
             end_random: ().into_wrapper_manual(14, 23),
         }];

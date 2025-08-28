@@ -281,6 +281,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
+                // Track the ENDIF position for this IfBlock (non-optional)
                 let mut current_if_end = None::<SourcePosMixin<()>>;
                 let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
                     BTreeMap::new();
@@ -291,7 +292,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     let (_, mut errs, end_if) = parse_if_block_body(iter);
                     errors.append(&mut errs);
                     if current_if_end.is_none() {
-                        current_if_end = end_if;
+                        current_if_end = Some(end_if);
                     }
                 } else if let Some(ref max) = max_value {
                     // Check if If branch value is out-of-range
@@ -302,7 +303,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         let (_, mut errs, end_if) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         if current_if_end.is_none() {
-                            current_if_end = end_if;
+                            current_if_end = Some(end_if);
                         }
                     } else {
                         seen_if_values.insert(if_val);
@@ -310,7 +311,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         errors.append(&mut errs);
                         branches.insert(if_val.clone(), tokens.into_wrapper(token));
                         if current_if_end.is_none() {
-                            current_if_end = end_if;
+                            current_if_end = Some(end_if);
                         }
                     }
                 } else {
@@ -320,7 +321,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     errors.append(&mut errs);
                     branches.insert(if_val.clone(), tokens.into_wrapper(token));
                     if current_if_end.is_none() {
-                        current_if_end = end_if;
+                        current_if_end = Some(end_if);
                     }
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
@@ -342,7 +343,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         let (_, mut errs, end_if) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         if current_if_end.is_none() {
-                            current_if_end = end_if;
+                            current_if_end = Some(end_if);
                         }
                         continue;
                     }
@@ -356,7 +357,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                         let (_, mut errs, end_if) = parse_if_block_body(iter);
                         errors.append(&mut errs);
                         if current_if_end.is_none() {
-                            current_if_end = end_if;
+                            current_if_end = Some(end_if);
                         }
                         continue;
                     }
@@ -366,7 +367,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     errors.append(&mut errs);
                     branches.insert(elif_val.clone(), elif_tokens.into_wrapper(token));
                     if current_if_end.is_none() {
-                        current_if_end = end_if;
+                        current_if_end = Some(end_if);
                     }
                 }
                 // 2.3 Check for redundant ElseIf
@@ -381,7 +382,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     errors.append(&mut errs);
                     branches.insert(BigUint::from(0u64), etokens.into_wrapper(token));
                     if current_if_end.is_none() {
-                        current_if_end = end_if;
+                        current_if_end = Some(end_if);
                     }
                 }
                 // 2.5 Check for redundant Else
@@ -390,10 +391,12 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                     iter.next();
                 }
                 // 2.6 Collect this IfBlock
-                if_blocks.push(IfBlock {
-                    branches,
-                    end_if: current_if_end.take(),
+                // When ENDIF not seen, fall back to current peek or header
+                let end_if = current_if_end.unwrap_or_else(|| {
+                    let end_pos_token = iter.peek().copied().unwrap_or(token);
+                    ().into_wrapper(end_pos_token)
                 });
+                if_blocks.push(IfBlock { branches, end_if });
             }
             // 3.1 Termination: EndRandom encountered, block ends
             EndRandom => {
@@ -453,33 +456,53 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 ) -> (
     Vec<Unit<'a>>,
     Vec<AstBuildWarningWithPos>,
-    Option<SourcePosMixin<()>>,
+    SourcePosMixin<()>,
 ) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    let mut end_if_pos = None::<SourcePosMixin<()>>;
+    // Default fallback: if no #ENDIF is found, use the position of the last processed token,
+    // or the current peek token; if neither exists, use a dummy (0,0).
+    let mut fallback_pos = None::<SourcePosMixin<()>>;
     use Token::*;
-    while let Some(token) = iter.peek() {
-        match token.content() {
-            // 1. Branch-terminating TokenWithPos, break
-            ElseIf(_) | Else | EndIf | EndRandom | EndSwitch => {
-                if let EndIf = token.content() {
-                    end_if_pos = Some(().into_wrapper(token));
-                    iter.next();
-                }
+    loop {
+        // First, check for terminators without holding the borrow across mutations
+        let is_terminator = {
+            let Some(token) = iter.peek() else {
                 break;
+            };
+            matches!(
+                token.content(),
+                ElseIf(_) | Else | EndIf | EndRandom | EndSwitch
+            )
+        };
+        if is_terminator {
+            // If it is EndIf, consume and record the position
+            if let Some(token) = iter.peek()
+                && let EndIf = token.content()
+            {
+                let pos = ().into_wrapper(token);
+                fallback_pos = Some(pos);
+                iter.next();
             }
-            // 2. Other content, prioritizing parse_unit_or_block (supports nesting)
-            _ => {
-                if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
-                    result.push(unit);
-                    errors.append(&mut errs);
-                } else {
-                    iter.next();
-                }
-            }
+            break;
+        }
+
+        // Try to parse nested unit/block first
+        if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
+            result.push(unit);
+            errors.append(&mut errs);
+            continue;
+        }
+        // Otherwise, consume one token and update fallback position
+        if let Some(token) = iter.peek() {
+            let pos = ().into_wrapper(token);
+            fallback_pos = Some(pos);
+        }
+        if iter.next().is_none() {
+            break;
         }
     }
+    let end_if_pos = fallback_pos.unwrap_or_else(|| ().into_wrapper_manual(0, 0));
     (result, errors, end_if_pos)
 }
 
