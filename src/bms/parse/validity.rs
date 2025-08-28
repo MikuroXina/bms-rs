@@ -35,13 +35,13 @@ pub enum ValidityEmpty {
 pub enum ValidityMissing {
     /// A note references an ObjId without a corresponding WAV definition.
     #[error("Missing WAV definition for note object id: {0:?}")]
-    MissingWavForNote(ObjId),
+    WavForNote(ObjId),
     /// A BGM references an ObjId without a corresponding WAV definition.
     #[error("Missing WAV definition for BGM object id: {0:?}")]
-    MissingWavForBgm(ObjId),
+    WavForBgm(ObjId),
     /// A BGA change references an ObjId without a corresponding BMP/EXBMP definition.
     #[error("Missing BMP definition for BGA object id: {0:?}")]
-    MissingBmpForBga(ObjId),
+    BmpForBga(ObjId),
 }
 
 /// Mapping-related validity entries.
@@ -164,7 +164,7 @@ impl Bms {
         // 1) Check that every used ObjId in notes has a corresponding WAV definition.
         for (obj_id, notes) in &self.notes.objs {
             if !self.notes.wav_files.contains_key(obj_id) {
-                missing.push(ValidityMissing::MissingWavForNote(*obj_id));
+                missing.push(ValidityMissing::WavForNote(*obj_id));
             }
 
             // 2) Ensure ids_by_key contains the expected mapping for each note entry.
@@ -209,7 +209,7 @@ impl Bms {
         for obj_ids in self.notes.bgms.values() {
             for obj_id in obj_ids {
                 if !self.notes.wav_files.contains_key(obj_id) {
-                    missing.push(ValidityMissing::MissingWavForBgm(*obj_id));
+                    missing.push(ValidityMissing::WavForBgm(*obj_id));
                 }
             }
         }
@@ -217,7 +217,7 @@ impl Bms {
         // 1.3) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
-                missing.push(ValidityMissing::MissingBmpForBga(bga_obj.id));
+                missing.push(ValidityMissing::BmpForBga(bga_obj.id));
             }
         }
 
@@ -421,7 +421,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(
             out.missing
-                .contains(&ValidityMissing::MissingWavForNote(id))
+                .contains(&ValidityMissing::WavForNote(id))
         );
     }
 
@@ -439,7 +439,7 @@ mod tests {
             },
         );
         let out = bms.check_validity();
-        assert!(out.missing.contains(&ValidityMissing::MissingBmpForBga(id)));
+        assert!(out.missing.contains(&ValidityMissing::BmpForBga(id)));
     }
 
     #[test]
