@@ -20,7 +20,8 @@ pub use super::{
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
             mapper::{
-                BeatKey, BeatNanasiKey, DscOctFpKey, KeyMapping, PhysicalKey, PmsBmeKey, PmsKey,
+                BeatKey, BeatNanasiKey, DscOctFpKey, GenericNKey, KeyMapping, PhysicalKey,
+                PmsBmeKey, PmsKey,
             },
             read_channel_beat,
         },

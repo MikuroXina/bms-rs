@@ -368,6 +368,75 @@ impl PhysicalKey for DscOctFpKey {
     }
 }
 
+/// A generic 1P-only N-keys physical layout. Keys are mapped to BeatKey Player1 Key1..KeyN.
+/// This implements PhysicalKey but intentionally does NOT implement KeyMapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GenericNKey<const N: usize> {
+    /// 1-based key index within [1, N]
+    pub index: usize,
+}
+
+impl<const N: usize> GenericNKey<N> {
+    /// Create a new [`GenericNKey`] from an index within `[1, N]`.
+    pub const fn new(index: usize) -> Self {
+        Self { index }
+    }
+}
+
+impl<const N: usize> PhysicalKey for GenericNKey<N> {
+    fn to_note_channel(self) -> NoteChannel {
+        use super::Key::*;
+        let key = match self.index {
+            1 if N >= 1 => Key1,
+            2 if N >= 2 => Key2,
+            3 if N >= 3 => Key3,
+            4 if N >= 4 => Key4,
+            5 if N >= 5 => Key5,
+            6 if N >= 6 => Key6,
+            7 if N >= 7 => Key7,
+            8 if N >= 8 => Key8,
+            9 if N >= 9 => Key9,
+            10 if N >= 10 => Key10,
+            11 if N >= 11 => Key11,
+            12 if N >= 12 => Key12,
+            13 if N >= 13 => Key13,
+            14 if N >= 14 => Key14,
+            // Fallback to Key1 if out of range; this should be validated by constructors in usage
+            _ => Key1,
+        };
+        BeatKey::new(PlayerSide::Player1, key).to_note_channel()
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        use super::Key::*;
+        let beat = BeatKey::from_note_channel(channel)?;
+        if beat.side != PlayerSide::Player1 {
+            return None;
+        }
+        let index = match beat.key {
+            Key1 => 1,
+            Key2 => 2,
+            Key3 => 3,
+            Key4 => 4,
+            Key5 => 5,
+            Key6 => 6,
+            Key7 => 7,
+            Key8 => 8,
+            Key9 => 9,
+            Key10 => 10,
+            Key11 => 11,
+            Key12 => 12,
+            Key13 => 13,
+            Key14 => 14,
+            _ => return None, // excludes Scratch/FootPedal/FreeZone/etc.
+        };
+        if index == 0 || index > N {
+            return None;
+        }
+        Some(Self { index })
+    }
+}
+
 #[cfg(test)]
 mod layout_roundtrip_tests {
     use super::*;
