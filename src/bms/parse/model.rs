@@ -26,7 +26,6 @@ use crate::bms::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
             Channel, Key, KeyMapping, NoteChannel, NoteKind, PlayerSide,
-            beat_components_from_note_channel,
             converter::KeyLayoutConverter,
             mapper::{BeatKey, PhysicalKey},
         },
@@ -1460,13 +1459,11 @@ impl Graphics {
 
 impl Notes<BeatKey> {
     /// Converts into the notes sorted by time.
-    pub fn into_all_notes(self) -> Vec<ObjDefault> {
-        self.objs
-            .into_values()
-            .flatten()
-            .map(|o| o.into())
-            .sorted()
-            .collect()
+    pub fn into_all_notes(mut self) -> Vec<Obj<BeatKey>> {
+        let mut all: Vec<Obj<BeatKey>> =
+            self.objs.drain().flat_map(|(_, v)| v.into_iter()).collect();
+        all.sort();
+        all
     }
 }
 
@@ -1821,49 +1818,7 @@ pub type BmsDefault = Bms<BeatKey>;
 /// Default type aliases for backward compatibility (Beat layout)
 pub type NotesDefault = Notes<BeatKey>;
 
-/// Backward-compatible object shape for default Beat layout used in tests and prelude
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ObjDefault {
-    /// The time offset in the track.
-    pub offset: ObjTime,
-    /// THe note kind of the the object.
-    pub kind: NoteKind,
-    /// Player side (Beat layout only)
-    pub side: PlayerSide,
-    /// Physical key (Beat layout only)
-    pub key: Key,
-    /// The id of the object.
-    pub obj: ObjId,
-}
-
-impl Ord for ObjDefault {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.offset
-            .cmp(&other.offset)
-            .then(self.obj.cmp(&other.obj))
-    }
-}
-
-impl PartialOrd for ObjDefault {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl From<Obj<BeatKey>> for ObjDefault {
-    fn from(value: Obj<BeatKey>) -> Self {
-        let (side, key) = beat_components_from_note_channel(value.channel)
-            .unwrap_or((PlayerSide::Player1, Key::Key1));
-        ObjDefault {
-            offset: value.offset,
-            kind: value.kind,
-            side,
-            key,
-            obj: value.obj,
-        }
-    }
-}
+// ObjDefault removed; use Obj<BeatKey> directly
 
 impl Notes<BeatKey> {
     /// Backward-compatible helper to find next object by side/key (Beat layout)

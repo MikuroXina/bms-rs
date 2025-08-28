@@ -69,13 +69,7 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = bms_rs::bms::parse::model::ObjDefault {
-        offset: _obj_time,
-        kind: _note_kind,
-        side: _player_side,
-        key: _key,
-        obj: _obj_id,
-    };
+    let _obj = Obj::new_beat(_obj_time, _note_kind, _player_side, _key, _obj_id);
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
         bpm: Decimal::from(120),

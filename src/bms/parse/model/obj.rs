@@ -11,7 +11,10 @@ use crate::bms::{
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
-use crate::bms::command::channel::mapper::PhysicalKey;
+use crate::bms::command::channel::{
+    Key, PlayerSide,
+    mapper::{BeatKey, PhysicalKey},
+};
 use core::marker::PhantomData;
 
 /// An object playing sound on the score.
@@ -42,6 +45,41 @@ impl<T: PhysicalKey> Ord for Obj<T> {
         self.offset
             .cmp(&other.offset)
             .then(self.obj.cmp(&other.obj))
+    }
+}
+
+impl Obj<BeatKey> {
+    /// Creates a new note object using Beat layout components.
+    pub fn new_beat(
+        offset: ObjTime,
+        kind: NoteKind,
+        side: PlayerSide,
+        key: Key,
+        obj: ObjId,
+    ) -> Self {
+        let channel = BeatKey::new(side, key).to_note_channel();
+        Obj {
+            offset,
+            kind,
+            channel,
+            obj,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns the Beat layout components (PlayerSide, Key) if the channel is a Beat channel.
+    pub fn beat_components(&self) -> Option<(PlayerSide, Key)> {
+        BeatKey::from_note_channel(self.channel).map(|bk| (bk.side, bk.key))
+    }
+
+    /// Returns the PlayerSide if the channel is a Beat channel.
+    pub fn side(&self) -> Option<PlayerSide> {
+        self.beat_components().map(|(side, _)| side)
+    }
+
+    /// Returns the Key if the channel is a Beat channel.
+    pub fn key(&self) -> Option<Key> {
+        self.beat_components().map(|(_, key)| key)
     }
 }
 

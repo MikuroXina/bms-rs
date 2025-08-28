@@ -379,13 +379,6 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     })
 }
 
-/// Helper to convert back from NoteChannel to Beat style channel string components.
-pub(crate) fn beat_components_from_note_channel(
-    note_channel: NoteChannel,
-) -> Option<(PlayerSide, Key)> {
-    BeatKey::from_note_channel(note_channel).map(|bk| (bk.side, bk.key))
-}
-
 /// A trait for key mapping storage structure.
 pub trait KeyMapping {
     /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
