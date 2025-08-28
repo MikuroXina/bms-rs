@@ -1457,17 +1457,14 @@ impl Graphics {
     }
 }
 
-impl Notes<BeatKey> {
+impl<T: PhysicalKey> Notes<T> {
     /// Converts into the notes sorted by time.
-    pub fn into_all_notes(mut self) -> Vec<Obj<BeatKey>> {
-        let mut all: Vec<Obj<BeatKey>> =
-            self.objs.drain().flat_map(|(_, v)| v.into_iter()).collect();
+    pub fn into_all_notes(mut self) -> Vec<Obj<T>> {
+        let mut all: Vec<Obj<T>> = self.objs.drain().flat_map(|(_, v)| v.into_iter()).collect();
         all.sort();
         all
     }
-}
 
-impl<T: PhysicalKey> Notes<T> {
     /// Returns the iterator having all of the notes sorted by time.
     pub fn all_notes(&self) -> impl Iterator<Item = &Obj<T>> {
         self.objs.values().flatten().sorted()
@@ -1810,19 +1807,6 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, volume_value))
     })
-}
-
-impl Notes<BeatKey> {
-    /// Backward-compatible helper to find next object by side/key (Beat layout)
-    pub fn next_obj_by_key(
-        &self,
-        side: PlayerSide,
-        key: Key,
-        time: ObjTime,
-    ) -> Option<&Obj<BeatKey>> {
-        let channel = BeatKey::new(side, key).to_note_channel();
-        self.next_obj_by_channel(channel, time)
-    }
 }
 
 impl<T: PhysicalKey + KeyMapping> Bms<T> {
