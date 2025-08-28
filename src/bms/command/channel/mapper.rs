@@ -2,6 +2,18 @@
 
 use super::{Key, NoteChannel, PlayerSide};
 
+/// A trait for key mapping storage structure.
+pub trait KeyMapping {
+    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
+    fn new(side: PlayerSide, key: Key) -> Self;
+    /// Get the PlayerSide from this KeyMapping.
+    fn side(&self) -> PlayerSide;
+    /// Get the [`Key`] from this [`KeyMapping`].
+    fn key(&self) -> Key;
+    /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
+    fn into_tuple(self) -> (PlayerSide, Key);
+}
+
 /// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
 pub trait PhysicalKey: Copy + Eq + core::fmt::Debug {
     /// Convert this physical key into a logical note channel.
@@ -33,6 +45,21 @@ impl Default for BeatKey {
             side: PlayerSide::default(),
             key: Key::Key1,
         }
+    }
+}
+
+impl KeyMapping for BeatKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
     }
 }
 
@@ -117,6 +144,21 @@ impl PmsBmeKey {
     }
 }
 
+impl KeyMapping for PmsBmeKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
+    }
+}
+
 impl PhysicalKey for PmsBmeKey {
     fn to_note_channel(self) -> NoteChannel {
         use Key::*;
@@ -159,6 +201,20 @@ impl PmsKey {
     }
 }
 
+impl KeyMapping for PmsKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
+    }
+}
 impl PhysicalKey for PmsKey {
     fn to_note_channel(self) -> NoteChannel {
         use Key::*;
@@ -205,6 +261,21 @@ impl BeatNanasiKey {
     }
 }
 
+impl KeyMapping for BeatNanasiKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
+    }
+}
+
 impl PhysicalKey for BeatNanasiKey {
     fn to_note_channel(self) -> NoteChannel {
         use Key::*;
@@ -242,6 +313,21 @@ impl DscOctFpKey {
     /// Create a new [`DscOctFpKey`] from a [`PlayerSide`] and [`Key`].
     pub const fn new(side: PlayerSide, key: Key) -> Self {
         Self { side, key }
+    }
+}
+
+impl KeyMapping for DscOctFpKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
     }
 }
 

@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::{Key, KeyMapping, PlayerSide};
+use super::{Key, PlayerSide, mapper::KeyMapping};
 
 /// A trait for converting [`KeyMapping`]s.
 ///

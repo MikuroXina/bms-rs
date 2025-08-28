@@ -14,12 +14,14 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteChannel, NoteKind, PlayerSide,
+            Channel, Key, NoteChannel, NoteKind, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
-            mapper::{BeatKey, BeatNanasiKey, DscOctFpKey, PhysicalKey, PmsBmeKey, PmsKey},
+            mapper::{
+                BeatKey, BeatNanasiKey, DscOctFpKey, KeyMapping, PhysicalKey, PmsBmeKey, PmsKey,
+            },
             read_channel_beat,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
