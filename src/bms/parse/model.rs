@@ -27,7 +27,6 @@ use crate::bms::{
         channel::{
             BeatKey, Channel, Key, KeyMapping, NoteChannel, NoteKind, PhysicalKey, PlayerSide,
             converter::KeyLayoutConverter,
-            mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -1883,14 +1882,19 @@ impl Bms<BeatKey> {
     /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
     ///
     /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
-    pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
+    pub fn convert_key_between_modes<Src, Dst>(&mut self)
+    where
+        Src: KeyMapping,
+        Dst: KeyMapping,
+        // For backward compatibility, conversion will go through BeatKey
+    {
         for (_, objs) in self.notes.objs.iter_mut() {
             for obj in objs.iter_mut() {
                 if let Some(current) = BeatKey::from_note_channel(obj.channel) {
-                    let ori_map = Src::new(current.side, current.key);
-                    let beat_map = ori_map.to_beat();
-                    let dst_map = Dst::from_beat(beat_map);
-                    let new_channel = BeatKey::new(dst_map.side(), dst_map.key()).to_note_channel();
+                    let src = Src::new(current.side, current.key);
+                    let beat = KeyMapping::into_tuple(src);
+                    let dst = Dst::new(beat.0, beat.1);
+                    let new_channel = BeatKey::new(dst.side(), dst.key()).to_note_channel();
                     obj.channel = new_channel;
                 }
             }
@@ -1902,7 +1906,7 @@ impl Bms<BeatKey> {
         for (_, objs) in self.notes.objs.iter_mut() {
             for obj in objs.iter_mut() {
                 if let Some(current) = BeatKey::from_note_channel(obj.channel) {
-                    let beat_map = KeyLayoutBeat::new(current.side, current.key);
+                    let beat_map = BeatKey::new(current.side, current.key);
                     let new_beat_map = converter.convert(beat_map);
                     let new_channel =
                         BeatKey::new(new_beat_map.side(), new_beat_map.key()).to_note_channel();

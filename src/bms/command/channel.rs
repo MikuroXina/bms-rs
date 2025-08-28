@@ -269,23 +269,26 @@ impl PmsBmeKey {
 
 impl PhysicalKey for PmsBmeKey {
     fn to_note_channel(self) -> NoteChannel {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPmsBmeType,
+        use Key::*;
+        let mapped_key = match self.key {
+            Key8 => Scratch,
+            Key9 => FreeZone,
+            other => other,
         };
-        let beat: KeyLayoutBeat = KeyLayoutPmsBmeType::new(self.side, self.key).to_beat();
-        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+        BeatKey::new(self.side, mapped_key).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPmsBmeType,
-        };
+        use Key::*;
         let beat = BeatKey::from_note_channel(channel)?;
-        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
-        let this = KeyLayoutPmsBmeType::from_beat(beat_map);
+        let key = match beat.key {
+            Scratch => Key8,
+            FreeZone => Key9,
+            other => other,
+        };
         Some(Self {
-            side: this.side(),
-            key: this.key(),
+            side: beat.side,
+            key,
         })
     }
 }
@@ -308,20 +311,31 @@ impl PmsKey {
 
 impl PhysicalKey for PmsKey {
     fn to_note_channel(self) -> NoteChannel {
-        use crate::bms::command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPms};
-        let beat: KeyLayoutBeat = KeyLayoutPms::new(self.side, self.key).to_beat();
-        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+        use Key::*;
+        use PlayerSide::*;
+        let (side, key) = match (self.side, self.key) {
+            (Player1, Key6) => (Player2, Key2),
+            (Player1, Key7) => (Player2, Key3),
+            (Player1, Key8) => (Player2, Key4),
+            (Player1, Key9) => (Player2, Key5),
+            other => other,
+        };
+        BeatKey::new(side, key).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use crate::bms::command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPms};
+        use Key::*;
+        use PlayerSide::*;
         let beat = BeatKey::from_note_channel(channel)?;
-        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
-        let this = KeyLayoutPms::from_beat(beat_map);
-        Some(Self {
-            side: this.side(),
-            key: this.key(),
-        })
+        let (side, key) = match (beat.side, beat.key) {
+            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => (Player1, beat.key),
+            (Player2, Key2) => (Player1, Key6),
+            (Player2, Key3) => (Player1, Key7),
+            (Player2, Key4) => (Player1, Key8),
+            (Player2, Key5) => (Player1, Key9),
+            other => other,
+        };
+        Some(Self { side, key })
     }
 }
 
@@ -343,23 +357,24 @@ impl BeatNanasiKey {
 
 impl PhysicalKey for BeatNanasiKey {
     fn to_note_channel(self) -> NoteChannel {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutMapper,
+        use Key::*;
+        let key = match self.key {
+            FootPedal => FreeZone,
+            other => other,
         };
-        let beat: KeyLayoutBeat = KeyLayoutBeatNanasi::new(self.side, self.key).to_beat();
-        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+        BeatKey::new(self.side, key).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutMapper,
-        };
+        use Key::*;
         let beat = BeatKey::from_note_channel(channel)?;
-        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
-        let this = KeyLayoutBeatNanasi::from_beat(beat_map);
+        let key = match beat.key {
+            FreeZone => FootPedal,
+            other => other,
+        };
         Some(Self {
-            side: this.side(),
-            key: this.key(),
+            side: beat.side,
+            key,
         })
     }
 }
@@ -382,24 +397,38 @@ impl DscOctFpKey {
 
 impl PhysicalKey for DscOctFpKey {
     fn to_note_channel(self) -> NoteChannel {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutDscOctFp, KeyLayoutMapper,
+        use Key::*;
+        use PlayerSide::*;
+        let (side, key) = match (self.side, self.key) {
+            (Player1, ScratchExtra) => (Player2, Scratch),
+            (Player1, FootPedal) => (Player2, Key1),
+            (Player1, Key8) => (Player2, Key2),
+            (Player1, Key9) => (Player2, Key3),
+            (Player1, Key10) => (Player2, Key4),
+            (Player1, Key11) => (Player2, Key5),
+            (Player1, Key12) => (Player2, Key6),
+            (Player1, Key13) => (Player2, Key7),
+            (s, k) => (s, k),
         };
-        let beat: KeyLayoutBeat = KeyLayoutDscOctFp::new(self.side, self.key).to_beat();
-        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+        BeatKey::new(side, key).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use crate::bms::command::channel::mapper::{
-            KeyLayoutBeat, KeyLayoutDscOctFp, KeyLayoutMapper,
-        };
+        use Key::*;
+        use PlayerSide::*;
         let beat = BeatKey::from_note_channel(channel)?;
-        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
-        let this = KeyLayoutDscOctFp::from_beat(beat_map);
-        Some(Self {
-            side: this.side(),
-            key: this.key(),
-        })
+        let (side, key) = match (beat.side, beat.key) {
+            (Player2, Key1) => (Player1, FootPedal),
+            (Player2, Key2) => (Player1, Key8),
+            (Player2, Key3) => (Player1, Key9),
+            (Player2, Key4) => (Player1, Key10),
+            (Player2, Key5) => (Player1, Key11),
+            (Player2, Key6) => (Player1, Key12),
+            (Player2, Key7) => (Player1, Key13),
+            (Player2, Scratch) => (Player1, ScratchExtra),
+            (s, k) => (s, k),
+        };
+        Some(Self { side, key })
     }
 }
 
@@ -761,4 +790,19 @@ pub trait KeyMapping {
     fn key(&self) -> Key;
     /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
     fn into_tuple(self) -> (PlayerSide, Key);
+}
+
+impl KeyMapping for BeatKey {
+    fn new(side: PlayerSide, key: Key) -> Self {
+        BeatKey::new(side, key)
+    }
+    fn side(&self) -> PlayerSide {
+        self.side
+    }
+    fn key(&self) -> Key {
+        self.key
+    }
+    fn into_tuple(self) -> (PlayerSide, Key) {
+        (self.side, self.key)
+    }
 }

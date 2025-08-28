@@ -202,7 +202,7 @@ impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
 
 #[cfg(test)]
 mod channel_mode_tests {
-    use crate::bms::prelude::KeyLayoutBeat;
+    use crate::bms::command::channel::BeatKey as KeyLayoutBeat;
 
     use super::*;
 

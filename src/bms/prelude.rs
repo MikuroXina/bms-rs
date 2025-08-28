@@ -19,10 +19,6 @@ pub use super::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
-            mapper::{
-                KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
-                KeyLayoutPms, KeyLayoutPmsBmeType,
-            },
             read_channel_beat,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
