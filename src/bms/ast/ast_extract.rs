@@ -12,7 +12,7 @@ pub(super) fn extract_units<'a>(
     for unit in units {
         match unit {
             Unit::TokenWithPos(token) => {
-                tokens.push((*token).clone());
+                tokens.push(token.clone());
             }
             Unit::RandomBlock {
                 value,
