@@ -153,7 +153,7 @@ mod tests {
     use crate::bms::{
         command::{
             JudgeLevel, PlayerMode,
-            channel::{Channel, Key, NoteKind, PlayerSide},
+            channel::{BeatKey, Channel, Key, NoteKind, PhysicalKey, PlayerSide},
             time::Track,
         },
         lex::{LexOutput, TokenStream, token::Token::*},
@@ -214,8 +214,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
                     },
                     message: "0303030303".into(),
                 },
@@ -223,8 +222,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
                     },
                     message: "0303000303".into(),
                 },
@@ -232,8 +230,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
                     },
                     message: "010101".into(),
                 },
@@ -241,8 +238,7 @@ mod tests {
                     track: Track(2),
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
                     },
                     message: "00020202".into(),
                 },

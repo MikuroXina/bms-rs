@@ -179,13 +179,15 @@ impl Bms {
                     NoteKind::Visible
                 };
 
-                let obj = Obj {
-                    offset: time,
-                    kind,
-                    side,
-                    key,
-                    obj: obj_id,
-                };
+                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
+                    crate::bms::parse::model::obj::Obj {
+                        offset: time,
+                        kind,
+                        channel: crate::bms::command::channel::BeatKey::new(side, key)
+                            .to_note_channel(),
+                        obj: obj_id,
+                        _marker: core::marker::PhantomData,
+                    };
                 bms.notes.push_note(obj);
             }
         }
@@ -203,13 +205,15 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
-                let obj = Obj {
-                    offset: time,
-                    kind: NoteKind::Landmine,
-                    side,
-                    key,
-                    obj: obj_id,
-                };
+                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
+                    crate::bms::parse::model::obj::Obj {
+                        offset: time,
+                        kind: NoteKind::Landmine,
+                        channel: crate::bms::command::channel::BeatKey::new(side, key)
+                            .to_note_channel(),
+                        obj: obj_id,
+                        _marker: core::marker::PhantomData,
+                    };
                 bms.notes.push_note(obj);
             }
         }
@@ -227,13 +231,15 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
-                let obj = Obj {
-                    offset: time,
-                    kind: NoteKind::Invisible,
-                    side,
-                    key,
-                    obj: obj_id,
-                };
+                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
+                    crate::bms::parse::model::obj::Obj {
+                        offset: time,
+                        kind: NoteKind::Invisible,
+                        channel: crate::bms::command::channel::BeatKey::new(side, key)
+                            .to_note_channel(),
+                        obj: obj_id,
+                        _marker: core::marker::PhantomData,
+                    };
                 bms.notes.push_note(obj);
             }
         }

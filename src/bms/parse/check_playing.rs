@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::bms::command::channel::NoteKind;
 
 use super::model::Bms;
+use crate::bms::command::channel::BeatKey;
 
 /// Simpifies the warnings for playing, which would not make this chart unplayable.
 #[non_exhaustive]
@@ -51,7 +52,7 @@ pub struct PlayingCheckOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-impl Bms {
+impl Bms<BeatKey> {
     /// Check for playing warnings and errors based on the parsed BMS data.
     pub fn check_playing(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();

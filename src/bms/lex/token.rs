@@ -13,7 +13,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{Channel, Key, NoteKind, PlayerSide},
+        channel::{BeatKey, Channel, Key, NoteKind, PhysicalKey, PlayerSide},
         graphics::Argb,
         mixin::SourcePosMixin,
         time::Track,
@@ -1569,36 +1569,45 @@ fn fmt_message(
         Channel::ChangeOption => {
             write!(f, "#{:03}A6:{}", track.0, message)
         }
-        Channel::Note { kind, side, key } => {
-            let kind_char = match (kind, side) {
-                (NoteKind::Visible, PlayerSide::Player1) => '1',
-                (NoteKind::Visible, PlayerSide::Player2) => '2',
-                (NoteKind::Invisible, PlayerSide::Player1) => '3',
-                (NoteKind::Invisible, PlayerSide::Player2) => '4',
-                (NoteKind::Long, PlayerSide::Player1) => '5',
-                (NoteKind::Long, PlayerSide::Player2) => '6',
-                (NoteKind::Landmine, PlayerSide::Player1) => 'D',
-                (NoteKind::Landmine, PlayerSide::Player2) => 'E',
+        Channel::Note { kind, channel } => {
+            let kind_char = match (
+                *kind,
+                BeatKey::from_note_channel(*channel).map(|pk| pk.side),
+            ) {
+                (NoteKind::Visible, Some(PlayerSide::Player1)) => '1',
+                (NoteKind::Visible, Some(PlayerSide::Player2)) => '2',
+                (NoteKind::Invisible, Some(PlayerSide::Player1)) => '3',
+                (NoteKind::Invisible, Some(PlayerSide::Player2)) => '4',
+                (NoteKind::Long, Some(PlayerSide::Player1)) => '5',
+                (NoteKind::Long, Some(PlayerSide::Player2)) => '6',
+                (NoteKind::Landmine, Some(PlayerSide::Player1)) => 'D',
+                (NoteKind::Landmine, Some(PlayerSide::Player2)) => 'E',
+                // Fallback to Player1 if mapping failed
+                (NoteKind::Visible, None) => '1',
+                (NoteKind::Invisible, None) => '3',
+                (NoteKind::Long, None) => '5',
+                (NoteKind::Landmine, None) => 'D',
             };
-            let key_char = match key {
-                Key::Key1 => '1',
-                Key::Key2 => '2',
-                Key::Key3 => '3',
-                Key::Key4 => '4',
-                Key::Key5 => '5',
-                Key::Key6 => '8',
-                Key::Key7 => '9',
-                Key::Key8 => '8',
-                Key::Key9 => '9',
-                Key::Key10 => 'A',
-                Key::Key11 => 'B',
-                Key::Key12 => 'C',
-                Key::Key13 => 'D',
-                Key::Key14 => 'E',
-                Key::Scratch => '6',
-                Key::ScratchExtra => '7',
-                Key::FootPedal => 'F',
-                Key::FreeZone => '7',
+            let key_char = match BeatKey::from_note_channel(*channel).map(|pk| pk.key) {
+                Some(Key::Key1) => '1',
+                Some(Key::Key2) => '2',
+                Some(Key::Key3) => '3',
+                Some(Key::Key4) => '4',
+                Some(Key::Key5) => '5',
+                Some(Key::Key6) => '8',
+                Some(Key::Key7) => '9',
+                Some(Key::Key8) => '8',
+                Some(Key::Key9) => '9',
+                Some(Key::Key10) => 'A',
+                Some(Key::Key11) => 'B',
+                Some(Key::Key12) => 'C',
+                Some(Key::Key13) => 'D',
+                Some(Key::Key14) => 'E',
+                Some(Key::Scratch) => '6',
+                Some(Key::ScratchExtra) => '7',
+                Some(Key::FootPedal) => 'F',
+                Some(Key::FreeZone) => '7',
+                None => '1',
             };
             let channel_str = format!("{}{}", kind_char, key_char);
             write!(f, "#{:03}{}:{}", track.0, channel_str, message)

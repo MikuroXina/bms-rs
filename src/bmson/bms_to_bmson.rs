@@ -122,14 +122,17 @@ impl Bms {
             genre: self.header.genre.unwrap_or_default(),
             mode_hint: {
                 // TODO: Support other modes
-                let is_7keys = self
-                    .notes
-                    .all_notes()
-                    .any(|note| note.key == Key::Key6 || note.key == Key::Key7);
-                let is_dp = self
-                    .notes
-                    .all_notes()
-                    .any(|note| note.side == PlayerSide::Player2);
+                use crate::bms::command::channel::{BeatKey as BK, PhysicalKey};
+                let is_7keys = self.notes.all_notes().any(|note| {
+                    BK::from_note_channel(note.channel)
+                        .map(|bk| matches!(bk.key, Key::Key6 | Key::Key7))
+                        .unwrap_or(false)
+                });
+                let is_dp = self.notes.all_notes().any(|note| {
+                    BK::from_note_channel(note.channel)
+                        .map(|bk| bk.side == PlayerSide::Player2)
+                        .unwrap_or(false)
+                });
                 match (is_dp, is_7keys) {
                     (true, true) => "beat-14k".into(),
                     (true, false) => "beat-10k".into(),
@@ -187,32 +190,36 @@ impl Bms {
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.notes.all_notes() {
+                use crate::bms::command::channel::{BeatKey as BK, PhysicalKey};
+                let beat_opt = BK::from_note_channel(note.channel);
                 let note_lane = note
                     .kind
                     .is_playable()
                     .then_some(
-                        match note.key {
-                            Key::Key1 => 1,
-                            Key::Key2 => 2,
-                            Key::Key3 => 3,
-                            Key::Key4 => 4,
-                            Key::Key5 => 5,
-                            Key::Key6 => 6,
-                            Key::Key7 => 7,
-                            Key::Scratch | Key::FreeZone => 8,
+                        match beat_opt.map(|b| b.key) {
+                            Some(Key::Key1) => 1,
+                            Some(Key::Key2) => 2,
+                            Some(Key::Key3) => 3,
+                            Some(Key::Key4) => 4,
+                            Some(Key::Key5) => 5,
+                            Some(Key::Key6) => 6,
+                            Some(Key::Key7) => 7,
+                            Some(Key::Scratch) | Some(Key::FreeZone) => 8,
                             // TODO: Extra key convertion
-                            Key::Key8
-                            | Key::Key9
-                            | Key::Key10
-                            | Key::Key11
-                            | Key::Key12
-                            | Key::Key13
-                            | Key::Key14
-                            | Key::ScratchExtra
-                            | Key::FootPedal => 0,
-                        } + match note.side {
-                            PlayerSide::Player1 => 0,
-                            PlayerSide::Player2 => 8,
+                            Some(Key::Key8)
+                            | Some(Key::Key9)
+                            | Some(Key::Key10)
+                            | Some(Key::Key11)
+                            | Some(Key::Key12)
+                            | Some(Key::Key13)
+                            | Some(Key::Key14)
+                            | Some(Key::ScratchExtra)
+                            | Some(Key::FootPedal) => 0,
+                            None => 0,
+                        } + match beat_opt.map(|b| b.side) {
+                            Some(PlayerSide::Player1) => 0,
+                            Some(PlayerSide::Player2) => 8,
+                            None => 0,
                         },
                     )
                     .and_then(NonZeroU8::new);
@@ -238,9 +245,8 @@ impl Bms {
                     }
                     _ => {
                         // Normal note
-                        let duration = self
-                            .notes
-                            .next_obj_by_key(note.side, note.key, note.offset)
+                        let duration = beat_opt
+                            .and_then(|bk| self.notes.next_obj_by_key(bk.side, bk.key, note.offset))
                             .map(|next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
                             })

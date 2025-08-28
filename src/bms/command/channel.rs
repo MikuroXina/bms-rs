@@ -8,6 +8,22 @@
 pub mod converter;
 pub mod mapper;
 
+/// A logical note channel (lane) abstracted from physical keys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct NoteChannel(pub u32);
+
+impl NoteChannel {
+    /// Create a new [`NoteChannel`] from a [`u32`] value.
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+    /// Get the [`u32`] value of this [`NoteChannel`].
+    pub const fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -32,10 +48,8 @@ pub enum Channel {
     Note {
         /// The kind of the note.
         kind: NoteKind,
-        /// The note for the player side.
-        side: PlayerSide,
-        /// The key which corresponds to the note.
-        key: Key,
+        /// The logical note lane channel.
+        channel: NoteChannel,
     },
     /// For the section length change object.
     SectionLen,
@@ -134,6 +148,373 @@ impl std::fmt::Display for Channel {
             Channel::BgaKeybound => write!(f, "BGA_KEYBOUND"),
             #[cfg(feature = "minor-command")]
             Channel::Option => write!(f, "OPTION"),
+        }
+    }
+}
+
+/// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
+pub trait PhysicalKey: Copy + Eq + core::fmt::Debug {
+    /// Convert this physical key into a logical note channel.
+    fn to_note_channel(self) -> NoteChannel;
+    /// Convert a logical note channel into this physical key, if representable.
+    fn from_note_channel(channel: NoteChannel) -> Option<Self>;
+}
+
+/// Default Beat layout physical key (encapsulating side and key).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BeatKey {
+    /// The side of the player.
+    pub side: PlayerSide,
+    /// The key of the player.
+    pub key: Key,
+}
+
+impl BeatKey {
+    /// Create a new [`BeatKey`] from a [`PlayerSide`] and [`Key`].
+    pub const fn new(side: PlayerSide, key: Key) -> Self {
+        Self { side, key }
+    }
+}
+
+impl Default for BeatKey {
+    fn default() -> Self {
+        Self {
+            side: PlayerSide::default(),
+            key: Key::Key1,
+        }
+    }
+}
+
+impl PhysicalKey for BeatKey {
+    fn to_note_channel(self) -> NoteChannel {
+        // Encode side and key into a stable lane id space.
+        // Player1 base 0, Player2 base 1000.
+        let base = match self.side {
+            PlayerSide::Player1 => 0u32,
+            PlayerSide::Player2 => 1000u32,
+        };
+        use Key::*;
+        let local = match self.key {
+            Key1 => 0,
+            Key2 => 1,
+            Key3 => 2,
+            Key4 => 3,
+            Key5 => 4,
+            Key6 => 5,
+            Key7 => 6,
+            Key8 => 7,
+            Key9 => 8,
+            Key10 => 9,
+            Key11 => 10,
+            Key12 => 11,
+            Key13 => 12,
+            Key14 => 13,
+            Scratch => 100,
+            ScratchExtra => 101,
+            FootPedal => 150,
+            FreeZone => 200,
+        } as u32;
+        NoteChannel(base + local)
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        let v = channel.0;
+        let (side, local) = if v >= 1000 {
+            (PlayerSide::Player2, v - 1000)
+        } else {
+            (PlayerSide::Player1, v)
+        };
+        use Key::*;
+        let key = match local {
+            0 => Key1,
+            1 => Key2,
+            2 => Key3,
+            3 => Key4,
+            4 => Key5,
+            5 => Key6,
+            6 => Key7,
+            7 => Key8,
+            8 => Key9,
+            9 => Key10,
+            10 => Key11,
+            11 => Key12,
+            12 => Key13,
+            13 => Key14,
+            100 => Scratch,
+            101 => ScratchExtra,
+            150 => FootPedal,
+            200 => FreeZone,
+            _ => return None,
+        };
+        Some(Self { side, key })
+    }
+}
+
+/// PMS BME-type physical key (supports 9K/18K), mapping via KeyLayoutPmsBmeType
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PmsBmeKey {
+    /// The side of the player.
+    pub side: PlayerSide,
+    /// The key of the player.
+    pub key: Key,
+}
+
+impl PmsBmeKey {
+    /// Create a new [`PmsBmeKey`] from a [`PlayerSide`] and [`Key`].
+    pub const fn new(side: PlayerSide, key: Key) -> Self {
+        Self { side, key }
+    }
+}
+
+impl PhysicalKey for PmsBmeKey {
+    fn to_note_channel(self) -> NoteChannel {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPmsBmeType,
+        };
+        let beat: KeyLayoutBeat = KeyLayoutPmsBmeType::new(self.side, self.key).to_beat();
+        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPmsBmeType,
+        };
+        let beat = BeatKey::from_note_channel(channel)?;
+        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
+        let this = KeyLayoutPmsBmeType::from_beat(beat_map);
+        Some(Self {
+            side: this.side(),
+            key: this.key(),
+        })
+    }
+}
+
+/// PMS physical key, mapping via KeyLayoutPms
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PmsKey {
+    /// The side of the player.
+    pub side: PlayerSide,
+    /// The key of the player.
+    pub key: Key,
+}
+
+impl PmsKey {
+    /// Create a new [`PmsKey`] from a [`PlayerSide`] and [`Key`].
+    pub const fn new(side: PlayerSide, key: Key) -> Self {
+        Self { side, key }
+    }
+}
+
+impl PhysicalKey for PmsKey {
+    fn to_note_channel(self) -> NoteChannel {
+        use crate::bms::command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPms};
+        let beat: KeyLayoutBeat = KeyLayoutPms::new(self.side, self.key).to_beat();
+        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        use crate::bms::command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyLayoutPms};
+        let beat = BeatKey::from_note_channel(channel)?;
+        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
+        let this = KeyLayoutPms::from_beat(beat_map);
+        Some(Self {
+            side: this.side(),
+            key: this.key(),
+        })
+    }
+}
+
+/// Beat nanasi/angolmois physical key, mapping via KeyLayoutBeatNanasi
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BeatNanasiKey {
+    /// The side of the player.
+    pub side: PlayerSide,
+    /// The key of the player.
+    pub key: Key,
+}
+
+impl BeatNanasiKey {
+    /// Create a new [`BeatNanasiKey`] from a [`PlayerSide`] and [`Key`].
+    pub const fn new(side: PlayerSide, key: Key) -> Self {
+        Self { side, key }
+    }
+}
+
+impl PhysicalKey for BeatNanasiKey {
+    fn to_note_channel(self) -> NoteChannel {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutMapper,
+        };
+        let beat: KeyLayoutBeat = KeyLayoutBeatNanasi::new(self.side, self.key).to_beat();
+        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutMapper,
+        };
+        let beat = BeatKey::from_note_channel(channel)?;
+        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
+        let this = KeyLayoutBeatNanasi::from_beat(beat_map);
+        Some(Self {
+            side: this.side(),
+            key: this.key(),
+        })
+    }
+}
+
+/// DSC & OCT/FP physical key, mapping via KeyLayoutDscOctFp
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DscOctFpKey {
+    /// The side of the player.
+    pub side: PlayerSide,
+    /// The key of the player.
+    pub key: Key,
+}
+
+impl DscOctFpKey {
+    /// Create a new [`DscOctFpKey`] from a [`PlayerSide`] and [`Key`].
+    pub const fn new(side: PlayerSide, key: Key) -> Self {
+        Self { side, key }
+    }
+}
+
+impl PhysicalKey for DscOctFpKey {
+    fn to_note_channel(self) -> NoteChannel {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutDscOctFp, KeyLayoutMapper,
+        };
+        let beat: KeyLayoutBeat = KeyLayoutDscOctFp::new(self.side, self.key).to_beat();
+        BeatKey::new(beat.side(), beat.key()).to_note_channel()
+    }
+
+    fn from_note_channel(channel: NoteChannel) -> Option<Self> {
+        use crate::bms::command::channel::mapper::{
+            KeyLayoutBeat, KeyLayoutDscOctFp, KeyLayoutMapper,
+        };
+        let beat = BeatKey::from_note_channel(channel)?;
+        let beat_map = KeyLayoutBeat::new(beat.side, beat.key);
+        let this = KeyLayoutDscOctFp::from_beat(beat_map);
+        Some(Self {
+            side: this.side(),
+            key: this.key(),
+        })
+    }
+}
+
+#[cfg(test)]
+mod layout_roundtrip_tests {
+    use super::*;
+
+    fn roundtrip<T: PhysicalKey>(side: PlayerSide, key: Key) -> Option<(PlayerSide, Key)> {
+        let chan = BeatKey::new(side, key).to_note_channel();
+        // map: Beat -> Target -> Beat
+        let target = T::from_note_channel(chan)?;
+        let back = BeatKey::from_note_channel(target.to_note_channel())?;
+        Some((back.side, back.key))
+    }
+
+    #[test]
+    fn pms_bme_roundtrip() {
+        use PlayerSide::*;
+        for &(s, k) in &[
+            (Player1, Key::Key1),
+            (Player1, Key::Key2),
+            (Player1, Key::Key3),
+            (Player1, Key::Key4),
+            (Player1, Key::Key5),
+            (Player1, Key::Key6),
+            (Player1, Key::Key7),
+            (Player1, Key::Scratch),
+            (Player1, Key::FreeZone),
+            (Player2, Key::Key1),
+            (Player2, Key::Key2),
+            (Player2, Key::Key3),
+            (Player2, Key::Key4),
+            (Player2, Key::Key5),
+            (Player2, Key::Key6),
+            (Player2, Key::Key7),
+            (Player2, Key::Scratch),
+            (Player2, Key::FreeZone),
+        ] {
+            let got = roundtrip::<PmsBmeKey>(s, k).unwrap();
+            assert_eq!(got, (s, k));
+        }
+    }
+
+    #[test]
+    fn pms_roundtrip() {
+        use PlayerSide::*;
+        // Only test inputs within the canonical Beat domain for PMS mapping
+        for &(s, k) in &[
+            (Player1, Key::Key1),
+            (Player1, Key::Key2),
+            (Player1, Key::Key3),
+            (Player1, Key::Key4),
+            (Player1, Key::Key5),
+            (Player2, Key::Key2),
+            (Player2, Key::Key3),
+            (Player2, Key::Key4),
+            (Player2, Key::Key5),
+        ] {
+            let got = roundtrip::<PmsKey>(s, k).unwrap();
+            assert_eq!(got, (s, k));
+        }
+    }
+
+    #[test]
+    fn nanasi_roundtrip() {
+        use PlayerSide::*;
+        for &(s, k) in &[
+            (Player1, Key::Key1),
+            (Player1, Key::Key2),
+            (Player1, Key::Key3),
+            (Player1, Key::Key4),
+            (Player1, Key::Key5),
+            (Player1, Key::Key6),
+            (Player1, Key::Key7),
+            (Player1, Key::Scratch),
+            (Player1, Key::FreeZone),
+            (Player2, Key::Key1),
+            (Player2, Key::Key2),
+            (Player2, Key::Key3),
+            (Player2, Key::Key4),
+            (Player2, Key::Key5),
+            (Player2, Key::Key6),
+            (Player2, Key::Key7),
+            (Player2, Key::Scratch),
+            (Player2, Key::FreeZone),
+        ] {
+            let got = roundtrip::<BeatNanasiKey>(s, k).unwrap();
+            assert_eq!(got, (s, k));
+        }
+    }
+
+    #[test]
+    fn dsc_octfp_roundtrip() {
+        use PlayerSide::*;
+        // Only test inputs within the canonical Beat domain for DSC/OCT-FP mapping
+        for &(s, k) in &[
+            (Player1, Key::Key1),
+            (Player1, Key::Key2),
+            (Player1, Key::Key3),
+            (Player1, Key::Key4),
+            (Player1, Key::Key5),
+            (Player1, Key::Key6),
+            (Player1, Key::Key7),
+            (Player1, Key::Scratch),
+            (Player2, Key::Key1),
+            (Player2, Key::Key2),
+            (Player2, Key::Key3),
+            (Player2, Key::Key4),
+            (Player2, Key::Key5),
+            (Player2, Key::Key6),
+            (Player2, Key::Key7),
+            (Player2, Key::Scratch),
+        ] {
+            let got = roundtrip::<DscOctFpKey>(s, k).unwrap();
+            assert_eq!(got, (s, k));
         }
     }
 }
@@ -355,7 +736,19 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     let mut channel_chars = channel.chars();
     let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
     let key = get_key_beat(channel_chars.next()?)?;
-    Some(Channel::Note { kind, side, key })
+    let beat = BeatKey::new(side, key);
+    let note_channel = beat.to_note_channel();
+    Some(Channel::Note {
+        kind,
+        channel: note_channel,
+    })
+}
+
+/// Helper to convert back from NoteChannel to Beat style channel string components.
+pub(crate) fn beat_components_from_note_channel(
+    note_channel: NoteChannel,
+) -> Option<(PlayerSide, Key)> {
+    BeatKey::from_note_channel(note_channel).map(|bk| (bk.side, bk.key))
 }
 
 /// A trait for key mapping storage structure.

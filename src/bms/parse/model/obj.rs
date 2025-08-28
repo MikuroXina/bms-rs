@@ -3,7 +3,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, ObjId,
-        channel::{Channel, Key, NoteKind, PlayerSide},
+        channel::{Channel, NoteChannel, NoteKind},
         time::{ObjTime, Track},
     },
 };
@@ -11,29 +11,33 @@ use crate::bms::{
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
+use crate::bms::command::channel::PhysicalKey;
+use core::marker::PhantomData;
+
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Obj {
+pub struct Obj<T: PhysicalKey> {
     /// The time offset in the track.
     pub offset: ObjTime,
     /// THe note kind of the the object.
     pub kind: NoteKind,
-    /// The side of the player.
-    pub side: PlayerSide,
-    /// The key, or lane, where the object is placed.
-    pub key: Key,
+    /// The logical note channel (lane).
+    pub channel: NoteChannel,
     /// The id of the object.
     pub obj: ObjId,
+    /// Marker of the physical key layout the score is parameterized by.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) _marker: PhantomData<T>,
 }
 
-impl PartialOrd for Obj {
+impl<T: PhysicalKey> PartialOrd for Obj<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Obj {
+impl<T: PhysicalKey> Ord for Obj<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.offset
             .cmp(&other.offset)

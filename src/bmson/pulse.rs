@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::bms::{
     Decimal,
-    command::time::{ObjTime, Track},
+    command::{
+        channel::PhysicalKey,
+        time::{ObjTime, Track},
+    },
+    parse::model::Bms,
 };
 
 /// Note position for the chart [`super::Bmson`].
@@ -29,7 +33,7 @@ pub struct PulseConverter {
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
-    pub fn new(bms: &crate::bms::parse::model::Bms) -> Self {
+    pub fn new<T: PhysicalKey>(bms: &Bms<T>) -> Self {
         let resolution: u64 = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
 
@@ -82,7 +86,10 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::bms::parse::model::{Arrangers, obj::SectionLenChangeObj};
+    use crate::bms::{
+        command::channel::BeatKey,
+        parse::model::{Arrangers, obj::SectionLenChangeObj},
+    };
 
     // Source BMS:
     // ```
@@ -112,7 +119,7 @@ fn pulse_conversion() {
             .unwrap();
         notes
     };
-    let converter = PulseConverter::new(&crate::bms::parse::model::Bms {
+    let converter = PulseConverter::new(&Bms::<BeatKey> {
         arrangers: notes,
         ..Default::default()
     });

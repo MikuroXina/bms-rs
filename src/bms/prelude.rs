@@ -14,7 +14,7 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            Channel, Key, KeyMapping, NoteChannel, NoteKind, PhysicalKey, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
@@ -37,10 +37,10 @@ pub use super::{
         ParseOutput, ParseWarning, ParseWarningWithPos,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
-            Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
+            Arrangers, Graphics, Header, Others, ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
             obj::{
-                BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+                BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
                 ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
             },
         },
@@ -51,6 +51,13 @@ pub use super::{
     },
     parse_bms_with_rng,
 };
+
+// Backward-compatible type aliases for Beat layout
+pub use super::parse::model::obj::Obj as _HiddenObjGeneric;
+pub use super::parse::model::{BmsDefault as Bms, NotesDefault as Notes, ObjDefault as Obj};
+
+// Re-export physical key types for consumers
+pub use super::command::channel::{BeatKey, BeatNanasiKey, DscOctFpKey, PmsBmeKey, PmsKey};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

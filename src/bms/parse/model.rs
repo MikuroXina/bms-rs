@@ -25,7 +25,7 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            BeatKey, Channel, Key, KeyMapping, NoteChannel, NoteKind, PhysicalKey, PlayerSide,
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
@@ -55,7 +55,7 @@ use super::{
 /// A score data of BMS format.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms {
+pub struct Bms<T: PhysicalKey> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -63,7 +63,7 @@ pub struct Bms {
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub notes: Notes,
+    pub notes: Notes<T>,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
@@ -196,7 +196,7 @@ pub struct Arrangers {
 /// The playable objects set for querying by lane or time.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Notes {
+pub struct Notes<T: PhysicalKey> {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
@@ -206,10 +206,10 @@ pub struct Notes {
     /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
-    pub objs: HashMap<ObjId, Vec<Obj>>,
-    /// Index for fast key lookup. Used for LN/landmine logic.
-    /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
-    pub ids_by_key: HashMap<(PlayerSide, Key), BTreeMap<ObjTime, ObjId>>,
+    pub objs: HashMap<ObjId, Vec<Obj<T>>>,
+    /// Index for fast lane lookup. Used for LN/landmine logic.
+    /// Maps each [`NoteChannel`] to a sorted map of times and [`ObjId`]s for efficient note lookup.
+    pub ids_by_channel: HashMap<NoteChannel, BTreeMap<ObjTime, ObjId>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -313,7 +313,7 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl Bms {
+impl<T: PhysicalKey> Bms<T> {
     pub(crate) fn parse(
         &mut self,
         token: &TokenWithPos,
@@ -862,16 +862,16 @@ impl Bms {
             }
             Token::Message {
                 track,
-                channel: Channel::Note { kind, side, key },
+                channel: Channel::Note { kind, channel },
                 message,
             } => {
                 for (offset, obj) in ids_from_message(*track, message) {
                     self.notes.push_note(Obj {
                         offset,
                         kind: *kind,
-                        side: *side,
-                        key: *key,
+                        channel: *channel,
                         obj,
+                        _marker: core::marker::PhantomData,
                     });
                 }
             }
@@ -1067,9 +1067,17 @@ impl Bms {
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let Obj {
-                    offset, key, side, ..
+                    offset, channel, ..
                 } = &end_note;
-                let (_, &begin_id) = self.notes.ids_by_key[&(*side, *key)]
+                let (_, &begin_id) = self
+                    .notes
+                    .ids_by_channel
+                    .get(channel)
+                    .ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "missing channel index for LNOBJ {end_id:?}"
+                        ))
+                    })?
                     .range(..offset)
                     .last()
                     .ok_or_else(|| {
@@ -1162,7 +1170,7 @@ impl Bms {
     }
 }
 
-impl Bms {
+impl<T: PhysicalKey> Bms<T> {
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
@@ -1449,14 +1457,21 @@ impl Graphics {
     }
 }
 
-impl Notes {
+impl Notes<BeatKey> {
     /// Converts into the notes sorted by time.
-    pub fn into_all_notes(self) -> Vec<Obj> {
-        self.objs.into_values().flatten().sorted().collect()
+    pub fn into_all_notes(self) -> Vec<ObjDefault> {
+        self.objs
+            .into_values()
+            .flatten()
+            .map(|o| o.into())
+            .sorted()
+            .collect()
     }
+}
 
+impl<T: PhysicalKey> Notes<T> {
     /// Returns the iterator having all of the notes sorted by time.
-    pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
+    pub fn all_notes(&self) -> impl Iterator<Item = &Obj<T>> {
         self.objs.values().flatten().sorted()
     }
 
@@ -1465,10 +1480,10 @@ impl Notes {
         &self.bgms
     }
 
-    /// Finds next object on the key `Key` from the time `ObjTime`.
-    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
-        self.ids_by_key
-            .get(&(side, key))?
+    /// Finds next object on the logical note channel from the time `ObjTime`.
+    pub fn next_obj_by_channel(&self, channel: NoteChannel, time: ObjTime) -> Option<&Obj<T>> {
+        self.ids_by_channel
+            .get(&channel)?
             .range((Bound::Excluded(time), Bound::Unbounded))
             .next()
             .and_then(|(_, id)| {
@@ -1481,29 +1496,29 @@ impl Notes {
     }
 
     /// Adds the new note object to the notes.
-    pub fn push_note(&mut self, note: Obj) {
+    pub fn push_note(&mut self, note: Obj<T>) {
         self.objs.entry(note.obj).or_default().push(note.clone());
-        self.ids_by_key
-            .entry((note.side, note.key))
+        self.ids_by_channel
+            .entry(note.channel)
             .or_default()
             .insert(note.offset, note.obj);
     }
 
     /// Removes the latest note from the notes.
-    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
+    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj<T>> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            if let Some(key_map) = self.ids_by_key.get_mut(&(removed.side, removed.key)) {
-                key_map.remove(&removed.offset);
+            if let Some(map) = self.ids_by_channel.get_mut(&removed.channel) {
+                map.remove(&removed.offset);
             }
         })
     }
 
     /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
+    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj<T>> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                if let Some(key_map) = self.ids_by_key.get_mut(&(item.side, item.key)) {
-                    key_map.remove(&item.offset);
+                if let Some(map) = self.ids_by_channel.get_mut(&item.channel) {
+                    map.remove(&item.offset);
                 }
             }
             removed
@@ -1799,18 +1814,85 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
     })
 }
 
-impl Bms {
+/// Default type aliases for backward compatibility (Beat layout)
+pub type BmsDefault = Bms<BeatKey>;
+
+/// Default type aliases for backward compatibility (Beat layout)
+pub type NotesDefault = Notes<BeatKey>;
+
+/// Backward-compatible object shape for default Beat layout used in tests and prelude
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ObjDefault {
+    /// The time offset in the track.
+    pub offset: ObjTime,
+    /// THe note kind of the the object.
+    pub kind: NoteKind,
+    /// Player side (Beat layout only)
+    pub side: PlayerSide,
+    /// Physical key (Beat layout only)
+    pub key: Key,
+    /// The id of the object.
+    pub obj: ObjId,
+}
+
+impl Ord for ObjDefault {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.offset
+            .cmp(&other.offset)
+            .then(self.obj.cmp(&other.obj))
+    }
+}
+
+impl PartialOrd for ObjDefault {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl From<Obj<BeatKey>> for ObjDefault {
+    fn from(value: Obj<BeatKey>) -> Self {
+        let (side, key) =
+            crate::bms::command::channel::beat_components_from_note_channel(value.channel)
+                .unwrap_or((PlayerSide::Player1, Key::Key1));
+        ObjDefault {
+            offset: value.offset,
+            kind: value.kind,
+            side,
+            key,
+            obj: value.obj,
+        }
+    }
+}
+
+impl Notes<BeatKey> {
+    /// Backward-compatible helper to find next object by side/key (Beat layout)
+    pub fn next_obj_by_key(
+        &self,
+        side: PlayerSide,
+        key: Key,
+        time: ObjTime,
+    ) -> Option<&Obj<BeatKey>> {
+        use crate::bms::command::channel::PhysicalKey;
+        let channel = BeatKey::new(side, key).to_note_channel();
+        self.next_obj_by_channel(channel, time)
+    }
+}
+
+impl Bms<BeatKey> {
     /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
     ///
     /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
     pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
         for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let ori_map = Src::new(*side, *key);
-                let beat_map = ori_map.to_beat();
-                let dst_map = Dst::from_beat(beat_map);
-                *side = dst_map.side();
-                *key = dst_map.key();
+            for obj in objs.iter_mut() {
+                if let Some(current) = BeatKey::from_note_channel(obj.channel) {
+                    let ori_map = Src::new(current.side, current.key);
+                    let beat_map = ori_map.to_beat();
+                    let dst_map = Dst::from_beat(beat_map);
+                    let new_channel = BeatKey::new(dst_map.side(), dst_map.key()).to_note_channel();
+                    obj.channel = new_channel;
+                }
             }
         }
     }
@@ -1818,11 +1900,14 @@ impl Bms {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let beat_map = KeyLayoutBeat::new(*side, *key);
-                let new_beat_map = converter.convert(beat_map);
-                *side = new_beat_map.side();
-                *key = new_beat_map.key();
+            for obj in objs.iter_mut() {
+                if let Some(current) = BeatKey::from_note_channel(obj.channel) {
+                    let beat_map = KeyLayoutBeat::new(current.side, current.key);
+                    let new_beat_map = converter.convert(beat_map);
+                    let new_channel =
+                        BeatKey::new(new_beat_map.side(), new_beat_map.key()).to_note_channel();
+                    obj.channel = new_channel;
+                }
             }
         }
     }
