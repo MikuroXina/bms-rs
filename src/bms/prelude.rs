@@ -34,10 +34,11 @@ pub use super::{
         ParseOutput, ParseWarning, ParseWarningWithPos,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
-            Arrangers, Graphics, Header, Others, ScopeDefines,
+            Arrangers, Bms, BmsDefault, Graphics, Header, Notes, NotesDefault, ObjDefault, Others,
+            ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
             obj::{
-                BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
+                BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
                 ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
             },
         },
@@ -48,10 +49,6 @@ pub use super::{
     },
     parse_bms_with_rng,
 };
-
-// Backward-compatible type aliases for Beat layout
-pub use super::parse::model::obj::Obj as _HiddenObjGeneric;
-pub use super::parse::model::{BmsDefault as Bms, NotesDefault as Notes, ObjDefault as Obj};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

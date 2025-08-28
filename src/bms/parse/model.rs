@@ -26,6 +26,7 @@ use crate::bms::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
             Channel, Key, KeyMapping, NoteChannel, NoteKind, PlayerSide,
+            beat_components_from_note_channel,
             converter::KeyLayoutConverter,
             mapper::{BeatKey, PhysicalKey},
         },
@@ -1852,9 +1853,8 @@ impl PartialOrd for ObjDefault {
 
 impl From<Obj<BeatKey>> for ObjDefault {
     fn from(value: Obj<BeatKey>) -> Self {
-        let (side, key) =
-            crate::bms::command::channel::beat_components_from_note_channel(value.channel)
-                .unwrap_or((PlayerSide::Player1, Key::Key1));
+        let (side, key) = beat_components_from_note_channel(value.channel)
+            .unwrap_or((PlayerSide::Player1, Key::Key1));
         ObjDefault {
             offset: value.offset,
             kind: value.kind,

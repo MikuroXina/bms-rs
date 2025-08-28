@@ -134,7 +134,7 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput<BeatKey> {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::<BeatKey>::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert ast-parse and parse warnings to BmsWarning
     warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));

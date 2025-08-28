@@ -6,7 +6,7 @@ use num::ToPrimitive;
 use thiserror::Error;
 
 use crate::{
-    bms::prelude::*,
+    bms::{command::channel::mapper::BeatKey, parse::model::Bms, prelude::*},
     bmson::{
         BarLine, Bga, BgaEvent, BgaHeader, BgaId, Bmson, BmsonInfo, BpmEvent, KeyChannel, KeyEvent,
         MineChannel, MineEvent, Note, ScrollEvent, SoundChannel, StopEvent, fin_f64::FinF64,
@@ -53,7 +53,7 @@ pub struct BmsToBmsonOutput {
     pub warnings: Vec<BmsToBmsonWarning>,
 }
 
-impl Bms {
+impl Bms<BeatKey> {
     /// Convert `Bms` to `Bmson`.
     pub fn to_bmson(self) -> BmsToBmsonOutput {
         let mut warnings = Vec::new();

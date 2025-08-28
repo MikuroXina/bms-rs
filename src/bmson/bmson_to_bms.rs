@@ -63,7 +63,7 @@ impl Iterator for ObjIdIssuer {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BmsonToBmsOutput {
     /// The converted `Bms` object.
-    pub bms: Bms,
+    pub bms: Bms<BeatKey>,
     /// Warnings that occurred during the conversion.
     pub warnings: Vec<BmsonToBmsWarning>,
     /// Warnings that affect the playing of the score.
@@ -72,10 +72,10 @@ pub struct BmsonToBmsOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-impl Bms {
+impl Bms<BeatKey> {
     /// Convert `Bmson` to `Bms`.
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let mut warnings = Vec::new();
         let mut wav_obj_id_issuer = ObjIdIssuer::new();
         let mut bga_header_obj_id_issuer = ObjIdIssuer::new();

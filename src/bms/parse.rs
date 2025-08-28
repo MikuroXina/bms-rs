@@ -16,11 +16,12 @@ use crate::bms::{
     },
     command::{
         ObjId,
-        channel::Channel,
+        channel::{Channel, mapper::BeatKey},
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
     lex::token::TokenWithPos,
+    parse::model::Bms,
     prelude::SourcePosMixinExt,
 };
 
@@ -61,18 +62,18 @@ pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseOutput {
     /// The output Bms.
-    pub bms: crate::bms::prelude::Bms,
+    pub bms: Bms<BeatKey>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl crate::bms::prelude::Bms {
+impl Bms<BeatKey> {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput {
-        let mut bms = crate::bms::prelude::Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
@@ -92,7 +93,7 @@ impl crate::bms::prelude::Bms {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseOutputWithAst {
     /// The output Bms.
-    pub bms: crate::bms::prelude::Bms,
+    pub bms: Bms<BeatKey>,
     /// Warnings that occurred during AST building.
     pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
     /// Warnings that occurred during AST parsing (RNG execution stage).
@@ -101,7 +102,7 @@ pub struct ParseOutputWithAst {
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl crate::bms::prelude::Bms {
+impl Bms<BeatKey> {
     /// Parses a token stream into [`Bms`] with AST.
     pub fn from_token_stream_with_ast<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
@@ -116,7 +117,7 @@ impl crate::bms::prelude::Bms {
         let ParseOutput {
             bms,
             parse_warnings,
-        } = crate::bms::prelude::Bms::from_token_stream(token_refs, prompt_handler);
+        } = Bms::<BeatKey>::from_token_stream(token_refs, prompt_handler);
         ParseOutputWithAst {
             bms,
             ast_build_warnings,

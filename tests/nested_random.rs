@@ -65,28 +65,28 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key1,
                 obj: id11,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key2,
                 obj: id22,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key5,
                 obj: id55,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -113,28 +113,28 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key1,
                 obj: id11,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key2,
                 obj: id22,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch,
                 obj: id66,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -162,21 +162,21 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key1,
                 obj: id11,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key3,
                 obj: id33,
             },
-            Obj {
+            ObjDefault {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
