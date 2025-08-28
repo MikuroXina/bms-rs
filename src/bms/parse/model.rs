@@ -1812,14 +1812,6 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
     })
 }
 
-/// Default type aliases for backward compatibility (Beat layout)
-pub type BmsDefault = Bms<BeatKey>;
-
-/// Default type aliases for backward compatibility (Beat layout)
-pub type NotesDefault = Notes<BeatKey>;
-
-// ObjDefault removed; use Obj<BeatKey> directly
-
 impl Notes<BeatKey> {
     /// Backward-compatible helper to find next object by side/key (Beat layout)
     pub fn next_obj_by_key(
@@ -1833,26 +1825,78 @@ impl Notes<BeatKey> {
     }
 }
 
-impl Bms<BeatKey> {
-    /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
-    ///
-    /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
-    pub fn convert_key_between_modes<Src, Dst>(&mut self)
-    where
-        Src: KeyMapping,
-        Dst: KeyMapping,
-        // For backward compatibility, conversion will go through BeatKey
-    {
-        for (_, objs) in self.notes.objs.iter_mut() {
-            for obj in objs.iter_mut() {
-                if let Some(current) = BeatKey::from_note_channel(obj.channel) {
-                    let src = Src::new(current.side, current.key);
-                    let beat = KeyMapping::into_tuple(src);
-                    let dst = Dst::new(beat.0, beat.1);
-                    let new_channel = BeatKey::new(dst.side(), dst.key()).to_note_channel();
-                    obj.channel = new_channel;
-                }
+impl<T: PhysicalKey + KeyMapping> Bms<T> {
+    /// 将当前谱面从物理键布局 `T` 转换为目标布局 `D`，并返回新的 `Bms<D>`。
+    pub fn convert_key_between_modes<D: PhysicalKey + KeyMapping>(self) -> Bms<D> {
+        let Bms {
+            header,
+            scope_defines,
+            arrangers,
+            notes,
+            graphics,
+            others,
+        } = self;
+
+        // 构建新的 Notes<D>
+        let mut new_notes: Notes<D> = Notes {
+            wav_path_root: notes.wav_path_root,
+            wav_files: notes.wav_files,
+            bgms: notes.bgms,
+            objs: HashMap::new(),
+            ids_by_channel: HashMap::new(),
+            #[cfg(feature = "minor-command")]
+            midi_file: notes.midi_file,
+            #[cfg(feature = "minor-command")]
+            materials_wav: notes.materials_wav,
+            bgm_volume_changes: notes.bgm_volume_changes,
+            key_volume_changes: notes.key_volume_changes,
+            #[cfg(feature = "minor-command")]
+            seek_events: notes.seek_events,
+            text_events: notes.text_events,
+            judge_events: notes.judge_events,
+            #[cfg(feature = "minor-command")]
+            bga_keybound_events: notes.bga_keybound_events,
+            #[cfg(feature = "minor-command")]
+            option_events: notes.option_events,
+        };
+
+        for (obj_id, objs) in notes.objs {
+            let mut converted_vec: Vec<Obj<D>> = Vec::with_capacity(objs.len());
+            for o in objs {
+                // 先按源布局 T 解析，失败则尝试 BeatKey 回退
+                let (side, key) = if let Some(src) = T::from_note_channel(o.channel) {
+                    src.into_tuple()
+                } else if let Some(bk) = BeatKey::from_note_channel(o.channel) {
+                    (bk.side, bk.key)
+                } else {
+                    // No mapping found, use default
+                    (PlayerSide::Player1, Key::Key1)
+                };
+                let new_channel = D::new(side, key).to_note_channel();
+                let new_obj = Obj {
+                    offset: o.offset,
+                    kind: o.kind,
+                    channel: new_channel,
+                    obj: o.obj,
+                    _marker: core::marker::PhantomData,
+                };
+                new_notes
+                    .ids_by_channel
+                    .entry(new_channel)
+                    .or_default()
+                    .insert(new_obj.offset, new_obj.obj);
+                converted_vec.push(new_obj);
             }
+            new_notes.objs.insert(obj_id, converted_vec);
+        }
+
+        Bms {
+            header,
+            scope_defines,
+            arrangers,
+            notes: new_notes,
+            graphics,
+            others,
         }
     }
 

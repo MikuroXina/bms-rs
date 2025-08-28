@@ -36,8 +36,7 @@ pub use super::{
         ParseOutput, ParseWarning, ParseWarningWithPos,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
-            Arrangers, Bms, BmsDefault, Graphics, Header, Notes, NotesDefault, Others,
-            ScopeDefines,
+            Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
             def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
             obj::{
                 BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
