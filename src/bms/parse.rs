@@ -21,11 +21,10 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     lex::token::TokenWithPos,
-    parse::model::Bms,
     prelude::SourcePosMixinExt,
 };
 
-use self::prompt::PromptHandler;
+use self::{model::Bms, prompt::PromptHandler};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
