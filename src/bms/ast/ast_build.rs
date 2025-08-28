@@ -1,74 +1,20 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::{
+    collections::{BTreeMap, HashSet},
+    iter::Peekable,
+};
 
 use num::BigUint;
 
 use crate::bms::{
-    ast::AstBuildWarningWithPos,
-    command::mixin::SourcePosMixinExt,
+    ast::{
+        AstBuildWarningWithPos,
+        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
+    },
+    command::mixin::{SourcePosMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
 use super::AstBuildWarning;
-
-/// An unit of AST which represents individual scoped commands of BMS source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Unit<'a> {
-    /// A token that is not a control flow token.
-    TokenWithPos(&'a TokenWithPos<'a>),
-    /// A Random block. Can contain multiple If blocks.
-    RandomBlock {
-        value: BlockValue,
-        if_blocks: Vec<IfBlock<'a>>,
-    },
-    /// A Switch block.
-    /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
-    /// If there is no other Case branch activated, Def branch will be activated.
-    /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
-    SwitchBlock {
-        value: BlockValue,
-        cases: Vec<CaseBranch<'a>>,
-    },
-}
-
-/// The value of a Random/Switch block.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BlockValue {
-    /// For Random/Switch, value ranges in [1, max].
-    /// IfBranch value must ranges in [1, max].
-    Random { max: BigUint },
-    /// For SetRandom/SetSwitch.
-    /// IfBranch value has no limit.
-    Set { value: BigUint },
-}
-
-/// The If block of a Random block. Should contain If/EndIf, can contain ElseIf/Else.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfBlock<'a> {
-    pub branches: HashMap<BigUint, IfBranch<'a>>,
-}
-
-/// The If branch of a If block.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfBranch<'a> {
-    pub value: BigUint,
-    pub tokens: Vec<Unit<'a>>,
-}
-
-/// The define of a Case/Def branch in a Switch block.
-/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CaseBranch<'a> {
-    pub value: CaseBranchValue,
-    pub tokens: Vec<Unit<'a>>,
-}
-
-/// The type note of a Case/Def branch.
-/// Note: Def can appear in any position. If there is no other Case branch activated, Def will be activated.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CaseBranchValue {
-    Case(BigUint),
-    Def,
-}
 
 /// The main entry for building the control flow AST. Traverses the TokenWithPos stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
@@ -144,14 +90,16 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
         _ => unreachable!(),
     };
     let mut cases = Vec::new();
-    let mut seen_case_values = std::collections::HashSet::new();
+    let mut seen_case_values = HashSet::new();
     let max_value = match &block_value {
         BlockValue::Random { max } => Some(max.clone()),
         BlockValue::Set { value: _ } => None,
     };
     let mut seen_def = false;
     let mut errors = Vec::new();
-    while let Some(next) = iter.peek() {
+    // default end_sw position falls back to the header position
+    let mut end_sw = ().into_wrapper(token);
+    while let Some(&next) = iter.peek() {
         match next.content() {
             Case(case_val) => {
                 // Check for duplicates
@@ -191,8 +139,8 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Case(case_val.clone()),
-                    tokens,
+                    value: CaseBranchValue::Case(case_val.clone()).into_wrapper(next),
+                    units: tokens,
                 });
                 if iter
                     .peek()
@@ -222,8 +170,8 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 let (tokens, mut errs) = parse_case_or_def_body(iter);
                 errors.append(&mut errs);
                 cases.push(CaseBranch {
-                    value: CaseBranchValue::Def,
-                    tokens,
+                    value: CaseBranchValue::Def.into_wrapper(next),
+                    units: tokens,
                 });
                 if iter
                     .peek()
@@ -234,6 +182,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 }
             }
             EndSwitch => {
+                end_sw = ().into_wrapper(next);
                 iter.next();
                 break;
             }
@@ -245,8 +194,10 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 errors.push(AstBuildWarning::UnmatchedEndRandom.into_wrapper(next));
                 iter.next();
             }
-            // Automatically complete EndSwitch: break when encountering Random/SetRandom/If/EndRandom/EndIf
+            // Automatically complete EndSwitch: break when encountering Random/SetRandom/If
             Random(_) | SetRandom(_) | If(_) => {
+                // Treat the current token as the ENDSW position
+                end_sw = ().into_wrapper(next);
                 break;
             }
             _ => {
@@ -257,8 +208,9 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     // If the iterator has ended, also break (i.e., automatically complete EndSwitch)
     (
         Unit::SwitchBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             cases,
+            end_sw,
         },
         errors,
     )
@@ -329,52 +281,46 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             // 2.1 Handle If branch
             If(if_val) => {
                 iter.next();
-                let mut branches = HashMap::new();
-                let mut seen_if_values = std::collections::HashSet::new();
+                // Track the ENDIF position for this IfBlock (non-optional)
+                let mut current_if_end = None::<SourcePosMixin<()>>;
+                let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
+                    BTreeMap::new();
+                let mut seen_if_values = HashSet::new();
                 // Check if If branch value is duplicated
                 if seen_if_values.contains(if_val) {
-                    errors.push(
-                        AstBuildWarning::RandomDuplicateIfBranchValue
-                            .into_wrapper_manual(token.row(), token.column()),
-                    );
-                    let (_, mut errs) = parse_if_block_body(iter);
+                    errors.push(AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(token));
+                    let (_, mut errs, end_if) = parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
+                    current_if_end = current_if_end.or(Some(end_if));
                 } else if let Some(ref max) = max_value {
                     // Check if If branch value is out-of-range
                     if !(&BigUint::from(1u64)..=max).contains(&if_val) {
                         errors.push(
-                            AstBuildWarning::RandomIfBranchValueOutOfRange
-                                .into_wrapper_manual(token.row(), token.column()),
+                            AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
-                        let (_, mut errs) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
+                        current_if_end = current_if_end.or(Some(end_if));
                     } else {
                         seen_if_values.insert(if_val);
-                        let (tokens, mut errs) = parse_if_block_body(iter);
+                        let (tokens, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        branches.insert(
-                            if_val.clone(),
-                            IfBranch {
-                                value: if_val.clone(),
-                                tokens,
-                            },
-                        );
+                        branches.insert(if_val.clone(), tokens.into_wrapper(token));
+                        current_if_end = current_if_end.or(Some(end_if));
                     }
                 } else {
                     // SetRandom branch has no range limit
                     seen_if_values.insert(if_val);
-                    let (tokens, mut errs) = parse_if_block_body(iter);
+                    let (tokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
-                    branches.insert(
-                        if_val.clone(),
-                        IfBranch {
-                            value: if_val.clone(),
-                            tokens,
-                        },
-                    );
+                    branches.insert(if_val.clone(), tokens.into_wrapper(token));
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.2 Handle ElseIf branches, same logic as If
-                while let Some((token, elif_val)) = iter
+                while let Some((&token, elif_val)) = iter
                     .peek()
                     .map(|t| (t, t.content()))
                     .into_iter()
@@ -386,88 +332,84 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
                 {
                     if seen_if_values.contains(elif_val) {
                         errors.push(
-                            AstBuildWarning::RandomDuplicateIfBranchValue
-                                .into_wrapper_manual(token.row(), token.column()),
+                            AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(token),
                         );
                         iter.next();
-                        let (_, mut errs) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
+                        current_if_end = current_if_end.or(Some(end_if));
                         continue;
                     }
                     if let Some(ref max) = max_value
                         && !(&BigUint::from(1u64)..=max).contains(&elif_val)
                     {
                         errors.push(
-                            AstBuildWarning::RandomIfBranchValueOutOfRange
-                                .into_wrapper_manual(token.row(), token.column()),
+                            AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
                         iter.next();
-                        let (_, mut errs) = parse_if_block_body(iter);
+                        let (_, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
+                        current_if_end = current_if_end.or(Some(end_if));
                         continue;
                     }
                     iter.next();
                     seen_if_values.insert(elif_val);
-                    let (elif_tokens, mut errs) = parse_if_block_body(iter);
+                    let (elif_tokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
-                    branches.insert(
-                        elif_val.clone(),
-                        IfBranch {
-                            value: elif_val.clone(),
-                            tokens: elif_tokens,
-                        },
-                    );
+                    branches.insert(elif_val.clone(), elif_tokens.into_wrapper(token));
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.3 Check for redundant ElseIf
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
-                    errors.push(
-                        AstBuildWarning::UnmatchedElseIf
-                            .into_wrapper_manual(token.row(), token.column()),
-                    );
+                    errors.push(AstBuildWarning::UnmatchedElseIf.into_wrapper(token));
                     iter.next();
                 }
                 // 2.4 Handle Else branch, branch value is 0
                 if let Some(_token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
                     iter.next();
-                    let (etokens, mut errs) = parse_if_block_body(iter);
+                    let (etokens, mut errs, end_if) =
+                        parse_if_block_body(iter, ().into_wrapper(token));
                     errors.append(&mut errs);
-                    branches.insert(
-                        BigUint::from(0u64),
-                        IfBranch {
-                            value: BigUint::from(0u64),
-                            tokens: etokens,
-                        },
-                    );
+                    branches.insert(BigUint::from(0u64), etokens.into_wrapper(token));
+                    current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.5 Check for redundant Else
                 if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
-                    errors.push(
-                        AstBuildWarning::UnmatchedElse
-                            .into_wrapper_manual(token.row(), token.column()),
-                    );
+                    errors.push(AstBuildWarning::UnmatchedElse.into_wrapper(token));
                     iter.next();
                 }
                 // 2.6 Collect this IfBlock
-                if_blocks.push(IfBlock { branches });
+                // When ENDIF not seen, fall back to current peek or header
+                let end_if = current_if_end.unwrap_or_else(|| {
+                    let end_pos_token = iter.peek().copied().unwrap_or(token);
+                    ().into_wrapper(end_pos_token)
+                });
+                if_blocks.push(IfBlock { branches, end_if });
             }
             // 3.1 Termination: EndRandom encountered, block ends
             EndRandom => {
+                // Record ENDRANDOM and close block
+                let end_random = ().into_wrapper(token);
                 iter.next();
-                break;
+                return (
+                    Unit::RandomBlock {
+                        value: block_value.into_wrapper(token),
+                        if_blocks,
+                        end_random,
+                    },
+                    errors,
+                );
             }
             // 3.2 Error: EndIf/EndSwitch encountered, record error and skip
             EndIf => {
-                errors.push(
-                    AstBuildWarning::UnmatchedEndIf
-                        .into_wrapper_manual(token.row(), token.column()),
-                );
+                errors.push(AstBuildWarning::UnmatchedEndIf.into_wrapper(token));
                 iter.next();
             }
             EndSwitch => {
-                errors.push(
-                    AstBuildWarning::UnmatchedEndSwitch
-                        .into_wrapper_manual(token.row(), token.column()),
-                );
+                errors.push(AstBuildWarning::UnmatchedEndSwitch.into_wrapper(token));
                 iter.next();
             }
             // 3.3 Auto-completion termination: break early when encountering other block headers or Case/Def/Skip
@@ -482,10 +424,14 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
         }
     }
     // 5. Return AST node
+    // Auto-completed ENDRANDOM at current peek or header position
+    let end_pos_token = iter.peek().copied().unwrap_or(token);
+    let end_random = ().into_wrapper(end_pos_token);
     (
         Unit::RandomBlock {
-            value: block_value,
+            value: block_value.into_wrapper(token),
             if_blocks,
+            end_random,
         },
         errors,
     )
@@ -498,31 +444,58 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 /// - If EndIf is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     iter: &mut Peekable<T>,
-) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
+    default_end_pos: SourcePosMixin<()>,
+) -> (
+    Vec<Unit<'a>>,
+    Vec<AstBuildWarningWithPos>,
+    SourcePosMixin<()>,
+) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
+    // Default fallback: if no #ENDIF is found, use the position of the last processed token,
+    // or the current peek token; if neither exists, use a dummy (0,0).
+    let mut fallback_pos = None::<SourcePosMixin<()>>;
     use Token::*;
-    while let Some(token) = iter.peek() {
-        match token.content() {
-            // 1. Branch-terminating TokenWithPos, break
-            ElseIf(_) | Else | EndIf | EndRandom | EndSwitch => {
-                if let EndIf = token.content() {
-                    iter.next();
-                }
+    loop {
+        // First, check for terminators without holding the borrow across mutations
+        let is_terminator = {
+            let Some(token) = iter.peek() else {
                 break;
+            };
+            matches!(
+                token.content(),
+                ElseIf(_) | Else | EndIf | EndRandom | EndSwitch
+            )
+        };
+        if is_terminator {
+            // If it is EndIf, consume and record the position
+            if let Some(token) = iter.peek()
+                && let EndIf = token.content()
+            {
+                let pos = ().into_wrapper(token);
+                fallback_pos = Some(pos);
+                iter.next();
             }
-            // 2. Other content, prioritizing parse_unit_or_block (supports nesting)
-            _ => {
-                if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
-                    result.push(unit);
-                    errors.append(&mut errs);
-                } else {
-                    iter.next();
-                }
-            }
+            break;
+        }
+
+        // Try to parse nested unit/block first
+        if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
+            result.push(unit);
+            errors.append(&mut errs);
+            continue;
+        }
+        // Otherwise, consume one token and update fallback position
+        if let Some(token) = iter.peek() {
+            let pos = ().into_wrapper(token);
+            fallback_pos = Some(pos);
+        }
+        if iter.next().is_none() {
+            break;
         }
     }
-    (result, errors)
+    let end_if_pos = fallback_pos.unwrap_or(default_end_pos);
+    (result, errors, end_if_pos)
 }
 
 #[cfg(test)]
@@ -551,7 +524,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(errors, vec![]);
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -559,7 +533,7 @@ mod tests {
             panic!("AST structure error, ast: {ast:?}");
         };
         let Some(_case1) = cases.iter().find(
-            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+            |c| matches!(c.value.content(), CaseBranchValue::Case(val) if val == &BigUint::from(1u64)),
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
@@ -568,8 +542,8 @@ mod tests {
         else {
             panic!("AST structure error, ast: {ast:?}");
         };
-        let Some(CaseBranch { tokens: _, .. }) = cases.iter().find(
-            |c| matches!(c.value, CaseBranchValue::Case(ref val) if val == &BigUint::from(1u64)),
+        let Some(CaseBranch { units: _, .. }) = cases.iter().find(
+            |c| matches!(c.value.content(), CaseBranchValue::Case(val) if val == &BigUint::from(1u64)),
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
@@ -584,7 +558,8 @@ mod tests {
             .enumerate()
             .map(|(i, t)| t.into_wrapper_manual(i, i))
             .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert!(errors.contains(&AstBuildWarning::UnmatchedEndRandom.into_wrapper(&tokens[1])));
     }
 
@@ -596,7 +571,8 @@ mod tests {
             .enumerate()
             .map(|(i, t)| t.into_wrapper_manual(i, i))
             .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert!(errors.contains(&AstBuildWarning::UnmatchedEndIf.into_wrapper(&tokens[1])));
     }
 
@@ -617,11 +593,13 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
+            ..
         } = &ast[0]
         else {
             panic!("AST structure error, ast: {ast:?}");
@@ -629,8 +607,8 @@ mod tests {
         assert_eq!(if_blocks.len(), 2);
         let all_titles: Vec<_> = if_blocks
             .iter()
-            .flat_map(|blk| blk.branches.values())
-            .flat_map(|b| &b.tokens)
+            .flat_map(|blk| blk.branches.values().map(|v| v.content()))
+            .flatten()
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
@@ -669,11 +647,13 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
+            ..
         } = &ast[0]
         else {
             panic!("AST structure error, ast: {ast:?}");
@@ -682,7 +662,7 @@ mod tests {
         for blk in if_blocks {
             for branch in blk.branches.values() {
                 if branch
-                    .tokens
+                    .content()
                     .iter()
                     .any(|u| matches!(&u, Unit::RandomBlock { .. }))
                 {
@@ -720,11 +700,13 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
             if_blocks,
+            ..
         } = &ast[0]
         else {
             panic!("AST structure error");
@@ -734,7 +716,7 @@ mod tests {
         let Some(b1) = branches1.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.tokens.iter().find(|u| {
+        let Some(_) = b1.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -745,7 +727,7 @@ mod tests {
         let Some(b2) = branches1.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.tokens.iter().find(|u| {
+        let Some(_) = b2.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -756,7 +738,7 @@ mod tests {
         let Some(belse) = branches1.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.tokens.iter().find(|u| {
+        let Some(_) = belse.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -768,7 +750,7 @@ mod tests {
         let Some(b1) = branches2.get(&BigUint::from(1u64)) else {
             panic!("branch 1 missing");
         };
-        let Some(_) = b1.tokens.iter().find(|u| {
+        let Some(_) = b1.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -779,7 +761,7 @@ mod tests {
         let Some(b2) = branches2.get(&BigUint::from(2u64)) else {
             panic!("branch 2 missing");
         };
-        let Some(_) = b2.tokens.iter().find(|u| {
+        let Some(_) = b2.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -790,7 +772,7 @@ mod tests {
         let Some(belse) = branches2.get(&BigUint::from(0u64)) else {
             panic!("branch else missing");
         };
-        let Some(_) = belse.tokens.iter().find(|u| {
+        let Some(_) = belse.content().iter().find(|u| {
             let Unit::TokenWithPos(token) = u else {
                 panic!("Unit::TokenWithPos expected, got: {u:?}");
             };
@@ -816,7 +798,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(&tokens[3])]
@@ -837,7 +820,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(&tokens[1])]
@@ -859,7 +843,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::SwitchDuplicateCaseValue.into_wrapper(&tokens[3])]
@@ -879,7 +864,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::SwitchCaseValueOutOfRange.into_wrapper(&tokens[1])]
@@ -903,7 +889,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert_eq!(
             errors,
             vec![
@@ -925,7 +912,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         // Should not produce any errors, Random block should auto-close
         assert_eq!(errors, vec![]);
         // Should have three units: RandomBlock and two TokenWithPos
@@ -974,7 +962,8 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_manual(i, i))
         .collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
+        let token_refs = tokens.iter().collect::<Vec<_>>();
+        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         // Should not produce any errors
         assert_eq!(errors, vec![]);
         // Should have two units: RandomBlock and TokenWithPos
