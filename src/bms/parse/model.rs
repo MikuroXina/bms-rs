@@ -6,7 +6,7 @@ pub mod obj;
 
 use std::{
     cmp::Reverse,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
     ops::Bound,
     path::PathBuf,
@@ -179,8 +179,12 @@ pub struct Arrangers {
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. #BPM[01-ZZ] in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// Record of used BPM change ids from #BPMxx messages, for validity checks.
+    pub bpm_change_ids_used: HashSet<ObjId>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
+    /// Record of used STOP ids from #STOPxx messages, for validity checks.
+    pub stop_ids_used: HashSet<ObjId>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     /// The spacing factors corresponding to the id of the spacing change object.
@@ -689,6 +693,8 @@ impl Bms {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
+                    // Record used BPM change id for validity checks
+                    self.arrangers.bpm_change_ids_used.insert(obj);
                     let bpm = self
                         .scope_defines
                         .bpm_defs
@@ -814,6 +820,8 @@ impl Bms {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
+                    // Record used STOP id for validity checks
+                    self.arrangers.stop_ids_used.insert(obj);
                     let duration = self
                         .scope_defines
                         .stop_defs

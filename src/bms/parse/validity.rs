@@ -28,41 +28,12 @@ pub enum ValidityMissing {
     /// A BGA change references an ObjId without a corresponding BMP/EXBMP definition.
     #[error("Missing BMP definition for BGA object id: {0:?}")]
     BmpForBga(ObjId),
-}
-
-/// Mapping-related validity entries.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValidityMapping {
-    /// The per-key time index (`ids_by_key`) is missing or mismatched for an existing note.
-    #[error(
-        "Key index mismatch for note at time {time:?} (side={side:?}, key={key:?}), expected mapping to {expected:?}"
-    )]
-    IdsByKeyMismatch {
-        /// Player side where the note is placed.
-        side: PlayerSide,
-        /// Key lane where the note is placed.
-        key: Key,
-        /// Timestamp of the note.
-        time: ObjTime,
-        /// Expected object id that should be mapped at this timestamp.
-        expected: ObjId,
-    },
-    /// Orphan entry found in `ids_by_key`: mapping exists but no actual note at that time.
-    #[error(
-        "Orphan key index mapping at time {time:?} (side={side:?}, key={key:?}), mapped to {mapped:?} but note not found"
-    )]
-    IdsByKeyOrphanMapping {
-        /// Player side where the mapping is placed.
-        side: PlayerSide,
-        /// Key lane where the mapping is placed.
-        key: Key,
-        /// Timestamp of the mapping.
-        time: ObjTime,
-        /// Mapped object id.
-        mapped: ObjId,
-    },
+    /// A BPM change references an ObjId without a corresponding #BPMxx definition.
+    #[error("Missing BPM change definition for object id: {0:?}")]
+    BpmChangeDef(ObjId),
+    /// A STOP event references an ObjId without a corresponding #STOPxx definition.
+    #[error("Missing STOP definition for object id: {0:?}")]
+    StopDef(ObjId),
 }
 
 /// Invalid-related validity entries.
@@ -128,8 +99,6 @@ pub enum ValidityInvalid {
 pub struct ValidityCheckOutput {
     /// Missing-related findings.
     pub missing: Vec<ValidityMissing>,
-    /// Mapping-related findings.
-    pub mapping: Vec<ValidityMapping>,
     /// Invalid-related findings.
     pub invalid: Vec<ValidityInvalid>,
 }
@@ -141,50 +110,12 @@ impl Bms {
     /// are required for correct playback, separate from parse-time checks.
     pub fn check_validity(&self) -> ValidityCheckOutput {
         let mut missing = Vec::new();
-        let mut mapping = Vec::new();
         let mut invalid = Vec::new();
 
         // 1) Check that every used ObjId in notes has a corresponding WAV definition.
-        for (obj_id, notes) in &self.notes.objs {
+        for obj_id in self.notes.objs.keys() {
             if !self.notes.wav_files.contains_key(obj_id) {
                 missing.push(ValidityMissing::WavForNote(*obj_id));
-            }
-
-            // 2) Ensure ids_by_key contains the expected mapping for each note entry.
-            for Obj {
-                side,
-                key,
-                offset,
-                obj,
-                ..
-            } in notes
-            {
-                if let Some(key_map) = self.notes.ids_by_key.get(&(*side, *key)) {
-                    if let Some(mapped) = key_map.get(offset) {
-                        if mapped != obj {
-                            mapping.push(ValidityMapping::IdsByKeyMismatch {
-                                side: *side,
-                                key: *key,
-                                time: *offset,
-                                expected: *obj,
-                            });
-                        }
-                    } else {
-                        mapping.push(ValidityMapping::IdsByKeyMismatch {
-                            side: *side,
-                            key: *key,
-                            time: *offset,
-                            expected: *obj,
-                        });
-                    }
-                } else {
-                    mapping.push(ValidityMapping::IdsByKeyMismatch {
-                        side: *side,
-                        key: *key,
-                        time: *offset,
-                        expected: *obj,
-                    });
-                }
             }
         }
 
@@ -204,23 +135,17 @@ impl Bms {
             }
         }
 
-        // 2) Check for orphan entries in ids_by_key (present mapping but no note object at that time).
-        for ((side, key), time_map) in &self.notes.ids_by_key {
-            for (time, mapped) in time_map {
-                let no_note = self
-                    .notes
-                    .objs
-                    .get(mapped)
-                    .map(|list| list.iter().all(|n| n.offset != *time))
-                    .unwrap_or(true);
-                if no_note {
-                    mapping.push(ValidityMapping::IdsByKeyOrphanMapping {
-                        side: *side,
-                        key: *key,
-                        time: *time,
-                        mapped: *mapped,
-                    });
-                }
+        // 1.4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
+        for id in &self.arrangers.bpm_change_ids_used {
+            if !self.scope_defines.bpm_defs.contains_key(id) {
+                missing.push(ValidityMissing::BpmChangeDef(*id));
+            }
+        }
+
+        // 1.5) Check STOP ids used in messages have corresponding #STOPxx definitions.
+        for id in &self.arrangers.stop_ids_used {
+            if !self.scope_defines.stop_defs.contains_key(id) {
+                missing.push(ValidityMissing::StopDef(*id));
             }
         }
 
@@ -341,11 +266,7 @@ impl Bms {
             }
         }
 
-        ValidityCheckOutput {
-            missing,
-            mapping,
-            invalid,
-        }
+        ValidityCheckOutput { missing, invalid }
     }
 }
 
@@ -403,23 +324,6 @@ mod tests {
         );
         let out = bms.check_validity();
         assert!(out.missing.contains(&ValidityMissing::BmpForBga(id)));
-    }
-
-    #[test]
-    fn test_ids_by_key_orphan_mapping() {
-        let mut bms = Bms::default();
-        let id = ObjId::try_from("0C").unwrap();
-        let time = t(1, 0, 4);
-        bms.notes
-            .ids_by_key
-            .entry((PlayerSide::Player1, Key::Key1))
-            .or_default()
-            .insert(time, id);
-        // No corresponding note in notes.objs at this time
-        let out = bms.check_validity();
-        assert!(out.mapping.iter().any(
-            |e| matches!(e, ValidityMapping::IdsByKeyOrphanMapping { time: t0, .. } if *t0 == time)
-        ));
     }
 
     #[test]
