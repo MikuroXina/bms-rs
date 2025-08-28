@@ -1753,6 +1753,14 @@ impl<T: PhysicalKey> Notes<T> {
     }
 }
 
+impl<T: PhysicalKey + KeyMapping> Notes<T> {
+    /// Finds next object by side/key for any physical key mapping that implements `KeyMapping`.
+    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj<T>> {
+        let channel = T::new(side, key).to_note_channel();
+        self.next_obj_by_channel(channel, time)
+    }
+}
+
 fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
     let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
