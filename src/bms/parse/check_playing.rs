@@ -2,10 +2,9 @@
 
 use thiserror::Error;
 
-use crate::bms::command::channel::NoteKind;
+use crate::bms::command::channel::{NoteKind, mapper::BeatKey};
 
 use super::model::Bms;
-use crate::bms::command::channel::BeatKey;
 
 /// Simpifies the warnings for playing, which would not make this chart unplayable.
 #[non_exhaustive]

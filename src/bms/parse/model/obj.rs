@@ -11,7 +11,7 @@ use crate::bms::{
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
-use crate::bms::command::channel::PhysicalKey;
+use crate::bms::command::channel::mapper::PhysicalKey;
 use core::marker::PhantomData;
 
 /// An object playing sound on the score.

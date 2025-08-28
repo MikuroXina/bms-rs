@@ -153,7 +153,10 @@ mod tests {
     use crate::bms::{
         command::{
             JudgeLevel, PlayerMode,
-            channel::{BeatKey, Channel, Key, NoteKind, PhysicalKey, PlayerSide},
+            channel::{
+                Channel, Key, NoteKind, PlayerSide,
+                mapper::{BeatKey, PhysicalKey},
+            },
             time::Track,
         },
         lex::{LexOutput, TokenStream, token::Token::*},

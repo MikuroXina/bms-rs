@@ -1,11 +1,15 @@
 //! Part: Convert `Bmson` to `Bms`.
 
-use std::{num::NonZeroU8, path::PathBuf};
+use std::{collections::HashMap, num::NonZeroU8, path::PathBuf};
 
 use thiserror::Error;
 
 use crate::{
-    bms::prelude::*,
+    bms::{
+        command::channel::mapper::{BeatKey, PhysicalKey},
+        parse::model::obj::Obj,
+        prelude::*,
+    },
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -179,15 +183,13 @@ impl Bms {
                     NoteKind::Visible
                 };
 
-                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
-                    crate::bms::parse::model::obj::Obj {
-                        offset: time,
-                        kind,
-                        channel: crate::bms::command::channel::BeatKey::new(side, key)
-                            .to_note_channel(),
-                        obj: obj_id,
-                        _marker: core::marker::PhantomData,
-                    };
+                let obj: Obj<BeatKey> = Obj {
+                    offset: time,
+                    kind,
+                    channel: BeatKey::new(side, key).to_note_channel(),
+                    obj: obj_id,
+                    _marker: core::marker::PhantomData,
+                };
                 bms.notes.push_note(obj);
             }
         }
@@ -205,15 +207,13 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
-                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
-                    crate::bms::parse::model::obj::Obj {
-                        offset: time,
-                        kind: NoteKind::Landmine,
-                        channel: crate::bms::command::channel::BeatKey::new(side, key)
-                            .to_note_channel(),
-                        obj: obj_id,
-                        _marker: core::marker::PhantomData,
-                    };
+                let obj: Obj<BeatKey> = Obj {
+                    offset: time,
+                    kind: NoteKind::Landmine,
+                    channel: BeatKey::new(side, key).to_note_channel(),
+                    obj: obj_id,
+                    _marker: core::marker::PhantomData,
+                };
                 bms.notes.push_note(obj);
             }
         }
@@ -231,22 +231,20 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
-                let obj: crate::bms::parse::model::obj::Obj<crate::bms::command::channel::BeatKey> =
-                    crate::bms::parse::model::obj::Obj {
-                        offset: time,
-                        kind: NoteKind::Invisible,
-                        channel: crate::bms::command::channel::BeatKey::new(side, key)
-                            .to_note_channel(),
-                        obj: obj_id,
-                        _marker: core::marker::PhantomData,
-                    };
+                let obj: Obj<BeatKey> = Obj {
+                    offset: time,
+                    kind: NoteKind::Invisible,
+                    channel: BeatKey::new(side, key).to_note_channel(),
+                    obj: obj_id,
+                    _marker: core::marker::PhantomData,
+                };
                 bms.notes.push_note(obj);
             }
         }
 
         // Convert BGA
         // First, create a mapping from BgaId to ObjId for bga_headers
-        let mut bga_id_to_obj_id = std::collections::HashMap::new();
+        let mut bga_id_to_obj_id = HashMap::new();
 
         for bga_header in value.bga.bga_header {
             let bmp_path = PathBuf::from(bga_header.name);

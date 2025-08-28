@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::bms::{
     Decimal,
     command::{
-        channel::PhysicalKey,
+        channel::mapper::PhysicalKey,
         time::{ObjTime, Track},
     },
     parse::model::Bms,
@@ -87,7 +87,7 @@ impl PulseConverter {
 #[test]
 fn pulse_conversion() {
     use crate::bms::{
-        command::channel::BeatKey,
+        command::channel::mapper::BeatKey,
         parse::model::{Arrangers, obj::SectionLenChangeObj},
     };
 

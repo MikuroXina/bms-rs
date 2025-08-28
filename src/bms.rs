@@ -33,7 +33,7 @@ use self::{
         AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
         rng::Rng,
     },
-    command::channel::{BeatKey, PhysicalKey},
+    command::channel::mapper::{BeatKey, PhysicalKey},
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,

@@ -122,7 +122,7 @@ impl Bms {
             genre: self.header.genre.unwrap_or_default(),
             mode_hint: {
                 // TODO: Support other modes
-                use crate::bms::command::channel::{BeatKey as BK, PhysicalKey};
+                use crate::bms::command::channel::mapper::{BeatKey as BK, PhysicalKey};
                 let is_7keys = self.notes.all_notes().any(|note| {
                     BK::from_note_channel(note.channel)
                         .map(|bk| matches!(bk.key, Key::Key6 | Key::Key7))
@@ -190,7 +190,7 @@ impl Bms {
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.notes.all_notes() {
-                use crate::bms::command::channel::{BeatKey as BK, PhysicalKey};
+                use crate::bms::command::channel::mapper::{BeatKey as BK, PhysicalKey};
                 let beat_opt = BK::from_note_channel(note.channel);
                 let note_lane = note
                     .kind

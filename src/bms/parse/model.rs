@@ -25,8 +25,9 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            BeatKey, Channel, Key, KeyMapping, NoteChannel, NoteKind, PhysicalKey, PlayerSide,
+            Channel, Key, KeyMapping, NoteChannel, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
+            mapper::{BeatKey, PhysicalKey},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -1872,7 +1873,6 @@ impl Notes<BeatKey> {
         key: Key,
         time: ObjTime,
     ) -> Option<&Obj<BeatKey>> {
-        use crate::bms::command::channel::PhysicalKey;
         let channel = BeatKey::new(side, key).to_note_channel();
         self.next_obj_by_channel(channel, time)
     }

@@ -13,7 +13,10 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{BeatKey, Channel, Key, NoteKind, PhysicalKey, PlayerSide},
+        channel::{
+            Channel, Key, NoteKind, PlayerSide,
+            mapper::{BeatKey, PhysicalKey},
+        },
         graphics::Argb,
         mixin::SourcePosMixin,
         time::Track,

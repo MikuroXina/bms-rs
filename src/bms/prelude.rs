@@ -14,11 +14,12 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteChannel, NoteKind, PhysicalKey, PlayerSide,
+            Channel, Key, KeyMapping, NoteChannel, NoteKind, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
+            mapper::{BeatKey, BeatNanasiKey, DscOctFpKey, PhysicalKey, PmsBmeKey, PmsKey},
             read_channel_beat,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
@@ -51,9 +52,6 @@ pub use super::{
 // Backward-compatible type aliases for Beat layout
 pub use super::parse::model::obj::Obj as _HiddenObjGeneric;
 pub use super::parse::model::{BmsDefault as Bms, NotesDefault as Notes, ObjDefault as Obj};
-
-// Re-export physical key types for consumers
-pub use super::command::channel::{BeatKey, BeatNanasiKey, DscOctFpKey, PmsBmeKey, PmsKey};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
