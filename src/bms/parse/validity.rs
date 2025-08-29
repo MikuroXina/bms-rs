@@ -259,12 +259,39 @@ impl Bms {
                 if long_times.is_empty() {
                     return None;
                 }
-                // Use binary search on sorted long_times to find the first end time >= t
-                // Include t == start, exclude t == end
-                let end_i = long_times.partition_point(|&x| x <= t);
-                // If end_i is odd, greater than 0, and within bounds, we're inside an interval
-                (end_i > 0 && end_i % 2 == 1 && end_i < long_times.len())
-                    .then(|| (long_times[end_i - 1], long_times[end_i]))
+                // Use binary search on sorted long_times to find the insertion point for t
+                let pos = long_times.partition_point(|&x| x < t);
+
+                // Check if we're exactly at a long note time
+                if pos < long_times.len() && long_times[pos] == t {
+                    // We're exactly at a long note time
+                    if pos % 2 == 0 {
+                        // Even index: this is a start of an interval
+                        if pos + 1 < long_times.len() {
+                            // Check if next element is the end (handles zero-length case)
+                            return Some((long_times[pos], long_times[pos + 1]));
+                        }
+                    } else {
+                        // Odd index: this is an end of an interval
+                        // We're at the end time, which should not be considered "inside" the interval
+                        // But for zero-length intervals, start == end, so we need to check if
+                        // this end matches the previous start
+                        if pos > 0 && long_times[pos - 1] == long_times[pos] {
+                            // Zero-length interval: start and end are the same
+                            return Some((long_times[pos], long_times[pos]));
+                        }
+                    }
+                } else if pos % 2 == 1 {
+                    // We're positioned at the end of an interval
+                    // The interval we're potentially inside is [long_times[pos-1], long_times[pos]]
+                    // Since we know long_times[pos] > t (from partition_point), we just need to check
+                    // if long_times[pos-1] <= t
+                    if long_times[pos - 1] <= t {
+                        return Some((long_times[pos - 1], long_times[pos]));
+                    }
+                }
+
+                None
             };
 
             // Overlap single vs long: any visible single inside any LN interval
@@ -525,5 +552,60 @@ mod tests {
             e,
             ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
         )));
+    }
+
+    #[test]
+    fn test_zero_length_long_note_overlap() {
+        let mut bms = Bms::default();
+        let id_ln_start = ObjId::try_from("20").unwrap();
+        let id_ln_end = ObjId::try_from("21").unwrap();
+        let id_vis = ObjId::try_from("22").unwrap();
+        let zero_length_time = t(2, 0, 4);
+        let vis_time = t(2, 0, 4); // Same time as zero-length LN
+        let mut notes = Notes::default();
+
+        // Zero-length long note: start and end at same time
+        notes.push_note(Obj {
+            offset: zero_length_time,
+            kind: NoteKind::Long,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id_ln_start,
+        });
+        notes.push_note(Obj {
+            offset: zero_length_time, // Same time - zero length
+            kind: NoteKind::Long,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id_ln_end,
+        });
+
+        // Visible note at the same time as zero-length LN
+        notes.push_note(Obj {
+            offset: vis_time,
+            kind: NoteKind::Visible,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id_vis,
+        });
+
+        bms.notes = notes;
+
+        let out = bms.check_validity();
+        // This should detect the overlap, but currently fails due to the bug
+        assert!(
+            out.invalid.iter().any(|e| matches!(
+                e,
+                ValidityInvalid::OverlapVisibleSingleWithLong {
+                    side: PlayerSide::Player1,
+                    key: Key::Key1,
+                    time: t0,
+                    ln_start: s,
+                    ln_end: e
+                } if *t0 == vis_time && *s == zero_length_time && *e == zero_length_time
+            )),
+            "Failed to detect overlap with zero-length long note. Current output: {:?}",
+            out.invalid
+        );
     }
 }
