@@ -4,6 +4,8 @@
 //! the parsing process. It can be used after editing `Bms` in-memory to ensure
 //! referential integrity and basic invariants required for correct playback.
 
+use std::collections::{HashMap, HashSet};
+
 use thiserror::Error;
 
 use crate::bms::command::{
@@ -165,8 +167,7 @@ impl Bms {
         //      - Overlap: visible single within long interval (same lane)
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
-        use std::collections::HashMap as StdHashMap;
-        let mut lane_to_notes: StdHashMap<(PlayerSide, Key), Vec<&Obj>> = StdHashMap::new();
+        let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&Obj>> = HashMap::new();
         for notes in self.notes.objs.values() {
             for obj in notes {
                 // Visible note in section 000 (track index 0)
@@ -280,11 +281,13 @@ impl Bms {
                 }
             }
 
-            // Landmine vs long: warn once per LN interval, at long start, if any landmine inside interval
+            // Landmine vs long: warn once per LN interval at the long start
+            // if any landmine appears inside that interval (including at start).
+            let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
             for o in &lane_objs {
                 if o.kind == NoteKind::Landmine
                     && let Some((s, e)) = time_overlaps_any_ln(o.offset)
-                    && s == o.offset
+                    && warned_ln_intervals.insert((s, e))
                 {
                     invalid.push(ValidityInvalid::LandmineOverlapsLongAtStart {
                         side,
