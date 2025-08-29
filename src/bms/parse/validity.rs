@@ -186,7 +186,6 @@ impl Bms {
                 .filter(|o| o.kind == NoteKind::Long)
                 .map(|o| o.offset)
                 .collect();
-            long_times.sort_unstable();
             let mut ln_intervals: Vec<(ObjTime, ObjTime)> = Vec::new();
             let mut iter = long_times.into_iter();
             while let Some(start) = iter.next() {
