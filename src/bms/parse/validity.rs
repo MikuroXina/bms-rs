@@ -260,7 +260,8 @@ impl Bms {
                     return None;
                 }
                 // Use binary search on sorted long_times to find the first end time >= t
-                let end_i = long_times.partition_point(|&end| end < t);
+                // Include t == start, exclude t == end
+                let end_i = long_times.partition_point(|&x| x <= t);
                 // If end_i is odd, greater than 0, and within bounds, we're inside an interval
                 (end_i > 0 && end_i % 2 == 1 && end_i < long_times.len())
                     .then(|| (long_times[end_i - 1], long_times[end_i]))
