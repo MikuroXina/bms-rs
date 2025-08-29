@@ -91,6 +91,16 @@ pub enum ValidityInvalid {
         /// End time of the long note interval.
         ln_end: ObjTime,
     },
+    /// A landmine note overlaps a visible single note at the same time in the same lane.
+    #[error("Landmine overlaps visible single note at {time:?} (side={side:?}, key={key:?})")]
+    OverlapLandmineWithSingle {
+        /// Player side where the overlap occurs.
+        side: PlayerSide,
+        /// Key lane where the overlap occurs.
+        key: Key,
+        /// Timestamp of the overlap.
+        time: ObjTime,
+    },
 }
 
 /// Output of validity checks.
@@ -153,6 +163,7 @@ impl Bms {
         //      - Visible notes in section 000
         //      - Overlap: visible single vs single (same time, same lane)
         //      - Overlap: visible single within long interval (same lane)
+        //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
         use std::collections::HashMap as StdHashMap;
         let mut lane_to_notes: StdHashMap<(PlayerSide, Key), Vec<&Obj>> = StdHashMap::new();
@@ -181,7 +192,7 @@ impl Bms {
             lane_objs.sort_unstable_by_key(|o| o.offset);
 
             // Build LN intervals by pairing consecutive Long notes
-            let mut long_times: Vec<ObjTime> = lane_objs
+            let long_times: Vec<ObjTime> = lane_objs
                 .iter()
                 .filter(|o| o.kind == NoteKind::Long)
                 .map(|o| o.offset)
@@ -216,6 +227,27 @@ impl Bms {
                         key,
                         time,
                     });
+                }
+                i = j;
+            }
+
+            // Overlap landmine vs single at the same time
+            let mut i = 0;
+            while i < lane_objs.len() {
+                let time = lane_objs[i].offset;
+                let mut j = i;
+                let mut has_visible = false;
+                let mut has_landmine = false;
+                while j < lane_objs.len() && lane_objs[j].offset == time {
+                    match lane_objs[j].kind {
+                        NoteKind::Visible => has_visible = true,
+                        NoteKind::Landmine => has_landmine = true,
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                if has_visible && has_landmine {
+                    invalid.push(ValidityInvalid::OverlapLandmineWithSingle { side, key, time });
                 }
                 i = j;
             }
@@ -459,6 +491,36 @@ mod tests {
         assert!(out.invalid.iter().any(|e| matches!(
             e,
             ValidityInvalid::LandmineOverlapsLongAtStart { side: PlayerSide::Player1, key: Key::Key1, ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
+        )));
+    }
+
+    #[test]
+    fn test_overlap_landmine_with_single() {
+        let mut bms = Bms::default();
+        let id_vis = ObjId::try_from("04").unwrap();
+        let id_mine = ObjId::try_from("05").unwrap();
+        let time = t(1, 0, 4);
+        let mut notes = Notes::default();
+        notes.push_note(Obj {
+            offset: time,
+            kind: NoteKind::Visible,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id_vis,
+        });
+        notes.push_note(Obj {
+            offset: time,
+            kind: NoteKind::Landmine,
+            side: PlayerSide::Player1,
+            key: Key::Key1,
+            obj: id_mine,
+        });
+        bms.notes = notes;
+
+        let out = bms.check_validity();
+        assert!(out.invalid.iter().any(|e| matches!(
+            e,
+            ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
         )));
     }
 }
