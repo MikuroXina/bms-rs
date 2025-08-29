@@ -262,7 +262,7 @@ impl Bms {
                 let end_i = long_times.partition_point(|&end| end < t);
                 // If end_i is odd, greater than 0, and within bounds, we're inside an interval
                 (end_i > 0 && end_i % 2 == 1 && end_i < long_times.len())
-                    .then_some((long_times[end_i - 1], long_times[end_i]))
+                    .then(|| (long_times[end_i - 1], long_times[end_i]))
             };
 
             // Overlap single vs long: any visible single inside any LN interval
