@@ -462,7 +462,7 @@ mod tests {
         let id_mine = ObjId::try_from("1C").unwrap();
         let ln_start = t(3, 0, 4);
         let ln_end = t(3, 2, 4);
-        let mine_time = t(3, 1, 4);
+        let mine_time = t(3, 0, 4);
         let mut notes = Notes::default();
         // LN interval
         notes.push_note(Obj {
