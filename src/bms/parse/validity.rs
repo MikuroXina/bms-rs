@@ -198,7 +198,7 @@ impl Bms {
                 .map(|o| o.offset)
                 .collect();
             let mut ln_intervals: Vec<(ObjTime, ObjTime)> = Vec::new();
-            let mut iter = long_times.into_iter();
+            let mut iter = long_times.clone().into_iter();
             while let Some(start) = iter.next() {
                 if let Some(end) = iter.next() {
                     if end >= start {
@@ -254,12 +254,11 @@ impl Bms {
 
             // Helper: check if a time is within [s, e]
             let time_overlaps_any_ln = |t: ObjTime| -> Option<(ObjTime, ObjTime)> {
-                for (s, e) in &ln_intervals {
-                    if t >= *s && t <= *e {
-                        return Some((*s, *e));
-                    }
-                }
-                None
+                // Use binary search on sorted long_times to find the first end time >= t
+                let end_i = long_times.partition_point(|&end| end < t);
+                // If end_i is odd and within bounds, we're inside an interval
+                (end_i % 2 == 1 && end_i < long_times.len())
+                    .then_some((long_times[end_i - 1], long_times[end_i]))
             };
 
             // Overlap single vs long: any visible single inside any LN interval
