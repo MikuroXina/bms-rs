@@ -281,20 +281,16 @@ impl Bms {
             }
 
             // Landmine vs long: warn once per LN interval, at long start, if any landmine inside interval
-            for (s, e) in &ln_intervals {
-                let mut has_landmine = false;
-                for o in &lane_objs {
-                    if o.kind == NoteKind::Landmine && o.offset >= *s && o.offset <= *e {
-                        has_landmine = true;
-                        break;
-                    }
-                }
-                if has_landmine {
+            for o in &lane_objs {
+                if o.kind == NoteKind::Landmine
+                    && let Some((s, e)) = time_overlaps_any_ln(o.offset)
+                    && s == o.offset
+                {
                     invalid.push(ValidityInvalid::LandmineOverlapsLongAtStart {
                         side,
                         key,
-                        ln_start: *s,
-                        ln_end: *e,
+                        ln_start: s,
+                        ln_end: e,
                     });
                 }
             }
