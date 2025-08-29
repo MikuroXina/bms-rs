@@ -254,10 +254,14 @@ impl Bms {
 
             // Helper: check if a time is within [s, e]
             let time_overlaps_any_ln = |t: ObjTime| -> Option<(ObjTime, ObjTime)> {
+                // Early return if no long notes exist
+                if long_times.is_empty() {
+                    return None;
+                }
                 // Use binary search on sorted long_times to find the first end time >= t
                 let end_i = long_times.partition_point(|&end| end < t);
-                // If end_i is odd and within bounds, we're inside an interval
-                (end_i % 2 == 1 && end_i < long_times.len())
+                // If end_i is odd, greater than 0, and within bounds, we're inside an interval
+                (end_i > 0 && end_i % 2 == 1 && end_i < long_times.len())
                     .then_some((long_times[end_i - 1], long_times[end_i]))
             };
 
