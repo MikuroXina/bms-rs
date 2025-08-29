@@ -265,30 +265,23 @@ impl Bms {
                 // Check if we're exactly at a long note time
                 if pos < long_times.len() && long_times[pos] == t {
                     // We're exactly at a long note time
-                    if pos % 2 == 0 {
+                    if pos % 2 == 0 && pos + 1 < long_times.len() {
                         // Even index: this is a start of an interval
-                        if pos + 1 < long_times.len() {
-                            // Check if next element is the end (handles zero-length case)
-                            return Some((long_times[pos], long_times[pos + 1]));
-                        }
-                    } else {
+                        // Check if next element is the end (handles zero-length case)
+                        return Some((long_times[pos], long_times[pos + 1]));
+                    } else if pos > 0 && long_times[pos - 1] == long_times[pos] {
                         // Odd index: this is an end of an interval
                         // We're at the end time, which should not be considered "inside" the interval
                         // But for zero-length intervals, start == end, so we need to check if
                         // this end matches the previous start
-                        if pos > 0 && long_times[pos - 1] == long_times[pos] {
-                            // Zero-length interval: start and end are the same
-                            return Some((long_times[pos], long_times[pos]));
-                        }
+                        return Some((long_times[pos - 1], long_times[pos]));
                     }
-                } else if pos % 2 == 1 {
+                } else if pos % 2 == 1 && long_times[pos - 1] <= t {
                     // We're positioned at the end of an interval
                     // The interval we're potentially inside is [long_times[pos-1], long_times[pos]]
                     // Since we know long_times[pos] > t (from partition_point), we just need to check
                     // if long_times[pos-1] <= t
-                    if long_times[pos - 1] <= t {
-                        return Some((long_times[pos - 1], long_times[pos]));
-                    }
+                    return Some((long_times[pos - 1], long_times[pos]));
                 }
 
                 None
