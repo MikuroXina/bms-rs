@@ -1823,8 +1823,8 @@ impl Bms {
             } in objs.iter_mut()
             {
                 let ori_map = Src::new(*side, *kind, *key);
-                let beat_map = ori_map.to_beat();
-                let dst_map = Dst::from_beat(beat_map);
+                let channel_id = ori_map.to_channel_id();
+                let dst_map = Dst::from_channel_id(channel_id);
                 *side = dst_map.side();
                 *key = dst_map.key();
             }
