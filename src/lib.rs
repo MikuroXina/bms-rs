@@ -51,7 +51,7 @@
 //! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
 //! #[cfg(not(feature = "rand"))]
 //! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
-//! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
+//! let ParseOutput::<BeatKey> { bms, parse_warnings } = Bms::<BeatKey>::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.

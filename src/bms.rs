@@ -105,14 +105,14 @@ pub fn parse_bms(source: &str) -> BmsOutput<BeatKey> {
 
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
-    parse_bms_with_rng(source, rng)
+    parse_bms_with_rng::<BeatKey>(source, rng)
 }
 
 /// Parse a BMS file from source text using a custom random number generator.
 ///
 /// This function provides a convenient way to parse a BMS file in one step.
 /// It uses the default channel parser and a custom random number generator.
-pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput<BeatKey> {
+pub fn parse_bms_with_rng<T: PhysicalKey + Default>(source: &str, rng: impl Rng) -> BmsOutput<T> {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -134,7 +134,7 @@ pub fn parse_bms_with_rng(source: &str, rng: impl Rng) -> BmsOutput<BeatKey> {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::<BeatKey>::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::<T>::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
 
     // Convert ast-parse and parse warnings to BmsWarning
     warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));

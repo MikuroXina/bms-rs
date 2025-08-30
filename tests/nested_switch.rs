@@ -32,11 +32,11 @@ fn switch() {
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let AstParseOutput { token_refs } = root.parse(rng);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -75,11 +75,11 @@ fn nested_switch_simpler() {
     assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let AstParseOutput { token_refs } = root.parse(rng);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 

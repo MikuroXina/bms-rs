@@ -8,11 +8,11 @@ fn test_lal() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -42,11 +42,11 @@ fn test_nc() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -82,11 +82,11 @@ fn test_j219() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -139,11 +139,11 @@ fn test_bemuse_ext() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info
