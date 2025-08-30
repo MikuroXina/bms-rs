@@ -104,7 +104,7 @@ pub enum Token<'a> {
     Charset(&'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
     Comment(&'a str),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`TokenWithPos::Switch`].
+    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`TokenWithRange::Switch`].
     Def,
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
@@ -159,7 +159,7 @@ pub enum Token<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`TokenWithPos::Random`].
+    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`TokenWithRange::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnMode),
@@ -298,7 +298,7 @@ pub enum Token<'a> {
 }
 
 /// A token with position information.
-pub type TokenWithPos<'a> = SourceRangeMixin<Token<'a>>;
+pub type TokenWithRange<'a> = SourceRangeMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {

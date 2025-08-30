@@ -13,7 +13,7 @@ use crate::bms::command::mixin::{SourceRangeMixin, SourcePosMixinExt};
 
 use self::{
     cursor::Cursor,
-    token::{Token, TokenWithPos},
+    token::{Token, TokenWithRange},
 };
 
 /// An error occurred when lexical analysis.
@@ -51,7 +51,7 @@ pub enum LexWarning {
 }
 
 /// A [`LexWarning`] type with position information.
-pub type LexWarningWithPos = SourceRangeMixin<LexWarning>;
+pub type LexWarningWithRange = SourceRangeMixin<LexWarning>;
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
@@ -63,20 +63,20 @@ pub struct LexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
     /// warnings
-    pub lex_warnings: Vec<LexWarningWithPos>,
+    pub lex_warnings: Vec<LexWarningWithRange>,
 }
 
 /// A list of tokens.
-/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
+/// This is a wrapper of [`Vec<TokenWithRange<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenStream<'a> {
     /// The tokens.
-    pub tokens: Vec<TokenWithPos<'a>>,
+    pub tokens: Vec<TokenWithRange<'a>>,
 }
 
 impl<'a> IntoIterator for TokenStream<'a> {
-    type Item = TokenWithPos<'a>;
+    type Item = TokenWithRange<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.tokens.into_iter()
@@ -84,24 +84,24 @@ impl<'a> IntoIterator for TokenStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
-    type IntoIter = std::slice::Iter<'a, TokenWithPos<'a>>;
+    type Item = &'a TokenWithRange<'a>;
+    type IntoIter = std::slice::Iter<'a, TokenWithRange<'a>>;
     fn into_iter(self) -> Self::IntoIter {
         self.tokens.iter()
     }
 }
 
 /// A list of tokens reference.
-/// This is a wrapper of [`Vec<&'a TokenWithPos<'a>>`] that provides some additional methods.
+/// This is a wrapper of [`Vec<&'a TokenWithRange<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenRefStream<'a> {
     /// The tokens.
-    pub token_refs: Vec<&'a TokenWithPos<'a>>,
+    pub token_refs: Vec<&'a TokenWithRange<'a>>,
 }
 
 impl<'a> IntoIterator for TokenRefStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
+    type Item = &'a TokenWithRange<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.into_iter()
@@ -109,8 +109,8 @@ impl<'a> IntoIterator for TokenRefStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenRefStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
-    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
+    type Item = &'a TokenWithRange<'a>;
+    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithRange<'a>>>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.iter().cloned()
     }

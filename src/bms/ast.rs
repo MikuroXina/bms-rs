@@ -28,7 +28,7 @@ use thiserror::Error;
 
 use crate::bms::{
     command::mixin::SourceRangeMixin,
-    lex::{TokenRefStream, TokenStream, token::TokenWithPos},
+    lex::{TokenRefStream, TokenStream, token::TokenWithRange},
 };
 
 use self::{ast_build::build_control_flow_ast, ast_parse::parse_control_flow_ast, structure::Unit};
@@ -46,13 +46,13 @@ pub struct AstBuildOutput<'a> {
     /// The units of the AST.
     pub root: AstRoot<'a>,
     /// The errors that occurred during building.
-    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+    pub ast_build_warnings: Vec<AstBuildWarningWithRange>,
 }
 
 impl<'a> AstRoot<'a> {
     /// Builds the AST from a token stream.
     pub fn from_token_stream(
-        token_stream: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        token_stream: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
     ) -> AstBuildOutput<'a> {
         let mut token_iter = token_stream.into_iter().peekable();
         let (units, errors) = build_control_flow_ast(&mut token_iter);
@@ -141,7 +141,7 @@ pub enum AstBuildWarning {
 }
 
 /// A [`AstBuildWarning`] type with position information.
-pub type AstBuildWarningWithPos = SourceRangeMixin<AstBuildWarning>;
+pub type AstBuildWarningWithRange = SourceRangeMixin<AstBuildWarning>;
 
 /// Warnings that occurred during AST parsing (execution with RNG).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -166,14 +166,14 @@ pub enum AstParseWarning {
 }
 
 /// A [`AstParseWarning`] type with position information.
-pub type AstParseWarningWithPos = SourceRangeMixin<AstParseWarning>;
+pub type AstParseWarningWithRange = SourceRangeMixin<AstParseWarning>;
 
 impl<'a> AstRoot<'a> {
     /// Parses the AST and collects AST-parse warnings.
     pub fn parse_with_warnings(
         self,
         mut rng: impl Rng,
-    ) -> (AstParseOutput<'a>, Vec<AstParseWarningWithPos>) {
+    ) -> (AstParseOutput<'a>, Vec<AstParseWarningWithRange>) {
         let mut ast_iter = self.units.into_iter().peekable();
         let (tokens, warnings) = parse_control_flow_ast(&mut ast_iter, &mut rng);
         (
@@ -247,9 +247,9 @@ mod tests {
         };
         println!("Case(1) tokens: {:#?}", case1.units);
         assert_eq!(errors, vec![]);
-        assert!(matches!(&ast[0], Unit::TokenWithPos(_))); // 11000000
+        assert!(matches!(&ast[0], Unit::TokenWithRange(_))); // 11000000
         assert!(matches!(&ast[1], Unit::SwitchBlock { .. }));
-        assert!(matches!(&ast[2], Unit::TokenWithPos(_))); // 00000044
+        assert!(matches!(&ast[2], Unit::TokenWithRange(_))); // 00000044
         let Unit::SwitchBlock { cases, .. } = &ast[1] else {
             panic!("AST structure error");
         };
@@ -259,7 +259,7 @@ mod tests {
         else {
             panic!("Case(1) not found");
         };
-        assert!(matches!(&tokens[0], Unit::TokenWithPos(_))); // 00220000
+        assert!(matches!(&tokens[0], Unit::TokenWithRange(_))); // 00220000
         assert!(matches!(&tokens[1], Unit::RandomBlock { .. }));
         let Unit::RandomBlock { if_blocks, .. } = &tokens[1] else {
             panic!("RandomBlock not found");
@@ -273,7 +273,7 @@ mod tests {
                 .content()
                 .iter()
                 .filter_map(|u| match u {
-                    Unit::TokenWithPos(token) => Some(token),
+                    Unit::TokenWithRange(token) => Some(token),
                     _ => None,
                 })
                 .any(|u| matches!(u.content(), Title("00550000")))
@@ -286,7 +286,7 @@ mod tests {
                 .content()
                 .iter()
                 .filter_map(|u| match u {
-                    Unit::TokenWithPos(token) => Some(token),
+                    Unit::TokenWithRange(token) => Some(token),
                     _ => None,
                 })
                 .any(|u| matches!(u.content(), Title("00006600")))
@@ -298,8 +298,8 @@ mod tests {
             panic!("Case(2) not found");
         };
         assert!({
-            let Unit::TokenWithPos(token) = &tokens[0] else {
-                panic!("Unit::TokenWithPos expected, got: {tokens:?}");
+            let Unit::TokenWithRange(token) = &tokens[0] else {
+                panic!("Unit::TokenWithRange expected, got: {tokens:?}");
             };
             matches!(token.content(), Title("00003300"))
         });

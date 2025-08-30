@@ -7,20 +7,20 @@ use num::BigUint;
 
 use crate::bms::{
     ast::{
-        AstBuildWarningWithPos,
+        AstBuildWarningWithRange,
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::mixin::{SourceRangeMixin, SourcePosMixinExt},
-    lex::token::{Token, TokenWithPos},
+    lex::token::{Token, TokenWithRange},
 };
 
 use super::AstBuildWarning;
 
-/// The main entry for building the control flow AST. Traverses the TokenWithPos stream and recursively parses all control flow blocks.
+/// The main entry for building the control flow AST. Traverses the TokenWithRange stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
-pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     tokens_iter: &mut Peekable<T>,
-) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
+) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     while tokens_iter.peek().is_some() {
@@ -47,16 +47,16 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithPos<'a>
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next TokenWithPos
+        // Jump to the next TokenWithRange
         tokens_iter.next();
     }
     (result, errors)
 }
 
-/// Handle a single TokenWithPos: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithPos node.
-fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+/// Handle a single TokenWithRange: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithRange node.
+fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
-) -> Option<(Unit<'a>, Vec<AstBuildWarningWithPos>)> {
+) -> Option<(Unit<'a>, Vec<AstBuildWarningWithRange>)> {
     let token = iter.peek()?;
     use Token::*;
     match token.content() {
@@ -69,7 +69,7 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             Some((unit, errs))
         }
         content if !content.is_control_flow_token() => {
-            let unit = Unit::TokenWithPos(token);
+            let unit = Unit::TokenWithRange(token);
             iter.next();
             Some((unit, Vec::new()))
         }
@@ -79,9 +79,9 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 
 /// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
 /// Supports Case/Def branches, error detection, and nested structures.
-fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
-) -> (Unit<'a>, Vec<AstBuildWarningWithPos>) {
+) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
     let token = iter.next().unwrap();
     use Token::*;
     let block_value = match token.content() {
@@ -216,11 +216,11 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     )
 }
 
-/// Parse the body of a Case/Def branch until a branch-terminating TokenWithPos is encountered.
+/// Parse the body of a Case/Def branch until a branch-terminating TokenWithRange is encountered.
 /// Supports nested blocks, prioritizing parse_unit_or_block.
-fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
-) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithPos>) {
+) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     use Token::*;
@@ -245,7 +245,7 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
         if let Some(rule) = rule {
             errors.push(rule.into_wrapper(token));
         }
-        // Jump to the next TokenWithPos
+        // Jump to the next TokenWithRange
         iter.next();
     }
     (result, errors)
@@ -256,11 +256,11 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 /// Design:
 /// - After entering Random/SetRandom, loop through Tokens.
 /// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow TokenWithPos, prioritize parse_unit_or_block; if not in any IfBlock, auto-close the block.
+/// - If encountering a non-control-flow TokenWithRange, prioritize parse_unit_or_block; if not in any IfBlock, auto-close the block.
 /// - Supports nested structures; recursively handle other block types.
-fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
-) -> (Unit<'a>, Vec<AstBuildWarningWithPos>) {
+) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     use Token::*;
@@ -416,7 +416,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             SetSwitch(_) | Switch(_) | Case(_) | Def | Skip => {
                 break;
             }
-            // 4. Handle non-control-flow TokenWithPos: auto-close Random block when encountering non-control-flow commands
+            // 4. Handle non-control-flow TokenWithRange: auto-close Random block when encountering non-control-flow commands
             content if !content.is_control_flow_token() => break,
             _ => {
                 iter.next();
@@ -437,17 +437,17 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     )
 }
 
-/// Parse the body of an If/ElseIf/Else branch until a branch-terminating TokenWithPos is encountered.
+/// Parse the body of an If/ElseIf/Else branch until a branch-terminating TokenWithRange is encountered.
 /// Design:
 /// - Supports nested blocks, prioritizing parse_unit_or_block.
 /// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
 /// - If EndIf is encountered, consume it automatically.
-fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
+fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
     default_end_pos: SourceRangeMixin<()>,
 ) -> (
     Vec<Unit<'a>>,
-    Vec<AstBuildWarningWithPos>,
+    Vec<AstBuildWarningWithRange>,
     SourceRangeMixin<()>,
 ) {
     let mut result = Vec::new();
@@ -547,7 +547,7 @@ mod tests {
         ) else {
             panic!("Case(1) not found, cases: {cases:?}");
         };
-        // Since tokens only contain TokenWithPos type, do not search for RandomBlock here. Related assertions are already covered above.
+        // Since tokens only contain TokenWithRange type, do not search for RandomBlock here. Related assertions are already covered above.
     }
 
     #[test]
@@ -611,16 +611,16 @@ mod tests {
             .flatten()
             .collect();
         let Some(_) = all_titles.iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("A"))
         }) else {
             panic!("A missing, all_titles: {all_titles:?}");
         };
         let Some(_) = all_titles.iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("B"))
         }) else {
@@ -717,8 +717,8 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("A1"))
         }) else {
@@ -728,8 +728,8 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("A2"))
         }) else {
@@ -739,8 +739,8 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("Aelse"))
         }) else {
@@ -751,8 +751,8 @@ mod tests {
             panic!("branch 1 missing");
         };
         let Some(_) = b1.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("B1"))
         }) else {
@@ -762,8 +762,8 @@ mod tests {
             panic!("branch 2 missing");
         };
         let Some(_) = b2.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("B2"))
         }) else {
@@ -773,8 +773,8 @@ mod tests {
             panic!("branch else missing");
         };
         let Some(_) = belse.content().iter().find(|u| {
-            let Unit::TokenWithPos(token) = u else {
-                panic!("Unit::TokenWithPos expected, got: {u:?}");
+            let Unit::TokenWithRange(token) = u else {
+                panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
             matches!(token.content(), Title("Belse"))
         }) else {
@@ -916,7 +916,7 @@ mod tests {
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         // Should not produce any errors, Random block should auto-close
         assert_eq!(errors, vec![]);
-        // Should have three units: RandomBlock and two TokenWithPos
+        // Should have three units: RandomBlock and two TokenWithRange
         assert_eq!(ast.len(), 3);
         // First unit should be RandomBlock
         let Unit::RandomBlock { if_blocks, .. } = &ast[0] else {
@@ -925,13 +925,13 @@ mod tests {
         // RandomBlock should be empty (no If blocks)
         assert_eq!(if_blocks.len(), 0);
         // Second unit should be the first Title token
-        let Unit::TokenWithPos(token) = &ast[1] else {
-            panic!("Second unit should be TokenWithPos, got: {:?}", ast[1]);
+        let Unit::TokenWithRange(token) = &ast[1] else {
+            panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
         assert!(matches!(token.content(), Title("A")));
         // Third unit should be the second Title token
-        let Unit::TokenWithPos(token) = &ast[2] else {
-            panic!("Third unit should be TokenWithPos, got: {:?}", ast[2]);
+        let Unit::TokenWithRange(token) = &ast[2] else {
+            panic!("Third unit should be TokenWithRange, got: {:?}", ast[2]);
         };
         assert!(matches!(token.content(), Title("B")));
     }
@@ -966,7 +966,7 @@ mod tests {
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         // Should not produce any errors
         assert_eq!(errors, vec![]);
-        // Should have two units: RandomBlock and TokenWithPos
+        // Should have two units: RandomBlock and TokenWithRange
         assert_eq!(ast.len(), 2);
         // First unit should be RandomBlock with two If blocks
         let Unit::RandomBlock { if_blocks, .. } = &ast[0] else {
@@ -974,8 +974,8 @@ mod tests {
         };
         assert_eq!(if_blocks.len(), 2);
         // Second unit should be the final Title token
-        let Unit::TokenWithPos(token) = &ast[1] else {
-            panic!("Second unit should be TokenWithPos, got: {:?}", ast[1]);
+        let Unit::TokenWithRange(token) = &ast[1] else {
+            panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
         assert!(matches!(token.content(), Title("00114:00000044")));
     }

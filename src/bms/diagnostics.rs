@@ -1,8 +1,8 @@
 //! Fancy diagnostics support using `ariadne`.
 //!
 //! This module provides convenient methods to convert errors carrying `SourcePosMixin`
-//! (such as `LexWarningWithPos`, `ParseWarningWithPos`, `AstBuildWarningWithPos`,
-//! `AstParseWarningWithPos`, and the aggregated `BmsWarning`) to `ariadne::Report`
+//! (such as `LexWarningWithRange`, `ParseWarningWithRange`, `AstBuildWarningWithRange`,
+//! `AstParseWarningWithRange`, and the aggregated `BmsWarning`) to `ariadne::Report`
 //! without modifying existing error type definitions.
 //!
 //! Since `SourcePosMixin` contains index span information (start/end byte offsets), this module
@@ -24,9 +24,9 @@
 
 use crate::bms::{
     BmsWarning,
-    ast::{AstBuildWarningWithPos, AstParseWarning, AstParseWarningWithPos},
-    lex::LexWarningWithPos,
-    parse::ParseWarningWithPos,
+    ast::{AstBuildWarningWithRange, AstParseWarning, AstParseWarningWithRange},
+    lex::LexWarningWithRange,
+    parse::ParseWarningWithRange,
 };
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
@@ -228,7 +228,7 @@ pub trait ToAriadne {
     -> Report<'a, (String, std::ops::Range<usize>)>;
 }
 
-impl ToAriadne for LexWarningWithPos {
+impl ToAriadne for LexWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
@@ -247,7 +247,7 @@ impl ToAriadne for LexWarningWithPos {
     }
 }
 
-impl ToAriadne for ParseWarningWithPos {
+impl ToAriadne for ParseWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
@@ -266,7 +266,7 @@ impl ToAriadne for ParseWarningWithPos {
     }
 }
 
-impl ToAriadne for AstBuildWarningWithPos {
+impl ToAriadne for AstBuildWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
@@ -285,7 +285,7 @@ impl ToAriadne for AstBuildWarningWithPos {
     }
 }
 
-impl ToAriadne for AstParseWarningWithPos {
+impl ToAriadne for AstParseWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,

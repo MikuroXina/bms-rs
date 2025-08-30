@@ -1,23 +1,23 @@
 use num::BigUint;
 
-use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithPos};
+use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithRange};
 use core::ops::RangeInclusive;
 
 use super::rng::Rng;
 use super::{
-    AstParseWarning, AstParseWarningWithPos,
+    AstParseWarning, AstParseWarningWithRange,
     structure::{BlockValue, CaseBranchValue, Unit},
 };
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
     rng: &mut impl Rng,
-) -> (Vec<&'a TokenWithPos<'a>>, Vec<AstParseWarningWithPos>) {
-    let mut result: Vec<&'a TokenWithPos<'a>> = Vec::new();
+) -> (Vec<&'a TokenWithRange<'a>>, Vec<AstParseWarningWithRange>) {
+    let mut result: Vec<&'a TokenWithRange<'a>> = Vec::new();
     let mut warnings = Vec::new();
     for unit in iter.by_ref() {
         match unit {
-            Unit::TokenWithPos(token) => {
+            Unit::TokenWithRange(token) => {
                 result.push(token);
             }
             Unit::RandomBlock {
@@ -156,7 +156,7 @@ mod tests {
         let mut if_branches = BTreeMap::new();
         if_branches.insert(
             BigUint::from(u64::MAX),
-            vec![Unit::TokenWithPos(&t_if)].into_wrapper_manual(14, 23),
+            vec![Unit::TokenWithRange(&t_if)].into_wrapper_manual(14, 23),
         );
         let units = vec![
             Unit::RandomBlock {
@@ -178,7 +178,7 @@ mod tests {
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(u64::MAX))
                         .into_wrapper_manual(14, 23),
-                    units: vec![Unit::TokenWithPos(&t_case)],
+                    units: vec![Unit::TokenWithRange(&t_case)],
                 }],
                 end_sw: ().into_wrapper_manual(14, 23),
             },
@@ -214,7 +214,7 @@ mod tests {
                 .into_wrapper_manual(14, 23),
                 cases: vec![CaseBranch {
                     value: CaseBranchValue::Case(BigUint::from(2u64)).into_wrapper_manual(14, 23),
-                    units: vec![Unit::TokenWithPos(&t_switch_in_random)],
+                    units: vec![Unit::TokenWithRange(&t_switch_in_random)],
                 }],
                 end_sw: ().into_wrapper_manual(14, 23),
             }]
@@ -255,7 +255,7 @@ mod tests {
                     let mut b = BTreeMap::new();
                     b.insert(
                         BigUint::from(2u64),
-                        vec![Unit::TokenWithPos(&t_random_in_switch)].into_wrapper_manual(14, 23),
+                        vec![Unit::TokenWithRange(&t_random_in_switch)].into_wrapper_manual(14, 23),
                     );
                     IfBlock {
                         branches: b,
@@ -310,7 +310,7 @@ mod tests {
                             let mut b = BTreeMap::new();
                             b.insert(
                                 BigUint::from(1u64),
-                                vec![Unit::TokenWithPos(&t_deep_nested)]
+                                vec![Unit::TokenWithRange(&t_deep_nested)]
                                     .into_wrapper_manual(14, 23),
                             );
                             IfBlock {

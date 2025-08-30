@@ -7,7 +7,7 @@ use bms_rs::bms::prelude::*;
 fn main() {
     println!("=== BMS-RS Diagnostics Functionality Demo ===\n");
 
-    // Demonstrate usage of all XXXWarningWithPos types
+    // Demonstrate usage of all XXXWarningWithRange types
     demonstrate_warning_types();
 
     println!("\n=== Integration Usage Example ===\n");
