@@ -55,7 +55,7 @@ fn demonstrate_integration() {
 "#;
 
     println!("   Parsing BMS file...");
-    let output = parse_bms(bms_source);
+    let output = parse_bms::<KeyLayoutBeat>(bms_source);
 
     println!(
         "   Parsing completed, found {} warnings",

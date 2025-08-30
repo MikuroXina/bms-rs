@@ -18,7 +18,7 @@ fn main() {
     println!("Parsing BMS file and displaying diagnostic information...\n");
 
     // Parse BMS file
-    let output = parse_bms(bms_source);
+    let output = parse_bms::<KeyLayoutBeat>(bms_source);
 
     // Display parsing results
     println!(
