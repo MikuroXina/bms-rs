@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v1.0.0) (2025-08-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Move out AST steps ([#164](https://github.com/MikuroXina/bms-rs/issues/164))
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149))
+* impl From<Bmson> for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146))
+
+### Features
+
+* Add AstParseWarning ([#178](https://github.com/MikuroXina/bms-rs/issues/178)) ([7169d5c](https://github.com/MikuroXina/bms-rs/commit/7169d5c0dd7d9f044c6adfa75aec1ffc2b8fc056))
+* add ParseWarning::UnexpectedControlFlow ([#155](https://github.com/MikuroXina/bms-rs/issues/155)) ([5655747](https://github.com/MikuroXina/bms-rs/commit/5655747e435d2e718c465a6acc44c52177e3012a))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146)) ([08b61ee](https://github.com/MikuroXina/bms-rs/commit/08b61ee314240ff0eaf512a66f0eb4192d944d04))
+* auto-close random-block ([#175](https://github.com/MikuroXina/bms-rs/issues/175)) ([2c7d9ee](https://github.com/MikuroXina/bms-rs/commit/2c7d9ee87f938b8049f1e152a2455900b38015f8))
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157)) ([1c2afb4](https://github.com/MikuroXina/bms-rs/commit/1c2afb445f126dd19fe71e9c655a2692dac9f02c))
+* Impl ast to token ([#170](https://github.com/MikuroXina/bms-rs/issues/170)) ([872293c](https://github.com/MikuroXina/bms-rs/commit/872293ce0f1b62a5f9a26cd58d4164f178463d8a))
+* impl From&lt;Bmson&gt; for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145)) ([ed0c95f](https://github.com/MikuroXina/bms-rs/commit/ed0c95f1f74643b73858a11c6c79f6e0186735fb))
+* Impl keymapping convert, add beatoraja's random & r-random impl ([#166](https://github.com/MikuroXina/bms-rs/issues/166)) ([f9f244c](https://github.com/MikuroXina/bms-rs/commit/f9f244ca06de1ab1fd046b9e4bbae2dc96b6b708))
+* Impl text pos mixin ([#151](https://github.com/MikuroXina/bms-rs/issues/151)) ([0460db8](https://github.com/MikuroXina/bms-rs/commit/0460db838709fd2e2bb9f1dead5f289eb75a67ad))
+* Impl token to string ([#167](https://github.com/MikuroXina/bms-rs/issues/167)) ([93f441e](https://github.com/MikuroXina/bms-rs/commit/93f441e2b905facdbef016c8a5d370a5a6bb4688))
+* Impl validity for bms ([#183](https://github.com/MikuroXina/bms-rs/issues/183)) ([82df2f1](https://github.com/MikuroXina/bms-rs/commit/82df2f12ce0e07324af86f129aa71bded294c2da))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149)) ([159fb8f](https://github.com/MikuroXina/bms-rs/commit/159fb8ffe16f56d0dd2a042d0b877dad37400a80))
+* make `&tokens` able for all steps ([#163](https://github.com/MikuroXina/bms-rs/issues/163)) ([1219c78](https://github.com/MikuroXina/bms-rs/commit/1219c78839fab02875ff53d5b74d29949cd3e8e8))
+* make ast structure public, make the AstParseWarning get the pos ([#182](https://github.com/MikuroXina/bms-rs/issues/182)) ([a6d288d](https://github.com/MikuroXina/bms-rs/commit/a6d288d81de89893b224d9c26642b06a5b0b42f2))
+* Move out ast part ([#159](https://github.com/MikuroXina/bms-rs/issues/159)) ([a0df07b](https://github.com/MikuroXina/bms-rs/commit/a0df07b30e28db883f45b3af8d699773ebd6d72e))
+* Move out AST steps ([#164](https://github.com/MikuroXina/bms-rs/issues/164)) ([f12689d](https://github.com/MikuroXina/bms-rs/commit/f12689d2226798f55129d83712021902746e7846))
+* new channel convert method ([#153](https://github.com/MikuroXina/bms-rs/issues/153)) ([4a7b69d](https://github.com/MikuroXina/bms-rs/commit/4a7b69d3034e46621f23f96a39d87e633b69731f))
+* Split prompt warning types ([#158](https://github.com/MikuroXina/bms-rs/issues/158)) ([b0fe15b](https://github.com/MikuroXina/bms-rs/commit/b0fe15b90d1b21c0cfc75800b8534863e22d3fa1))
+* support for --no-default-features ([#177](https://github.com/MikuroXina/bms-rs/issues/177)) ([fc6d348](https://github.com/MikuroXina/bms-rs/commit/fc6d34843a1b360df4cbc6bbecf263e6318b9179))
+
+
+### Bug Fixes
+
+* base eprintln and clippy(never_loop) ([#174](https://github.com/MikuroXina/bms-rs/issues/174)) ([ed9d9fc](https://github.com/MikuroXina/bms-rs/commit/ed9d9fcfc916ee1e906eb000a7921764cbb3a053))
+* split `PlayerSide` for `ids_by_key` ([#168](https://github.com/MikuroXina/bms-rs/issues/168)) ([d9c73fc](https://github.com/MikuroXina/bms-rs/commit/d9c73fcf5f701fe8a406dd76dedd40eca3e63b7d))
+* use "WithPos" postfix ([#152](https://github.com/MikuroXina/bms-rs/issues/152)) ([78a0c4a](https://github.com/MikuroXina/bms-rs/commit/78a0c4adbe1b9327e39d3876dfd0bd747d3ed2db))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154)) ([bad36e8](https://github.com/MikuroXina/bms-rs/commit/bad36e812ce2024c721d8ffbbabeddbdfa598319))
+
 ## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-08-03)
 
 
