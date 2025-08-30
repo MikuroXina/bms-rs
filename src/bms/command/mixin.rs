@@ -62,7 +62,7 @@ impl<T> SourcePosMixin<T> {
 
     /// Returns true if the source span's length is 0.
     pub fn is_empty(&self) -> bool {
-        self.start == self.end
+        self.len() == 0
     }
 }
 
