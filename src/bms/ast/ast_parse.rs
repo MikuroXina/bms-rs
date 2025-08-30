@@ -24,7 +24,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 value, if_blocks, ..
             } => {
                 // Select branch
-                let (row, col) = (value.row(), value.column());
+                let (start, end) = value.as_span();
                 let branch_val = match value.into_content() {
                     BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
                     BlockValue::Random { max } => {
@@ -33,10 +33,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if !expected.contains(&v) {
                             warnings.push(
                                 AstParseWarning::RandomGeneratedValueOutOfRange {
-                                    expected: expected.clone().into_wrapper_manual(row, col),
+                                    expected: expected.clone().into_wrapper_manual(start, end),
                                     actual: v.clone(),
                                 }
-                                .into_wrapper_manual(row, col),
+                                .into_wrapper_manual(start, end),
                             );
                         }
                         v
@@ -71,7 +71,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 // If none found, do nothing
             }
             Unit::SwitchBlock { value, cases, .. } => {
-                let (row, col) = (value.row(), value.column());
+                let (start, end) = value.as_span();
                 let switch_val = match value.into_content() {
                     BlockValue::Random { max } if max == BigUint::from(0u64) => BigUint::from(0u64),
                     BlockValue::Random { max } => {
@@ -80,10 +80,10 @@ pub(super) fn parse_control_flow_ast<'a>(
                         if !expected.contains(&v) {
                             warnings.push(
                                 AstParseWarning::SwitchGeneratedValueOutOfRange {
-                                    expected: expected.clone().into_wrapper_manual(row, col),
+                                    expected: expected.clone().into_wrapper_manual(start, end),
                                     actual: v.clone(),
                                 }
-                                .into_wrapper_manual(row, col),
+                                .into_wrapper_manual(start, end),
                             );
                         }
                         v

@@ -125,10 +125,10 @@ impl<'a> TokenStream<'a> {
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
+            let token_start = cursor.index();
             match Token::parse(&mut cursor) {
                 Ok(content) => {
-                    let line = cursor.line();
-                    let col = cursor.col();
+                    let token_end = cursor.index();
 
                     // If the token is UnknownCommand, also add a warning
                     if let Token::UnknownCommand(cmd) = &content {
@@ -136,15 +136,16 @@ impl<'a> TokenStream<'a> {
                             LexWarning::UnknownCommand {
                                 command: cmd.to_string(),
                             }
-                            .into_wrapper_manual(line, col),
+                            .into_wrapper_manual(token_start, token_end),
                         );
                     }
 
-                    let token_with_pos = content.into_wrapper_manual(line, col);
+                    let token_with_pos = content.into_wrapper_manual(token_start, token_end);
                     tokens.push(token_with_pos);
                 }
                 Err(warning) => {
-                    warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))
+                    let token_end = cursor.index();
+                    warnings.push(warning.into_wrapper_manual(token_start, token_end))
                 }
             };
         }

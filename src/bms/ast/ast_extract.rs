@@ -100,9 +100,11 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (skip_row, skip_column) =
-                    tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
-                let skip_token = Token::Skip.into_wrapper_manual(skip_row + 1, skip_column);
+                let (_skip_start, skip_end) = tokens
+                    .last()
+                    .map(|t| t.as_span())
+                    .unwrap_or(value.as_span());
+                let skip_token = Token::Skip.into_wrapper_manual(skip_end, skip_end);
                 tokens.push(skip_token);
             }
             CaseBranchValue::Def => {
@@ -113,9 +115,11 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (skip_row, skip_column) =
-                    tokens.last().map(|t| t.as_pos()).unwrap_or(value.as_pos());
-                let skip_token = Token::Skip.into_wrapper_manual(skip_row + 1, skip_column);
+                let (_skip_start, skip_end) = tokens
+                    .last()
+                    .map(|t| t.as_span())
+                    .unwrap_or(value.as_span());
+                let skip_token = Token::Skip.into_wrapper_manual(skip_end, skip_end);
                 tokens.push(skip_token);
             }
         }

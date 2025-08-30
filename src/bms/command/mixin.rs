@@ -1,27 +1,27 @@
 //! Mixin types for structures.
 //!
-//! - `SourcePosMixin` is a generic wrapper that attaches position information (row/column) to a value.
+//! - `SourcePosMixin` is a generic wrapper that attaches position information (index span) to a value.
 //! - `SourcePosMixinExt` is a trait that provides extension methods for `SourcePosMixin`, providing more convenient methods to create `SourcePosMixin` instances.
 
-/// A generic wrapper that attaches position information (row/column) to a value.
+/// A generic wrapper that attaches position information (index span) to a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SourcePosMixin<T> {
     /// Wrapped content value
     content: T,
-    /// Source line number (1-based)
-    row: usize,
-    /// Source column number (1-based)
-    column: usize,
+    /// Start index in the source string (0-based, inclusive)
+    start: usize,
+    /// End index in the source string (0-based, exclusive)
+    end: usize,
 }
 
 impl<T> SourcePosMixin<T> {
     /// Instances a new `SourcePosMixin`
-    pub const fn new(content: T, row: usize, column: usize) -> Self {
+    pub const fn new(content: T, start: usize, end: usize) -> Self {
         Self {
             content,
-            row,
-            column,
+            start,
+            end,
         }
     }
 
@@ -40,19 +40,29 @@ impl<T> SourcePosMixin<T> {
         self.content
     }
 
-    /// Returns the row number of the source position.
-    pub fn row(&self) -> usize {
-        self.row
+    /// Returns the start index of the source span.
+    pub fn start(&self) -> usize {
+        self.start
     }
 
-    /// Returns the column number of the source position.
-    pub fn column(&self) -> usize {
-        self.column
+    /// Returns the end index of the source span.
+    pub fn end(&self) -> usize {
+        self.end
     }
 
-    /// Returns the source position as a tuple of (row, column).
-    pub fn as_pos(&self) -> (usize, usize) {
-        (self.row, self.column)
+    /// Returns the source span as a tuple of (start, end).
+    pub fn as_span(&self) -> (usize, usize) {
+        (self.start, self.end)
+    }
+
+    /// Returns the length of the source span.
+    pub fn len(&self) -> usize {
+        self.end.saturating_sub(self.start)
+    }
+
+    /// Returns true if the source span's length is 0.
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
     }
 }
 
@@ -60,7 +70,7 @@ impl<'a, T> SourcePosMixin<T> {
     /// Returns the inner reference version of the wrapper.
     pub fn inner_ref(&'a self) -> SourcePosMixin<&'a T> {
         let content = &self.content;
-        SourcePosMixin::new(content, self.row, self.column)
+        SourcePosMixin::new(content, self.start, self.end)
     }
 }
 
@@ -70,7 +80,7 @@ impl<T> SourcePosMixin<T> {
     where
         F: FnOnce(T) -> U,
     {
-        SourcePosMixin::new(f(self.content), self.row, self.column)
+        SourcePosMixin::new(f(self.content), self.start, self.end)
     }
 }
 
@@ -78,8 +88,8 @@ impl<T: std::fmt::Display> std::fmt::Display for SourcePosMixin<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} at line {}, column {}",
-            self.content, self.row, self.column
+            "{} at indices [{}, {})",
+            self.content, self.start, self.end
         )
     }
 }
@@ -92,7 +102,14 @@ impl<T> From<(T, usize, usize)> for SourcePosMixin<T> {
 
 impl<T> From<SourcePosMixin<T>> for (T, usize, usize) {
     fn from(value: SourcePosMixin<T>) -> Self {
-        (value.content, value.row, value.column)
+        (value.content, value.start, value.end)
+    }
+}
+
+// Convenience implementation for creating empty SourcePosMixin with just a span
+impl From<(usize, usize)> for SourcePosMixin<()> {
+    fn from(value: (usize, usize)) -> Self {
+        Self::new((), value.0, value.1)
     }
 }
 
@@ -104,28 +121,28 @@ impl<T: std::error::Error + 'static> std::error::Error for SourcePosMixin<T> {
 
 /// Extension methods for `SourcePosMixin`.
 pub trait SourcePosMixinExt {
-    /// Instances a new `SourcePosMixin` with the same row and column as a wrapper.
+    /// Instances a new `SourcePosMixin` with the same span as a wrapper.
     fn into_wrapper<W>(self, wrapper: &SourcePosMixin<W>) -> SourcePosMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, wrapper.row, wrapper.column)
+        SourcePosMixin::new(self, wrapper.start, wrapper.end)
     }
 
-    /// Instances a new `SourcePosMixin` with a given row and column.
-    fn into_wrapper_manual(self, row: usize, column: usize) -> SourcePosMixin<Self>
+    /// Instances a new `SourcePosMixin` with a given start and end indices.
+    fn into_wrapper_manual(self, start: usize, end: usize) -> SourcePosMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, row, column)
+        SourcePosMixin::new(self, start, end)
     }
 
-    /// Instances a new `SourcePosMixin` with a given (row, column).
-    fn into_wrapper_tuple(self, pos: (usize, usize)) -> SourcePosMixin<Self>
+    /// Instances a new `SourcePosMixin` with a given (start, end) span.
+    fn into_wrapper_span(self, span: (usize, usize)) -> SourcePosMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, pos.0, pos.1)
+        SourcePosMixin::new(self, span.0, span.1)
     }
 }
 

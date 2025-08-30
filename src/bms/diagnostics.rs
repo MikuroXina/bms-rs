@@ -5,9 +5,9 @@
 //! `AstParseWarningWithPos`, and the aggregated `BmsWarning`) to `ariadne::Report`
 //! without modifying existing error type definitions.
 //!
-//! Since `SourcePosMixin` only contains row and column information (1-based), this module
-//! provides tools to convert row/column to byte offsets for constructing the byte ranges
-//! required by `ariadne`, with line-based whole-line positioning.
+//! Since `SourcePosMixin` contains index span information (start/end byte offsets), this module
+//! provides tools to convert byte offsets to row/column positions for display purposes,
+//! with line-based whole-line positioning.
 //!
 //! # Usage Example
 //!
@@ -128,6 +128,67 @@ impl<'a> SimpleSource<'a> {
     pub fn text(&self) -> &'a str {
         self.text
     }
+
+    /// Convert byte offset to 1-based (row, col) position.
+    /// Returns (row, col) where both are 1-based.
+    ///
+    /// # Parameters
+    /// * `offset` - Byte offset in the source text (0-based)
+    ///
+    /// # Returns
+    /// Returns (row, col) as 1-based values
+    pub fn offset_to_position(&self, offset: usize) -> (usize, usize) {
+        // Clamp offset to valid range
+        let offset = offset.min(self.text.len());
+
+        // Find the line containing this offset
+        let mut row = 1;
+        let mut line_start = 0;
+
+        for (i, &start) in self.line_starts.iter().enumerate() {
+            if start > offset {
+                // Found the line before this offset
+                row = i;
+                line_start = self.line_starts[i - 1];
+                break;
+            }
+        }
+
+        // If we didn't find it, it's on the last line
+        if row == 1 && self.line_starts.len() > 1 {
+            for (i, &start) in self.line_starts.iter().enumerate() {
+                if start <= offset {
+                    row = i + 1;
+                    line_start = start;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Calculate column within the line
+        let line_text = &self.text[line_start
+            ..self
+                .line_starts
+                .get(row)
+                .copied()
+                .unwrap_or(self.text.len())];
+        let col_offset = offset - line_start;
+
+        // Count characters up to the offset
+        let mut col = 1;
+        let mut byte_count = 0;
+
+        for ch in line_text.chars() {
+            if byte_count >= col_offset {
+                break;
+            }
+            col += 1;
+            byte_count += ch.len_utf8();
+        }
+
+        (row, col)
+    }
 }
 
 /// Trait for converting positioned errors to `ariadne::Report`.
@@ -172,7 +233,8 @@ impl ToAriadne for LexWarningWithPos {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (row, col) = self.as_pos();
+        let (start, _end) = self.as_span();
+        let (row, col) = src.offset_to_position(start);
         let span = src.line_span(row);
         Report::build(ReportKind::Warning, src.name.to_string(), span.start)
             .with_message("lex: ".to_string() + &self.content().to_string())
@@ -190,7 +252,8 @@ impl ToAriadne for ParseWarningWithPos {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (row, col) = self.as_pos();
+        let (start, _end) = self.as_span();
+        let (row, col) = src.offset_to_position(start);
         let span = src.line_span(row);
         Report::build(ReportKind::Warning, src.name.to_string(), span.start)
             .with_message("parse: ".to_string() + &self.content().to_string())
@@ -208,7 +271,8 @@ impl ToAriadne for AstBuildWarningWithPos {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (row, col) = self.as_pos();
+        let (start, _end) = self.as_span();
+        let (row, col) = src.offset_to_position(start);
         let span = src.line_span(row);
         Report::build(ReportKind::Warning, src.name.to_string(), span.start)
             .with_message("ast_build: ".to_string() + &self.content().to_string())
@@ -226,7 +290,8 @@ impl ToAriadne for AstParseWarningWithPos {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (row, col) = self.as_pos();
+        let (start, _end) = self.as_span();
+        let (row, col) = src.offset_to_position(start);
         let span = src.line_span(row);
 
         // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
