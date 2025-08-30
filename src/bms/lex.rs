@@ -215,7 +215,7 @@ mod tests {
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
                         side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        key: Key::Key(1),
                     },
                     message: "0303030303".into(),
                 },
@@ -224,7 +224,7 @@ mod tests {
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
                         side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        key: Key::Key(1),
                     },
                     message: "0303000303".into(),
                 },
@@ -233,7 +233,7 @@ mod tests {
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
                         side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        key: Key::Key(1),
                     },
                     message: "010101".into(),
                 },
@@ -242,7 +242,7 @@ mod tests {
                     channel: Channel::Note {
                         kind: NoteKind::Visible,
                         side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        key: Key::Key(1),
                     },
                     message: "00020202".into(),
                 },

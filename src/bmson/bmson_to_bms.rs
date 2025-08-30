@@ -346,15 +346,15 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key1,
-        2 => Key::Key2,
-        3 => Key::Key3,
-        4 => Key::Key4,
-        5 => Key::Key5,
-        6 => Key::Key6,
-        7 => Key::Key7,
-        8 => Key::Scratch,
-        _ => Key::Key1, // Default fallback
+        1 => Key::Key(1),
+        2 => Key::Key(2),
+        3 => Key::Key(3),
+        4 => Key::Key(4),
+        5 => Key::Key(5),
+        6 => Key::Key(6),
+        7 => Key::Key(7),
+        8 => Key::Scratch(1),
+        _ => Key::Key(1), // Default fallback
     };
 
     (key, side)

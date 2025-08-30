@@ -1,6 +1,7 @@
 //! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and [`convert_key_mapping_between`] function.
 
 use super::{Key, KeyMapping, PlayerSide};
+use Key::*;
 
 /// Trait for key channel mode implementations.
 ///
@@ -84,22 +85,20 @@ impl KeyMapping for KeyLayoutPmsBmeType {
 
 impl KeyLayoutMapper for KeyLayoutPmsBmeType {
     fn to_beat(self) -> KeyLayoutBeat {
-        use Key::*;
         let (side, key) = self.into_tuple();
         let key = match key {
-            Key8 => Scratch,
-            Key9 => FreeZone,
+            Key(8) => Scratch(1),
+            Key(9) => FreeZone,
             other => other,
         };
         KeyLayoutBeat::new(side, key)
     }
 
     fn from_beat(beat_map: KeyLayoutBeat) -> Self {
-        use Key::*;
         let (side, key) = beat_map.into_tuple();
         let key = match key {
-            Scratch => Key8,
-            FreeZone => Key9,
+            Scratch(1) => Key(8),
+            FreeZone => Key(9),
             _ => key,
         };
         KeyLayoutPmsBmeType::new(side, key)
@@ -134,30 +133,28 @@ impl KeyMapping for KeyLayoutPms {
 
 impl KeyLayoutMapper for KeyLayoutPms {
     fn to_beat(self) -> KeyLayoutBeat {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = self.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => (Player1, key),
-            (Player1, Key6) => (Player2, Key2),
-            (Player1, Key7) => (Player2, Key3),
-            (Player1, Key8) => (Player2, Key4),
-            (Player1, Key9) => (Player2, Key5),
+            (Player1, Key(1) | Key(2) | Key(3) | Key(4) | Key(5)) => (Player1, key),
+            (Player1, Key(6)) => (Player2, Key(2)),
+            (Player1, Key(7)) => (Player2, Key(3)),
+            (Player1, Key(8)) => (Player2, Key(4)),
+            (Player1, Key(9)) => (Player2, Key(5)),
             other => other,
         };
         KeyLayoutBeat::new(side, key)
     }
 
     fn from_beat(beat_map: KeyLayoutBeat) -> Self {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = beat_map.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => (Player1, key),
-            (Player2, Key2) => (Player1, Key6),
-            (Player2, Key3) => (Player1, Key7),
-            (Player2, Key4) => (Player1, Key8),
-            (Player2, Key5) => (Player1, Key9),
+            (Player1, Key(1) | Key(2) | Key(3) | Key(4) | Key(5)) => (Player1, key),
+            (Player2, Key(2)) => (Player1, Key(6)),
+            (Player2, Key(3)) => (Player1, Key(7)),
+            (Player2, Key(4)) => (Player1, Key(8)),
+            (Player2, Key(5)) => (Player1, Key(9)),
             other => other,
         };
         KeyLayoutPms::new(side, key)
@@ -192,7 +189,6 @@ impl KeyMapping for KeyLayoutBeatNanasi {
 
 impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn to_beat(self) -> KeyLayoutBeat {
-        use Key::*;
         let (side, key) = self.into_tuple();
         let key = match key {
             FootPedal => FreeZone,
@@ -202,7 +198,6 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     }
 
     fn from_beat(beat_map: KeyLayoutBeat) -> Self {
-        use Key::*;
         let (side, key) = beat_map.into_tuple();
         let key = match key {
             FreeZone => FootPedal,
@@ -240,38 +235,42 @@ impl KeyMapping for KeyLayoutDscOctFp {
 
 impl KeyLayoutMapper for KeyLayoutDscOctFp {
     fn to_beat(self) -> KeyLayoutBeat {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = self.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch) => (Player1, key),
-            (Player1, ScratchExtra) => (Player2, Scratch),
-            (Player1, FootPedal) => (Player2, Key1),
-            (Player1, Key8) => (Player2, Key2),
-            (Player1, Key9) => (Player2, Key3),
-            (Player1, Key10) => (Player2, Key4),
-            (Player1, Key11) => (Player2, Key5),
-            (Player1, Key12) => (Player2, Key6),
-            (Player1, Key13) => (Player2, Key7),
+            (
+                Player1,
+                Key(1) | Key(2) | Key(3) | Key(4) | Key(5) | Key(6) | Key(7) | Scratch(1),
+            ) => (Player1, key),
+            (Player1, Scratch(2)) => (Player2, Scratch(1)),
+            (Player1, FootPedal) => (Player2, Key(1)),
+            (Player1, Key(8)) => (Player2, Key(2)),
+            (Player1, Key(9)) => (Player2, Key(3)),
+            (Player1, Key(10)) => (Player2, Key(4)),
+            (Player1, Key(11)) => (Player2, Key(5)),
+            (Player1, Key(12)) => (Player2, Key(6)),
+            (Player1, Key(13)) => (Player2, Key(7)),
             (s, other) => (s, other),
         };
         KeyLayoutBeat::new(side, key)
     }
 
     fn from_beat(beat_map: KeyLayoutBeat) -> Self {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = beat_map.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5 | Key6 | Key7 | Scratch) => (Player1, key),
-            (Player2, Key1) => (Player1, FootPedal),
-            (Player2, Key2) => (Player1, Key8),
-            (Player2, Key3) => (Player1, Key9),
-            (Player2, Key4) => (Player1, Key10),
-            (Player2, Key5) => (Player1, Key11),
-            (Player2, Key6) => (Player1, Key12),
-            (Player2, Key7) => (Player1, Key13),
-            (Player2, Scratch) => (Player1, ScratchExtra),
+            (
+                Player1,
+                Key(1) | Key(2) | Key(3) | Key(4) | Key(5) | Key(6) | Key(7) | Scratch(1),
+            ) => (Player1, key),
+            (Player2, Key(1)) => (Player1, FootPedal),
+            (Player2, Key(2)) => (Player1, Key(8)),
+            (Player2, Key(3)) => (Player1, Key(9)),
+            (Player2, Key(4)) => (Player1, Key(10)),
+            (Player2, Key(5)) => (Player1, Key(11)),
+            (Player2, Key(6)) => (Player1, Key(12)),
+            (Player2, Key(7)) => (Player1, Key(13)),
+            (Player2, Scratch(1)) => (Player1, Scratch(2)),
             (s, k) => (s, k),
         };
         KeyLayoutDscOctFp::new(side, key)

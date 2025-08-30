@@ -210,36 +210,36 @@ mod channel_mode_tests {
     fn test_key_channel_mode_mirror() {
         // Test 1: 3 keys
         let keys = vec![
-            (PlayerSide::Player1, Key::Key1),
-            (PlayerSide::Player1, Key::Key2),
-            (PlayerSide::Player1, Key::Key3),
-            (PlayerSide::Player1, Key::Key4),
-            (PlayerSide::Player1, Key::Key5),
-            (PlayerSide::Player2, Key::Key1),
-            (PlayerSide::Player2, Key::Key2),
-            (PlayerSide::Player2, Key::Key3),
-            (PlayerSide::Player2, Key::Key4),
-            (PlayerSide::Player2, Key::Key5),
+            (PlayerSide::Player1, Key::Key(1)),
+            (PlayerSide::Player1, Key::Key(2)),
+            (PlayerSide::Player1, Key::Key(3)),
+            (PlayerSide::Player1, Key::Key(4)),
+            (PlayerSide::Player1, Key::Key(5)),
+            (PlayerSide::Player2, Key::Key(1)),
+            (PlayerSide::Player2, Key::Key(2)),
+            (PlayerSide::Player2, Key::Key(3)),
+            (PlayerSide::Player2, Key::Key(4)),
+            (PlayerSide::Player2, Key::Key(5)),
         ]
         .into_iter()
         .map(|(side, key)| KeyLayoutBeat::new(side, key))
         .collect::<Vec<_>>();
         let mut mode = KeyLayoutConvertMirror {
             side: PlayerSide::Player1,
-            keys: vec![Key::Key1, Key::Key2, Key::Key3],
+            keys: vec![Key::Key(1), Key::Key(2), Key::Key(3)],
         };
         let result = keys.iter().map(|k| mode.convert(*k)).collect::<Vec<_>>();
         let expected = vec![
-            (PlayerSide::Player1, Key::Key3),
-            (PlayerSide::Player1, Key::Key2),
-            (PlayerSide::Player1, Key::Key1),
-            (PlayerSide::Player1, Key::Key4),
-            (PlayerSide::Player1, Key::Key5),
-            (PlayerSide::Player2, Key::Key1),
-            (PlayerSide::Player2, Key::Key2),
-            (PlayerSide::Player2, Key::Key3),
-            (PlayerSide::Player2, Key::Key4),
-            (PlayerSide::Player2, Key::Key5),
+            (PlayerSide::Player1, Key::Key(3)),
+            (PlayerSide::Player1, Key::Key(2)),
+            (PlayerSide::Player1, Key::Key(1)),
+            (PlayerSide::Player1, Key::Key(4)),
+            (PlayerSide::Player1, Key::Key(5)),
+            (PlayerSide::Player2, Key::Key(1)),
+            (PlayerSide::Player2, Key::Key(2)),
+            (PlayerSide::Player2, Key::Key(3)),
+            (PlayerSide::Player2, Key::Key(4)),
+            (PlayerSide::Player2, Key::Key(5)),
         ]
         .into_iter()
         .map(|(side, key)| KeyLayoutBeat::new(side, key))
@@ -298,13 +298,13 @@ mod channel_mode_tests {
         for (i, (list, seed)) in examples.iter().enumerate() {
             println!("Test case {}: seed = {}", i, seed);
             let init_keys = [
-                Key::Key1,
-                Key::Key2,
-                Key::Key3,
-                Key::Key4,
-                Key::Key5,
-                Key::Key6,
-                Key::Key7,
+                Key::Key(1),
+                Key::Key(2),
+                Key::Key(3),
+                Key::Key(4),
+                Key::Key(5),
+                Key::Key(6),
+                Key::Key(7),
             ];
             let mut rnd = KeyLayoutConvertLaneRandomShuffle::new(
                 PlayerSide::Player1,
@@ -314,7 +314,12 @@ mod channel_mode_tests {
             let result_values = init_keys
                 .into_iter()
                 .map(|k| rnd.convert(KeyLayoutBeat::new(PlayerSide::Player1, k)))
-                .map(|v| v.key() as usize)
+                .map(|v| match v.key() {
+                    Key::Key(n) => n as usize,
+                    Key::Scratch(n) => n as usize + 10,
+                    Key::FootPedal => 20,
+                    Key::FreeZone => 21,
+                })
                 .collect::<Vec<_>>();
             println!("  Expected: {:?}", list);
             println!("  Got:      {:?}", result_values);
