@@ -210,36 +210,40 @@ mod channel_mode_tests {
     fn test_key_channel_mode_mirror() {
         // Test 1: 3 keys
         let keys = vec![
-            (PlayerSide::Player1, Key::Key1),
-            (PlayerSide::Player1, Key::Key2),
-            (PlayerSide::Player1, Key::Key3),
-            (PlayerSide::Player1, Key::Key4),
-            (PlayerSide::Player1, Key::Key5),
-            (PlayerSide::Player2, Key::Key1),
-            (PlayerSide::Player2, Key::Key2),
-            (PlayerSide::Player2, Key::Key3),
-            (PlayerSide::Player2, Key::Key4),
-            (PlayerSide::Player2, Key::Key5),
+            (PlayerSide::Player1, Key::new_key(1).unwrap()),
+            (PlayerSide::Player1, Key::new_key(2).unwrap()),
+            (PlayerSide::Player1, Key::new_key(3).unwrap()),
+            (PlayerSide::Player1, Key::new_key(4).unwrap()),
+            (PlayerSide::Player1, Key::new_key(5).unwrap()),
+            (PlayerSide::Player2, Key::new_key(1).unwrap()),
+            (PlayerSide::Player2, Key::new_key(2).unwrap()),
+            (PlayerSide::Player2, Key::new_key(3).unwrap()),
+            (PlayerSide::Player2, Key::new_key(4).unwrap()),
+            (PlayerSide::Player2, Key::new_key(5).unwrap()),
         ]
         .into_iter()
         .map(|(side, key)| KeyLayoutBeat::new(side, key, NoteKind::Visible))
         .collect::<Vec<_>>();
         let mut mode = KeyLayoutConvertMirror {
             side: PlayerSide::Player1,
-            keys: vec![Key::Key1, Key::Key2, Key::Key3],
+            keys: vec![
+                Key::new_key(1).unwrap(),
+                Key::new_key(2).unwrap(),
+                Key::new_key(3).unwrap(),
+            ],
         };
         let result = keys.iter().map(|k| mode.convert(*k)).collect::<Vec<_>>();
         let expected = vec![
-            (PlayerSide::Player1, Key::Key3),
-            (PlayerSide::Player1, Key::Key2),
-            (PlayerSide::Player1, Key::Key1),
-            (PlayerSide::Player1, Key::Key4),
-            (PlayerSide::Player1, Key::Key5),
-            (PlayerSide::Player2, Key::Key1),
-            (PlayerSide::Player2, Key::Key2),
-            (PlayerSide::Player2, Key::Key3),
-            (PlayerSide::Player2, Key::Key4),
-            (PlayerSide::Player2, Key::Key5),
+            (PlayerSide::Player1, Key::new_key(3).unwrap()),
+            (PlayerSide::Player1, Key::new_key(2).unwrap()),
+            (PlayerSide::Player1, Key::new_key(1).unwrap()),
+            (PlayerSide::Player1, Key::new_key(4).unwrap()),
+            (PlayerSide::Player1, Key::new_key(5).unwrap()),
+            (PlayerSide::Player2, Key::new_key(1).unwrap()),
+            (PlayerSide::Player2, Key::new_key(2).unwrap()),
+            (PlayerSide::Player2, Key::new_key(3).unwrap()),
+            (PlayerSide::Player2, Key::new_key(4).unwrap()),
+            (PlayerSide::Player2, Key::new_key(5).unwrap()),
         ]
         .into_iter()
         .map(|(side, key)| KeyLayoutBeat::new(side, key, NoteKind::Visible))
@@ -298,13 +302,13 @@ mod channel_mode_tests {
         for (i, (list, seed)) in examples.iter().enumerate() {
             println!("Test case {}: seed = {}", i, seed);
             let init_keys = [
-                Key::Key1,
-                Key::Key2,
-                Key::Key3,
-                Key::Key4,
-                Key::Key5,
-                Key::Key6,
-                Key::Key7,
+                Key::new_key(1).unwrap(),
+                Key::new_key(2).unwrap(),
+                Key::new_key(3).unwrap(),
+                Key::new_key(4).unwrap(),
+                Key::new_key(5).unwrap(),
+                Key::new_key(6).unwrap(),
+                Key::new_key(7).unwrap(),
             ];
             let mut rnd = KeyLayoutConvertLaneRandomShuffle::new(
                 PlayerSide::Player1,
@@ -320,7 +324,13 @@ mod channel_mode_tests {
                         NoteKind::Visible,
                     ))
                 })
-                .map(|v| v.key() as usize)
+                .map(|v| match v.key() {
+                    Key::Key(idx) => idx.get() as usize,
+                    Key::Scratch(idx) => (idx.get() + 15) as usize, // Scratch is typically 16
+                    Key::ScratchExtra(idx) => (idx.get() + 16) as usize, // ScratchExtra is typically 17
+                    Key::FootPedal => 18,
+                    Key::FreeZone => 19,
+                })
                 .collect::<Vec<_>>();
             println!("  Expected: {:?}", list);
             println!("  Got:      {:?}", result_values);

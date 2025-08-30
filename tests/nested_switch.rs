@@ -144,10 +144,30 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                id55
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -167,15 +187,30 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 id66
             ),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -195,9 +230,24 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 2, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                id33
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 }
@@ -261,10 +311,30 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                id55
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -284,15 +354,30 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 id66
             ),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -312,9 +397,24 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 2, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                id33
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 }
@@ -378,10 +478,30 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                id55
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -401,15 +521,30 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 1, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                id22
+            ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 id66
             ),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 
@@ -429,9 +564,24 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
-            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
-            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
+            Obj::new_beat(
+                ObjTime::new(1, 0, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                id11
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 2, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                id33
+            ),
+            Obj::new_beat(
+                ObjTime::new(1, 3, 4),
+                PlayerSide::Player1,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                id44
+            ),
         ]
     );
 }
@@ -496,13 +646,13 @@ fn test_switch_insane() {
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
-                Key::Key3,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
                 PlayerSide::Player1,
-                Key::Key4,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
                 "04".try_into().unwrap()
             ),
         ]
@@ -529,13 +679,13 @@ fn test_switch_insane() {
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
-                Key::Key3,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
                 PlayerSide::Player1,
-                Key::Key4,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
                 "05".try_into().unwrap()
             ),
         ]
@@ -562,7 +712,7 @@ fn test_switch_insane() {
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
-                Key::Key3,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
                 "02".try_into().unwrap()
             ),
         ]
@@ -589,19 +739,19 @@ fn test_switch_insane() {
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
-                Key::Key3,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 "11".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 "11".try_into().unwrap()
             ),
         ]
@@ -628,19 +778,19 @@ fn test_switch_insane() {
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
-                Key::Key3,
+                Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 "22".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
                 PlayerSide::Player1,
-                Key::Scratch,
+                Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
                 "22".try_into().unwrap()
             ),
         ]
@@ -665,7 +815,7 @@ fn test_switch_insane() {
         vec![Obj::new_beat(
             ObjTime::new(0, 1, 2),
             PlayerSide::Player1,
-            Key::Key3,
+            Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
             "55".try_into().unwrap()
         ),]
     );

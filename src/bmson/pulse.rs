@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::bms::{
     Decimal,
     command::{
-        channel::mapper::PhysicalKey,
+        channel::mapper::KeyMapping,
         time::{ObjTime, Track},
     },
     parse::model::Bms,
@@ -33,7 +33,7 @@ pub struct PulseConverter {
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
-    pub fn new<T: PhysicalKey>(bms: &Bms<T>) -> Self {
+    pub fn new<T: KeyMapping>(bms: &Bms<T>) -> Self {
         let resolution: u64 = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
 

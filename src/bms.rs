@@ -33,7 +33,7 @@ use self::{
         AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
         rng::Rng,
     },
-    command::channel::mapper::{BeatKey, PhysicalKey},
+    command::channel::mapper::{BeatKey, KeyMapping},
     lex::{LexOutput, LexWarningWithPos},
     parse::{
         ParseOutput, ParseWarningWithPos,
@@ -76,7 +76,7 @@ pub enum BmsWarning {
 /// Output of parsing a BMS file.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BmsOutput<T: PhysicalKey> {
+pub struct BmsOutput<T: KeyMapping> {
     /// The parsed BMS data.
     pub bms: Bms<T>,
     /// Warnings that occurred during parsing.
@@ -112,7 +112,7 @@ pub fn parse_bms(source: &str) -> BmsOutput<BeatKey> {
 ///
 /// This function provides a convenient way to parse a BMS file in one step.
 /// It uses the default channel parser and a custom random number generator.
-pub fn parse_bms_with_rng<T: PhysicalKey + Default>(source: &str, rng: impl Rng) -> BmsOutput<T> {
+pub fn parse_bms_with_rng<T: KeyMapping + Default>(source: &str, rng: impl Rng) -> BmsOutput<T> {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,

@@ -18,7 +18,7 @@ use crate::bms::{
     },
     command::{
         ObjId,
-        channel::{Channel, mapper::PhysicalKey},
+        channel::{Channel, mapper::KeyMapping},
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
@@ -61,14 +61,14 @@ pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ParseOutput<T: PhysicalKey> {
+pub struct ParseOutput<T: KeyMapping> {
     /// The output Bms.
     pub bms: Bms<T>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl<T: PhysicalKey + Default> Bms<T> {
+impl<T: KeyMapping + Default> Bms<T> {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
@@ -92,7 +92,7 @@ impl<T: PhysicalKey + Default> Bms<T> {
 /// Bms Parse Output with AST
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ParseOutputWithAst<T: PhysicalKey> {
+pub struct ParseOutputWithAst<T: KeyMapping> {
     /// The output Bms.
     pub bms: Bms<T>,
     /// Warnings that occurred during AST building.
@@ -103,7 +103,7 @@ pub struct ParseOutputWithAst<T: PhysicalKey> {
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl<T: PhysicalKey + Default> Bms<T> {
+impl<T: KeyMapping + Default> Bms<T> {
     /// Parses a token stream into [`Bms`] with AST.
     pub fn from_token_stream_with_ast<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,

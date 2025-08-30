@@ -2,17 +2,18 @@
 
 use super::{Key, NoteChannel, NoteKind, PlayerSide};
 
-/// A trait for key mapping storage structure.
-pub trait KeyMapping {
+/// Maximum key index for regular keys (1-14)
+pub const MAX_KEY_INDEX: u8 = 14;
+/// Maximum scratch index (1-255, but typically 1-2)
+pub const MAX_SCRATCH_INDEX: u8 = 2;
+/// Maximum scratch extra index (1-255, but typically 1)
+pub const MAX_SCRATCH_EXTRA_INDEX: u8 = 1;
+
+/// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
+/// This trait combines key mapping storage with physical key conversion functionality.
+pub trait KeyMapping: Copy + Eq + core::fmt::Debug {
     /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
     fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self;
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    fn new_with_default_kind(side: PlayerSide, key: Key) -> Self
-    where
-        Self: Sized,
-    {
-        Self::new(side, key, NoteKind::Visible)
-    }
     /// Get the PlayerSide from this KeyMapping.
     fn side(&self) -> PlayerSide;
     /// Get the [`Key`] from this [`KeyMapping`].
@@ -21,10 +22,6 @@ pub trait KeyMapping {
     fn kind(&self) -> NoteKind;
     /// Deconstruct into a [`PlayerSide`], [`Key`], [`NoteKind`] tuple.
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind);
-}
-
-/// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
-pub trait PhysicalKey: Copy + Eq + core::fmt::Debug {
     /// Convert this physical key into a logical note channel.
     fn to_note_channel(self) -> NoteChannel;
     /// Convert a logical note channel into this physical key, if representable.
@@ -48,18 +45,13 @@ impl BeatKey {
     pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
         Self { side, key, kind }
     }
-
-    /// Create a new [`BeatKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key, NoteKind::Visible)
-    }
 }
 
 impl Default for BeatKey {
     fn default() -> Self {
         Self {
             side: PlayerSide::default(),
-            key: Key::Key1,
+            key: super::Key::new_key(1).unwrap(),
             kind: NoteKind::Visible,
         }
     }
@@ -81,38 +73,38 @@ impl KeyMapping for BeatKey {
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
         (self.side, self.key, self.kind)
     }
-}
 
-impl PhysicalKey for BeatKey {
     fn to_note_channel(self) -> NoteChannel {
         // Map side and key to base62 two-character:
         // First character: side (using visible note default: P1='1', P2='2')
         // Second character: key code ('1'..'5', '6'=Scratch, '7'=FreeZone, '8'=Key6/'Key8, '9'=Key7/'Key9,
         //                      'A'..'E'=Key10..Key14, 'F'=FootPedal, '7'=ScratchExtra)
-        use Key::*;
         let side_char = match self.side {
             PlayerSide::Player1 => '1',
             PlayerSide::Player2 => '2',
         };
         let key_char = match self.key {
-            Key1 => '1',
-            Key2 => '2',
-            Key3 => '3',
-            Key4 => '4',
-            Key5 => '5',
-            Key6 => '8',
-            Key7 => '9',
-            Key8 => '8',
-            Key9 => '9',
-            Key10 => 'A',
-            Key11 => 'B',
-            Key12 => 'C',
-            Key13 => 'D',
-            Key14 => 'E',
-            Scratch => '6',
-            ScratchExtra => '7',
-            FootPedal => 'F',
-            FreeZone => '7',
+            Key::Key(idx) => match idx.get() {
+                1 => '1',
+                2 => '2',
+                3 => '3',
+                4 => '4',
+                5 => '5',
+                6 => '8',
+                7 => '9',
+                8 => '8',
+                9 => '9',
+                10 => 'A',
+                11 => 'B',
+                12 => 'C',
+                13 => 'D',
+                14 => 'E',
+                _ => unreachable!("Key index should be 1-14"),
+            },
+            Key::Scratch(_) => '6',
+            Key::ScratchExtra(_) => '7',
+            Key::FootPedal => 'F',
+            Key::FreeZone => '7',
         };
         NoteChannel::try_from_chars(side_char, key_char).expect("valid base62 for BeatKey")
     }
@@ -126,23 +118,22 @@ impl PhysicalKey for BeatKey {
             '2' | '4' | '6' | 'E' => PlayerSide::Player2,
             _ => return None,
         };
-        use Key::*;
         let key = match c2.to_ascii_uppercase() {
-            '1' => Key1,
-            '2' => Key2,
-            '3' => Key3,
-            '4' => Key4,
-            '5' => Key5,
-            '6' => Scratch,
-            '7' => FreeZone, // Or ScratchExtra: here '7' is treated as FreeZone according to general character table, mapped in specific mode later
-            '8' => Key6,
-            '9' => Key7,
-            'A' => Key10,
-            'B' => Key11,
-            'C' => Key12,
-            'D' => Key13,
-            'E' => Key14,
-            'F' => FootPedal,
+            '1' => Key::new_key(1).unwrap(),
+            '2' => Key::new_key(2).unwrap(),
+            '3' => Key::new_key(3).unwrap(),
+            '4' => Key::new_key(4).unwrap(),
+            '5' => Key::new_key(5).unwrap(),
+            '6' => Key::new_scratch(1).unwrap(), // Default scratch index
+            '7' => super::Key::FreeZone, // Or ScratchExtra: here '7' is treated as FreeZone according to general character table, mapped in specific mode later
+            '8' => Key::new_key(6).unwrap(),
+            '9' => Key::new_key(7).unwrap(),
+            'A' => Key::new_key(10).unwrap(),
+            'B' => Key::new_key(11).unwrap(),
+            'C' => Key::new_key(12).unwrap(),
+            'D' => Key::new_key(13).unwrap(),
+            'E' => Key::new_key(14).unwrap(),
+            'F' => Key::FootPedal,
             _ => return None,
         };
         let kind = NoteKind::note_kind_from_channel(channel)?;
@@ -166,11 +157,6 @@ impl PmsBmeKey {
     pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
         Self { side, key, kind }
     }
-
-    /// Create a new [`PmsBmeKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key, NoteKind::Visible)
-    }
 }
 
 impl KeyMapping for PmsBmeKey {
@@ -189,25 +175,21 @@ impl KeyMapping for PmsBmeKey {
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
         (self.side, self.key, self.kind)
     }
-}
 
-impl PhysicalKey for PmsBmeKey {
     fn to_note_channel(self) -> NoteChannel {
-        use Key::*;
         let mapped_key = match self.key {
-            Key8 => Scratch,
-            Key9 => FreeZone,
+            Key::Key(idx) if idx.get() == 8 => Key::new_scratch(1).unwrap(),
+            Key::Key(idx) if idx.get() == 9 => super::Key::FreeZone,
             other => other,
         };
         BeatKey::new(self.side, mapped_key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use Key::*;
         let beat = BeatKey::from_note_channel(channel)?;
         let key = match beat.key {
-            Scratch => Key8,
-            FreeZone => Key9,
+            Key::Scratch(idx) if idx.get() == 1 => Key::new_key(8).unwrap(),
+            Key::FreeZone => Key::new_key(9).unwrap(),
             other => other,
         };
         Some(Self {
@@ -234,11 +216,6 @@ impl PmsKey {
     pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
         Self { side, key, kind }
     }
-
-    /// Create a new [`PmsKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key, NoteKind::Visible)
-    }
 }
 
 impl KeyMapping for PmsKey {
@@ -257,31 +234,30 @@ impl KeyMapping for PmsKey {
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
         (self.side, self.key, self.kind)
     }
-}
-impl PhysicalKey for PmsKey {
+
     fn to_note_channel(self) -> NoteChannel {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = match (self.side, self.key) {
-            (Player1, Key6) => (Player2, Key2),
-            (Player1, Key7) => (Player2, Key3),
-            (Player1, Key8) => (Player2, Key4),
-            (Player1, Key9) => (Player2, Key5),
-            other => other,
+            (Player1, Key::Key(idx)) if idx.get() == 6 => (Player2, Key::new_key(2).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 7 => (Player2, Key::new_key(3).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 8 => (Player2, Key::new_key(4).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 9 => (Player2, Key::new_key(5).unwrap()),
+            _ => (self.side, self.key),
         };
         BeatKey::new(side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use Key::*;
         use PlayerSide::*;
         let beat = BeatKey::from_note_channel(channel)?;
         let (side, key) = match (beat.side, beat.key) {
-            (Player1, Key1 | Key2 | Key3 | Key4 | Key5) => (Player1, beat.key),
-            (Player2, Key2) => (Player1, Key6),
-            (Player2, Key3) => (Player1, Key7),
-            (Player2, Key4) => (Player1, Key8),
-            (Player2, Key5) => (Player1, Key9),
+            (Player1, key) if matches!(key, Key::Key(idx) if idx.get() >= 1 && idx.get() <= 5) => {
+                (Player1, key)
+            }
+            (Player2, Key::Key(idx)) if idx.get() == 2 => (Player1, Key::new_key(6).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 3 => (Player1, Key::new_key(7).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 4 => (Player1, Key::new_key(8).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 5 => (Player1, Key::new_key(9).unwrap()),
             other => other,
         };
         Some(Self {
@@ -308,11 +284,6 @@ impl BeatNanasiKey {
     pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
         Self { side, key, kind }
     }
-
-    /// Create a new [`BeatNanasiKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key, NoteKind::Visible)
-    }
 }
 
 impl KeyMapping for BeatNanasiKey {
@@ -331,23 +302,19 @@ impl KeyMapping for BeatNanasiKey {
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
         (self.side, self.key, self.kind)
     }
-}
 
-impl PhysicalKey for BeatNanasiKey {
     fn to_note_channel(self) -> NoteChannel {
-        use Key::*;
         let key = match self.key {
-            FootPedal => FreeZone,
+            Key::FootPedal => super::Key::FreeZone,
             other => other,
         };
         BeatKey::new(self.side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use Key::*;
         let beat = BeatKey::from_note_channel(channel)?;
         let key = match beat.key {
-            FreeZone => FootPedal,
+            super::Key::FreeZone => Key::FootPedal,
             other => other,
         };
         Some(Self {
@@ -374,11 +341,6 @@ impl DscOctFpKey {
     pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
         Self { side, key, kind }
     }
-
-    /// Create a new [`DscOctFpKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
-    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key, NoteKind::Visible)
-    }
 }
 
 impl KeyMapping for DscOctFpKey {
@@ -397,39 +359,39 @@ impl KeyMapping for DscOctFpKey {
     fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
         (self.side, self.key, self.kind)
     }
-}
 
-impl PhysicalKey for DscOctFpKey {
     fn to_note_channel(self) -> NoteChannel {
-        use Key::*;
         use PlayerSide::*;
         let (side, key) = match (self.side, self.key) {
-            (Player1, ScratchExtra) => (Player2, Scratch),
-            (Player1, FootPedal) => (Player2, Key1),
-            (Player1, Key8) => (Player2, Key2),
-            (Player1, Key9) => (Player2, Key3),
-            (Player1, Key10) => (Player2, Key4),
-            (Player1, Key11) => (Player2, Key5),
-            (Player1, Key12) => (Player2, Key6),
-            (Player1, Key13) => (Player2, Key7),
+            (Player1, Key::ScratchExtra(idx)) if idx.get() == 1 => {
+                (Player2, Key::new_scratch(1).unwrap())
+            }
+            (Player1, Key::FootPedal) => (Player2, Key::new_key(1).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 8 => (Player2, Key::new_key(2).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 9 => (Player2, Key::new_key(3).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 10 => (Player2, Key::new_key(4).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 11 => (Player2, Key::new_key(5).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 12 => (Player2, Key::new_key(6).unwrap()),
+            (Player1, Key::Key(idx)) if idx.get() == 13 => (Player2, Key::new_key(7).unwrap()),
             (s, k) => (s, k),
         };
         BeatKey::new(side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use Key::*;
         use PlayerSide::*;
         let beat = BeatKey::from_note_channel(channel)?;
         let (side, key) = match (beat.side, beat.key) {
-            (Player2, Key1) => (Player1, FootPedal),
-            (Player2, Key2) => (Player1, Key8),
-            (Player2, Key3) => (Player1, Key9),
-            (Player2, Key4) => (Player1, Key10),
-            (Player2, Key5) => (Player1, Key11),
-            (Player2, Key6) => (Player1, Key12),
-            (Player2, Key7) => (Player1, Key13),
-            (Player2, Scratch) => (Player1, ScratchExtra),
+            (Player2, Key::Key(idx)) if idx.get() == 1 => (Player1, Key::FootPedal),
+            (Player2, Key::Key(idx)) if idx.get() == 2 => (Player1, Key::new_key(8).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 3 => (Player1, Key::new_key(9).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 4 => (Player1, Key::new_key(10).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 5 => (Player1, Key::new_key(11).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 6 => (Player1, Key::new_key(12).unwrap()),
+            (Player2, Key::Key(idx)) if idx.get() == 7 => (Player1, Key::new_key(13).unwrap()),
+            (Player2, Key::Scratch(idx)) if idx.get() == 1 => {
+                (Player1, Key::new_scratch_extra(1).unwrap())
+            }
             (s, k) => (s, k),
         };
         Some(Self {
@@ -441,7 +403,6 @@ impl PhysicalKey for DscOctFpKey {
 }
 
 /// A generic 1P-only N-keys physical layout. Keys are mapped to BeatKey Player1 Key1..KeyN.
-/// This implements PhysicalKey but intentionally does NOT implement KeyMapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GenericNKey<const N: usize> {
     /// 1-based key index within [1, N]
@@ -455,51 +416,74 @@ impl<const N: usize> GenericNKey<N> {
     }
 }
 
-impl<const N: usize> PhysicalKey for GenericNKey<N> {
+impl<const N: usize> KeyMapping for GenericNKey<N> {
+    fn new(_side: PlayerSide, _key: Key, _kind: NoteKind) -> Self {
+        // GenericNKey doesn't store side/key/kind, always create with default
+        Self::new(1)
+    }
+
+    fn side(&self) -> PlayerSide {
+        PlayerSide::Player1 // Always Player1 for GenericNKey
+    }
+
+    fn key(&self) -> super::Key {
+        // Convert index to Key
+        match self.index {
+            1 if N >= 1 => super::Key::new_key(1).unwrap(),
+            2 if N >= 2 => super::Key::new_key(2).unwrap(),
+            3 if N >= 3 => super::Key::new_key(3).unwrap(),
+            4 if N >= 4 => super::Key::new_key(4).unwrap(),
+            5 if N >= 5 => super::Key::new_key(5).unwrap(),
+            6 if N >= 6 => super::Key::new_key(6).unwrap(),
+            7 if N >= 7 => super::Key::new_key(7).unwrap(),
+            8 if N >= 8 => super::Key::new_key(8).unwrap(),
+            9 if N >= 9 => super::Key::new_key(9).unwrap(),
+            10 if N >= 10 => super::Key::new_key(10).unwrap(),
+            11 if N >= 11 => super::Key::new_key(11).unwrap(),
+            12 if N >= 12 => super::Key::new_key(12).unwrap(),
+            13 if N >= 13 => super::Key::new_key(13).unwrap(),
+            14 if N >= 14 => super::Key::new_key(14).unwrap(),
+            _ => super::Key::new_key(1).unwrap(), // fallback
+        }
+    }
+
+    fn kind(&self) -> NoteKind {
+        NoteKind::Visible // Always Visible for GenericNKey
+    }
+
+    fn into_tuple(self) -> (PlayerSide, super::Key, NoteKind) {
+        (self.side(), self.key(), self.kind())
+    }
+
     fn to_note_channel(self) -> NoteChannel {
-        use super::Key::*;
         let key = match self.index {
-            1 if N >= 1 => Key1,
-            2 if N >= 2 => Key2,
-            3 if N >= 3 => Key3,
-            4 if N >= 4 => Key4,
-            5 if N >= 5 => Key5,
-            6 if N >= 6 => Key6,
-            7 if N >= 7 => Key7,
-            8 if N >= 8 => Key8,
-            9 if N >= 9 => Key9,
-            10 if N >= 10 => Key10,
-            11 if N >= 11 => Key11,
-            12 if N >= 12 => Key12,
-            13 if N >= 13 => Key13,
-            14 if N >= 14 => Key14,
+            1 if N >= 1 => super::Key::new_key(1).unwrap(),
+            2 if N >= 2 => super::Key::new_key(2).unwrap(),
+            3 if N >= 3 => super::Key::new_key(3).unwrap(),
+            4 if N >= 4 => super::Key::new_key(4).unwrap(),
+            5 if N >= 5 => super::Key::new_key(5).unwrap(),
+            6 if N >= 6 => super::Key::new_key(6).unwrap(),
+            7 if N >= 7 => super::Key::new_key(7).unwrap(),
+            8 if N >= 8 => super::Key::new_key(8).unwrap(),
+            9 if N >= 9 => super::Key::new_key(9).unwrap(),
+            10 if N >= 10 => super::Key::new_key(10).unwrap(),
+            11 if N >= 11 => super::Key::new_key(11).unwrap(),
+            12 if N >= 12 => super::Key::new_key(12).unwrap(),
+            13 if N >= 13 => super::Key::new_key(13).unwrap(),
+            14 if N >= 14 => super::Key::new_key(14).unwrap(),
             // Fallback to Key1 if out of range; this should be validated by constructors in usage
-            _ => Key1,
+            _ => super::Key::new_key(1).unwrap(),
         };
         BeatKey::new(PlayerSide::Player1, key, NoteKind::Visible).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        use super::Key::*;
         let beat = BeatKey::from_note_channel(channel)?;
         if beat.side != PlayerSide::Player1 {
             return None;
         }
         let index = match beat.key {
-            Key1 => 1,
-            Key2 => 2,
-            Key3 => 3,
-            Key4 => 4,
-            Key5 => 5,
-            Key6 => 6,
-            Key7 => 7,
-            Key8 => 8,
-            Key9 => 9,
-            Key10 => 10,
-            Key11 => 11,
-            Key12 => 12,
-            Key13 => 13,
-            Key14 => 14,
+            super::Key::Key(idx) => idx.get() as usize,
             _ => return None, // excludes Scratch/FootPedal/FreeZone/etc.
         };
         if index == 0 || index > N {
@@ -513,7 +497,10 @@ impl<const N: usize> PhysicalKey for GenericNKey<N> {
 mod layout_roundtrip_tests {
     use super::*;
 
-    fn roundtrip<T: PhysicalKey>(side: PlayerSide, key: Key) -> Option<(PlayerSide, Key)> {
+    fn roundtrip<T: KeyMapping>(
+        side: PlayerSide,
+        key: super::Key,
+    ) -> Option<(PlayerSide, super::Key)> {
         let chan = BeatKey::new(side, key, NoteKind::Visible).to_note_channel();
         // map: Beat -> Target -> Beat
         let target = T::from_note_channel(chan)?;
@@ -525,24 +512,24 @@ mod layout_roundtrip_tests {
     fn pms_bme_roundtrip() {
         use PlayerSide::*;
         for &(s, k) in &[
-            (Player1, Key::Key1),
-            (Player1, Key::Key2),
-            (Player1, Key::Key3),
-            (Player1, Key::Key4),
-            (Player1, Key::Key5),
-            (Player1, Key::Key6),
-            (Player1, Key::Key7),
-            (Player1, Key::Scratch),
-            (Player1, Key::FreeZone),
-            (Player2, Key::Key1),
-            (Player2, Key::Key2),
-            (Player2, Key::Key3),
-            (Player2, Key::Key4),
-            (Player2, Key::Key5),
-            (Player2, Key::Key6),
-            (Player2, Key::Key7),
-            (Player2, Key::Scratch),
-            (Player2, Key::FreeZone),
+            (Player1, super::Key::new_key(1).unwrap()),
+            (Player1, super::Key::new_key(2).unwrap()),
+            (Player1, super::Key::new_key(3).unwrap()),
+            (Player1, super::Key::new_key(4).unwrap()),
+            (Player1, super::Key::new_key(5).unwrap()),
+            (Player1, super::Key::new_key(6).unwrap()),
+            (Player1, super::Key::new_key(7).unwrap()),
+            (Player1, super::Key::new_scratch(1).unwrap()),
+            (Player1, super::Key::FreeZone),
+            (Player2, super::Key::new_key(1).unwrap()),
+            (Player2, super::Key::new_key(2).unwrap()),
+            (Player2, super::Key::new_key(3).unwrap()),
+            (Player2, super::Key::new_key(4).unwrap()),
+            (Player2, super::Key::new_key(5).unwrap()),
+            (Player2, super::Key::new_key(6).unwrap()),
+            (Player2, super::Key::new_key(7).unwrap()),
+            (Player2, super::Key::new_scratch(1).unwrap()),
+            (Player2, super::Key::FreeZone),
         ] {
             let got = roundtrip::<PmsBmeKey>(s, k).unwrap();
             assert_eq!(got, (s, k));
@@ -554,15 +541,15 @@ mod layout_roundtrip_tests {
         use PlayerSide::*;
         // Only test inputs within the canonical Beat domain for PMS mapping
         for &(s, k) in &[
-            (Player1, Key::Key1),
-            (Player1, Key::Key2),
-            (Player1, Key::Key3),
-            (Player1, Key::Key4),
-            (Player1, Key::Key5),
-            (Player2, Key::Key2),
-            (Player2, Key::Key3),
-            (Player2, Key::Key4),
-            (Player2, Key::Key5),
+            (Player1, super::Key::new_key(1).unwrap()),
+            (Player1, super::Key::new_key(2).unwrap()),
+            (Player1, super::Key::new_key(3).unwrap()),
+            (Player1, super::Key::new_key(4).unwrap()),
+            (Player1, super::Key::new_key(5).unwrap()),
+            (Player2, super::Key::new_key(2).unwrap()),
+            (Player2, super::Key::new_key(3).unwrap()),
+            (Player2, super::Key::new_key(4).unwrap()),
+            (Player2, super::Key::new_key(5).unwrap()),
         ] {
             let got = roundtrip::<PmsKey>(s, k).unwrap();
             assert_eq!(got, (s, k));
@@ -573,24 +560,24 @@ mod layout_roundtrip_tests {
     fn nanasi_roundtrip() {
         use PlayerSide::*;
         for &(s, k) in &[
-            (Player1, Key::Key1),
-            (Player1, Key::Key2),
-            (Player1, Key::Key3),
-            (Player1, Key::Key4),
-            (Player1, Key::Key5),
-            (Player1, Key::Key6),
-            (Player1, Key::Key7),
-            (Player1, Key::Scratch),
-            (Player1, Key::FreeZone),
-            (Player2, Key::Key1),
-            (Player2, Key::Key2),
-            (Player2, Key::Key3),
-            (Player2, Key::Key4),
-            (Player2, Key::Key5),
-            (Player2, Key::Key6),
-            (Player2, Key::Key7),
-            (Player2, Key::Scratch),
-            (Player2, Key::FreeZone),
+            (Player1, super::Key::new_key(1).unwrap()),
+            (Player1, super::Key::new_key(2).unwrap()),
+            (Player1, super::Key::new_key(3).unwrap()),
+            (Player1, super::Key::new_key(4).unwrap()),
+            (Player1, super::Key::new_key(5).unwrap()),
+            (Player1, super::Key::new_key(6).unwrap()),
+            (Player1, super::Key::new_key(7).unwrap()),
+            (Player1, super::Key::new_scratch(1).unwrap()),
+            (Player1, super::Key::FreeZone),
+            (Player2, super::Key::new_key(1).unwrap()),
+            (Player2, super::Key::new_key(2).unwrap()),
+            (Player2, super::Key::new_key(3).unwrap()),
+            (Player2, super::Key::new_key(4).unwrap()),
+            (Player2, super::Key::new_key(5).unwrap()),
+            (Player2, super::Key::new_key(6).unwrap()),
+            (Player2, super::Key::new_key(7).unwrap()),
+            (Player2, super::Key::new_scratch(1).unwrap()),
+            (Player2, super::Key::FreeZone),
         ] {
             let got = roundtrip::<BeatNanasiKey>(s, k).unwrap();
             assert_eq!(got, (s, k));
@@ -602,22 +589,22 @@ mod layout_roundtrip_tests {
         use PlayerSide::*;
         // Only test inputs within the canonical Beat domain for DSC/OCT-FP mapping
         for &(s, k) in &[
-            (Player1, Key::Key1),
-            (Player1, Key::Key2),
-            (Player1, Key::Key3),
-            (Player1, Key::Key4),
-            (Player1, Key::Key5),
-            (Player1, Key::Key6),
-            (Player1, Key::Key7),
-            (Player1, Key::Scratch),
-            (Player2, Key::Key1),
-            (Player2, Key::Key2),
-            (Player2, Key::Key3),
-            (Player2, Key::Key4),
-            (Player2, Key::Key5),
-            (Player2, Key::Key6),
-            (Player2, Key::Key7),
-            (Player2, Key::Scratch),
+            (Player1, super::Key::new_key(1).unwrap()),
+            (Player1, super::Key::new_key(2).unwrap()),
+            (Player1, super::Key::new_key(3).unwrap()),
+            (Player1, super::Key::new_key(4).unwrap()),
+            (Player1, super::Key::new_key(5).unwrap()),
+            (Player1, super::Key::new_key(6).unwrap()),
+            (Player1, super::Key::new_key(7).unwrap()),
+            (Player1, super::Key::new_scratch(1).unwrap()),
+            (Player2, super::Key::new_key(1).unwrap()),
+            (Player2, super::Key::new_key(2).unwrap()),
+            (Player2, super::Key::new_key(3).unwrap()),
+            (Player2, super::Key::new_key(4).unwrap()),
+            (Player2, super::Key::new_key(5).unwrap()),
+            (Player2, super::Key::new_key(6).unwrap()),
+            (Player2, super::Key::new_key(7).unwrap()),
+            (Player2, super::Key::new_scratch(1).unwrap()),
         ] {
             let got = roundtrip::<DscOctFpKey>(s, k).unwrap();
             assert_eq!(got, (s, k));

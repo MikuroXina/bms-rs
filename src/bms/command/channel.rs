@@ -5,6 +5,8 @@
 //!
 //! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
+use std::num::NonZeroU8;
+
 pub mod converter;
 pub mod mapper;
 
@@ -316,75 +318,78 @@ pub enum PlayerSide {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
-#[repr(u64)]
 pub enum Key {
-    /// The leftmost white key.
-    /// `11` in BME-type Player1.
-    Key1 = 1,
-    /// The leftmost black key.
-    /// `12` in BME-type Player1.
-    Key2 = 2,
-    /// The second white key from the left.
-    /// `13` in BME-type Player1.
-    Key3 = 3,
-    /// The second black key from the left.
-    /// `14` in BME-type Player1.
-    Key4 = 4,
-    /// The third white key from the left.
-    /// `15` in BME-type Player1.
-    Key5 = 5,
-    /// The rightmost black key.
-    /// `18` in BME-type Player1.
-    Key6 = 6,
-    /// The rightmost white key.
-    /// `19` in BME-type Player1.
-    Key7 = 7,
-    /// The extra black key. Used in PMS or other modes.
-    Key8 = 8,
-    /// The extra white key. Used in PMS or other modes.
-    Key9 = 9,
-    /// The extra key for OCT/FP.
-    Key10 = 10,
-    /// The extra key for OCT/FP.
-    Key11 = 11,
-    /// The extra key for OCT/FP.
-    Key12 = 12,
-    /// The extra key for OCT/FP.
-    Key13 = 13,
-    /// The extra key for OCT/FP.
-    Key14 = 14,
+    /// A regular key with a non-zero index (1-14)
+    Key(NonZeroU8),
     /// The scratch disk.
     /// `16` in BME-type Player1.
-    Scratch = 101,
+    Scratch(NonZeroU8),
     /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra = 102,
+    ScratchExtra(NonZeroU8),
     /// The foot pedal.
-    FootPedal = 151,
+    FootPedal,
     /// The zone that the user can scratch disk freely.
     /// `17` in BMS-type Player1.
-    FreeZone = 201,
+    FreeZone,
 }
 
 impl Key {
+    /// Create a new Key from a non-zero index (1-14)
+    pub const fn new_key(index: u8) -> Option<Self> {
+        if index == 0 || index > 14 {
+            None
+        } else {
+            Some(Self::Key(unsafe { NonZeroU8::new_unchecked(index) }))
+        }
+    }
+
+    /// Create a new Scratch from a non-zero index (1-2)
+    pub const fn new_scratch(index: u8) -> Option<Self> {
+        if index == 0 || index > 2 {
+            None
+        } else {
+            Some(Self::Scratch(unsafe { NonZeroU8::new_unchecked(index) }))
+        }
+    }
+
+    /// Create a new ScratchExtra from a non-zero index (1)
+    pub const fn new_scratch_extra(index: u8) -> Option<Self> {
+        if index == 0 || index > 1 {
+            None
+        } else {
+            Some(Self::ScratchExtra(unsafe {
+                NonZeroU8::new_unchecked(index)
+            }))
+        }
+    }
+
     /// Returns whether the key expected a piano keyboard.
     pub const fn is_keyxx(&self) -> bool {
-        use Key::*;
-        matches!(
-            self,
-            Key1 | Key2
-                | Key3
-                | Key4
-                | Key5
-                | Key6
-                | Key7
-                | Key8
-                | Key9
-                | Key10
-                | Key11
-                | Key12
-                | Key13
-                | Key14
-        )
+        matches!(self, Key::Key(_))
+    }
+
+    /// Get the key index if this is a Key variant (1-14)
+    pub const fn key_index(&self) -> Option<u8> {
+        match self {
+            Key::Key(idx) => Some(idx.get()),
+            _ => None,
+        }
+    }
+
+    /// Get the scratch index if this is a Scratch variant
+    pub const fn scratch_index(&self) -> Option<u8> {
+        match self {
+            Key::Scratch(idx) => Some(idx.get()),
+            _ => None,
+        }
+    }
+
+    /// Get the scratch extra index if this is a ScratchExtra variant
+    pub const fn scratch_extra_index(&self) -> Option<u8> {
+        match self {
+            Key::ScratchExtra(idx) => Some(idx.get()),
+            _ => None,
+        }
     }
 }
 

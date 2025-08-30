@@ -8,6 +8,7 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
+    num::NonZeroU8,
     ops::Bound,
     path::PathBuf,
     str::FromStr,
@@ -27,7 +28,7 @@ use crate::bms::{
         channel::{
             Channel, Key, NoteChannel, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
-            mapper::{BeatKey, KeyMapping, PhysicalKey},
+            mapper::{BeatKey, KeyMapping},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -55,7 +56,7 @@ use super::{
 /// A score data of BMS format.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms<T: PhysicalKey> {
+pub struct Bms<T: KeyMapping> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -200,7 +201,7 @@ pub struct Arrangers {
 /// The playable objects set for querying by lane or time.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Notes<T: PhysicalKey> {
+pub struct Notes<T: KeyMapping> {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
@@ -317,7 +318,7 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl<T: PhysicalKey> Bms<T> {
+impl<T: KeyMapping> Bms<T> {
     pub(crate) fn parse(
         &mut self,
         token: &TokenWithPos,
@@ -1217,7 +1218,7 @@ impl<T: PhysicalKey> Bms<T> {
     }
 }
 
-impl<T: PhysicalKey> Bms<T> {
+impl<T: KeyMapping> Bms<T> {
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
@@ -1504,7 +1505,7 @@ impl Graphics {
     }
 }
 
-impl<T: PhysicalKey> Notes<T> {
+impl<T: KeyMapping> Notes<T> {
     /// Converts into the notes sorted by time.
     pub fn into_all_notes(mut self) -> Vec<Obj<T>> {
         let mut all: Vec<Obj<T>> = self.objs.drain().flat_map(|(_, v)| v.into_iter()).collect();
@@ -1800,7 +1801,7 @@ impl<T: PhysicalKey> Notes<T> {
     }
 }
 
-impl<T: PhysicalKey + KeyMapping> Notes<T> {
+impl<T: KeyMapping> Notes<T> {
     /// Finds next object by side/key for any physical key mapping that implements `KeyMapping`.
     pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj<T>> {
         let channel = T::new(side, key, NoteKind::Visible).to_note_channel();
@@ -1864,9 +1865,9 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
     })
 }
 
-impl<T: PhysicalKey + KeyMapping> Bms<T> {
+impl<T: KeyMapping> Bms<T> {
     /// Convert the current chart from physical key layout `T` to target layout `D`, and return the new `Bms<D>`.
-    pub fn convert_key_between_modes<D: PhysicalKey + KeyMapping>(self) -> Bms<D> {
+    pub fn convert_key_between_modes<D: KeyMapping>(self) -> Bms<D> {
         let Bms {
             header,
             scope_defines,
@@ -1909,7 +1910,11 @@ impl<T: PhysicalKey + KeyMapping> Bms<T> {
                     (bk.side, bk.key, bk.kind)
                 } else {
                     // No mapping found, use default
-                    (PlayerSide::Player1, Key::Key1, NoteKind::Visible)
+                    (
+                        PlayerSide::Player1,
+                        Key::Key(unsafe { NonZeroU8::new_unchecked(1) }),
+                        NoteKind::Visible,
+                    )
                 };
                 let new_channel = D::new(side, key, kind).to_note_channel();
                 let new_obj = Obj {

@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::{
     bms::{
-        command::channel::mapper::{BeatKey, PhysicalKey},
+        command::channel::mapper::{BeatKey, KeyMapping},
         parse::model::obj::Obj,
         prelude::*,
     },
@@ -347,15 +347,15 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key1,
-        2 => Key::Key2,
-        3 => Key::Key3,
-        4 => Key::Key4,
-        5 => Key::Key5,
-        6 => Key::Key6,
-        7 => Key::Key7,
-        8 => Key::Scratch,
-        _ => Key::Key1, // Default fallback
+        1 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        2 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+        3 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+        4 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+        5 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+        6 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(6) }),
+        7 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(7) }),
+        8 => Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        _ => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }), // Default fallback
     };
 
     (key, side)

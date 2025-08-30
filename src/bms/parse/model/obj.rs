@@ -13,14 +13,14 @@ use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 use crate::bms::command::channel::{
     Key, PlayerSide,
-    mapper::{BeatKey, PhysicalKey},
+    mapper::{BeatKey, KeyMapping},
 };
 use core::marker::PhantomData;
 
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Obj<T: PhysicalKey> {
+pub struct Obj<T: KeyMapping> {
     /// The time offset in the track.
     pub offset: ObjTime,
     /// The logical note channel (lane).
@@ -32,13 +32,13 @@ pub struct Obj<T: PhysicalKey> {
     pub(crate) _marker: PhantomData<T>,
 }
 
-impl<T: PhysicalKey> PartialOrd for Obj<T> {
+impl<T: KeyMapping> PartialOrd for Obj<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: PhysicalKey> Ord for Obj<T> {
+impl<T: KeyMapping> Ord for Obj<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.offset
             .cmp(&other.offset)
@@ -69,7 +69,7 @@ impl Obj<BeatKey> {
     }
 }
 
-impl<T: PhysicalKey> Obj<T> {
+impl<T: KeyMapping> Obj<T> {
     /// Returns the note kind derived from the channel.
     pub fn kind(&self) -> Option<NoteKind> {
         NoteKind::note_kind_from_channel(self.channel)

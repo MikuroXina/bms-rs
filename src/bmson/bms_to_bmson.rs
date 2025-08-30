@@ -122,10 +122,10 @@ impl Bms<BeatKey> {
             genre: self.header.genre.unwrap_or_default(),
             mode_hint: {
                 // TODO: Support other modes
-                use crate::bms::command::channel::mapper::{BeatKey as BK, PhysicalKey};
+                use crate::bms::command::channel::mapper::{BeatKey as BK, KeyMapping};
                 let is_7keys = self.notes.all_notes().any(|note| {
                     BK::from_note_channel(note.channel)
-                        .map(|bk| matches!(bk.key, Key::Key6 | Key::Key7))
+                        .map(|bk| matches!(bk.key, Key::Key(idx) if idx.get() == 6 || idx.get() == 7))
                         .unwrap_or(false)
                 });
                 let is_dp = self.notes.all_notes().any(|note| {
@@ -190,32 +190,31 @@ impl Bms<BeatKey> {
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.notes.all_notes() {
-                use crate::bms::command::channel::mapper::{BeatKey as BK, PhysicalKey};
+                use crate::bms::command::channel::mapper::{BeatKey as BK, KeyMapping};
                 let beat_opt = BK::from_note_channel(note.channel);
                 let note_lane = note
                     .kind()
                     .is_some_and(|k| k.is_playable())
                     .then_some(
                         match beat_opt.map(|b| b.key) {
-                            Some(Key::Key1) => 1,
-                            Some(Key::Key2) => 2,
-                            Some(Key::Key3) => 3,
-                            Some(Key::Key4) => 4,
-                            Some(Key::Key5) => 5,
-                            Some(Key::Key6) => 6,
-                            Some(Key::Key7) => 7,
-                            Some(Key::Scratch) | Some(Key::FreeZone) => 8,
+                            Some(Key::Key(idx)) if idx.get() == 1 => 1,
+                            Some(Key::Key(idx)) if idx.get() == 2 => 2,
+                            Some(Key::Key(idx)) if idx.get() == 3 => 3,
+                            Some(Key::Key(idx)) if idx.get() == 4 => 4,
+                            Some(Key::Key(idx)) if idx.get() == 5 => 5,
+                            Some(Key::Key(idx)) if idx.get() == 6 => 6,
+                            Some(Key::Key(idx)) if idx.get() == 7 => 7,
+                            Some(Key::Scratch(_)) | Some(Key::FreeZone) => 8,
                             // TODO: Extra key convertion
-                            Some(Key::Key8)
-                            | Some(Key::Key9)
-                            | Some(Key::Key10)
-                            | Some(Key::Key11)
-                            | Some(Key::Key12)
-                            | Some(Key::Key13)
-                            | Some(Key::Key14)
-                            | Some(Key::ScratchExtra)
-                            | Some(Key::FootPedal) => 0,
-                            None => 0,
+                            Some(Key::Key(idx)) if idx.get() == 8 => 9,
+                            Some(Key::Key(idx)) if idx.get() == 9 => 10,
+                            Some(Key::Key(idx)) if idx.get() == 10 => 11,
+                            Some(Key::Key(idx)) if idx.get() == 11 => 12,
+                            Some(Key::Key(idx)) if idx.get() == 12 => 13,
+                            Some(Key::Key(idx)) if idx.get() == 13 => 14,
+                            Some(Key::Key(idx)) if idx.get() == 14 => 15,
+                            Some(Key::ScratchExtra(_)) | Some(Key::FootPedal) => 0,
+                            _ => 0,
                         } + match beat_opt.map(|b| b.side) {
                             Some(PlayerSide::Player1) => 0,
                             Some(PlayerSide::Player2) => 8,
