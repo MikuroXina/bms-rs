@@ -15,7 +15,7 @@ use crate::bms::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
         mixin::SourcePosMixin, time::Track,
     },
-    prelude::read_channel_beat,
+    prelude::read_channel,
 };
 
 #[cfg(feature = "minor-command")]
@@ -302,7 +302,7 @@ pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
-        let channel_parser = read_channel_beat;
+        let channel_parser = read_channel;
         let command = c
             .next_token()
             .ok_or_else(|| c.make_err_expected_token("command"))?;

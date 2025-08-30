@@ -366,51 +366,8 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
     })
 }
 
-/// Reads a note kind from a character. (For general part)
-/// Can be directly use in BMS/BME/PMS types, and be converted to other types.
-fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
-    Some(match kind_char {
-        '1' => (NoteKind::Visible, PlayerSide::Player1),
-        '2' => (NoteKind::Visible, PlayerSide::Player2),
-        '3' => (NoteKind::Invisible, PlayerSide::Player1),
-        '4' => (NoteKind::Invisible, PlayerSide::Player2),
-        '5' => (NoteKind::Long, PlayerSide::Player1),
-        '6' => (NoteKind::Long, PlayerSide::Player2),
-        'D' => (NoteKind::Landmine, PlayerSide::Player1),
-        'E' => (NoteKind::Landmine, PlayerSide::Player2),
-        _ => return None,
-    })
-}
-
-/// Reads a key from a character. (For Beat 5K/7K/10K/14K)
-fn get_key_beat(key: char) -> Option<Key> {
-    Some(match key {
-        '1' => Key::Key(1),
-        '2' => Key::Key(2),
-        '3' => Key::Key(3),
-        '4' => Key::Key(4),
-        '5' => Key::Key(5),
-        '6' => Key::Scratch(1),
-        '7' => Key::FreeZone,
-        '8' => Key::Key(6),
-        '9' => Key::Key(7),
-        _ => return None,
-    })
-}
-
-/// Parses a channel ID from a string and returns the note components.
-pub fn parse_channel_id(channel: &str) -> Option<(NoteKind, PlayerSide, Key)> {
-    if let Some(_channel) = read_channel_general(channel) {
-        return None; // This is not a note channel
-    }
-    let mut channel_chars = channel.chars();
-    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
-    let key = get_key_beat(channel_chars.next()?)?;
-    Some((kind, side, key))
-}
-
-/// Reads a channel from a string. (For Beat 5K/7K/10K/14K)
-pub fn read_channel_beat(channel: &str) -> Option<Channel> {
+/// Reads a channel from a string. (Generic channel reader)
+pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
     }

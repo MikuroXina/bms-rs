@@ -28,7 +28,6 @@ use crate::bms::{
             Channel, Key, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
-            parse_channel_id,
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -875,8 +874,9 @@ impl Bms {
                 message,
             } => {
                 // Parse the channel ID to get note components
-                let channel_str = format!("{}", channel_id);
-                if let Some((kind, side, key)) = parse_channel_id(&channel_str) {
+                let beat_layout = KeyLayoutBeat::from_channel_id(*channel_id);
+                let (side, kind, key) = beat_layout.into_tuple();
+                {
                     for (offset, obj) in ids_from_message(*track, message) {
                         self.notes.push_note(Obj {
                             offset,

@@ -24,7 +24,7 @@ pub use super::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
                 KeyLayoutPms, KeyLayoutPmsBmeType, KeyMapping,
             },
-            read_channel_beat,
+            read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         mixin::{SourcePosMixin, SourcePosMixinExt},
