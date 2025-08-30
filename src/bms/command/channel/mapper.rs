@@ -1,8 +1,21 @@
 //! For converting key/channel between different modes, please see [`KeyLayoutMapper`] enum and [`convert_key_mapping_between`] function.
 
-use super::{Key, KeyMapping, NoteKind, PlayerSide};
+use super::{Key, NoteKind, PlayerSide};
 use Key::*;
 
+/// A trait for key mapping storage structure.
+pub trait KeyMapping {
+    /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
+    fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
+    /// Get the PlayerSide from this KeyMapping.
+    fn side(&self) -> PlayerSide;
+    /// Get the NoteKind from this KeyMapping.
+    fn kind(&self) -> NoteKind;
+    /// Get the [`Key`] from this [`KeyMapping`].
+    fn key(&self) -> Key;
+    /// Deconstruct into a [`PlayerSide`], [`NoteKind`], [`Key`] tuple.
+    fn into_tuple(self) -> (PlayerSide, NoteKind, Key);
+}
 /// Trait for key channel mode implementations.
 ///
 /// This trait defines the interface for converting between different key channel modes

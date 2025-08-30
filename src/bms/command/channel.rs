@@ -329,17 +329,3 @@ pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     let key = get_key_beat(channel_chars.next()?)?;
     Some(Channel::Note { kind, side, key })
 }
-
-/// A trait for key mapping storage structure.
-pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
-    fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
-    /// Get the PlayerSide from this KeyMapping.
-    fn side(&self) -> PlayerSide;
-    /// Get the NoteKind from this KeyMapping.
-    fn kind(&self) -> NoteKind;
-    /// Get the [`Key`] from this [`KeyMapping`].
-    fn key(&self) -> Key;
-    /// Deconstruct into a [`PlayerSide`], [`NoteKind`], [`Key`] tuple.
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key);
-}
