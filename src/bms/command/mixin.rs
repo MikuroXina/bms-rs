@@ -6,7 +6,7 @@
 /// A generic wrapper that attaches position information (index span) to a value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SourcePosMixin<T> {
+pub struct SourceRangeMixin<T> {
     /// Wrapped content value
     content: T,
     /// Start index in the source string (0-based, inclusive)
@@ -15,7 +15,7 @@ pub struct SourcePosMixin<T> {
     end: usize,
 }
 
-impl<T> SourcePosMixin<T> {
+impl<T> SourceRangeMixin<T> {
     /// Instances a new `SourcePosMixin`
     pub const fn new(content: T, start: usize, end: usize) -> Self {
         Self {
@@ -66,25 +66,25 @@ impl<T> SourcePosMixin<T> {
     }
 }
 
-impl<'a, T> SourcePosMixin<T> {
+impl<'a, T> SourceRangeMixin<T> {
     /// Returns the inner reference version of the wrapper.
-    pub fn inner_ref(&'a self) -> SourcePosMixin<&'a T> {
+    pub fn inner_ref(&'a self) -> SourceRangeMixin<&'a T> {
         let content = &self.content;
-        SourcePosMixin::new(content, self.start, self.end)
+        SourceRangeMixin::new(content, self.start, self.end)
     }
 }
 
-impl<T> SourcePosMixin<T> {
+impl<T> SourceRangeMixin<T> {
     /// Maps the content of the wrapper.
-    pub fn map<U, F>(self, f: F) -> SourcePosMixin<U>
+    pub fn map<U, F>(self, f: F) -> SourceRangeMixin<U>
     where
         F: FnOnce(T) -> U,
     {
-        SourcePosMixin::new(f(self.content), self.start, self.end)
+        SourceRangeMixin::new(f(self.content), self.start, self.end)
     }
 }
 
-impl<T: std::fmt::Display> std::fmt::Display for SourcePosMixin<T> {
+impl<T: std::fmt::Display> std::fmt::Display for SourceRangeMixin<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -94,26 +94,26 @@ impl<T: std::fmt::Display> std::fmt::Display for SourcePosMixin<T> {
     }
 }
 
-impl<T> From<(T, usize, usize)> for SourcePosMixin<T> {
+impl<T> From<(T, usize, usize)> for SourceRangeMixin<T> {
     fn from(value: (T, usize, usize)) -> Self {
         Self::new(value.0, value.1, value.2)
     }
 }
 
-impl<T> From<SourcePosMixin<T>> for (T, usize, usize) {
-    fn from(value: SourcePosMixin<T>) -> Self {
+impl<T> From<SourceRangeMixin<T>> for (T, usize, usize) {
+    fn from(value: SourceRangeMixin<T>) -> Self {
         (value.content, value.start, value.end)
     }
 }
 
 // Convenience implementation for creating empty SourcePosMixin with just a span
-impl From<(usize, usize)> for SourcePosMixin<()> {
+impl From<(usize, usize)> for SourceRangeMixin<()> {
     fn from(value: (usize, usize)) -> Self {
         Self::new((), value.0, value.1)
     }
 }
 
-impl<T: std::error::Error + 'static> std::error::Error for SourcePosMixin<T> {
+impl<T: std::error::Error + 'static> std::error::Error for SourceRangeMixin<T> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.content)
     }
@@ -122,27 +122,27 @@ impl<T: std::error::Error + 'static> std::error::Error for SourcePosMixin<T> {
 /// Extension methods for `SourcePosMixin`.
 pub trait SourcePosMixinExt {
     /// Instances a new `SourcePosMixin` with the same span as a wrapper.
-    fn into_wrapper<W>(self, wrapper: &SourcePosMixin<W>) -> SourcePosMixin<Self>
+    fn into_wrapper<W>(self, wrapper: &SourceRangeMixin<W>) -> SourceRangeMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, wrapper.start, wrapper.end)
+        SourceRangeMixin::new(self, wrapper.start, wrapper.end)
     }
 
     /// Instances a new `SourcePosMixin` with a given start and end indices.
-    fn into_wrapper_manual(self, start: usize, end: usize) -> SourcePosMixin<Self>
+    fn into_wrapper_manual(self, start: usize, end: usize) -> SourceRangeMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, start, end)
+        SourceRangeMixin::new(self, start, end)
     }
 
     /// Instances a new `SourcePosMixin` with a given (start, end) span.
-    fn into_wrapper_span(self, span: (usize, usize)) -> SourcePosMixin<Self>
+    fn into_wrapper_span(self, span: (usize, usize)) -> SourceRangeMixin<Self>
     where
         Self: Sized,
     {
-        SourcePosMixin::new(self, span.0, span.1)
+        SourceRangeMixin::new(self, span.0, span.1)
     }
 }
 

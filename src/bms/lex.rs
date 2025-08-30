@@ -9,7 +9,7 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
+use crate::bms::command::mixin::{SourceRangeMixin, SourcePosMixinExt};
 
 use self::{
     cursor::Cursor,
@@ -51,7 +51,7 @@ pub enum LexWarning {
 }
 
 /// A [`LexWarning`] type with position information.
-pub type LexWarningWithPos = SourcePosMixin<LexWarning>;
+pub type LexWarningWithPos = SourceRangeMixin<LexWarning>;
 
 /// type alias of core::result::Result<T, LexWarning>
 pub(crate) type Result<T> = core::result::Result<T, LexWarning>;

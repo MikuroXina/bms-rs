@@ -136,7 +136,7 @@ mod tests {
     use crate::{
         ast::structure::{CaseBranch, CaseBranchValue, IfBlock, Unit},
         bms::lex::token::Token,
-        command::mixin::{SourcePosMixin, SourcePosMixinExt},
+        command::mixin::{SourceRangeMixin, SourcePosMixinExt},
     };
 
     struct DummyRng;
@@ -204,7 +204,7 @@ mod tests {
         let mut rng = DummyRng;
         // Random outer, Switch inner
         let t_switch_in_random = Title("SWITCH_IN_RANDOM").into_wrapper_manual(0, 0);
-        let mut if_branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'_>>>> = BTreeMap::new();
+        let mut if_branches: BTreeMap<BigUint, SourceRangeMixin<Vec<Unit<'_>>>> = BTreeMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             vec![Unit::SwitchBlock {
@@ -291,7 +291,7 @@ mod tests {
         // Deeply nested Random and Switch
         let mut rng = DummyRng;
         let t_deep_nested = Title("DEEP_NESTED").into_wrapper_manual(0, 0);
-        let mut if_branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'_>>>> = BTreeMap::new();
+        let mut if_branches: BTreeMap<BigUint, SourceRangeMixin<Vec<Unit<'_>>>> = BTreeMap::new();
         if_branches.insert(
             BigUint::from(1u64),
             vec![Unit::SwitchBlock {

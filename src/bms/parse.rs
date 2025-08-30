@@ -21,7 +21,7 @@ use crate::bms::{
             Channel,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
-        mixin::SourcePosMixin,
+        mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
     lex::token::TokenWithPos,
@@ -58,7 +58,7 @@ pub enum ParseWarning {
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
 /// A parse warning with position information.
-pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
+pub type ParseWarningWithPos = SourceRangeMixin<ParseWarning>;
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]

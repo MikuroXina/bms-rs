@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use num::BigUint;
 
-use crate::bms::{command::mixin::SourcePosMixin, lex::token::TokenWithPos};
+use crate::bms::{command::mixin::SourceRangeMixin, lex::token::TokenWithPos};
 
 /// An unit of AST which represents individual scoped commands of BMS source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,11 +14,11 @@ pub enum Unit<'a> {
     /// A Random block. Can contain multiple If blocks.
     RandomBlock {
         /// The value of the Random block.
-        value: SourcePosMixin<BlockValue>,
+        value: SourceRangeMixin<BlockValue>,
         /// The If blocks in the Random block.
         if_blocks: Vec<IfBlock<'a>>,
         /// The ENDRANDOM position in the BMS source.
-        end_random: SourcePosMixin<()>,
+        end_random: SourceRangeMixin<()>,
     },
     /// A Switch block.
     /// Like C++ Programming Language, Switch block can contain multiple Case branches, and a Def branch.
@@ -26,11 +26,11 @@ pub enum Unit<'a> {
     /// When executing, the tokens, from the activated branch, to Skip/EndSwitch, will be executed.
     SwitchBlock {
         /// The value of the Switch block.
-        value: SourcePosMixin<BlockValue>,
+        value: SourceRangeMixin<BlockValue>,
         /// The Case branches in the Switch block.
         cases: Vec<CaseBranch<'a>>,
         /// The ENDSW position in the BMS source.
-        end_sw: SourcePosMixin<()>,
+        end_sw: SourceRangeMixin<()>,
     },
 }
 
@@ -55,11 +55,11 @@ pub enum BlockValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
     /// The branches of the If block.
-    pub branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>>,
+    pub branches: BTreeMap<BigUint, SourceRangeMixin<Vec<Unit<'a>>>>,
     /// The ENDIF position in the BMS source for this IfBlock.
     /// If there is no matching `#ENDIF`, this falls back to the position of the last token
     /// inside the If block (or the current peek position when the block is empty).
-    pub end_if: SourcePosMixin<()>,
+    pub end_if: SourceRangeMixin<()>,
 }
 
 /// The define of a Case/Def branch in a Switch block.
@@ -67,7 +67,7 @@ pub struct IfBlock<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseBranch<'a> {
     /// The value of the Case/Def branch.
-    pub value: SourcePosMixin<CaseBranchValue>,
+    pub value: SourceRangeMixin<CaseBranchValue>,
     /// The units in the Case/Def branch.
     pub units: Vec<Unit<'a>>,
 }

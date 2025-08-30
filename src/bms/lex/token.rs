@@ -13,7 +13,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourcePosMixin, time::Track,
+        mixin::SourceRangeMixin, time::Track,
     },
     prelude::read_channel,
 };
@@ -298,7 +298,7 @@ pub enum Token<'a> {
 }
 
 /// A token with position information.
-pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
+pub type TokenWithPos<'a> = SourceRangeMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {

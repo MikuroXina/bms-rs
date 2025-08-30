@@ -10,7 +10,7 @@ use crate::bms::{
         AstBuildWarningWithPos,
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+    command::mixin::{SourceRangeMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
@@ -282,8 +282,8 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
             If(if_val) => {
                 iter.next();
                 // Track the ENDIF position for this IfBlock (non-optional)
-                let mut current_if_end = None::<SourcePosMixin<()>>;
-                let mut branches: BTreeMap<BigUint, SourcePosMixin<Vec<Unit<'a>>>> =
+                let mut current_if_end = None::<SourceRangeMixin<()>>;
+                let mut branches: BTreeMap<BigUint, SourceRangeMixin<Vec<Unit<'a>>>> =
                     BTreeMap::new();
                 let mut seen_if_values = HashSet::new();
                 // Check if If branch value is duplicated
@@ -444,17 +444,17 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
 /// - If EndIf is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithPos<'a>>>(
     iter: &mut Peekable<T>,
-    default_end_pos: SourcePosMixin<()>,
+    default_end_pos: SourceRangeMixin<()>,
 ) -> (
     Vec<Unit<'a>>,
     Vec<AstBuildWarningWithPos>,
-    SourcePosMixin<()>,
+    SourceRangeMixin<()>,
 ) {
     let mut result = Vec::new();
     let mut errors = Vec::new();
     // Default fallback: if no #ENDIF is found, use the position of the last processed token,
     // or the current peek token; if neither exists, use a dummy (0,0).
-    let mut fallback_pos = None::<SourcePosMixin<()>>;
+    let mut fallback_pos = None::<SourceRangeMixin<()>>;
     use Token::*;
     loop {
         // First, check for terminators without holding the borrow across mutations

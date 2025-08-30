@@ -1,6 +1,6 @@
 use crate::bms::{
     ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    command::mixin::{SourcePosMixin, SourcePosMixinExt},
+    command::mixin::{SourceRangeMixin, SourcePosMixinExt},
     lex::token::{Token, TokenWithPos},
 };
 
@@ -36,9 +36,9 @@ pub(super) fn extract_units<'a>(
 /// Extracts all tokens from a Random block.
 /// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
-    value: SourcePosMixin<BlockValue>,
+    value: SourceRangeMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
-    end_random: SourcePosMixin<()>,
+    end_random: SourceRangeMixin<()>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens: Vec<TokenWithPos<'a>> = Vec::new();
 
@@ -75,9 +75,9 @@ fn extract_random_block<'a>(
 /// Extracts all tokens from a Switch block.
 /// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
-    value: SourcePosMixin<BlockValue>,
+    value: SourceRangeMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
-    end_sw: SourcePosMixin<()>,
+    end_sw: SourceRangeMixin<()>,
 ) -> Vec<TokenWithPos<'a>> {
     let mut tokens = Vec::new();
 
