@@ -1,3 +1,4 @@
+#![cfg(feature = "enable-validity")]
 //! Validity checks for BMS data after parsing and/or manual edits.
 //!
 //! This module provides a set of structural validations that are independent of

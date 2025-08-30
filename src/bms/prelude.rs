@@ -49,10 +49,12 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
-        validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms_with_rng,
 };
+
+#[cfg(feature = "enable-validity")]
+pub use super::parse::validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

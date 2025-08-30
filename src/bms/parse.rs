@@ -6,6 +6,7 @@
 pub mod check_playing;
 pub mod model;
 pub mod prompt;
+#[cfg(feature = "enable-validity")]
 pub mod validity;
 
 use thiserror::Error;
