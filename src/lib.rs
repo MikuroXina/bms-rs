@@ -17,6 +17,7 @@
 //! use bms_rs::bms::{ast::rng::RngMock, parse_bms_with_rng, BmsOutput};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
+//! use bms_rs::bms::BmsWarning;
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
@@ -26,7 +27,6 @@
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
-//! println!("Warnings: {:?}", warnings);
 //! ```
 //!
 //! ## Advanced Usage
