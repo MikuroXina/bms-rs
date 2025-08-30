@@ -1813,8 +1813,11 @@ impl Bms {
     /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
     pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
         for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let ori_map = Src::new(*side, *key);
+            for Obj {
+                side, kind, key, ..
+            } in objs.iter_mut()
+            {
+                let ori_map = Src::new(*side, *kind, *key);
                 let beat_map = ori_map.to_beat();
                 let dst_map = Dst::from_beat(beat_map);
                 *side = dst_map.side();
@@ -1826,8 +1829,11 @@ impl Bms {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let beat_map = KeyLayoutBeat::new(*side, *key);
+            for Obj {
+                side, kind, key, ..
+            } in objs.iter_mut()
+            {
+                let beat_map = KeyLayoutBeat::new(*side, *kind, *key);
                 let new_beat_map = converter.convert(beat_map);
                 *side = new_beat_map.side();
                 *key = new_beat_map.key();
