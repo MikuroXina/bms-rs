@@ -8,21 +8,66 @@
 pub mod converter;
 pub mod mapper;
 
-use self::mapper::{BeatKey, PhysicalKey};
+// mapper imports only when needed
 
-/// A logical note channel (lane) abstracted from physical keys.
+/// 一个逻辑音符通道（车道），以 base62 两位编码表示。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct NoteChannel(pub u32);
+pub struct NoteChannel(pub [u8; 2]);
 
 impl NoteChannel {
-    /// Create a new [`NoteChannel`] from a [`u32`] value.
-    pub const fn new(value: u32) -> Self {
-        Self(value)
+    /// 从两个 ASCII 字符（均为 base62 范围）构造。
+    pub fn try_from_chars(c1: char, c2: char) -> Option<Self> {
+        fn char_to_digit(ch: char) -> Option<u8> {
+            let ch = ch as u8;
+            match ch {
+                b'0'..=b'9' => Some(ch - b'0'),
+                b'A'..=b'Z' => Some(ch - b'A' + 10),
+                b'a'..=b'z' => Some(ch - b'a' + 36),
+                _ => None,
+            }
+        }
+        // 规范化为 base62 数字（0-61）存储
+        let d1 = char_to_digit(c1)?;
+        let d2 = char_to_digit(c2)?;
+        Some(Self([d1, d2]))
     }
-    /// Get the [`u32`] value of this [`NoteChannel`].
-    pub const fn as_u32(self) -> u32 {
-        self.0
+
+    /// 从 "YY" 两字符字符串构造。
+    pub fn try_from_str(s: &str) -> Option<Self> {
+        if s.len() != 2 {
+            return None;
+        }
+        let mut it = s.chars();
+        let c1 = it.next()?;
+        let c2 = it.next()?;
+        Self::try_from_chars(c1, c2)
+    }
+
+    /// 将内部 base62 数字对编码为 u16（d1*62 + d2）。
+    pub const fn to_u16(self) -> u16 {
+        (self.0[0] as u16) * 62 + (self.0[1] as u16)
+    }
+
+    /// 由 u16（小于 62*62）构造。
+    pub fn from_u16(v: u16) -> Self {
+        let hi = (v / 62) as u8;
+        let lo = (v % 62) as u8;
+        Self([hi, lo])
+    }
+
+    /// 获取显示字符串（两字符，使用标准 base62 字符集）。
+    pub fn to_str(self) -> [char; 2] {
+        // 反向映射 base62 数字到字符
+        fn digit_to_char(d: u8) -> char {
+            match d {
+                0..=9 => (b'0' + d) as char,
+                10..=35 => (b'A' + (d - 10)) as char,
+                36..=61 => (b'a' + (d - 36)) as char,
+                _ => unreachable!(),
+            }
+        }
+        [digit_to_char(self.0[0]), digit_to_char(self.0[1])]
     }
 }
 
@@ -48,8 +93,6 @@ pub enum Channel {
     ChangeOption,
     /// For the note which the user can interact.
     Note {
-        /// The kind of the note.
-        kind: NoteKind,
         /// The logical note lane channel.
         channel: NoteChannel,
     },
@@ -104,6 +147,55 @@ pub enum Channel {
     /// For the OPTION. #CHANGEOPTIONxx (multiline)
     #[cfg(feature = "minor-command")]
     Option,
+}
+
+impl Channel {
+    /// Returns the two-character code used in BMS commands for this channel.
+    pub fn to_bms_code(&self) -> [char; 2] {
+        use Channel::*;
+        match self {
+            BgaBase => ['0', '4'],
+            BgaLayer => ['0', '7'],
+            BgaPoor => ['0', '6'],
+            Bgm => ['0', '1'],
+            BpmChangeU8 => ['0', '3'],
+            BpmChange => ['0', '8'],
+            #[cfg(feature = "minor-command")]
+            ChangeOption => ['A', '6'],
+            Note { channel, .. } => channel.to_str(),
+            SectionLen => ['0', '2'],
+            Stop => ['0', '9'],
+            Scroll => ['S', 'C'],
+            Speed => ['S', 'P'],
+            #[cfg(feature = "minor-command")]
+            Seek => ['0', '5'],
+            BgaLayer2 => ['0', 'A'],
+            #[cfg(feature = "minor-command")]
+            BgaBaseOpacity => ['0', 'B'],
+            #[cfg(feature = "minor-command")]
+            BgaLayerOpacity => ['0', 'C'],
+            #[cfg(feature = "minor-command")]
+            BgaLayer2Opacity => ['0', 'D'],
+            #[cfg(feature = "minor-command")]
+            BgaPoorOpacity => ['0', 'E'],
+            BgmVolume => ['9', '7'],
+            KeyVolume => ['9', '8'],
+            Text => ['9', '9'],
+            Judge => ['A', '0'],
+            #[cfg(feature = "minor-command")]
+            BgaBaseArgb => ['A', '1'],
+            #[cfg(feature = "minor-command")]
+            BgaLayerArgb => ['A', '2'],
+            #[cfg(feature = "minor-command")]
+            BgaLayer2Argb => ['A', '3'],
+            #[cfg(feature = "minor-command")]
+            BgaPoorArgb => ['A', '4'],
+            #[cfg(feature = "minor-command")]
+            BgaKeybound => ['A', '5'],
+            #[cfg(feature = "minor-command")]
+            Option => ['A', '6'],
+        }
+    }
 }
 
 impl std::fmt::Display for Channel {
@@ -177,6 +269,19 @@ impl NoteKind {
     /// Returns whether the note is a long-press note.
     pub const fn is_long(self) -> bool {
         matches!(self, Self::Long)
+    }
+
+    /// Derive NoteKind from a logical NoteChannel.
+    /// Default rule by YY first character: 1/2 Visible, 3/4 Invisible, 5/6 Long, D/E Landmine.
+    pub fn note_kind_from_channel(channel: NoteChannel) -> Option<Self> {
+        let [c1, _] = channel.to_str();
+        Some(match c1.to_ascii_uppercase() {
+            '1' | '2' => NoteKind::Visible,
+            '3' | '4' => NoteKind::Invisible,
+            '5' | '6' => NoteKind::Long,
+            'D' | 'E' => NoteKind::Landmine,
+            _ => return None,
+        })
     }
 }
 
@@ -286,7 +391,7 @@ impl Key {
 /// Reads a channel from a string.
 ///
 /// For general part, please call this function when using other functions.
-fn read_channel_general(channel: &str) -> Option<Channel> {
+pub fn read_channel_general(channel: &str) -> Option<Channel> {
     use Channel::*;
     Some(match channel.to_uppercase().as_str() {
         "01" => Bgm,
@@ -330,51 +435,10 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
     })
 }
 
-/// Reads a note kind from a character. (For general part)
-/// Can be directly use in BMS/BME/PMS types, and be converted to other types.
-fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
-    Some(match kind_char {
-        '1' => (NoteKind::Visible, PlayerSide::Player1),
-        '2' => (NoteKind::Visible, PlayerSide::Player2),
-        '3' => (NoteKind::Invisible, PlayerSide::Player1),
-        '4' => (NoteKind::Invisible, PlayerSide::Player2),
-        '5' => (NoteKind::Long, PlayerSide::Player1),
-        '6' => (NoteKind::Long, PlayerSide::Player2),
-        'D' => (NoteKind::Landmine, PlayerSide::Player1),
-        'E' => (NoteKind::Landmine, PlayerSide::Player2),
-        _ => return None,
-    })
-}
+// removed redundant router helpers; kind is inferred at parse stage
 
-/// Reads a key from a character. (For Beat 5K/7K/10K/14K)
-fn get_key_beat(key: char) -> Option<Key> {
-    use Key::*;
-    Some(match key {
-        '1' => Key1,
-        '2' => Key2,
-        '3' => Key3,
-        '4' => Key4,
-        '5' => Key5,
-        '6' => Scratch,
-        '7' => FreeZone,
-        '8' => Key6,
-        '9' => Key7,
-        _ => return None,
-    })
-}
+// removed redundant beat key parser; mapping now centralized in PhysicalKey impls
 
-/// Reads a channel from a string. (For Beat 5K/7K/10K/14K)
-pub fn read_channel_beat(channel: &str) -> Option<Channel> {
-    if let Some(channel) = read_channel_general(channel) {
-        return Some(channel);
-    }
-    let mut channel_chars = channel.chars();
-    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
-    let key = get_key_beat(channel_chars.next()?)?;
-    let beat = BeatKey::new(side, key);
-    let note_channel = beat.to_note_channel();
-    Some(Channel::Note {
-        kind,
-        channel: note_channel,
-    })
-}
+// 已不再提供统一包装的路由函数，调用方直接使用 NoteChannel::try_from_str 或者 read_channel_general。
+
+// read_channel_beat 已移除，统一使用 `read_channel`（返回 NoteChannel）与 `read_channel_general`（仅通用枚举）。

@@ -177,7 +177,7 @@ impl Bms<BeatKey> {
             for note in sound_channel.notes {
                 let time = convert_pulse_to_obj_time(note.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(note.x);
-                let kind = if note.l > 0 {
+                let channel_kind = if note.l > 0 {
                     NoteKind::Long
                 } else {
                     NoteKind::Visible
@@ -185,8 +185,7 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind,
-                    channel: BeatKey::new(side, key).to_note_channel(),
+                    channel: BeatKey::new(side, key, channel_kind).to_note_channel(),
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };
@@ -209,8 +208,7 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind: NoteKind::Landmine,
-                    channel: BeatKey::new(side, key).to_note_channel(),
+                    channel: BeatKey::new(side, key, NoteKind::Landmine).to_note_channel(),
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };
@@ -233,8 +231,7 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind: NoteKind::Invisible,
-                    channel: BeatKey::new(side, key).to_note_channel(),
+                    channel: BeatKey::new(side, key, NoteKind::Invisible).to_note_channel(),
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };

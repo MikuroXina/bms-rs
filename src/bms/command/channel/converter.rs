@@ -32,17 +32,17 @@ pub struct KeyLayoutConvertMirror {
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, mut key) = beat_map.into_tuple();
+        let (side, mut key, kind) = beat_map.into_tuple();
         if side == self.side
             && let Some(position) = self.keys.iter().position(|k| k == &key)
         {
             let mirror_index = self.keys.len().saturating_sub(position + 1);
             let Some(mirror_key) = self.keys.get(mirror_index) else {
-                return T::new(side, key);
+                return T::new(side, key, kind);
             };
             key = *mirror_key;
         }
-        T::new(side, key)
+        T::new(side, key, kind)
     }
 }
 
@@ -140,12 +140,12 @@ impl KeyLayoutConvertLaneRotateShuffle {
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, key) = beat_map.into_tuple();
+        let (side, key, kind) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            T::new(side, new_key)
+            T::new(side, new_key, kind)
         } else {
-            T::new(side, key)
+            T::new(side, key, kind)
         }
     }
 }
@@ -190,19 +190,19 @@ impl KeyLayoutConvertLaneRandomShuffle {
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, key) = beat_map.into_tuple();
+        let (side, key, kind) = beat_map.into_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            T::new(side, new_key)
+            T::new(side, new_key, kind)
         } else {
-            T::new(side, key)
+            T::new(side, key, kind)
         }
     }
 }
 
 #[cfg(test)]
 mod channel_mode_tests {
-    use crate::bms::command::channel::BeatKey as KeyLayoutBeat;
+    use crate::bms::prelude::{BeatKey as KeyLayoutBeat, NoteKind};
 
     use super::*;
 
@@ -222,7 +222,7 @@ mod channel_mode_tests {
             (PlayerSide::Player2, Key::Key5),
         ]
         .into_iter()
-        .map(|(side, key)| KeyLayoutBeat::new(side, key))
+        .map(|(side, key)| KeyLayoutBeat::new(side, key, NoteKind::Visible))
         .collect::<Vec<_>>();
         let mut mode = KeyLayoutConvertMirror {
             side: PlayerSide::Player1,
@@ -242,7 +242,7 @@ mod channel_mode_tests {
             (PlayerSide::Player2, Key::Key5),
         ]
         .into_iter()
-        .map(|(side, key)| KeyLayoutBeat::new(side, key))
+        .map(|(side, key)| KeyLayoutBeat::new(side, key, NoteKind::Visible))
         .collect::<Vec<_>>();
         assert_eq!(result, expected);
     }
@@ -313,7 +313,13 @@ mod channel_mode_tests {
             );
             let result_values = init_keys
                 .into_iter()
-                .map(|k| rnd.convert(KeyLayoutBeat::new(PlayerSide::Player1, k)))
+                .map(|k| {
+                    rnd.convert(KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        k,
+                        NoteKind::Visible,
+                    ))
+                })
                 .map(|v| v.key() as usize)
                 .collect::<Vec<_>>();
             println!("  Expected: {:?}", list);

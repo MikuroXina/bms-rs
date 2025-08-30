@@ -862,17 +862,19 @@ impl<T: PhysicalKey> Bms<T> {
             }
             Token::Message {
                 track,
-                channel: Channel::Note { kind, channel },
+                channel: Channel::Note { channel },
                 message,
             } => {
-                for (offset, obj) in ids_from_message(*track, message) {
-                    self.notes.push_note(Obj {
-                        offset,
-                        kind: *kind,
-                        channel: *channel,
-                        obj,
-                        _marker: core::marker::PhantomData,
-                    });
+                // Only process if the channel has a valid note kind
+                if NoteKind::note_kind_from_channel(*channel).is_some() {
+                    for (offset, obj) in ids_from_message(*track, message) {
+                        self.notes.push_note(Obj {
+                            offset,
+                            channel: *channel,
+                            obj,
+                            _marker: core::marker::PhantomData,
+                        });
+                    }
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -1062,7 +1064,7 @@ impl<T: PhysicalKey> Bms<T> {
                 }
             }
             Token::LnObj(end_id) => {
-                let mut end_note = self
+                let end_note = self
                     .notes
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
@@ -1085,16 +1087,33 @@ impl<T: PhysicalKey> Bms<T> {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note =
+                let begin_note =
                     self.notes
                         .remove_latest_note(begin_id)
                         .ok_or(ParseWarning::SyntaxError(format!(
                             "Cannot find begin note for LNOBJ {end_id:?}"
                         )))?;
-                begin_note.kind = NoteKind::Long;
-                end_note.kind = NoteKind::Long;
-                self.notes.push_note(begin_note);
-                self.notes.push_note(end_note);
+
+                // Convert to long note by modifying channel
+                let begin_channel = self.convert_to_long_channel(begin_note.channel)?;
+                let end_channel = self.convert_to_long_channel(end_note.channel)?;
+
+                let begin_long_note = Obj {
+                    offset: begin_note.offset,
+                    channel: begin_channel,
+                    obj: begin_note.obj,
+                    _marker: core::marker::PhantomData,
+                };
+
+                let end_long_note = Obj {
+                    offset: end_note.offset,
+                    channel: end_channel,
+                    obj: end_note.obj,
+                    _marker: core::marker::PhantomData,
+                };
+
+                self.notes.push_note(begin_long_note);
+                self.notes.push_note(end_long_note);
             }
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
@@ -1167,6 +1186,26 @@ impl<T: PhysicalKey> Bms<T> {
             }
         }
         Ok(())
+    }
+
+    /// Convert a channel to long note type using PhysicalKey logic.
+    /// This is used for LNOBJ processing.
+    fn convert_to_long_channel(&self, channel: NoteChannel) -> Result<NoteChannel> {
+        use crate::bms::command::channel::mapper::BeatKey;
+
+        // Use BeatKey's from_note_channel to parse the channel and get the physical key
+        let beat_key = BeatKey::from_note_channel(channel).ok_or_else(|| {
+            ParseWarning::SyntaxError(format!(
+                "Cannot parse channel {:?} as BeatKey",
+                channel.to_str()
+            ))
+        })?;
+
+        // Create a new BeatKey with the same side and key but Long kind
+        let long_beat_key = BeatKey::new(beat_key.side, beat_key.key, NoteKind::Long);
+
+        // Convert back to NoteChannel
+        Ok(long_beat_key.to_note_channel())
     }
 }
 
@@ -1525,7 +1564,7 @@ impl<T: PhysicalKey> Notes<T> {
         self.objs
             .values()
             .flatten()
-            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
+            .filter(|obj| obj.kind() != Some(NoteKind::Invisible))
             .map(Reverse)
             .sorted()
             .next()
@@ -1756,7 +1795,7 @@ impl<T: PhysicalKey> Notes<T> {
 impl<T: PhysicalKey + KeyMapping> Notes<T> {
     /// Finds next object by side/key for any physical key mapping that implements `KeyMapping`.
     pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj<T>> {
-        let channel = T::new(side, key).to_note_channel();
+        let channel = T::new(side, key, NoteKind::Visible).to_note_channel();
         self.next_obj_by_channel(channel, time)
     }
 }
@@ -1856,18 +1895,17 @@ impl<T: PhysicalKey + KeyMapping> Bms<T> {
             let mut converted_vec: Vec<Obj<D>> = Vec::with_capacity(objs.len());
             for o in objs {
                 // 先按源布局 T 解析，失败则尝试 BeatKey 回退
-                let (side, key) = if let Some(src) = T::from_note_channel(o.channel) {
+                let (side, key, kind) = if let Some(src) = T::from_note_channel(o.channel) {
                     src.into_tuple()
                 } else if let Some(bk) = BeatKey::from_note_channel(o.channel) {
-                    (bk.side, bk.key)
+                    (bk.side, bk.key, bk.kind)
                 } else {
                     // No mapping found, use default
-                    (PlayerSide::Player1, Key::Key1)
+                    (PlayerSide::Player1, Key::Key1, NoteKind::Visible)
                 };
-                let new_channel = D::new(side, key).to_note_channel();
+                let new_channel = D::new(side, key, kind).to_note_channel();
                 let new_obj = Obj {
                     offset: o.offset,
-                    kind: o.kind,
                     channel: new_channel,
                     obj: o.obj,
                     _marker: core::marker::PhantomData,
@@ -1897,10 +1935,11 @@ impl<T: PhysicalKey + KeyMapping> Bms<T> {
         for (_, objs) in self.notes.objs.iter_mut() {
             for obj in objs.iter_mut() {
                 if let Some(current) = BeatKey::from_note_channel(obj.channel) {
-                    let beat_map = BeatKey::new(current.side, current.key);
+                    let beat_map = BeatKey::new(current.side, current.key, current.kind);
                     let new_beat_map = converter.convert(beat_map);
                     let new_channel =
-                        BeatKey::new(new_beat_map.side(), new_beat_map.key()).to_note_channel();
+                        BeatKey::new(new_beat_map.side(), new_beat_map.key(), new_beat_map.kind())
+                            .to_note_channel();
                     obj.channel = new_channel;
                 }
             }

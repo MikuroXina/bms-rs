@@ -193,8 +193,8 @@ impl Bms<BeatKey> {
                 use crate::bms::command::channel::mapper::{BeatKey as BK, PhysicalKey};
                 let beat_opt = BK::from_note_channel(note.channel);
                 let note_lane = note
-                    .kind
-                    .is_playable()
+                    .kind()
+                    .is_some_and(|k| k.is_playable())
                     .then_some(
                         match beat_opt.map(|b| b.key) {
                             Some(Key::Key1) => 1,
@@ -225,8 +225,8 @@ impl Bms<BeatKey> {
                     .and_then(NonZeroU8::new);
 
                 let pulses = converter.get_pulses_at(note.offset);
-                match note.kind {
-                    NoteKind::Landmine => {
+                match note.kind() {
+                    Some(NoteKind::Landmine) => {
                         let damage = FinF64::new(100.0).unwrap_or_else(|| {
                             // This should never happen as 100.0 is a valid FinF64 value
                             panic!("Internal error: 100.0 is not a valid FinF64")
@@ -237,7 +237,7 @@ impl Bms<BeatKey> {
                             damage,
                         });
                     }
-                    NoteKind::Invisible => {
+                    Some(NoteKind::Invisible) => {
                         key_map.entry(note.obj).or_default().push(KeyEvent {
                             x: note_lane,
                             y: pulses,

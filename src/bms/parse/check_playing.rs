@@ -78,8 +78,8 @@ impl Bms<BeatKey> {
             // Check for displayable notes (Visible, Long, Landmine)
             let has_displayable = self.notes.all_notes().any(|note| {
                 matches!(
-                    note.kind,
-                    NoteKind::Visible | NoteKind::Long | NoteKind::Landmine
+                    note.kind(),
+                    Some(NoteKind::Visible) | Some(NoteKind::Long) | Some(NoteKind::Landmine)
                 )
             });
             if !has_displayable {
@@ -87,7 +87,10 @@ impl Bms<BeatKey> {
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.notes.all_notes().any(|note| note.kind.is_playable());
+            let has_playable = self
+                .notes
+                .all_notes()
+                .any(|note| note.kind().is_some_and(|k| k.is_playable()));
             if !has_playable {
                 playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }

@@ -65,34 +65,10 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key5,
-                id55
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
     let AstBuildOutput {
@@ -113,34 +89,15 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 id66
             ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -162,27 +119,9 @@ fn nested_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key3,
-                id33
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 }

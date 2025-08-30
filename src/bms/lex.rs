@@ -216,32 +216,32 @@ mod tests {
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1, NoteKind::Visible)
+                            .to_note_channel(),
                     },
                     message: "0303030303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1, NoteKind::Visible)
+                            .to_note_channel(),
                     },
                     message: "0303000303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1, NoteKind::Visible)
+                            .to_note_channel(),
                     },
                     message: "010101".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1).to_note_channel(),
+                        channel: BeatKey::new(PlayerSide::Player1, Key::Key1, NoteKind::Visible)
+                            .to_note_channel(),
                     },
                     message: "00020202".into(),
                 },

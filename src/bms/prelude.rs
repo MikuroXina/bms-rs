@@ -23,7 +23,7 @@ pub use super::{
                 BeatKey, BeatNanasiKey, DscOctFpKey, GenericNKey, KeyMapping, PhysicalKey,
                 PmsBmeKey, PmsKey,
             },
-            read_channel_beat,
+            read_channel_general,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         mixin::{SourcePosMixin, SourcePosMixinExt},

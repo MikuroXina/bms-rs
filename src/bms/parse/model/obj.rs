@@ -23,8 +23,6 @@ use core::marker::PhantomData;
 pub struct Obj<T: PhysicalKey> {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// THe note kind of the the object.
-    pub kind: NoteKind,
     /// The logical note channel (lane).
     pub channel: NoteChannel,
     /// The id of the object.
@@ -50,17 +48,10 @@ impl<T: PhysicalKey> Ord for Obj<T> {
 
 impl Obj<BeatKey> {
     /// Creates a new note object using Beat layout components.
-    pub fn new_beat(
-        offset: ObjTime,
-        kind: NoteKind,
-        side: PlayerSide,
-        key: Key,
-        obj: ObjId,
-    ) -> Self {
-        let channel = BeatKey::new(side, key).to_note_channel();
+    pub fn new_beat(offset: ObjTime, side: PlayerSide, key: Key, obj: ObjId) -> Self {
+        let channel = BeatKey::new(side, key, NoteKind::Visible).to_note_channel();
         Obj {
             offset,
-            kind,
             channel,
             obj,
             _marker: PhantomData,
@@ -76,10 +67,17 @@ impl Obj<BeatKey> {
     pub fn side(&self) -> Option<PlayerSide> {
         self.beat_components().map(|(side, _)| side)
     }
+}
+
+impl<T: PhysicalKey> Obj<T> {
+    /// Returns the note kind derived from the channel.
+    pub fn kind(&self) -> Option<NoteKind> {
+        NoteKind::note_kind_from_channel(self.channel)
+    }
 
     /// Returns the Key if the channel is a Beat channel.
     pub fn key(&self) -> Option<Key> {
-        self.beat_components().map(|(_, key)| key)
+        BeatKey::from_note_channel(self.channel).map(|bk| bk.key)
     }
 }
 

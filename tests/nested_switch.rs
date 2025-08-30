@@ -144,34 +144,10 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key5,
-                id55
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -191,34 +167,15 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 id66
             ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -238,27 +195,9 @@ fn nested_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key3,
-                id33
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 }
@@ -322,34 +261,10 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key5,
-                id55
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -369,34 +284,15 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 id66
             ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -416,27 +312,9 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key3,
-                id33
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 }
@@ -500,34 +378,10 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key5,
-                id55
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key5, id55),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -547,34 +401,15 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 1, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key2,
-                id22
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 1, 4), PlayerSide::Player1, Key::Key2, id22),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 id66
             ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 
@@ -594,27 +429,9 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes.into_all_notes(),
         vec![
-            Obj::new_beat(
-                ObjTime::new(1, 0, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key1,
-                id11
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 2, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key3,
-                id33
-            ),
-            Obj::new_beat(
-                ObjTime::new(1, 3, 4),
-                NoteKind::Visible,
-                PlayerSide::Player1,
-                Key::Key4,
-                id44
-            ),
+            Obj::new_beat(ObjTime::new(1, 0, 4), PlayerSide::Player1, Key::Key1, id11),
+            Obj::new_beat(ObjTime::new(1, 2, 4), PlayerSide::Player1, Key::Key3, id33),
+            Obj::new_beat(ObjTime::new(1, 3, 4), PlayerSide::Player1, Key::Key4, id44),
         ]
     );
 }
@@ -678,14 +495,12 @@ fn test_switch_insane() {
             // #CASE 1, #RANDOM 1, #IF 1
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key3,
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key4,
                 "04".try_into().unwrap()
@@ -713,14 +528,12 @@ fn test_switch_insane() {
             // #CASE 1, #RANDOM 2, #ELSE
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key3,
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key4,
                 "05".try_into().unwrap()
@@ -748,7 +561,6 @@ fn test_switch_insane() {
             // #CASE 2
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key3,
                 "02".try_into().unwrap()
@@ -776,21 +588,18 @@ fn test_switch_insane() {
             // #CASE 3, #SWITCH 1
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key3,
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 "11".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 "11".try_into().unwrap()
@@ -818,21 +627,18 @@ fn test_switch_insane() {
             // #CASE 3, #SWITCH 2
             Obj::new_beat(
                 ObjTime::new(0, 0, 8),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Key3,
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 "22".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
-                NoteKind::Visible,
                 PlayerSide::Player1,
                 Key::Scratch,
                 "22".try_into().unwrap()
@@ -858,7 +664,6 @@ fn test_switch_insane() {
         bms.notes.into_all_notes(),
         vec![Obj::new_beat(
             ObjTime::new(0, 1, 2),
-            NoteKind::Visible,
             PlayerSide::Player1,
             Key::Key3,
             "55".try_into().unwrap()

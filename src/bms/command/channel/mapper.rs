@@ -1,17 +1,26 @@
 //! Mappers between modes
 
-use super::{Key, NoteChannel, PlayerSide};
+use super::{Key, NoteChannel, NoteKind, PlayerSide};
 
 /// A trait for key mapping storage structure.
 pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
-    fn new(side: PlayerSide, key: Key) -> Self;
+    /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self;
+    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    fn new_with_default_kind(side: PlayerSide, key: Key) -> Self
+    where
+        Self: Sized,
+    {
+        Self::new(side, key, NoteKind::Visible)
+    }
     /// Get the PlayerSide from this KeyMapping.
     fn side(&self) -> PlayerSide;
     /// Get the [`Key`] from this [`KeyMapping`].
     fn key(&self) -> Key;
-    /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
-    fn into_tuple(self) -> (PlayerSide, Key);
+    /// Get the [`NoteKind`] from this [`KeyMapping`].
+    fn kind(&self) -> NoteKind;
+    /// Deconstruct into a [`PlayerSide`], [`Key`], [`NoteKind`] tuple.
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind);
 }
 
 /// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
@@ -30,12 +39,19 @@ pub struct BeatKey {
     pub side: PlayerSide,
     /// The key of the player.
     pub key: Key,
+    /// The kind of note.
+    pub kind: NoteKind,
 }
 
 impl BeatKey {
-    /// Create a new [`BeatKey`] from a [`PlayerSide`] and [`Key`].
-    pub const fn new(side: PlayerSide, key: Key) -> Self {
-        Self { side, key }
+    /// Create a new [`BeatKey`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self { side, key, kind }
+    }
+
+    /// Create a new [`BeatKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key, NoteKind::Visible)
     }
 }
 
@@ -44,13 +60,14 @@ impl Default for BeatKey {
         Self {
             side: PlayerSide::default(),
             key: Key::Key1,
+            kind: NoteKind::Visible,
         }
     }
 }
 
 impl KeyMapping for BeatKey {
-    fn new(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key)
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self::new(side, key, kind)
     }
     fn side(&self) -> PlayerSide {
         self.side
@@ -58,73 +75,78 @@ impl KeyMapping for BeatKey {
     fn key(&self) -> Key {
         self.key
     }
-    fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.side, self.key)
+    fn kind(&self) -> NoteKind {
+        self.kind
+    }
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
+        (self.side, self.key, self.kind)
     }
 }
 
 impl PhysicalKey for BeatKey {
     fn to_note_channel(self) -> NoteChannel {
-        // Encode side and key into a stable lane id space.
-        // Player1 base 0, Player2 base 1000.
-        let base = match self.side {
-            PlayerSide::Player1 => 0u32,
-            PlayerSide::Player2 => 1000u32,
-        };
+        // 将侧与键映射为 base62 两字符：
+        // 首字符：侧（采用可见音符默认：P1='1', P2='2'）
+        // 次字符：键位码（'1'..'5', '6'=Scratch, '7'=FreeZone, '8'=Key6/'Key8, '9'=Key7/'Key9,
+        //                      'A'..'E'=Key10..Key14, 'F'=FootPedal, '7'=ScratchExtra）
         use Key::*;
-        let local = match self.key {
-            Key1 => 0,
-            Key2 => 1,
-            Key3 => 2,
-            Key4 => 3,
-            Key5 => 4,
-            Key6 => 5,
-            Key7 => 6,
-            Key8 => 7,
-            Key9 => 8,
-            Key10 => 9,
-            Key11 => 10,
-            Key12 => 11,
-            Key13 => 12,
-            Key14 => 13,
-            Scratch => 100,
-            ScratchExtra => 101,
-            FootPedal => 150,
-            FreeZone => 200,
-        } as u32;
-        NoteChannel(base + local)
+        let side_char = match self.side {
+            PlayerSide::Player1 => '1',
+            PlayerSide::Player2 => '2',
+        };
+        let key_char = match self.key {
+            Key1 => '1',
+            Key2 => '2',
+            Key3 => '3',
+            Key4 => '4',
+            Key5 => '5',
+            Key6 => '8',
+            Key7 => '9',
+            Key8 => '8',
+            Key9 => '9',
+            Key10 => 'A',
+            Key11 => 'B',
+            Key12 => 'C',
+            Key13 => 'D',
+            Key14 => 'E',
+            Scratch => '6',
+            ScratchExtra => '7',
+            FootPedal => 'F',
+            FreeZone => '7',
+        };
+        NoteChannel::try_from_chars(side_char, key_char).expect("valid base62 for BeatKey")
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        let v = channel.0;
-        let (side, local) = if v >= 1000 {
-            (PlayerSide::Player2, v - 1000)
-        } else {
-            (PlayerSide::Player1, v)
-        };
-        use Key::*;
-        let key = match local {
-            0 => Key1,
-            1 => Key2,
-            2 => Key3,
-            3 => Key4,
-            4 => Key5,
-            5 => Key6,
-            6 => Key7,
-            7 => Key8,
-            8 => Key9,
-            9 => Key10,
-            10 => Key11,
-            11 => Key12,
-            12 => Key13,
-            13 => Key14,
-            100 => Scratch,
-            101 => ScratchExtra,
-            150 => FootPedal,
-            200 => FreeZone,
+        // 从两字符还原侧与键：
+        let [c1, c2] = channel.to_str();
+        // 侧：根据通用规则读取（1/3/5/D -> P1, 2/4/6/E -> P2）
+        let side = match c1.to_ascii_uppercase() {
+            '1' | '3' | '5' | 'D' => PlayerSide::Player1,
+            '2' | '4' | '6' | 'E' => PlayerSide::Player2,
             _ => return None,
         };
-        Some(Self { side, key })
+        use Key::*;
+        let key = match c2.to_ascii_uppercase() {
+            '1' => Key1,
+            '2' => Key2,
+            '3' => Key3,
+            '4' => Key4,
+            '5' => Key5,
+            '6' => Scratch,
+            '7' => FreeZone, // 或 ScratchExtra：此处按通用字符表将 '7' 视为 FreeZone，具体模式下再映射
+            '8' => Key6,
+            '9' => Key7,
+            'A' => Key10,
+            'B' => Key11,
+            'C' => Key12,
+            'D' => Key13,
+            'E' => Key14,
+            'F' => FootPedal,
+            _ => return None,
+        };
+        let kind = NoteKind::note_kind_from_channel(channel)?;
+        Some(Self { side, key, kind })
     }
 }
 
@@ -135,18 +157,25 @@ pub struct PmsBmeKey {
     pub side: PlayerSide,
     /// The key of the player.
     pub key: Key,
+    /// The kind of note.
+    pub kind: NoteKind,
 }
 
 impl PmsBmeKey {
-    /// Create a new [`PmsBmeKey`] from a [`PlayerSide`] and [`Key`].
-    pub const fn new(side: PlayerSide, key: Key) -> Self {
-        Self { side, key }
+    /// Create a new [`PmsBmeKey`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self { side, key, kind }
+    }
+
+    /// Create a new [`PmsBmeKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key, NoteKind::Visible)
     }
 }
 
 impl KeyMapping for PmsBmeKey {
-    fn new(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key)
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self::new(side, key, kind)
     }
     fn side(&self) -> PlayerSide {
         self.side
@@ -154,8 +183,11 @@ impl KeyMapping for PmsBmeKey {
     fn key(&self) -> Key {
         self.key
     }
-    fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.side, self.key)
+    fn kind(&self) -> NoteKind {
+        self.kind
+    }
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
+        (self.side, self.key, self.kind)
     }
 }
 
@@ -167,7 +199,7 @@ impl PhysicalKey for PmsBmeKey {
             Key9 => FreeZone,
             other => other,
         };
-        BeatKey::new(self.side, mapped_key).to_note_channel()
+        BeatKey::new(self.side, mapped_key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
@@ -181,6 +213,7 @@ impl PhysicalKey for PmsBmeKey {
         Some(Self {
             side: beat.side,
             key,
+            kind: beat.kind,
         })
     }
 }
@@ -192,18 +225,25 @@ pub struct PmsKey {
     pub side: PlayerSide,
     /// The key of the player.
     pub key: Key,
+    /// The kind of note.
+    pub kind: NoteKind,
 }
 
 impl PmsKey {
-    /// Create a new [`PmsKey`] from a [`PlayerSide`] and [`Key`].
-    pub const fn new(side: PlayerSide, key: Key) -> Self {
-        Self { side, key }
+    /// Create a new [`PmsKey`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self { side, key, kind }
+    }
+
+    /// Create a new [`PmsKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key, NoteKind::Visible)
     }
 }
 
 impl KeyMapping for PmsKey {
-    fn new(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key)
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self::new(side, key, kind)
     }
     fn side(&self) -> PlayerSide {
         self.side
@@ -211,8 +251,11 @@ impl KeyMapping for PmsKey {
     fn key(&self) -> Key {
         self.key
     }
-    fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.side, self.key)
+    fn kind(&self) -> NoteKind {
+        self.kind
+    }
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
+        (self.side, self.key, self.kind)
     }
 }
 impl PhysicalKey for PmsKey {
@@ -226,7 +269,7 @@ impl PhysicalKey for PmsKey {
             (Player1, Key9) => (Player2, Key5),
             other => other,
         };
-        BeatKey::new(side, key).to_note_channel()
+        BeatKey::new(side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
@@ -241,7 +284,11 @@ impl PhysicalKey for PmsKey {
             (Player2, Key5) => (Player1, Key9),
             other => other,
         };
-        Some(Self { side, key })
+        Some(Self {
+            side,
+            key,
+            kind: beat.kind,
+        })
     }
 }
 
@@ -252,18 +299,25 @@ pub struct BeatNanasiKey {
     pub side: PlayerSide,
     /// The key of the player.
     pub key: Key,
+    /// The kind of note.
+    pub kind: NoteKind,
 }
 
 impl BeatNanasiKey {
-    /// Create a new [`BeatNanasiKey`] from a [`PlayerSide`] and [`Key`].
-    pub const fn new(side: PlayerSide, key: Key) -> Self {
-        Self { side, key }
+    /// Create a new [`BeatNanasiKey`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self { side, key, kind }
+    }
+
+    /// Create a new [`BeatNanasiKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key, NoteKind::Visible)
     }
 }
 
 impl KeyMapping for BeatNanasiKey {
-    fn new(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key)
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self::new(side, key, kind)
     }
     fn side(&self) -> PlayerSide {
         self.side
@@ -271,8 +325,11 @@ impl KeyMapping for BeatNanasiKey {
     fn key(&self) -> Key {
         self.key
     }
-    fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.side, self.key)
+    fn kind(&self) -> NoteKind {
+        self.kind
+    }
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
+        (self.side, self.key, self.kind)
     }
 }
 
@@ -283,7 +340,7 @@ impl PhysicalKey for BeatNanasiKey {
             FootPedal => FreeZone,
             other => other,
         };
-        BeatKey::new(self.side, key).to_note_channel()
+        BeatKey::new(self.side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
@@ -296,6 +353,7 @@ impl PhysicalKey for BeatNanasiKey {
         Some(Self {
             side: beat.side,
             key,
+            kind: beat.kind,
         })
     }
 }
@@ -307,18 +365,25 @@ pub struct DscOctFpKey {
     pub side: PlayerSide,
     /// The key of the player.
     pub key: Key,
+    /// The kind of note.
+    pub kind: NoteKind,
 }
 
 impl DscOctFpKey {
-    /// Create a new [`DscOctFpKey`] from a [`PlayerSide`] and [`Key`].
-    pub const fn new(side: PlayerSide, key: Key) -> Self {
-        Self { side, key }
+    /// Create a new [`DscOctFpKey`] from a [`PlayerSide`], [`Key`] and [`NoteKind`].
+    pub const fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self { side, key, kind }
+    }
+
+    /// Create a new [`DscOctFpKey`] from a [`PlayerSide`] and [`Key`] with default [`NoteKind`].
+    pub const fn new_with_default_kind(side: PlayerSide, key: Key) -> Self {
+        Self::new(side, key, NoteKind::Visible)
     }
 }
 
 impl KeyMapping for DscOctFpKey {
-    fn new(side: PlayerSide, key: Key) -> Self {
-        Self::new(side, key)
+    fn new(side: PlayerSide, key: Key, kind: NoteKind) -> Self {
+        Self::new(side, key, kind)
     }
     fn side(&self) -> PlayerSide {
         self.side
@@ -326,8 +391,11 @@ impl KeyMapping for DscOctFpKey {
     fn key(&self) -> Key {
         self.key
     }
-    fn into_tuple(self) -> (PlayerSide, Key) {
-        (self.side, self.key)
+    fn kind(&self) -> NoteKind {
+        self.kind
+    }
+    fn into_tuple(self) -> (PlayerSide, Key, NoteKind) {
+        (self.side, self.key, self.kind)
     }
 }
 
@@ -346,7 +414,7 @@ impl PhysicalKey for DscOctFpKey {
             (Player1, Key13) => (Player2, Key7),
             (s, k) => (s, k),
         };
-        BeatKey::new(side, key).to_note_channel()
+        BeatKey::new(side, key, self.kind).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
@@ -364,7 +432,11 @@ impl PhysicalKey for DscOctFpKey {
             (Player2, Scratch) => (Player1, ScratchExtra),
             (s, k) => (s, k),
         };
-        Some(Self { side, key })
+        Some(Self {
+            side,
+            key,
+            kind: beat.kind,
+        })
     }
 }
 
@@ -404,7 +476,7 @@ impl<const N: usize> PhysicalKey for GenericNKey<N> {
             // Fallback to Key1 if out of range; this should be validated by constructors in usage
             _ => Key1,
         };
-        BeatKey::new(PlayerSide::Player1, key).to_note_channel()
+        BeatKey::new(PlayerSide::Player1, key, NoteKind::Visible).to_note_channel()
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
@@ -442,7 +514,7 @@ mod layout_roundtrip_tests {
     use super::*;
 
     fn roundtrip<T: PhysicalKey>(side: PlayerSide, key: Key) -> Option<(PlayerSide, Key)> {
-        let chan = BeatKey::new(side, key).to_note_channel();
+        let chan = BeatKey::new(side, key, NoteKind::Visible).to_note_channel();
         // map: Beat -> Target -> Beat
         let target = T::from_note_channel(chan)?;
         let back = BeatKey::from_note_channel(target.to_note_channel())?;

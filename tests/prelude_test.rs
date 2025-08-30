@@ -69,7 +69,7 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = Obj::new_beat(_obj_time, _note_kind, _player_side, _key, _obj_id);
+    let _obj = Obj::new_beat(_obj_time, _player_side, _key, _obj_id);
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
         bpm: Decimal::from(120),

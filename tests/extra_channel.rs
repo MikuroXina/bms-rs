@@ -82,7 +82,7 @@ fn test_channel_text() {
 #[test]
 fn test_channel_judge() {
     // Test channel A0 (Judge)
-    let Some(Channel::Judge) = read_channel_beat("A0") else {
+    let Some(Channel::Judge) = read_channel_general("A0") else {
         panic!("Channel A0 should be Judge");
     };
 
