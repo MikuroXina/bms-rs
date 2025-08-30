@@ -42,6 +42,12 @@ pub enum LexWarning {
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
+    /// An unknown command was encountered.
+    #[error("unknown command `{command}`")]
+    UnknownCommand {
+        /// The unknown command that was encountered.
+        command: String,
+    },
 }
 
 /// A [`LexWarning`] type with position information.
@@ -121,7 +127,21 @@ impl<'a> TokenStream<'a> {
         while !cursor.is_end() {
             match Token::parse(&mut cursor) {
                 Ok(content) => {
-                    tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
+                    let line = cursor.line();
+                    let col = cursor.col();
+
+                    // If the token is UnknownCommand, also add a warning
+                    if let Token::UnknownCommand(cmd) = &content {
+                        warnings.push(
+                            LexWarning::UnknownCommand {
+                                command: cmd.to_string(),
+                            }
+                            .into_wrapper_manual(line, col),
+                        );
+                    }
+
+                    let token_with_pos = content.into_wrapper_manual(line, col);
+                    tokens.push(token_with_pos);
                 }
                 Err(warning) => {
                     warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))

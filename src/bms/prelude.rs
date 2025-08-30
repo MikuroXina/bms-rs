@@ -30,6 +30,7 @@ pub use super::{
         mixin::{SourcePosMixin, SourcePosMixinExt},
         time::{ObjTime, Track},
     },
+    diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         token::{Token, TokenWithPos},

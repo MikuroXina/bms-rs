@@ -20,6 +20,7 @@ use num::BigUint;
 
 pub mod ast;
 pub mod command;
+pub mod diagnostics;
 pub mod lex;
 pub mod parse;
 pub mod prelude;
