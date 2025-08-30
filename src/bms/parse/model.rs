@@ -1857,7 +1857,7 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
 }
 
 impl<T: PhysicalKey + KeyMapping> Bms<T> {
-    /// 将当前谱面从物理键布局 `T` 转换为目标布局 `D`，并返回新的 `Bms<D>`。
+    /// Convert the current chart from physical key layout `T` to target layout `D`, and return the new `Bms<D>`.
     pub fn convert_key_between_modes<D: PhysicalKey + KeyMapping>(self) -> Bms<D> {
         let Bms {
             header,
@@ -1868,7 +1868,7 @@ impl<T: PhysicalKey + KeyMapping> Bms<T> {
             others,
         } = self;
 
-        // 构建新的 Notes<D>
+        // Build new Notes<D>
         let mut new_notes: Notes<D> = Notes {
             wav_path_root: notes.wav_path_root,
             wav_files: notes.wav_files,
@@ -1894,7 +1894,7 @@ impl<T: PhysicalKey + KeyMapping> Bms<T> {
         for (obj_id, objs) in notes.objs {
             let mut converted_vec: Vec<Obj<D>> = Vec::with_capacity(objs.len());
             for o in objs {
-                // 先按源布局 T 解析，失败则尝试 BeatKey 回退
+                // First parse according to source layout T, if failed then try BeatKey fallback
                 let (side, key, kind) = if let Some(src) = T::from_note_channel(o.channel) {
                     src.into_tuple()
                 } else if let Some(bk) = BeatKey::from_note_channel(o.channel) {

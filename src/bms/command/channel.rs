@@ -10,13 +10,13 @@ pub mod mapper;
 
 // mapper imports only when needed
 
-/// 一个逻辑音符通道（车道），以 base62 两位编码表示。
+/// A logical note channel (lane), represented in base62 two-digit encoding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoteChannel(pub [u8; 2]);
 
 impl NoteChannel {
-    /// 从两个 ASCII 字符（均为 base62 范围）构造。
+    /// Construct from two ASCII characters (both in base62 range).
     pub fn try_from_chars(c1: char, c2: char) -> Option<Self> {
         fn char_to_digit(ch: char) -> Option<u8> {
             let ch = ch as u8;
@@ -27,13 +27,13 @@ impl NoteChannel {
                 _ => None,
             }
         }
-        // 规范化为 base62 数字（0-61）存储
+        // Normalize to base62 digits (0-61) for storage
         let d1 = char_to_digit(c1)?;
         let d2 = char_to_digit(c2)?;
         Some(Self([d1, d2]))
     }
 
-    /// 从 "YY" 两字符字符串构造。
+    /// Construct from "YY" two-character string.
     pub fn try_from_str(s: &str) -> Option<Self> {
         if s.len() != 2 {
             return None;
@@ -44,21 +44,21 @@ impl NoteChannel {
         Self::try_from_chars(c1, c2)
     }
 
-    /// 将内部 base62 数字对编码为 u16（d1*62 + d2）。
+    /// Encode internal base62 digit pair to u16 (d1*62 + d2).
     pub const fn to_u16(self) -> u16 {
         (self.0[0] as u16) * 62 + (self.0[1] as u16)
     }
 
-    /// 由 u16（小于 62*62）构造。
+    /// Construct from u16 (less than 62*62).
     pub fn from_u16(v: u16) -> Self {
         let hi = (v / 62) as u8;
         let lo = (v % 62) as u8;
         Self([hi, lo])
     }
 
-    /// 获取显示字符串（两字符，使用标准 base62 字符集）。
+    /// Get display string (two characters, using standard base62 character set).
     pub fn to_str(self) -> [char; 2] {
-        // 反向映射 base62 数字到字符
+        // Reverse map base62 digits to characters
         fn digit_to_char(d: u8) -> char {
             match d {
                 0..=9 => (b'0' + d) as char,
@@ -439,6 +439,6 @@ pub fn read_channel_general(channel: &str) -> Option<Channel> {
 
 // removed redundant beat key parser; mapping now centralized in PhysicalKey impls
 
-// 已不再提供统一包装的路由函数，调用方直接使用 NoteChannel::try_from_str 或者 read_channel_general。
+// No longer provides unified wrapper routing function, caller directly uses NoteChannel::try_from_str or read_channel_general.
 
-// read_channel_beat 已移除，统一使用 `read_channel`（返回 NoteChannel）与 `read_channel_general`（仅通用枚举）。
+// read_channel_beat has been removed, unified to use `read_channel` (returns NoteChannel) and `read_channel_general` (general enum only).

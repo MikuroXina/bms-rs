@@ -85,10 +85,10 @@ impl KeyMapping for BeatKey {
 
 impl PhysicalKey for BeatKey {
     fn to_note_channel(self) -> NoteChannel {
-        // 将侧与键映射为 base62 两字符：
-        // 首字符：侧（采用可见音符默认：P1='1', P2='2'）
-        // 次字符：键位码（'1'..'5', '6'=Scratch, '7'=FreeZone, '8'=Key6/'Key8, '9'=Key7/'Key9,
-        //                      'A'..'E'=Key10..Key14, 'F'=FootPedal, '7'=ScratchExtra）
+        // Map side and key to base62 two-character:
+        // First character: side (using visible note default: P1='1', P2='2')
+        // Second character: key code ('1'..'5', '6'=Scratch, '7'=FreeZone, '8'=Key6/'Key8, '9'=Key7/'Key9,
+        //                      'A'..'E'=Key10..Key14, 'F'=FootPedal, '7'=ScratchExtra)
         use Key::*;
         let side_char = match self.side {
             PlayerSide::Player1 => '1',
@@ -118,9 +118,9 @@ impl PhysicalKey for BeatKey {
     }
 
     fn from_note_channel(channel: NoteChannel) -> Option<Self> {
-        // 从两字符还原侧与键：
+        // Restore side and key from two characters:
         let [c1, c2] = channel.to_str();
-        // 侧：根据通用规则读取（1/3/5/D -> P1, 2/4/6/E -> P2）
+        // Side: read according to general rules (1/3/5/D -> P1, 2/4/6/E -> P2)
         let side = match c1.to_ascii_uppercase() {
             '1' | '3' | '5' | 'D' => PlayerSide::Player1,
             '2' | '4' | '6' | 'E' => PlayerSide::Player2,
@@ -134,7 +134,7 @@ impl PhysicalKey for BeatKey {
             '4' => Key4,
             '5' => Key5,
             '6' => Scratch,
-            '7' => FreeZone, // 或 ScratchExtra：此处按通用字符表将 '7' 视为 FreeZone，具体模式下再映射
+            '7' => FreeZone, // Or ScratchExtra: here '7' is treated as FreeZone according to general character table, mapped in specific mode later
             '8' => Key6,
             '9' => Key7,
             'A' => Key10,
