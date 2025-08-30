@@ -83,7 +83,7 @@ pub enum ValidityInvalid {
     #[error(
         "Landmine overlaps a long note starting at {ln_start:?} (side={side:?}, key={key:?}; ln_end={ln_end:?})"
     )]
-    LandmineOverlapsLongAtStart {
+    OverlapsLandmineLongAtStart {
         /// Player side where the overlap occurs.
         side: PlayerSide,
         /// Key lane where the overlap occurs.
@@ -310,7 +310,7 @@ impl Bms {
                     && let Some((s, e)) = time_overlaps_any_ln(o.offset)
                     && warned_ln_intervals.insert((s, e))
                 {
-                    invalid.push(ValidityInvalid::LandmineOverlapsLongAtStart {
+                    invalid.push(ValidityInvalid::OverlapsLandmineLongAtStart {
                         side,
                         key,
                         ln_start: s,
@@ -513,7 +513,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::LandmineOverlapsLongAtStart { side: PlayerSide::Player1, key: Key::Key1, ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
+            ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key: Key::Key1, ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
         )));
     }
 
