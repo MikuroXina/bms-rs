@@ -13,11 +13,11 @@ fn test_atbga_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
@@ -44,11 +44,11 @@ fn test_bga_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #BGA is parsed correctly
@@ -76,11 +76,11 @@ fn test_exrank_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXRANK is parsed correctly
@@ -105,11 +105,11 @@ fn test_exwav_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXWAV is parsed correctly
@@ -137,11 +137,11 @@ fn test_changeoption_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
@@ -166,11 +166,11 @@ fn test_text_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #TEXT is parsed correctly
@@ -199,11 +199,11 @@ fn test_notes_parse_extended_tokens() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
@@ -260,11 +260,11 @@ fn test_token_parsing_comprehensive() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that all new tokens are parsed correctly
@@ -340,11 +340,11 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("pan value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Test volume value out of range
@@ -364,11 +364,11 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("volume value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Test frequency value out of range
@@ -388,10 +388,10 @@ fn test_exwav_out_of_range_values() {
             if message.starts_with("frequency value out of range") => {}
         other => panic!("unexpected warning type: {other:?}"),
     }
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }

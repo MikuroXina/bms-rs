@@ -409,7 +409,6 @@ fn test_always_warn_and_use_newer() {
     .enumerate()
     .map(|(i, content)| content.into_wrapper_manual(i, i))
     .collect();
-    let token_stream = TokenStream { tokens };
 
     let ParseOutput::<BeatKey> {
         bms,
