@@ -7,6 +7,7 @@
 
 use crate::command::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
+use thiserror::Error;
 
 pub mod converter;
 pub mod mapper;
@@ -174,6 +175,17 @@ pub enum PlayerSide {
     Player2,
 }
 
+/// Error type for parsing ChannelId from string.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+pub enum ChannelIdParseError {
+    /// The channel id must be exactly 2 ascii characters, got `{0}`.
+    #[error("channel id must be exactly 2 ascii characters, got `{0}`")]
+    ExpectedTwoAsciiChars(String),
+    /// The channel id must be an alpha numeric to parse as base 62, got {0}.
+    #[error("channel id must be an alpha numeric to parse as base 62, got {0}")]
+    InvalidAsBase62(String),
+}
+
 /// A channel ID used in BMS files to identify channel types.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -212,19 +224,16 @@ impl TryFrom<[u8; 2]> for ChannelId {
 }
 
 impl FromStr for ChannelId {
-    type Err = String;
+    type Err = ChannelIdParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 2 {
-            return Err(format!(
-                "ChannelId must be exactly 2 characters, got {}",
-                s.len()
-            ));
+            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
         }
         let mut chars = s.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(format!("Failed to parse channel characters from '{}'", s));
+            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
         };
-        Self::try_from([ch1, ch2]).map_err(|_| format!("Invalid channel characters: '{}'", s))
+        Self::try_from([ch1, ch2]).map_err(|_| ChannelIdParseError::InvalidAsBase62(s.to_string()))
     }
 }
 
