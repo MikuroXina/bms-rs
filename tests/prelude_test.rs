@@ -36,7 +36,7 @@ fn test_prelude_imports() {
     };
 
     // Test model types
-    let _bms = Bms::default();
+    let _bms: Bms<KeyLayoutBeat> = Bms::default();
     let _header = Header::default();
     let _scope_defines = ScopeDefines::default();
     let _arrangers = Arrangers::default();

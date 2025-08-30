@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::bms::command::channel::NoteKind;
+use crate::bms::command::channel::{NoteKind, mapper::KeyLayoutMapper};
 
 use super::model::Bms;
 
@@ -51,7 +51,7 @@ pub struct PlayingCheckOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-impl Bms {
+impl<T: KeyLayoutMapper> Bms<T> {
     /// Check for playing warnings and errors based on the parsed BMS data.
     pub fn check_playing(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
