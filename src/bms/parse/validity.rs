@@ -354,7 +354,7 @@ mod tests {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id,
         });
         bms.notes = notes;
@@ -390,7 +390,7 @@ mod tests {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id,
         });
         bms.notes = notes;
@@ -398,7 +398,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::VisibleNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::VisibleNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
         )));
     }
 
@@ -413,14 +413,14 @@ mod tests {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id1,
         });
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id2,
         });
         bms.notes = notes;
@@ -428,7 +428,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapVisibleSingleWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::OverlapVisibleSingleWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
         )));
     }
 
@@ -447,7 +447,7 @@ mod tests {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_s,
         });
         // LN end
@@ -455,7 +455,7 @@ mod tests {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_e,
         });
         // Visible inside LN interval
@@ -463,7 +463,7 @@ mod tests {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_vis,
         });
         bms.notes = notes;
@@ -471,7 +471,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapVisibleSingleWithLong { side: PlayerSide::Player1, key: Key::Key1, time: t0, ln_start: s, ln_end: e } if *t0 == vis_time && *s == ln_start && *e == ln_end
+            ValidityInvalid::OverlapVisibleSingleWithLong { side: PlayerSide::Player1, key: Key::Key(1), time: t0, ln_start: s, ln_end: e } if *t0 == vis_time && *s == ln_start && *e == ln_end
         )));
     }
 
@@ -490,14 +490,14 @@ mod tests {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_s,
         });
         notes.push_note(Obj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_e,
         });
         // Landmine inside the LN
@@ -505,7 +505,7 @@ mod tests {
             offset: mine_time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_mine,
         });
         bms.notes = notes;
@@ -513,7 +513,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key: Key::Key1, ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
+            ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key: Key::Key(1), ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
         )));
     }
 
@@ -528,14 +528,14 @@ mod tests {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_vis,
         });
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_mine,
         });
         bms.notes = notes;
@@ -543,7 +543,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
         )));
     }
 
@@ -562,14 +562,14 @@ mod tests {
             offset: zero_length_time,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_start,
         });
         notes.push_note(Obj {
             offset: zero_length_time, // Same time - zero length
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_ln_end,
         });
 
@@ -578,7 +578,7 @@ mod tests {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::Key(1),
             obj: id_vis,
         });
 
@@ -591,7 +591,7 @@ mod tests {
                 e,
                 ValidityInvalid::OverlapVisibleSingleWithLong {
                     side: PlayerSide::Player1,
-                    key: Key::Key1,
+                    key: Key::Key(1),
                     time: t0,
                     ln_start: s,
                     ln_end: e

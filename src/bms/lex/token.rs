@@ -12,13 +12,10 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{Channel, Key, NoteKind, PlayerSide},
-        graphics::Argb,
-        mixin::SourcePosMixin,
-        time::Track,
+        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
+        mixin::SourcePosMixin, time::Track,
     },
-    prelude::read_channel_beat,
+    prelude::read_channel,
 };
 
 #[cfg(feature = "minor-command")]
@@ -305,7 +302,7 @@ pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
-        let channel_parser = read_channel_beat;
+        let channel_parser = read_channel;
         let command = c
             .next_token()
             .ok_or_else(|| c.make_err_expected_token("command"))?;
@@ -1569,39 +1566,8 @@ fn fmt_message(
         Channel::ChangeOption => {
             write!(f, "#{:03}A6:{}", track.0, message)
         }
-        Channel::Note { kind, side, key } => {
-            let kind_char = match (kind, side) {
-                (NoteKind::Visible, PlayerSide::Player1) => '1',
-                (NoteKind::Visible, PlayerSide::Player2) => '2',
-                (NoteKind::Invisible, PlayerSide::Player1) => '3',
-                (NoteKind::Invisible, PlayerSide::Player2) => '4',
-                (NoteKind::Long, PlayerSide::Player1) => '5',
-                (NoteKind::Long, PlayerSide::Player2) => '6',
-                (NoteKind::Landmine, PlayerSide::Player1) => 'D',
-                (NoteKind::Landmine, PlayerSide::Player2) => 'E',
-            };
-            let key_char = match key {
-                Key::Key1 => '1',
-                Key::Key2 => '2',
-                Key::Key3 => '3',
-                Key::Key4 => '4',
-                Key::Key5 => '5',
-                Key::Key6 => '8',
-                Key::Key7 => '9',
-                Key::Key8 => '8',
-                Key::Key9 => '9',
-                Key::Key10 => 'A',
-                Key::Key11 => 'B',
-                Key::Key12 => 'C',
-                Key::Key13 => 'D',
-                Key::Key14 => 'E',
-                Key::Scratch => '6',
-                Key::ScratchExtra => '7',
-                Key::FootPedal => 'F',
-                Key::FreeZone => '7',
-            };
-            let channel_str = format!("{}{}", kind_char, key_char);
-            write!(f, "#{:03}{}:{}", track.0, channel_str, message)
+        Channel::Note { channel_id } => {
+            write!(f, "#{:03}{}:{}", track.0, channel_id, message)
         }
         Channel::SectionLen => {
             write!(f, "#{:03}02:{}", track.0, message)

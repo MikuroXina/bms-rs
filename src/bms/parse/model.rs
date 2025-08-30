@@ -25,7 +25,7 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            Channel, Key, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
@@ -53,9 +53,9 @@ use super::{
 };
 
 /// A score data of BMS format.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms {
+pub struct Bms<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -68,6 +68,22 @@ pub struct Bms {
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
+    /// Phantom data to use the generic parameter T
+    pub _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: KeyLayoutMapper> Default for Bms<T> {
+    fn default() -> Self {
+        Self {
+            header: Default::default(),
+            scope_defines: Default::default(),
+            arrangers: Default::default(),
+            notes: Default::default(),
+            graphics: Default::default(),
+            others: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
 }
 
 /// A header of the score, including the information that is usually used in music selection.
@@ -317,7 +333,7 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl Bms {
+impl<T: KeyLayoutMapper> Bms<T> {
     pub(crate) fn parse(
         &mut self,
         token: &TokenWithPos,
@@ -870,17 +886,21 @@ impl Bms {
             }
             Token::Message {
                 track,
-                channel: Channel::Note { kind, side, key },
+                channel: Channel::Note { channel_id },
                 message,
             } => {
-                for (offset, obj) in ids_from_message(*track, message) {
-                    self.notes.push_note(Obj {
-                        offset,
-                        kind: *kind,
-                        side: *side,
-                        key: *key,
-                        obj,
-                    });
+                // Parse the channel ID to get note components
+                if let Some(layout) = T::from_channel_id(*channel_id) {
+                    let (side, kind, key) = layout.into_tuple();
+                    for (offset, obj) in ids_from_message(*track, message) {
+                        self.notes.push_note(Obj {
+                            offset,
+                            kind,
+                            side,
+                            key,
+                            obj,
+                        });
+                    }
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -1170,7 +1190,7 @@ impl Bms {
     }
 }
 
-impl Bms {
+impl<T: KeyLayoutMapper> Bms<T> {
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
@@ -1807,27 +1827,15 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
     })
 }
 
-impl Bms {
-    /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
-    ///
-    /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
-    pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
-        for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let ori_map = Src::new(*side, *key);
-                let beat_map = ori_map.to_beat();
-                let dst_map = Dst::from_beat(beat_map);
-                *side = dst_map.side();
-                *key = dst_map.key();
-            }
-        }
-    }
-
+impl<T: KeyLayoutMapper> Bms<T> {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let beat_map = KeyLayoutBeat::new(*side, *key);
+            for Obj {
+                side, kind, key, ..
+            } in objs.iter_mut()
+            {
+                let beat_map = T::new(*side, *kind, *key);
                 let new_beat_map = converter.convert(beat_map);
                 *side = new_beat_map.side();
                 *key = new_beat_map.key();

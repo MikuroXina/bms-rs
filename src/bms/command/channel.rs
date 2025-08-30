@@ -5,6 +5,10 @@
 //!
 //! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
+use crate::command::{base62_to_byte, char_to_base62};
+use std::str::FromStr;
+use thiserror::Error;
+
 pub mod converter;
 pub mod mapper;
 
@@ -30,12 +34,8 @@ pub enum Channel {
     ChangeOption,
     /// For the note which the user can interact.
     Note {
-        /// The kind of the note.
-        kind: NoteKind,
-        /// The note for the player side.
-        side: PlayerSide,
-        /// The key which corresponds to the note.
-        key: Key,
+        /// The channel ID from the BMS file.
+        channel_id: ChannelId,
     },
     /// For the section length change object.
     SectionLen,
@@ -175,6 +175,93 @@ pub enum PlayerSide {
     Player2,
 }
 
+/// Error type for parsing ChannelId from string.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+pub enum ChannelIdParseError {
+    /// The channel id must be exactly 2 ascii characters, got `{0}`.
+    #[error("channel id must be exactly 2 ascii characters, got `{0}`")]
+    ExpectedTwoAsciiChars(String),
+    /// The channel id must be an alpha numeric to parse as base 62, got {0}.
+    #[error("channel id must be an alpha numeric to parse as base 62, got {0}")]
+    InvalidAsBase62(String),
+}
+
+/// A channel ID used in BMS files to identify channel types.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ChannelId([u8; 2]);
+
+impl std::fmt::Debug for ChannelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ChannelId")
+            .field(&format!("{}{}", self.0[0] as char, self.0[1] as char))
+            .finish()
+    }
+}
+
+impl std::fmt::Display for ChannelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.0[0] as char, self.0[1] as char)
+    }
+}
+
+impl TryFrom<[char; 2]> for ChannelId {
+    type Error = [char; 2];
+    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
+        Ok(Self([
+            char_to_base62(value[0]).ok_or(value)?,
+            char_to_base62(value[1]).ok_or(value)?,
+        ]))
+    }
+}
+
+impl TryFrom<[u8; 2]> for ChannelId {
+    type Error = [u8; 2];
+    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
+        <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
+            .map_err(|_| value)
+    }
+}
+
+impl FromStr for ChannelId {
+    type Err = ChannelIdParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 2 {
+            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+        }
+        let mut chars = s.bytes();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+        };
+        Self::try_from([ch1, ch2]).map_err(|_| ChannelIdParseError::InvalidAsBase62(s.to_string()))
+    }
+}
+
+impl From<ChannelId> for u16 {
+    fn from(value: ChannelId) -> Self {
+        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+    }
+}
+
+impl From<ChannelId> for u32 {
+    fn from(value: ChannelId) -> Self {
+        Into::<u16>::into(value) as u32
+    }
+}
+
+impl From<ChannelId> for u64 {
+    fn from(value: ChannelId) -> Self {
+        Into::<u16>::into(value) as u64
+    }
+}
+
+impl ChannelId {
+    /// Converts the channel id into an `u16` value.
+    pub fn as_u16(self) -> u16 {
+        self.into()
+    }
+}
+
 /// A key of the controller or keyboard.
 ///
 /// - Beat 5K/7K/10K/14K:
@@ -195,75 +282,48 @@ pub enum PlayerSide {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
-#[repr(u64)]
 pub enum Key {
-    /// The leftmost white key.
-    /// `11` in BME-type Player1.
-    Key1 = 1,
-    /// The leftmost black key.
-    /// `12` in BME-type Player1.
-    Key2 = 2,
-    /// The second white key from the left.
-    /// `13` in BME-type Player1.
-    Key3 = 3,
-    /// The second black key from the left.
-    /// `14` in BME-type Player1.
-    Key4 = 4,
-    /// The third white key from the left.
-    /// `15` in BME-type Player1.
-    Key5 = 5,
-    /// The rightmost black key.
-    /// `18` in BME-type Player1.
-    Key6 = 6,
-    /// The rightmost white key.
-    /// `19` in BME-type Player1.
-    Key7 = 7,
-    /// The extra black key. Used in PMS or other modes.
-    Key8 = 8,
-    /// The extra white key. Used in PMS or other modes.
-    Key9 = 9,
-    /// The extra key for OCT/FP.
-    Key10 = 10,
-    /// The extra key for OCT/FP.
-    Key11 = 11,
-    /// The extra key for OCT/FP.
-    Key12 = 12,
-    /// The extra key for OCT/FP.
-    Key13 = 13,
-    /// The extra key for OCT/FP.
-    Key14 = 14,
+    /// The keys for the controller.
+    Key(u8),
     /// The scratch disk.
-    /// `16` in BME-type Player1.
-    Scratch = 101,
-    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra = 102,
+    Scratch(u8),
     /// The foot pedal.
-    FootPedal = 151,
+    FootPedal,
     /// The zone that the user can scratch disk freely.
     /// `17` in BMS-type Player1.
-    FreeZone = 201,
+    FreeZone,
 }
 
 impl Key {
     /// Returns whether the key expected a piano keyboard.
     pub const fn is_keyxx(&self) -> bool {
-        use Key::*;
-        matches!(
-            self,
-            Key1 | Key2
-                | Key3
-                | Key4
-                | Key5
-                | Key6
-                | Key7
-                | Key8
-                | Key9
-                | Key10
-                | Key11
-                | Key12
-                | Key13
-                | Key14
-        )
+        matches!(self, Self::Key(_))
+    }
+
+    /// Returns the key number if it's a Key variant.
+    pub const fn key_number(&self) -> Option<u8> {
+        match self {
+            Self::Key(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Returns the scratch number if it's a Scratch variant.
+    pub const fn scratch_number(&self) -> Option<u8> {
+        match self {
+            Self::Scratch(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Creates a Key variant with the given number.
+    pub const fn new_key(n: u8) -> Self {
+        Self::Key(n)
+    }
+
+    /// Creates a Scratch variant with the given number.
+    pub const fn new_scratch(n: u8) -> Self {
+        Self::Scratch(n)
     }
 }
 
@@ -314,58 +374,11 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
     })
 }
 
-/// Reads a note kind from a character. (For general part)
-/// Can be directly use in BMS/BME/PMS types, and be converted to other types.
-fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
-    Some(match kind_char {
-        '1' => (NoteKind::Visible, PlayerSide::Player1),
-        '2' => (NoteKind::Visible, PlayerSide::Player2),
-        '3' => (NoteKind::Invisible, PlayerSide::Player1),
-        '4' => (NoteKind::Invisible, PlayerSide::Player2),
-        '5' => (NoteKind::Long, PlayerSide::Player1),
-        '6' => (NoteKind::Long, PlayerSide::Player2),
-        'D' => (NoteKind::Landmine, PlayerSide::Player1),
-        'E' => (NoteKind::Landmine, PlayerSide::Player2),
-        _ => return None,
-    })
-}
-
-/// Reads a key from a character. (For Beat 5K/7K/10K/14K)
-fn get_key_beat(key: char) -> Option<Key> {
-    use Key::*;
-    Some(match key {
-        '1' => Key1,
-        '2' => Key2,
-        '3' => Key3,
-        '4' => Key4,
-        '5' => Key5,
-        '6' => Scratch,
-        '7' => FreeZone,
-        '8' => Key6,
-        '9' => Key7,
-        _ => return None,
-    })
-}
-
-/// Reads a channel from a string. (For Beat 5K/7K/10K/14K)
-pub fn read_channel_beat(channel: &str) -> Option<Channel> {
+/// Reads a channel from a string. (Generic channel reader)
+pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
     }
-    let mut channel_chars = channel.chars();
-    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
-    let key = get_key_beat(channel_chars.next()?)?;
-    Some(Channel::Note { kind, side, key })
-}
-
-/// A trait for key mapping storage structure.
-pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
-    fn new(side: PlayerSide, key: Key) -> Self;
-    /// Get the PlayerSide from this KeyMapping.
-    fn side(&self) -> PlayerSide;
-    /// Get the [`Key`] from this [`KeyMapping`].
-    fn key(&self) -> Key;
-    /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
-    fn into_tuple(self) -> (PlayerSide, Key);
+    let channel_id = channel.parse::<ChannelId>().ok()?;
+    Some(Channel::Note { channel_id })
 }
