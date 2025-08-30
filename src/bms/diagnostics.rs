@@ -8,6 +8,28 @@
 //! 由于 `SourcePosMixin` 仅包含行列信息（1-based），为了构造 `ariadne` 需要的
 //! 字节范围，本模块提供了从行列到字节偏移的转换工具，按行定位整行范围。
 //!
+//! # 使用示例
+//!
+//! 要使用此模块，需要在 `Cargo.toml` 中启用 `diagnostics` feature：
+//!
+//! ```toml
+//! [dependencies]
+//! bms-rs = { version = "0.8", features = ["diagnostics"] }
+//! ```
+//!
+//! 然后就可以在代码中使用：
+//!
+//! ```rust
+//! use bms_rs::bms::{parse_bms, diagnostics::emit_bms_warnings};
+//!
+//! // 解析BMS文件
+//! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
+//! let output = parse_bms(bms_source);
+//!
+//! // 输出所有警告
+//! emit_bms_warnings("test.bms", bms_source, &output.warnings);
+//! ```
+//!
 //! 使用方式：
 //! - 启用 `diagnostics` feature。
 //! - 使用 [`ToAriadne`] 扩展 trait 将错误转换为 `ariadne` 报告，然后 `finish().print(...)`。
@@ -23,14 +45,37 @@ use ariadne::{Color, Label, Report, ReportKind, Source};
 
 /// 简单的源映射，支持按行将 `(row, column)` 转成字节偏移。
 /// 为避免与现有结构冲突，独立实现且仅在 `diagnostics` 启用时使用。
+///
+/// # 使用示例
+///
+/// ```rust
+/// use bms_rs::bms::diagnostics::SimpleSource;
+///
+/// // 创建源映射
+/// let source_text = "#TITLE test\n#ARTIST composer\n";
+/// let source = SimpleSource::new("test.bms", source_text);
+///
+/// // 获取源文本
+/// assert_eq!(source.text(), source_text);
+///
+/// // 获取行范围
+/// let line_span = source.line_span(1); // 获取第1行
+/// ```
 pub struct SimpleSource<'a> {
     name: &'a str,
+    /// 源文本内容。
     text: &'a str,
     /// 每行的起始字节偏移（包含虚拟第0行起点0），长度为 `lines + 1`，末尾为 `text.len()`。
     line_starts: Vec<usize>,
 }
 
+/// SimpleSource 的实现。
 impl<'a> SimpleSource<'a> {
+    /// 创建一个新的源映射实例。
+    ///
+    /// # 参数
+    /// * `name` - 源文件的名称
+    /// * `text` - 源文件的完整文本内容
     pub fn new(name: &'a str, text: &'a str) -> Self {
         let mut line_starts = Vec::with_capacity(text.lines().count() + 2);
         line_starts.push(0);
@@ -56,7 +101,9 @@ impl<'a> SimpleSource<'a> {
         self.line_starts[idx]
     }
 
+    #[allow(dead_code)]
     /// 将 1-based (row, col) 转换成字节偏移，列按字符计数并在行范围内钳制。
+    /// 内部使用的方法。
     fn offset_of(&self, row1: usize, col1: usize) -> usize {
         let start = self.line_start(row1);
         let end = self.line_end(row1);
@@ -72,13 +119,52 @@ impl<'a> SimpleSource<'a> {
     }
 
     /// 一行的字节范围。
-    fn line_span(&self, row1: usize) -> std::ops::Range<usize> {
+    pub fn line_span(&self, row1: usize) -> std::ops::Range<usize> {
         self.line_start(row1)..self.line_end(row1)
+    }
+
+    /// 获取源文本内容。
+    ///
+    /// # 返回值
+    /// 返回源文件的完整文本内容
+    pub fn text(&self) -> &'a str {
+        self.text
     }
 }
 
-/// 将带位置的错误转换为 `ariadne::Report`。
+/// 将带位置的错误转换为 `ariadne::Report` 的 trait。
+///
+/// # 使用示例
+///
+/// ```rust
+/// use bms_rs::bms::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, BmsWarning};
+/// use ariadne::Source;
+///
+/// // 假设有BMS解析时产生的警告
+/// let warnings: Vec<BmsWarning> = vec![/* 从解析中获取的警告 */];
+/// let source_text = "#TITLE test\n#ARTIST composer\n";
+///
+/// // 更简单的方式：使用便捷函数
+/// emit_bms_warnings("test.bms", source_text, &warnings);
+///
+/// // 或者手动处理每个警告：
+/// let source = SimpleSource::new("test.bms", source_text);
+/// let ariadne_source = Source::from(source_text);
+///
+/// for warning in &warnings {
+///     let report = warning.to_report(&source);
+///     // 使用ariadne渲染报告
+///     let _ = report.print(("test.bms".to_string(), ariadne_source.clone()));
+/// }
+/// ```
 pub trait ToAriadne {
+    /// 将错误转换为 ariadne Report。
+    ///
+    /// # 参数
+    /// * `src` - 源文件映射
+    ///
+    /// # 返回值
+    /// 返回构建的 ariadne Report
     fn to_report<'a>(&self, src: &SimpleSource<'a>) -> Report<'a, (String, std::ops::Range<usize>)>;
 }
 
@@ -172,6 +258,28 @@ impl ToAriadne for BmsWarning {
 }
 
 /// 便捷方法：批量渲染 `BmsWarning` 列表。
+///
+/// 此函数会自动创建 `SimpleSource` 并为每个警告生成美观的诊断输出。
+///
+/// # 使用示例
+///
+/// ```rust
+/// use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning};
+///
+/// // BMS源文本
+/// let bms_source = "#TITLE My Song\n#ARTIST Composer\n#BPM 120\n";
+///
+/// // 假设从解析中获得了警告列表
+/// let warnings: Vec<BmsWarning> = vec![/* 解析警告 */];
+///
+/// // 批量输出所有警告
+/// emit_bms_warnings("my_song.bms", bms_source, &warnings);
+/// ```
+///
+/// # 参数
+/// * `name` - 源文件的名称，用于显示在诊断信息中
+/// * `source` - 完整的BMS源文本
+/// * `warnings` - 要显示的警告列表
 pub fn emit_bms_warnings<'a>(
     name: &'a str,
     source: &'a str,
