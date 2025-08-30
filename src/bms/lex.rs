@@ -209,28 +209,28 @@ mod tests {
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        channel_id: "11".try_into().unwrap(),
+                        channel_id: "11".parse().unwrap(),
                     },
                     message: "0303030303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        channel_id: "11".try_into().unwrap(),
+                        channel_id: "11".parse().unwrap(),
                     },
                     message: "0303000303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        channel_id: "11".try_into().unwrap(),
+                        channel_id: "11".parse().unwrap(),
                     },
                     message: "010101".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        channel_id: "11".try_into().unwrap(),
+                        channel_id: "11".parse().unwrap(),
                     },
                     message: "00020202".into(),
                 },

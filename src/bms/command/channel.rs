@@ -6,6 +6,7 @@
 //! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
 use crate::command::{base62_to_byte, char_to_base62};
+use std::str::FromStr;
 
 pub mod converter;
 pub mod mapper;
@@ -210,17 +211,20 @@ impl TryFrom<[u8; 2]> for ChannelId {
     }
 }
 
-impl<'a> TryFrom<&'a str> for ChannelId {
-    type Error = &'a str;
-    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
-        if value.len() != 2 {
-            return Err(value);
+impl FromStr for ChannelId {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 2 {
+            return Err(format!(
+                "ChannelId must be exactly 2 characters, got {}",
+                s.len()
+            ));
         }
-        let mut chars = value.bytes();
+        let mut chars = s.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(value);
+            return Err(format!("Failed to parse channel characters from '{}'", s));
         };
-        Self::try_from([ch1, ch2]).map_err(|_| value)
+        Self::try_from([ch1, ch2]).map_err(|_| format!("Invalid channel characters: '{}'", s))
     }
 }
 
@@ -371,6 +375,6 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
     }
-    let channel_id = ChannelId::try_from(channel).ok()?;
+    let channel_id = channel.parse::<ChannelId>().ok()?;
     Some(Channel::Note { channel_id })
 }
