@@ -60,7 +60,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -69,28 +69,28 @@ fn nested_random() {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key1,
+                key: Key::Key(1),
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key2,
+                key: Key::Key(2),
                 obj: id22,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key5,
+                key: Key::Key(5),
                 obj: id55,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key4,
+                key: Key::Key(4),
                 obj: id44,
             }
         ]
@@ -108,7 +108,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -117,28 +117,28 @@ fn nested_random() {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key1,
+                key: Key::Key(1),
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key2,
+                key: Key::Key(2),
                 obj: id22,
             },
             Obj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Scratch,
+                key: Key::Scratch(1),
                 obj: id66,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key4,
+                key: Key::Key(4),
                 obj: id44,
             }
         ]
@@ -157,7 +157,7 @@ fn nested_random() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes.into_all_notes(),
@@ -166,21 +166,21 @@ fn nested_random() {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key1,
+                key: Key::Key(1),
                 obj: id11,
             },
             Obj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key3,
+                key: Key::Key(3),
                 obj: id33,
             },
             Obj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
-                key: Key::Key4,
+                key: Key::Key(4),
                 obj: id44,
             }
         ]

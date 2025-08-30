@@ -15,16 +15,16 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            Channel, Key, NoteKind, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
             mapper::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
-                KeyLayoutPms, KeyLayoutPmsBmeType,
+                KeyLayoutPms, KeyLayoutPmsBmeType, KeyMapping,
             },
-            read_channel_beat,
+            read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         mixin::{SourcePosMixin, SourcePosMixinExt},

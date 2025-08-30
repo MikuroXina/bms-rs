@@ -17,13 +17,13 @@
 //! use bms_rs::bms::{ast::rng::RngMock, parse_bms_with_rng, BmsOutput};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
-//! use bms_rs::bms::BmsWarning;
+//! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
 //!
 //! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings } = parse_bms(&source);
+//! let BmsOutput { bms, warnings }: BmsOutput<KeyLayoutBeat> = parse_bms(&source);
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings } = parse_bms_with_rng(&source, RngMock([BigUint::from(1u64)]));
+//! let BmsOutput { bms, warnings }: BmsOutput<KeyLayoutBeat> = parse_bms_with_rng(&source, RngMock([BigUint::from(1u64)]));
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
@@ -51,7 +51,7 @@
 //! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
 //! #[cfg(not(feature = "rand"))]
 //! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
-//! let ParseOutput { bms, parse_warnings } = Bms::from_token_stream(
+//! let ParseOutput { bms, parse_warnings }:  ParseOutput<bms_rs::bms::command::channel::mapper::KeyLayoutBeat> = Bms::from_token_stream(
 //!     &token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.

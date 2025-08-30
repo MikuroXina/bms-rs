@@ -17,7 +17,10 @@ use crate::bms::{
     },
     command::{
         ObjId,
-        channel::Channel,
+        channel::{
+            Channel,
+            mapper::{KeyLayoutBeat, KeyLayoutMapper},
+        },
         mixin::SourcePosMixin,
         time::{ObjTime, Track},
     },
@@ -60,19 +63,19 @@ pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ParseOutput {
+pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
-    pub bms: Bms,
+    pub bms: Bms<T>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl Bms {
+impl<T: KeyLayoutMapper> Bms<T> {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         mut prompt_handler: impl PromptHandler,
-    ) -> ParseOutput {
+    ) -> ParseOutput<T> {
         let mut bms = Bms::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
@@ -91,9 +94,9 @@ impl Bms {
 /// Bms Parse Output with AST
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ParseOutputWithAst {
+pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
-    pub bms: Bms,
+    pub bms: Bms<T>,
     /// Warnings that occurred during AST building.
     pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
     /// Warnings that occurred during AST parsing (RNG execution stage).
@@ -102,13 +105,13 @@ pub struct ParseOutputWithAst {
     pub parse_warnings: Vec<ParseWarningWithPos>,
 }
 
-impl Bms {
+impl<T: KeyLayoutMapper> Bms<T> {
     /// Parses a token stream into [`Bms`] with AST.
     pub fn from_token_stream_with_ast<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
-    ) -> ParseOutputWithAst {
+    ) -> ParseOutputWithAst<T> {
         let AstBuildOutput {
             root,
             ast_build_warnings,

@@ -16,7 +16,7 @@ fn test_prelude_imports() {
 
     // Test channel types
     let _channel = Channel::Bgm;
-    let _key = Key::Key1;
+    let _key = Key::Key(1);
     let _note_kind = NoteKind::Visible;
     let _player_side = PlayerSide::Player1;
 
@@ -36,7 +36,7 @@ fn test_prelude_imports() {
     };
 
     // Test model types
-    let _bms = Bms::default();
+    let _bms: Bms<KeyLayoutBeat> = Bms::default();
     let _header = Header::default();
     let _scope_defines = ScopeDefines::default();
     let _arrangers = Arrangers::default();
@@ -119,7 +119,7 @@ fn test_prelude_imports() {
     assert_eq!(_ln_type, LnType::Rdm);
     assert_eq!(_ln_mode_type, LnMode::Ln);
     assert_eq!(_channel, Channel::Bgm);
-    assert_eq!(_key, Key::Key1);
+    assert_eq!(_key, Key::Key(1));
     assert_eq!(_note_kind, NoteKind::Visible);
     assert_eq!(_player_side, PlayerSide::Player1);
     assert_eq!(_bga_obj.layer, BgaLayer::Base);

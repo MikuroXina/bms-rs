@@ -125,7 +125,7 @@ impl Bms {
                 let is_7keys = self
                     .notes
                     .all_notes()
-                    .any(|note| note.key == Key::Key6 || note.key == Key::Key7);
+                    .any(|note| note.key == Key::Key(6) || note.key == Key::Key(7));
                 let is_dp = self
                     .notes
                     .all_notes()
@@ -192,24 +192,16 @@ impl Bms {
                     .is_playable()
                     .then_some(
                         match note.key {
-                            Key::Key1 => 1,
-                            Key::Key2 => 2,
-                            Key::Key3 => 3,
-                            Key::Key4 => 4,
-                            Key::Key5 => 5,
-                            Key::Key6 => 6,
-                            Key::Key7 => 7,
-                            Key::Scratch | Key::FreeZone => 8,
+                            Key::Key(1) => 1,
+                            Key::Key(2) => 2,
+                            Key::Key(3) => 3,
+                            Key::Key(4) => 4,
+                            Key::Key(5) => 5,
+                            Key::Key(6) => 6,
+                            Key::Key(7) => 7,
+                            Key::Scratch(_) | Key::FreeZone => 8,
                             // TODO: Extra key convertion
-                            Key::Key8
-                            | Key::Key9
-                            | Key::Key10
-                            | Key::Key11
-                            | Key::Key12
-                            | Key::Key13
-                            | Key::Key14
-                            | Key::ScratchExtra
-                            | Key::FootPedal => 0,
+                            Key::Key(_) | Key::FootPedal => 0,
                         } + match note.side {
                             PlayerSide::Player1 => 0,
                             PlayerSide::Player2 => 8,
