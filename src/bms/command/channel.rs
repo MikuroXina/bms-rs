@@ -5,8 +5,73 @@
 //!
 //! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
+use std::num::NonZeroU8;
+
 pub mod converter;
 pub mod mapper;
+
+// mapper imports only when needed
+
+/// A logical note channel (lane), represented in base62 two-digit encoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct NoteChannel(pub [u8; 2]);
+
+impl NoteChannel {
+    /// Construct from two ASCII characters (both in base62 range).
+    pub fn try_from_chars(c1: char, c2: char) -> Option<Self> {
+        fn char_to_digit(ch: char) -> Option<u8> {
+            let ch = ch as u8;
+            match ch {
+                b'0'..=b'9' => Some(ch - b'0'),
+                b'A'..=b'Z' => Some(ch - b'A' + 10),
+                b'a'..=b'z' => Some(ch - b'a' + 36),
+                _ => None,
+            }
+        }
+        // Normalize to base62 digits (0-61) for storage
+        let d1 = char_to_digit(c1)?;
+        let d2 = char_to_digit(c2)?;
+        Some(Self([d1, d2]))
+    }
+
+    /// Construct from "YY" two-character string.
+    pub fn try_from_str(s: &str) -> Option<Self> {
+        if s.len() != 2 {
+            return None;
+        }
+        let mut it = s.chars();
+        let c1 = it.next()?;
+        let c2 = it.next()?;
+        Self::try_from_chars(c1, c2)
+    }
+
+    /// Encode internal base62 digit pair to u16 (d1*62 + d2).
+    pub const fn to_u16(self) -> u16 {
+        (self.0[0] as u16) * 62 + (self.0[1] as u16)
+    }
+
+    /// Construct from u16 (less than 62*62).
+    pub fn from_u16(v: u16) -> Self {
+        let hi = (v / 62) as u8;
+        let lo = (v % 62) as u8;
+        Self([hi, lo])
+    }
+
+    /// Get display string (two characters, using standard base62 character set).
+    pub fn to_str(self) -> [char; 2] {
+        // Reverse map base62 digits to characters
+        fn digit_to_char(d: u8) -> char {
+            match d {
+                0..=9 => (b'0' + d) as char,
+                10..=35 => (b'A' + (d - 10)) as char,
+                36..=61 => (b'a' + (d - 36)) as char,
+                _ => unreachable!(),
+            }
+        }
+        [digit_to_char(self.0[0]), digit_to_char(self.0[1])]
+    }
+}
 
 /// The channel, or lane, where the note will be on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,12 +95,8 @@ pub enum Channel {
     ChangeOption,
     /// For the note which the user can interact.
     Note {
-        /// The kind of the note.
-        kind: NoteKind,
-        /// The note for the player side.
-        side: PlayerSide,
-        /// The key which corresponds to the note.
-        key: Key,
+        /// The logical note lane channel.
+        channel: NoteChannel,
     },
     /// For the section length change object.
     SectionLen,
@@ -88,6 +149,55 @@ pub enum Channel {
     /// For the OPTION. #CHANGEOPTIONxx (multiline)
     #[cfg(feature = "minor-command")]
     Option,
+}
+
+impl Channel {
+    /// Returns the two-character code used in BMS commands for this channel.
+    pub fn to_bms_code(&self) -> [char; 2] {
+        use Channel::*;
+        match self {
+            BgaBase => ['0', '4'],
+            BgaLayer => ['0', '7'],
+            BgaPoor => ['0', '6'],
+            Bgm => ['0', '1'],
+            BpmChangeU8 => ['0', '3'],
+            BpmChange => ['0', '8'],
+            #[cfg(feature = "minor-command")]
+            ChangeOption => ['A', '6'],
+            Note { channel, .. } => channel.to_str(),
+            SectionLen => ['0', '2'],
+            Stop => ['0', '9'],
+            Scroll => ['S', 'C'],
+            Speed => ['S', 'P'],
+            #[cfg(feature = "minor-command")]
+            Seek => ['0', '5'],
+            BgaLayer2 => ['0', 'A'],
+            #[cfg(feature = "minor-command")]
+            BgaBaseOpacity => ['0', 'B'],
+            #[cfg(feature = "minor-command")]
+            BgaLayerOpacity => ['0', 'C'],
+            #[cfg(feature = "minor-command")]
+            BgaLayer2Opacity => ['0', 'D'],
+            #[cfg(feature = "minor-command")]
+            BgaPoorOpacity => ['0', 'E'],
+            BgmVolume => ['9', '7'],
+            KeyVolume => ['9', '8'],
+            Text => ['9', '9'],
+            Judge => ['A', '0'],
+            #[cfg(feature = "minor-command")]
+            BgaBaseArgb => ['A', '1'],
+            #[cfg(feature = "minor-command")]
+            BgaLayerArgb => ['A', '2'],
+            #[cfg(feature = "minor-command")]
+            BgaLayer2Argb => ['A', '3'],
+            #[cfg(feature = "minor-command")]
+            BgaPoorArgb => ['A', '4'],
+            #[cfg(feature = "minor-command")]
+            BgaKeybound => ['A', '5'],
+            #[cfg(feature = "minor-command")]
+            Option => ['A', '6'],
+        }
+    }
 }
 
 impl std::fmt::Display for Channel {
@@ -162,6 +272,19 @@ impl NoteKind {
     pub const fn is_long(self) -> bool {
         matches!(self, Self::Long)
     }
+
+    /// Derive NoteKind from a logical NoteChannel.
+    /// Default rule by YY first character: 1/2 Visible, 3/4 Invisible, 5/6 Long, D/E Landmine.
+    pub fn note_kind_from_channel(channel: NoteChannel) -> Option<Self> {
+        let [c1, _] = channel.to_str();
+        Some(match c1.to_ascii_uppercase() {
+            '1' | '2' => NoteKind::Visible,
+            '3' | '4' => NoteKind::Invisible,
+            '5' | '6' => NoteKind::Long,
+            'D' | 'E' => NoteKind::Landmine,
+            _ => return None,
+        })
+    }
 }
 
 /// A side of the player.
@@ -192,85 +315,77 @@ pub enum PlayerSide {
 /// |[K1]  [K3]  [K5]  [K7]  [K9]|
 /// |----------------------------|
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
-#[repr(u64)]
-pub enum Key {
-    /// The leftmost white key.
-    /// `11` in BME-type Player1.
-    Key1 = 1,
-    /// The leftmost black key.
-    /// `12` in BME-type Player1.
-    Key2 = 2,
-    /// The second white key from the left.
-    /// `13` in BME-type Player1.
-    Key3 = 3,
-    /// The second black key from the left.
-    /// `14` in BME-type Player1.
-    Key4 = 4,
-    /// The third white key from the left.
-    /// `15` in BME-type Player1.
-    Key5 = 5,
-    /// The rightmost black key.
-    /// `18` in BME-type Player1.
-    Key6 = 6,
-    /// The rightmost white key.
-    /// `19` in BME-type Player1.
-    Key7 = 7,
-    /// The extra black key. Used in PMS or other modes.
-    Key8 = 8,
-    /// The extra white key. Used in PMS or other modes.
-    Key9 = 9,
-    /// The extra key for OCT/FP.
-    Key10 = 10,
-    /// The extra key for OCT/FP.
-    Key11 = 11,
-    /// The extra key for OCT/FP.
-    Key12 = 12,
-    /// The extra key for OCT/FP.
-    Key13 = 13,
-    /// The extra key for OCT/FP.
-    Key14 = 14,
-    /// The scratch disk.
+pub enum Key<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> {
+    /// A regular key with a non-zero index (1-KEY_COUNT)
+    Key(NonZeroU8),
+    /// The scratch disk with configurable count.
     /// `16` in BME-type Player1.
-    Scratch = 101,
-    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra = 102,
+    Scratch(NonZeroU8),
     /// The foot pedal.
-    FootPedal = 151,
+    FootPedal,
     /// The zone that the user can scratch disk freely.
     /// `17` in BMS-type Player1.
-    FreeZone = 201,
+    FreeZone,
 }
 
-impl Key {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> Key<KEY_COUNT, SCRATCH_COUNT> {
+    /// Create a new Key from a non-zero index (1-KEY_COUNT)
+    pub const fn new_key(index: u8) -> Option<Self> {
+        if index == 0 || index > KEY_COUNT as u8 {
+            None
+        } else {
+            Some(Self::Key(unsafe { NonZeroU8::new_unchecked(index) }))
+        }
+    }
+
+    /// Create a new Scratch from a non-zero index (1-SCRATCH_COUNT)
+    pub const fn new_scratch(index: u8) -> Option<Self> {
+        if index == 0 || index > SCRATCH_COUNT as u8 {
+            None
+        } else {
+            Some(Self::Scratch(unsafe { NonZeroU8::new_unchecked(index) }))
+        }
+    }
+
     /// Returns whether the key expected a piano keyboard.
     pub const fn is_keyxx(&self) -> bool {
-        use Key::*;
-        matches!(
-            self,
-            Key1 | Key2
-                | Key3
-                | Key4
-                | Key5
-                | Key6
-                | Key7
-                | Key8
-                | Key9
-                | Key10
-                | Key11
-                | Key12
-                | Key13
-                | Key14
-        )
+        matches!(self, Key::Key(_))
+    }
+
+    /// Get the key index if this is a Key variant (1-KEY_COUNT)
+    pub const fn key_index(&self) -> Option<u8> {
+        match self {
+            Key::Key(idx) => Some(idx.get()),
+            _ => None,
+        }
+    }
+
+    /// Get the scratch index if this is a Scratch variant
+    pub const fn scratch_index(&self) -> Option<u8> {
+        match self {
+            Key::Scratch(idx) => Some(idx.get()),
+            _ => None,
+        }
+    }
+
+    /// Get the maximum key count for this key layout
+    pub const fn key_count() -> usize {
+        KEY_COUNT
+    }
+
+    /// Get the maximum scratch count for this key layout
+    pub const fn scratch_count() -> usize {
+        SCRATCH_COUNT
     }
 }
 
 /// Reads a channel from a string.
 ///
 /// For general part, please call this function when using other functions.
-fn read_channel_general(channel: &str) -> Option<Channel> {
+pub fn read_channel_general(channel: &str) -> Option<Channel> {
     use Channel::*;
     Some(match channel.to_uppercase().as_str() {
         "01" => Bgm,
@@ -314,58 +429,23 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
     })
 }
 
-/// Reads a note kind from a character. (For general part)
-/// Can be directly use in BMS/BME/PMS types, and be converted to other types.
-fn get_note_kind_general(kind_char: char) -> Option<(NoteKind, PlayerSide)> {
-    Some(match kind_char {
-        '1' => (NoteKind::Visible, PlayerSide::Player1),
-        '2' => (NoteKind::Visible, PlayerSide::Player2),
-        '3' => (NoteKind::Invisible, PlayerSide::Player1),
-        '4' => (NoteKind::Invisible, PlayerSide::Player2),
-        '5' => (NoteKind::Long, PlayerSide::Player1),
-        '6' => (NoteKind::Long, PlayerSide::Player2),
-        'D' => (NoteKind::Landmine, PlayerSide::Player1),
-        'E' => (NoteKind::Landmine, PlayerSide::Player2),
-        _ => return None,
-    })
-}
-
-/// Reads a key from a character. (For Beat 5K/7K/10K/14K)
-fn get_key_beat(key: char) -> Option<Key> {
-    use Key::*;
-    Some(match key {
-        '1' => Key1,
-        '2' => Key2,
-        '3' => Key3,
-        '4' => Key4,
-        '5' => Key5,
-        '6' => Scratch,
-        '7' => FreeZone,
-        '8' => Key6,
-        '9' => Key7,
-        _ => return None,
-    })
-}
-
-/// Reads a channel from a string. (For Beat 5K/7K/10K/14K)
-pub fn read_channel_beat(channel: &str) -> Option<Channel> {
-    if let Some(channel) = read_channel_general(channel) {
-        return Some(channel);
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> core::fmt::Display
+    for Key<KEY_COUNT, SCRATCH_COUNT>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Key::Key(idx) => write!(f, "Key({})", idx),
+            Key::Scratch(idx) => write!(f, "Scratch({})", idx),
+            Key::FootPedal => write!(f, "FootPedal"),
+            Key::FreeZone => write!(f, "FreeZone"),
+        }
     }
-    let mut channel_chars = channel.chars();
-    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
-    let key = get_key_beat(channel_chars.next()?)?;
-    Some(Channel::Note { kind, side, key })
 }
 
-/// A trait for key mapping storage structure.
-pub trait KeyMapping {
-    /// Create a new [`KeyMapping`] from a [`PlayerSide`] and [`Key`].
-    fn new(side: PlayerSide, key: Key) -> Self;
-    /// Get the PlayerSide from this KeyMapping.
-    fn side(&self) -> PlayerSide;
-    /// Get the [`Key`] from this [`KeyMapping`].
-    fn key(&self) -> Key;
-    /// Deconstruct into a [`PlayerSide`], [`Key`] tuple.
-    fn into_tuple(self) -> (PlayerSide, Key);
-}
+// removed redundant router helpers; kind is inferred at parse stage
+
+// removed redundant beat key parser; mapping now centralized in PhysicalKey impls
+
+// No longer provides unified wrapper routing function, caller directly uses NoteChannel::try_from_str or read_channel_general.
+
+// read_channel_beat has been removed, unified to use `read_channel` (returns NoteChannel) and `read_channel_general` (general enum only).

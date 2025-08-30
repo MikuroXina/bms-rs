@@ -153,7 +153,10 @@ mod tests {
     use crate::bms::{
         command::{
             JudgeLevel, PlayerMode,
-            channel::{Channel, Key, NoteKind, PlayerSide},
+            channel::{
+                Channel, Key, NoteKind, PlayerSide,
+                mapper::{BeatKey, KeyMapping},
+            },
             time::Track,
         },
         lex::{LexOutput, TokenStream, token::Token::*},
@@ -213,36 +216,48 @@ mod tests {
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(
+                            PlayerSide::Player1,
+                            Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                            NoteKind::Visible
+                        )
+                        .to_note_channel(),
                     },
                     message: "0303030303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(
+                            PlayerSide::Player1,
+                            Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                            NoteKind::Visible
+                        )
+                        .to_note_channel(),
                     },
                     message: "0303000303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(
+                            PlayerSide::Player1,
+                            Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                            NoteKind::Visible
+                        )
+                        .to_note_channel(),
                     },
                     message: "010101".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key1,
+                        channel: BeatKey::new(
+                            PlayerSide::Player1,
+                            Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                            NoteKind::Visible
+                        )
+                        .to_note_channel(),
                     },
                     message: "00020202".into(),
                 },

@@ -13,12 +13,11 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{Channel, Key, NoteKind, PlayerSide},
+        channel::{Channel, NoteChannel, read_channel_general},
         graphics::Argb,
         mixin::SourcePosMixin,
         time::Track,
     },
-    prelude::read_channel_beat,
 };
 
 #[cfg(feature = "minor-command")]
@@ -191,7 +190,7 @@ pub enum Token<'a> {
     Message {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
         track: Track,
-        /// The channel commonly expresses what the lane be arranged the note to.
+        /// The channel which may be a special channel or a note channel.
         channel: Channel,
         /// The message to the channel.
         message: Cow<'a, str>,
@@ -305,7 +304,7 @@ pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
-        let channel_parser = read_channel_beat;
+        // parse YY as Channel (prefer general channels, else NoteChannel -> Channel::Note)
         let command = c
             .next_token()
             .ok_or_else(|| c.make_err_expected_token("command"))?;
@@ -824,10 +823,16 @@ impl<'a> Token<'a> {
                 let channel = &command[4..6];
 
                 let message = &command[7..];
+                let ch = if let Some(general_channel) = read_channel_general(channel) {
+                    general_channel
+                } else {
+                    let yy = NoteChannel::try_from_str(channel)
+                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?;
+                    Channel::Note { channel: yy }
+                };
                 Self::Message {
                     track: Track(track),
-                    channel: channel_parser(channel)
-                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
+                    channel: ch,
                     message: Cow::Borrowed(message),
                 }
             }
@@ -1545,136 +1550,8 @@ fn fmt_message(
     channel: &Channel,
     message: &str,
 ) -> std::fmt::Result {
-    // Convert channel back to string representation
-    match channel {
-        Channel::BgaBase => {
-            write!(f, "#{:03}04:{}", track.0, message)
-        }
-        Channel::BgaLayer => {
-            write!(f, "#{:03}07:{}", track.0, message)
-        }
-        Channel::BgaPoor => {
-            write!(f, "#{:03}06:{}", track.0, message)
-        }
-        Channel::Bgm => {
-            write!(f, "#{:03}01:{}", track.0, message)
-        }
-        Channel::BpmChangeU8 => {
-            write!(f, "#{:03}03:{}", track.0, message)
-        }
-        Channel::BpmChange => {
-            write!(f, "#{:03}08:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::ChangeOption => {
-            write!(f, "#{:03}A6:{}", track.0, message)
-        }
-        Channel::Note { kind, side, key } => {
-            let kind_char = match (kind, side) {
-                (NoteKind::Visible, PlayerSide::Player1) => '1',
-                (NoteKind::Visible, PlayerSide::Player2) => '2',
-                (NoteKind::Invisible, PlayerSide::Player1) => '3',
-                (NoteKind::Invisible, PlayerSide::Player2) => '4',
-                (NoteKind::Long, PlayerSide::Player1) => '5',
-                (NoteKind::Long, PlayerSide::Player2) => '6',
-                (NoteKind::Landmine, PlayerSide::Player1) => 'D',
-                (NoteKind::Landmine, PlayerSide::Player2) => 'E',
-            };
-            let key_char = match key {
-                Key::Key1 => '1',
-                Key::Key2 => '2',
-                Key::Key3 => '3',
-                Key::Key4 => '4',
-                Key::Key5 => '5',
-                Key::Key6 => '8',
-                Key::Key7 => '9',
-                Key::Key8 => '8',
-                Key::Key9 => '9',
-                Key::Key10 => 'A',
-                Key::Key11 => 'B',
-                Key::Key12 => 'C',
-                Key::Key13 => 'D',
-                Key::Key14 => 'E',
-                Key::Scratch => '6',
-                Key::ScratchExtra => '7',
-                Key::FootPedal => 'F',
-                Key::FreeZone => '7',
-            };
-            let channel_str = format!("{}{}", kind_char, key_char);
-            write!(f, "#{:03}{}:{}", track.0, channel_str, message)
-        }
-        Channel::SectionLen => {
-            write!(f, "#{:03}02:{}", track.0, message)
-        }
-        Channel::Stop => {
-            write!(f, "#{:03}09:{}", track.0, message)
-        }
-        Channel::Scroll => {
-            write!(f, "#{:03}SC:{}", track.0, message)
-        }
-        Channel::Speed => {
-            write!(f, "#{:03}SP:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::Seek => {
-            write!(f, "#{:03}05:{}", track.0, message)
-        }
-        Channel::BgaLayer2 => {
-            write!(f, "#{:03}0A:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaBaseOpacity => {
-            write!(f, "#{:03}0B:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayerOpacity => {
-            write!(f, "#{:03}0C:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayer2Opacity => {
-            write!(f, "#{:03}0D:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaPoorOpacity => {
-            write!(f, "#{:03}0E:{}", track.0, message)
-        }
-        Channel::BgmVolume => {
-            write!(f, "#{:03}97:{}", track.0, message)
-        }
-        Channel::KeyVolume => {
-            write!(f, "#{:03}98:{}", track.0, message)
-        }
-        Channel::Text => {
-            write!(f, "#{:03}99:{}", track.0, message)
-        }
-        Channel::Judge => {
-            write!(f, "#{:03}A0:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaBaseArgb => {
-            write!(f, "#{:03}A1:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayerArgb => {
-            write!(f, "#{:03}A2:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayer2Argb => {
-            write!(f, "#{:03}A3:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaPoorArgb => {
-            write!(f, "#{:03}A4:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaKeybound => {
-            write!(f, "#{:03}A5:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::Option => {
-            write!(f, "#{:03}A6:{}", track.0, message)
-        }
-    }
+    let yy = channel.to_bms_code();
+    write!(f, "#{:03}{}{}:{}", track.0, yy[0], yy[1], message)
 }
 
 #[cfg(test)]

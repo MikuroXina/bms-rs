@@ -3,7 +3,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, ObjId,
-        channel::{Channel, Key, NoteKind, PlayerSide},
+        channel::{Channel, Key, NoteChannel, NoteKind},
         time::{ObjTime, Track},
     },
 };
@@ -11,33 +11,88 @@ use crate::bms::{
 #[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
+use crate::bms::command::channel::{
+    PlayerSide,
+    mapper::{BeatKey, KeyMapping},
+};
+use core::marker::PhantomData;
+
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Obj {
+pub struct Obj<T: KeyMapping> {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// THe note kind of the the object.
-    pub kind: NoteKind,
-    /// The side of the player.
+    /// The player side.
     pub side: PlayerSide,
-    /// The key, or lane, where the object is placed.
-    pub key: Key,
+    /// The key.
+    pub key: T::Key,
+    /// The note kind.
+    pub kind: NoteKind,
     /// The id of the object.
     pub obj: ObjId,
+    /// Marker of the physical key layout the score is parameterized by.
+    pub(crate) _marker: PhantomData<T>,
 }
 
-impl PartialOrd for Obj {
+impl<T: KeyMapping> PartialOrd for Obj<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Obj {
+impl<T: KeyMapping> Ord for Obj<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.offset
             .cmp(&other.offset)
             .then(self.obj.cmp(&other.obj))
+    }
+}
+
+impl Obj<BeatKey> {
+    /// Creates a new note object using Beat layout components.
+    pub fn new_beat(
+        offset: ObjTime,
+        side: PlayerSide,
+        key: Key<14, 2>,
+        kind: NoteKind,
+        obj: ObjId,
+    ) -> Self {
+        Obj {
+            offset,
+            side,
+            key,
+            kind,
+            obj,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns the Beat layout components (PlayerSide, Key).
+    pub fn beat_components(&self) -> (PlayerSide, Key<14, 2>) {
+        (self.side, self.key)
+    }
+
+    /// Returns the PlayerSide.
+    pub fn side(&self) -> PlayerSide {
+        self.side
+    }
+}
+
+impl<T: KeyMapping> Obj<T> {
+    /// Returns the note kind.
+    pub fn note_kind(&self) -> NoteKind {
+        self.kind
+    }
+
+    /// Returns the Key.
+    pub fn key(&self) -> &T::Key {
+        &self.key
+    }
+
+    /// Converts to a NoteChannel for compatibility.
+    pub fn to_note_channel(&self) -> NoteChannel {
+        T::new(self.side, self.key, self.kind).to_note_channel()
     }
 }
 

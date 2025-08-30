@@ -24,11 +24,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
-            converter::KeyLayoutConverter,
-            mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        },
+        channel::{Channel, NoteChannel, NoteKind, PlayerSide, mapper::KeyMapping},
         graphics::Argb,
         time::{ObjTime, Track},
     },
@@ -55,7 +51,7 @@ use super::{
 /// A score data of BMS format.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms {
+pub struct Bms<T: KeyMapping> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -63,7 +59,7 @@ pub struct Bms {
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub notes: Notes,
+    pub notes: Notes<T>,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
@@ -200,7 +196,7 @@ pub struct Arrangers {
 /// The playable objects set for querying by lane or time.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Notes {
+pub struct Notes<T: KeyMapping> {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
@@ -210,10 +206,10 @@ pub struct Notes {
     /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
-    pub objs: HashMap<ObjId, Vec<Obj>>,
-    /// Index for fast key lookup. Used for LN/landmine logic.
-    /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
-    pub ids_by_key: HashMap<(PlayerSide, Key), BTreeMap<ObjTime, ObjId>>,
+    pub objs: HashMap<ObjId, Vec<Obj<T>>>,
+    /// Index for fast lane lookup. Used for LN/landmine logic.
+    /// Maps each [`NoteChannel`] to a sorted map of times and [`ObjId`]s for efficient note lookup.
+    pub ids_by_channel: HashMap<NoteChannel, BTreeMap<ObjTime, ObjId>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -317,7 +313,7 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl Bms {
+impl<T: KeyMapping> Bms<T> {
     pub(crate) fn parse(
         &mut self,
         token: &TokenWithPos,
@@ -870,17 +866,25 @@ impl Bms {
             }
             Token::Message {
                 track,
-                channel: Channel::Note { kind, side, key },
+                channel: Channel::Note { channel },
                 message,
             } => {
-                for (offset, obj) in ids_from_message(*track, message) {
-                    self.notes.push_note(Obj {
-                        offset,
-                        kind: *kind,
-                        side: *side,
-                        key: *key,
-                        obj,
-                    });
+                // Only process if the channel has a valid note kind
+                if NoteKind::note_kind_from_channel(*channel).is_some() {
+                    for (offset, obj_id) in ids_from_message(*track, message) {
+                        // Use type T's method to convert NoteChannel directly
+                        if let Some(t_key) = T::from_note_channel(*channel) {
+                            let obj = Obj {
+                                offset,
+                                side: t_key.side(),
+                                key: t_key.key(),
+                                kind: t_key.kind(),
+                                obj: obj_id,
+                                _marker: core::marker::PhantomData,
+                            };
+                            self.notes.push_note(obj);
+                        }
+                    }
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -1069,32 +1073,62 @@ impl Bms {
                     )?;
                 }
             }
-            Token::LnObj(end_id) => {
-                let mut end_note = self
-                    .notes
-                    .remove_latest_note(*end_id)
-                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let Obj {
-                    offset, key, side, ..
-                } = &end_note;
-                let (_, &begin_id) = self.notes.ids_by_key[&(*side, *key)]
-                    .range(..offset)
-                    .last()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "expected preceding object for #LNOBJ {end_id:?}",
-                        ))
-                    })?;
-                let mut begin_note =
-                    self.notes
-                        .remove_latest_note(begin_id)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {end_id:?}"
-                        )))?;
-                begin_note.kind = NoteKind::Long;
-                end_note.kind = NoteKind::Long;
-                self.notes.push_note(begin_note);
-                self.notes.push_note(end_note);
+            Token::LnObj(obj_id) => {
+                // Get all notes with this object ID
+                let mut notes_with_id = match self.notes.objs.get(obj_id) {
+                    Some(notes) => notes.clone(),
+                    None => return Err(ParseWarning::UndefinedObject(*obj_id)),
+                };
+
+                if notes_with_id.len() < 2 {
+                    return Err(ParseWarning::SyntaxError(format!(
+                        "LNOBJ {obj_id:?} requires at least 2 notes, but only {} found",
+                        notes_with_id.len()
+                    )));
+                }
+
+                // Sort notes by time
+                notes_with_id.sort_by_key(|note| note.offset);
+
+                // Remove the original notes
+                self.notes.objs.remove(obj_id);
+
+                // Pair consecutive notes to create long notes
+                let mut i = 0;
+                while i < notes_with_id.len() - 1 {
+                    let begin_note = &notes_with_id[i];
+                    let end_note = &notes_with_id[i + 1];
+
+                    // Create long note pair
+                    let begin_long_note = Obj {
+                        offset: begin_note.offset,
+                        side: begin_note.side,
+                        key: begin_note.key,
+                        kind: NoteKind::Long,
+                        obj: begin_note.obj,
+                        _marker: core::marker::PhantomData,
+                    };
+
+                    let end_long_note = Obj {
+                        offset: end_note.offset,
+                        side: end_note.side,
+                        key: end_note.key,
+                        kind: NoteKind::Long,
+                        obj: end_note.obj,
+                        _marker: core::marker::PhantomData,
+                    };
+
+                    self.notes.push_note(begin_long_note);
+                    self.notes.push_note(end_long_note);
+
+                    i += 2; // Skip to next pair
+                }
+
+                // If there's an odd number of notes, the last one becomes a regular note
+                if notes_with_id.len() % 2 == 1 {
+                    let last_note = &notes_with_id[notes_with_id.len() - 1];
+                    self.notes.push_note(last_note.clone());
+                }
             }
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
@@ -1168,9 +1202,11 @@ impl Bms {
         }
         Ok(())
     }
+
+
 }
 
-impl Bms {
+impl<T: KeyMapping> Bms<T> {
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
@@ -1457,14 +1493,16 @@ impl Graphics {
     }
 }
 
-impl Notes {
+impl<T: KeyMapping> Notes<T> {
     /// Converts into the notes sorted by time.
-    pub fn into_all_notes(self) -> Vec<Obj> {
-        self.objs.into_values().flatten().sorted().collect()
+    pub fn into_all_notes(mut self) -> Vec<Obj<T>> {
+        let mut all: Vec<Obj<T>> = self.objs.drain().flat_map(|(_, v)| v.into_iter()).collect();
+        all.sort();
+        all
     }
 
     /// Returns the iterator having all of the notes sorted by time.
-    pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
+    pub fn all_notes(&self) -> impl Iterator<Item = &Obj<T>> {
         self.objs.values().flatten().sorted()
     }
 
@@ -1473,10 +1511,10 @@ impl Notes {
         &self.bgms
     }
 
-    /// Finds next object on the key `Key` from the time `ObjTime`.
-    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
-        self.ids_by_key
-            .get(&(side, key))?
+    /// Finds next object on the logical note channel from the time `ObjTime`.
+    pub fn next_obj_by_channel(&self, channel: NoteChannel, time: ObjTime) -> Option<&Obj<T>> {
+        self.ids_by_channel
+            .get(&channel)?
             .range((Bound::Excluded(time), Bound::Unbounded))
             .next()
             .and_then(|(_, id)| {
@@ -1489,29 +1527,32 @@ impl Notes {
     }
 
     /// Adds the new note object to the notes.
-    pub fn push_note(&mut self, note: Obj) {
+    pub fn push_note(&mut self, note: Obj<T>) {
         self.objs.entry(note.obj).or_default().push(note.clone());
-        self.ids_by_key
-            .entry((note.side, note.key))
+        let channel = note.to_note_channel();
+        self.ids_by_channel
+            .entry(channel)
             .or_default()
             .insert(note.offset, note.obj);
     }
 
     /// Removes the latest note from the notes.
-    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
+    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj<T>> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            if let Some(key_map) = self.ids_by_key.get_mut(&(removed.side, removed.key)) {
-                key_map.remove(&removed.offset);
+            let channel = removed.to_note_channel();
+            if let Some(map) = self.ids_by_channel.get_mut(&channel) {
+                map.remove(&removed.offset);
             }
         })
     }
 
     /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
+    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj<T>> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                if let Some(key_map) = self.ids_by_key.get_mut(&(item.side, item.key)) {
-                    key_map.remove(&item.offset);
+                let channel = item.to_note_channel();
+                if let Some(map) = self.ids_by_channel.get_mut(&channel) {
+                    map.remove(&item.offset);
                 }
             }
             removed
@@ -1523,7 +1564,7 @@ impl Notes {
         self.objs
             .values()
             .flatten()
-            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
+            .filter(|obj| obj.kind != NoteKind::Invisible)
             .map(Reverse)
             .sorted()
             .next()
@@ -1751,6 +1792,14 @@ impl Notes {
     }
 }
 
+impl<T: KeyMapping> Notes<T> {
+    /// Finds next object by side/key for any physical key mapping that implements `KeyMapping`.
+    pub fn next_obj_by_key(&self, side: PlayerSide, key: T::Key, time: ObjTime) -> Option<&Obj<T>> {
+        let channel = T::new(side, key, NoteKind::Visible).to_note_channel();
+        self.next_obj_by_channel(channel, time)
+    }
+}
+
 fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
     let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
@@ -1805,33 +1854,4 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, volume_value))
     })
-}
-
-impl Bms {
-    /// Convert the ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) between modes.
-    ///
-    /// By default, the key and channel mode is [`crate::bms::command::channel::mapper::KeyLayoutBeat`].
-    pub fn convert_key_between_modes<Src: KeyLayoutMapper, Dst: KeyLayoutMapper>(&mut self) {
-        for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let ori_map = Src::new(*side, *key);
-                let beat_map = ori_map.to_beat();
-                let dst_map = Dst::from_beat(beat_map);
-                *side = dst_map.side();
-                *key = dst_map.key();
-            }
-        }
-    }
-
-    /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
-    pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
-        for (_, objs) in self.notes.objs.iter_mut() {
-            for Obj { side, key, .. } in objs.iter_mut() {
-                let beat_map = KeyLayoutBeat::new(*side, *key);
-                let new_beat_map = converter.convert(beat_map);
-                *side = new_beat_map.side();
-                *key = new_beat_map.key();
-            }
-        }
-    }
 }

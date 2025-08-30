@@ -12,11 +12,11 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 1);
@@ -40,11 +40,11 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
+    let ParseOutput::<BeatKey> {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, AlwaysUseNewer);
+    } = Bms::<BeatKey>::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes.wav_files.len(), 2);

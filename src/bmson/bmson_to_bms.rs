@@ -1,11 +1,18 @@
 //! Part: Convert `Bmson` to `Bms`.
 
-use std::{num::NonZeroU8, path::PathBuf};
+use std::{collections::HashMap, num::NonZeroU8, path::PathBuf};
 
 use thiserror::Error;
 
 use crate::{
-    bms::prelude::*,
+    bms::{
+        command::channel::{
+            Key,
+            mapper::{BeatKey, convert_key},
+        },
+        parse::model::obj::Obj,
+        prelude::*,
+    },
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -59,7 +66,7 @@ impl Iterator for ObjIdIssuer {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BmsonToBmsOutput {
     /// The converted `Bms` object.
-    pub bms: Bms,
+    pub bms: Bms<BeatKey>,
     /// Warnings that occurred during the conversion.
     pub warnings: Vec<BmsonToBmsWarning>,
     /// Warnings that affect the playing of the score.
@@ -68,10 +75,10 @@ pub struct BmsonToBmsOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-impl Bms {
+impl Bms<BeatKey> {
     /// Convert `Bmson` to `Bms`.
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let mut warnings = Vec::new();
         let mut wav_obj_id_issuer = ObjIdIssuer::new();
         let mut bga_header_obj_id_issuer = ObjIdIssuer::new();
@@ -173,18 +180,21 @@ impl Bms {
             for note in sound_channel.notes {
                 let time = convert_pulse_to_obj_time(note.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(note.x);
-                let kind = if note.l > 0 {
+                let channel_kind = if note.l > 0 {
                     NoteKind::Long
                 } else {
                     NoteKind::Visible
                 };
 
-                let obj = Obj {
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind,
                     side,
-                    key,
+                    key: converted_key,
+                    kind: channel_kind,
                     obj: obj_id,
+                    _marker: core::marker::PhantomData,
                 };
                 bms.notes.push_note(obj);
             }
@@ -203,12 +213,15 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
-                let obj = Obj {
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind: NoteKind::Landmine,
                     side,
-                    key,
+                    key: converted_key,
+                    kind: NoteKind::Landmine,
                     obj: obj_id,
+                    _marker: core::marker::PhantomData,
                 };
                 bms.notes.push_note(obj);
             }
@@ -227,12 +240,15 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
-                let obj = Obj {
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    kind: NoteKind::Invisible,
                     side,
-                    key,
+                    key: converted_key,
+                    kind: NoteKind::Invisible,
                     obj: obj_id,
+                    _marker: core::marker::PhantomData,
                 };
                 bms.notes.push_note(obj);
             }
@@ -240,7 +256,7 @@ impl Bms {
 
         // Convert BGA
         // First, create a mapping from BgaId to ObjId for bga_headers
-        let mut bga_id_to_obj_id = std::collections::HashMap::new();
+        let mut bga_id_to_obj_id = HashMap::new();
 
         for bga_header in value.bga.bga_header {
             let bmp_path = PathBuf::from(bga_header.name);
@@ -334,7 +350,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
 }
 
 /// Convert lane number to Key and PlayerSide
-fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
+fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key<9, 2>, PlayerSide) {
     let lane_value = lane.map(|l| l.get()).unwrap_or(0);
 
     // Handle player sides
@@ -346,15 +362,15 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key1,
-        2 => Key::Key2,
-        3 => Key::Key3,
-        4 => Key::Key4,
-        5 => Key::Key5,
-        6 => Key::Key6,
-        7 => Key::Key7,
-        8 => Key::Scratch,
-        _ => Key::Key1, // Default fallback
+        1 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        2 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+        3 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+        4 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+        5 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+        6 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(6) }),
+        7 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(7) }),
+        8 => Key::<9, 2>::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        _ => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }), // Default fallback
     };
 
     (key, side)

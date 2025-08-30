@@ -16,7 +16,7 @@ fn test_prelude_imports() {
 
     // Test channel types
     let _channel = Channel::Bgm;
-    let _key = Key::Key1;
+    let _key = Key::new_key(1).unwrap();
     let _note_kind = NoteKind::Visible;
     let _player_side = PlayerSide::Player1;
 
@@ -36,11 +36,11 @@ fn test_prelude_imports() {
     };
 
     // Test model types
-    let _bms = Bms::default();
+    let _bms = Bms::<BeatKey>::default();
     let _header = Header::default();
     let _scope_defines = ScopeDefines::default();
     let _arrangers = Arrangers::default();
-    let _notes = Notes::default();
+    let _notes = Notes::<BeatKey>::default();
     let _graphics = Graphics::default();
     let _others = Others::default();
 
@@ -69,13 +69,7 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = Obj {
-        offset: _obj_time,
-        kind: _note_kind,
-        side: _player_side,
-        key: _key,
-        obj: _obj_id,
-    };
+    let _obj = Obj::new_beat(_obj_time, _player_side, _key, NoteKind::Visible, _obj_id);
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
         bpm: Decimal::from(120),
@@ -119,7 +113,7 @@ fn test_prelude_imports() {
     assert_eq!(_ln_type, LnType::Rdm);
     assert_eq!(_ln_mode_type, LnMode::Ln);
     assert_eq!(_channel, Channel::Bgm);
-    assert_eq!(_key, Key::Key1);
+    assert_eq!(_key, Key::new_key(1).unwrap());
     assert_eq!(_note_kind, NoteKind::Visible);
     assert_eq!(_player_side, PlayerSide::Player1);
     assert_eq!(_bga_obj.layer, BgaLayer::Base);

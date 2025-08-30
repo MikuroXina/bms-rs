@@ -15,16 +15,15 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, KeyMapping, NoteKind, PlayerSide,
+            Channel, Key, NoteChannel, NoteKind, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,
             },
             mapper::{
-                KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
-                KeyLayoutPms, KeyLayoutPmsBmeType,
+                BeatKey, BeatNanasiKey, DscOctFpKey, GenericNKey, KeyMapping, PmsBmeKey, PmsKey,
             },
-            read_channel_beat,
+            read_channel_general,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         mixin::{SourcePosMixin, SourcePosMixinExt},
@@ -49,10 +48,11 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
-        validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms_with_rng,
 };
+
+pub use super::parse::validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing};
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
