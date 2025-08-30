@@ -32,7 +32,6 @@ pub struct Obj<T: KeyMapping> {
     /// The id of the object.
     pub obj: ObjId,
     /// Marker of the physical key layout the score is parameterized by.
-
     pub(crate) _marker: PhantomData<T>,
 }
 

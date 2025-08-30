@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use super::{Key, PlayerSide, mapper::{KeyMapping, BeatKey, convert_key}};
+use super::{
+    Key, PlayerSide,
+    mapper::{BeatKey, KeyMapping, convert_key},
+};
 
 /// A trait for converting [`KeyMapping`]s.
 ///
@@ -14,7 +17,9 @@ pub trait KeyLayoutConverter {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T;
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize>
+    KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT>
+{
     /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
     pub fn new(side: PlayerSide, keys: Vec<Key<KEY_COUNT, SCRATCH_COUNT>>) -> Self {
         Self { side, keys }
@@ -30,7 +35,9 @@ pub struct KeyLayoutConvertMirror<const KEY_COUNT: usize, const SCRATCH_COUNT: u
     keys: Vec<Key<KEY_COUNT, SCRATCH_COUNT>>,
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter for KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter
+    for KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT>
+{
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, _key, _kind) = beat_map.into_tuple();
         if side == self.side {
@@ -43,9 +50,14 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter for 
     }
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize>
+    KeyLayoutConvertMirror<KEY_COUNT, SCRATCH_COUNT>
+{
     /// Try to convert a key using runtime type checking
-    fn try_convert_key<T: Eq + std::fmt::Debug>(&self, key: &T) -> Option<Key<KEY_COUNT, SCRATCH_COUNT>> {
+    fn try_convert_key<T: Eq + std::fmt::Debug>(
+        &self,
+        key: &T,
+    ) -> Option<Key<KEY_COUNT, SCRATCH_COUNT>> {
         // This is a hack to work around the generic type limitations
         // We assume that if the debug representation matches, it's the same type
         for (i, mirror_key) in self.keys.iter().enumerate() {
@@ -67,7 +79,9 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertMirror<
         // This assumes that most KeyMapping implementations use BeatKey as the standard
         if let Some(beat_key) = BeatKey::from_note_channel(note_channel) {
             // Try to convert the BeatKey to our Key type
-            if let Some(converter_key) = convert_key::<14, 2, KEY_COUNT, SCRATCH_COUNT>(beat_key.key) {
+            if let Some(converter_key) =
+                convert_key::<14, 2, KEY_COUNT, SCRATCH_COUNT>(beat_key.key)
+            {
                 // Try to find this key in our list
                 if let Some(pos) = self.keys.iter().position(|k| *k == converter_key) {
                     // Apply mirror transformation
@@ -75,9 +89,12 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertMirror<
                     let mirrored_converter_key = self.keys[mirrored_pos];
 
                     // Convert back to BeatKey
-                    if let Some(mirrored_beat_key) = convert_key::<KEY_COUNT, SCRATCH_COUNT, 14, 2>(mirrored_converter_key) {
+                    if let Some(mirrored_beat_key) =
+                        convert_key::<KEY_COUNT, SCRATCH_COUNT, 14, 2>(mirrored_converter_key)
+                    {
                         // Create mirrored BeatKey
-                        let mirrored_beat = BeatKey::new(beat_key.side, mirrored_beat_key, beat_key.kind);
+                        let mirrored_beat =
+                            BeatKey::new(beat_key.side, mirrored_beat_key, beat_key.kind);
 
                         // Convert back to the original NoteChannel
                         let mirrored_note_channel = mirrored_beat.to_note_channel();
@@ -153,7 +170,9 @@ pub struct KeyLayoutConvertLaneRotateShuffle<const KEY_COUNT: usize, const SCRAT
     arrangement: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>>,
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRotateShuffle<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize>
+    KeyLayoutConvertLaneRotateShuffle<KEY_COUNT, SCRATCH_COUNT>
+{
     /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key<KEY_COUNT, SCRATCH_COUNT>>, seed: i64) -> Self {
         KeyLayoutConvertLaneRotateShuffle {
@@ -162,9 +181,13 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRot
         }
     }
 
-    fn make_random(keys: &[Key<KEY_COUNT, SCRATCH_COUNT>], seed: i64) -> HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> {
+    fn make_random(
+        keys: &[Key<KEY_COUNT, SCRATCH_COUNT>],
+        seed: i64,
+    ) -> HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> {
         let mut rng = JavaRandom::new(seed);
-        let mut result: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> = HashMap::new();
+        let mut result: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> =
+            HashMap::new();
         if keys.is_empty() {
             return result;
         }
@@ -185,7 +208,9 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRot
     }
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter
+    for KeyLayoutConvertLaneRotateShuffle<KEY_COUNT, SCRATCH_COUNT>
+{
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, key, kind) = beat_map.into_tuple();
         if side == self.side {
@@ -207,7 +232,9 @@ pub struct KeyLayoutConvertLaneRandomShuffle<const KEY_COUNT: usize, const SCRAT
     arrangement: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>>,
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRandomShuffle<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize>
+    KeyLayoutConvertLaneRandomShuffle<KEY_COUNT, SCRATCH_COUNT>
+{
     /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key<KEY_COUNT, SCRATCH_COUNT>>, seed: i64) -> Self {
         KeyLayoutConvertLaneRandomShuffle {
@@ -216,9 +243,13 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRan
         }
     }
 
-    fn make_random(keys: &[Key<KEY_COUNT, SCRATCH_COUNT>], seed: i64) -> HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> {
+    fn make_random(
+        keys: &[Key<KEY_COUNT, SCRATCH_COUNT>],
+        seed: i64,
+    ) -> HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> {
         let mut rng = JavaRandom::new(seed);
-        let mut result: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> = HashMap::new();
+        let mut result: HashMap<Key<KEY_COUNT, SCRATCH_COUNT>, Key<KEY_COUNT, SCRATCH_COUNT>> =
+            HashMap::new();
         if keys.is_empty() {
             return result;
         }
@@ -234,7 +265,9 @@ impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConvertLaneRan
     }
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> KeyLayoutConverter
+    for KeyLayoutConvertLaneRandomShuffle<KEY_COUNT, SCRATCH_COUNT>
+{
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
         let (side, key, kind) = beat_map.into_tuple();
         if side == self.side {

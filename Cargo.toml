@@ -20,7 +20,6 @@ serde = ["dep:serde", "num/serde", "fraction/with-serde-support"]
 bmson = ["serde", "serde_json"]
 rand = ["dep:rand"]
 minor-command = []
-enable-validity = []
 
 [dependencies]
 itertools = "0.14.0"

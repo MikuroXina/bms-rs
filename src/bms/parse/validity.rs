@@ -1,4 +1,3 @@
-#![cfg(feature = "enable-validity")]
 //! Validity checks for BMS data after parsing and/or manual edits.
 //!
 //! This module provides a set of structural validations that are independent of
@@ -11,7 +10,7 @@ use thiserror::Error;
 
 use crate::bms::command::{
     ObjId,
-    channel::{Key, NoteKind, PlayerSide},
+    channel::{NoteKind, PlayerSide, mapper::KeyMapping},
     time::ObjTime,
 };
 
@@ -43,14 +42,14 @@ pub enum ValidityMissing {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ValidityInvalid {
+pub enum ValidityInvalid<K> {
     /// A visible single note is placed in section 000 (works only on LR2).
     #[error("Visible single note placed in section 000 at {time:?} (side={side:?}, key={key:?})")]
     VisibleNoteInTrackZero {
         /// Player side where the note is placed.
         side: PlayerSide,
         /// Key lane where the note is placed.
-        key: Key,
+        key: K,
         /// Timestamp of the note.
         time: ObjTime,
     },
@@ -60,7 +59,7 @@ pub enum ValidityInvalid {
         /// Player side where the note is placed.
         side: PlayerSide,
         /// Key lane where the overlap occurs.
-        key: Key,
+        key: K,
         /// Timestamp of the overlap.
         time: ObjTime,
     },
@@ -72,7 +71,7 @@ pub enum ValidityInvalid {
         /// Player side where the note is placed.
         side: PlayerSide,
         /// Key lane where the overlap occurs.
-        key: Key,
+        key: K,
         /// Timestamp of the single note.
         time: ObjTime,
         /// Start time of the long note interval.
@@ -88,7 +87,7 @@ pub enum ValidityInvalid {
         /// Player side where the overlap occurs.
         side: PlayerSide,
         /// Key lane where the overlap occurs.
-        key: Key,
+        key: K,
         /// Start time of the long note interval.
         ln_start: ObjTime,
         /// End time of the long note interval.
@@ -100,7 +99,7 @@ pub enum ValidityInvalid {
         /// Player side where the overlap occurs.
         side: PlayerSide,
         /// Key lane where the overlap occurs.
-        key: Key,
+        key: K,
         /// Timestamp of the overlap.
         time: ObjTime,
     },
@@ -109,19 +108,19 @@ pub enum ValidityInvalid {
 /// Output of validity checks.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ValidityCheckOutput {
+pub struct ValidityCheckOutput<K> {
     /// Missing-related findings.
     pub missing: Vec<ValidityMissing>,
     /// Invalid-related findings.
-    pub invalid: Vec<ValidityInvalid>,
+    pub invalid: Vec<ValidityInvalid<K>>,
 }
 
-impl Bms {
+impl<T: KeyMapping> Bms<T> {
     /// Validate the internal consistency of `Bms` after parsing or manual edits.
     ///
     /// This performs basic referential integrity checks and data invariants that
     /// are required for correct playback, separate from parse-time checks.
-    pub fn check_validity(&self) -> ValidityCheckOutput {
+    pub fn check_validity(&self) -> ValidityCheckOutput<T::Key> {
         let mut missing = Vec::new();
         let mut invalid = Vec::new();
 
@@ -168,7 +167,7 @@ impl Bms {
         //      - Overlap: visible single within long interval (same lane)
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
-        let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&Obj>> = HashMap::new();
+        let mut lane_to_notes: HashMap<(PlayerSide, T::Key), Vec<&Obj<T>>> = HashMap::new();
         for notes in self.notes.objs.values() {
             for obj in notes {
                 // Visible note in section 000 (track index 0)
@@ -321,7 +320,7 @@ impl Bms {
             }
         }
 
-        ValidityCheckOutput { missing, invalid }
+        ValidityCheckOutput::<T::Key> { missing, invalid }
     }
 }
 
@@ -331,32 +330,34 @@ mod tests {
     use crate::bms::{
         command::{
             ObjId,
-            channel::{Key, NoteKind, PlayerSide},
+            channel::{Key, NoteKind, PlayerSide, mapper::BeatKey},
             time::ObjTime,
         },
         parse::model::{
-            Notes,
+            Bms, Notes,
             obj::{BgaLayer, BgaObj, Obj},
         },
     };
 
+    use std::marker::PhantomData;
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
         ObjTime::new(track, num, den)
     }
 
     #[test]
     fn test_missing_wav_for_note() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id = ObjId::try_from("0A").unwrap();
         let time = t(1, 0, 4);
         // Insert note via push_note to keep ids_by_key consistent
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id,
+            _marker: std::marker::PhantomData,
         });
         bms.notes = notes;
         // No WAV defined for id
@@ -366,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_missing_bmp_for_bga() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id = ObjId::try_from("0B").unwrap();
         let time = t(1, 0, 4);
         bms.graphics.bga_changes.insert(
@@ -383,195 +384,208 @@ mod tests {
 
     #[test]
     fn test_visible_note_in_track_zero() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id = ObjId::try_from("10").unwrap();
         let time = t(0, 0, 4);
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id,
+            _marker: PhantomData,
         });
         bms.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::VisibleNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::VisibleNoteInTrackZero { time: t0, side: PlayerSide::Player1, key } if *t0 == time && *key == Key::new_key(1).unwrap()
         )));
     }
 
     #[test]
     fn test_overlap_visible_single_with_single() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id1 = ObjId::try_from("01").unwrap();
         let id2 = ObjId::try_from("02").unwrap();
         let time = t(1, 0, 4);
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id1,
+            _marker: PhantomData,
         });
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id2,
+            _marker: PhantomData,
         });
         bms.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapVisibleSingleWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::OverlapVisibleSingleWithSingle { time: t0, side: PlayerSide::Player1, key } if *t0 == time && *key == Key::new_key(1).unwrap()
         )));
     }
 
     #[test]
     fn test_overlap_visible_single_with_long() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id_ln_s = ObjId::try_from("0E").unwrap();
         let id_ln_e = ObjId::try_from("0F").unwrap();
         let id_vis = ObjId::try_from("03").unwrap();
         let ln_start = t(2, 0, 4);
         let ln_end = t(2, 2, 4);
         let vis_time = t(2, 1, 4);
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         // LN start
         notes.push_note(Obj {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_s,
+            _marker: PhantomData,
         });
         // LN end
         notes.push_note(Obj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_e,
+            _marker: PhantomData,
         });
         // Visible inside LN interval
         notes.push_note(Obj {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_vis,
+            _marker: PhantomData,
         });
         bms.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapVisibleSingleWithLong { side: PlayerSide::Player1, key: Key::Key1, time: t0, ln_start: s, ln_end: e } if *t0 == vis_time && *s == ln_start && *e == ln_end
+            ValidityInvalid::OverlapVisibleSingleWithLong { side: PlayerSide::Player1, key, time: t0, ln_start: s, ln_end: e_val } if *t0 == vis_time && *s == ln_start && *e_val == ln_end && *key == Key::new_key(1).unwrap()
         )));
     }
 
     #[test]
     fn test_landmine_overlap_long_warn_at_start() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id_ln_s = ObjId::try_from("1A").unwrap();
         let id_ln_e = ObjId::try_from("1B").unwrap();
         let id_mine = ObjId::try_from("1C").unwrap();
         let ln_start = t(3, 0, 4);
         let ln_end = t(3, 2, 4);
         let mine_time = t(3, 0, 4);
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         // LN interval
         notes.push_note(Obj {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_s,
+            _marker: PhantomData,
         });
         notes.push_note(Obj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_e,
+            _marker: PhantomData,
         });
         // Landmine inside the LN
         notes.push_note(Obj {
             offset: mine_time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_mine,
+            _marker: PhantomData,
         });
         bms.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key: Key::Key1, ln_start: s, ln_end: e } if *s == ln_start && *e == ln_end
+            ValidityInvalid::OverlapsLandmineLongAtStart { side: PlayerSide::Player1, key, ln_start: s, ln_end: e_val } if *s == ln_start && *e_val == ln_end && *key == Key::new_key(1).unwrap()
         )));
     }
 
     #[test]
     fn test_overlap_landmine_with_single() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id_vis = ObjId::try_from("04").unwrap();
         let id_mine = ObjId::try_from("05").unwrap();
         let time = t(1, 0, 4);
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_vis,
+            _marker: PhantomData,
         });
         notes.push_note(Obj {
             offset: time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_mine,
+            _marker: PhantomData,
         });
         bms.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key: Key::Key1 } if *t0 == time
+            ValidityInvalid::OverlapLandmineWithSingle { time: t0, side: PlayerSide::Player1, key } if *t0 == time && *key == Key::new_key(1).unwrap()
         )));
     }
 
     #[test]
     fn test_zero_length_long_note_overlap() {
-        let mut bms = Bms::default();
+        let mut bms = Bms::<BeatKey>::default();
         let id_ln_start = ObjId::try_from("20").unwrap();
         let id_ln_end = ObjId::try_from("21").unwrap();
         let id_vis = ObjId::try_from("22").unwrap();
         let zero_length_time = t(2, 0, 4);
         let vis_time = t(2, 0, 4); // Same time as zero-length LN
-        let mut notes = Notes::default();
+        let mut notes = Notes::<BeatKey>::default();
 
         // Zero-length long note: start and end at same time
         notes.push_note(Obj {
             offset: zero_length_time,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_start,
+            _marker: PhantomData,
         });
         notes.push_note(Obj {
             offset: zero_length_time, // Same time - zero length
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_ln_end,
+            _marker: PhantomData,
         });
 
         // Visible note at the same time as zero-length LN
@@ -579,8 +593,9 @@ mod tests {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
-            key: Key::Key1,
+            key: Key::new_key(1).unwrap(),
             obj: id_vis,
+            _marker: PhantomData,
         });
 
         bms.notes = notes;
@@ -592,11 +607,11 @@ mod tests {
                 e,
                 ValidityInvalid::OverlapVisibleSingleWithLong {
                     side: PlayerSide::Player1,
-                    key: Key::Key1,
+                    key,
                     time: t0,
                     ln_start: s,
-                    ln_end: e
-                } if *t0 == vis_time && *s == zero_length_time && *e == zero_length_time
+                    ln_end: e_val
+                } if *t0 == vis_time && *s == zero_length_time && *e_val == zero_length_time && *key == Key::new_key(1).unwrap()
             )),
             "Failed to detect overlap with zero-length long note. Current output: {:?}",
             out.invalid

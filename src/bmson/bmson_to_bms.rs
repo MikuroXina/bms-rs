@@ -5,7 +5,14 @@ use std::{collections::HashMap, num::NonZeroU8, path::PathBuf};
 use thiserror::Error;
 
 use crate::{
-    bms::{command::channel::{mapper::{BeatKey, convert_key}, Key}, parse::model::obj::Obj, prelude::*},
+    bms::{
+        command::channel::{
+            Key,
+            mapper::{BeatKey, convert_key},
+        },
+        parse::model::obj::Obj,
+        prelude::*,
+    },
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -179,7 +186,8 @@ impl Bms<BeatKey> {
                     NoteKind::Visible
                 };
 
-                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,
@@ -205,7 +213,8 @@ impl Bms<BeatKey> {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
-                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,
@@ -231,7 +240,8 @@ impl Bms<BeatKey> {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
-                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
+                let converted_key = convert_key::<9, 2, 14, 2>(key)
+                    .unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,

@@ -429,7 +429,9 @@ pub fn read_channel_general(channel: &str) -> Option<Channel> {
     })
 }
 
-impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> core::fmt::Display for Key<KEY_COUNT, SCRATCH_COUNT> {
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> core::fmt::Display
+    for Key<KEY_COUNT, SCRATCH_COUNT>
+{
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Key::Key(idx) => write!(f, "Key({})", idx),

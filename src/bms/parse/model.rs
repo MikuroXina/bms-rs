@@ -24,10 +24,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
-        channel::{
-            Channel, NoteChannel, NoteKind, PlayerSide,
-            mapper::{KeyMapping},
-        },
+        channel::{Channel, NoteChannel, NoteKind, PlayerSide, mapper::KeyMapping},
         graphics::Argb,
         time::{ObjTime, Track},
     },
@@ -50,10 +47,6 @@ use super::{
     ParseWarning, Result,
     prompt::{ChannelDuplication, DefDuplication, PromptHandler, TrackDuplication},
 };
-
-
-
-
 
 /// A score data of BMS format.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -1080,56 +1073,62 @@ impl<T: KeyMapping> Bms<T> {
                     )?;
                 }
             }
-            Token::LnObj(end_id) => {
-                let end_note = self
-                    .notes
-                    .remove_latest_note(*end_id)
-                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let channel = end_note.to_note_channel();
-                let (_, &begin_id) = self
-                    .notes
-                    .ids_by_channel
-                    .get(&channel)
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "missing channel index for LNOBJ {end_id:?}"
-                        ))
-                    })?
-                    .range(..end_note.offset)
-                    .last()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "expected preceding object for #LNOBJ {end_id:?}",
-                        ))
-                    })?;
-                let begin_note =
-                    self.notes
-                        .remove_latest_note(begin_id)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {end_id:?}"
-                        )))?;
-
-                // Create long note objects using original note's key information
-                let begin_long_note = Obj {
-                    offset: begin_note.offset,
-                    side: begin_note.side,
-                    key: begin_note.key,
-                    kind: NoteKind::Long,
-                    obj: begin_note.obj,
-                    _marker: core::marker::PhantomData,
+            Token::LnObj(obj_id) => {
+                // Get all notes with this object ID
+                let mut notes_with_id = match self.notes.objs.get(obj_id) {
+                    Some(notes) => notes.clone(),
+                    None => return Err(ParseWarning::UndefinedObject(*obj_id)),
                 };
 
-                let end_long_note = Obj {
-                    offset: end_note.offset,
-                    side: end_note.side,
-                    key: end_note.key,
-                    kind: NoteKind::Long,
-                    obj: end_note.obj,
-                    _marker: core::marker::PhantomData,
-                };
+                if notes_with_id.len() < 2 {
+                    return Err(ParseWarning::SyntaxError(format!(
+                        "LNOBJ {obj_id:?} requires at least 2 notes, but only {} found",
+                        notes_with_id.len()
+                    )));
+                }
 
-                self.notes.push_note(begin_long_note);
-                self.notes.push_note(end_long_note);
+                // Sort notes by time
+                notes_with_id.sort_by_key(|note| note.offset);
+
+                // Remove the original notes
+                self.notes.objs.remove(obj_id);
+
+                // Pair consecutive notes to create long notes
+                let mut i = 0;
+                while i < notes_with_id.len() - 1 {
+                    let begin_note = &notes_with_id[i];
+                    let end_note = &notes_with_id[i + 1];
+
+                    // Create long note pair
+                    let begin_long_note = Obj {
+                        offset: begin_note.offset,
+                        side: begin_note.side,
+                        key: begin_note.key,
+                        kind: NoteKind::Long,
+                        obj: begin_note.obj,
+                        _marker: core::marker::PhantomData,
+                    };
+
+                    let end_long_note = Obj {
+                        offset: end_note.offset,
+                        side: end_note.side,
+                        key: end_note.key,
+                        kind: NoteKind::Long,
+                        obj: end_note.obj,
+                        _marker: core::marker::PhantomData,
+                    };
+
+                    self.notes.push_note(begin_long_note);
+                    self.notes.push_note(end_long_note);
+
+                    i += 2; // Skip to next pair
+                }
+
+                // If there's an odd number of notes, the last one becomes a regular note
+                if notes_with_id.len() % 2 == 1 {
+                    let last_note = &notes_with_id[notes_with_id.len() - 1];
+                    self.notes.push_note(last_note.clone());
+                }
             }
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
@@ -1204,25 +1203,7 @@ impl<T: KeyMapping> Bms<T> {
         Ok(())
     }
 
-    /// Convert a channel to long note type using PhysicalKey logic.
-    /// This is used for LNOBJ processing.
-    fn convert_to_long_channel(&self, channel: NoteChannel) -> Result<NoteChannel> {
-        use crate::bms::command::channel::mapper::BeatKey;
 
-        // Use BeatKey's from_note_channel to parse the channel and get the physical key
-        let beat_key = BeatKey::from_note_channel(channel).ok_or_else(|| {
-            ParseWarning::SyntaxError(format!(
-                "Cannot parse channel {:?} as BeatKey",
-                channel.to_str()
-            ))
-        })?;
-
-        // Create a new BeatKey with the same side and key but Long kind
-        let long_beat_key = BeatKey::new(beat_key.side, beat_key.key, NoteKind::Long);
-
-        // Convert back to NoteChannel
-        Ok(long_beat_key.to_note_channel())
-    }
 }
 
 impl<T: KeyMapping> Bms<T> {

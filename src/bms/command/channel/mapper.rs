@@ -12,8 +12,13 @@ pub const MAX_SCRATCH_EXTRA_INDEX: u8 = 1;
 /// Convert a Key from one const parameter type to another.
 /// This function handles conversion between different Key<A, B> types.
 /// Currently assumes all keys have scratch count = 2.
-pub fn convert_key<const SRC_KEY_COUNT: usize, const SRC_SCRATCH_COUNT: usize, const DST_KEY_COUNT: usize, const DST_SCRATCH_COUNT: usize>(
-    key: Key<SRC_KEY_COUNT, SRC_SCRATCH_COUNT>
+pub fn convert_key<
+    const SRC_KEY_COUNT: usize,
+    const SRC_SCRATCH_COUNT: usize,
+    const DST_KEY_COUNT: usize,
+    const DST_SCRATCH_COUNT: usize,
+>(
+    key: Key<SRC_KEY_COUNT, SRC_SCRATCH_COUNT>,
 ) -> Option<Key<DST_KEY_COUNT, DST_SCRATCH_COUNT>> {
     match key {
         Key::Key(idx) => Key::<DST_KEY_COUNT, DST_SCRATCH_COUNT>::new_key(idx.get()),
@@ -23,8 +28,6 @@ pub fn convert_key<const SRC_KEY_COUNT: usize, const SRC_SCRATCH_COUNT: usize, c
     }
 }
 
-
-
 /// A trait that maps between logical [`NoteChannel`] and concrete physical key layouts.
 /// This trait combines key mapping storage with physical key conversion functionality.
 pub trait KeyMapping: Copy + Eq + core::fmt::Debug {
@@ -33,7 +36,10 @@ pub trait KeyMapping: Copy + Eq + core::fmt::Debug {
     /// The maximum number of scratch disks in this layout
     const SCRATCH_COUNT: usize;
     /// The key type for this mapping
-    type Key: Copy + Eq + core::fmt::Debug + core::hash::Hash
+    type Key: Copy
+        + Eq
+        + core::fmt::Debug
+        + core::hash::Hash
         + core::fmt::Display
         + core::cmp::PartialOrd
         + core::cmp::Ord
@@ -54,8 +60,6 @@ pub trait KeyMapping: Copy + Eq + core::fmt::Debug {
     fn to_note_channel(self) -> NoteChannel;
     /// Convert a logical note channel into this physical key, if representable.
     fn from_note_channel(channel: NoteChannel) -> Option<Self>;
-
-
 }
 
 /// Default Beat layout physical key (encapsulating side and key).
@@ -219,7 +223,8 @@ impl KeyMapping for PmsBmeKey {
             Key::Key(idx) if idx.get() == 9 => super::Key::FreeZone,
             other => other,
         };
-        let beat_key = convert_key::<9, 2, 14, 2>(mapped_key).unwrap_or(Key::<14, 2>::new_key(1).unwrap());
+        let beat_key =
+            convert_key::<9, 2, 14, 2>(mapped_key).unwrap_or(Key::<14, 2>::new_key(1).unwrap());
         BeatKey::new(self.side, beat_key, self.kind).to_note_channel()
     }
 
@@ -294,14 +299,18 @@ impl KeyMapping for PmsKey {
         use PlayerSide::*;
         let beat = BeatKey::from_note_channel(channel)?;
         let (side, key) = match (beat.side, beat.key) {
-            (Player1, key) if matches!(key, Key::Key(idx) if idx.get() >= 1 && idx.get() <= 5) => {
-                (Player1, convert_key::<14, 2, 9, 2>(key).unwrap_or(Key::<9, 2>::new_key(1).unwrap()))
-            }
+            (Player1, key) if matches!(key, Key::Key(idx) if idx.get() >= 1 && idx.get() <= 5) => (
+                Player1,
+                convert_key::<14, 2, 9, 2>(key).unwrap_or(Key::<9, 2>::new_key(1).unwrap()),
+            ),
             (Player2, Key::Key(idx)) if idx.get() == 2 => (Player1, Key::new_key(6).unwrap()),
             (Player2, Key::Key(idx)) if idx.get() == 3 => (Player1, Key::new_key(7).unwrap()),
             (Player2, Key::Key(idx)) if idx.get() == 4 => (Player1, Key::new_key(8).unwrap()),
             (Player2, Key::Key(idx)) if idx.get() == 5 => (Player1, Key::new_key(9).unwrap()),
-            (side, key) => (side, convert_key::<14, 2, 9, 2>(key).unwrap_or(Key::<9, 2>::new_key(1).unwrap())),
+            (side, key) => (
+                side,
+                convert_key::<14, 2, 9, 2>(key).unwrap_or(Key::<9, 2>::new_key(1).unwrap()),
+            ),
         };
         Some(Self {
             side,
@@ -427,7 +436,8 @@ impl KeyMapping for DscOctFpKey {
             (Player1, Key::Key(idx)) if idx.get() == 13 => (Player2, Key::new_key(7).unwrap()),
             (s, k) => (s, k),
         };
-        let beat_key = convert_key::<13, 2, 14, 2>(key).unwrap_or(Key::<14, 2>::new_key(1).unwrap());
+        let beat_key =
+            convert_key::<13, 2, 14, 2>(key).unwrap_or(Key::<14, 2>::new_key(1).unwrap());
         BeatKey::new(side, beat_key, self.kind).to_note_channel()
     }
 
@@ -445,7 +455,10 @@ impl KeyMapping for DscOctFpKey {
             (Player2, Key::Scratch(idx)) if idx.get() == 1 => {
                 (Player1, Key::new_scratch(2).unwrap())
             }
-            (s, k) => (s, convert_key::<14, 2, 13, 2>(k).unwrap_or(Key::<13, 2>::new_key(1).unwrap())),
+            (s, k) => (
+                s,
+                convert_key::<14, 2, 13, 2>(k).unwrap_or(Key::<13, 2>::new_key(1).unwrap()),
+            ),
         };
         Some(Self {
             side,
@@ -544,11 +557,10 @@ impl<const N: usize> KeyMapping for GenericNKey<N> {
             super::Key::Key(idx) => idx.get() as usize,
             beat_key => {
                 // Try to convert from BeatKey to GenericNKey
-                if let Some(generic_key) = convert_key::<14, 2, N, 2>(beat_key) {
-                    match generic_key {
-                        super::Key::Key(idx) => idx.get() as usize,
-                        _ => return None,
-                    }
+                if let Some(generic_key) = convert_key::<14, 2, N, 2>(beat_key)
+                    && let super::Key::Key(idx) = generic_key
+                {
+                    idx.get() as usize
                 } else {
                     return None;
                 }
@@ -565,44 +577,36 @@ impl<const N: usize> KeyMapping for GenericNKey<N> {
 mod layout_roundtrip_tests {
     use super::*;
 
-    fn roundtrip_pms_bme(
-        side: PlayerSide,
-        key: Key<9, 2>,
-    ) -> Option<(PlayerSide, Key<9, 2>)> {
-        let chan = BeatKey::new(side, convert_key::<9, 2, 14, 2>(key)?, NoteKind::Visible).to_note_channel();
+    fn roundtrip_pms_bme(side: PlayerSide, key: Key<9, 2>) -> Option<(PlayerSide, Key<9, 2>)> {
+        let chan = BeatKey::new(side, convert_key::<9, 2, 14, 2>(key)?, NoteKind::Visible)
+            .to_note_channel();
         let target = PmsBmeKey::from_note_channel(chan)?;
         let back = BeatKey::from_note_channel(target.to_note_channel())?;
         let converted_back = convert_key::<14, 2, 9, 2>(back.key)?;
         Some((back.side, converted_back))
     }
 
-    fn roundtrip_pms(
-        side: PlayerSide,
-        key: Key<9, 2>,
-    ) -> Option<(PlayerSide, Key<9, 2>)> {
-        let chan = BeatKey::new(side, convert_key::<9, 2, 14, 2>(key)?, NoteKind::Visible).to_note_channel();
+    fn roundtrip_pms(side: PlayerSide, key: Key<9, 2>) -> Option<(PlayerSide, Key<9, 2>)> {
+        let chan = BeatKey::new(side, convert_key::<9, 2, 14, 2>(key)?, NoteKind::Visible)
+            .to_note_channel();
         let target = PmsKey::from_note_channel(chan)?;
         let back = BeatKey::from_note_channel(target.to_note_channel())?;
         let converted_back = convert_key::<14, 2, 9, 2>(back.key)?;
         Some((back.side, converted_back))
     }
 
-    fn roundtrip_nanasi(
-        side: PlayerSide,
-        key: Key<7, 2>,
-    ) -> Option<(PlayerSide, Key<7, 2>)> {
-        let chan = BeatKey::new(side, convert_key::<7, 2, 14, 2>(key)?, NoteKind::Visible).to_note_channel();
+    fn roundtrip_nanasi(side: PlayerSide, key: Key<7, 2>) -> Option<(PlayerSide, Key<7, 2>)> {
+        let chan = BeatKey::new(side, convert_key::<7, 2, 14, 2>(key)?, NoteKind::Visible)
+            .to_note_channel();
         let target = BeatNanasiKey::from_note_channel(chan)?;
         let back = BeatKey::from_note_channel(target.to_note_channel())?;
         let converted_back = convert_key::<14, 2, 7, 2>(back.key)?;
         Some((back.side, converted_back))
     }
 
-    fn roundtrip_dsc_octfp(
-        side: PlayerSide,
-        key: Key<13, 2>,
-    ) -> Option<(PlayerSide, Key<13, 2>)> {
-        let chan = BeatKey::new(side, convert_key::<13, 2, 14, 2>(key)?, NoteKind::Visible).to_note_channel();
+    fn roundtrip_dsc_octfp(side: PlayerSide, key: Key<13, 2>) -> Option<(PlayerSide, Key<13, 2>)> {
+        let chan = BeatKey::new(side, convert_key::<13, 2, 14, 2>(key)?, NoteKind::Visible)
+            .to_note_channel();
         let target = DscOctFpKey::from_note_channel(chan)?;
         let back = BeatKey::from_note_channel(target.to_note_channel())?;
         let converted_back = convert_key::<14, 2, 13, 2>(back.key)?;
