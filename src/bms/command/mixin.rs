@@ -4,7 +4,7 @@
 //! - `SourcePosMixinExt` is a trait that provides extension methods for `SourcePosMixin`, providing more convenient methods to create `SourcePosMixin` instances.
 
 /// A generic wrapper that attaches position information (row/column) to a value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SourcePosMixin<T> {
     /// Wrapped content value
@@ -53,6 +53,14 @@ impl<T> SourcePosMixin<T> {
     /// Returns the source position as a tuple of (row, column).
     pub fn as_pos(&self) -> (usize, usize) {
         (self.row, self.column)
+    }
+}
+
+impl<'a, T> SourcePosMixin<T> {
+    /// Returns the inner reference version of the wrapper.
+    pub fn inner_ref(&'a self) -> SourcePosMixin<&'a T> {
+        let content = &self.content;
+        SourcePosMixin::new(content, self.row, self.column)
     }
 }
 
