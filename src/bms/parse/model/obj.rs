@@ -23,8 +23,12 @@ use core::marker::PhantomData;
 pub struct Obj<T: KeyMapping> {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// The logical note channel (lane).
-    pub channel: NoteChannel,
+    /// The player side.
+    pub side: PlayerSide,
+    /// The key.
+    pub key: Key,
+    /// The note kind.
+    pub kind: NoteKind,
     /// The id of the object.
     pub obj: ObjId,
     /// Marker of the physical key layout the score is parameterized by.
@@ -48,36 +52,48 @@ impl<T: KeyMapping> Ord for Obj<T> {
 
 impl Obj<BeatKey> {
     /// Creates a new note object using Beat layout components.
-    pub fn new_beat(offset: ObjTime, side: PlayerSide, key: Key, obj: ObjId) -> Self {
-        let channel = BeatKey::new(side, key, NoteKind::Visible).to_note_channel();
+    pub fn new_beat(
+        offset: ObjTime,
+        side: PlayerSide,
+        key: Key,
+        kind: NoteKind,
+        obj: ObjId,
+    ) -> Self {
         Obj {
             offset,
-            channel,
+            side,
+            key,
+            kind,
             obj,
             _marker: PhantomData,
         }
     }
 
-    /// Returns the Beat layout components (PlayerSide, Key) if the channel is a Beat channel.
-    pub fn beat_components(&self) -> Option<(PlayerSide, Key)> {
-        BeatKey::from_note_channel(self.channel).map(|bk| (bk.side, bk.key))
+    /// Returns the Beat layout components (PlayerSide, Key).
+    pub fn beat_components(&self) -> (PlayerSide, Key) {
+        (self.side, self.key)
     }
 
-    /// Returns the PlayerSide if the channel is a Beat channel.
-    pub fn side(&self) -> Option<PlayerSide> {
-        self.beat_components().map(|(side, _)| side)
+    /// Returns the PlayerSide.
+    pub fn side(&self) -> PlayerSide {
+        self.side
     }
 }
 
 impl<T: KeyMapping> Obj<T> {
-    /// Returns the note kind derived from the channel.
-    pub fn kind(&self) -> Option<NoteKind> {
-        NoteKind::note_kind_from_channel(self.channel)
+    /// Returns the note kind.
+    pub fn note_kind(&self) -> NoteKind {
+        self.kind
     }
 
-    /// Returns the Key if the channel is a Beat channel.
-    pub fn key(&self) -> Option<Key> {
-        BeatKey::from_note_channel(self.channel).map(|bk| bk.key)
+    /// Returns the Key.
+    pub fn key(&self) -> Key {
+        self.key
+    }
+
+    /// Converts to a NoteChannel for compatibility.
+    pub fn to_note_channel(&self) -> NoteChannel {
+        T::new(self.side, self.key, self.kind).to_note_channel()
     }
 }
 

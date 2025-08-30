@@ -148,24 +148,28 @@ fn nested_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                NoteKind::Visible,
                 id55
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -191,24 +195,28 @@ fn nested_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id66
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -234,18 +242,21 @@ fn nested_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 id33
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -315,24 +326,28 @@ fn nested_random_in_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                NoteKind::Visible,
                 id55
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -358,24 +373,28 @@ fn nested_random_in_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id66
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -401,18 +420,21 @@ fn nested_random_in_switch() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 id33
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -482,24 +504,28 @@ fn nested_switch_in_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                NoteKind::Visible,
                 id55
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -525,24 +551,28 @@ fn nested_switch_in_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id66
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -568,18 +598,21 @@ fn nested_switch_in_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 id33
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -647,12 +680,14 @@ fn test_switch_insane() {
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 "04".try_into().unwrap()
             ),
         ]
@@ -680,12 +715,14 @@ fn test_switch_insane() {
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 "01".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 1),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 "05".try_into().unwrap()
             ),
         ]
@@ -713,6 +750,7 @@ fn test_switch_insane() {
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 "02".try_into().unwrap()
             ),
         ]
@@ -740,18 +778,21 @@ fn test_switch_insane() {
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 "11".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 "11".try_into().unwrap()
             ),
         ]
@@ -779,18 +820,21 @@ fn test_switch_insane() {
                 ObjTime::new(0, 0, 8),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 "03".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 0, 2),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 "22".try_into().unwrap()
             ),
             Obj::new_beat(
                 ObjTime::new(0, 1, 2),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 "22".try_into().unwrap()
             ),
         ]
@@ -816,6 +860,7 @@ fn test_switch_insane() {
             ObjTime::new(0, 1, 2),
             PlayerSide::Player1,
             Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+            NoteKind::Visible,
             "55".try_into().unwrap()
         ),]
     );

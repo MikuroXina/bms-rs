@@ -69,24 +69,28 @@ fn nested_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+                NoteKind::Visible,
                 id55
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -113,24 +117,28 @@ fn nested_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 1, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+                NoteKind::Visible,
                 id22
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id66
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]
@@ -158,18 +166,21 @@ fn nested_random() {
                 ObjTime::new(1, 0, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+                NoteKind::Visible,
                 id11
             ),
             Obj::new_beat(
                 ObjTime::new(1, 2, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+                NoteKind::Visible,
                 id33
             ),
             Obj::new_beat(
                 ObjTime::new(1, 3, 4),
                 PlayerSide::Player1,
                 Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+                NoteKind::Visible,
                 id44
             ),
         ]

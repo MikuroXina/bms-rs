@@ -124,12 +124,14 @@ impl Bms<BeatKey> {
                 // TODO: Support other modes
                 use crate::bms::command::channel::mapper::{BeatKey as BK, KeyMapping};
                 let is_7keys = self.notes.all_notes().any(|note| {
-                    BK::from_note_channel(note.channel)
+                    let current_channel = note.to_note_channel();
+                    BK::from_note_channel(current_channel)
                         .map(|bk| matches!(bk.key, Key::Key(idx) if idx.get() == 6 || idx.get() == 7))
                         .unwrap_or(false)
                 });
                 let is_dp = self.notes.all_notes().any(|note| {
-                    BK::from_note_channel(note.channel)
+                    let current_channel = note.to_note_channel();
+                    BK::from_note_channel(current_channel)
                         .map(|bk| bk.side == PlayerSide::Player2)
                         .unwrap_or(false)
                 });
@@ -191,10 +193,11 @@ impl Bms<BeatKey> {
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.notes.all_notes() {
                 use crate::bms::command::channel::mapper::{BeatKey as BK, KeyMapping};
-                let beat_opt = BK::from_note_channel(note.channel);
+                let current_channel = note.to_note_channel();
+                let beat_opt = BK::from_note_channel(current_channel);
                 let note_lane = note
-                    .kind()
-                    .is_some_and(|k| k.is_playable())
+                    .kind
+                    .is_playable()
                     .then_some(
                         match beat_opt.map(|b| b.key) {
                             Some(Key::Key(idx)) if idx.get() == 1 => 1,
@@ -224,8 +227,8 @@ impl Bms<BeatKey> {
                     .and_then(NonZeroU8::new);
 
                 let pulses = converter.get_pulses_at(note.offset);
-                match note.kind() {
-                    Some(NoteKind::Landmine) => {
+                match note.kind {
+                    NoteKind::Landmine => {
                         let damage = FinF64::new(100.0).unwrap_or_else(|| {
                             // This should never happen as 100.0 is a valid FinF64 value
                             panic!("Internal error: 100.0 is not a valid FinF64")
@@ -236,7 +239,7 @@ impl Bms<BeatKey> {
                             damage,
                         });
                     }
-                    Some(NoteKind::Invisible) => {
+                    NoteKind::Invisible => {
                         key_map.entry(note.obj).or_default().push(KeyEvent {
                             x: note_lane,
                             y: pulses,

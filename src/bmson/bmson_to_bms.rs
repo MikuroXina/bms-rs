@@ -5,11 +5,7 @@ use std::{collections::HashMap, num::NonZeroU8, path::PathBuf};
 use thiserror::Error;
 
 use crate::{
-    bms::{
-        command::channel::mapper::{BeatKey, KeyMapping},
-        parse::model::obj::Obj,
-        prelude::*,
-    },
+    bms::{command::channel::mapper::BeatKey, parse::model::obj::Obj, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -185,7 +181,9 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    channel: BeatKey::new(side, key, channel_kind).to_note_channel(),
+                    side,
+                    key,
+                    kind: channel_kind,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };
@@ -208,7 +206,9 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    channel: BeatKey::new(side, key, NoteKind::Landmine).to_note_channel(),
+                    side,
+                    key,
+                    kind: NoteKind::Landmine,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };
@@ -231,7 +231,9 @@ impl Bms<BeatKey> {
 
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
-                    channel: BeatKey::new(side, key, NoteKind::Invisible).to_note_channel(),
+                    side,
+                    key,
+                    kind: NoteKind::Invisible,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
                 };

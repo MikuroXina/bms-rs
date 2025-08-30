@@ -876,13 +876,18 @@ impl<T: KeyMapping> Bms<T> {
             } => {
                 // Only process if the channel has a valid note kind
                 if NoteKind::note_kind_from_channel(*channel).is_some() {
-                    for (offset, obj) in ids_from_message(*track, message) {
-                        self.notes.push_note(Obj {
-                            offset,
-                            channel: *channel,
-                            obj,
-                            _marker: core::marker::PhantomData,
-                        });
+                    for (offset, obj_id) in ids_from_message(*track, message) {
+                        if let Some(beat_key) = BeatKey::from_note_channel(*channel) {
+                            let obj = Obj {
+                                offset,
+                                side: beat_key.side,
+                                key: beat_key.key,
+                                kind: beat_key.kind,
+                                obj: obj_id,
+                                _marker: core::marker::PhantomData,
+                            };
+                            self.notes.push_note(obj);
+                        }
                     }
                 }
             }
@@ -1077,19 +1082,17 @@ impl<T: KeyMapping> Bms<T> {
                     .notes
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let Obj {
-                    offset, channel, ..
-                } = &end_note;
+                let channel = end_note.to_note_channel();
                 let (_, &begin_id) = self
                     .notes
                     .ids_by_channel
-                    .get(channel)
+                    .get(&channel)
                     .ok_or_else(|| {
                         ParseWarning::SyntaxError(format!(
                             "missing channel index for LNOBJ {end_id:?}"
                         ))
                     })?
-                    .range(..offset)
+                    .range(..end_note.offset)
                     .last()
                     .ok_or_else(|| {
                         ParseWarning::SyntaxError(format!(
@@ -1104,19 +1107,36 @@ impl<T: KeyMapping> Bms<T> {
                         )))?;
 
                 // Convert to long note by modifying channel
-                let begin_channel = self.convert_to_long_channel(begin_note.channel)?;
-                let end_channel = self.convert_to_long_channel(end_note.channel)?;
+                let begin_channel = self.convert_to_long_channel(begin_note.to_note_channel())?;
+                let end_channel = self.convert_to_long_channel(end_note.to_note_channel())?;
 
+                let begin_beat_key =
+                    BeatKey::from_note_channel(begin_channel).ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "Cannot parse begin channel {:?} as BeatKey",
+                            begin_channel.to_str()
+                        ))
+                    })?;
                 let begin_long_note = Obj {
                     offset: begin_note.offset,
-                    channel: begin_channel,
+                    side: begin_beat_key.side,
+                    key: begin_beat_key.key,
+                    kind: begin_beat_key.kind,
                     obj: begin_note.obj,
                     _marker: core::marker::PhantomData,
                 };
 
+                let end_beat_key = BeatKey::from_note_channel(end_channel).ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "Cannot parse end channel {:?} as BeatKey",
+                        end_channel.to_str()
+                    ))
+                })?;
                 let end_long_note = Obj {
                     offset: end_note.offset,
-                    channel: end_channel,
+                    side: end_beat_key.side,
+                    key: end_beat_key.key,
+                    kind: end_beat_key.kind,
                     obj: end_note.obj,
                     _marker: core::marker::PhantomData,
                 };
@@ -1541,8 +1561,9 @@ impl<T: KeyMapping> Notes<T> {
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: Obj<T>) {
         self.objs.entry(note.obj).or_default().push(note.clone());
+        let channel = note.to_note_channel();
         self.ids_by_channel
-            .entry(note.channel)
+            .entry(channel)
             .or_default()
             .insert(note.offset, note.obj);
     }
@@ -1550,7 +1571,8 @@ impl<T: KeyMapping> Notes<T> {
     /// Removes the latest note from the notes.
     pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj<T>> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            if let Some(map) = self.ids_by_channel.get_mut(&removed.channel) {
+            let channel = removed.to_note_channel();
+            if let Some(map) = self.ids_by_channel.get_mut(&channel) {
                 map.remove(&removed.offset);
             }
         })
@@ -1560,7 +1582,8 @@ impl<T: KeyMapping> Notes<T> {
     pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj<T>> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                if let Some(map) = self.ids_by_channel.get_mut(&item.channel) {
+                let channel = item.to_note_channel();
+                if let Some(map) = self.ids_by_channel.get_mut(&channel) {
                     map.remove(&item.offset);
                 }
             }
@@ -1573,7 +1596,7 @@ impl<T: KeyMapping> Notes<T> {
         self.objs
             .values()
             .flatten()
-            .filter(|obj| obj.kind() != Some(NoteKind::Invisible))
+            .filter(|obj| obj.kind != NoteKind::Invisible)
             .map(Reverse)
             .sorted()
             .next()
@@ -1904,9 +1927,10 @@ impl<T: KeyMapping> Bms<T> {
             let mut converted_vec: Vec<Obj<D>> = Vec::with_capacity(objs.len());
             for o in objs {
                 // First parse according to source layout T, if failed then try BeatKey fallback
-                let (side, key, kind) = if let Some(src) = T::from_note_channel(o.channel) {
+                let current_channel = o.to_note_channel();
+                let (side, key, kind) = if let Some(src) = T::from_note_channel(current_channel) {
                     src.into_tuple()
-                } else if let Some(bk) = BeatKey::from_note_channel(o.channel) {
+                } else if let Some(bk) = BeatKey::from_note_channel(current_channel) {
                     (bk.side, bk.key, bk.kind)
                 } else {
                     // No mapping found, use default
@@ -1919,7 +1943,9 @@ impl<T: KeyMapping> Bms<T> {
                 let new_channel = D::new(side, key, kind).to_note_channel();
                 let new_obj = Obj {
                     offset: o.offset,
-                    channel: new_channel,
+                    side,
+                    key,
+                    kind,
                     obj: o.obj,
                     _marker: core::marker::PhantomData,
                 };
@@ -1947,13 +1973,13 @@ impl<T: KeyMapping> Bms<T> {
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         for (_, objs) in self.notes.objs.iter_mut() {
             for obj in objs.iter_mut() {
-                if let Some(current) = BeatKey::from_note_channel(obj.channel) {
+                let current_channel = obj.to_note_channel();
+                if let Some(current) = BeatKey::from_note_channel(current_channel) {
                     let beat_map = BeatKey::new(current.side, current.key, current.kind);
                     let new_beat_map = converter.convert(beat_map);
-                    let new_channel =
-                        BeatKey::new(new_beat_map.side(), new_beat_map.key(), new_beat_map.kind())
-                            .to_note_channel();
-                    obj.channel = new_channel;
+                    obj.side = new_beat_map.side();
+                    obj.key = new_beat_map.key();
+                    obj.kind = new_beat_map.kind();
                 }
             }
         }
