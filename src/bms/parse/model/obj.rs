@@ -3,7 +3,7 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, ObjId,
-        channel::{Channel, NoteChannel, NoteKind},
+        channel::{Channel, Key, NoteChannel, NoteKind},
         time::{ObjTime, Track},
     },
 };
@@ -12,7 +12,7 @@ use crate::bms::{
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 use crate::bms::command::channel::{
-    Key, PlayerSide,
+    PlayerSide,
     mapper::{BeatKey, KeyMapping},
 };
 use core::marker::PhantomData;
@@ -26,13 +26,13 @@ pub struct Obj<T: KeyMapping> {
     /// The player side.
     pub side: PlayerSide,
     /// The key.
-    pub key: Key,
+    pub key: T::Key,
     /// The note kind.
     pub kind: NoteKind,
     /// The id of the object.
     pub obj: ObjId,
     /// Marker of the physical key layout the score is parameterized by.
-    #[cfg_attr(feature = "serde", serde(skip))]
+
     pub(crate) _marker: PhantomData<T>,
 }
 
@@ -55,7 +55,7 @@ impl Obj<BeatKey> {
     pub fn new_beat(
         offset: ObjTime,
         side: PlayerSide,
-        key: Key,
+        key: Key<14, 2>,
         kind: NoteKind,
         obj: ObjId,
     ) -> Self {
@@ -70,7 +70,7 @@ impl Obj<BeatKey> {
     }
 
     /// Returns the Beat layout components (PlayerSide, Key).
-    pub fn beat_components(&self) -> (PlayerSide, Key) {
+    pub fn beat_components(&self) -> (PlayerSide, Key<14, 2>) {
         (self.side, self.key)
     }
 
@@ -87,8 +87,8 @@ impl<T: KeyMapping> Obj<T> {
     }
 
     /// Returns the Key.
-    pub fn key(&self) -> Key {
-        self.key
+    pub fn key(&self) -> &T::Key {
+        &self.key
     }
 
     /// Converts to a NoteChannel for compatibility.

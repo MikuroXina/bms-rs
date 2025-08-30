@@ -315,17 +315,15 @@ pub enum PlayerSide {
 /// |[K1]  [K3]  [K5]  [K7]  [K9]|
 /// |----------------------------|
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
-pub enum Key {
-    /// A regular key with a non-zero index (1-14)
+pub enum Key<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> {
+    /// A regular key with a non-zero index (1-KEY_COUNT)
     Key(NonZeroU8),
-    /// The scratch disk.
+    /// The scratch disk with configurable count.
     /// `16` in BME-type Player1.
     Scratch(NonZeroU8),
-    /// The extra scratch disk on the right. Used in DSC and OCT/FP mode.
-    ScratchExtra(NonZeroU8),
     /// The foot pedal.
     FootPedal,
     /// The zone that the user can scratch disk freely.
@@ -333,33 +331,22 @@ pub enum Key {
     FreeZone,
 }
 
-impl Key {
-    /// Create a new Key from a non-zero index (1-14)
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> Key<KEY_COUNT, SCRATCH_COUNT> {
+    /// Create a new Key from a non-zero index (1-KEY_COUNT)
     pub const fn new_key(index: u8) -> Option<Self> {
-        if index == 0 || index > 14 {
+        if index == 0 || index > KEY_COUNT as u8 {
             None
         } else {
             Some(Self::Key(unsafe { NonZeroU8::new_unchecked(index) }))
         }
     }
 
-    /// Create a new Scratch from a non-zero index (1-2)
+    /// Create a new Scratch from a non-zero index (1-SCRATCH_COUNT)
     pub const fn new_scratch(index: u8) -> Option<Self> {
-        if index == 0 || index > 2 {
+        if index == 0 || index > SCRATCH_COUNT as u8 {
             None
         } else {
             Some(Self::Scratch(unsafe { NonZeroU8::new_unchecked(index) }))
-        }
-    }
-
-    /// Create a new ScratchExtra from a non-zero index (1)
-    pub const fn new_scratch_extra(index: u8) -> Option<Self> {
-        if index == 0 || index > 1 {
-            None
-        } else {
-            Some(Self::ScratchExtra(unsafe {
-                NonZeroU8::new_unchecked(index)
-            }))
         }
     }
 
@@ -368,7 +355,7 @@ impl Key {
         matches!(self, Key::Key(_))
     }
 
-    /// Get the key index if this is a Key variant (1-14)
+    /// Get the key index if this is a Key variant (1-KEY_COUNT)
     pub const fn key_index(&self) -> Option<u8> {
         match self {
             Key::Key(idx) => Some(idx.get()),
@@ -384,12 +371,14 @@ impl Key {
         }
     }
 
-    /// Get the scratch extra index if this is a ScratchExtra variant
-    pub const fn scratch_extra_index(&self) -> Option<u8> {
-        match self {
-            Key::ScratchExtra(idx) => Some(idx.get()),
-            _ => None,
-        }
+    /// Get the maximum key count for this key layout
+    pub const fn key_count() -> usize {
+        KEY_COUNT
+    }
+
+    /// Get the maximum scratch count for this key layout
+    pub const fn scratch_count() -> usize {
+        SCRATCH_COUNT
     }
 }
 
@@ -438,6 +427,17 @@ pub fn read_channel_general(channel: &str) -> Option<Channel> {
         "SP" => Speed,
         _ => return None,
     })
+}
+
+impl<const KEY_COUNT: usize, const SCRATCH_COUNT: usize> core::fmt::Display for Key<KEY_COUNT, SCRATCH_COUNT> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Key::Key(idx) => write!(f, "Key({})", idx),
+            Key::Scratch(idx) => write!(f, "Scratch({})", idx),
+            Key::FootPedal => write!(f, "FootPedal"),
+            Key::FreeZone => write!(f, "FreeZone"),
+        }
+    }
 }
 
 // removed redundant router helpers; kind is inferred at parse stage

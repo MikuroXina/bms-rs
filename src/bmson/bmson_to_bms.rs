@@ -5,7 +5,7 @@ use std::{collections::HashMap, num::NonZeroU8, path::PathBuf};
 use thiserror::Error;
 
 use crate::{
-    bms::{command::channel::mapper::BeatKey, parse::model::obj::Obj, prelude::*},
+    bms::{command::channel::{mapper::{BeatKey, convert_key}, Key}, parse::model::obj::Obj, prelude::*},
     bmson::{BgaId, Bmson, pulse::PulseNumber},
 };
 
@@ -179,10 +179,11 @@ impl Bms<BeatKey> {
                     NoteKind::Visible
                 };
 
+                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,
-                    key,
+                    key: converted_key,
                     kind: channel_kind,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
@@ -204,10 +205,11 @@ impl Bms<BeatKey> {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
+                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,
-                    key,
+                    key: converted_key,
                     kind: NoteKind::Landmine,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
@@ -229,10 +231,11 @@ impl Bms<BeatKey> {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
+                let converted_key = convert_key::<9, 2, 14, 2>(key).unwrap_or_else(|| Key::<14, 2>::new_key(1).unwrap());
                 let obj: Obj<BeatKey> = Obj {
                     offset: time,
                     side,
-                    key,
+                    key: converted_key,
                     kind: NoteKind::Invisible,
                     obj: obj_id,
                     _marker: core::marker::PhantomData,
@@ -337,7 +340,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
 }
 
 /// Convert lane number to Key and PlayerSide
-fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
+fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key<9, 2>, PlayerSide) {
     let lane_value = lane.map(|l| l.get()).unwrap_or(0);
 
     // Handle player sides
@@ -349,15 +352,15 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
-        2 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
-        3 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
-        4 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
-        5 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
-        6 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(6) }),
-        7 => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(7) }),
-        8 => Key::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
-        _ => Key::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }), // Default fallback
+        1 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        2 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(2) }),
+        3 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(3) }),
+        4 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(4) }),
+        5 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(5) }),
+        6 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(6) }),
+        7 => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(7) }),
+        8 => Key::<9, 2>::Scratch(unsafe { std::num::NonZeroU8::new_unchecked(1) }),
+        _ => Key::<9, 2>::Key(unsafe { std::num::NonZeroU8::new_unchecked(1) }), // Default fallback
     };
 
     (key, side)

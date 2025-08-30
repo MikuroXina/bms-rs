@@ -59,8 +59,7 @@ pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
 
 /// Bms Parse Output
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ParseOutput<T: KeyMapping> {
     /// The output Bms.
     pub bms: Bms<T>,
@@ -90,8 +89,7 @@ impl<T: KeyMapping + Default> Bms<T> {
 }
 
 /// Bms Parse Output with AST
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct ParseOutputWithAst<T: KeyMapping> {
     /// The output Bms.
     pub bms: Bms<T>,

@@ -8,7 +8,6 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
-    num::NonZeroU8,
     ops::Bound,
     path::PathBuf,
     str::FromStr,
@@ -26,9 +25,8 @@ use crate::bms::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, NoteChannel, NoteKind, PlayerSide,
-            converter::KeyLayoutConverter,
-            mapper::{BeatKey, KeyMapping},
+            Channel, NoteChannel, NoteKind, PlayerSide,
+            mapper::{KeyMapping},
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -52,6 +50,10 @@ use super::{
     ParseWarning, Result,
     prompt::{ChannelDuplication, DefDuplication, PromptHandler, TrackDuplication},
 };
+
+
+
+
 
 /// A score data of BMS format.
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -877,12 +879,13 @@ impl<T: KeyMapping> Bms<T> {
                 // Only process if the channel has a valid note kind
                 if NoteKind::note_kind_from_channel(*channel).is_some() {
                     for (offset, obj_id) in ids_from_message(*track, message) {
-                        if let Some(beat_key) = BeatKey::from_note_channel(*channel) {
+                        // Use type T's method to convert NoteChannel directly
+                        if let Some(t_key) = T::from_note_channel(*channel) {
                             let obj = Obj {
                                 offset,
-                                side: beat_key.side,
-                                key: beat_key.key,
-                                kind: beat_key.kind,
+                                side: t_key.side(),
+                                key: t_key.key(),
+                                kind: t_key.kind(),
                                 obj: obj_id,
                                 _marker: core::marker::PhantomData,
                             };
@@ -1106,37 +1109,21 @@ impl<T: KeyMapping> Bms<T> {
                             "Cannot find begin note for LNOBJ {end_id:?}"
                         )))?;
 
-                // Convert to long note by modifying channel
-                let begin_channel = self.convert_to_long_channel(begin_note.to_note_channel())?;
-                let end_channel = self.convert_to_long_channel(end_note.to_note_channel())?;
-
-                let begin_beat_key =
-                    BeatKey::from_note_channel(begin_channel).ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "Cannot parse begin channel {:?} as BeatKey",
-                            begin_channel.to_str()
-                        ))
-                    })?;
+                // Create long note objects using original note's key information
                 let begin_long_note = Obj {
                     offset: begin_note.offset,
-                    side: begin_beat_key.side,
-                    key: begin_beat_key.key,
-                    kind: begin_beat_key.kind,
+                    side: begin_note.side,
+                    key: begin_note.key,
+                    kind: NoteKind::Long,
                     obj: begin_note.obj,
                     _marker: core::marker::PhantomData,
                 };
 
-                let end_beat_key = BeatKey::from_note_channel(end_channel).ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!(
-                        "Cannot parse end channel {:?} as BeatKey",
-                        end_channel.to_str()
-                    ))
-                })?;
                 let end_long_note = Obj {
                     offset: end_note.offset,
-                    side: end_beat_key.side,
-                    key: end_beat_key.key,
-                    kind: end_beat_key.kind,
+                    side: end_note.side,
+                    key: end_note.key,
+                    kind: NoteKind::Long,
                     obj: end_note.obj,
                     _marker: core::marker::PhantomData,
                 };
@@ -1826,7 +1813,7 @@ impl<T: KeyMapping> Notes<T> {
 
 impl<T: KeyMapping> Notes<T> {
     /// Finds next object by side/key for any physical key mapping that implements `KeyMapping`.
-    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj<T>> {
+    pub fn next_obj_by_key(&self, side: PlayerSide, key: T::Key, time: ObjTime) -> Option<&Obj<T>> {
         let channel = T::new(side, key, NoteKind::Visible).to_note_channel();
         self.next_obj_by_channel(channel, time)
     }
@@ -1886,102 +1873,4 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, volume_value))
     })
-}
-
-impl<T: KeyMapping> Bms<T> {
-    /// Convert the current chart from physical key layout `T` to target layout `D`, and return the new `Bms<D>`.
-    pub fn convert_key_between_modes<D: KeyMapping>(self) -> Bms<D> {
-        let Bms {
-            header,
-            scope_defines,
-            arrangers,
-            notes,
-            graphics,
-            others,
-        } = self;
-
-        // Build new Notes<D>
-        let mut new_notes: Notes<D> = Notes {
-            wav_path_root: notes.wav_path_root,
-            wav_files: notes.wav_files,
-            bgms: notes.bgms,
-            objs: HashMap::new(),
-            ids_by_channel: HashMap::new(),
-            #[cfg(feature = "minor-command")]
-            midi_file: notes.midi_file,
-            #[cfg(feature = "minor-command")]
-            materials_wav: notes.materials_wav,
-            bgm_volume_changes: notes.bgm_volume_changes,
-            key_volume_changes: notes.key_volume_changes,
-            #[cfg(feature = "minor-command")]
-            seek_events: notes.seek_events,
-            text_events: notes.text_events,
-            judge_events: notes.judge_events,
-            #[cfg(feature = "minor-command")]
-            bga_keybound_events: notes.bga_keybound_events,
-            #[cfg(feature = "minor-command")]
-            option_events: notes.option_events,
-        };
-
-        for (obj_id, objs) in notes.objs {
-            let mut converted_vec: Vec<Obj<D>> = Vec::with_capacity(objs.len());
-            for o in objs {
-                // First parse according to source layout T, if failed then try BeatKey fallback
-                let current_channel = o.to_note_channel();
-                let (side, key, kind) = if let Some(src) = T::from_note_channel(current_channel) {
-                    src.into_tuple()
-                } else if let Some(bk) = BeatKey::from_note_channel(current_channel) {
-                    (bk.side, bk.key, bk.kind)
-                } else {
-                    // No mapping found, use default
-                    (
-                        PlayerSide::Player1,
-                        Key::Key(unsafe { NonZeroU8::new_unchecked(1) }),
-                        NoteKind::Visible,
-                    )
-                };
-                let new_channel = D::new(side, key, kind).to_note_channel();
-                let new_obj = Obj {
-                    offset: o.offset,
-                    side,
-                    key,
-                    kind,
-                    obj: o.obj,
-                    _marker: core::marker::PhantomData,
-                };
-                new_notes
-                    .ids_by_channel
-                    .entry(new_channel)
-                    .or_default()
-                    .insert(new_obj.offset, new_obj.obj);
-                converted_vec.push(new_obj);
-            }
-            new_notes.objs.insert(obj_id, converted_vec);
-        }
-
-        Bms {
-            header,
-            scope_defines,
-            arrangers,
-            notes: new_notes,
-            graphics,
-            others,
-        }
-    }
-
-    /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
-    pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
-        for (_, objs) in self.notes.objs.iter_mut() {
-            for obj in objs.iter_mut() {
-                let current_channel = obj.to_note_channel();
-                if let Some(current) = BeatKey::from_note_channel(current_channel) {
-                    let beat_map = BeatKey::new(current.side, current.key, current.kind);
-                    let new_beat_map = converter.convert(beat_map);
-                    obj.side = new_beat_map.side();
-                    obj.key = new_beat_map.key();
-                    obj.kind = new_beat_map.kind();
-                }
-            }
-        }
-    }
 }

@@ -216,7 +216,7 @@ impl Bms<BeatKey> {
                             Some(Key::Key(idx)) if idx.get() == 12 => 13,
                             Some(Key::Key(idx)) if idx.get() == 13 => 14,
                             Some(Key::Key(idx)) if idx.get() == 14 => 15,
-                            Some(Key::ScratchExtra(_)) | Some(Key::FootPedal) => 0,
+                            Some(Key::FootPedal) => 0,
                             _ => 0,
                         } + match beat_opt.map(|b| b.side) {
                             Some(PlayerSide::Player1) => 0,

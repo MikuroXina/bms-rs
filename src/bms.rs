@@ -74,8 +74,7 @@ pub enum BmsWarning {
 }
 
 /// Output of parsing a BMS file.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone)]
 pub struct BmsOutput<T: KeyMapping> {
     /// The parsed BMS data.
     pub bms: Bms<T>,
