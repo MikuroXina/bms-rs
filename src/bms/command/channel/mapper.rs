@@ -101,7 +101,9 @@ pub trait KeyLayoutMapper: KeyMapping {
     ///
     /// This method takes a ChannelId in ChannelId format and converts
     /// it to the equivalent (PlayerSide, NoteKind, Key) tuple in this mode's format.
-    fn from_channel_id(channel_id: ChannelId) -> Self;
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 /// Beat 5K/7K/10K/14K, A mixture of BMS/BME type. (`16` is scratch, `17` is free zone)
@@ -139,11 +141,8 @@ impl KeyLayoutMapper for KeyLayoutBeat {
         key_layout_beat_to_channel_id(self)
     }
 
-    fn from_channel_id(channel_id: ChannelId) -> Self {
-        channel_id_to_key_layout_beat(channel_id).unwrap_or({
-            // Default fallback for invalid channel IDs
-            KeyLayoutBeat(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-        })
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
+        channel_id_to_key_layout_beat(channel_id)
     }
 }
 
@@ -188,19 +187,15 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
         key_layout_beat_to_channel_id(beat)
     }
 
-    fn from_channel_id(channel_id: ChannelId) -> Self {
-        let beat = channel_id_to_key_layout_beat(channel_id).unwrap_or(KeyLayoutBeat(
-            PlayerSide::Player1,
-            NoteKind::Visible,
-            Key::Key(1),
-        ));
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.into_tuple();
         let key = match key {
             Scratch(1) => Key(8),
             FreeZone => Key(9),
             _ => key,
         };
-        KeyLayoutPmsBmeType::new(side, kind, key)
+        Some(KeyLayoutPmsBmeType::new(side, kind, key))
     }
 }
 
@@ -250,12 +245,8 @@ impl KeyLayoutMapper for KeyLayoutPms {
         key_layout_beat_to_channel_id(beat)
     }
 
-    fn from_channel_id(channel_id: ChannelId) -> Self {
-        let beat = channel_id_to_key_layout_beat(channel_id).unwrap_or(KeyLayoutBeat(
-            PlayerSide::Player1,
-            NoteKind::Visible,
-            Key::Key(1),
-        ));
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         use PlayerSide::*;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
@@ -266,7 +257,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
             (Player2, Key(5)) => (Player1, Key(9)),
             other => other,
         };
-        KeyLayoutPms::new(side, kind, key)
+        Some(KeyLayoutPms::new(side, kind, key))
     }
 }
 
@@ -311,18 +302,14 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
         key_layout_beat_to_channel_id(beat)
     }
 
-    fn from_channel_id(channel_id: ChannelId) -> Self {
-        let beat = channel_id_to_key_layout_beat(channel_id).unwrap_or(KeyLayoutBeat(
-            PlayerSide::Player1,
-            NoteKind::Visible,
-            Key::Key(1),
-        ));
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.into_tuple();
         let key = match key {
             FreeZone => FootPedal,
             other => other,
         };
-        KeyLayoutBeatNanasi::new(side, kind, key)
+        Some(KeyLayoutBeatNanasi::new(side, kind, key))
     }
 }
 
@@ -379,12 +366,8 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
         key_layout_beat_to_channel_id(beat)
     }
 
-    fn from_channel_id(channel_id: ChannelId) -> Self {
-        let beat = channel_id_to_key_layout_beat(channel_id).unwrap_or(KeyLayoutBeat(
-            PlayerSide::Player1,
-            NoteKind::Visible,
-            Key::Key(1),
-        ));
+    fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         use PlayerSide::*;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
@@ -402,6 +385,6 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
             (Player2, Scratch(1)) => (Player1, Scratch(2)),
             (s, k) => (s, k),
         };
-        KeyLayoutDscOctFp::new(side, kind, key)
+        Some(KeyLayoutDscOctFp::new(side, kind, key))
     }
 }

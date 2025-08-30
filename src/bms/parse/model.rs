@@ -874,9 +874,8 @@ impl Bms {
                 message,
             } => {
                 // Parse the channel ID to get note components
-                let beat_layout = KeyLayoutBeat::from_channel_id(*channel_id);
-                let (side, kind, key) = beat_layout.into_tuple();
-                {
+                if let Some(beat_layout) = KeyLayoutBeat::from_channel_id(*channel_id) {
+                    let (side, kind, key) = beat_layout.into_tuple();
                     for (offset, obj) in ids_from_message(*track, message) {
                         self.notes.push_note(Obj {
                             offset,
@@ -1824,9 +1823,10 @@ impl Bms {
             {
                 let ori_map = Src::new(*side, *kind, *key);
                 let channel_id = ori_map.to_channel_id();
-                let dst_map = Dst::from_channel_id(channel_id);
-                *side = dst_map.side();
-                *key = dst_map.key();
+                if let Some(dst_map) = Dst::from_channel_id(channel_id) {
+                    *side = dst_map.side();
+                    *key = dst_map.key();
+                }
             }
         }
     }
