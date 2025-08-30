@@ -50,6 +50,7 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
         },
+        validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms_with_rng,
 };
