@@ -23,6 +23,8 @@ pub mod command;
 pub mod lex;
 pub mod parse;
 pub mod prelude;
+#[cfg(feature = "diagnostics")]
+pub mod diagnostics;
 
 use thiserror::Error;
 
