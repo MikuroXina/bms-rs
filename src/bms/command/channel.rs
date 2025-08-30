@@ -247,11 +247,6 @@ impl From<ChannelId> for u64 {
 }
 
 impl ChannelId {
-    /// Instances a special null id, which means the rest object.
-    pub const fn null() -> Self {
-        Self([0, 0])
-    }
-
     /// Converts the channel id into an `u16` value.
     pub fn as_u16(self) -> u16 {
         self.into()
