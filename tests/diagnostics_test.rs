@@ -1,11 +1,10 @@
-//! 测试 diagnostics 模块的功能
+//! Test diagnostics module functionality
 
-#[cfg(feature = "diagnostics")]
 mod diagnostics_tests {
     use bms_rs::bms::{
-        diagnostics::{emit_bms_warnings, SimpleSource},
-        parse_bms,
         BmsWarning,
+        diagnostics::{SimpleSource, emit_bms_warnings},
+        parse_bms,
     };
 
     #[test]
@@ -21,12 +20,12 @@ mod diagnostics_tests {
         let source_text = "#TITLE Test\n#ARTIST Composer\n#BPM 120\n";
         let source = SimpleSource::new("test.bms", source_text);
 
-        // 第1行："#TITLE Test\n"
+        // First line: "#TITLE Test\n"
         let span1 = source.line_span(1);
         assert_eq!(span1.start, 0);
         assert_eq!(span1.end, 12);
 
-        // 第2行："#ARTIST Composer\n"
+        // Second line: "#ARTIST Composer\n"
         let span2 = source.line_span(2);
         assert_eq!(span2.start, 12);
         assert_eq!(span2.end, 29);
@@ -36,14 +35,14 @@ mod diagnostics_tests {
     fn test_emit_warnings_with_real_bms() {
         let bms_source = "#TITLE Test Song\n#ARTIST Composer\n#INVALID_COMMAND test\n";
 
-        // 解析BMS文件，应该会产生警告
+        // Parse BMS file, should produce warnings
         let output = parse_bms(bms_source);
 
         if !output.warnings.is_empty() {
-            // 注意：这里我们只是验证函数能正常调用
+            // Note: here we just verify the function can be called normally
             emit_bms_warnings("test.bms", bms_source, &output.warnings);
         } else {
-            // 如果没有警告，我们也测试一下空警告的情况
+            // If no warnings, we also test the empty warnings case
             let empty_warnings: Vec<BmsWarning> = vec![];
             emit_bms_warnings("test.bms", bms_source, &empty_warnings);
         }
@@ -54,17 +53,7 @@ mod diagnostics_tests {
         let bms_source = "#TITLE test\n#ARTIST composer\n";
         let empty_warnings: Vec<BmsWarning> = vec![];
 
-        // 测试空警告列表的情况
+        // Test empty warnings list case
         emit_bms_warnings("test.bms", bms_source, &empty_warnings);
-    }
-}
-
-#[cfg(not(feature = "diagnostics"))]
-mod diagnostics_disabled {
-    #[test]
-    fn test_diagnostics_feature_disabled() {
-        // 当diagnostics feature未启用时，这些类型应该不存在
-        // 这个测试确保在未启用feature时编译不会失败
-        assert!(true);
     }
 }

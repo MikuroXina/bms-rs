@@ -20,11 +20,10 @@ use num::BigUint;
 
 pub mod ast;
 pub mod command;
+pub mod diagnostics;
 pub mod lex;
 pub mod parse;
 pub mod prelude;
-#[cfg(feature = "diagnostics")]
-pub mod diagnostics;
 
 use thiserror::Error;
 
