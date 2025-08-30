@@ -12,8 +12,8 @@ use thiserror::Error;
 
 use crate::bms::{
     ast::{
-        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange, AstRoot,
-        rng::Rng,
+        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
+        AstRoot, rng::Rng,
     },
     command::{
         ObjId,

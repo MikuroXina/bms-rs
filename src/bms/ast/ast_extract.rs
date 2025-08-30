@@ -1,6 +1,6 @@
 use crate::bms::{
     ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    command::mixin::{SourceRangeMixin, SourcePosMixinExt},
+    command::mixin::{SourcePosMixinExt, SourceRangeMixin},
     lex::token::{Token, TokenWithRange},
 };
 
@@ -178,7 +178,10 @@ mod tests {
             .map(|(i, t)| t.into_wrapper_manual(i, i))
             .collect::<Vec<_>>();
 
-        let if_branch = if_tokens.iter().map(Unit::TokenWithRange).collect::<Vec<_>>();
+        let if_branch = if_tokens
+            .iter()
+            .map(Unit::TokenWithRange)
+            .collect::<Vec<_>>();
 
         let mut branches = BTreeMap::new();
         branches.insert(BigUint::from(1u32), if_branch.into_wrapper_manual(14, 23));

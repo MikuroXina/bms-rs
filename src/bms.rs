@@ -31,8 +31,8 @@ use thiserror::Error;
 use self::ast::rng::RandRng;
 use self::{
     ast::{
-        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange, AstRoot,
-        rng::Rng,
+        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
+        AstRoot, rng::Rng,
     },
     command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
     lex::{LexOutput, LexWarningWithRange},
