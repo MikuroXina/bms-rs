@@ -28,6 +28,7 @@ use crate::bms::{
             Channel, Key, NoteKind, PlayerSide,
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
+            parse_channel_id,
         },
         graphics::Argb,
         time::{ObjTime, Track},
@@ -870,17 +871,21 @@ impl Bms {
             }
             Token::Message {
                 track,
-                channel: Channel::Note { kind, side, key },
+                channel: Channel::Note { channel_id },
                 message,
             } => {
-                for (offset, obj) in ids_from_message(*track, message) {
-                    self.notes.push_note(Obj {
-                        offset,
-                        kind: *kind,
-                        side: *side,
-                        key: *key,
-                        obj,
-                    });
+                // Parse the channel ID to get note components
+                let channel_str = format!("{}", channel_id);
+                if let Some((kind, side, key)) = parse_channel_id(&channel_str) {
+                    for (offset, obj) in ids_from_message(*track, message) {
+                        self.notes.push_note(Obj {
+                            offset,
+                            kind,
+                            side,
+                            key,
+                            obj,
+                        });
+                    }
                 }
             }
             #[cfg(feature = "minor-command")]

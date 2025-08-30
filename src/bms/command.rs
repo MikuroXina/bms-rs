@@ -82,14 +82,14 @@ impl std::fmt::Display for JudgeLevel {
     }
 }
 
-fn char_to_base62(ch: char) -> Option<u8> {
+pub(crate) fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
         _ => None,
     }
 }
 
-fn base62_to_byte(base62: u8) -> u8 {
+pub(crate) fn base62_to_byte(base62: u8) -> u8 {
     match base62 {
         b'0'..=b'9' => base62 - b'0',
         b'A'..=b'Z' => base62 - b'A' + 10,

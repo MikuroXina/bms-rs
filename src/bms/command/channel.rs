@@ -5,6 +5,8 @@
 //!
 //! For converting key/channel between different modes, please see [`ModeKeyChannel`] enum and [`convert_key_channel_between`] function.
 
+use crate::command::{base62_to_byte, char_to_base62};
+
 pub mod converter;
 pub mod mapper;
 
@@ -30,12 +32,8 @@ pub enum Channel {
     ChangeOption,
     /// For the note which the user can interact.
     Note {
-        /// The kind of the note.
-        kind: NoteKind,
-        /// The note for the player side.
-        side: PlayerSide,
-        /// The key which corresponds to the note.
-        key: Key,
+        /// The channel ID from the BMS file.
+        channel_id: ChannelId,
     },
     /// For the section length change object.
     SectionLen,
@@ -173,6 +171,87 @@ pub enum PlayerSide {
     Player1,
     /// The player 2 side.
     Player2,
+}
+
+/// A channel ID used in BMS files to identify channel types.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ChannelId([u8; 2]);
+
+impl std::fmt::Debug for ChannelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ChannelId")
+            .field(&format!("{}{}", self.0[0] as char, self.0[1] as char))
+            .finish()
+    }
+}
+
+impl std::fmt::Display for ChannelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.0[0] as char, self.0[1] as char)
+    }
+}
+
+impl TryFrom<[char; 2]> for ChannelId {
+    type Error = [char; 2];
+    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
+        Ok(Self([
+            char_to_base62(value[0]).ok_or(value)?,
+            char_to_base62(value[1]).ok_or(value)?,
+        ]))
+    }
+}
+
+impl TryFrom<[u8; 2]> for ChannelId {
+    type Error = [u8; 2];
+    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
+        <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
+            .map_err(|_| value)
+    }
+}
+
+impl<'a> TryFrom<&'a str> for ChannelId {
+    type Error = &'a str;
+    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
+        if value.len() != 2 {
+            return Err(value);
+        }
+        let mut chars = value.bytes();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(value);
+        };
+        Self::try_from([ch1, ch2]).map_err(|_| value)
+    }
+}
+
+impl From<ChannelId> for u16 {
+    fn from(value: ChannelId) -> Self {
+        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+    }
+}
+
+impl From<ChannelId> for u32 {
+    fn from(value: ChannelId) -> Self {
+        Into::<u16>::into(value) as u32
+    }
+}
+
+impl From<ChannelId> for u64 {
+    fn from(value: ChannelId) -> Self {
+        Into::<u16>::into(value) as u64
+    }
+}
+
+impl ChannelId {
+    /// Instances a special null id, which means the rest object.
+    pub const fn null() -> Self {
+        Self([0, 0])
+    }
+
+    /// Converts the channel id into an `u16` value.
+    pub fn as_u16(self) -> u16 {
+        self.into()
+    }
 }
 
 /// A key of the controller or keyboard.
@@ -319,13 +398,22 @@ fn get_key_beat(key: char) -> Option<Key> {
     })
 }
 
+/// Parses a channel ID from a string and returns the note components.
+pub fn parse_channel_id(channel: &str) -> Option<(NoteKind, PlayerSide, Key)> {
+    if let Some(_channel) = read_channel_general(channel) {
+        return None; // This is not a note channel
+    }
+    let mut channel_chars = channel.chars();
+    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
+    let key = get_key_beat(channel_chars.next()?)?;
+    Some((kind, side, key))
+}
+
 /// Reads a channel from a string. (For Beat 5K/7K/10K/14K)
 pub fn read_channel_beat(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
     }
-    let mut channel_chars = channel.chars();
-    let (kind, side) = get_note_kind_general(channel_chars.next()?)?;
-    let key = get_key_beat(channel_chars.next()?)?;
-    Some(Channel::Note { kind, side, key })
+    let channel_id = ChannelId::try_from(channel).ok()?;
+    Some(Channel::Note { channel_id })
 }

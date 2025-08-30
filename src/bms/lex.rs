@@ -151,11 +151,7 @@ mod tests {
     use fraction::{GenericDecimal, GenericFraction};
 
     use crate::bms::{
-        command::{
-            JudgeLevel, PlayerMode,
-            channel::{Channel, Key, NoteKind, PlayerSide},
-            time::Track,
-        },
+        command::{JudgeLevel, PlayerMode, channel::Channel, time::Track},
         lex::{LexOutput, TokenStream, token::Token::*},
     };
 
@@ -213,36 +209,28 @@ mod tests {
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key(1),
+                        channel_id: "11".try_into().unwrap(),
                     },
                     message: "0303030303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key(1),
+                        channel_id: "11".try_into().unwrap(),
                     },
                     message: "0303000303".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key(1),
+                        channel_id: "11".try_into().unwrap(),
                     },
                     message: "010101".into(),
                 },
                 Message {
                     track: Track(2),
                     channel: Channel::Note {
-                        kind: NoteKind::Visible,
-                        side: PlayerSide::Player1,
-                        key: Key::Key(1),
+                        channel_id: "11".try_into().unwrap(),
                     },
                     message: "00020202".into(),
                 },
