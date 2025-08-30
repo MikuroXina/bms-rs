@@ -176,7 +176,7 @@ fn test1() {
 #[test]
 fn test2() {
     const SOURCE: &str = r"
-        #TITLE Hope to Flowers [SP ANOTHER]
+        #TITLE 花たちに希望を [SP ANOTHER]
         #ARTIST Sound piercer feat.DAZBEE
         #BPM 187
     ";
@@ -184,7 +184,7 @@ fn test2() {
     let mut cursor = Cursor::new(SOURCE);
 
     assert_eq!(cursor.next_token(), Some("#TITLE"));
-    assert_eq!(cursor.next_line_remaining(), "Hope to Flowers [SP ANOTHER]");
+    assert_eq!(cursor.next_line_remaining(), "花たちに希望を [SP ANOTHER]");
     assert_eq!(cursor.next_token(), Some("#ARTIST"));
     assert_eq!(cursor.next_line_remaining(), "Sound piercer feat.DAZBEE");
     assert_eq!(cursor.next_token(), Some("#BPM"));
