@@ -137,7 +137,7 @@ impl Bms {
                     (false, false) => "beat-5k".into(),
                 }
             },
-            chart_name: "".into(),
+            chart_name: String::new(),
             level: self.header.play_level.unwrap_or_default() as u32,
             init_bpm: {
                 let bpm_value = if let Some(bpm) = self.arrangers.bpm.as_ref() {
