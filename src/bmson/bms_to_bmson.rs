@@ -305,7 +305,7 @@ impl Bms {
                 target.push(BgaEvent {
                     y: converter.get_pulses_at(time),
                     id: BgaId(change.id.as_u32()),
-                })
+                });
             }
             bga
         };

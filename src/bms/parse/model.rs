@@ -846,7 +846,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     self.arrangers.push_stop(StopObj {
                         time,
                         duration: duration.clone(),
-                    })
+                    });
                 }
             }
             Token::Message {
@@ -881,7 +881,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    self.notes.bgms.entry(time).or_default().push(obj)
+                    self.notes.bgms.entry(time).or_default().push(obj);
                 }
             }
             Token::Message {
@@ -1138,7 +1138,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(generic_decimal) => {
-                self.arrangers.base_bpm = Some(generic_decimal.clone())
+                self.arrangers.base_bpm = Some(generic_decimal.clone());
             }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),

@@ -664,7 +664,7 @@ impl<'a> Token<'a> {
                                 .map_err(|_| c.make_err_expected_token("integer"))?;
                             pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
                                 c.make_err_expected_token("pan value out of range [-10000, 10000]")
-                            })?)
+                            })?);
                         }
                         b'v' => {
                             let volume_value: i64 = c
@@ -674,7 +674,7 @@ impl<'a> Token<'a> {
                                 .map_err(|_| c.make_err_expected_token("integer"))?;
                             volume = Some(ExWavVolume::try_from(volume_value).map_err(|_| {
                                 c.make_err_expected_token("volume value out of range [-10000, 0]")
-                            })?)
+                            })?);
                         }
                         b'f' => {
                             let frequency_value: u64 = c
@@ -687,7 +687,7 @@ impl<'a> Token<'a> {
                                     c.make_err_expected_token(
                                         "frequency value out of range [100, 100000]",
                                     )
-                                })?)
+                                })?);
                         }
                         _ => return Err(c.make_err_expected_token("expected p, v or f")),
                     }
