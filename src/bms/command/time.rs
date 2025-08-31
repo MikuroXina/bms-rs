@@ -28,7 +28,7 @@ pub struct ObjTime {
 impl ObjTime {
     /// Create a new time.
     ///
-    /// Panics:
+    /// # Panics
     ///
     /// When `denominator == 0`.
     #[must_use]
