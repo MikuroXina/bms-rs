@@ -167,8 +167,7 @@ impl Bms {
             back_image: self
                 .header
                 .back_bmp
-                .as_ref()
-                .cloned()
+                .clone()
                 .map(|path| path.display().to_string()),
             eyecatch_image: self
                 .header
