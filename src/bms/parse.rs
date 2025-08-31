@@ -25,7 +25,7 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     lex::token::TokenWithRange,
-    prelude::SourcePosMixinExt,
+    prelude::SourceRangeMixinExt,
 };
 
 use self::{model::Bms, prompt::PromptHandler};

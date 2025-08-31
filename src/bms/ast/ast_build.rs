@@ -10,7 +10,7 @@ use crate::bms::{
         AstBuildWarningWithRange,
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
-    command::mixin::{SourcePosMixinExt, SourceRangeMixin},
+    command::mixin::{SourceRangeMixinExt, SourceRangeMixin},
     lex::token::{Token, TokenWithRange},
 };
 
@@ -501,7 +501,7 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::mixin::SourcePosMixinExt;
+    use crate::command::mixin::SourceRangeMixinExt;
 
     #[test]
     fn test_switch_ast() {

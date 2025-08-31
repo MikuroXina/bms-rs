@@ -143,8 +143,8 @@ impl<T: std::error::Error + 'static> std::error::Error for SourceRangeMixin<T> {
     }
 }
 
-/// Extension methods for `SourcePosMixin`.
-pub trait SourcePosMixinExt {
+/// Extension methods for [`SourceRangeMixin`].
+pub trait SourceRangeMixinExt {
     /// Creates a new `SourceRangeMixin` with the same span as a wrapper.
     fn into_wrapper<W>(self, wrapper: &SourceRangeMixin<W>) -> SourceRangeMixin<Self>
     where
@@ -170,4 +170,4 @@ pub trait SourcePosMixinExt {
     }
 }
 
-impl<T> SourcePosMixinExt for T {}
+impl<T> SourceRangeMixinExt for T {}

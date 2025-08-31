@@ -1,6 +1,6 @@
 use crate::bms::{
     ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    command::mixin::{SourcePosMixinExt, SourceRangeMixin},
+    command::mixin::{SourceRangeMixinExt, SourceRangeMixin},
     lex::token::{Token, TokenWithRange},
 };
 
@@ -140,7 +140,7 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::{AstRoot, structure::IfBlock},
-        command::mixin::SourcePosMixinExt,
+        command::mixin::SourceRangeMixinExt,
         lex::token::Token,
     };
 

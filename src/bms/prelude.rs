@@ -27,7 +27,7 @@ pub use super::{
             read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
-        mixin::{SourcePosMixinExt, SourceRangeMixin},
+        mixin::{SourceRangeMixinExt, SourceRangeMixin},
         time::{ObjTime, Track},
     },
     diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings},

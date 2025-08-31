@@ -1,6 +1,6 @@
 use num::BigUint;
 
-use crate::bms::{command::mixin::SourcePosMixinExt, lex::token::TokenWithRange};
+use crate::bms::{command::mixin::SourceRangeMixinExt, lex::token::TokenWithRange};
 use core::ops::RangeInclusive;
 
 use super::rng::Rng;
@@ -136,7 +136,7 @@ mod tests {
     use crate::{
         ast::structure::{CaseBranch, CaseBranchValue, IfBlock, Unit},
         bms::lex::token::Token,
-        command::mixin::{SourcePosMixinExt, SourceRangeMixin},
+        command::mixin::{SourceRangeMixinExt, SourceRangeMixin},
     };
 
     struct DummyRng;

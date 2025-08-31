@@ -194,7 +194,7 @@ mod tests {
     use super::*;
     use crate::bms::{
         ast::structure::{CaseBranch, CaseBranchValue, Unit},
-        command::mixin::SourcePosMixinExt,
+        command::mixin::SourceRangeMixinExt,
         lex::token::Token,
     };
 
