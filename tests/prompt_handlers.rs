@@ -7,7 +7,7 @@ use std::path::Path;
 #[test]
 fn test_always_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<TokenWithPos> = vec![
+    let tokens: Vec<TokenWithRange> = vec![
         // BPM definition conflicts
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -52,7 +52,7 @@ fn test_always_use_older() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -126,7 +126,7 @@ fn test_always_use_older() {
 #[test]
 fn test_always_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<TokenWithPos> = vec![
+    let tokens: Vec<TokenWithRange> = vec![
         // BPM definition conflicts
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -171,7 +171,7 @@ fn test_always_use_newer() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -245,7 +245,7 @@ fn test_always_use_newer() {
 #[test]
 fn test_always_warn_and_use_older() {
     // Create tokens with various conflicts
-    let tokens: Vec<TokenWithPos> = vec![
+    let tokens: Vec<TokenWithRange> = vec![
         // BPM definition conflicts
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -290,7 +290,7 @@ fn test_always_warn_and_use_older() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -368,7 +368,7 @@ fn test_always_warn_and_use_older() {
 #[test]
 fn test_always_warn_and_use_newer() {
     // Create tokens with various conflicts
-    let tokens: Vec<TokenWithPos> = vec![
+    let tokens: Vec<TokenWithRange> = vec![
         // BPM definition conflicts
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(120)),
         Token::BpmChange(ObjId::try_from("01").unwrap(), Decimal::from(140)),
@@ -413,7 +413,7 @@ fn test_always_warn_and_use_newer() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
     let token_stream = TokenStream { tokens };
 

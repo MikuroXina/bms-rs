@@ -12,8 +12,8 @@ use thiserror::Error;
 
 use crate::bms::{
     ast::{
-        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
-        rng::Rng,
+        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
+        AstRoot, rng::Rng,
     },
     command::{
         ObjId,
@@ -21,11 +21,11 @@ use crate::bms::{
             Channel,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
-        mixin::SourcePosMixin,
+        mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
-    lex::token::TokenWithPos,
-    prelude::SourcePosMixinExt,
+    lex::token::TokenWithRange,
+    prelude::SourceRangeMixinExt,
 };
 
 use self::{model::Bms, prompt::PromptHandler};
@@ -58,7 +58,7 @@ pub enum ParseWarning {
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
 /// A parse warning with position information.
-pub type ParseWarningWithPos = SourcePosMixin<ParseWarning>;
+pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq)]
@@ -67,13 +67,13 @@ pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<ParseWarningWithPos>,
+    pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
 impl<T: KeyLayoutMapper> Bms<T> {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
-        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput<T> {
         let mut bms = Bms::default();
@@ -98,17 +98,17 @@ pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,
     /// Warnings that occurred during AST building.
-    pub ast_build_warnings: Vec<AstBuildWarningWithPos>,
+    pub ast_build_warnings: Vec<AstBuildWarningWithRange>,
     /// Warnings that occurred during AST parsing (RNG execution stage).
-    pub ast_parse_warnings: Vec<AstParseWarningWithPos>,
+    pub ast_parse_warnings: Vec<AstParseWarningWithRange>,
     /// Warnings that occurred during parsing.
-    pub parse_warnings: Vec<ParseWarningWithPos>,
+    pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
 impl<T: KeyLayoutMapper> Bms<T> {
     /// Parses a token stream into [`Bms`] with AST.
     pub fn from_token_stream_with_ast<'a>(
-        token_iter: impl IntoIterator<Item = &'a TokenWithPos<'a>>,
+        token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         rng: impl Rng,
         prompt_handler: impl PromptHandler,
     ) -> ParseOutputWithAst<T> {

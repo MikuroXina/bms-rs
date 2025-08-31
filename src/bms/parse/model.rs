@@ -32,7 +32,7 @@ use crate::bms::{
         graphics::Argb,
         time::{ObjTime, Track},
     },
-    lex::token::{Token, TokenWithPos},
+    lex::token::{Token, TokenWithRange},
 };
 
 #[cfg(feature = "minor-command")]
@@ -336,7 +336,7 @@ pub struct Others {
 impl<T: KeyLayoutMapper> Bms<T> {
     pub(crate) fn parse(
         &mut self,
-        token: &TokenWithPos,
+        token: &TokenWithRange,
         prompt_handler: &mut impl PromptHandler,
     ) -> Result<()> {
         match token.content() {

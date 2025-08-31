@@ -13,9 +13,9 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourcePosMixin, time::Track,
+        mixin::SourceRangeMixin, time::Track,
     },
-    prelude::read_channel,
+    prelude::{SourceRangeMixinExt, read_channel},
 };
 
 #[cfg(feature = "minor-command")]
@@ -104,7 +104,7 @@ pub enum Token<'a> {
     Charset(&'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
     Comment(&'a str),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`TokenWithPos::Switch`].
+    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
@@ -159,7 +159,7 @@ pub enum Token<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`TokenWithPos::Random`].
+    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnMode),
@@ -298,13 +298,13 @@ pub enum Token<'a> {
 }
 
 /// A token with position information.
-pub type TokenWithPos<'a> = SourcePosMixin<Token<'a>>;
+pub type TokenWithRange<'a> = SourceRangeMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
         let channel_parser = read_channel;
-        let command = c
-            .next_token()
+        let (command_range, command) = c
+            .next_token_with_range()
             .ok_or_else(|| c.make_err_expected_token("command"))?;
 
         let token = match command.to_uppercase().as_str() {
@@ -461,7 +461,7 @@ impl<'a> Token<'a> {
             "#BASE" => {
                 let base = c.next_line_remaining();
                 if base != "62" {
-                    return Err(LexWarning::OutOfBase62);
+                    return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range));
                 }
                 Self::Base62
             }
@@ -1189,7 +1189,10 @@ impl<'a> Token<'a> {
             command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
             _not_command => Self::NotACommand(c.next_line_entire()),
         };
-        Ok(token)
+
+        // Calculate the full range of this token (from command start to current cursor position)
+        let token_range = command_range.start..c.index();
+        Ok(SourceRangeMixin::new(token, token_range))
     }
 
     pub(crate) fn make_id_uppercase(&mut self) {
@@ -1652,7 +1655,7 @@ mod tests {
 
     fn parse_token(input: &'_ str) -> Token<'_> {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor).unwrap()
+        Token::parse(&mut cursor).unwrap().into_content()
     }
 
     #[test]

@@ -18,7 +18,7 @@ impl PlayerMode {
 impl JudgeLevel {
     pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
         c.next_token()
-            .ok_or(c.make_err_expected_token("one of [0,4]"))?
+            .ok_or_else(|| c.make_err_expected_token("one of [0,4]"))?
             .try_into()
             .map_err(|_| c.make_err_expected_token("one of [0,4]"))
     }

@@ -9,11 +9,11 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::mixin::{SourcePosMixin, SourcePosMixinExt};
+use crate::bms::command::mixin::{SourceRangeMixin, SourceRangeMixinExt};
 
 use self::{
     cursor::Cursor,
-    token::{Token, TokenWithPos},
+    token::{Token, TokenWithRange},
 };
 
 /// An error occurred when lexical analysis.
@@ -42,13 +42,19 @@ pub enum LexWarning {
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
+    /// An unknown command was encountered.
+    #[error("unknown command `{command}`")]
+    UnknownCommand {
+        /// The unknown command that was encountered.
+        command: String,
+    },
 }
 
 /// A [`LexWarning`] type with position information.
-pub type LexWarningWithPos = SourcePosMixin<LexWarning>;
+pub type LexWarningWithRange = SourceRangeMixin<LexWarning>;
 
-/// type alias of core::result::Result<T, LexWarning>
-pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
+/// type alias of core::result::Result<T, LexWarningWithRange>
+pub(crate) type Result<T> = core::result::Result<T, LexWarningWithRange>;
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,20 +63,20 @@ pub struct LexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
     /// warnings
-    pub lex_warnings: Vec<LexWarningWithPos>,
+    pub lex_warnings: Vec<LexWarningWithRange>,
 }
 
 /// A list of tokens.
-/// This is a wrapper of [`Vec<TokenWithPos<'a>>`] that provides some additional methods.
+/// This is a wrapper of [`Vec<TokenWithRange<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenStream<'a> {
     /// The tokens.
-    pub tokens: Vec<TokenWithPos<'a>>,
+    pub tokens: Vec<TokenWithRange<'a>>,
 }
 
 impl<'a> IntoIterator for TokenStream<'a> {
-    type Item = TokenWithPos<'a>;
+    type Item = TokenWithRange<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.tokens.into_iter()
@@ -78,24 +84,24 @@ impl<'a> IntoIterator for TokenStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
-    type IntoIter = std::slice::Iter<'a, TokenWithPos<'a>>;
+    type Item = &'a TokenWithRange<'a>;
+    type IntoIter = std::slice::Iter<'a, TokenWithRange<'a>>;
     fn into_iter(self) -> Self::IntoIter {
         self.tokens.iter()
     }
 }
 
 /// A list of tokens reference.
-/// This is a wrapper of [`Vec<&'a TokenWithPos<'a>>`] that provides some additional methods.
+/// This is a wrapper of [`Vec<&'a TokenWithRange<'a>>`] that provides some additional methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenRefStream<'a> {
     /// The tokens.
-    pub token_refs: Vec<&'a TokenWithPos<'a>>,
+    pub token_refs: Vec<&'a TokenWithRange<'a>>,
 }
 
 impl<'a> IntoIterator for TokenRefStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
+    type Item = &'a TokenWithRange<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.into_iter()
@@ -103,8 +109,8 @@ impl<'a> IntoIterator for TokenRefStream<'a> {
 }
 
 impl<'a> IntoIterator for &'a TokenRefStream<'a> {
-    type Item = &'a TokenWithPos<'a>;
-    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithPos<'a>>>;
+    type Item = &'a TokenWithRange<'a>;
+    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithRange<'a>>>;
     fn into_iter(self) -> Self::IntoIter {
         self.token_refs.iter().cloned()
     }
@@ -120,11 +126,21 @@ impl<'a> TokenStream<'a> {
         let mut warnings = vec![];
         while !cursor.is_end() {
             match Token::parse(&mut cursor) {
-                Ok(content) => {
-                    tokens.push(content.into_wrapper_manual(cursor.line(), cursor.col()))
+                Ok(token_with_range) => {
+                    // If the token is UnknownCommand, also add a warning
+                    if let Token::UnknownCommand(cmd) = token_with_range.content() {
+                        warnings.push(
+                            LexWarning::UnknownCommand {
+                                command: cmd.to_string(),
+                            }
+                            .into_wrapper(&token_with_range),
+                        );
+                    }
+
+                    tokens.push(token_with_range);
                 }
                 Err(warning) => {
-                    warnings.push(warning.into_wrapper_manual(cursor.line(), cursor.col()))
+                    warnings.push(warning);
                 }
             };
         }

@@ -7,8 +7,8 @@
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
     ast::{
-        AstBuildOutput, AstBuildWarning, AstBuildWarningWithPos, AstParseOutput, AstParseWarning,
-        AstParseWarningWithPos, AstRoot,
+        AstBuildOutput, AstBuildWarning, AstBuildWarningWithRange, AstParseOutput, AstParseWarning,
+        AstParseWarningWithRange, AstRoot,
         rng::{Rng, RngMock},
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
@@ -27,15 +27,16 @@ pub use super::{
             read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
-        mixin::{SourcePosMixin, SourcePosMixinExt},
+        mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
+    diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
-        token::{Token, TokenWithPos},
+        token::{Token, TokenWithRange},
     },
     parse::{
-        ParseOutput, ParseWarning, ParseWarningWithPos,
+        ParseOutput, ParseWarning, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::{
             Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,

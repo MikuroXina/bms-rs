@@ -20,6 +20,7 @@ use num::BigUint;
 
 pub mod ast;
 pub mod command;
+pub mod diagnostics;
 pub mod lex;
 pub mod parse;
 pub mod prelude;
@@ -30,13 +31,13 @@ use thiserror::Error;
 use self::ast::rng::RandRng;
 use self::{
     ast::{
-        AstBuildOutput, AstBuildWarningWithPos, AstParseOutput, AstParseWarningWithPos, AstRoot,
-        rng::Rng,
+        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
+        AstRoot, rng::Rng,
     },
     command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
-    lex::{LexOutput, LexWarningWithPos},
+    lex::{LexOutput, LexWarningWithRange},
     parse::{
-        ParseOutput, ParseWarningWithPos,
+        ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         model::Bms,
     },
@@ -55,16 +56,16 @@ pub type Decimal = GenericDecimal<BigUint, usize>;
 pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
-    Lex(#[from] LexWarningWithPos),
+    Lex(#[from] LexWarningWithRange),
     /// An error comes from AST builder.
     #[error("Warn: ast_build: {0}")]
-    AstBuild(#[from] AstBuildWarningWithPos),
+    AstBuild(#[from] AstBuildWarningWithRange),
     /// A warning comes from AST parsing.
     #[error("Warn: ast_parse: {0}")]
-    AstParse(#[from] AstParseWarningWithPos),
+    AstParse(#[from] AstParseWarningWithRange),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
-    Parse(#[from] ParseWarningWithPos),
+    Parse(#[from] ParseWarningWithRange),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),

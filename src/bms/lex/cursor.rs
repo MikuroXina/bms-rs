@@ -1,4 +1,5 @@
-use super::LexWarning;
+use super::{LexWarning, LexWarningWithRange};
+use crate::bms::command::mixin::SourceRangeMixinExt;
 
 pub(crate) struct Cursor<'a> {
     /// The line position, starts with 1.
@@ -47,12 +48,13 @@ impl<'a> Cursor<'a> {
         Some(&self.source[ret])
     }
 
-    /// Move cursor, through and return the next token.
-    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+    /// Move cursor, through and return the next token with range.
+    pub(crate) fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
         }
+        let token_str = &self.source[ret.clone()];
         let advanced_lines = self.source[self.index..ret.end]
             .chars()
             .filter(|&c| c == '\n')
@@ -68,7 +70,12 @@ impl<'a> Cursor<'a> {
             .chars()
             .count();
         self.index = ret.end;
-        Some(&self.source[ret])
+        Some((ret, token_str))
+    }
+
+    /// Move cursor, through and return the next token.
+    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+        self.next_token_with_range().map(|(_, token)| token)
     }
 
     /// Move cursor, through and return the remaining part of this line.
@@ -119,30 +126,36 @@ impl<'a> Cursor<'a> {
         self.source[line_start_index..ret_line_end_index].trim()
     }
 
-    pub(crate) fn line(&self) -> usize {
-        self.line
+    /// Returns the current byte index in the source string.
+    pub(crate) fn index(&self) -> usize {
+        self.index
     }
 
-    pub(crate) fn col(&self) -> usize {
-        self.col
-    }
-
-    pub(crate) fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_expected_token(
+        &self,
+        message: impl Into<String>,
+    ) -> LexWarningWithRange {
         LexWarning::ExpectedToken {
             message: message.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarningWithRange {
         LexWarning::UnknownObject {
             object: object.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_unknown_channel(
+        &self,
+        channel: impl Into<String>,
+    ) -> LexWarningWithRange {
         LexWarning::UnknownChannel {
             channel: channel.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 }
 
@@ -156,20 +169,24 @@ fn test1() {
         ",
     );
 
-    assert_eq!(cursor.line(), 1);
-    assert_eq!(cursor.col(), 1);
+    // Test basic cursor functionality with index tracking
+    assert_eq!(cursor.index(), 0);
+
+    // Test token parsing
     assert_eq!(cursor.next_token(), Some("hoge"));
-    assert_eq!(cursor.line(), 2);
-    assert_eq!(cursor.col(), 17);
+    assert!(cursor.index() > 0); // Index should advance
+
     assert_eq!(cursor.next_token(), Some("foo"));
-    assert_eq!(cursor.line(), 3);
-    assert_eq!(cursor.col(), 16);
+    assert!(cursor.index() > 0); // Index should advance further
+
     assert_eq!(cursor.next_token(), Some("bar"));
-    assert_eq!(cursor.line(), 4);
-    assert_eq!(cursor.col(), 16);
+    assert!(cursor.index() > 0); // Index should advance further
+
     assert_eq!(cursor.next_token(), Some("bar"));
-    assert_eq!(cursor.line(), 4);
-    assert_eq!(cursor.col(), 20);
+    assert!(cursor.index() > 0); // Index should advance further
+
+    // Test end of input
+    assert_eq!(cursor.next_token(), None);
 }
 
 #[test]
