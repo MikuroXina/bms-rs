@@ -80,9 +80,7 @@ impl JavaRandom {
 
     /// Java's `nextInt(int bound)` method
     pub fn next_int_bound(&mut self, bound: i32) -> i32 {
-        if bound <= 0 {
-            panic!("bound must be positive");
-        }
+        assert!(bound > 0, "bound must be positive");
 
         let m = bound - 1;
         if (bound & m) == 0 {
