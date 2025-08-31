@@ -18,7 +18,10 @@ use itertools::Itertools;
 use num::BigUint;
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent};
+use crate::bms::command::{
+    graphics::Argb,
+    minor_command::{ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent},
+};
 use crate::bms::{
     Decimal,
     command::{
@@ -28,18 +31,20 @@ use crate::bms::{
             converter::KeyLayoutConverter,
             mapper::{KeyLayoutBeat, KeyLayoutMapper},
         },
-        graphics::Argb,
         time::{ObjTime, Track},
     },
 };
 
 #[cfg(feature = "minor-command")]
-use self::def::{AtBgaDef, BgaDef, ExWavDef};
+use self::{
+    def::{AtBgaDef, BgaDef, ExWavDef},
+    obj::BgaLayer,
+};
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
-        ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj, ScrollingFactorObj,
+        SectionLenChangeObj, SpeedObj, StopObj, TextObj,
     },
 };
 
@@ -634,14 +639,19 @@ impl<T> Default for Notes<T> {
             bgms: Default::default(),
             objs: Default::default(),
             ids_by_channel: Default::default(),
+            #[cfg(feature = "minor-command")]
             midi_file: Default::default(),
+            #[cfg(feature = "minor-command")]
             materials_wav: Default::default(),
             bgm_volume_changes: Default::default(),
             key_volume_changes: Default::default(),
+            #[cfg(feature = "minor-command")]
             seek_events: Default::default(),
             text_events: Default::default(),
             judge_events: Default::default(),
+            #[cfg(feature = "minor-command")]
             bga_keybound_events: Default::default(),
+            #[cfg(feature = "minor-command")]
             option_events: Default::default(),
             _marker: PhantomData,
         }

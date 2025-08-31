@@ -31,7 +31,9 @@ use crate::bms::{
     model::Bms,
 };
 
-use self::prompt::{ChannelDuplication, PromptHandler};
+#[cfg(feature = "minor-command")]
+use self::prompt::ChannelDuplication;
+use self::prompt::PromptHandler;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
