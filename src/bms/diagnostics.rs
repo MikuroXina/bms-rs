@@ -114,10 +114,10 @@ impl ToAriadne for LexWarningWithRange {
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let span = start..end;
-        Report::build(ReportKind::Warning, src.name.to_string(), start)
+        let filename = src.name.to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
             .with_message("lex: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((src.name.to_string(), span)).with_color(Color::Yellow))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
             .finish()
     }
 }
@@ -128,10 +128,10 @@ impl ToAriadne for ParseWarningWithRange {
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let span = start..end;
-        Report::build(ReportKind::Warning, src.name.to_string(), start)
+        let filename = src.name.to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
             .with_message("parse: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((src.name.to_string(), span)).with_color(Color::Blue))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
             .finish()
     }
 }
@@ -142,10 +142,10 @@ impl ToAriadne for AstBuildWarningWithRange {
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let span = start..end;
-        Report::build(ReportKind::Warning, src.name.to_string(), start)
+        let filename = src.name.to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
             .with_message("ast_build: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((src.name.to_string(), span)).with_color(Color::Cyan))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
             .finish()
     }
 }
@@ -156,7 +156,6 @@ impl ToAriadne for AstParseWarningWithRange {
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let span = start..end;
 
         // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
         // We use the top-level position to annotate the error range and append expected/actual information to the message.
@@ -167,9 +166,10 @@ impl ToAriadne for AstParseWarningWithRange {
             }
         };
 
-        Report::build(ReportKind::Warning, src.name.to_string(), start)
+        let filename = src.name.to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
             .with_message(format!("ast_parse: {} ({})", self.content(), details))
-            .with_label(Label::new((src.name.to_string(), span)).with_color(Color::Magenta))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Magenta))
             .finish()
     }
 }
@@ -187,17 +187,17 @@ impl ToAriadne for BmsWarning {
             Parse(e) => e.to_report(src),
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {
-                let span = 0..0;
-                Report::build(ReportKind::Warning, src.name.to_string(), 0)
+                let filename = src.name.to_string();
+                Report::build(ReportKind::Warning, (filename.clone(), 0..0))
                     .with_message(format!("playing warning: {}", w))
-                    .with_label(Label::new((src.name.to_string(), span)))
+                    .with_label(Label::new((filename, 0..0)))
                     .finish()
             }
             PlayingError(e) => {
-                let span = 0..0;
-                Report::build(ReportKind::Error, src.name.to_string(), 0)
+                let filename = src.name.to_string();
+                Report::build(ReportKind::Error, (filename.clone(), 0..0))
                     .with_message(format!("playing error: {}", e))
-                    .with_label(Label::new((src.name.to_string(), span)))
+                    .with_label(Label::new((filename, 0..0)))
                     .finish()
             }
         }
