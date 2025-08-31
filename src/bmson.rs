@@ -209,9 +209,8 @@ where
 {
     let opt = Option::<u8>::deserialize(deserializer)?;
     Ok(match opt {
-        Some(0) => None,
+        Some(0) | None => None,
         Some(v) => NonZeroU8::new(v),
-        None => None,
     })
 }
 

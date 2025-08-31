@@ -67,10 +67,9 @@ impl Bms {
         let judge_rank = FinF64::new(match self.header.rank {
             Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::Normal) | None => 1.0,
+            Some(JudgeLevel::Normal) | Some(JudgeLevel::OtherInt(_)) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
         .unwrap_or_else(|| {
             warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
