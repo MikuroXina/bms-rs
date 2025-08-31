@@ -125,7 +125,16 @@ impl<'a> TokenStream<'a> {
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            let token_start = cursor.index();
+            // Skip any leading separators to get the actual token start position
+            let token_start = {
+                let peek_range = cursor.peek_next_token_range();
+                if !peek_range.is_empty() {
+                    peek_range.start
+                } else {
+                    cursor.index()
+                }
+            };
+
             match Token::parse(&mut cursor) {
                 Ok(content) => {
                     let token_end = cursor.index();
