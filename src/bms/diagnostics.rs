@@ -46,6 +46,7 @@ use ariadne::{Color, Label, Report, ReportKind, Source};
 /// assert_eq!(source.text(), source_text);
 /// ```
 pub struct SimpleSource<'a> {
+    /// Name of the source file.
     name: &'a str,
     /// Source text content.
     text: &'a str,
