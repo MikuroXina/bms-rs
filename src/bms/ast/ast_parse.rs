@@ -109,7 +109,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 // If no Case matches, find the Def branch
                 if !found {
                     for case in &cases {
-                        if let CaseBranchValue::Def = case.value.content() {
+                        if matches!(case.value.content(), CaseBranchValue::Def) {
                             let mut case_iter = case.units.clone().into_iter().peekable();
                             let (tokens, inner_warnings) =
                                 parse_control_flow_ast(&mut case_iter, rng);

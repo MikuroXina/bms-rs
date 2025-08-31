@@ -470,7 +470,7 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
         if is_terminator {
             // If it is EndIf, consume and record the position
             if let Some(token) = iter.peek()
-                && let EndIf = token.content()
+                && matches!(token.content(), EndIf)
             {
                 let pos = ().into_wrapper(token);
                 fallback_pos = Some(pos);
