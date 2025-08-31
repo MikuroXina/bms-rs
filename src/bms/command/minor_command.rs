@@ -78,10 +78,15 @@ impl TryFrom<i64> for ExWavVolume {
 pub struct ExWavFrequency(u64);
 
 impl ExWavFrequency {
+    const MIN_FREQUENCY: u64 = 100;
+    const MAX_FREQUENCY: u64 = 100_000;
+
     /// Creates a new [`ExWavFrequency`] value.
     /// Returns `None` if the value is out of range [100, 100000].
     pub fn new(value: u64) -> Option<Self> {
-        (100..=100000).contains(&value).then_some(Self(value))
+        (Self::MIN_FREQUENCY..=Self::MAX_FREQUENCY)
+            .contains(&value)
+            .then_some(Self(value))
     }
 
     /// Returns the underlying value.
@@ -94,7 +99,7 @@ impl TryFrom<u64> for ExWavFrequency {
     type Error = u64;
 
     fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value.clamp(100, 100000))
+        Self::new(value).ok_or(value.clamp(Self::MIN_FREQUENCY, Self::MAX_FREQUENCY))
     }
 }
 
