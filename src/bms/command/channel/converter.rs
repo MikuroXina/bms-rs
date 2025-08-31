@@ -108,10 +108,10 @@ pub struct KeyLayoutConvertLaneRotateShuffle {
 
 impl KeyLayoutConvertLaneRotateShuffle {
     /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
-    pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
+    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
         Self {
             side,
-            arrangement: Self::make_random(&keys, seed),
+            arrangement: Self::make_random(keys, seed),
         }
     }
 
@@ -163,10 +163,10 @@ pub struct KeyLayoutConvertLaneRandomShuffle {
 
 impl KeyLayoutConvertLaneRandomShuffle {
     /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
-    pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
+    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
         Self {
             side,
-            arrangement: Self::make_random(&keys, seed),
+            arrangement: Self::make_random(keys, seed),
         }
     }
 
@@ -306,11 +306,8 @@ mod channel_mode_tests {
                 Key::Key(6),
                 Key::Key(7),
             ];
-            let mut rnd = KeyLayoutConvertLaneRandomShuffle::new(
-                PlayerSide::Player1,
-                init_keys.to_vec(),
-                *seed,
-            );
+            let mut rnd =
+                KeyLayoutConvertLaneRandomShuffle::new(PlayerSide::Player1, &init_keys, *seed);
             let result_values = init_keys
                 .into_iter()
                 .map(|k| {
