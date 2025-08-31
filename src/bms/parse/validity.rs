@@ -121,17 +121,21 @@ impl Bms {
     /// This performs basic referential integrity checks and data invariants that
     /// are required for correct playback, separate from parse-time checks.
     pub fn check_validity(&self) -> ValidityCheckOutput {
-        let mut missing = Vec::new();
-        let mut invalid = Vec::new();
+        let missing = self.check_missing();
+        let invalid = self.check_invalid();
+        ValidityCheckOutput { missing, invalid }
+    }
 
-        // 1) Check that every used ObjId in notes has a corresponding WAV definition.
+    fn check_missing(&self) -> Vec<ValidityMissing> {
+        let mut missing = vec![];
+        // 1) Check notes reference valid WAV ids.
         for obj_id in self.notes.objs.keys() {
             if !self.notes.wav_files.contains_key(obj_id) {
                 missing.push(ValidityMissing::WavForNote(*obj_id));
             }
         }
 
-        // 1.2) Check BGMs reference valid WAV ids.
+        // 2) Check BGMs reference valid WAV ids.
         for obj_ids in self.notes.bgms.values() {
             for obj_id in obj_ids {
                 if !self.notes.wav_files.contains_key(obj_id) {
@@ -140,28 +144,33 @@ impl Bms {
             }
         }
 
-        // 1.3) Check BGAs reference valid BMP ids.
+        // 3) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
                 missing.push(ValidityMissing::BmpForBga(bga_obj.id));
             }
         }
 
-        // 1.4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
+        // 4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
         for id in &self.arrangers.bpm_change_ids_used {
             if !self.scope_defines.bpm_defs.contains_key(id) {
                 missing.push(ValidityMissing::BpmChangeDef(*id));
             }
         }
 
-        // 1.5) Check STOP ids used in messages have corresponding #STOPxx definitions.
+        // 5) Check STOP ids used in messages have corresponding #STOPxx definitions.
         for id in &self.arrangers.stop_ids_used {
             if !self.scope_defines.stop_defs.contains_key(id) {
                 missing.push(ValidityMissing::StopDef(*id));
             }
         }
+        missing
+    }
 
-        // 3) Placement/overlap checks for notes on lanes.
+    fn check_invalid(&self) -> Vec<ValidityInvalid> {
+        let mut invalid = vec![];
+
+        // Placement/overlap checks for notes on lanes.
         //      - Visible notes in section 000
         //      - Overlap: visible single vs single (same time, same lane)
         //      - Overlap: visible single within long interval (same lane)
@@ -308,8 +317,7 @@ impl Bms {
                 }
             }
         }
-
-        ValidityCheckOutput { missing, invalid }
+        invalid
     }
 }
 
