@@ -53,8 +53,8 @@ pub enum LexWarning {
 /// A [`LexWarning`] type with position information.
 pub type LexWarningWithRange = SourceRangeMixin<LexWarning>;
 
-/// type alias of core::result::Result<T, LexWarning>
-pub(crate) type Result<T> = core::result::Result<T, LexWarning>;
+/// type alias of core::result::Result<T, LexWarningWithRange>
+pub(crate) type Result<T> = core::result::Result<T, LexWarningWithRange>;
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,11 +140,7 @@ impl<'a> TokenStream<'a> {
                     tokens.push(token_with_range);
                 }
                 Err(warning) => {
-                    // Try to estimate the error range by looking back at the last valid position
-                    let error_start = tokens.last().map_or(0, |last_token| last_token.end() + 1);
-                    // For errors, we need to calculate the range manually
-                    let current_pos = cursor.index();
-                    warnings.push(warning.into_wrapper_range(error_start..current_pos));
+                    warnings.push(warning);
                 }
             };
         }

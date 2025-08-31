@@ -1,4 +1,5 @@
-use super::LexWarning;
+use super::{LexWarning, LexWarningWithRange};
+use crate::bms::command::mixin::SourceRangeMixinExt;
 
 pub(crate) struct Cursor<'a> {
     /// The line position, starts with 1.
@@ -140,22 +141,31 @@ impl<'a> Cursor<'a> {
         self.index
     }
 
-    pub(crate) fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_expected_token(
+        &self,
+        message: impl Into<String>,
+    ) -> LexWarningWithRange {
         LexWarning::ExpectedToken {
             message: message.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarningWithRange {
         LexWarning::UnknownObject {
             object: object.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarning {
+    pub(crate) fn make_err_unknown_channel(
+        &self,
+        channel: impl Into<String>,
+    ) -> LexWarningWithRange {
         LexWarning::UnknownChannel {
             channel: channel.into(),
         }
+        .into_wrapper_range(self.index()..self.index())
     }
 }
 

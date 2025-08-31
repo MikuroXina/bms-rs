@@ -15,7 +15,7 @@ use crate::bms::{
         JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
         mixin::SourceRangeMixin, time::Track,
     },
-    prelude::read_channel,
+    prelude::{SourceRangeMixinExt, read_channel},
 };
 
 #[cfg(feature = "minor-command")]
@@ -461,7 +461,7 @@ impl<'a> Token<'a> {
             "#BASE" => {
                 let base = c.next_line_remaining();
                 if base != "62" {
-                    return Err(LexWarning::OutOfBase62);
+                    return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range));
                 }
                 Self::Base62
             }
