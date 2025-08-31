@@ -246,8 +246,8 @@ impl KeyLayoutMapper for KeyLayoutPms {
     }
 
     fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
         use PlayerSide::*;
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
@@ -364,8 +364,8 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
     }
 
     fn from_channel_id(channel_id: ChannelId) -> Option<Self> {
-        let beat = channel_id_to_key_layout_beat(channel_id)?;
         use PlayerSide::*;
+        let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),

@@ -57,14 +57,14 @@ pub struct BmsToBmsonOutput {
 impl Bms {
     /// Convert `Bms` to `Bmson`.
     pub fn to_bmson(self) -> BmsToBmsonOutput {
-        let mut warnings = Vec::new();
-        let converter = PulseConverter::new(&self);
-
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
+
+        let mut warnings = Vec::new();
+        let converter = PulseConverter::new(&self);
         let judge_rank = FinF64::new(match self.header.rank {
             Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,

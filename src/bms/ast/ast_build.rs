@@ -32,16 +32,15 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'
         let Some(token) = tokens_iter.peek() else {
             break;
         };
-        use Token::*;
         let rule = match token.content() {
-            EndIf => Some(AstBuildWarning::UnmatchedEndIf),
-            EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
-            EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
-            ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
-            Else => Some(AstBuildWarning::UnmatchedElse),
-            Skip => Some(AstBuildWarning::UnmatchedSkip),
-            Case(_) => Some(AstBuildWarning::UnmatchedCase),
-            Def => Some(AstBuildWarning::UnmatchedDef),
+            Token::EndIf => Some(AstBuildWarning::UnmatchedEndIf),
+            Token::EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
+            Token::EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
+            Token::ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
+            Token::Else => Some(AstBuildWarning::UnmatchedElse),
+            Token::Skip => Some(AstBuildWarning::UnmatchedSkip),
+            Token::Case(_) => Some(AstBuildWarning::UnmatchedCase),
+            Token::Def => Some(AstBuildWarning::UnmatchedDef),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -58,13 +57,12 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> Option<(Unit<'a>, Vec<AstBuildWarningWithRange>)> {
     let token = iter.peek()?;
-    use Token::*;
     match token.content() {
-        SetSwitch(_) | Switch(_) => {
+        Token::SetSwitch(_) | Token::Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
             Some((unit, errs))
         }
-        Random(_) | SetRandom(_) => {
+        Token::Random(_) | Token::SetRandom(_) => {
             let (unit, errs) = parse_random_block(iter);
             Some((unit, errs))
         }
@@ -82,8 +80,8 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
 fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
-    let token = iter.next().unwrap();
     use Token::*;
+    let token = iter.next().unwrap();
     let block_value = match token.content() {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
@@ -221,9 +219,9 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
 fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
+    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
             break;
@@ -261,9 +259,9 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
 fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
+    use Token::*;
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
-    use Token::*;
     let block_value = match token.content() {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
@@ -450,12 +448,12 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     Vec<AstBuildWarningWithRange>,
     SourceRangeMixin<()>,
 ) {
+    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
     // Default fallback: if no #ENDIF is found, use the position of the last processed token,
     // or the current peek token; if neither exists, use a dummy (0,0).
     let mut fallback_pos = None::<SourceRangeMixin<()>>;
-    use Token::*;
     loop {
         // First, check for terminators without holding the borrow across mutations
         let is_terminator = {
