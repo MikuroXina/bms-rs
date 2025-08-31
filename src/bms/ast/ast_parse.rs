@@ -47,8 +47,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 let mut found = false;
                 if let Some(branch) = if_blocks
                     .iter()
-                    .flat_map(|if_block| if_block.branches.get(&branch_val))
-                    .next()
+                    .find_map(|if_block| if_block.branches.get(&branch_val))
                 {
                     let mut branch_iter = branch.content().clone().into_iter().peekable();
                     let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
@@ -60,8 +59,7 @@ pub(super) fn parse_control_flow_ast<'a>(
                 if !found
                     && let Some(else_branch) = if_blocks
                         .iter()
-                        .flat_map(|if_block| if_block.branches.get(&BigUint::from(0u64)))
-                        .next()
+                        .find_map(|if_block| if_block.branches.get(&BigUint::from(0u64)))
                 {
                     let mut branch_iter = else_branch.content().clone().into_iter().peekable();
                     let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
