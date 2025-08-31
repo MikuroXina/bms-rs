@@ -16,7 +16,7 @@ use crate::bms::{
 
 use super::AstBuildWarning;
 
-/// The main entry for building the control flow AST. Traverses the TokenWithRange stream and recursively parses all control flow blocks.
+/// The main entry for building the control flow AST. Traverses the [`TokenWithRange`] stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     tokens_iter: &mut Peekable<T>,
@@ -52,7 +52,7 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'
     (result, errors)
 }
 
-/// Handle a single TokenWithRange: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithRange node.
+/// Handle a single [`TokenWithRange`]: if it is the start of a block, recursively call the block parser, otherwise return a [`TokenWithRange`] node.
 fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> Option<(Unit<'a>, Vec<AstBuildWarningWithRange>)> {
@@ -75,8 +75,8 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     }
 }
 
-/// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
-/// Supports Case/Def branches, error detection, and nested structures.
+/// Parse a [`Token::Switch`]/[`Token::SetSwitch`] block until [`Token::EndSwitch`] or auto-completion termination.
+/// Supports [`Token::Case`]/[`Token::Def`] branches, error detection, and nested structures.
 fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
@@ -214,8 +214,8 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of a Case/Def branch until a branch-terminating TokenWithRange is encountered.
-/// Supports nested blocks, prioritizing parse_unit_or_block.
+/// Parse the body of a [`Token::Case`]/[`Token::Def`] branch until a branch-terminating [`TokenWithRange`] is encountered.
+/// Supports nested blocks, prioritizing [`parse_unit_or_block`].
 fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
@@ -249,12 +249,12 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     (result, errors)
 }
 
-/// Parse a Random/SetRandom block until EndRandom or auto-completion termination.
-/// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside IfBlock.
+/// Parse a [`Token::Random`]/[`Token::SetRandom`] block until [`Token::EndRandom`] or auto-completion termination.
+/// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside [`IfBlock`].
 /// Design:
-/// - After entering Random/SetRandom, loop through Tokens.
-/// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow TokenWithRange, prioritize parse_unit_or_block; if not in any IfBlock, auto-close the block.
+/// - After entering [`Token::Random`]/[`Token::SetRandom`], loop through Tokens.
+/// - If encountering [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`], collect branches and check for duplicates/out-of-range.
+/// - If encountering a non-control-flow [`TokenWithRange`], prioritize [`parse_unit_or_block`]; if not in any [`IfBlock`], auto-close the block.
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
@@ -435,11 +435,11 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of an If/ElseIf/Else branch until a branch-terminating TokenWithRange is encountered.
+/// Parse the body of an [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`] branch until a branch-terminating [`TokenWithRange`] is encountered.
 /// Design:
-/// - Supports nested blocks, prioritizing parse_unit_or_block.
-/// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
-/// - If EndIf is encountered, consume it automatically.
+/// - Supports nested blocks, prioritizing [`parse_unit_or_block`].
+/// - Break when encountering branch-terminating Tokens ([`Token::ElseIf`]/[`Token::Else`]/[`Token::EndIf`]/[`Token::EndRandom`]/[`Token::EndSwitch`]).
+/// - If [`Token::EndIf`] is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
     default_end_pos: SourceRangeMixin<()>,

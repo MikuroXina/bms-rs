@@ -45,10 +45,10 @@ pub enum Channel {
     Scroll,
     /// For the note spacing change object.
     Speed,
-    /// For the video seek object. #SEEKxx n
+    /// For the video seek object. `#SEEKxx n`
     #[cfg(feature = "minor-command")]
     Seek,
-    /// For the BGA LAYER2 object. #BMPxx (LAYER2 is layered over LAYER)
+    /// For the BGA LAYER2 object. `#BMPxx` (LAYER2 is layered over LAYER)
     BgaLayer2,
     /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
     #[cfg(feature = "minor-command")]
@@ -66,26 +66,26 @@ pub enum Channel {
     BgmVolume,
     /// For the KEY volume. min 1 « [01-FF] » max 255 (= original sound)
     KeyVolume,
-    /// For the TEXT object. #TEXTxx "string"
+    /// For the TEXT object. `#TEXTxx "string"`
     Text,
-    /// For the JUDGE object. #EXRANKxx n (100 corresponds to RANK:NORMAL. integer or decimal fraction)
+    /// For the JUDGE object. `#EXRANKxx n` (100 corresponds to RANK:NORMAL. integer or decimal fraction)
     Judge,
-    /// For the BGA BASE aRGB. #ARGBxx a,r,g,b (each [0-255])
+    /// For the BGA BASE aRGB. `#ARGBxx a,r,g,b` (each [0-255])
     #[cfg(feature = "minor-command")]
     BgaBaseArgb,
-    /// For the BGA LAYER aRGB. #ARGBxx
+    /// For the BGA LAYER aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaLayerArgb,
-    /// For the BGA LAYER2 aRGB. #ARGBxx
+    /// For the BGA LAYER2 aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaLayer2Argb,
-    /// For the BGA POOR aRGB. #ARGBxx
+    /// For the BGA POOR aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaPoorArgb,
-    /// For the BGA KEYBOUND. #SWBGAxx
+    /// For the BGA KEYBOUND. `#SWBGAxx`
     #[cfg(feature = "minor-command")]
     BgaKeybound,
-    /// For the OPTION. #CHANGEOPTIONxx (multiline)
+    /// For the OPTION. `#CHANGEOPTIONxx` (multiline)
     #[cfg(feature = "minor-command")]
     Option,
 }
@@ -177,7 +177,7 @@ pub enum PlayerSide {
     Player2,
 }
 
-/// Error type for parsing ChannelId from string.
+/// Error type for parsing [`ChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ChannelIdParseError {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.

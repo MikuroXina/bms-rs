@@ -320,7 +320,7 @@ impl Bms {
     }
 }
 
-/// Convert pulse number to ObjTime
+/// Converts a pulse number to [`ObjTime`]
 fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
     // Simple conversion: assume 4/4 time signature and convert pulses to track/time
     let pulses_per_measure = resolution * 4; // 4 quarter notes per measure
@@ -334,7 +334,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
     ObjTime::new(track, numerator, denominator)
 }
 
-/// Convert lane number to Key and PlayerSide
+/// Converts a lane number to [`Key`] and [`PlayerSide`]
 fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
     let lane_value = lane.map_or(0, |l| l.get());
 
@@ -361,7 +361,7 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
     (key, side)
 }
 
-/// Create ObjId from u16
+/// Creates an [`ObjId`] from `u16`
 fn create_obj_id_from_u16(value: u16) -> Result<ObjId, ()> {
     let mut chars = ['0'; 2];
     let first = (value / 62) as u8;

@@ -149,26 +149,26 @@ pub struct Header {
     pub movie: Option<PathBuf>,
 }
 
-/// Stores the original scope-defines like `#WAVXX`. Using HashMap.
+/// Stores the original scope-defines like `#WAVXX`. Using [`HashMap`].
 /// Only stores the original scope-defines, not the parsed ones.
 /// Only stores which affects playing.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScopeDefines {
-    /// BPM change definitions, indexed by ObjId. #BPM[01-ZZ]
+    /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
     pub bpm_defs: HashMap<ObjId, Decimal>,
-    /// Stop definitions, indexed by ObjId. #STOP[01-ZZ]
+    /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
     pub stop_defs: HashMap<ObjId, Decimal>,
-    /// Scroll speed change definitions, indexed by ObjId. #SCROLL[01-ZZ]
+    /// Scroll speed change definitions, indexed by [`ObjId`]. `#SCROLL[01-ZZ]`
     pub scroll_defs: HashMap<ObjId, Decimal>,
-    /// Spacing change definitions, indexed by ObjId. #SPEED[01-ZZ]
+    /// Spacing change definitions, indexed by [`ObjId`]. `#SPEED[01-ZZ]`
     pub speed_defs: HashMap<ObjId, Decimal>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     #[cfg(feature = "minor-command")]
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
-    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    /// WAVCMD events, indexed by `wav_index`. `#WAVCMD`
     #[cfg(feature = "minor-command")]
     pub wavcmd_events: HashMap<ObjId, WavCmdEvent>,
     /// Storage for #@BGA definitions
@@ -177,10 +177,10 @@ pub struct ScopeDefines {
     /// Storage for #BGA definitions
     #[cfg(feature = "minor-command")]
     pub bga_defs: HashMap<ObjId, BgaDef>,
-    /// SWBGA events, indexed by ObjId. #SWBGA
+    /// SWBGA events, indexed by [`ObjId`]. `#SWBGA`
     #[cfg(feature = "minor-command")]
     pub swbga_events: HashMap<ObjId, SwBgaEvent>,
-    /// ARGB definitions, indexed by ObjId. #ARGB
+    /// ARGB definitions, indexed by [`ObjId`]. `#ARGB`
     #[cfg(feature = "minor-command")]
     pub argb_defs: HashMap<ObjId, Argb>,
 }
@@ -189,27 +189,27 @@ pub struct ScopeDefines {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Arrangers {
-    /// Section length change events, indexed by track. #SECLEN
+    /// Section length change events, indexed by track. `#SECLEN`
     pub section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
     /// The initial BPM of the score.
     pub bpm: Option<Decimal>,
     /// The BPMs corresponding to the id of the BPM change object.
-    /// BPM change events, indexed by time. #BPM[01-ZZ] in message
+    /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
-    /// Record of used BPM change ids from #BPMxx messages, for validity checks.
+    /// Record of used BPM change ids from `#BPMxx` messages, for validity checks.
     pub bpm_change_ids_used: HashSet<ObjId>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
-    /// Record of used STOP ids from #STOPxx messages, for validity checks.
+    /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
     pub stop_ids_used: HashSet<ObjId>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     /// The spacing factors corresponding to the id of the spacing change object.
     pub speed_factor_changes: BTreeMap<ObjTime, SpeedObj>,
-    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    /// bemaniaDX STP events, indexed by [`ObjTime`]. `#STP`
     #[cfg(feature = "minor-command")]
     pub stp_events: BTreeMap<ObjTime, StpEvent>,
-    /// #BASEBPM for LR. Replaced by bpm match in LR2.
+    /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
     #[cfg(feature = "minor-command")]
     pub base_bpm: Option<Decimal>,
 }
@@ -224,9 +224,9 @@ pub struct Notes {
     /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
     // objects stored in obj is sorted, so it can be searched by bisection method
-    /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
+    /// BGM objects, indexed by time. `#XXX01:ZZ...` (BGM placement)
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
-    /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
+    /// All note objects, indexed by [`ObjId`]. `#XXXYY:ZZ...` (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
     /// Index for fast key lookup. Used for LN/landmine logic.
     /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
@@ -307,16 +307,16 @@ pub struct Others {
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     pub is_octave: bool,
-    /// CDDA events, indexed by value. #CDDA
+    /// CDDA events, indexed by value. `#CDDA`
     #[cfg(feature = "minor-command")]
     pub cdda: Vec<BigUint>,
-    /// Seek events, indexed by ObjId. #SEEK
+    /// Seek events, indexed by [`ObjId`]. `#SEEK`
     #[cfg(feature = "minor-command")]
     pub seek_events: HashMap<ObjId, Decimal>,
-    /// ExtChr events. #ExtChr
+    /// Extended-character events. `#ExtChr`
     #[cfg(feature = "minor-command")]
     pub extchr_events: Vec<ExtChrEvent>,
-    /// Storage for #TEXT definitions
+    /// Storage for `#TEXT` definitions
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.

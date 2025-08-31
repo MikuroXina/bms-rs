@@ -84,7 +84,7 @@ impl<'a> AstRoot<'a> {
 }
 
 impl<'a> AstRoot<'a> {
-    /// Extracts all tokens from the AST and returns them as a TokenStream.
+    /// Extracts all tokens from the AST and returns them as a [`TokenStream`].
     /// This function flattens the AST structure and returns ALL tokens contained in the AST,
     /// including all branches in Random and Switch blocks. This serves as the inverse of
     /// [`AstRoot::from_token_stream`].

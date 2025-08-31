@@ -27,11 +27,10 @@ pub enum PlayerMode {
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
 ///
-/// IIDX/LR2/beatoraja judge windows: https://iidx.org/misc/iidx_lr2_beatoraja_diff
+/// IIDX/LR2/beatoraja judge windows: <https://iidx.org/misc/iidx_lr2_beatoraja_diff>
 ///
-/// Note: VeryEasy is not Implemented.
-/// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
-/// See: https://github.com/MikuroXina/bms-rs/pull/122
+/// Note: The difficulty `VeryEasy` is decided to be unimplemented.
+/// See [discussions in the PR](https://github.com/MikuroXina/bms-rs/pull/122).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
@@ -44,7 +43,7 @@ pub enum JudgeLevel {
     /// Rank 3, the easier rank.
     Easy,
     /// Other integer value. Please See `JudgeLevel` for more details.
-    /// If used for ExRank, representing precentage.
+    /// If used for `#EXRANK`, representing percentage.
     OtherInt(i64),
 }
 

@@ -65,20 +65,20 @@ impl JavaRandom {
         }
     }
 
-    /// Java's next(int bits) method
+    /// Java's `next(int bits)` method
     const fn next(&mut self, bits: i32) -> i32 {
         self.seed =
             (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
         ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
     }
 
-    /// Java's nextInt() method - returns any int value
+    /// Java's `nextInt()` method - returns any int value
     #[allow(dead_code)]
     pub const fn next_int(&mut self) -> i32 {
         self.next(32)
     }
 
-    /// Java's nextInt(int bound) method
+    /// Java's `nextInt(int bound)` method
     pub fn next_int_bound(&mut self, bound: i32) -> i32 {
         if bound <= 0 {
             panic!("bound must be positive");
@@ -274,7 +274,7 @@ mod channel_mode_tests {
 
     /// Test the random shuffle modifier.
     ///
-    /// Source: https://www.bilibili.com/opus/1033281595747860483
+    /// Source: <https://www.bilibili.com/opus/1033281595747860483>
     #[test]
     fn test_random_shuffle() {
         let examples = [

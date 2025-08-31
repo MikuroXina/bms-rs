@@ -21,19 +21,19 @@ use super::model::{Bms, obj::Obj};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ValidityMissing {
-    /// A note references an ObjId without a corresponding WAV definition.
+    /// A note references an [`ObjId`] without a corresponding `#WAV` definition.
     #[error("Missing WAV definition for note object id: {0:?}")]
     WavForNote(ObjId),
-    /// A BGM references an ObjId without a corresponding WAV definition.
+    /// A BGM references an [`ObjId`] without a corresponding `#WAV` definition.
     #[error("Missing WAV definition for BGM object id: {0:?}")]
     WavForBgm(ObjId),
-    /// A BGA change references an ObjId without a corresponding BMP/EXBMP definition.
+    /// A BGA change references an [`ObjId`] without a corresponding `#BMP`/`#EXBMP` definition.
     #[error("Missing BMP definition for BGA object id: {0:?}")]
     BmpForBga(ObjId),
-    /// A BPM change references an ObjId without a corresponding #BPMxx definition.
+    /// A BPM change references an [`ObjId`] without a corresponding `#BPMxx` definition.
     #[error("Missing BPM change definition for object id: {0:?}")]
     BpmChangeDef(ObjId),
-    /// A STOP event references an ObjId without a corresponding #STOPxx definition.
+    /// A STOP event references an [`ObjId`] without a corresponding `#STOPxx` definition.
     #[error("Missing STOP definition for object id: {0:?}")]
     StopDef(ObjId),
 }

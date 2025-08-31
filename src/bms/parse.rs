@@ -1,7 +1,7 @@
-//! Parsing Bms from [TokenStream].
+//! Parsing Bms from [`TokenStream`].
 //!
-//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
-//! BmsParseOutput)
+//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
+//! [`BmsParseOutput`])
 
 pub mod check_playing;
 pub mod model;
@@ -54,7 +54,7 @@ pub enum ParseWarning {
     UnexpectedControlFlow,
 }
 
-/// type alias of core::result::Result<T, ParseWarning>
+/// Type alias of `core::result::Result<T, ParseWarning>`
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
 /// A parse warning with position information.

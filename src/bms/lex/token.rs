@@ -130,11 +130,11 @@ pub enum Token<'a> {
     ElseIf(BigUint),
     /// `%EMAIL [string]`. The email address of this score file author.
     Email(&'a str),
-    /// `#ENDIF`. Closes the if scope. See [Token::If].
+    /// `#ENDIF`. Closes the if scope. See [`Token::If`].
     EndIf,
-    /// `#ENDRANDOM`. Closes the random scope. See [Token::Random].
+    /// `#ENDRANDOM`. Closes the random scope. See [`Token::Random`].
     EndRandom,
-    /// `#ENDSW`. Closes the random scope. See [Token::Switch].
+    /// `#ENDSW`. Closes the random scope. See [`Token::Switch`].
     EndSwitch,
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     #[cfg(feature = "minor-command")]

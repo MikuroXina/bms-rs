@@ -52,7 +52,6 @@ pub struct SimpleSource<'a> {
     text: &'a str,
 }
 
-/// Implementation of SimpleSource.
 impl<'a> SimpleSource<'a> {
     /// Create a new source container instance.
     ///

@@ -1,7 +1,7 @@
 //! Lexical analyzer of BMS format.
 //!
-//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
-//! BmsParseOutput)
+//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
+//! [`BmsParseOutput`])
 
 mod command_impl;
 mod cursor;
@@ -53,7 +53,7 @@ pub enum LexWarning {
 /// A [`LexWarning`] type with position information.
 pub type LexWarningWithRange = SourceRangeMixin<LexWarning>;
 
-/// type alias of core::result::Result<T, LexWarningWithRange>
+/// Type alias of `core::result::Result<T, LexWarningWithRange>`
 pub(crate) type Result<T> = core::result::Result<T, LexWarningWithRange>;
 
 /// Lex Parsing Results, includes tokens and warnings.

@@ -168,10 +168,10 @@ pub enum DefDuplication<'a> {
         /// Incoming definition.
         newer: &'a Argb,
     },
-    /// WAVCMD event is duplicated.
+    /// `WAVCMD` event is duplicated.
     #[cfg(feature = "minor-command")]
     WavCmdEvent {
-        /// Duplicated WAVCMD event wav_index.
+        /// Duplicated `WAVCMD` event `wav_index`.
         wav_index: ObjId,
         /// Existing definition.
         older: &'a WavCmdEvent,
