@@ -150,7 +150,7 @@ pub fn default_percentage() -> FinF64 {
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
-pub fn default_resolution() -> u64 {
+pub const fn default_resolution() -> u64 {
     240
 }
 

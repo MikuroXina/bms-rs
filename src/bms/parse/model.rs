@@ -1382,7 +1382,7 @@ impl Arrangers {
 
 impl Graphics {
     /// Returns the bga change objects.
-    pub fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
+    pub const fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
         &self.bga_changes
     }
 
@@ -1489,7 +1489,7 @@ impl Notes {
     }
 
     /// Returns all the bgms in the score.
-    pub fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
+    pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
         &self.bgms
     }
 

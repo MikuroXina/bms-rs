@@ -12,7 +12,7 @@ pub struct PixelPoint {
 
 impl PixelPoint {
     /// Creates a new pixel point.
-    pub fn new(x: i16, y: i16) -> Self {
+    pub const fn new(x: i16, y: i16) -> Self {
         Self { x, y }
     }
 }
@@ -41,7 +41,7 @@ pub struct PixelSize {
 
 impl PixelSize {
     /// Creates a new pixel size.
-    pub fn new(width: u16, height: u16) -> Self {
+    pub const fn new(width: u16, height: u16) -> Self {
         Self { width, height }
     }
 }

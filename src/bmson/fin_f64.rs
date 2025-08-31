@@ -60,7 +60,7 @@ impl FinF64 {
 
     /// Gets the internal value.
     #[inline]
-    pub fn as_f64(self) -> f64 {
+    pub const fn as_f64(self) -> f64 {
         self.0
     }
 }

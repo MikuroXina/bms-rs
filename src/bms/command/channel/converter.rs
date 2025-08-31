@@ -16,7 +16,7 @@ pub trait KeyLayoutConverter {
 
 impl KeyLayoutConvertMirror {
     /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
-    pub fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
+    pub const fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
         Self { side, keys }
     }
 }
@@ -54,7 +54,7 @@ struct JavaRandom {
 
 impl JavaRandom {
     /// Create a new [`JavaRandom`] with the given seed.
-    pub fn new(seed: i64) -> Self {
+    pub const fn new(seed: i64) -> Self {
         let s = (seed as u64) ^ 0x5DEECE66D;
         JavaRandom {
             seed: s & ((1u64 << 48) - 1),
@@ -62,7 +62,7 @@ impl JavaRandom {
     }
 
     /// Java's next(int bits) method
-    fn next(&mut self, bits: i32) -> i32 {
+    const fn next(&mut self, bits: i32) -> i32 {
         const MULT: u64 = 0x5DEECE66D;
         const ADD: u64 = 0xB;
         self.seed = (self.seed.wrapping_mul(MULT).wrapping_add(ADD)) & ((1u64 << 48) - 1);
@@ -71,7 +71,7 @@ impl JavaRandom {
 
     /// Java's nextInt() method - returns any int value
     #[allow(dead_code)]
-    pub fn next_int(&mut self) -> i32 {
+    pub const fn next_int(&mut self) -> i32 {
         self.next(32)
     }
 

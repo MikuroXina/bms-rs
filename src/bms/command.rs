@@ -82,7 +82,7 @@ impl std::fmt::Display for JudgeLevel {
     }
 }
 
-pub(crate) fn char_to_base62(ch: char) -> Option<u8> {
+pub(crate) const fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
         _ => None,
@@ -207,7 +207,7 @@ impl ObjId {
     }
 
     /// Makes the object id uppercase.
-    pub fn make_uppercase(&mut self) {
+    pub const fn make_uppercase(&mut self) {
         self.0[0] = self.0[0].to_ascii_uppercase();
         self.0[1] = self.0[1].to_ascii_uppercase();
     }
