@@ -25,7 +25,7 @@ impl<'a> Cursor<'a> {
         self.peek_next_token().is_none()
     }
 
-    pub(crate) fn peek_next_token_range(&self) -> std::ops::Range<usize> {
+    fn peek_next_token_range(&self) -> std::ops::Range<usize> {
         fn is_separator(c: char) -> bool {
             c.is_whitespace() || c == '\n'
         }

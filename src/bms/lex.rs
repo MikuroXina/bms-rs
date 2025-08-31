@@ -125,35 +125,26 @@ impl<'a> TokenStream<'a> {
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            // Skip any leading separators to get the actual token start position
-            let token_start = {
-                let peek_range = cursor.peek_next_token_range();
-                if !peek_range.is_empty() {
-                    peek_range.start
-                } else {
-                    cursor.index()
-                }
-            };
-
             match Token::parse(&mut cursor) {
                 Ok(token_with_range) => {
-                    let token_end = cursor.index();
-
                     // If the token is UnknownCommand, also add a warning
                     if let Token::UnknownCommand(cmd) = token_with_range.content() {
                         warnings.push(
                             LexWarning::UnknownCommand {
                                 command: cmd.to_string(),
                             }
-                            .into_wrapper_range(token_start..token_end),
+                            .into_wrapper(&token_with_range),
                         );
                     }
 
                     tokens.push(token_with_range);
                 }
                 Err(warning) => {
-                    let token_end = cursor.index();
-                    warnings.push(warning.into_wrapper_range(token_start..token_end))
+                    // Try to estimate the error range by looking back at the last valid position
+                    let error_start = tokens.last().map_or(0, |last_token| last_token.end() + 1);
+                    // For errors, we need to calculate the range manually
+                    let current_pos = cursor.index();
+                    warnings.push(warning.into_wrapper_range(error_start..current_pos));
                 }
             };
         }
