@@ -136,11 +136,11 @@ impl<'a> TokenStream<'a> {
             };
 
             match Token::parse(&mut cursor) {
-                Ok(content) => {
+                Ok(token_with_range) => {
                     let token_end = cursor.index();
 
                     // If the token is UnknownCommand, also add a warning
-                    if let Token::UnknownCommand(cmd) = &content {
+                    if let Token::UnknownCommand(cmd) = token_with_range.content() {
                         warnings.push(
                             LexWarning::UnknownCommand {
                                 command: cmd.to_string(),
@@ -149,8 +149,7 @@ impl<'a> TokenStream<'a> {
                         );
                     }
 
-                    let token_with_pos = content.into_wrapper_range(token_start..token_end);
-                    tokens.push(token_with_pos);
+                    tokens.push(token_with_range);
                 }
                 Err(warning) => {
                     let token_end = cursor.index();

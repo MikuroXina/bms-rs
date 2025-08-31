@@ -301,10 +301,10 @@ pub enum Token<'a> {
 pub type TokenWithRange<'a> = SourceRangeMixin<Token<'a>>;
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<Self> {
+    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
         let channel_parser = read_channel;
-        let command = c
-            .next_token()
+        let (command_range, command) = c
+            .next_token_with_range()
             .ok_or_else(|| c.make_err_expected_token("command"))?;
 
         let token = match command.to_uppercase().as_str() {
@@ -1189,7 +1189,10 @@ impl<'a> Token<'a> {
             command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
             _not_command => Self::NotACommand(c.next_line_entire()),
         };
-        Ok(token)
+
+        // Calculate the full range of this token (from command start to current cursor position)
+        let token_range = command_range.start..c.index();
+        Ok(SourceRangeMixin::new(token, token_range))
     }
 
     pub(crate) fn make_id_uppercase(&mut self) {
@@ -1652,7 +1655,7 @@ mod tests {
 
     fn parse_token(input: &'_ str) -> Token<'_> {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor).unwrap()
+        Token::parse(&mut cursor).unwrap().into_content()
     }
 
     #[test]

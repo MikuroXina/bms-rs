@@ -47,12 +47,23 @@ impl<'a> Cursor<'a> {
         Some(&self.source[ret])
     }
 
-    /// Move cursor, through and return the next token.
-    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+    /// Peek the next token with range.
+#[allow(unused)]
+    pub(crate) fn peek_next_token_with_range(&self) -> Option<(std::ops::Range<usize>, &'a str)> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
         }
+        Some((ret.clone(), &self.source[ret]))
+    }
+
+    /// Move cursor, through and return the next token with range.
+    pub(crate) fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
+        let ret = self.peek_next_token_range();
+        if ret.is_empty() {
+            return None;
+        }
+        let token_str = &self.source[ret.clone()];
         let advanced_lines = self.source[self.index..ret.end]
             .chars()
             .filter(|&c| c == '\n')
@@ -68,7 +79,12 @@ impl<'a> Cursor<'a> {
             .chars()
             .count();
         self.index = ret.end;
-        Some(&self.source[ret])
+        Some((ret, token_str))
+    }
+
+    /// Move cursor, through and return the next token.
+    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+        self.next_token_with_range().map(|(_, token)| token)
     }
 
     /// Move cursor, through and return the remaining part of this line.
