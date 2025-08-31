@@ -1277,7 +1277,7 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for Token<'a> {
+impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "minor-command")]
@@ -1443,7 +1443,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                 track,
                 channel,
                 message,
-            } => fmt_message(f, track, channel, message),
+            } => fmt_message(f, *track, *channel, message),
             #[cfg(feature = "minor-command")]
             Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
             Token::Movie(path) => write!(f, "#MOVIE {}", path.display()),
@@ -1542,8 +1542,8 @@ impl<'a> std::fmt::Display for Token<'a> {
 
 fn fmt_message(
     f: &mut std::fmt::Formatter<'_>,
-    track: &Track,
-    channel: &Channel,
+    track: Track,
+    channel: Channel,
     message: &str,
 ) -> std::fmt::Result {
     // Convert channel back to string representation
