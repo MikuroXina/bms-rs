@@ -194,7 +194,7 @@ impl Bms {
                     .push(obj);
             }
         }
-        for ((side, key), objs) in lane_to_notes.into_iter() {
+        for ((side, key), objs) in lane_to_notes {
             if objs.is_empty() {
                 continue;
             }
