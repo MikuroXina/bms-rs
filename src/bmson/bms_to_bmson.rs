@@ -233,10 +233,9 @@ impl Bms {
                         let duration = self
                             .notes
                             .next_obj_by_key(note.side, note.key, note.offset)
-                            .map(|next_note| {
+                            .map_or(0, |next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
-                            })
-                            .unwrap_or(0);
+                            });
                         sound_map.entry(note.obj).or_default().push(Note {
                             x: note_lane,
                             y: pulses,

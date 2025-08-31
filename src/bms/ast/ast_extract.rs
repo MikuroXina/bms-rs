@@ -100,10 +100,8 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (_skip_start, skip_end) = tokens
-                    .last()
-                    .map(|t| t.as_span())
-                    .unwrap_or(value.as_span());
+                let (_skip_start, skip_end) =
+                    tokens.last().map_or(value.as_span(), |t| t.as_span());
                 let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
@@ -115,10 +113,8 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (_skip_start, skip_end) = tokens
-                    .last()
-                    .map(|t| t.as_span())
-                    .unwrap_or(value.as_span());
+                let (_skip_start, skip_end) =
+                    tokens.last().map_or(value.as_span(), |t| t.as_span());
                 let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
