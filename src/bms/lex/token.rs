@@ -104,7 +104,7 @@ pub enum Token<'a> {
     Charset(&'a str),
     /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
     Comment(&'a str),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`TokenWithRange::Switch`].
+    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
     /// 100 means NORMAL judge.
