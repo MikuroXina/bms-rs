@@ -863,7 +863,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     self.graphics.push_bga_change(
                         BgaObj {
                             time,
@@ -915,7 +915,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 for (time, opacity_value) in opacity_from_message(*track, message) {
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     self.graphics.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
@@ -969,7 +969,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 for (time, argb_id) in ids_from_message(*track, message) {
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = self
                         .scope_defines
                         .argb_defs

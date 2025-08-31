@@ -192,14 +192,14 @@ impl ToAriadne for BmsWarning {
             PlayingWarning(w) => {
                 let filename = src.name.to_string();
                 Report::build(ReportKind::Warning, (filename.clone(), 0..0))
-                    .with_message(format!("playing warning: {}", w))
+                    .with_message(format!("playing warning: {w}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
             }
             PlayingError(e) => {
                 let filename = src.name.to_string();
                 Report::build(ReportKind::Error, (filename.clone(), 0..0))
-                    .with_message(format!("playing error: {}", e))
+                    .with_message(format!("playing error: {e}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
             }

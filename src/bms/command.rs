@@ -74,7 +74,7 @@ impl std::fmt::Display for JudgeLevel {
             Self::Hard => write!(f, "1"),
             Self::Normal => write!(f, "2"),
             Self::Easy => write!(f, "3"),
-            Self::OtherInt(value) => write!(f, "{}", value),
+            Self::OtherInt(value) => write!(f, "{value}"),
         }
     }
 }

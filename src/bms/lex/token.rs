@@ -1283,10 +1283,10 @@ impl<'a> std::fmt::Display for Token<'a> {
             #[cfg(feature = "minor-command")]
             Token::Argb(id, argb) => write!(
                 f,
-                "#ARGB{} {},{},{},{}",
-                id, argb.alpha, argb.red, argb.green, argb.blue
+                "#ARGB{id} {},{},{},{}",
+                argb.alpha, argb.red, argb.green, argb.blue
             ),
-            Token::Artist(artist) => write!(f, "#ARTIST {}", artist),
+            Token::Artist(artist) => write!(f, "#ARTIST {artist}"),
             #[cfg(feature = "minor-command")]
             Token::AtBga {
                 id,
@@ -1312,7 +1312,7 @@ impl<'a> std::fmt::Display for Token<'a> {
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
             Token::Base62 => write!(f, "#BASE 62"),
             #[cfg(feature = "minor-command")]
-            Token::BaseBpm(bpm) => write!(f, "#BASEBPM {}", bpm),
+            Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
             #[cfg(feature = "minor-command")]
             Token::Bga {
                 id,
@@ -1336,25 +1336,25 @@ impl<'a> std::fmt::Display for Token<'a> {
             }
             Token::Bmp(Some(id), path) => write!(f, "#BMP{} {}", id, path.display()),
             Token::Bmp(None, path) => write!(f, "#BMP00 {}", path.display()),
-            Token::Bpm(bpm) => write!(f, "#BPM {}", bpm),
-            Token::BpmChange(id, bpm) => write!(f, "#BPM{} {}", id, bpm),
-            Token::Case(value) => write!(f, "#CASE {}", value),
+            Token::Bpm(bpm) => write!(f, "#BPM {bpm}"),
+            Token::BpmChange(id, bpm) => write!(f, "#BPM{id} {bpm}"),
+            Token::Case(value) => write!(f, "#CASE {value}"),
             #[cfg(feature = "minor-command")]
-            Token::Cdda(value) => write!(f, "#CDDA {}", value),
+            Token::Cdda(value) => write!(f, "#CDDA {value}"),
             #[cfg(feature = "minor-command")]
-            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{} {}", id, option),
+            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{id} {option}"),
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
-            Token::Charset(charset) => write!(f, "#CHARSET {}", charset),
-            Token::Comment(comment) => write!(f, "#COMMENT {}", comment),
+            Token::Charset(charset) => write!(f, "#CHARSET {charset}"),
+            Token::Comment(comment) => write!(f, "#COMMENT {comment}"),
             Token::Def => write!(f, "#DEF"),
-            Token::DefExRank(value) => write!(f, "#DEFEXRANK {}", value),
-            Token::Difficulty(diff) => write!(f, "#DIFFICULTY {}", diff),
+            Token::DefExRank(value) => write!(f, "#DEFEXRANK {value}"),
+            Token::Difficulty(diff) => write!(f, "#DIFFICULTY {diff}"),
             #[cfg(feature = "minor-command")]
-            Token::DivideProp(prop) => write!(f, "#DIVIDEPROP {}", prop),
+            Token::DivideProp(prop) => write!(f, "#DIVIDEPROP {prop}"),
             Token::Else => write!(f, "#ELSE"),
-            Token::ElseIf(value) => write!(f, "#ELSEIF {}", value),
-            Token::Email(email) => write!(f, "%EMAIL {}", email),
+            Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
+            Token::Email(email) => write!(f, "%EMAIL {email}"),
             Token::EndIf => write!(f, "#ENDIF"),
             Token::EndRandom => write!(f, "#ENDRANDOM"),
             Token::EndSwitch => write!(f, "#ENDSW"),
@@ -1366,9 +1366,9 @@ impl<'a> std::fmt::Display for Token<'a> {
                     ev.sprite_num, ev.bmp_num, ev.start_x, ev.start_y, ev.end_x, ev.end_y
                 )?;
                 if let (Some(offset_x), Some(offset_y)) = (ev.offset_x, ev.offset_y) {
-                    write!(f, " {} {}", offset_x, offset_y)?;
+                    write!(f, " {offset_x} {offset_y}")?;
                     if let (Some(abs_x), Some(abs_y)) = (ev.abs_x, ev.abs_y) {
-                        write!(f, " {} {}", abs_x, abs_y)?;
+                        write!(f, " {abs_x} {abs_y}")?;
                     }
                 }
                 Ok(())
@@ -1383,7 +1383,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                 argb.blue,
                 path.display()
             ),
-            Token::ExRank(id, level) => write!(f, "#EXRANK{} {}", id, level),
+            Token::ExRank(id, level) => write!(f, "#EXRANK{id} {level}"),
             #[cfg(feature = "minor-command")]
             Token::ExWav {
                 id,
@@ -1392,7 +1392,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                 frequency,
                 path,
             } => {
-                write!(f, "#EXWAV{}", id)?;
+                write!(f, "#EXWAV{id}")?;
                 let mut params = String::new();
                 if *pan != ExWavPan::default() {
                     params.push('p');
@@ -1406,7 +1406,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                 if params.is_empty() {
                     params.push('p');
                 }
-                write!(f, " {}", params)?;
+                write!(f, " {params}")?;
                 if *pan != ExWavPan::default() {
                     write!(f, " {}", pan.value())?;
                 }
@@ -1418,8 +1418,8 @@ impl<'a> std::fmt::Display for Token<'a> {
                 }
                 write!(f, " {}", path.display())
             }
-            Token::Genre(genre) => write!(f, "#GENRE {}", genre),
-            Token::If(value) => write!(f, "#IF {}", value),
+            Token::Genre(genre) => write!(f, "#GENRE {genre}"),
+            Token::If(value) => write!(f, "#IF {value}"),
             Token::LnMode(mode) => write!(
                 f,
                 "#LNMODE {}",
@@ -1429,10 +1429,10 @@ impl<'a> std::fmt::Display for Token<'a> {
                     LnMode::Hcn => 3,
                 }
             ),
-            Token::LnObj(id) => write!(f, "#LNOBJ {}", id),
+            Token::LnObj(id) => write!(f, "#LNOBJ {id}"),
             Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
             Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
-            Token::Maker(maker) => write!(f, "#MAKER {}", maker),
+            Token::Maker(maker) => write!(f, "#MAKER {maker}"),
             #[cfg(feature = "minor-command")]
             Token::Materials(path) => write!(f, "#MATERIALS {}", path.display()),
             #[cfg(feature = "minor-command")]
@@ -1447,11 +1447,11 @@ impl<'a> std::fmt::Display for Token<'a> {
             #[cfg(feature = "minor-command")]
             Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
             Token::Movie(path) => write!(f, "#MOVIE {}", path.display()),
-            Token::NotACommand(content) => write!(f, "{}", content),
+            Token::NotACommand(content) => write!(f, "{content}"),
             #[cfg(feature = "minor-command")]
             Token::OctFp => write!(f, "#OCT/FP"),
             #[cfg(feature = "minor-command")]
-            Token::Option(option) => write!(f, "#OPTION {}", option),
+            Token::Option(option) => write!(f, "#OPTION {option}"),
             Token::PathWav(path) => write!(f, "#PATH_WAV {}", path.display()),
             Token::Player(mode) => write!(
                 f,
@@ -1462,7 +1462,7 @@ impl<'a> std::fmt::Display for Token<'a> {
                     PlayerMode::Double => 3,
                 }
             ),
-            Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {}", level),
+            Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
             Token::PoorBga(mode) => write!(
                 f,
                 "#POORBGA {}",
@@ -1473,26 +1473,26 @@ impl<'a> std::fmt::Display for Token<'a> {
                 }
             ),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
-            Token::Random(value) => write!(f, "#RANDOM {}", value),
-            Token::Rank(level) => write!(f, "#RANK {}", level),
-            Token::Scroll(id, factor) => write!(f, "#SCROLL{} {}", id, factor),
+            Token::Random(value) => write!(f, "#RANDOM {value}"),
+            Token::Rank(level) => write!(f, "#RANK {level}"),
+            Token::Scroll(id, factor) => write!(f, "#SCROLL{id} {factor}"),
             #[cfg(feature = "minor-command")]
-            Token::Seek(id, position) => write!(f, "#SEEK{} {}", id, position),
-            Token::SetRandom(value) => write!(f, "#SETRANDOM {}", value),
-            Token::SetSwitch(value) => write!(f, "#SETSWITCH {}", value),
+            Token::Seek(id, position) => write!(f, "#SEEK{id} {position}"),
+            Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
+            Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
-            Token::Speed(id, factor) => write!(f, "#SPEED{} {}", id, factor),
+            Token::Speed(id, factor) => write!(f, "#SPEED{id} {factor}"),
             Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
-            Token::Stop(id, beats) => write!(f, "#STOP{} {}", id, beats),
+            Token::Stop(id, beats) => write!(f, "#STOP{id} {beats}"),
             #[cfg(feature = "minor-command")]
             Token::Stp(ev) => {
                 let measure = ev.time.track.0;
                 let pos = (ev.time.numerator * 1000 / ev.time.denominator) as u16;
                 let ms = ev.duration.as_millis() as u32;
-                write!(f, "#STP {:03}.{:03} {}", measure, pos, ms)
+                write!(f, "#STP {measure:03}.{pos:03} {ms}")
             }
-            Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {}", sub_artist),
-            Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {}", subtitle),
+            Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {sub_artist}"),
+            Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {subtitle}"),
             #[cfg(feature = "minor-command")]
             Token::SwBga(id, ev) => {
                 write!(
@@ -1510,19 +1510,19 @@ impl<'a> std::fmt::Display for Token<'a> {
                     ev.pattern
                 )
             }
-            Token::Switch(value) => write!(f, "#SWITCH {}", value),
-            Token::Text(id, text) => write!(f, "#TEXT{} {}", id, text),
-            Token::Title(title) => write!(f, "#TITLE {}", title),
-            Token::Total(total) => write!(f, "#TOTAL {}", total),
-            Token::UnknownCommand(cmd) => write!(f, "{}", cmd),
-            Token::Url(url) => write!(f, "%URL {}", url),
+            Token::Switch(value) => write!(f, "#SWITCH {value}"),
+            Token::Text(id, text) => write!(f, "#TEXT{id} {text}"),
+            Token::Title(title) => write!(f, "#TITLE {title}"),
+            Token::Total(total) => write!(f, "#TOTAL {total}"),
+            Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
+            Token::Url(url) => write!(f, "%URL {url}"),
             #[cfg(feature = "minor-command")]
-            Token::VideoColors(colors) => write!(f, "#VIDEOCOLORS {}", colors),
+            Token::VideoColors(colors) => write!(f, "#VIDEOCOLORS {colors}"),
             #[cfg(feature = "minor-command")]
-            Token::VideoDly(delay) => write!(f, "#VIDEODLY {}", delay),
+            Token::VideoDly(delay) => write!(f, "#VIDEODLY {delay}"),
             Token::VideoFile(path) => write!(f, "#VIDEOFILE {}", path.display()),
             #[cfg(feature = "minor-command")]
-            Token::VideoFs(fps) => write!(f, "#VIDEOF/S {}", fps),
+            Token::VideoFs(fps) => write!(f, "#VIDEOF/S {fps}"),
             Token::VolWav(volume) => write!(f, "#VOLWAV {}", volume.relative_percent),
             Token::Wav(id, path) => write!(f, "#WAV{} {}", id, path.display()),
             #[cfg(feature = "minor-command")]
