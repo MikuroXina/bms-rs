@@ -291,21 +291,21 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     errors.append(&mut errs);
                     current_if_end = current_if_end.or(Some(end_if));
                 } else if let Some(ref max) = max_value {
-                    // Check if If branch value is out-of-range
-                    if !(&BigUint::from(1u64)..=max).contains(&if_val) {
+                    // Check if If branch value is in the range
+                    if (&BigUint::from(1u64)..=max).contains(&if_val) {
+                        seen_if_values.insert(if_val);
+                        let (tokens, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
+                        errors.append(&mut errs);
+                        branches.insert(if_val.clone(), tokens.into_wrapper(token));
+                        current_if_end = current_if_end.or(Some(end_if));
+                    } else {
                         errors.push(
                             AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
                         let (_, mut errs, end_if) =
                             parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        current_if_end = current_if_end.or(Some(end_if));
-                    } else {
-                        seen_if_values.insert(if_val);
-                        let (tokens, mut errs, end_if) =
-                            parse_if_block_body(iter, ().into_wrapper(token));
-                        errors.append(&mut errs);
-                        branches.insert(if_val.clone(), tokens.into_wrapper(token));
                         current_if_end = current_if_end.or(Some(end_if));
                     }
                 } else {
