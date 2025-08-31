@@ -234,7 +234,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
         use PlayerSide::*;
         let (side, kind, key) = self.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key(1) | Key(2) | Key(3) | Key(4) | Key(5)) => (Player1, key),
+            (Player1, Key(1..=5)) => (Player1, key),
             (Player1, Key(6)) => (Player2, Key(2)),
             (Player1, Key(7)) => (Player2, Key(3)),
             (Player1, Key(8)) => (Player2, Key(4)),
@@ -250,7 +250,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
         use PlayerSide::*;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
-            (Player1, Key(1) | Key(2) | Key(3) | Key(4) | Key(5)) => (Player1, key),
+            (Player1, Key(1..=5)) => (Player1, key),
             (Player2, Key(2)) => (Player1, Key(6)),
             (Player2, Key(3)) => (Player1, Key(7)),
             (Player2, Key(4)) => (Player1, Key(8)),
@@ -348,10 +348,7 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
         use PlayerSide::*;
         let (side, kind, key) = self.into_tuple();
         let (side, key) = match (side, key) {
-            (
-                Player1,
-                Key(1) | Key(2) | Key(3) | Key(4) | Key(5) | Key(6) | Key(7) | Scratch(1),
-            ) => (Player1, key),
+            (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
             (Player1, Scratch(2)) => (Player2, Scratch(1)),
             (Player1, FootPedal) => (Player2, Key(1)),
             (Player1, Key(8)) => (Player2, Key(2)),
@@ -371,10 +368,7 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
         use PlayerSide::*;
         let (side, kind, key) = beat.into_tuple();
         let (side, key) = match (side, key) {
-            (
-                Player1,
-                Key(1) | Key(2) | Key(3) | Key(4) | Key(5) | Key(6) | Key(7) | Scratch(1),
-            ) => (Player1, key),
+            (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
             (Player2, Key(1)) => (Player1, FootPedal),
             (Player2, Key(2)) => (Player1, Key(8)),
             (Player2, Key(3)) => (Player1, Key(9)),
