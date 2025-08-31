@@ -1375,7 +1375,7 @@ impl Arrangers {
             .and_modify(|existing| {
                 existing.duration = &existing.duration + &stop.duration;
             })
-            .or_insert_with(|| stop.clone());
+            .or_insert_with(|| stop);
     }
 }
 
@@ -1509,11 +1509,14 @@ impl Notes {
 
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: Obj) {
-        self.objs.entry(note.obj).or_default().push(note.clone());
+        let entry_key = (note.side, note.key);
+        let offset = note.offset;
+        let obj = note.obj;
+        self.objs.entry(obj).or_default().push(note);
         self.ids_by_key
-            .entry((note.side, note.key))
+            .entry(entry_key)
             .or_default()
-            .insert(note.offset, note.obj);
+            .insert(offset, obj);
     }
 
     /// Removes the latest note from the notes.
