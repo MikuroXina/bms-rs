@@ -159,7 +159,7 @@ pub enum Token<'a> {
     },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`TokenWithRange::Random`].
+    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnMode),
