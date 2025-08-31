@@ -54,9 +54,12 @@ struct JavaRandom {
 }
 
 impl JavaRandom {
+    const MULT: u64 = 0x5_DEEC_E66D;
+    const ADD: u64 = 0xB;
+
     /// Create a new [`JavaRandom`] with the given seed.
     pub const fn new(seed: i64) -> Self {
-        let s = (seed as u64) ^ 0x5DEECE66D;
+        let s = (seed as u64) ^ Self::MULT;
         Self {
             seed: s & ((1u64 << 48) - 1),
         }
@@ -64,9 +67,8 @@ impl JavaRandom {
 
     /// Java's next(int bits) method
     const fn next(&mut self, bits: i32) -> i32 {
-        const MULT: u64 = 0x5DEECE66D;
-        const ADD: u64 = 0xB;
-        self.seed = (self.seed.wrapping_mul(MULT).wrapping_add(ADD)) & ((1u64 << 48) - 1);
+        self.seed =
+            (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
         ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
     }
 
