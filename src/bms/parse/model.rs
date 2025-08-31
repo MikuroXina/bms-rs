@@ -8,6 +8,7 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
+    marker::PhantomData,
     ops::Bound,
     path::PathBuf,
     str::FromStr,
@@ -53,7 +54,7 @@ use super::{
 };
 
 /// A score data of BMS format.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The header data in the score.
@@ -81,14 +82,14 @@ impl<T: KeyLayoutMapper> Default for Bms<T> {
             notes: Default::default(),
             graphics: Default::default(),
             others: Default::default(),
-            _phantom: Default::default(),
+            _phantom: PhantomData,
         }
     }
 }
 
 /// A header of the score, including the information that is usually used in music selection.
 /// Parsed from [`TokenStream`](crate::lex::Token::TokenStream).
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Header {
     /// The play style of the score.
@@ -148,26 +149,26 @@ pub struct Header {
     pub movie: Option<PathBuf>,
 }
 
-/// Stores the original scope-defines like `#WAVXX`. Using HashMap.
+/// Stores the original scope-defines like `#WAVXX`. Using [`HashMap`].
 /// Only stores the original scope-defines, not the parsed ones.
 /// Only stores which affects playing.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScopeDefines {
-    /// BPM change definitions, indexed by ObjId. #BPM[01-ZZ]
+    /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
     pub bpm_defs: HashMap<ObjId, Decimal>,
-    /// Stop definitions, indexed by ObjId. #STOP[01-ZZ]
+    /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
     pub stop_defs: HashMap<ObjId, Decimal>,
-    /// Scroll speed change definitions, indexed by ObjId. #SCROLL[01-ZZ]
+    /// Scroll speed change definitions, indexed by [`ObjId`]. `#SCROLL[01-ZZ]`
     pub scroll_defs: HashMap<ObjId, Decimal>,
-    /// Spacing change definitions, indexed by ObjId. #SPEED[01-ZZ]
+    /// Spacing change definitions, indexed by [`ObjId`]. `#SPEED[01-ZZ]`
     pub speed_defs: HashMap<ObjId, Decimal>,
     /// Storage for #EXRANK definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Storage for #EXWAV definitions
     #[cfg(feature = "minor-command")]
     pub exwav_defs: HashMap<ObjId, ExWavDef>,
-    /// WAVCMD events, indexed by wav_index. #WAVCMD
+    /// WAVCMD events, indexed by `wav_index`. `#WAVCMD`
     #[cfg(feature = "minor-command")]
     pub wavcmd_events: HashMap<ObjId, WavCmdEvent>,
     /// Storage for #@BGA definitions
@@ -176,45 +177,45 @@ pub struct ScopeDefines {
     /// Storage for #BGA definitions
     #[cfg(feature = "minor-command")]
     pub bga_defs: HashMap<ObjId, BgaDef>,
-    /// SWBGA events, indexed by ObjId. #SWBGA
+    /// SWBGA events, indexed by [`ObjId`]. `#SWBGA`
     #[cfg(feature = "minor-command")]
     pub swbga_events: HashMap<ObjId, SwBgaEvent>,
-    /// ARGB definitions, indexed by ObjId. #ARGB
+    /// ARGB definitions, indexed by [`ObjId`]. `#ARGB`
     #[cfg(feature = "minor-command")]
     pub argb_defs: HashMap<ObjId, Argb>,
 }
 
 /// The objects that arrange the playing panel running or showing.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Arrangers {
-    /// Section length change events, indexed by track. #SECLEN
+    /// Section length change events, indexed by track. `#SECLEN`
     pub section_len_changes: BTreeMap<Track, SectionLenChangeObj>,
     /// The initial BPM of the score.
     pub bpm: Option<Decimal>,
     /// The BPMs corresponding to the id of the BPM change object.
-    /// BPM change events, indexed by time. #BPM[01-ZZ] in message
+    /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
-    /// Record of used BPM change ids from #BPMxx messages, for validity checks.
+    /// Record of used BPM change ids from `#BPMxx` messages, for validity checks.
     pub bpm_change_ids_used: HashSet<ObjId>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
-    /// Record of used STOP ids from #STOPxx messages, for validity checks.
+    /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
     pub stop_ids_used: HashSet<ObjId>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
     /// The spacing factors corresponding to the id of the spacing change object.
     pub speed_factor_changes: BTreeMap<ObjTime, SpeedObj>,
-    /// bemaniaDX STP events, indexed by ObjTime. #STP
+    /// bemaniaDX STP events, indexed by [`ObjTime`]. `#STP`
     #[cfg(feature = "minor-command")]
     pub stp_events: BTreeMap<ObjTime, StpEvent>,
-    /// #BASEBPM for LR. Replaced by bpm match in LR2.
+    /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
     #[cfg(feature = "minor-command")]
     pub base_bpm: Option<Decimal>,
 }
 
 /// The playable objects set for querying by lane or time.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Notes {
     /// The path to override the base path of the WAV file path.
@@ -223,9 +224,9 @@ pub struct Notes {
     /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
     // objects stored in obj is sorted, so it can be searched by bisection method
-    /// BGM objects, indexed by time. #XXX01:ZZ... (BGM placement)
+    /// BGM objects, indexed by time. `#XXX01:ZZ...` (BGM placement)
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
-    /// All note objects, indexed by ObjId. #XXXYY:ZZ... (note placement)
+    /// All note objects, indexed by [`ObjId`]. `#XXXYY:ZZ...` (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
     /// Index for fast key lookup. Used for LN/landmine logic.
     /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
@@ -256,7 +257,7 @@ pub struct Notes {
 }
 
 /// The graphics objects that are used in the score.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Graphics {
     /// The path of the background video. The video should be started the playing from the section 000.
@@ -296,7 +297,7 @@ pub struct Graphics {
 }
 
 /// The other objects that are used in the score. May be arranged in play.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Others {
     /// The message for overriding options of some BMS player.
@@ -306,16 +307,16 @@ pub struct Others {
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     pub is_octave: bool,
-    /// CDDA events, indexed by value. #CDDA
+    /// CDDA events, indexed by value. `#CDDA`
     #[cfg(feature = "minor-command")]
     pub cdda: Vec<BigUint>,
-    /// Seek events, indexed by ObjId. #SEEK
+    /// Seek events, indexed by [`ObjId`]. `#SEEK`
     #[cfg(feature = "minor-command")]
     pub seek_events: HashMap<ObjId, Decimal>,
-    /// ExtChr events. #ExtChr
+    /// Extended-character events. `#ExtChr`
     #[cfg(feature = "minor-command")]
     pub extchr_events: Vec<ExtChrEvent>,
-    /// Storage for #TEXT definitions
+    /// Storage for `#TEXT` definitions
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
     /// The option messages corresponding to the id of the change option object.
@@ -732,12 +733,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
-                    let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digit: {c1}",
-                    )))? * 16
-                        + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                            "Invalid hex digit: {c2}",
-                        )))?;
+                    let bpm = c1.to_digit(16).ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!("Invalid hex digit: {c1}",))
+                    })? * 16
+                        + c2.to_digit(16).ok_or_else(|| {
+                            ParseWarning::SyntaxError(format!("Invalid hex digit: {c2}",))
+                        })?;
                     if bpm == 0 {
                         continue;
                     }
@@ -846,7 +847,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     self.arrangers.push_stop(StopObj {
                         time,
                         duration: duration.clone(),
-                    })
+                    });
                 }
             }
             Token::Message {
@@ -863,7 +864,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     self.graphics.push_bga_change(
                         BgaObj {
                             time,
@@ -881,7 +882,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    self.notes.bgms.entry(time).or_default().push(obj)
+                    self.notes.bgms.entry(time).or_default().push(obj);
                 }
             }
             Token::Message {
@@ -915,7 +916,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 for (time, opacity_value) in opacity_from_message(*track, message) {
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     self.graphics.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
@@ -969,7 +970,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 for (time, argb_id) in ids_from_message(*track, message) {
                     let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {:?}", channel));
+                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = self
                         .scope_defines
                         .argb_defs
@@ -1105,12 +1106,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note =
-                    self.notes
-                        .remove_latest_note(begin_id)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {end_id:?}"
-                        )))?;
+                let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "Cannot find begin note for LNOBJ {end_id:?}"
+                    ))
+                })?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.notes.push_note(begin_note);
@@ -1139,7 +1139,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(generic_decimal) => {
-                self.arrangers.base_bpm = Some(generic_decimal.clone())
+                self.arrangers.base_bpm = Some(generic_decimal.clone());
             }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
@@ -1231,6 +1231,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
+    #[must_use]
     pub fn resolution_for_pulses(&self) -> u64 {
         use num::Integer;
 
@@ -1376,13 +1377,14 @@ impl Arrangers {
             .and_modify(|existing| {
                 existing.duration = &existing.duration + &stop.duration;
             })
-            .or_insert(stop.clone());
+            .or_insert_with(|| stop);
     }
 }
 
 impl Graphics {
     /// Returns the bga change objects.
-    pub fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
+    #[must_use]
+    pub const fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
         &self.bga_changes
     }
 
@@ -1479,6 +1481,7 @@ impl Graphics {
 
 impl Notes {
     /// Converts into the notes sorted by time.
+    #[must_use]
     pub fn into_all_notes(self) -> Vec<Obj> {
         self.objs.into_values().flatten().sorted().collect()
     }
@@ -1489,11 +1492,13 @@ impl Notes {
     }
 
     /// Returns all the bgms in the score.
-    pub fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
+    #[must_use]
+    pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
         &self.bgms
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
+    #[must_use]
     pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
         self.ids_by_key
             .get(&(side, key))?
@@ -1510,11 +1515,14 @@ impl Notes {
 
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: Obj) {
-        self.objs.entry(note.obj).or_default().push(note.clone());
+        let entry_key = (note.side, note.key);
+        let offset = note.offset;
+        let obj = note.obj;
+        self.objs.entry(obj).or_default().push(note);
         self.ids_by_key
-            .entry((note.side, note.key))
+            .entry(entry_key)
             .or_default()
-            .insert(note.offset, note.obj);
+            .insert(offset, obj);
     }
 
     /// Removes the latest note from the notes.
@@ -1553,6 +1561,7 @@ impl Notes {
     /// Gets the time of last BGM object.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
+    #[must_use]
     pub fn last_bgm_time(&self) -> Option<ObjTime> {
         self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }
@@ -1830,7 +1839,7 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
 impl<T: KeyLayoutMapper> Bms<T> {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
-        for (_, objs) in self.notes.objs.iter_mut() {
+        for objs in self.notes.objs.values_mut() {
             for Obj {
                 side, kind, key, ..
             } in objs.iter_mut()

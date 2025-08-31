@@ -5,26 +5,29 @@ use std::time::Duration;
 
 use super::{ObjId, graphics::Argb};
 
-/// Pan value for ExWav sound effect.
-/// Range: [-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
+/// Pan value for `#EXWAV` sound effect.
+/// Range: \[-10000, 10000]. -10000 is leftmost, 10000 is rightmost.
 /// Default: 0.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavPan(i64);
 
 impl ExWavPan {
-    /// Creates a new ExWavPan value.
-    /// Returns `None` if the value is out of range [-10000, 10000].
+    /// Creates a new [`ExWavPan`] value.
+    /// Returns `None` if the value is out of range \[-10000, 10000].
+    #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=10000).contains(&value).then_some(Self(value))
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> i64 {
         self.0
     }
 
     /// Returns the default value (0).
+    #[must_use]
     pub const fn default() -> Self {
         Self(0)
     }
@@ -38,26 +41,29 @@ impl TryFrom<i64> for ExWavPan {
     }
 }
 
-/// Volume value for ExWav sound effect.
-/// Range: [-10000, 0]. -10000 is 0%, 0 is 100%.
+/// Volume value for `#EXWAV` sound effect.
+/// Range: \[-10000, 0]. -10000 is 0%, 0 is 100%.
 /// Default: 0.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavVolume(i64);
 
 impl ExWavVolume {
-    /// Creates a new ExWavVolume value.
-    /// Returns `None` if the value is out of range [-10000, 0].
+    /// Creates a new [`ExWavVolume`] value.
+    /// Returns `None` if the value is out of range `[-10000, 0]`.
+    #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=0).contains(&value).then_some(Self(value))
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> i64 {
         self.0
     }
 
     /// Returns the default value (0).
+    #[must_use]
     pub const fn default() -> Self {
         Self(0)
     }
@@ -71,20 +77,27 @@ impl TryFrom<i64> for ExWavVolume {
     }
 }
 
-/// Frequency value for ExWav sound effect.
-/// Range: [100, 100000]. Unit: Hz.
+/// Frequency value for `#EXWAV` sound effect.
+/// Range: \[100, 100000]. Unit: Hz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavFrequency(u64);
 
 impl ExWavFrequency {
-    /// Creates a new ExWavFrequency value.
+    const MIN_FREQUENCY: u64 = 100;
+    const MAX_FREQUENCY: u64 = 100_000;
+
+    /// Creates a new [`ExWavFrequency`] value.
     /// Returns `None` if the value is out of range [100, 100000].
+    #[must_use]
     pub fn new(value: u64) -> Option<Self> {
-        (100..=100000).contains(&value).then_some(Self(value))
+        (Self::MIN_FREQUENCY..=Self::MAX_FREQUENCY)
+            .contains(&value)
+            .then_some(Self(value))
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> u64 {
         self.0
     }
@@ -94,7 +107,7 @@ impl TryFrom<u64> for ExWavFrequency {
     type Error = u64;
 
     fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value.clamp(100, 100000))
+        Self::new(value).ok_or(value.clamp(Self::MIN_FREQUENCY, Self::MAX_FREQUENCY))
     }
 }
 
@@ -108,12 +121,12 @@ pub struct StpEvent {
     pub duration: Duration,
 }
 
-/// MacBeat WAVCMD event.
+/// MacBeat `#WAVCMD` event.
 ///
-/// Used for #WAVCMD command, represents pitch/volume/time adjustment for a specific WAV object.
-/// - param: adjustment type (pitch/volume/time)
-/// - wav_index: target WAV object ID
-/// - value: adjustment value, meaning depends on param
+/// Used for `#WAVCMD` command, represents `pitch`/`volume`/`time` adjustment for a specific WAV object.
+/// - `param`: adjustment type (`pitch`/`volume`/`time`)
+/// - `wav_index`: target WAV object ID
+/// - `value`: adjustment value, meaning depends on param
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavCmdEvent {
@@ -127,13 +140,13 @@ pub struct WavCmdEvent {
 
 /// SWBGA (Key Bind Layer Animation) event.
 ///
-/// Used for #SWBGA command, describes key-bound BGA animation.
-/// - frame_rate: frame interval (ms), e.g. 60FPS=17
-/// - total_time: total animation duration (ms), 0 means while key is held
+/// Used for `#SWBGA` command, describes key-bound BGA animation.
+/// - `frame_rate`: frame interval (ms), e.g. 60FPS=17
+/// - `total_time`: total animation duration (ms), 0 means while key is held
 /// - line: applicable key channel (e.g. 11-19, 21-29)
-/// - loop_mode: whether to loop (0: no loop, 1: loop)
-/// - argb: transparent color (A,R,G,B)
-/// - pattern: animation frame sequence (e.g. 01020304)
+/// - `loop_mode`: whether to loop (0: no loop, 1: loop)
+/// - `argb`: transparent color (A,R,G,B)
+/// - `pattern`: animation frame sequence (e.g. 01020304)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SwBgaEvent {
@@ -151,15 +164,15 @@ pub struct SwBgaEvent {
     pub pattern: String,
 }
 
-/// BM98 #ExtChr extended character customization event.
+/// BM98 `#ExtChr` extended character customization event.
 ///
-/// Used for #ExtChr command, implements custom UI element image replacement.
-/// - sprite_num: character index to replace [0-1023]
-/// - bmp_num: BMP index (hex to decimal, or -1/-257, etc.)
-/// - start_x/start_y: crop start point
-/// - end_x/end_y: crop end point
-/// - offset_x/offset_y: offset (optional)
-/// - abs_x/abs_y: absolute coordinate (optional)
+/// Used for `#ExtChr` command, implements custom UI element image replacement.
+/// - `sprite_num`: character index to replace `[0-1023]`
+/// - `bmp_num`: BMP index (hex to decimal, or `-1`/`-257`, etc.)
+/// - `start_x`/`start_y`: crop start point
+/// - `end_x`/`end_y`: crop end point
+/// - `offset_x`/`offset_y`: offset (optional)
+/// - `abs_x`/`abs_y`: absolute coordinate (optional)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtChrEvent {

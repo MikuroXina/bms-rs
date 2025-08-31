@@ -168,10 +168,10 @@ pub enum DefDuplication<'a> {
         /// Incoming definition.
         newer: &'a Argb,
     },
-    /// WAVCMD event is duplicated.
+    /// `WAVCMD` event is duplicated.
     #[cfg(feature = "minor-command")]
     WavCmdEvent {
-        /// Duplicated WAVCMD event wav_index.
+        /// Duplicated `WAVCMD` event `wav_index`.
         wav_index: ObjId,
         /// Existing definition.
         older: &'a WavCmdEvent,
@@ -366,13 +366,13 @@ pub enum DuplicationWorkaround {
 impl DuplicationWorkaround {
     pub(crate) fn apply_def<T>(self, target: &mut T, newer: T, id: ObjId) -> Result<()> {
         match self {
-            DuplicationWorkaround::UseOlder => Ok(()),
-            DuplicationWorkaround::UseNewer => {
+            Self::UseOlder => Ok(()),
+            Self::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder => Err(ParseWarning::DuplicatingDef(id)),
-            DuplicationWorkaround::WarnAndUseNewer => {
+            Self::WarnAndUseOlder => Err(ParseWarning::DuplicatingDef(id)),
+            Self::WarnAndUseNewer => {
                 *target = newer;
                 Err(ParseWarning::DuplicatingDef(id))
             }
@@ -387,15 +387,13 @@ impl DuplicationWorkaround {
         channel: Channel,
     ) -> Result<()> {
         match self {
-            DuplicationWorkaround::UseOlder => Ok(()),
-            DuplicationWorkaround::UseNewer => {
+            Self::UseOlder => Ok(()),
+            Self::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder => {
-                Err(ParseWarning::DuplicatingTrackObj(track, channel))
-            }
-            DuplicationWorkaround::WarnAndUseNewer => {
+            Self::WarnAndUseOlder => Err(ParseWarning::DuplicatingTrackObj(track, channel)),
+            Self::WarnAndUseNewer => {
                 *target = newer;
                 Err(ParseWarning::DuplicatingTrackObj(track, channel))
             }
@@ -410,15 +408,13 @@ impl DuplicationWorkaround {
         channel: Channel,
     ) -> Result<()> {
         match self {
-            DuplicationWorkaround::UseOlder => Ok(()),
-            DuplicationWorkaround::UseNewer => {
+            Self::UseOlder => Ok(()),
+            Self::UseNewer => {
                 *target = newer;
                 Ok(())
             }
-            DuplicationWorkaround::WarnAndUseOlder => {
-                Err(ParseWarning::DuplicatingChannelObj(time, channel))
-            }
-            DuplicationWorkaround::WarnAndUseNewer => {
+            Self::WarnAndUseOlder => Err(ParseWarning::DuplicatingChannelObj(time, channel)),
+            Self::WarnAndUseNewer => {
                 *target = newer;
                 Err(ParseWarning::DuplicatingChannelObj(time, channel))
             }

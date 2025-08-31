@@ -45,7 +45,8 @@ pub enum BmsToBmsonWarning {
 }
 
 /// Output of the conversion from `Bms` to `Bmson`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct BmsToBmsonOutput {
     /// The converted `Bmson` object.
     pub bmson: Bmson,
@@ -56,21 +57,20 @@ pub struct BmsToBmsonOutput {
 impl Bms {
     /// Convert `Bms` to `Bmson`.
     pub fn to_bmson(self) -> BmsToBmsonOutput {
-        let mut warnings = Vec::new();
-        let converter = PulseConverter::new(&self);
-
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
+
+        let mut warnings = Vec::new();
+        let converter = PulseConverter::new(&self);
         let judge_rank = FinF64::new(match self.header.rank {
             Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::Normal) | None => 1.0,
+            Some(JudgeLevel::Normal | JudgeLevel::OtherInt(_)) | None => 1.0,
             Some(JudgeLevel::Hard) => HARD_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::VeryHard) => VERY_HARD_WIDTH / NORMAL_WIDTH,
-            Some(JudgeLevel::OtherInt(_)) => 1.0,
         })
         .unwrap_or_else(|| {
             warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
@@ -137,7 +137,7 @@ impl Bms {
                     (false, false) => "beat-5k".into(),
                 }
             },
-            chart_name: "".into(),
+            chart_name: String::new(),
             level: self.header.play_level.unwrap_or_default() as u32,
             init_bpm: {
                 let bpm_value = if let Some(bpm) = self.arrangers.bpm.as_ref() {
@@ -167,8 +167,7 @@ impl Bms {
             back_image: self
                 .header
                 .back_bmp
-                .as_ref()
-                .cloned()
+                .clone()
                 .map(|path| path.display().to_string()),
             eyecatch_image: self
                 .header
@@ -233,10 +232,9 @@ impl Bms {
                         let duration = self
                             .notes
                             .next_obj_by_key(note.side, note.key, note.offset)
-                            .map(|next_note| {
+                            .map_or(0, |next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
-                            })
-                            .unwrap_or(0);
+                            });
                         sound_map.entry(note.obj).or_default().push(Note {
                             x: note_lane,
                             y: pulses,
@@ -306,7 +304,7 @@ impl Bms {
                 target.push(BgaEvent {
                     y: converter.get_pulses_at(time),
                     id: BgaId(change.id.as_u32()),
-                })
+                });
             }
             bga
         };

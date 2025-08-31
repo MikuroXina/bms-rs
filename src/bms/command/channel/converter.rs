@@ -16,7 +16,8 @@ pub trait KeyLayoutConverter {
 
 impl KeyLayoutConvertMirror {
     /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
-    pub fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
+    #[must_use]
+    pub const fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
         Self { side, keys }
     }
 }
@@ -53,33 +54,33 @@ struct JavaRandom {
 }
 
 impl JavaRandom {
+    const MULT: u64 = 0x5_DEEC_E66D;
+    const ADD: u64 = 0xB;
+
     /// Create a new [`JavaRandom`] with the given seed.
-    pub fn new(seed: i64) -> Self {
-        let s = (seed as u64) ^ 0x5DEECE66D;
-        JavaRandom {
+    pub const fn new(seed: i64) -> Self {
+        let s = (seed as u64) ^ Self::MULT;
+        Self {
             seed: s & ((1u64 << 48) - 1),
         }
     }
 
-    /// Java's next(int bits) method
-    fn next(&mut self, bits: i32) -> i32 {
-        const MULT: u64 = 0x5DEECE66D;
-        const ADD: u64 = 0xB;
-        self.seed = (self.seed.wrapping_mul(MULT).wrapping_add(ADD)) & ((1u64 << 48) - 1);
+    /// Java's `next(int bits)` method
+    const fn next(&mut self, bits: i32) -> i32 {
+        self.seed =
+            (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
         ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
     }
 
-    /// Java's nextInt() method - returns any int value
+    /// Java's `nextInt()` method - returns any int value
     #[allow(dead_code)]
-    pub fn next_int(&mut self) -> i32 {
+    pub const fn next_int(&mut self) -> i32 {
         self.next(32)
     }
 
-    /// Java's nextInt(int bound) method
+    /// Java's `nextInt(int bound)` method
     pub fn next_int_bound(&mut self, bound: i32) -> i32 {
-        if bound <= 0 {
-            panic!("bound must be positive");
-        }
+        assert!(bound > 0, "bound must be positive");
 
         let m = bound - 1;
         if (bound & m) == 0 {
@@ -108,10 +109,11 @@ pub struct KeyLayoutConvertLaneRotateShuffle {
 
 impl KeyLayoutConvertLaneRotateShuffle {
     /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
-    pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
-        KeyLayoutConvertLaneRotateShuffle {
+    #[must_use]
+    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
+        Self {
             side,
-            arrangement: Self::make_random(&keys, seed),
+            arrangement: Self::make_random(keys, seed),
         }
     }
 
@@ -163,10 +165,11 @@ pub struct KeyLayoutConvertLaneRandomShuffle {
 
 impl KeyLayoutConvertLaneRandomShuffle {
     /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
-    pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
-        KeyLayoutConvertLaneRandomShuffle {
+    #[must_use]
+    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
+        Self {
             side,
-            arrangement: Self::make_random(&keys, seed),
+            arrangement: Self::make_random(keys, seed),
         }
     }
 
@@ -269,7 +272,7 @@ mod channel_mode_tests {
 
     /// Test the random shuffle modifier.
     ///
-    /// Source: https://www.bilibili.com/opus/1033281595747860483
+    /// Source: <https://www.bilibili.com/opus/1033281595747860483>
     #[test]
     fn test_random_shuffle() {
         let examples = [
@@ -306,11 +309,8 @@ mod channel_mode_tests {
                 Key::Key(6),
                 Key::Key(7),
             ];
-            let mut rnd = KeyLayoutConvertLaneRandomShuffle::new(
-                PlayerSide::Player1,
-                init_keys.to_vec(),
-                *seed,
-            );
+            let mut rnd =
+                KeyLayoutConvertLaneRandomShuffle::new(PlayerSide::Player1, &init_keys, *seed);
             let result_values = init_keys
                 .into_iter()
                 .map(|k| {

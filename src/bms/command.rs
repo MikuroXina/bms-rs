@@ -27,11 +27,10 @@ pub enum PlayerMode {
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
 ///
-/// IIDX/LR2/beatoraja judge windows: https://iidx.org/misc/iidx_lr2_beatoraja_diff
+/// IIDX/LR2/beatoraja judge windows: <https://iidx.org/misc/iidx_lr2_beatoraja_diff>
 ///
-/// Note: VeryEasy is not Implemented.
-/// For `#RANK 4`, `#RANK 6` and `#RANK -1`: Usage differs among the BMS players.
-/// See: https://github.com/MikuroXina/bms-rs/pull/122
+/// Note: The difficulty `VeryEasy` is decided to be unimplemented.
+/// See [discussions in the PR](https://github.com/MikuroXina/bms-rs/pull/122).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum JudgeLevel {
@@ -44,7 +43,7 @@ pub enum JudgeLevel {
     /// Rank 3, the easier rank.
     Easy,
     /// Other integer value. Please See `JudgeLevel` for more details.
-    /// If used for ExRank, representing precentage.
+    /// If used for `#EXRANK`, representing percentage.
     OtherInt(i64),
 }
 
@@ -63,26 +62,23 @@ impl From<i64> for JudgeLevel {
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
     fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
-        value
-            .parse::<i64>()
-            .map(JudgeLevel::from)
-            .map_err(|_| value)
+        value.parse::<i64>().map(Self::from).map_err(|_| value)
     }
 }
 
 impl std::fmt::Display for JudgeLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JudgeLevel::VeryHard => write!(f, "0"),
-            JudgeLevel::Hard => write!(f, "1"),
-            JudgeLevel::Normal => write!(f, "2"),
-            JudgeLevel::Easy => write!(f, "3"),
-            JudgeLevel::OtherInt(value) => write!(f, "{}", value),
+            Self::VeryHard => write!(f, "0"),
+            Self::Hard => write!(f, "1"),
+            Self::Normal => write!(f, "2"),
+            Self::Easy => write!(f, "3"),
+            Self::OtherInt(value) => write!(f, "{value}"),
         }
     }
 }
 
-pub(crate) fn char_to_base62(ch: char) -> Option<u8> {
+pub(crate) const fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
         _ => None,
@@ -187,27 +183,31 @@ impl From<ObjId> for u64 {
 
 impl ObjId {
     /// Instances a special null id, which means the rest object.
+    #[must_use]
     pub const fn null() -> Self {
         Self([0, 0])
     }
 
     /// Converts the object id into an `u16` value.
+    #[must_use]
     pub fn as_u16(self) -> u16 {
         self.into()
     }
 
     /// Converts the object id into an `u32` value.
+    #[must_use]
     pub fn as_u32(self) -> u32 {
         self.into()
     }
 
     /// Converts the object id into an `u64` value.
+    #[must_use]
     pub fn as_u64(self) -> u64 {
         self.into()
     }
 
     /// Makes the object id uppercase.
-    pub fn make_uppercase(&mut self) {
+    pub const fn make_uppercase(&mut self) {
         self.0[0] = self.0[0].to_ascii_uppercase();
         self.0[1] = self.0[1].to_ascii_uppercase();
     }
@@ -281,9 +281,9 @@ impl TryFrom<u8> for LnMode {
     type Error = u8;
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
-            1 => LnMode::Ln,
-            2 => LnMode::Cn,
-            3 => LnMode::Hcn,
+            1 => Self::Ln,
+            2 => Self::Cn,
+            3 => Self::Hcn,
             _ => return Err(value),
         })
     }

@@ -42,8 +42,9 @@ pub enum PlayingError {
 }
 
 /// Output of checking for playing warnings and errors.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct PlayingCheckOutput {
     /// List of [`PlayingWarning`]s.
     pub playing_warnings: Vec<PlayingWarning>,

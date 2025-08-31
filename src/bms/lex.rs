@@ -1,7 +1,7 @@
 //! Lexical analyzer of BMS format.
 //!
-//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
-//! BmsParseOutput)
+//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
+//! [`BmsParseOutput`])
 
 mod command_impl;
 mod cursor;
@@ -53,12 +53,13 @@ pub enum LexWarning {
 /// A [`LexWarning`] type with position information.
 pub type LexWarningWithRange = SourceRangeMixin<LexWarning>;
 
-/// type alias of core::result::Result<T, LexWarningWithRange>
+/// Type alias of `core::result::Result<T, LexWarningWithRange>`
 pub(crate) type Result<T> = core::result::Result<T, LexWarningWithRange>;
 
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[must_use]
 pub struct LexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,
@@ -108,11 +109,11 @@ impl<'a> IntoIterator for TokenRefStream<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a TokenRefStream<'a> {
-    type Item = &'a TokenWithRange<'a>;
-    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithRange<'a>>>;
+impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
+    type Item = &'b &'a TokenWithRange<'a>;
+    type IntoIter = std::slice::Iter<'b, &'a TokenWithRange<'a>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.token_refs.iter().cloned()
+        self.token_refs.iter()
     }
 }
 
@@ -142,7 +143,7 @@ impl<'a> TokenStream<'a> {
                 Err(warning) => {
                     warnings.push(warning);
                 }
-            };
+            }
         }
 
         let case_sensitive = tokens
@@ -157,6 +158,18 @@ impl<'a> TokenStream<'a> {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,
         }
+    }
+
+    /// Makes a new iterator of tokens.
+    pub fn iter(&self) -> std::slice::Iter<'_, TokenWithRange<'a>> {
+        self.tokens.iter()
+    }
+}
+
+impl<'a> TokenRefStream<'a> {
+    /// Makes a new iterator of token references.
+    pub fn iter(&self) -> std::slice::Iter<'_, &'a TokenWithRange<'a>> {
+        self.token_refs.iter()
     }
 }
 

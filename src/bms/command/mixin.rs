@@ -27,12 +27,12 @@ impl<T> SourceRangeMixin<T> {
     }
 
     /// Returns the wrapped content.
-    pub fn content(&self) -> &T {
+    pub const fn content(&self) -> &T {
         &self.content
     }
 
     /// Returns the wrapped content as a mutable reference.
-    pub fn content_mut(&mut self) -> &mut T {
+    pub const fn content_mut(&mut self) -> &mut T {
         &mut self.content
     }
 
@@ -42,32 +42,32 @@ impl<T> SourceRangeMixin<T> {
     }
 
     /// Returns the start index of the source span.
-    pub fn start(&self) -> usize {
+    pub const fn start(&self) -> usize {
         self.range.start
     }
 
     /// Returns the end index of the source span.
-    pub fn end(&self) -> usize {
+    pub const fn end(&self) -> usize {
         self.range.end
     }
 
     /// Returns the source range.
-    pub fn range(&self) -> &Range<usize> {
+    pub const fn range(&self) -> &Range<usize> {
         &self.range
     }
 
     /// Returns the source span as a tuple of (start, end).
-    pub fn as_span(&self) -> (usize, usize) {
+    pub const fn as_span(&self) -> (usize, usize) {
         (self.range.start, self.range.end)
     }
 
     /// Returns the length of the source span.
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.range.end.saturating_sub(self.range.start)
     }
 
     /// Returns true if the source span's length is 0.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }

@@ -52,14 +52,14 @@ pub struct SimpleSource<'a> {
     text: &'a str,
 }
 
-/// Implementation of SimpleSource.
 impl<'a> SimpleSource<'a> {
     /// Create a new source container instance.
     ///
     /// # Parameters
     /// * `name` - Name of the source file
     /// * `text` - Complete text content of the source file
-    pub fn new(name: &'a str, text: &'a str) -> Self {
+    #[must_use]
+    pub const fn new(name: &'a str, text: &'a str) -> Self {
         Self { name, text }
     }
 
@@ -67,7 +67,8 @@ impl<'a> SimpleSource<'a> {
     ///
     /// # Returns
     /// Returns the complete text content of the source file
-    pub fn text(&self) -> &'a str {
+    #[must_use]
+    pub const fn text(&self) -> &'a str {
         self.text
     }
 }
@@ -190,14 +191,14 @@ impl ToAriadne for BmsWarning {
             PlayingWarning(w) => {
                 let filename = src.name.to_string();
                 Report::build(ReportKind::Warning, (filename.clone(), 0..0))
-                    .with_message(format!("playing warning: {}", w))
+                    .with_message(format!("playing warning: {w}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
             }
             PlayingError(e) => {
                 let filename = src.name.to_string();
                 Report::build(ReportKind::Error, (filename.clone(), 0..0))
-                    .with_message(format!("playing error: {}", e))
+                    .with_message(format!("playing error: {e}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
             }

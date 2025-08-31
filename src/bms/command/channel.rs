@@ -45,10 +45,10 @@ pub enum Channel {
     Scroll,
     /// For the note spacing change object.
     Speed,
-    /// For the video seek object. #SEEKxx n
+    /// For the video seek object. `#SEEKxx n`
     #[cfg(feature = "minor-command")]
     Seek,
-    /// For the BGA LAYER2 object. #BMPxx (LAYER2 is layered over LAYER)
+    /// For the BGA LAYER2 object. `#BMPxx` (LAYER2 is layered over LAYER)
     BgaLayer2,
     /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
     #[cfg(feature = "minor-command")]
@@ -66,26 +66,26 @@ pub enum Channel {
     BgmVolume,
     /// For the KEY volume. min 1 « [01-FF] » max 255 (= original sound)
     KeyVolume,
-    /// For the TEXT object. #TEXTxx "string"
+    /// For the TEXT object. `#TEXTxx "string"`
     Text,
-    /// For the JUDGE object. #EXRANKxx n (100 corresponds to RANK:NORMAL. integer or decimal fraction)
+    /// For the JUDGE object. `#EXRANKxx n` (100 corresponds to RANK:NORMAL. integer or decimal fraction)
     Judge,
-    /// For the BGA BASE aRGB. #ARGBxx a,r,g,b (each [0-255])
+    /// For the BGA BASE aRGB. `#ARGBxx a,r,g,b` (each [0-255])
     #[cfg(feature = "minor-command")]
     BgaBaseArgb,
-    /// For the BGA LAYER aRGB. #ARGBxx
+    /// For the BGA LAYER aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaLayerArgb,
-    /// For the BGA LAYER2 aRGB. #ARGBxx
+    /// For the BGA LAYER2 aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaLayer2Argb,
-    /// For the BGA POOR aRGB. #ARGBxx
+    /// For the BGA POOR aRGB. `#ARGBxx`
     #[cfg(feature = "minor-command")]
     BgaPoorArgb,
-    /// For the BGA KEYBOUND. #SWBGAxx
+    /// For the BGA KEYBOUND. `#SWBGAxx`
     #[cfg(feature = "minor-command")]
     BgaKeybound,
-    /// For the OPTION. #CHANGEOPTIONxx (multiline)
+    /// For the OPTION. `#CHANGEOPTIONxx` (multiline)
     #[cfg(feature = "minor-command")]
     Option,
 }
@@ -94,46 +94,46 @@ impl std::fmt::Display for Channel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Channel: ")?;
         match self {
-            Channel::BgaBase => write!(f, "BGA"),
-            Channel::BgaLayer => write!(f, "BGA_LAYER"),
-            Channel::BgaPoor => write!(f, "BGA_POOR"),
-            Channel::Bgm => write!(f, "BGM"),
-            Channel::BpmChangeU8 => write!(f, "BPM_CHANGE_U8"),
-            Channel::BpmChange => write!(f, "BPM_CHANGE"),
+            Self::BgaBase => write!(f, "BGA"),
+            Self::BgaLayer => write!(f, "BGA_LAYER"),
+            Self::BgaPoor => write!(f, "BGA_POOR"),
+            Self::Bgm => write!(f, "BGM"),
+            Self::BpmChangeU8 => write!(f, "BPM_CHANGE_U8"),
+            Self::BpmChange => write!(f, "BPM_CHANGE"),
             #[cfg(feature = "minor-command")]
-            Channel::ChangeOption => write!(f, "CHANGE_OPTION"),
-            Channel::Note { .. } => write!(f, "NOTE"),
-            Channel::SectionLen => write!(f, "SECTION_LEN"),
-            Channel::Stop => write!(f, "STOP"),
-            Channel::Scroll => write!(f, "SCROLL"),
-            Channel::Speed => write!(f, "SPEED"),
+            Self::ChangeOption => write!(f, "CHANGE_OPTION"),
+            Self::Note { .. } => write!(f, "NOTE"),
+            Self::SectionLen => write!(f, "SECTION_LEN"),
+            Self::Stop => write!(f, "STOP"),
+            Self::Scroll => write!(f, "SCROLL"),
+            Self::Speed => write!(f, "SPEED"),
             #[cfg(feature = "minor-command")]
-            Channel::Seek => write!(f, "SEEK"),
-            Channel::BgaLayer2 => write!(f, "BGA_LAYER2"),
+            Self::Seek => write!(f, "SEEK"),
+            Self::BgaLayer2 => write!(f, "BGA_LAYER2"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaBaseOpacity => write!(f, "BGA_BASE_OPACITY"),
+            Self::BgaBaseOpacity => write!(f, "BGA_BASE_OPACITY"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayerOpacity => write!(f, "BGA_LAYER_OPACITY"),
+            Self::BgaLayerOpacity => write!(f, "BGA_LAYER_OPACITY"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayer2Opacity => write!(f, "BGA_LAYER2_OPACITY"),
+            Self::BgaLayer2Opacity => write!(f, "BGA_LAYER2_OPACITY"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaPoorOpacity => write!(f, "BGA_POOR_OPACITY"),
-            Channel::BgmVolume => write!(f, "BGM_VOLUME"),
-            Channel::KeyVolume => write!(f, "KEY_VOLUME"),
-            Channel::Text => write!(f, "TEXT"),
-            Channel::Judge => write!(f, "JUDGE"),
+            Self::BgaPoorOpacity => write!(f, "BGA_POOR_OPACITY"),
+            Self::BgmVolume => write!(f, "BGM_VOLUME"),
+            Self::KeyVolume => write!(f, "KEY_VOLUME"),
+            Self::Text => write!(f, "TEXT"),
+            Self::Judge => write!(f, "JUDGE"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaBaseArgb => write!(f, "BGA_BASE_ARGB"),
+            Self::BgaBaseArgb => write!(f, "BGA_BASE_ARGB"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayerArgb => write!(f, "BGA_LAYER_ARGB"),
+            Self::BgaLayerArgb => write!(f, "BGA_LAYER_ARGB"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayer2Argb => write!(f, "BGA_LAYER2_ARGB"),
+            Self::BgaLayer2Argb => write!(f, "BGA_LAYER2_ARGB"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaPoorArgb => write!(f, "BGA_POOR_ARGB"),
+            Self::BgaPoorArgb => write!(f, "BGA_POOR_ARGB"),
             #[cfg(feature = "minor-command")]
-            Channel::BgaKeybound => write!(f, "BGA_KEYBOUND"),
+            Self::BgaKeybound => write!(f, "BGA_KEYBOUND"),
             #[cfg(feature = "minor-command")]
-            Channel::Option => write!(f, "OPTION"),
+            Self::Option => write!(f, "OPTION"),
         }
     }
 }
@@ -154,11 +154,13 @@ pub enum NoteKind {
 
 impl NoteKind {
     /// Returns whether the note is a playable.
+    #[must_use]
     pub const fn is_playable(self) -> bool {
         !matches!(self, Self::Invisible)
     }
 
     /// Returns whether the note is a long-press note.
+    #[must_use]
     pub const fn is_long(self) -> bool {
         matches!(self, Self::Long)
     }
@@ -175,7 +177,7 @@ pub enum PlayerSide {
     Player2,
 }
 
-/// Error type for parsing ChannelId from string.
+/// Error type for parsing [`ChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 pub enum ChannelIdParseError {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.
@@ -257,6 +259,7 @@ impl From<ChannelId> for u64 {
 
 impl ChannelId {
     /// Converts the channel id into an `u16` value.
+    #[must_use]
     pub fn as_u16(self) -> u16 {
         self.into()
     }
@@ -296,11 +299,13 @@ pub enum Key {
 
 impl Key {
     /// Returns whether the key expected a piano keyboard.
+    #[must_use]
     pub const fn is_keyxx(&self) -> bool {
         matches!(self, Self::Key(_))
     }
 
     /// Returns the key number if it's a Key variant.
+    #[must_use]
     pub const fn key_number(&self) -> Option<u8> {
         match self {
             Self::Key(n) => Some(*n),
@@ -309,6 +314,7 @@ impl Key {
     }
 
     /// Returns the scratch number if it's a Scratch variant.
+    #[must_use]
     pub const fn scratch_number(&self) -> Option<u8> {
         match self {
             Self::Scratch(n) => Some(*n),
@@ -317,11 +323,13 @@ impl Key {
     }
 
     /// Creates a Key variant with the given number.
+    #[must_use]
     pub const fn new_key(n: u8) -> Self {
         Self::Key(n)
     }
 
     /// Creates a Scratch variant with the given number.
+    #[must_use]
     pub const fn new_scratch(n: u8) -> Self {
         Self::Scratch(n)
     }
@@ -375,6 +383,7 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
 }
 
 /// Reads a channel from a string. (Generic channel reader)
+#[must_use]
 pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);

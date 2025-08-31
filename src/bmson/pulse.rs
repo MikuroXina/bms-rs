@@ -15,6 +15,7 @@ pub struct PulseNumber(pub u64);
 
 impl PulseNumber {
     /// Calculates an absolute difference of two pulses.
+    #[must_use]
     pub const fn abs_diff(self, other: Self) -> u64 {
         self.0.abs_diff(other.0)
     }
@@ -29,6 +30,7 @@ pub struct PulseConverter {
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
+    #[must_use]
     pub fn new(bms: &crate::bms::parse::model::Bms) -> Self {
         let resolution: u64 = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
@@ -42,7 +44,7 @@ impl PulseConverter {
                 .arrangers
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or(Decimal::from(1u64), |section| section.length.clone())
+                .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
@@ -59,6 +61,7 @@ impl PulseConverter {
     }
 
     /// Gets pulses on the start of [`Track`].
+    #[must_use]
     pub fn get_pulses_on(&self, track: Track) -> PulseNumber {
         PulseNumber(
             self.pulses_at_track_start
@@ -74,6 +77,7 @@ impl PulseConverter {
     }
 
     /// Gets pulses at the [`ObjTime`].
+    #[must_use]
     pub fn get_pulses_at(&self, time: ObjTime) -> PulseNumber {
         let PulseNumber(track_base) = self.get_pulses_on(time.track);
         PulseNumber(track_base + (4 * self.resolution * time.numerator / time.denominator))

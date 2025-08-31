@@ -19,14 +19,14 @@ pub(super) fn extract_units<'a>(
                 if_blocks,
                 end_random,
             } => {
-                tokens.extend(extract_random_block(value, if_blocks, end_random));
+                tokens.extend(extract_random_block(&value, if_blocks, &end_random));
             }
             Unit::SwitchBlock {
                 value,
                 cases,
                 end_sw,
             } => {
-                tokens.extend(extract_switch_block(value, cases, end_sw));
+                tokens.extend(extract_switch_block(&value, cases, &end_sw));
             }
         }
     }
@@ -36,9 +36,9 @@ pub(super) fn extract_units<'a>(
 /// Extracts all tokens from a Random block.
 /// This function outputs ALL branches in the Random block, not just the selected one.
 fn extract_random_block<'a>(
-    value: SourceRangeMixin<BlockValue>,
+    value: &SourceRangeMixin<BlockValue>,
     if_blocks: impl IntoIterator<Item = IfBlock<'a>>,
-    end_random: SourceRangeMixin<()>,
+    end_random: &SourceRangeMixin<()>,
 ) -> Vec<TokenWithRange<'a>> {
     let mut tokens: Vec<TokenWithRange<'a>> = Vec::new();
 
@@ -48,7 +48,7 @@ fn extract_random_block<'a>(
     };
 
     // Add the Random token at the original header position
-    tokens.push(Token::Random(random_value).into_wrapper(&value));
+    tokens.push(Token::Random(random_value).into_wrapper(value));
 
     // Extract all If blocks and their branches
     for IfBlock { branches, end_if } in if_blocks {
@@ -67,7 +67,7 @@ fn extract_random_block<'a>(
     }
 
     // Add the EndRandom token at recorded position
-    tokens.push(Token::EndRandom.into_wrapper(&end_random));
+    tokens.push(Token::EndRandom.into_wrapper(end_random));
 
     tokens
 }
@@ -75,9 +75,9 @@ fn extract_random_block<'a>(
 /// Extracts all tokens from a Switch block.
 /// This function outputs ALL branches in the Switch block, not just the selected one.
 fn extract_switch_block<'a>(
-    value: SourceRangeMixin<BlockValue>,
+    value: &SourceRangeMixin<BlockValue>,
     cases: impl IntoIterator<Item = CaseBranch<'a>>,
-    end_sw: SourceRangeMixin<()>,
+    end_sw: &SourceRangeMixin<()>,
 ) -> Vec<TokenWithRange<'a>> {
     let mut tokens = Vec::new();
 
@@ -87,7 +87,7 @@ fn extract_switch_block<'a>(
         BlockValue::Set { value } => value,
     };
 
-    tokens.push(Token::Switch(switch_value).into_wrapper(&value));
+    tokens.push(Token::Switch(switch_value).into_wrapper(value));
 
     // Extract all case branches
     for CaseBranch { value, units } in cases {
@@ -100,10 +100,8 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (_skip_start, skip_end) = tokens
-                    .last()
-                    .map(|t| t.as_span())
-                    .unwrap_or(value.as_span());
+                let (_skip_start, skip_end) =
+                    tokens.last().map_or(value.as_span(), |t| t.as_span());
                 let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
@@ -115,10 +113,8 @@ fn extract_switch_block<'a>(
                 tokens.extend(extract_units(units));
 
                 // Add the Skip token
-                let (_skip_start, skip_end) = tokens
-                    .last()
-                    .map(|t| t.as_span())
-                    .unwrap_or(value.as_span());
+                let (_skip_start, skip_end) =
+                    tokens.last().map_or(value.as_span(), |t| t.as_span());
                 let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
@@ -126,7 +122,7 @@ fn extract_switch_block<'a>(
     }
 
     // Add the EndSwitch token at recorded ENDSW position
-    tokens.push(Token::EndSwitch.into_wrapper(&end_sw));
+    tokens.push(Token::EndSwitch.into_wrapper(end_sw));
 
     tokens
 }

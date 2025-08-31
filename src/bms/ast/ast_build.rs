@@ -16,7 +16,7 @@ use crate::bms::{
 
 use super::AstBuildWarning;
 
-/// The main entry for building the control flow AST. Traverses the TokenWithRange stream and recursively parses all control flow blocks.
+/// The main entry for building the control flow AST. Traverses the [`TokenWithRange`] stream and recursively parses all control flow blocks.
 /// Returns a list of AST nodes and collects all control flow related errors.
 pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     tokens_iter: &mut Peekable<T>,
@@ -32,16 +32,15 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'
         let Some(token) = tokens_iter.peek() else {
             break;
         };
-        use Token::*;
         let rule = match token.content() {
-            EndIf => Some(AstBuildWarning::UnmatchedEndIf),
-            EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
-            EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
-            ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
-            Else => Some(AstBuildWarning::UnmatchedElse),
-            Skip => Some(AstBuildWarning::UnmatchedSkip),
-            Case(_) => Some(AstBuildWarning::UnmatchedCase),
-            Def => Some(AstBuildWarning::UnmatchedDef),
+            Token::EndIf => Some(AstBuildWarning::UnmatchedEndIf),
+            Token::EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
+            Token::EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
+            Token::ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
+            Token::Else => Some(AstBuildWarning::UnmatchedElse),
+            Token::Skip => Some(AstBuildWarning::UnmatchedSkip),
+            Token::Case(_) => Some(AstBuildWarning::UnmatchedCase),
+            Token::Def => Some(AstBuildWarning::UnmatchedDef),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -53,18 +52,17 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'
     (result, errors)
 }
 
-/// Handle a single TokenWithRange: if it is the start of a block, recursively call the block parser, otherwise return a TokenWithRange node.
+/// Handle a single [`TokenWithRange`]: if it is the start of a block, recursively call the block parser, otherwise return a [`TokenWithRange`] node.
 fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> Option<(Unit<'a>, Vec<AstBuildWarningWithRange>)> {
     let token = iter.peek()?;
-    use Token::*;
     match token.content() {
-        SetSwitch(_) | Switch(_) => {
+        Token::SetSwitch(_) | Token::Switch(_) => {
             let (unit, errs) = parse_switch_block(iter);
             Some((unit, errs))
         }
-        Random(_) | SetRandom(_) => {
+        Token::Random(_) | Token::SetRandom(_) => {
             let (unit, errs) = parse_random_block(iter);
             Some((unit, errs))
         }
@@ -77,13 +75,13 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     }
 }
 
-/// Parse a Switch/SetSwitch block until EndSwitch or auto-completion termination.
-/// Supports Case/Def branches, error detection, and nested structures.
+/// Parse a [`Token::Switch`]/[`Token::SetSwitch`] block until [`Token::EndSwitch`] or auto-completion termination.
+/// Supports [`Token::Case`]/[`Token::Def`] branches, error detection, and nested structures.
 fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
-    let token = iter.next().unwrap();
     use Token::*;
+    let token = iter.next().unwrap();
     let block_value = match token.content() {
         SetSwitch(val) => BlockValue::Set { value: val.clone() },
         Switch(val) => BlockValue::Random { max: val.clone() },
@@ -216,14 +214,14 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of a Case/Def branch until a branch-terminating TokenWithRange is encountered.
-/// Supports nested blocks, prioritizing parse_unit_or_block.
+/// Parse the body of a [`Token::Case`]/[`Token::Def`] branch until a branch-terminating [`TokenWithRange`] is encountered.
+/// Supports nested blocks, prioritizing [`parse_unit_or_block`].
 fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
+    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
-    use Token::*;
     while let Some(&token) = iter.peek() {
         if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
             break;
@@ -251,19 +249,19 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     (result, errors)
 }
 
-/// Parse a Random/SetRandom block until EndRandom or auto-completion termination.
-/// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside IfBlock.
+/// Parse a [`Token::Random`]/[`Token::SetRandom`] block until [`Token::EndRandom`] or auto-completion termination.
+/// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside [`IfBlock`].
 /// Design:
-/// - After entering Random/SetRandom, loop through Tokens.
-/// - If encountering If/ElseIf/Else, collect branches and check for duplicates/out-of-range.
-/// - If encountering a non-control-flow TokenWithRange, prioritize parse_unit_or_block; if not in any IfBlock, auto-close the block.
+/// - After entering [`Token::Random`]/[`Token::SetRandom`], loop through Tokens.
+/// - If encountering [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`], collect branches and check for duplicates/out-of-range.
+/// - If encountering a non-control-flow [`TokenWithRange`], prioritize [`parse_unit_or_block`]; if not in any [`IfBlock`], auto-close the block.
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
+    use Token::*;
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
-    use Token::*;
     let block_value = match token.content() {
         Random(val) => BlockValue::Random { max: val.clone() },
         SetRandom(val) => BlockValue::Set { value: val.clone() },
@@ -293,21 +291,21 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     errors.append(&mut errs);
                     current_if_end = current_if_end.or(Some(end_if));
                 } else if let Some(ref max) = max_value {
-                    // Check if If branch value is out-of-range
-                    if !(&BigUint::from(1u64)..=max).contains(&if_val) {
+                    // Check if If branch value is in the range
+                    if (&BigUint::from(1u64)..=max).contains(&if_val) {
+                        seen_if_values.insert(if_val);
+                        let (tokens, mut errs, end_if) =
+                            parse_if_block_body(iter, ().into_wrapper(token));
+                        errors.append(&mut errs);
+                        branches.insert(if_val.clone(), tokens.into_wrapper(token));
+                        current_if_end = current_if_end.or(Some(end_if));
+                    } else {
                         errors.push(
                             AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(token),
                         );
                         let (_, mut errs, end_if) =
                             parse_if_block_body(iter, ().into_wrapper(token));
                         errors.append(&mut errs);
-                        current_if_end = current_if_end.or(Some(end_if));
-                    } else {
-                        seen_if_values.insert(if_val);
-                        let (tokens, mut errs, end_if) =
-                            parse_if_block_body(iter, ().into_wrapper(token));
-                        errors.append(&mut errs);
-                        branches.insert(if_val.clone(), tokens.into_wrapper(token));
                         current_if_end = current_if_end.or(Some(end_if));
                     }
                 } else {
@@ -324,11 +322,10 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     .peek()
                     .map(|t| (t, t.content()))
                     .into_iter()
-                    .filter_map(|(t, c)| match c {
+                    .find_map(|(t, c)| match c {
                         ElseIf(val) => Some((t, val)),
                         _ => None,
                     })
-                    .next()
                 {
                     if seen_if_values.contains(elif_val) {
                         errors.push(
@@ -437,11 +434,11 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of an If/ElseIf/Else branch until a branch-terminating TokenWithRange is encountered.
+/// Parse the body of an [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`] branch until a branch-terminating [`TokenWithRange`] is encountered.
 /// Design:
-/// - Supports nested blocks, prioritizing parse_unit_or_block.
-/// - Break when encountering branch-terminating Tokens (ElseIf/Else/EndIf/EndRandom/EndSwitch).
-/// - If EndIf is encountered, consume it automatically.
+/// - Supports nested blocks, prioritizing [`parse_unit_or_block`].
+/// - Break when encountering branch-terminating Tokens ([`Token::ElseIf`]/[`Token::Else`]/[`Token::EndIf`]/[`Token::EndRandom`]/[`Token::EndSwitch`]).
+/// - If [`Token::EndIf`] is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
     default_end_pos: SourceRangeMixin<()>,
@@ -450,12 +447,12 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     Vec<AstBuildWarningWithRange>,
     SourceRangeMixin<()>,
 ) {
+    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
     // Default fallback: if no #ENDIF is found, use the position of the last processed token,
     // or the current peek token; if neither exists, use a dummy (0,0).
     let mut fallback_pos = None::<SourceRangeMixin<()>>;
-    use Token::*;
     loop {
         // First, check for terminators without holding the borrow across mutations
         let is_terminator = {
@@ -470,7 +467,7 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
         if is_terminator {
             // If it is EndIf, consume and record the position
             if let Some(token) = iter.peek()
-                && let EndIf = token.content()
+                && matches!(token.content(), EndIf)
             {
                 let pos = ().into_wrapper(token);
                 fallback_pos = Some(pos);
@@ -670,9 +667,10 @@ mod tests {
                 }
             }
         }
-        if !found_nested {
-            panic!("Nested RandomBlock not found, if_blocks: {if_blocks:?}");
-        }
+        assert!(
+            found_nested,
+            "Nested RandomBlock not found, if_blocks: {if_blocks:?}"
+        );
     }
 
     #[test]

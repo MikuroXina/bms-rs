@@ -21,19 +21,19 @@ use super::model::{Bms, obj::Obj};
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ValidityMissing {
-    /// A note references an ObjId without a corresponding WAV definition.
+    /// A note references an [`ObjId`] without a corresponding `#WAV` definition.
     #[error("Missing WAV definition for note object id: {0:?}")]
     WavForNote(ObjId),
-    /// A BGM references an ObjId without a corresponding WAV definition.
+    /// A BGM references an [`ObjId`] without a corresponding `#WAV` definition.
     #[error("Missing WAV definition for BGM object id: {0:?}")]
     WavForBgm(ObjId),
-    /// A BGA change references an ObjId without a corresponding BMP/EXBMP definition.
+    /// A BGA change references an [`ObjId`] without a corresponding `#BMP`/`#EXBMP` definition.
     #[error("Missing BMP definition for BGA object id: {0:?}")]
     BmpForBga(ObjId),
-    /// A BPM change references an ObjId without a corresponding #BPMxx definition.
+    /// A BPM change references an [`ObjId`] without a corresponding `#BPMxx` definition.
     #[error("Missing BPM change definition for object id: {0:?}")]
     BpmChangeDef(ObjId),
-    /// A STOP event references an ObjId without a corresponding #STOPxx definition.
+    /// A STOP event references an [`ObjId`] without a corresponding `#STOPxx` definition.
     #[error("Missing STOP definition for object id: {0:?}")]
     StopDef(ObjId),
 }
@@ -106,8 +106,9 @@ pub enum ValidityInvalid {
 }
 
 /// Output of validity checks.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ValidityCheckOutput {
     /// Missing-related findings.
     pub missing: Vec<ValidityMissing>,
@@ -121,17 +122,21 @@ impl Bms {
     /// This performs basic referential integrity checks and data invariants that
     /// are required for correct playback, separate from parse-time checks.
     pub fn check_validity(&self) -> ValidityCheckOutput {
-        let mut missing = Vec::new();
-        let mut invalid = Vec::new();
+        let missing = self.check_missing();
+        let invalid = self.check_invalid();
+        ValidityCheckOutput { missing, invalid }
+    }
 
-        // 1) Check that every used ObjId in notes has a corresponding WAV definition.
+    fn check_missing(&self) -> Vec<ValidityMissing> {
+        let mut missing = vec![];
+        // 1) Check notes reference valid WAV ids.
         for obj_id in self.notes.objs.keys() {
             if !self.notes.wav_files.contains_key(obj_id) {
                 missing.push(ValidityMissing::WavForNote(*obj_id));
             }
         }
 
-        // 1.2) Check BGMs reference valid WAV ids.
+        // 2) Check BGMs reference valid WAV ids.
         for obj_ids in self.notes.bgms.values() {
             for obj_id in obj_ids {
                 if !self.notes.wav_files.contains_key(obj_id) {
@@ -140,28 +145,33 @@ impl Bms {
             }
         }
 
-        // 1.3) Check BGAs reference valid BMP ids.
+        // 3) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
                 missing.push(ValidityMissing::BmpForBga(bga_obj.id));
             }
         }
 
-        // 1.4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
+        // 4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
         for id in &self.arrangers.bpm_change_ids_used {
             if !self.scope_defines.bpm_defs.contains_key(id) {
                 missing.push(ValidityMissing::BpmChangeDef(*id));
             }
         }
 
-        // 1.5) Check STOP ids used in messages have corresponding #STOPxx definitions.
+        // 5) Check STOP ids used in messages have corresponding #STOPxx definitions.
         for id in &self.arrangers.stop_ids_used {
             if !self.scope_defines.stop_defs.contains_key(id) {
                 missing.push(ValidityMissing::StopDef(*id));
             }
         }
+        missing
+    }
 
-        // 3) Placement/overlap checks for notes on lanes.
+    fn check_invalid(&self) -> Vec<ValidityInvalid> {
+        let mut invalid = vec![];
+
+        // Placement/overlap checks for notes on lanes.
         //      - Visible notes in section 000
         //      - Overlap: visible single vs single (same time, same lane)
         //      - Overlap: visible single within long interval (same lane)
@@ -184,7 +194,7 @@ impl Bms {
                     .push(obj);
             }
         }
-        for ((side, key), objs) in lane_to_notes.into_iter() {
+        for ((side, key), objs) in lane_to_notes {
             if objs.is_empty() {
                 continue;
             }
@@ -198,17 +208,6 @@ impl Bms {
                 .filter(|o| o.kind == NoteKind::Long)
                 .map(|o| o.offset)
                 .collect();
-            let mut ln_intervals: Vec<(ObjTime, ObjTime)> = Vec::new();
-            let mut iter = long_times.clone().into_iter();
-            while let Some(start) = iter.next() {
-                if let Some(end) = iter.next() {
-                    if end >= start {
-                        ln_intervals.push((start, end));
-                    }
-                } else {
-                    break;
-                }
-            }
 
             // Overlap single vs single at the same time
             let mut i = 0;
@@ -319,8 +318,7 @@ impl Bms {
                 }
             }
         }
-
-        ValidityCheckOutput { missing, invalid }
+        invalid
     }
 }
 

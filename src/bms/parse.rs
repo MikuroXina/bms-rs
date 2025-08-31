@@ -1,7 +1,7 @@
-//! Parsing Bms from [TokenStream].
+//! Parsing Bms from [`TokenStream`].
 //!
-//! Raw [String] == [lex] ==> [TokenStream] (in [BmsLexOutput]) == [parse] ==> [Bms] (in
-//! BmsParseOutput)
+//! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
+//! [`BmsParseOutput`])
 
 pub mod check_playing;
 pub mod model;
@@ -54,15 +54,16 @@ pub enum ParseWarning {
     UnexpectedControlFlow,
 }
 
-/// type alias of core::result::Result<T, ParseWarning>
+/// Type alias of `core::result::Result<T, ParseWarning>`
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 
 /// A parse warning with position information.
 pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 
 /// Bms Parse Output
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,
@@ -76,7 +77,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput<T> {
-        let mut bms = Bms::default();
+        let mut bms = Self::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
@@ -92,8 +93,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
 }
 
 /// Bms Parse Output with AST
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,
@@ -120,7 +122,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let ParseOutput {
             bms,
             parse_warnings,
-        } = Bms::from_token_stream(token_refs, prompt_handler);
+        } = Self::from_token_stream(token_refs, prompt_handler);
         ParseOutputWithAst {
             bms,
             ast_build_warnings,

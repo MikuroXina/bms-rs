@@ -13,7 +13,7 @@ pub(crate) struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub(crate) fn new(source: &'a str) -> Self {
+    pub(crate) const fn new(source: &'a str) -> Self {
         Self {
             line: 1,
             col: 1,
@@ -27,7 +27,7 @@ impl<'a> Cursor<'a> {
     }
 
     fn peek_next_token_range(&self) -> std::ops::Range<usize> {
-        fn is_separator(c: char) -> bool {
+        const fn is_separator(c: char) -> bool {
             c.is_whitespace() || c == '\n'
         }
         let next_token_start = self.source[self.index..]
@@ -83,7 +83,7 @@ impl<'a> Cursor<'a> {
         // Get remaining
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source[self.index..].len());
+            .unwrap_or_else(|| self.source[self.index..].len());
         let ret_line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
@@ -106,7 +106,7 @@ impl<'a> Cursor<'a> {
         // Get remaining
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source[self.index..].len());
+            .unwrap_or_else(|| self.source[self.index..].len());
         let ret_line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
@@ -127,7 +127,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Returns the current byte index in the source string.
-    pub(crate) fn index(&self) -> usize {
+    pub(crate) const fn index(&self) -> usize {
         self.index
     }
 

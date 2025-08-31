@@ -13,11 +13,11 @@
 //!
 //! # Implementations
 //!
-//! ## RngMock
+//! ## [`RngMock`]
 //!
 //! A deterministic mock implementation for testing that returns predefined values in rotation:
 //!
-//! ## RandRng
+//! ## [`RandRng`]
 //!
 //! A production-ready implementation using the [`rand`] crate for true random number generation:
 //!

@@ -38,13 +38,13 @@ pub enum Unit<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BlockValue {
     /// For Random/Switch, value ranges in [1, max].
-    /// IfBranch value must ranges in [1, max].
+    /// [`IfBranch`] value must ranges in [1, max].
     Random {
         /// The maximum value of the Random/Switch block.
         max: BigUint,
     },
     /// For SetRandom/SetSwitch.
-    /// IfBranch value has no limit.
+    /// [`IfBranch`] value has no limit.
     Set {
         /// The set value of the Random/Switch block.
         value: BigUint,
@@ -56,7 +56,7 @@ pub enum BlockValue {
 pub struct IfBlock<'a> {
     /// The branches of the If block.
     pub branches: BTreeMap<BigUint, SourceRangeMixin<Vec<Unit<'a>>>>,
-    /// The ENDIF position in the BMS source for this IfBlock.
+    /// The ENDIF position in the BMS source for this [`IfBlock`].
     /// If there is no matching `#ENDIF`, this falls back to the position of the last token
     /// inside the If block (or the current peek position when the block is empty).
     pub end_if: SourceRangeMixin<()>,
