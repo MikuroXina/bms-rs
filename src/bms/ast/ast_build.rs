@@ -667,9 +667,10 @@ mod tests {
                 }
             }
         }
-        if !found_nested {
-            panic!("Nested RandomBlock not found, if_blocks: {if_blocks:?}");
-        }
+        assert!(
+            found_nested,
+            "Nested RandomBlock not found, if_blocks: {if_blocks:?}"
+        );
     }
 
     #[test]
