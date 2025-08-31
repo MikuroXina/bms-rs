@@ -143,7 +143,7 @@ impl<'a> TokenStream<'a> {
                 Err(warning) => {
                     warnings.push(warning);
                 }
-            };
+            }
         }
 
         let case_sensitive = tokens
