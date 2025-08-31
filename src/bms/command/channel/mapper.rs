@@ -116,7 +116,7 @@ pub struct KeyLayoutBeat(pub PlayerSide, pub NoteKind, pub Key);
 
 impl KeyMapping for KeyLayoutBeat {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
-        KeyLayoutBeat(side, kind, key)
+        Self(side, kind, key)
     }
 
     fn side(&self) -> PlayerSide {
@@ -155,7 +155,7 @@ pub struct KeyLayoutPmsBmeType(pub PlayerSide, pub NoteKind, pub Key);
 
 impl KeyMapping for KeyLayoutPmsBmeType {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
-        KeyLayoutPmsBmeType(side, kind, key)
+        Self(side, kind, key)
     }
 
     fn side(&self) -> PlayerSide {
@@ -195,7 +195,7 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
             FreeZone => Key(9),
             _ => key,
         };
-        Some(KeyLayoutPmsBmeType::new(side, kind, key))
+        Some(Self::new(side, kind, key))
     }
 }
 
@@ -209,7 +209,7 @@ pub struct KeyLayoutPms(pub PlayerSide, pub NoteKind, pub Key);
 
 impl KeyMapping for KeyLayoutPms {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
-        KeyLayoutPms(side, kind, key)
+        Self(side, kind, key)
     }
 
     fn side(&self) -> PlayerSide {
@@ -257,7 +257,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
             (Player2, Key(5)) => (Player1, Key(9)),
             other => other,
         };
-        Some(KeyLayoutPms::new(side, kind, key))
+        Some(Self::new(side, kind, key))
     }
 }
 
@@ -271,7 +271,7 @@ pub struct KeyLayoutBeatNanasi(pub PlayerSide, pub NoteKind, pub Key);
 
 impl KeyMapping for KeyLayoutBeatNanasi {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
-        KeyLayoutBeatNanasi(side, kind, key)
+        Self(side, kind, key)
     }
 
     fn side(&self) -> PlayerSide {
@@ -309,7 +309,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
             FreeZone => FootPedal,
             other => other,
         };
-        Some(KeyLayoutBeatNanasi::new(side, kind, key))
+        Some(Self::new(side, kind, key))
     }
 }
 
@@ -323,7 +323,7 @@ pub struct KeyLayoutDscOctFp(pub PlayerSide, pub NoteKind, pub Key);
 
 impl KeyMapping for KeyLayoutDscOctFp {
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self {
-        KeyLayoutDscOctFp(side, kind, key)
+        Self(side, kind, key)
     }
 
     fn side(&self) -> PlayerSide {
@@ -385,6 +385,6 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
             (Player2, Scratch(1)) => (Player1, Scratch(2)),
             (s, k) => (s, k),
         };
-        Some(KeyLayoutDscOctFp::new(side, kind, key))
+        Some(Self::new(side, kind, key))
     }
 }

@@ -186,18 +186,18 @@ impl BgaLayer {
     /// Convert a [`crate::bms::command::channel::Channel`] to a [`BgaLayer`].
     pub const fn from_channel(channel: Channel) -> Option<Self> {
         match channel {
-            Channel::BgaBase => Some(BgaLayer::Base),
+            Channel::BgaBase => Some(Self::Base),
             #[cfg(feature = "minor-command")]
-            Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(BgaLayer::Base),
-            Channel::BgaLayer => Some(BgaLayer::Overlay),
+            Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(Self::Base),
+            Channel::BgaLayer => Some(Self::Overlay),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(BgaLayer::Overlay),
-            Channel::BgaLayer2 => Some(BgaLayer::Overlay2),
+            Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(Self::Overlay),
+            Channel::BgaLayer2 => Some(Self::Overlay2),
             #[cfg(feature = "minor-command")]
-            Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(BgaLayer::Overlay2),
-            Channel::BgaPoor => Some(BgaLayer::Poor),
+            Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(Self::Overlay2),
+            Channel::BgaPoor => Some(Self::Poor),
             #[cfg(feature = "minor-command")]
-            Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(BgaLayer::Poor),
+            Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(Self::Poor),
             _ => None,
         }
     }
@@ -205,10 +205,10 @@ impl BgaLayer {
     /// Convert a [`BgaLayer`] to a [`crate::bms::command::channel::Channel`].
     pub const fn to_channel(self) -> Channel {
         match self {
-            BgaLayer::Base => Channel::BgaBase,
-            BgaLayer::Overlay => Channel::BgaLayer,
-            BgaLayer::Overlay2 => Channel::BgaLayer2,
-            BgaLayer::Poor => Channel::BgaPoor,
+            Self::Base => Channel::BgaBase,
+            Self::Overlay => Channel::BgaLayer,
+            Self::Overlay2 => Channel::BgaLayer2,
+            Self::Poor => Channel::BgaPoor,
         }
     }
 }

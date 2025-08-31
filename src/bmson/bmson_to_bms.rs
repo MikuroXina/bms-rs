@@ -71,7 +71,7 @@ pub struct BmsonToBmsOutput {
 impl Bms {
     /// Convert `Bmson` to `Bms`.
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
-        let mut bms = Bms::default();
+        let mut bms = Self::default();
         let mut warnings = Vec::new();
         let mut wav_obj_id_issuer = ObjIdIssuer::new();
         let mut bga_header_obj_id_issuer = ObjIdIssuer::new();

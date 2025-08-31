@@ -76,7 +76,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput<T> {
-        let mut bms = Bms::default();
+        let mut bms = Self::default();
         let mut parse_warnings = vec![];
         for token in token_iter {
             if let Err(error) = bms.parse(token, &mut prompt_handler) {
@@ -120,7 +120,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let ParseOutput {
             bms,
             parse_warnings,
-        } = Bms::from_token_stream(token_refs, prompt_handler);
+        } = Self::from_token_stream(token_refs, prompt_handler);
         ParseOutputWithAst {
             bms,
             ast_build_warnings,

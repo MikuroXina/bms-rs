@@ -63,21 +63,18 @@ impl From<i64> for JudgeLevel {
 impl<'a> TryFrom<&'a str> for JudgeLevel {
     type Error = &'a str;
     fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
-        value
-            .parse::<i64>()
-            .map(JudgeLevel::from)
-            .map_err(|_| value)
+        value.parse::<i64>().map(Self::from).map_err(|_| value)
     }
 }
 
 impl std::fmt::Display for JudgeLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JudgeLevel::VeryHard => write!(f, "0"),
-            JudgeLevel::Hard => write!(f, "1"),
-            JudgeLevel::Normal => write!(f, "2"),
-            JudgeLevel::Easy => write!(f, "3"),
-            JudgeLevel::OtherInt(value) => write!(f, "{}", value),
+            Self::VeryHard => write!(f, "0"),
+            Self::Hard => write!(f, "1"),
+            Self::Normal => write!(f, "2"),
+            Self::Easy => write!(f, "3"),
+            Self::OtherInt(value) => write!(f, "{}", value),
         }
     }
 }
@@ -281,9 +278,9 @@ impl TryFrom<u8> for LnMode {
     type Error = u8;
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
-            1 => LnMode::Ln,
-            2 => LnMode::Cn,
-            3 => LnMode::Hcn,
+            1 => Self::Ln,
+            2 => Self::Cn,
+            3 => Self::Hcn,
             _ => return Err(value),
         })
     }

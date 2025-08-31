@@ -56,7 +56,7 @@ impl JavaRandom {
     /// Create a new [`JavaRandom`] with the given seed.
     pub const fn new(seed: i64) -> Self {
         let s = (seed as u64) ^ 0x5DEECE66D;
-        JavaRandom {
+        Self {
             seed: s & ((1u64 << 48) - 1),
         }
     }
@@ -109,7 +109,7 @@ pub struct KeyLayoutConvertLaneRotateShuffle {
 impl KeyLayoutConvertLaneRotateShuffle {
     /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
-        KeyLayoutConvertLaneRotateShuffle {
+        Self {
             side,
             arrangement: Self::make_random(&keys, seed),
         }
@@ -164,7 +164,7 @@ pub struct KeyLayoutConvertLaneRandomShuffle {
 impl KeyLayoutConvertLaneRandomShuffle {
     /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
     pub fn new(side: PlayerSide, keys: Vec<Key>, seed: i64) -> Self {
-        KeyLayoutConvertLaneRandomShuffle {
+        Self {
             side,
             arrangement: Self::make_random(&keys, seed),
         }
