@@ -1,7 +1,7 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::{
-    bms::{command::LnMode, parse::model::Bms},
+    bms::{command::LnMode, model::Bms},
     bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
 };
 

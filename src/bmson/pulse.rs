@@ -31,7 +31,7 @@ pub struct PulseConverter {
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
     #[must_use]
-    pub fn new(bms: &crate::bms::parse::model::Bms) -> Self {
+    pub fn new(bms: &crate::bms::model::Bms) -> Self {
         let resolution: u64 = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
 
@@ -86,7 +86,7 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use crate::bms::parse::model::{Arrangers, obj::SectionLenChangeObj};
+    use crate::bms::model::{Arrangers, obj::SectionLenChangeObj};
 
     // Source BMS:
     // ```
@@ -116,7 +116,7 @@ fn pulse_conversion() {
             .unwrap();
         notes
     };
-    let converter = PulseConverter::new(&crate::bms::parse::model::Bms {
+    let converter = PulseConverter::new(&crate::bms::model::Bms {
         arrangers: notes,
         ..Default::default()
     });

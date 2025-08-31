@@ -22,6 +22,7 @@ pub mod ast;
 pub mod command;
 pub mod diagnostics;
 pub mod lex;
+pub mod model;
 pub mod parse;
 pub mod prelude;
 
@@ -36,10 +37,10 @@ use self::{
     },
     command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
     lex::{LexOutput, LexWarningWithRange},
+    model::Bms,
     parse::{
         ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        model::Bms,
     },
 };
 

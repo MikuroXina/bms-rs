@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::bms::command::channel::{NoteKind, mapper::KeyLayoutMapper};
 
-use super::model::Bms;
+use crate::bms::model::Bms;
 
 /// Simpifies the warnings for playing, which would not make this chart unplayable.
 #[non_exhaustive]

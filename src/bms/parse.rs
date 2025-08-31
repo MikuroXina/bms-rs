@@ -4,7 +4,6 @@
 //! [`BmsParseOutput`])
 
 pub mod check_playing;
-pub mod model;
 pub mod prompt;
 pub mod validity;
 
@@ -25,10 +24,11 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     lex::token::TokenWithRange,
+    model::Bms,
     prelude::SourceRangeMixinExt,
 };
 
-use self::{model::Bms, prompt::PromptHandler};
+use self::prompt::PromptHandler;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

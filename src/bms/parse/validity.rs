@@ -8,13 +8,14 @@ use std::collections::{HashMap, HashSet};
 
 use thiserror::Error;
 
-use crate::bms::command::{
-    ObjId,
-    channel::{Key, NoteKind, PlayerSide},
-    time::ObjTime,
+use crate::bms::{
+    command::{
+        ObjId,
+        channel::{Key, NoteKind, PlayerSide},
+        time::ObjTime,
+    },
+    model::{Bms, obj::Obj},
 };
-
-use super::model::{Bms, obj::Obj};
 
 /// Missing-related validity entries.
 #[non_exhaustive]
@@ -331,7 +332,7 @@ mod tests {
             channel::{Key, NoteKind, PlayerSide},
             time::ObjTime,
         },
-        parse::model::{
+        model::{
             Notes,
             obj::{BgaLayer, BgaObj, Obj},
         },

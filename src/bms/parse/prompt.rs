@@ -13,10 +13,8 @@ use crate::bms::{
     },
 };
 
-#[cfg(feature = "minor-command")]
-use super::model::def::ExWavDef;
-use super::{
-    ParseWarning, Result,
+use super::{ParseWarning, Result};
+use crate::bms::{
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
         BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
@@ -25,11 +23,15 @@ use super::{
 };
 
 #[cfg(feature = "minor-command")]
-use super::model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
-#[cfg(feature = "minor-command")]
-use crate::bms::command::{
-    graphics::Argb,
-    minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
+use crate::bms::{
+    command::{
+        graphics::Argb,
+        minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
+    },
+    model::{
+        def::ExWavDef,
+        obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
+    },
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.

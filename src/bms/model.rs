@@ -48,7 +48,7 @@ use self::{
 
 #[cfg(feature = "minor-command")]
 use self::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
-use super::{
+use super::parse::{
     ParseWarning, Result,
     prompt::{ChannelDuplication, DefDuplication, PromptHandler, TrackDuplication},
 };
