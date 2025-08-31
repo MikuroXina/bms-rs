@@ -322,11 +322,10 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     .peek()
                     .map(|t| (t, t.content()))
                     .into_iter()
-                    .filter_map(|(t, c)| match c {
+                    .find_map(|(t, c)| match c {
                         ElseIf(val) => Some((t, val)),
                         _ => None,
                     })
-                    .next()
                 {
                     if seen_if_values.contains(elif_val) {
                         errors.push(
