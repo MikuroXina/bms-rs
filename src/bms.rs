@@ -75,7 +75,7 @@ pub enum BmsWarning {
 }
 
 /// Output of parsing a BMS file.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BmsOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The parsed BMS data.

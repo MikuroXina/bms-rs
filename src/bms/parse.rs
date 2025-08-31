@@ -61,7 +61,7 @@ pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 
 /// Bms Parse Output
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
@@ -92,7 +92,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
 }
 
 /// Bms Parse Output with AST
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.

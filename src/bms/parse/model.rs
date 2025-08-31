@@ -53,7 +53,7 @@ use super::{
 };
 
 /// A score data of BMS format.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The header data in the score.
@@ -88,7 +88,7 @@ impl<T: KeyLayoutMapper> Default for Bms<T> {
 
 /// A header of the score, including the information that is usually used in music selection.
 /// Parsed from [`TokenStream`](crate::lex::Token::TokenStream).
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Header {
     /// The play style of the score.
@@ -151,7 +151,7 @@ pub struct Header {
 /// Stores the original scope-defines like `#WAVXX`. Using HashMap.
 /// Only stores the original scope-defines, not the parsed ones.
 /// Only stores which affects playing.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScopeDefines {
     /// BPM change definitions, indexed by ObjId. #BPM[01-ZZ]
@@ -185,7 +185,7 @@ pub struct ScopeDefines {
 }
 
 /// The objects that arrange the playing panel running or showing.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Arrangers {
     /// Section length change events, indexed by track. #SECLEN
@@ -214,7 +214,7 @@ pub struct Arrangers {
 }
 
 /// The playable objects set for querying by lane or time.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Notes {
     /// The path to override the base path of the WAV file path.
@@ -256,7 +256,7 @@ pub struct Notes {
 }
 
 /// The graphics objects that are used in the score.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Graphics {
     /// The path of the background video. The video should be started the playing from the section 000.
@@ -296,7 +296,7 @@ pub struct Graphics {
 }
 
 /// The other objects that are used in the score. May be arranged in play.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Others {
     /// The message for overriding options of some BMS player.

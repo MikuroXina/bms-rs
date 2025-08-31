@@ -56,7 +56,7 @@ impl Iterator for ObjIdIssuer {
 }
 
 /// Output of the conversion from `Bmson` to `Bms`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BmsonToBmsOutput {
     /// The converted `Bms` object.
     pub bms: Bms,
