@@ -109,11 +109,11 @@ impl<'a> IntoIterator for TokenRefStream<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a TokenRefStream<'a> {
-    type Item = &'a TokenWithRange<'a>;
-    type IntoIter = std::iter::Cloned<std::slice::Iter<'a, &'a TokenWithRange<'a>>>;
+impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
+    type Item = &'b &'a TokenWithRange<'a>;
+    type IntoIter = std::slice::Iter<'b, &'a TokenWithRange<'a>>;
     fn into_iter(self) -> Self::IntoIter {
-        self.token_refs.iter().cloned()
+        self.token_refs.iter()
     }
 }
 
@@ -158,6 +158,18 @@ impl<'a> TokenStream<'a> {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,
         }
+    }
+
+    /// Makes a new iterator of tokens.
+    pub fn iter(&self) -> std::slice::Iter<'_, TokenWithRange<'a>> {
+        self.tokens.iter()
+    }
+}
+
+impl<'a> TokenRefStream<'a> {
+    /// Makes a new iterator of token references.
+    pub fn iter(&self) -> std::slice::Iter<'_, &'a TokenWithRange<'a>> {
+        self.token_refs.iter()
     }
 }
 
