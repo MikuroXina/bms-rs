@@ -8,6 +8,7 @@ use std::{
     cmp::Reverse,
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Debug,
+    marker::PhantomData,
     ops::Bound,
     path::PathBuf,
     str::FromStr,
@@ -81,7 +82,7 @@ impl<T: KeyLayoutMapper> Default for Bms<T> {
             notes: Default::default(),
             graphics: Default::default(),
             others: Default::default(),
-            _phantom: Default::default(),
+            _phantom: PhantomData,
         }
     }
 }
