@@ -19,9 +19,9 @@ fn test_not_base_62() {
     }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
-    assert_eq!(bms.notes.wav_files.len(), 1);
+    assert_eq!(bms.notes().wav_files.len(), 1);
     assert_eq!(
-        bms.notes.wav_files.iter().next().unwrap().1,
+        bms.notes().wav_files.iter().next().unwrap().1,
         &std::path::Path::new("fuga.wav").to_path_buf()
     );
 }
@@ -47,5 +47,5 @@ fn test_base_62() {
     }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysUseNewer);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
-    assert_eq!(bms.notes.wav_files.len(), 2);
+    assert_eq!(bms.notes().wav_files.len(), 2);
 }

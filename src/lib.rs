@@ -33,7 +33,7 @@
 //!
 //! For more control over the parsing process, you can use the individual steps:
 //!
-//! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::parse::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
+//! At first, you can get the tokens stream with [`bms::lex::TokenStream::parse_lex`]. Then pass it and the random generator to [`bms::model::Bms::from_token_stream`] to get the notes data. Because BMS format has some randomized syntax.
 //!
 //! ```rust
 //! #[cfg(feature = "rand")]
@@ -64,7 +64,7 @@
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 //! ```
 //!
-//! - Note: You can also use [`bms::parse::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
+//! - Note: You can also use [`bms::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
 //!
 //! ## AST Extraction Usage
 //!

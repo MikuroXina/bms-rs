@@ -35,17 +35,17 @@ pub use super::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         token::{Token, TokenWithRange},
     },
+    model::{
+        Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
+        def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+        obj::{
+            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
+            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+        },
+    },
     parse::{
         ParseOutput, ParseWarning, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        model::{
-            Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
-            def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-            obj::{
-                BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
-                ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
-            },
-        },
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, PromptHandler,
@@ -66,7 +66,7 @@ pub use super::{
         ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
         WavCmdParam,
     },
-    parse::model::{
+    model::{
         def::ExWavDef,
         obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
     },

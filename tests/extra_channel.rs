@@ -17,31 +17,31 @@ fn test_channel_volume() {
             .count()
             == 0
     );
-    assert_eq!(bms.notes.bgm_volume_changes.len(), 8);
-    assert_eq!(bms.notes.key_volume_changes.len(), 4);
+    assert_eq!(bms.notes().bgm_volume_changes.len(), 8);
+    assert_eq!(bms.notes().key_volume_changes.len(), 4);
     assert_eq!(
-        bms.notes.bgm_volume_changes.get(&ObjTime::new(1, 0, 1)),
+        bms.notes().bgm_volume_changes.get(&ObjTime::new(1, 0, 1)),
         Some(&BgmVolumeObj {
             time: ObjTime::new(1, 0, 1),
             volume: 1,
         })
     );
     assert_eq!(
-        bms.notes.key_volume_changes.get(&ObjTime::new(1, 0, 1)),
+        bms.notes().key_volume_changes.get(&ObjTime::new(1, 0, 1)),
         Some(&KeyVolumeObj {
             time: ObjTime::new(1, 0, 1),
             volume: 2 * 16 + 2,
         })
     );
     assert_eq!(
-        bms.notes.bgm_volume_changes.get(&ObjTime::new(2, 0, 1)),
+        bms.notes().bgm_volume_changes.get(&ObjTime::new(2, 0, 1)),
         Some(&BgmVolumeObj {
             time: ObjTime::new(2, 0, 1),
             volume: 5,
         })
     );
     assert_eq!(
-        bms.notes.key_volume_changes.get(&ObjTime::new(2, 0, 1)),
+        bms.notes().key_volume_changes.get(&ObjTime::new(2, 0, 1)),
         None
     );
 }
@@ -64,16 +64,16 @@ fn test_channel_text() {
         vec![]
     );
 
-    assert_eq!(bms.notes.text_events.len(), 4);
+    assert_eq!(bms.notes().text_events.len(), 4);
     assert_eq!(
-        bms.notes.text_events.get(&ObjTime::new(1, 0, 1)),
+        bms.notes().text_events.get(&ObjTime::new(1, 0, 1)),
         Some(&TextObj {
             time: ObjTime::new(1, 0, 1),
             text: "Hello World".to_string(),
         })
     );
     assert_eq!(
-        bms.notes.text_events.get(&ObjTime::new(2, 0, 1)),
+        bms.notes().text_events.get(&ObjTime::new(2, 0, 1)),
         Some(&TextObj {
             time: ObjTime::new(2, 0, 1),
             text: "Test Message".to_string(),
@@ -104,23 +104,23 @@ fn test_channel_judge() {
         vec![]
     );
 
-    assert_eq!(bms.notes.judge_events.len(), 4);
+    assert_eq!(bms.notes().judge_events.len(), 4);
     assert_eq!(
-        bms.notes.judge_events.get(&ObjTime::new(1, 0, 1)),
+        bms.notes().judge_events.get(&ObjTime::new(1, 0, 1)),
         Some(&JudgeObj {
             time: ObjTime::new(1, 0, 1),
             judge_level: JudgeLevel::Easy,
         })
     );
     assert_eq!(
-        bms.notes.judge_events.get(&ObjTime::new(2, 0, 1)),
+        bms.notes().judge_events.get(&ObjTime::new(2, 0, 1)),
         Some(&JudgeObj {
             time: ObjTime::new(2, 0, 1),
             judge_level: JudgeLevel::Normal,
         })
     );
     assert_eq!(
-        bms.notes.judge_events.get(&ObjTime::new(2, 1, 2)),
+        bms.notes().judge_events.get(&ObjTime::new(2, 1, 2)),
         Some(&JudgeObj {
             time: ObjTime::new(2, 1, 2),
             judge_level: JudgeLevel::Easy,

@@ -273,7 +273,7 @@ fn test_token_parsing_comprehensive() {
     assert_eq!(bms.header.url, Some("http://example.com".to_string()));
     assert_eq!(bms.header.maker, Some("Test Maker".to_string()));
     assert_eq!(
-        bms.notes.midi_file,
+        bms.notes().midi_file,
         Some(std::path::PathBuf::from("test.mid"))
     );
     assert_eq!(
@@ -283,7 +283,7 @@ fn test_token_parsing_comprehensive() {
     assert_eq!(bms.graphics.poor_bga_mode, PoorMode::Overlay);
     assert!(bms.others.is_octave);
     assert_eq!(
-        bms.notes.wav_path_root,
+        bms.notes().wav_path_root,
         Some(std::path::PathBuf::from("wav/"))
     );
 

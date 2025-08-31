@@ -97,7 +97,7 @@ fn test_always_use_older() {
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes.wav_files.get(&ObjId::try_from("01").unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
@@ -216,7 +216,7 @@ fn test_always_use_newer() {
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes.wav_files.get(&ObjId::try_from("01").unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
@@ -339,7 +339,7 @@ fn test_always_warn_and_use_older() {
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes.wav_files.get(&ObjId::try_from("01").unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
@@ -461,7 +461,7 @@ fn test_always_warn_and_use_newer() {
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes.wav_files.get(&ObjId::try_from("01").unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
