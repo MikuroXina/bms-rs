@@ -1839,7 +1839,7 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
 impl<T: KeyLayoutMapper> Bms<T> {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
-        for (_, objs) in self.notes.objs.iter_mut() {
+        for objs in self.notes.objs.values_mut() {
             for Obj {
                 side, kind, key, ..
             } in objs.iter_mut()
