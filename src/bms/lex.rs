@@ -9,7 +9,7 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::mixin::{SourceRangeMixinExt, SourceRangeMixin};
+use crate::bms::command::mixin::{SourceRangeMixin, SourceRangeMixinExt};
 
 use self::{
     cursor::Cursor,

@@ -10,7 +10,7 @@ use crate::bms::{
         AstBuildWarningWithRange,
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
-    command::mixin::{SourceRangeMixinExt, SourceRangeMixin},
+    command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
     lex::token::{Token, TokenWithRange},
 };
 

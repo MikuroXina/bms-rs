@@ -48,7 +48,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Peek the next token with range.
-#[allow(unused)]
+    #[allow(unused)]
     pub(crate) fn peek_next_token_with_range(&self) -> Option<(std::ops::Range<usize>, &'a str)> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {

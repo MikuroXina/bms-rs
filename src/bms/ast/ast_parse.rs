@@ -136,7 +136,7 @@ mod tests {
     use crate::{
         ast::structure::{CaseBranch, CaseBranchValue, IfBlock, Unit},
         bms::lex::token::Token,
-        command::mixin::{SourceRangeMixinExt, SourceRangeMixin},
+        command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
     };
 
     struct DummyRng;
