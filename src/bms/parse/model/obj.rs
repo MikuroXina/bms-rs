@@ -17,7 +17,7 @@ use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 pub struct Obj {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// THe note kind of the the object.
+    /// The note kind of the the object.
     pub kind: NoteKind,
     /// The side of the player.
     pub side: PlayerSide,
