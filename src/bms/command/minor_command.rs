@@ -15,16 +15,19 @@ pub struct ExWavPan(i64);
 impl ExWavPan {
     /// Creates a new [`ExWavPan`] value.
     /// Returns `None` if the value is out of range \[-10000, 10000].
+    #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=10000).contains(&value).then_some(Self(value))
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> i64 {
         self.0
     }
 
     /// Returns the default value (0).
+    #[must_use]
     pub const fn default() -> Self {
         Self(0)
     }
@@ -48,16 +51,19 @@ pub struct ExWavVolume(i64);
 impl ExWavVolume {
     /// Creates a new [`ExWavVolume`] value.
     /// Returns `None` if the value is out of range `[-10000, 0]`.
+    #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=0).contains(&value).then_some(Self(value))
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> i64 {
         self.0
     }
 
     /// Returns the default value (0).
+    #[must_use]
     pub const fn default() -> Self {
         Self(0)
     }
@@ -83,6 +89,7 @@ impl ExWavFrequency {
 
     /// Creates a new [`ExWavFrequency`] value.
     /// Returns `None` if the value is out of range [100, 100000].
+    #[must_use]
     pub fn new(value: u64) -> Option<Self> {
         (Self::MIN_FREQUENCY..=Self::MAX_FREQUENCY)
             .contains(&value)
@@ -90,6 +97,7 @@ impl ExWavFrequency {
     }
 
     /// Returns the underlying value.
+    #[must_use]
     pub fn value(self) -> u64 {
         self.0
     }
