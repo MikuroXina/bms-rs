@@ -198,17 +198,6 @@ impl Bms {
                 .filter(|o| o.kind == NoteKind::Long)
                 .map(|o| o.offset)
                 .collect();
-            let mut ln_intervals: Vec<(ObjTime, ObjTime)> = Vec::new();
-            let mut iter = long_times.clone().into_iter();
-            while let Some(start) = iter.next() {
-                if let Some(end) = iter.next() {
-                    if end >= start {
-                        ln_intervals.push((start, end));
-                    }
-                } else {
-                    break;
-                }
-            }
 
             // Overlap single vs single at the same time
             let mut i = 0;
