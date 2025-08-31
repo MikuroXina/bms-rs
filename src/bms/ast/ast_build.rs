@@ -522,7 +522,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -556,7 +556,7 @@ mod tests {
         let tokens = [Title("A"), EndRandom]
             .into_iter()
             .enumerate()
-            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .map(|(i, t)| t.into_wrapper_range(i..i))
             .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -569,7 +569,7 @@ mod tests {
         let tokens = [Title("A"), EndIf]
             .into_iter()
             .enumerate()
-            .map(|(i, t)| t.into_wrapper_manual(i, i))
+            .map(|(i, t)| t.into_wrapper_range(i..i))
             .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -591,7 +591,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -645,7 +645,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -698,7 +698,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -796,7 +796,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -818,7 +818,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -841,7 +841,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -862,7 +862,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -887,7 +887,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -910,7 +910,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
@@ -960,7 +960,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());

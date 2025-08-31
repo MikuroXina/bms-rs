@@ -52,7 +52,7 @@ fn test_always_use_older() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -171,7 +171,7 @@ fn test_always_use_newer() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -290,7 +290,7 @@ fn test_always_warn_and_use_older() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
 
     let token_stream = TokenStream { tokens };
@@ -413,7 +413,7 @@ fn test_always_warn_and_use_newer() {
     ]
     .into_iter()
     .enumerate()
-    .map(|(i, content)| content.into_wrapper_manual(i, i))
+    .map(|(i, content)| content.into_wrapper_range(i..i))
     .collect();
     let token_stream = TokenStream { tokens };
 

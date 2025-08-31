@@ -161,14 +161,6 @@ pub trait SourcePosMixinExt {
         SourceRangeMixin::new(self, range)
     }
 
-    /// Creates a new `SourceRangeMixin` with a given start and end indices.
-    fn into_wrapper_manual(self, start: usize, end: usize) -> SourceRangeMixin<Self>
-    where
-        Self: Sized,
-    {
-        SourceRangeMixin::new_with_start_end(self, start, end)
-    }
-
     /// Creates a new `SourceRangeMixin` with a given (start, end) span.
     fn into_wrapper_span(self, span: (usize, usize)) -> SourceRangeMixin<Self>
     where

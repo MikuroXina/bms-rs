@@ -230,7 +230,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");
@@ -349,7 +349,7 @@ mod tests {
         ]
         .into_iter()
         .enumerate()
-        .map(|(i, t)| t.into_wrapper_manual(i, i))
+        .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
         let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         println!("AST structure: {ast:#?}");

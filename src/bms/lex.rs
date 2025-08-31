@@ -136,16 +136,16 @@ impl<'a> TokenStream<'a> {
                             LexWarning::UnknownCommand {
                                 command: cmd.to_string(),
                             }
-                            .into_wrapper_manual(token_start, token_end),
+                            .into_wrapper_range(token_start..token_end),
                         );
                     }
 
-                    let token_with_pos = content.into_wrapper_manual(token_start, token_end);
+                    let token_with_pos = content.into_wrapper_range(token_start..token_end);
                     tokens.push(token_with_pos);
                 }
                 Err(warning) => {
                     let token_end = cursor.index();
-                    warnings.push(warning.into_wrapper_manual(token_start, token_end))
+                    warnings.push(warning.into_wrapper_range(token_start..token_end))
                 }
             };
         }
