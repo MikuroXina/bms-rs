@@ -54,12 +54,14 @@ impl AsRef<f64> for FinF64 {
 impl FinF64 {
     /// Creates a new `FinF64` from `f64` if `float` is finite, otherwise returns `None`.
     #[inline]
+    #[must_use]
     pub fn new(float: f64) -> Option<Self> {
         Self::try_from(float).ok()
     }
 
     /// Gets the internal value.
     #[inline]
+    #[must_use]
     pub const fn as_f64(self) -> f64 {
         self.0
     }

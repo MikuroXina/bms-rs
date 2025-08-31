@@ -63,6 +63,7 @@ pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,
@@ -94,6 +95,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
 /// Bms Parse Output with AST
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The output Bms.
     pub bms: Bms<T>,

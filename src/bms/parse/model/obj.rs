@@ -184,6 +184,7 @@ pub enum BgaLayer {
 
 impl BgaLayer {
     /// Convert a [`crate::bms::command::channel::Channel`] to a [`BgaLayer`].
+    #[must_use]
     pub const fn from_channel(channel: Channel) -> Option<Self> {
         match channel {
             Channel::BgaBase => Some(Self::Base),
@@ -203,6 +204,7 @@ impl BgaLayer {
     }
 
     /// Convert a [`BgaLayer`] to a [`crate::bms::command::channel::Channel`].
+    #[must_use]
     pub const fn to_channel(self) -> Channel {
         match self {
             Self::Base => Channel::BgaBase,

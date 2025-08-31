@@ -108,6 +108,7 @@ pub enum ValidityInvalid {
 /// Output of validity checks.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
 pub struct ValidityCheckOutput {
     /// Missing-related findings.
     pub missing: Vec<ValidityMissing>,

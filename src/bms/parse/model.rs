@@ -1230,6 +1230,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 
     /// Calculates a required resolution to convert the notes time into pulses, which split one quarter note evenly.
+    #[must_use]
     pub fn resolution_for_pulses(&self) -> u64 {
         use num::Integer;
 
@@ -1381,6 +1382,7 @@ impl Arrangers {
 
 impl Graphics {
     /// Returns the bga change objects.
+    #[must_use]
     pub const fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
         &self.bga_changes
     }
@@ -1478,6 +1480,7 @@ impl Graphics {
 
 impl Notes {
     /// Converts into the notes sorted by time.
+    #[must_use]
     pub fn into_all_notes(self) -> Vec<Obj> {
         self.objs.into_values().flatten().sorted().collect()
     }
@@ -1488,11 +1491,13 @@ impl Notes {
     }
 
     /// Returns all the bgms in the score.
+    #[must_use]
     pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
         &self.bgms
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
+    #[must_use]
     pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
         self.ids_by_key
             .get(&(side, key))?
@@ -1555,6 +1560,7 @@ impl Notes {
     /// Gets the time of last BGM object.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
+    #[must_use]
     pub fn last_bgm_time(&self) -> Option<ObjTime> {
         self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }

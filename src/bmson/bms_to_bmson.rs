@@ -46,6 +46,7 @@ pub enum BmsToBmsonWarning {
 
 /// Output of the conversion from `Bms` to `Bmson`.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct BmsToBmsonOutput {
     /// The converted `Bmson` object.
     pub bmson: Bmson,

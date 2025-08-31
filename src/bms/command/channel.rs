@@ -154,11 +154,13 @@ pub enum NoteKind {
 
 impl NoteKind {
     /// Returns whether the note is a playable.
+    #[must_use]
     pub const fn is_playable(self) -> bool {
         !matches!(self, Self::Invisible)
     }
 
     /// Returns whether the note is a long-press note.
+    #[must_use]
     pub const fn is_long(self) -> bool {
         matches!(self, Self::Long)
     }
@@ -257,6 +259,7 @@ impl From<ChannelId> for u64 {
 
 impl ChannelId {
     /// Converts the channel id into an `u16` value.
+    #[must_use]
     pub fn as_u16(self) -> u16 {
         self.into()
     }
@@ -296,11 +299,13 @@ pub enum Key {
 
 impl Key {
     /// Returns whether the key expected a piano keyboard.
+    #[must_use]
     pub const fn is_keyxx(&self) -> bool {
         matches!(self, Self::Key(_))
     }
 
     /// Returns the key number if it's a Key variant.
+    #[must_use]
     pub const fn key_number(&self) -> Option<u8> {
         match self {
             Self::Key(n) => Some(*n),
@@ -309,6 +314,7 @@ impl Key {
     }
 
     /// Returns the scratch number if it's a Scratch variant.
+    #[must_use]
     pub const fn scratch_number(&self) -> Option<u8> {
         match self {
             Self::Scratch(n) => Some(*n),
@@ -317,11 +323,13 @@ impl Key {
     }
 
     /// Creates a Key variant with the given number.
+    #[must_use]
     pub const fn new_key(n: u8) -> Self {
         Self::Key(n)
     }
 
     /// Creates a Scratch variant with the given number.
+    #[must_use]
     pub const fn new_scratch(n: u8) -> Self {
         Self::Scratch(n)
     }
@@ -375,6 +383,7 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
 }
 
 /// Reads a channel from a string. (Generic channel reader)
+#[must_use]
 pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);

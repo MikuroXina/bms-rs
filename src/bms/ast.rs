@@ -42,6 +42,7 @@ pub struct AstRoot<'a> {
 
 /// The output of building the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct AstBuildOutput<'a> {
     /// The units of the AST.
     pub root: AstRoot<'a>,
@@ -65,6 +66,7 @@ impl<'a> AstRoot<'a> {
 
 /// The output of parsing the AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct AstParseOutput<'a> {
     /// The tokens that were parsed.
     pub token_refs: TokenRefStream<'a>,
@@ -86,6 +88,7 @@ impl<'a> AstRoot<'a> {
     /// This function flattens the AST structure and returns ALL tokens contained in the AST,
     /// including all branches in Random and Switch blocks. This serves as the inverse of
     /// [`AstRoot::from_token_stream`].
+    #[must_use]
     pub fn extract(self) -> TokenStream<'a> {
         let tokens = ast_extract::extract_units(self.units);
         TokenStream { tokens }

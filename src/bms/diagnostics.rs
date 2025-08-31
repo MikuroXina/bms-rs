@@ -59,6 +59,7 @@ impl<'a> SimpleSource<'a> {
     /// # Parameters
     /// * `name` - Name of the source file
     /// * `text` - Complete text content of the source file
+    #[must_use]
     pub const fn new(name: &'a str, text: &'a str) -> Self {
         Self { name, text }
     }
@@ -67,6 +68,7 @@ impl<'a> SimpleSource<'a> {
     ///
     /// # Returns
     /// Returns the complete text content of the source file
+    #[must_use]
     pub const fn text(&self) -> &'a str {
         self.text
     }

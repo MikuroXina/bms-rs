@@ -1256,6 +1256,7 @@ impl<'a> Token<'a> {
     }
 
     /// Checks if a token is a control flow token.
+    #[must_use]
     pub const fn is_control_flow_token(&self) -> bool {
         matches!(
             self,

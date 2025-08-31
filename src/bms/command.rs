@@ -184,21 +184,25 @@ impl From<ObjId> for u64 {
 
 impl ObjId {
     /// Instances a special null id, which means the rest object.
+    #[must_use]
     pub const fn null() -> Self {
         Self([0, 0])
     }
 
     /// Converts the object id into an `u16` value.
+    #[must_use]
     pub fn as_u16(self) -> u16 {
         self.into()
     }
 
     /// Converts the object id into an `u32` value.
+    #[must_use]
     pub fn as_u32(self) -> u32 {
         self.into()
     }
 
     /// Converts the object id into an `u64` value.
+    #[must_use]
     pub fn as_u64(self) -> u64 {
         self.into()
     }

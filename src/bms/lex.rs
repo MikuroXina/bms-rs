@@ -59,6 +59,7 @@ pub(crate) type Result<T> = core::result::Result<T, LexWarningWithRange>;
 /// Lex Parsing Results, includes tokens and warnings.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[must_use]
 pub struct LexOutput<'a> {
     /// tokens
     pub tokens: TokenStream<'a>,

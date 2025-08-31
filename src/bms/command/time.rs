@@ -31,6 +31,7 @@ impl ObjTime {
     /// Panics:
     ///
     /// When `denominator == 0`.
+    #[must_use]
     pub fn new(track: u64, numerator: u64, denominator: u64) -> Self {
         // If denominator is 0, it panics.
         assert!(denominator > 0);

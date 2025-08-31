@@ -137,11 +137,13 @@ pub struct BmsonInfo {
 }
 
 /// Default mode hint, beatmania 7 keys.
+#[must_use]
 pub fn default_mode_hint() -> String {
     "beat-7k".into()
 }
 
 /// Default relative percentage, 100%.
+#[must_use]
 pub fn default_percentage() -> FinF64 {
     FinF64::new(100.0).unwrap_or_else(|| {
         // This should never happen as 100.0 is a valid FinF64 value
@@ -150,6 +152,7 @@ pub fn default_percentage() -> FinF64 {
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
+#[must_use]
 pub const fn default_resolution() -> u64 {
     240
 }

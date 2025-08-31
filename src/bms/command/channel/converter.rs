@@ -16,6 +16,7 @@ pub trait KeyLayoutConverter {
 
 impl KeyLayoutConvertMirror {
     /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
+    #[must_use]
     pub const fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
         Self { side, keys }
     }
@@ -108,6 +109,7 @@ pub struct KeyLayoutConvertLaneRotateShuffle {
 
 impl KeyLayoutConvertLaneRotateShuffle {
     /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
+    #[must_use]
     pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
         Self {
             side,
@@ -163,6 +165,7 @@ pub struct KeyLayoutConvertLaneRandomShuffle {
 
 impl KeyLayoutConvertLaneRandomShuffle {
     /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
+    #[must_use]
     pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
         Self {
             side,
