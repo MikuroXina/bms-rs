@@ -130,10 +130,10 @@ fn test_bmson_to_bms_with_notes() {
     let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
 
     // Verify that notes were converted
-    assert_eq!(bms.notes.wav_files.len(), 1);
-    assert_eq!(bms.notes.objs.len(), 1);
+    assert_eq!(bms.notes().wav_files.len(), 1);
+    assert_eq!(bms.notes().objs.len(), 1);
 
     // Check that we have 2 notes
-    let notes = bms.notes.objs.values().next().unwrap();
+    let notes = bms.notes().objs.values().next().unwrap();
     assert_eq!(notes.len(), 2);
 }

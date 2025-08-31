@@ -63,7 +63,7 @@ fn nested_random() {
     }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
-        bms.notes.into_all_notes(),
+        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),
@@ -111,7 +111,7 @@ fn nested_random() {
     }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
-        bms.notes.into_all_notes(),
+        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),
@@ -160,7 +160,7 @@ fn nested_random() {
     }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
-        bms.notes.into_all_notes(),
+        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             Obj {
                 offset: ObjTime::new(1, 0, 4),

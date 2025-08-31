@@ -45,9 +45,12 @@ use self::{
 
 #[cfg(feature = "minor-command")]
 use self::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj};
-use super::parse::{
-    Result,
-    prompt::{ChannelDuplication, PromptHandler, TrackDuplication},
+use super::{
+    command::channel::ChannelId,
+    parse::{
+        Result,
+        prompt::{ChannelDuplication, PromptHandler, TrackDuplication},
+    },
 };
 
 /// A score data aggregate of BMS format.
@@ -57,17 +60,15 @@ pub struct Bms<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
-    pub(crate) scope_defines: ScopeDefines,
+    pub scope_defines: ScopeDefines,
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
-    pub(crate) arrangers: Arrangers,
+    pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub(crate) notes: Notes,
+    pub(crate) notes: Notes<T>,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
-    pub(crate) graphics: Graphics,
+    pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
-    /// Phantom data to use the generic parameter T
-    pub _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: KeyLayoutMapper> Default for Bms<T> {
@@ -79,7 +80,6 @@ impl<T: KeyLayoutMapper> Default for Bms<T> {
             notes: Default::default(),
             graphics: Default::default(),
             others: Default::default(),
-            _phantom: PhantomData,
         }
     }
 }
@@ -212,9 +212,9 @@ pub struct Arrangers {
 }
 
 /// The playable objects set for querying by lane or time.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Notes {
+pub struct Notes<T> {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
@@ -225,9 +225,9 @@ pub struct Notes {
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     /// All note objects, indexed by [`ObjId`]. `#XXXYY:ZZ...` (note placement)
     pub objs: HashMap<ObjId, Vec<Obj>>,
-    /// Index for fast key lookup. Used for LN/landmine logic.
-    /// Maps each ([`PlayerSide`], [`Key`]) pair to a sorted map of times and [`ObjId`]s for efficient note lookup.
-    pub ids_by_key: HashMap<(PlayerSide, Key), BTreeMap<ObjTime, ObjId>>,
+    /// Index for fast key lookup. Used for LN/landmine logic and so on.
+    /// Maps each [`ChannelId`] to a sorted map of times and [`ObjId`]s for efficient note lookup.
+    pub ids_by_channel: HashMap<ChannelId, BTreeMap<ObjTime, ObjId>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -251,6 +251,7 @@ pub struct Notes {
     /// Option events, indexed by time. #A6
     #[cfg(feature = "minor-command")]
     pub option_events: BTreeMap<ObjTime, OptionObj>,
+    _marker: PhantomData<fn() -> T>,
 }
 
 /// The graphics objects that are used in the score.
@@ -332,6 +333,11 @@ pub struct Others {
 }
 
 impl<T: KeyLayoutMapper> Bms<T> {
+    /// Returns the sound note objects information.
+    pub fn notes(&self) -> &Notes<T> {
+        &self.notes
+    }
+
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
@@ -620,7 +626,29 @@ impl Graphics {
     }
 }
 
-impl Notes {
+impl<T> Default for Notes<T> {
+    fn default() -> Self {
+        Self {
+            wav_path_root: Default::default(),
+            wav_files: Default::default(),
+            bgms: Default::default(),
+            objs: Default::default(),
+            ids_by_channel: Default::default(),
+            midi_file: Default::default(),
+            materials_wav: Default::default(),
+            bgm_volume_changes: Default::default(),
+            key_volume_changes: Default::default(),
+            seek_events: Default::default(),
+            text_events: Default::default(),
+            judge_events: Default::default(),
+            bga_keybound_events: Default::default(),
+            option_events: Default::default(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Notes<T> {
     /// Converts into the notes sorted by time.
     #[must_use]
     pub fn into_all_notes(self) -> Vec<Obj> {
@@ -637,12 +665,21 @@ impl Notes {
     pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
         &self.bgms
     }
+}
 
+impl<T: KeyLayoutMapper> Notes<T> {
     /// Finds next object on the key `Key` from the time `ObjTime`.
     #[must_use]
-    pub fn next_obj_by_key(&self, side: PlayerSide, key: Key, time: ObjTime) -> Option<&Obj> {
-        self.ids_by_key
-            .get(&(side, key))?
+    pub fn next_obj_by_key(
+        &self,
+        side: PlayerSide,
+        kind: NoteKind,
+        key: Key,
+        time: ObjTime,
+    ) -> Option<&Obj> {
+        let id = T::new(side, kind, key).to_channel_id();
+        self.ids_by_channel
+            .get(&id)?
             .range((Bound::Excluded(time), Bound::Unbounded))
             .next()
             .and_then(|(_, id)| {
@@ -656,11 +693,11 @@ impl Notes {
 
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: Obj) {
-        let entry_key = (note.side, note.key);
+        let entry_key = T::new(note.side, note.kind, note.key).to_channel_id();
         let offset = note.offset;
         let obj = note.obj;
         self.objs.entry(obj).or_default().push(note);
-        self.ids_by_key
+        self.ids_by_channel
             .entry(entry_key)
             .or_default()
             .insert(offset, obj);
@@ -669,7 +706,8 @@ impl Notes {
     /// Removes the latest note from the notes.
     pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
-            if let Some(key_map) = self.ids_by_key.get_mut(&(removed.side, removed.key)) {
+            let entry_key = T::new(removed.side, removed.kind, removed.key).to_channel_id();
+            if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
                 key_map.remove(&removed.offset);
             }
         })
@@ -679,7 +717,8 @@ impl Notes {
     pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
-                if let Some(key_map) = self.ids_by_key.get_mut(&(item.side, item.key)) {
+                let entry_key = T::new(item.side, item.kind, item.key).to_channel_id();
+                if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
                     key_map.remove(&item.offset);
                 }
             }

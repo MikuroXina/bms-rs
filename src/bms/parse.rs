@@ -857,9 +857,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let Obj {
-                    offset, key, side, ..
+                    offset,
+                    key,
+                    side,
+                    kind,
+                    ..
                 } = &end_note;
-                let (_, &begin_id) = self.notes.ids_by_key[&(*side, *key)]
+                let (_, &begin_id) = self.notes.ids_by_channel
+                    [&T::new(*side, *kind, *key).to_channel_id()]
                     .range(..offset)
                     .last()
                     .ok_or_else(|| {
