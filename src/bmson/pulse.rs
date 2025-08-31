@@ -42,7 +42,7 @@ impl PulseConverter {
                 .arrangers
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or(Decimal::from(1u64), |section| section.length.clone())
+                .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);

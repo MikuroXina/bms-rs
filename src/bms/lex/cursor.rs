@@ -83,7 +83,7 @@ impl<'a> Cursor<'a> {
         // Get remaining
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source[self.index..].len());
+            .unwrap_or_else(|| self.source[self.index..].len());
         let ret_line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
@@ -106,7 +106,7 @@ impl<'a> Cursor<'a> {
         // Get remaining
         let remaining_end = self.source[self.index..]
             .find('\n')
-            .unwrap_or(self.source[self.index..].len());
+            .unwrap_or_else(|| self.source[self.index..].len());
         let ret_line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)

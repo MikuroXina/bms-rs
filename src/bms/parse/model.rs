@@ -732,12 +732,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 let denominator = message.len() as u64 / 2;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
-                    let bpm = c1.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digit: {c1}",
-                    )))? * 16
-                        + c2.to_digit(16).ok_or(ParseWarning::SyntaxError(format!(
-                            "Invalid hex digit: {c2}",
-                        )))?;
+                    let bpm = c1.to_digit(16).ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!("Invalid hex digit: {c1}",))
+                    })? * 16
+                        + c2.to_digit(16).ok_or_else(|| {
+                            ParseWarning::SyntaxError(format!("Invalid hex digit: {c2}",))
+                        })?;
                     if bpm == 0 {
                         continue;
                     }
@@ -1105,12 +1105,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })?;
-                let mut begin_note =
-                    self.notes
-                        .remove_latest_note(begin_id)
-                        .ok_or(ParseWarning::SyntaxError(format!(
-                            "Cannot find begin note for LNOBJ {end_id:?}"
-                        )))?;
+                let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "Cannot find begin note for LNOBJ {end_id:?}"
+                    ))
+                })?;
                 begin_note.kind = NoteKind::Long;
                 end_note.kind = NoteKind::Long;
                 self.notes.push_note(begin_note);
@@ -1376,7 +1375,7 @@ impl Arrangers {
             .and_modify(|existing| {
                 existing.duration = &existing.duration + &stop.duration;
             })
-            .or_insert(stop.clone());
+            .or_insert_with(|| stop.clone());
     }
 }
 
