@@ -43,8 +43,8 @@ use self::{
 use self::{
     def::{Bmp, ExRankDef},
     obj::{
-        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
+        SectionLenChangeObj, SpeedObj, StopObj, TextObj, WavObj,
     },
 };
 
@@ -229,7 +229,7 @@ pub struct Notes<T> {
     /// BGM objects, indexed by time. `#XXX01:ZZ...` (BGM placement)
     pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
     /// All note objects, indexed by [`ObjId`]. `#XXXYY:ZZ...` (note placement)
-    pub objs: HashMap<ObjId, Vec<Obj>>,
+    pub objs: HashMap<ObjId, Vec<WavObj>>,
     /// Index for fast key lookup. Used for LN/landmine logic and so on.
     /// Maps each [`ChannelId`] to a sorted map of times and [`ObjId`]s for efficient note lookup.
     pub ids_by_channel: HashMap<ChannelId, BTreeMap<ObjTime, ObjId>>,
@@ -661,12 +661,12 @@ impl<T> Default for Notes<T> {
 impl<T> Notes<T> {
     /// Converts into the notes sorted by time.
     #[must_use]
-    pub fn into_all_notes(self) -> Vec<Obj> {
+    pub fn into_all_notes(self) -> Vec<WavObj> {
         self.objs.into_values().flatten().sorted().collect()
     }
 
     /// Returns the iterator having all of the notes sorted by time.
-    pub fn all_notes(&self) -> impl Iterator<Item = &Obj> {
+    pub fn all_notes(&self) -> impl Iterator<Item = &WavObj> {
         self.objs.values().flatten().sorted()
     }
 
@@ -686,7 +686,7 @@ impl<T: KeyLayoutMapper> Notes<T> {
         kind: NoteKind,
         key: Key,
         time: ObjTime,
-    ) -> Option<&Obj> {
+    ) -> Option<&WavObj> {
         let id = T::new(side, kind, key).to_channel_id();
         self.ids_by_channel
             .get(&id)?
@@ -702,7 +702,7 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Adds the new note object to the notes.
-    pub fn push_note(&mut self, note: Obj) {
+    pub fn push_note(&mut self, note: WavObj) {
         let entry_key = T::new(note.side, note.kind, note.key).to_channel_id();
         let offset = note.offset;
         let obj = note.obj;
@@ -714,7 +714,7 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Removes the latest note from the notes.
-    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<Obj> {
+    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<WavObj> {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
             let entry_key = T::new(removed.side, removed.kind, removed.key).to_channel_id();
             if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
@@ -724,7 +724,7 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Vec<Obj> {
+    pub fn remove_note(&mut self, id: ObjId) -> Vec<WavObj> {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
                 let entry_key = T::new(item.side, item.kind, item.key).to_channel_id();
@@ -974,7 +974,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
     pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
         for objs in self.notes.objs.values_mut() {
-            for Obj {
+            for WavObj {
                 side, kind, key, ..
             } in objs.iter_mut()
             {

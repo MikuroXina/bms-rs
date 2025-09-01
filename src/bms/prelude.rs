@@ -39,8 +39,8 @@ pub use super::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
         obj::{
-            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, Obj,
-            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj,
+            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
+            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj, WavObj,
         },
     },
     parse::{

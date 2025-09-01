@@ -657,7 +657,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 if let Some(layout) = T::from_channel_id(*channel_id) {
                     let (side, kind, key) = layout.into_tuple();
                     for (offset, obj) in ids_from_message(*track, message) {
-                        self.notes.push_note(Obj {
+                        self.notes.push_note(WavObj {
                             offset,
                             kind,
                             side,
@@ -858,7 +858,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .notes
                     .remove_latest_note(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let Obj {
+                let WavObj {
                     offset,
                     key,
                     side,

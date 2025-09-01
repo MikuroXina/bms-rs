@@ -69,7 +69,7 @@ fn test_prelude_imports() {
     };
 
     // Test model::obj types
-    let _obj = Obj {
+    let _obj = WavObj {
         offset: _obj_time,
         kind: _note_kind,
         side: _player_side,

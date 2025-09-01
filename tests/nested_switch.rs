@@ -144,28 +144,28 @@ fn nested_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
                 obj: id55,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -191,28 +191,28 @@ fn nested_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: id66,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -238,21 +238,21 @@ fn nested_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: id33,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -322,28 +322,28 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
                 obj: id55,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -369,28 +369,28 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: id66,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -416,21 +416,21 @@ fn nested_random_in_switch() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: id33,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -500,28 +500,28 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
                 obj: id55,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -547,28 +547,28 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: id66,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -594,21 +594,21 @@ fn nested_switch_in_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: id33,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -676,14 +676,14 @@ fn test_switch_insane() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             // #CASE 1, #RANDOM 1, #IF 1
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: "01".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -711,14 +711,14 @@ fn test_switch_insane() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             // #CASE 1, #RANDOM 2, #ELSE
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: "01".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -746,7 +746,7 @@ fn test_switch_insane() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             // #CASE 2
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -774,21 +774,21 @@ fn test_switch_insane() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             // #CASE 3, #SWITCH 1
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: "03".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: "11".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -816,21 +816,21 @@ fn test_switch_insane() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             // #CASE 3, #SWITCH 2
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 8),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: "03".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: "22".try_into().unwrap(),
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -856,7 +856,7 @@ fn test_switch_insane() {
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![Obj {
+        vec![WavObj {
             offset: ObjTime::new(0, 1, 2),
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,

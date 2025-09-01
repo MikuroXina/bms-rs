@@ -14,7 +14,7 @@ use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 /// An object playing sound on the score.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Obj {
+pub struct WavObj {
     /// The time offset in the track.
     pub offset: ObjTime,
     /// The note kind of the the object.
@@ -23,17 +23,17 @@ pub struct Obj {
     pub side: PlayerSide,
     /// The key, or lane, where the object is placed.
     pub key: Key,
-    /// The id of the object.
+    /// The `#WAVxx` id to be rung on play.
     pub obj: ObjId,
 }
 
-impl PartialOrd for Obj {
+impl PartialOrd for WavObj {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Obj {
+impl Ord for WavObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.offset
             .cmp(&other.offset)
