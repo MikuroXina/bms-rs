@@ -466,3 +466,42 @@ impl<T> Notes<T> {
         }
     }
 }
+
+// modify methods
+impl<T> Notes<T> {
+    /// Changes the channel of notes `target` in `time_span` into another channel `dst`.
+    pub fn change_note_channel<R: Clone + std::ops::RangeBounds<ObjTime>>(
+        &mut self,
+        target: ObjId,
+        time_span: &R,
+        dst: ChannelId,
+    ) where
+        T: KeyLayoutMapper,
+    {
+        let Some(dst_map) = T::from_channel_id(dst) else {
+            return;
+        };
+        let dst_map = dst_map.into_tuple();
+
+        for obj in self
+            .objs
+            .get_mut(&target)
+            .into_iter()
+            .flatten()
+            .filter(move |obj| time_span.contains(&obj.offset))
+        {
+            // Drain all ids from ids_by_channel where channel id matches
+            let [Some(src), Some(dst)] = self
+                .ids_by_channel
+                .get_disjoint_mut([&T::new(obj.side, obj.kind, obj.key).to_channel_id(), &dst])
+            else {
+                continue;
+            };
+            dst.extend(src.range(time_span.clone()));
+            src.retain(|k, _| !time_span.contains(k));
+
+            // Modify entry
+            (obj.side, obj.kind, obj.key) = dst_map;
+        }
+    }
+}
