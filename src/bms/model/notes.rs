@@ -84,6 +84,7 @@ impl<T> Default for Notes<T> {
     }
 }
 
+// query methods
 impl<T> Notes<T> {
     /// Converts into the notes sorted by time.
     #[must_use]
@@ -123,9 +124,7 @@ impl<T> Notes<T> {
             .flatten()
             .filter(move |obj| time_span.contains(&obj.offset))
     }
-}
 
-impl<T> Notes<T> {
     /// Finds next object on the key `Key` from the time `ObjTime`.
     #[must_use]
     pub fn next_obj_by_key(
@@ -152,6 +151,29 @@ impl<T> Notes<T> {
             })
     }
 
+    /// Gets the time of last visible object.
+    pub fn last_visible_time(&self) -> Option<ObjTime> {
+        self.objs
+            .values()
+            .flatten()
+            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
+            .map(Reverse)
+            .sorted()
+            .next()
+            .map(|Reverse(obj)| obj.offset)
+    }
+
+    /// Gets the time of last BGM object.
+    ///
+    /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
+    #[must_use]
+    pub fn last_bgm_time(&self) -> Option<ObjTime> {
+        self.bgms.last_key_value().map(|(time, _)| time).cloned()
+    }
+}
+
+// push and remove methods
+impl<T> Notes<T> {
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: WavObj)
     where
@@ -194,26 +216,6 @@ impl<T> Notes<T> {
             }
             removed
         })
-    }
-
-    /// Gets the time of last visible object.
-    pub fn last_visible_time(&self) -> Option<ObjTime> {
-        self.objs
-            .values()
-            .flatten()
-            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
-            .map(Reverse)
-            .sorted()
-            .next()
-            .map(|Reverse(obj)| obj.offset)
-    }
-
-    /// Gets the time of last BGM object.
-    ///
-    /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
-    #[must_use]
-    pub fn last_bgm_time(&self) -> Option<ObjTime> {
-        self.bgms.last_key_value().map(|(time, _)| time).cloned()
     }
 
     /// Adds a new BGM volume change object to the notes.
