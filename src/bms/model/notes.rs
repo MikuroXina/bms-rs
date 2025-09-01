@@ -218,6 +218,11 @@ impl<T> Notes<T> {
         })
     }
 
+    /// Links the wav file `path` to the object id `wav_id`. Then returns the old path if existed.
+    pub fn push_wav<P: Into<PathBuf>>(&mut self, wav_id: ObjId, path: P) -> Option<PathBuf> {
+        self.wav_files.insert(wav_id, path.into())
+    }
+
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
     pub fn retain_notes<F: FnMut(ObjId, &[WavObj]) -> bool>(&mut self, mut cond: F)
     where
