@@ -675,14 +675,27 @@ impl<T> Notes<T> {
     pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
         &self.bgms
     }
-}
-impl<T: KeyLayoutMapper> Notes<T> {
+
     /// Retrieves notes on the specified channel id by the key mapping `T`.
-    pub fn notes_on(&self, channel_id: ChannelId) -> impl Iterator<Item = &WavObj> {
+    pub fn notes_on(&self, channel_id: ChannelId) -> impl Iterator<Item = &WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
         self.objs
             .values()
             .flatten()
             .filter(move |obj| T::new(obj.side, obj.kind, obj.key).to_channel_id() == channel_id)
+    }
+
+    /// Retrieves notes in the specified time span.
+    pub fn notes_in<R: std::ops::RangeBounds<ObjTime>>(
+        &self,
+        time_span: R,
+    ) -> impl Iterator<Item = &WavObj> {
+        self.objs
+            .values()
+            .flatten()
+            .filter(move |obj| time_span.contains(&obj.offset))
     }
 }
 
