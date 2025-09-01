@@ -223,6 +223,11 @@ impl<T> Notes<T> {
         self.wav_files.insert(wav_id, path.into())
     }
 
+    /// Unlinks the wav file path from the object id `wav_id`, and return the path if existed.
+    pub fn remove_wav(&mut self, wav_id: &ObjId) -> Option<PathBuf> {
+        self.wav_files.remove(wav_id)
+    }
+
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
     pub fn retain_notes<F: FnMut(ObjId, &[WavObj]) -> bool>(&mut self, mut cond: F)
     where
