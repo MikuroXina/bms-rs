@@ -61,7 +61,7 @@ use super::{
 /// A score data aggregate of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct Bms<T = KeyLayoutBeat> {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -337,7 +337,7 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl<T> Bms<T> {
     /// Returns the sound note objects information.
     pub fn notes(&self) -> &Notes<T> {
         &self.notes
