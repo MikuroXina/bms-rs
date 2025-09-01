@@ -676,6 +676,15 @@ impl<T> Notes<T> {
         &self.bgms
     }
 }
+impl<T: KeyLayoutMapper> Notes<T> {
+    /// Retrieves notes on the specified channel id by the key mapping `T`.
+    pub fn notes_on(&self, channel_id: ChannelId) -> impl Iterator<Item = &WavObj> {
+        self.objs
+            .values()
+            .flatten()
+            .filter(move |obj| T::new(obj.side, obj.kind, obj.key).to_channel_id() == channel_id)
+    }
+}
 
 impl<T: KeyLayoutMapper> Notes<T> {
     /// Finds next object on the key `Key` from the time `ObjTime`.
