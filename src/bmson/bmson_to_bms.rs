@@ -180,7 +180,7 @@ impl Bms {
                     NoteKind::Visible
                 };
 
-                let obj = Obj {
+                let obj = WavObj {
                     offset: time,
                     kind,
                     side,
@@ -204,7 +204,7 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
-                let obj = Obj {
+                let obj = WavObj {
                     offset: time,
                     kind: NoteKind::Landmine,
                     side,
@@ -228,7 +228,7 @@ impl Bms {
                 let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
-                let obj = Obj {
+                let obj = WavObj {
                     offset: time,
                     kind: NoteKind::Invisible,
                     side,

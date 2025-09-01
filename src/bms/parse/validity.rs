@@ -14,7 +14,7 @@ use crate::bms::{
         channel::{Key, NoteKind, PlayerSide},
         time::ObjTime,
     },
-    model::{Bms, obj::Obj},
+    model::{Bms, obj::WavObj},
 };
 
 /// Missing-related validity entries.
@@ -178,7 +178,7 @@ impl Bms {
         //      - Overlap: visible single within long interval (same lane)
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
-        let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&Obj>> = HashMap::new();
+        let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&WavObj>> = HashMap::new();
         for notes in self.notes.objs.values() {
             for obj in notes {
                 // Visible note in section 000 (track index 0)
@@ -334,7 +334,7 @@ mod tests {
         },
         model::{
             Notes,
-            obj::{BgaLayer, BgaObj, Obj},
+            obj::{BgaLayer, BgaObj, WavObj},
         },
     };
 
@@ -349,7 +349,7 @@ mod tests {
         let time = t(1, 0, 4);
         // Insert note via push_note to keep ids_by_key consistent
         let mut notes = Notes::default();
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
@@ -385,7 +385,7 @@ mod tests {
         let id = ObjId::try_from("10").unwrap();
         let time = t(0, 0, 4);
         let mut notes = Notes::default();
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
@@ -408,14 +408,14 @@ mod tests {
         let id2 = ObjId::try_from("02").unwrap();
         let time = t(1, 0, 4);
         let mut notes = Notes::default();
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
             obj: id1,
         });
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
@@ -442,7 +442,7 @@ mod tests {
         let vis_time = t(2, 1, 4);
         let mut notes = Notes::default();
         // LN start
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
@@ -450,7 +450,7 @@ mod tests {
             obj: id_ln_s,
         });
         // LN end
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
@@ -458,7 +458,7 @@ mod tests {
             obj: id_ln_e,
         });
         // Visible inside LN interval
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
@@ -485,14 +485,14 @@ mod tests {
         let mine_time = t(3, 0, 4);
         let mut notes = Notes::default();
         // LN interval
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: ln_start,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
             obj: id_ln_s,
         });
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
@@ -500,7 +500,7 @@ mod tests {
             obj: id_ln_e,
         });
         // Landmine inside the LN
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: mine_time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
@@ -523,14 +523,14 @@ mod tests {
         let id_mine = ObjId::try_from("05").unwrap();
         let time = t(1, 0, 4);
         let mut notes = Notes::default();
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
             obj: id_vis,
         });
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
@@ -557,14 +557,14 @@ mod tests {
         let mut notes = Notes::default();
 
         // Zero-length long note: start and end at same time
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: zero_length_time,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
             obj: id_ln_start,
         });
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: zero_length_time, // Same time - zero length
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
@@ -573,7 +573,7 @@ mod tests {
         });
 
         // Visible note at the same time as zero-length LN
-        notes.push_note(Obj {
+        notes.push_note(WavObj {
             offset: vis_time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,

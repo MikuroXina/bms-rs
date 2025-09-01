@@ -65,28 +65,28 @@ fn nested_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
                 obj: id55,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -113,28 +113,28 @@ fn nested_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
                 obj: id22,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
                 obj: id66,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
@@ -162,21 +162,21 @@ fn nested_random() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 0, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
                 obj: id11,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
                 obj: id33,
             },
-            Obj {
+            WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
