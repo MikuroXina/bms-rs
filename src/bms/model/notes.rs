@@ -628,4 +628,27 @@ impl<T> Notes<T> {
             (obj.side, obj.kind, obj.key) = dst_map;
         }
     }
+
+    /// Changes the specified object `target`'s offset time into `new_time`.
+    pub fn change_note_time(
+        &mut self,
+        target: WavObjArenaIndex,
+        new_time: ObjTime,
+    ) -> Option<ObjTime> {
+        let to_change = self.arena.0.get_mut(target.0)?;
+        let old_time = to_change.offset;
+        if old_time == new_time {
+            return Some(new_time);
+        }
+
+        let idx_by_time = self.idx_by_time[&old_time]
+            .iter()
+            .position(|&idx| idx == target)?;
+        self.idx_by_time
+            .get_mut(&to_change.offset)?
+            .swap_remove(idx_by_time);
+        self.idx_by_time.entry(new_time).or_default().push(target);
+        to_change.offset = new_time;
+        Some(old_time)
+    }
 }
