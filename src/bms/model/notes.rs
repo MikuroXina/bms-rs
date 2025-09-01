@@ -218,6 +218,14 @@ impl<T> Notes<T> {
         })
     }
 
+    /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
+    pub fn retain_notes<F: FnMut(ObjId, &[WavObj]) -> bool>(&mut self, mut cond: F)
+    where
+        T: KeyLayoutMapper,
+    {
+        self.objs.retain(|&id, objs| cond(id, objs));
+    }
+
     /// Duplicates the object with id `src` into the channel of id `dst`.
     pub fn dup_note_into(&mut self, src: ObjId, dst: ChannelId)
     where
