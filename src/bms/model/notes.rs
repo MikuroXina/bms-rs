@@ -218,6 +218,33 @@ impl<T> Notes<T> {
         })
     }
 
+    /// Duplicates the object with id `src` into the channel of id `dst`.
+    pub fn dup_note_into(&mut self, src: ObjId, dst: ChannelId)
+    where
+        T: KeyLayoutMapper,
+    {
+        let Some(src_obj) = self
+            .objs
+            .get(&src)
+            .into_iter()
+            .flatten()
+            .find(|obj| T::new(obj.side, obj.kind, obj.key).to_channel_id() == dst)
+        else {
+            return;
+        };
+        let Some(new_key) = T::from_channel_id(dst) else {
+            return;
+        };
+        let (side, kind, key) = new_key.into_tuple();
+        let new = WavObj {
+            side,
+            kind,
+            key,
+            ..*src_obj
+        };
+        self.push_note(new);
+    }
+
     /// Adds a new BGM volume change object to the notes.
     pub fn push_bgm_volume_change(
         &mut self,
