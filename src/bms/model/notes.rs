@@ -125,7 +125,7 @@ impl<T> Notes<T> {
     }
 }
 
-impl<T: KeyLayoutMapper> Notes<T> {
+impl<T> Notes<T> {
     /// Finds next object on the key `Key` from the time `ObjTime`.
     #[must_use]
     pub fn next_obj_by_key(
@@ -134,7 +134,10 @@ impl<T: KeyLayoutMapper> Notes<T> {
         kind: NoteKind,
         key: Key,
         time: ObjTime,
-    ) -> Option<&WavObj> {
+    ) -> Option<&WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
         let id = T::new(side, kind, key).to_channel_id();
         self.ids_by_channel
             .get(&id)?
@@ -150,7 +153,10 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Adds the new note object to the notes.
-    pub fn push_note(&mut self, note: WavObj) {
+    pub fn push_note(&mut self, note: WavObj)
+    where
+        T: KeyLayoutMapper,
+    {
         let entry_key = T::new(note.side, note.kind, note.key).to_channel_id();
         let offset = note.offset;
         let obj = note.obj;
@@ -162,7 +168,10 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Removes the latest note from the notes.
-    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<WavObj> {
+    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
         self.objs.entry(id).or_default().pop().inspect(|removed| {
             let entry_key = T::new(removed.side, removed.kind, removed.key).to_channel_id();
             if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
@@ -172,7 +181,10 @@ impl<T: KeyLayoutMapper> Notes<T> {
     }
 
     /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Vec<WavObj> {
+    pub fn remove_note(&mut self, id: ObjId) -> Vec<WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
         self.objs.remove(&id).map_or(vec![], |removed| {
             for item in &removed {
                 let entry_key = T::new(item.side, item.kind, item.key).to_channel_id();
