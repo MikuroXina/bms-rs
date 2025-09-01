@@ -185,7 +185,7 @@ impl Bms {
                     kind,
                     side,
                     key,
-                    obj: obj_id,
+                    wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);
             }
@@ -209,7 +209,7 @@ impl Bms {
                     kind: NoteKind::Landmine,
                     side,
                     key,
-                    obj: obj_id,
+                    wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);
             }
@@ -233,7 +233,7 @@ impl Bms {
                     kind: NoteKind::Invisible,
                     side,
                     key,
-                    obj: obj_id,
+                    wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);
             }

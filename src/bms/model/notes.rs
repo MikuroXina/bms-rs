@@ -1,5 +1,4 @@
 use std::{
-    cmp::Reverse,
     collections::{BTreeMap, HashMap},
     marker::PhantomData,
     ops::Bound,
@@ -14,6 +13,14 @@ use crate::{
     parse::{Result, prompt::ChannelDuplication},
 };
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct WavObjArena(Vec<WavObj>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WavObjArenaIndex(usize);
+
 /// The playable objects set for querying by lane or time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -23,14 +30,14 @@ pub struct Notes<T> {
     pub wav_path_root: Option<PathBuf>,
     /// The WAV file paths corresponding to the id of the note object.
     pub wav_files: HashMap<ObjId, PathBuf>,
-    // objects stored in obj is sorted, so it can be searched by bisection method
-    /// BGM objects, indexed by time. `#XXX01:ZZ...` (BGM placement)
-    pub bgms: BTreeMap<ObjTime, Vec<ObjId>>,
-    /// All note objects, indexed by [`ObjId`]. `#XXXYY:ZZ...` (note placement)
-    pub objs: HashMap<ObjId, Vec<WavObj>>,
-    /// Index for fast key lookup. Used for LN/landmine logic and so on.
-    /// Maps each [`ChannelId`] to a sorted map of times and [`ObjId`]s for efficient note lookup.
-    pub ids_by_channel: HashMap<ChannelId, BTreeMap<ObjTime, ObjId>>,
+    /// Arena of `WavObj`, contains the master data of sound objects. `#XXXYY:ZZ...` (note placement)
+    arena: WavObjArena,
+    /// Note objects index for each wav sound of [`ObjId`].
+    idx_by_wav_id: HashMap<ObjId, Vec<WavObjArenaIndex>>,
+    /// Note objects index for each channel from the mapping `T`.
+    idx_by_channel: HashMap<ChannelId, Vec<WavObjArenaIndex>>,
+    /// Note objects index sorted by its time.
+    idx_by_time: BTreeMap<ObjTime, Vec<WavObjArenaIndex>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
     #[cfg(feature = "minor-command")]
     pub midi_file: Option<PathBuf>,
@@ -62,9 +69,10 @@ impl<T> Default for Notes<T> {
         Self {
             wav_path_root: Default::default(),
             wav_files: Default::default(),
-            bgms: Default::default(),
-            objs: Default::default(),
-            ids_by_channel: Default::default(),
+            arena: Default::default(),
+            idx_by_wav_id: Default::default(),
+            idx_by_channel: Default::default(),
+            idx_by_time: Default::default(),
             #[cfg(feature = "minor-command")]
             midi_file: Default::default(),
             #[cfg(feature = "minor-command")]
@@ -86,43 +94,65 @@ impl<T> Default for Notes<T> {
 
 // query methods
 impl<T> Notes<T> {
-    /// Converts into the notes sorted by time.
+    /// Checks whether there is no valid notes.
+    pub fn is_empty(&self) -> bool {
+        self.all_notes().all(|obj| obj.wav_id.is_null())
+    }
+
+    /// Converts into the notes.
     #[must_use]
     pub fn into_all_notes(self) -> Vec<WavObj> {
-        self.objs.into_values().flatten().sorted().collect()
+        self.arena.0
     }
 
     /// Returns the iterator having all of the notes sorted by time.
     pub fn all_notes(&self) -> impl Iterator<Item = &WavObj> {
-        self.objs.values().flatten().sorted()
+        self.arena.0.iter().sorted()
+    }
+
+    /// Returns the iterator having all of the notes and its index sorted by time.
+    pub fn all_entries(&self) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)> {
+        self.arena
+            .0
+            .iter()
+            .enumerate()
+            .sorted_by_key(|obj| obj.1)
+            .map(|(idx, obj)| (WavObjArenaIndex(idx), obj))
     }
 
     /// Returns all the bgms in the score.
-    #[must_use]
-    pub const fn bgms(&self) -> &BTreeMap<ObjTime, Vec<ObjId>> {
-        &self.bgms
+    pub fn bgms(&self) -> impl Iterator<Item = &WavObj> {
+        self.arena
+            .0
+            .iter()
+            .sorted()
+            .filter(|obj| obj.kind == NoteKind::Invisible)
     }
 
     /// Retrieves notes on the specified channel id by the key mapping `T`.
-    pub fn notes_on(&self, channel_id: ChannelId) -> impl Iterator<Item = &WavObj>
+    pub fn notes_on(
+        &self,
+        channel_id: ChannelId,
+    ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)>
     where
         T: KeyLayoutMapper,
     {
-        self.objs
-            .values()
+        self.idx_by_channel
+            .get(&channel_id)
+            .into_iter()
             .flatten()
-            .filter(move |obj| T::new(obj.side, obj.kind, obj.key).to_channel_id() == channel_id)
+            .map(|&arena_index| (arena_index, &self.arena.0[arena_index.0]))
     }
 
     /// Retrieves notes in the specified time span.
     pub fn notes_in<R: std::ops::RangeBounds<ObjTime>>(
         &self,
         time_span: R,
-    ) -> impl Iterator<Item = &WavObj> {
-        self.objs
-            .values()
-            .flatten()
-            .filter(move |obj| time_span.contains(&obj.offset))
+    ) -> impl DoubleEndedIterator<Item = (WavObjArenaIndex, &WavObj)> {
+        self.idx_by_time
+            .range(time_span)
+            .flat_map(|(_, indexes)| indexes)
+            .map(|&arena_index| (arena_index, &self.arena.0[arena_index.0]))
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
@@ -133,34 +163,25 @@ impl<T> Notes<T> {
         kind: NoteKind,
         key: Key,
         time: ObjTime,
-    ) -> Option<&WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
-        let id = T::new(side, kind, key).to_channel_id();
-        self.ids_by_channel
-            .get(&id)?
-            .range((Bound::Excluded(time), Bound::Unbounded))
-            .next()
-            .and_then(|(_, id)| {
-                let objs = self.objs.get(id)?;
-                let idx = objs
-                    .binary_search_by(|probe| probe.offset.cmp(&time))
-                    .unwrap_or_else(|idx| idx);
-                objs.get(idx)
-            })
+    ) -> Option<&WavObj> {
+        self.notes_in((Bound::Excluded(time), Bound::Unbounded))
+            .map(|(_, obj)| obj)
+            .find(|obj| (obj.side, obj.kind, obj.key) == (side, kind, key))
     }
 
-    /// Gets the time of last visible object.
-    pub fn last_visible_time(&self) -> Option<ObjTime> {
-        self.objs
-            .values()
-            .flatten()
-            .filter(|obj| !matches!(obj.kind, NoteKind::Invisible))
-            .map(Reverse)
-            .sorted()
-            .next()
-            .map(|Reverse(obj)| obj.offset)
+    /// Gets the latest starting time of all notes.
+    pub fn last_obj_time(&self) -> Option<ObjTime> {
+        let (&time, _) = self.idx_by_time.last_key_value()?;
+        Some(time)
+    }
+
+    /// Gets the time of last playable object.
+    pub fn last_playable_time(&self) -> Option<ObjTime> {
+        self.notes_in(..)
+            .map(|(_, obj)| obj)
+            .rev()
+            .find(|obj| obj.kind.is_playable())
+            .map(|obj| obj.offset)
     }
 
     /// Gets the time of last BGM object.
@@ -168,7 +189,11 @@ impl<T> Notes<T> {
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
     #[must_use]
     pub fn last_bgm_time(&self) -> Option<ObjTime> {
-        self.bgms.last_key_value().map(|(time, _)| time).cloned()
+        self.notes_in(..)
+            .map(|(_, obj)| obj)
+            .rev()
+            .find(|obj| !obj.kind.is_playable())
+            .map(|obj| obj.offset)
     }
 }
 
@@ -179,43 +204,122 @@ impl<T> Notes<T> {
     where
         T: KeyLayoutMapper,
     {
-        let entry_key = T::new(note.side, note.kind, note.key).to_channel_id();
-        let offset = note.offset;
-        let obj = note.obj;
-        self.objs.entry(obj).or_default().push(note);
-        self.ids_by_channel
-            .entry(entry_key)
+        let new_index = WavObjArenaIndex(self.arena.0.len());
+        self.idx_by_wav_id
+            .entry(note.wav_id)
             .or_default()
-            .insert(offset, obj);
+            .push(new_index);
+        self.idx_by_channel
+            .entry(T::new(note.side, note.kind, note.key).to_channel_id())
+            .or_default()
+            .push(new_index);
+        self.idx_by_time
+            .entry(note.offset)
+            .or_default()
+            .push(new_index);
+        self.arena.0.push(note);
+    }
+
+    fn remove_index(&mut self, idx: usize, removing: &WavObj)
+    where
+        T: KeyLayoutMapper,
+    {
+        let channel_id = T::new(removing.side, removing.kind, removing.key).to_channel_id();
+        if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
+            .iter()
+            .position(|id| id.0 == idx)
+        {
+            self.idx_by_channel
+                .get_mut(&channel_id)
+                .unwrap()
+                .swap_remove(ids_by_channel_idx);
+        }
+        if let Some(ids_by_time_idx) = self.idx_by_time[&removing.offset]
+            .iter()
+            .position(|id| id.0 == idx)
+        {
+            self.idx_by_time
+                .get_mut(&removing.offset)
+                .unwrap()
+                .swap_remove(ids_by_time_idx);
+        }
     }
 
     /// Removes the latest note from the notes.
-    pub fn remove_latest_note(&mut self, id: ObjId) -> Option<WavObj>
+    pub fn pop_note(&mut self) -> Option<WavObj>
     where
         T: KeyLayoutMapper,
     {
-        self.objs.entry(id).or_default().pop().inspect(|removed| {
-            let entry_key = T::new(removed.side, removed.kind, removed.key).to_channel_id();
-            if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
-                key_map.remove(&removed.offset);
-            }
-        })
+        let last_idx = self.arena.0.len();
+        let last = self.arena.0.pop()?;
+        if let Some(ids_by_wav_id_idx) = self.idx_by_wav_id[&last.wav_id]
+            .iter()
+            .position(|id| id.0 == last_idx)
+        {
+            self.idx_by_wav_id
+                .get_mut(&last.wav_id)?
+                .swap_remove(ids_by_wav_id_idx);
+        }
+        let channel_id = T::new(last.side, last.kind, last.key).to_channel_id();
+        if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
+            .iter()
+            .position(|id| id.0 == last_idx)
+        {
+            self.idx_by_channel
+                .get_mut(&channel_id)?
+                .swap_remove(ids_by_channel_idx);
+        }
+        if let Some(ids_by_time_idx) = self.idx_by_time[&last.offset]
+            .iter()
+            .position(|id| id.0 == last_idx)
+        {
+            self.idx_by_time
+                .get_mut(&last.offset)?
+                .swap_remove(ids_by_time_idx);
+        }
+        Some(last)
     }
 
-    /// Removes the note from the notes.
-    pub fn remove_note(&mut self, id: ObjId) -> Vec<WavObj>
+    /// Removes notes belonging to the wav id.
+    pub fn remove_note(&mut self, wav_id: ObjId) -> Vec<WavObj>
     where
         T: KeyLayoutMapper,
     {
-        self.objs.remove(&id).map_or(vec![], |removed| {
-            for item in &removed {
-                let entry_key = T::new(item.side, item.kind, item.key).to_channel_id();
-                if let Some(key_map) = self.ids_by_channel.get_mut(&entry_key) {
-                    key_map.remove(&item.offset);
-                }
-            }
-            removed
-        })
+        let Some(indexes) = self.idx_by_wav_id.remove(&wav_id) else {
+            return vec![];
+        };
+        let mut objs = Vec::with_capacity(indexes.len());
+        for WavObjArenaIndex(idx) in indexes {
+            let removing = std::mem::replace(&mut self.arena.0[idx], WavObj::dangling());
+            self.remove_index(idx, &removing);
+            objs.push(removing);
+        }
+        objs
+    }
+
+    /// Removes the latest note using the wav of `wav_id`.
+    pub fn pop_latest_of(&mut self, wav_id: ObjId) -> Option<WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
+        let &WavObjArenaIndex(to_pop) = self.idx_by_wav_id.get(&wav_id)?.last()?;
+        let removing = std::mem::replace(&mut self.arena.0[to_pop], WavObj::dangling());
+        self.remove_index(to_pop, &removing);
+        Some(removing)
+    }
+
+    /// Adds the BGM (auto-played) note of `wav_id` at `time`.
+    pub fn push_bgm(&mut self, time: ObjTime, wav_id: ObjId)
+    where
+        T: KeyLayoutMapper,
+    {
+        self.push_note(WavObj {
+            offset: time,
+            kind: NoteKind::Invisible,
+            side: PlayerSide::Player1,
+            key: Key::Key(1),
+            wav_id,
+        });
     }
 
     /// Links the wav file `path` to the object id `wav_id`. Then returns the old path if existed.
@@ -229,24 +333,36 @@ impl<T> Notes<T> {
     }
 
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
-    pub fn retain_notes<F: FnMut(ObjId, &[WavObj]) -> bool>(&mut self, mut cond: F)
+    pub fn retain_notes<F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F)
     where
         T: KeyLayoutMapper,
     {
-        self.objs.retain(|&id, objs| cond(id, objs));
+        let removing_indexes: Vec<_> = self
+            .arena
+            .0
+            .iter()
+            .enumerate()
+            .filter(|&(_, obj)| cond(obj))
+            .map(|(i, _)| i)
+            .collect();
+        for removing_idx in removing_indexes {
+            let removing = std::mem::replace(&mut self.arena.0[removing_idx], WavObj::dangling());
+            self.remove_index(removing_idx, &removing);
+        }
     }
 
-    /// Duplicates the object with id `src` into the channel of id `dst`.
-    pub fn dup_note_into(&mut self, src: ObjId, dst: ChannelId)
+    /// Duplicates the object with id `src` at the time `at` into the channel of id `dst`.
+    pub fn dup_note_into(&mut self, src: ObjId, at: ObjTime, dst: ChannelId)
     where
         T: KeyLayoutMapper,
     {
         let Some(src_obj) = self
-            .objs
+            .idx_by_wav_id
             .get(&src)
             .into_iter()
             .flatten()
-            .find(|obj| T::new(obj.side, obj.kind, obj.key).to_channel_id() == dst)
+            .map(|idx| &self.arena.0[idx.0])
+            .find(|obj| obj.offset == at)
         else {
             return;
         };
@@ -480,35 +596,33 @@ impl<T> Notes<T> {
 // modify methods
 impl<T> Notes<T> {
     /// Changes the channel of notes `target` in `time_span` into another channel `dst`.
-    pub fn change_note_channel<R: Clone + std::ops::RangeBounds<ObjTime>>(
-        &mut self,
-        target: ObjId,
-        time_span: &R,
-        dst: ChannelId,
-    ) where
+    pub fn change_note_channel<I>(&mut self, targets: I, dst: ChannelId)
+    where
         T: KeyLayoutMapper,
+        I: IntoIterator<Item = WavObjArenaIndex>,
     {
         let Some(dst_map) = T::from_channel_id(dst) else {
             return;
         };
         let dst_map = dst_map.into_tuple();
 
-        for obj in self
-            .objs
-            .get_mut(&target)
-            .into_iter()
-            .flatten()
-            .filter(move |obj| time_span.contains(&obj.offset))
-        {
-            // Drain all ids from ids_by_channel where channel id matches
-            let [Some(src), Some(dst)] = self
-                .ids_by_channel
-                .get_disjoint_mut([&T::new(obj.side, obj.kind, obj.key).to_channel_id(), &dst])
-            else {
+        for target in targets {
+            let Some(obj) = self.arena.0.get_mut(target.0) else {
                 continue;
             };
-            dst.extend(src.range(time_span.clone()));
-            src.retain(|k, _| !time_span.contains(k));
+
+            // Drain all ids from ids_by_channel where channel id matches
+            let src = T::new(obj.side, obj.kind, obj.key).to_channel_id();
+            if let Some(idx_by_channel_idx) = self.idx_by_channel[&src]
+                .iter()
+                .position(|&idx| idx == target)
+            {
+                self.idx_by_channel
+                    .get_mut(&src)
+                    .unwrap()
+                    .swap_remove(idx_by_channel_idx);
+            }
+            self.idx_by_channel.entry(dst).or_default().push(target);
 
             // Modify entry
             (obj.side, obj.kind, obj.key) = dst_map;

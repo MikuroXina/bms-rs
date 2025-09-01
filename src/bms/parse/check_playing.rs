@@ -73,7 +73,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Check for notes
-        if self.notes.objs.is_empty() {
+        if self.notes.is_empty() {
             playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)

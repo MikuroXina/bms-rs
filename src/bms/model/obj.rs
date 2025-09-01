@@ -24,7 +24,7 @@ pub struct WavObj {
     /// The key, or lane, where the object is placed.
     pub key: Key,
     /// The `#WAVxx` id to be rung on play.
-    pub obj: ObjId,
+    pub wav_id: ObjId,
 }
 
 impl PartialOrd for WavObj {
@@ -37,7 +37,24 @@ impl Ord for WavObj {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.offset
             .cmp(&other.offset)
-            .then(self.obj.cmp(&other.obj))
+            .then(self.wav_id.cmp(&other.wav_id))
+    }
+}
+
+impl WavObj {
+    pub(crate) fn dangling() -> Self {
+        Self {
+            offset: ObjTime::new(1, 0, 1),
+            kind: NoteKind::Invisible,
+            side: PlayerSide::Player1,
+            key: Key::Key(1),
+            wav_id: ObjId::null(),
+        }
+    }
+
+    /// Checks whether the object is an invisible one.
+    pub fn is_invisible(&self) -> bool {
+        matches!(self.kind, NoteKind::Invisible)
     }
 }
 

@@ -131,36 +131,27 @@ impl Bms {
     fn check_missing(&self) -> Vec<ValidityMissing> {
         let mut missing = vec![];
         // 1) Check notes reference valid WAV ids.
-        for obj_id in self.notes.objs.keys() {
+        for obj_id in self.notes.all_notes().map(|obj| &obj.wav_id) {
             if !self.notes.wav_files.contains_key(obj_id) {
                 missing.push(ValidityMissing::WavForNote(*obj_id));
             }
         }
 
-        // 2) Check BGMs reference valid WAV ids.
-        for obj_ids in self.notes.bgms.values() {
-            for obj_id in obj_ids {
-                if !self.notes.wav_files.contains_key(obj_id) {
-                    missing.push(ValidityMissing::WavForBgm(*obj_id));
-                }
-            }
-        }
-
-        // 3) Check BGAs reference valid BMP ids.
+        // 2) Check BGAs reference valid BMP ids.
         for bga_obj in self.graphics.bga_changes().values() {
             if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
                 missing.push(ValidityMissing::BmpForBga(bga_obj.id));
             }
         }
 
-        // 4) Check BPM change ids used in messages have corresponding #BPMxx definitions.
+        // 3) Check BPM change ids used in messages have corresponding #BPMxx definitions.
         for id in &self.arrangers.bpm_change_ids_used {
             if !self.scope_defines.bpm_defs.contains_key(id) {
                 missing.push(ValidityMissing::BpmChangeDef(*id));
             }
         }
 
-        // 5) Check STOP ids used in messages have corresponding #STOPxx definitions.
+        // 4) Check STOP ids used in messages have corresponding #STOPxx definitions.
         for id in &self.arrangers.stop_ids_used {
             if !self.scope_defines.stop_defs.contains_key(id) {
                 missing.push(ValidityMissing::StopDef(*id));
@@ -179,21 +170,19 @@ impl Bms {
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
         let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&WavObj>> = HashMap::new();
-        for notes in self.notes.objs.values() {
-            for obj in notes {
-                // Visible note in section 000 (track index 0)
-                if obj.kind == NoteKind::Visible && obj.offset.track.0 == 0 {
-                    invalid.push(ValidityInvalid::VisibleNoteInTrackZero {
-                        side: obj.side,
-                        key: obj.key,
-                        time: obj.offset,
-                    });
-                }
-                lane_to_notes
-                    .entry((obj.side, obj.key))
-                    .or_default()
-                    .push(obj);
+        for obj in self.notes.all_notes() {
+            // Visible note in section 000 (track index 0)
+            if obj.kind == NoteKind::Visible && obj.offset.track.0 == 0 {
+                invalid.push(ValidityInvalid::VisibleNoteInTrackZero {
+                    side: obj.side,
+                    key: obj.key,
+                    time: obj.offset,
+                });
             }
+            lane_to_notes
+                .entry((obj.side, obj.key))
+                .or_default()
+                .push(obj);
         }
         for ((side, key), objs) in lane_to_notes {
             if objs.is_empty() {
@@ -354,7 +343,7 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id,
+            wav_id: id,
         });
         bms.notes = notes;
         // No WAV defined for id
@@ -390,7 +379,7 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id,
+            wav_id: id,
         });
         bms.notes = notes;
 
@@ -413,14 +402,14 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id1,
+            wav_id: id1,
         });
         notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id2,
+            wav_id: id2,
         });
         bms.notes = notes;
 
@@ -447,7 +436,7 @@ mod tests {
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_s,
+            wav_id: id_ln_s,
         });
         // LN end
         notes.push_note(WavObj {
@@ -455,7 +444,7 @@ mod tests {
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_e,
+            wav_id: id_ln_e,
         });
         // Visible inside LN interval
         notes.push_note(WavObj {
@@ -463,7 +452,7 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_vis,
+            wav_id: id_vis,
         });
         bms.notes = notes;
 
@@ -490,14 +479,14 @@ mod tests {
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_s,
+            wav_id: id_ln_s,
         });
         notes.push_note(WavObj {
             offset: ln_end,
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_e,
+            wav_id: id_ln_e,
         });
         // Landmine inside the LN
         notes.push_note(WavObj {
@@ -505,7 +494,7 @@ mod tests {
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_mine,
+            wav_id: id_mine,
         });
         bms.notes = notes;
 
@@ -528,14 +517,14 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_vis,
+            wav_id: id_vis,
         });
         notes.push_note(WavObj {
             offset: time,
             kind: NoteKind::Landmine,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_mine,
+            wav_id: id_mine,
         });
         bms.notes = notes;
 
@@ -562,14 +551,14 @@ mod tests {
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_start,
+            wav_id: id_ln_start,
         });
         notes.push_note(WavObj {
             offset: zero_length_time, // Same time - zero length
             kind: NoteKind::Long,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_ln_end,
+            wav_id: id_ln_end,
         });
 
         // Visible note at the same time as zero-length LN
@@ -578,7 +567,7 @@ mod tests {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(1),
-            obj: id_vis,
+            wav_id: id_vis,
         });
 
         bms.notes = notes;

@@ -7,9 +7,8 @@ mod graphics;
 mod notes;
 pub mod obj;
 
-use std::{cmp::Reverse, collections::HashMap, fmt::Debug, path::PathBuf};
+use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
-use itertools::Itertools;
 #[cfg(feature = "minor-command")]
 use num::BigUint;
 
@@ -22,17 +21,14 @@ use crate::bms::{
     Decimal,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, Volume,
-        channel::{
-            converter::KeyLayoutConverter,
-            mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        },
+        channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
         time::ObjTime,
     },
 };
 
+use self::def::ExRankDef;
 #[cfg(feature = "minor-command")]
 use self::def::{AtBgaDef, BgaDef, ExWavDef};
-use self::{def::ExRankDef, obj::WavObj};
 
 pub use arrangers::Arrangers;
 pub use graphics::Graphics;
@@ -215,15 +211,7 @@ impl<T> Bms<T> {
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
     pub fn last_obj_time(&self) -> Option<ObjTime> {
-        let obj_last = self
-            .notes
-            .objs
-            .values()
-            .flatten()
-            .map(Reverse)
-            .sorted()
-            .next()
-            .map(|Reverse(obj)| obj.offset);
+        let obj_last = self.notes.last_obj_time();
         let bpm_last = self
             .arrangers
             .bpm_changes
@@ -256,29 +244,12 @@ impl<T> Bms<T> {
         use num::Integer;
 
         let mut hyp_resolution = 1u64;
-        for obj in self.notes.objs.values().flatten() {
+        for obj in self.notes.all_notes() {
             hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator);
         }
         for bpm_change in self.arrangers.bpm_changes.values() {
             hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator);
         }
         hyp_resolution
-    }
-}
-
-impl<T: KeyLayoutMapper> Bms<T> {
-    /// One-way converting ([`crate::bms::command::channel::PlayerSide`], [`crate::bms::command::channel::Key`]) with [`KeyLayoutConverter`].
-    pub fn convert_key(&mut self, mut converter: impl KeyLayoutConverter) {
-        for objs in self.notes.objs.values_mut() {
-            for WavObj {
-                side, kind, key, ..
-            } in objs.iter_mut()
-            {
-                let beat_map = T::new(*side, *kind, *key);
-                let new_beat_map = converter.convert(beat_map);
-                *side = new_beat_map.side();
-                *key = new_beat_map.key();
-            }
-        }
     }
 }
