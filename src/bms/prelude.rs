@@ -15,7 +15,7 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, NoteKind, PlayerSide,
+            Channel, Key, NoteChannelId, NoteKind, PlayerSide,
             converter::{
                 KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
                 KeyLayoutConvertMirror, KeyLayoutConverter,

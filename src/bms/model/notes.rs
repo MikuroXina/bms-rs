@@ -9,7 +9,6 @@ use itertools::Itertools;
 
 use crate::{
     bms::prelude::*,
-    command::channel::NoteChannelId,
     parse::{Result, prompt::ChannelDuplication},
 };
 
