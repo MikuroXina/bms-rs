@@ -188,6 +188,12 @@ impl ObjId {
         Self([0, 0])
     }
 
+    /// Returns whether the id is `00`.
+    #[must_use]
+    pub fn is_null(self) -> bool {
+        self.0 == [0, 0]
+    }
+
     /// Converts the object id into an `u16` value.
     #[must_use]
     pub fn as_u16(self) -> u16 {

@@ -149,28 +149,28 @@ fn nested_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
-                obj: id55,
+                wav_id: id55,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -196,28 +196,28 @@ fn nested_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: id66,
+                wav_id: id66,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -243,21 +243,21 @@ fn nested_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: id33,
+                wav_id: id33,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -327,28 +327,28 @@ fn nested_random_in_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
-                obj: id55,
+                wav_id: id55,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -374,28 +374,28 @@ fn nested_random_in_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: id66,
+                wav_id: id66,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -421,21 +421,21 @@ fn nested_random_in_switch() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: id33,
+                wav_id: id33,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -505,28 +505,28 @@ fn nested_switch_in_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
-                obj: id55,
+                wav_id: id55,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -552,28 +552,28 @@ fn nested_switch_in_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: id66,
+                wav_id: id66,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -599,21 +599,21 @@ fn nested_switch_in_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: id33,
+                wav_id: id33,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -681,14 +681,14 @@ fn test_switch_insane() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: "01".try_into().unwrap(),
+                wav_id: "01".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: "04".try_into().unwrap(),
+                wav_id: "04".try_into().unwrap(),
             },
         ]
     );
@@ -716,14 +716,14 @@ fn test_switch_insane() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: "01".try_into().unwrap(),
+                wav_id: "01".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 0, 1),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: "05".try_into().unwrap(),
+                wav_id: "05".try_into().unwrap(),
             },
         ]
     );
@@ -751,7 +751,7 @@ fn test_switch_insane() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: "02".try_into().unwrap(),
+                wav_id: "02".try_into().unwrap(),
             },
         ]
     );
@@ -779,21 +779,21 @@ fn test_switch_insane() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: "03".try_into().unwrap(),
+                wav_id: "03".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: "11".try_into().unwrap(),
+                wav_id: "11".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: "11".try_into().unwrap(),
+                wav_id: "11".try_into().unwrap(),
             },
         ]
     );
@@ -821,21 +821,21 @@ fn test_switch_insane() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: "03".try_into().unwrap(),
+                wav_id: "03".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 0, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: "22".try_into().unwrap(),
+                wav_id: "22".try_into().unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(0, 1, 2),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: "22".try_into().unwrap(),
+                wav_id: "22".try_into().unwrap(),
             },
         ]
     );
@@ -861,7 +861,7 @@ fn test_switch_insane() {
             kind: NoteKind::Visible,
             side: PlayerSide::Player1,
             key: Key::Key(3),
-            obj: "55".try_into().unwrap(),
+            wav_id: "55".try_into().unwrap(),
         },]
     );
 }

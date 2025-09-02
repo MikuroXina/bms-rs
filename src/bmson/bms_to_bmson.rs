@@ -215,14 +215,14 @@ impl Bms {
                             // This should never happen as 100.0 is a valid FinF64 value
                             panic!("Internal error: 100.0 is not a valid FinF64")
                         });
-                        mine_map.entry(note.obj).or_default().push(MineEvent {
+                        mine_map.entry(note.wav_id).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,
                             damage,
                         });
                     }
                     NoteKind::Invisible => {
-                        key_map.entry(note.obj).or_default().push(KeyEvent {
+                        key_map.entry(note.wav_id).or_default().push(KeyEvent {
                             x: note_lane,
                             y: pulses,
                         });
@@ -235,7 +235,7 @@ impl Bms {
                             .map_or(0, |next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
                             });
-                        sound_map.entry(note.obj).or_default().push(Note {
+                        sound_map.entry(note.wav_id).or_default().push(Note {
                             x: note_lane,
                             y: pulses,
                             l: duration,

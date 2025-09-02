@@ -70,28 +70,28 @@ fn nested_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(5),
-                obj: id55,
+                wav_id: id55,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -118,28 +118,28 @@ fn nested_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(2),
-                obj: id22,
+                wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Scratch(1),
-                obj: id66,
+                wav_id: id66,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );
@@ -167,21 +167,21 @@ fn nested_random() {
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(1),
-                obj: id11,
+                wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(3),
-                obj: id33,
+                wav_id: id33,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
                 kind: NoteKind::Visible,
                 side: PlayerSide::Player1,
                 key: Key::Key(4),
-                obj: id44,
+                wav_id: id44,
             }
         ]
     );

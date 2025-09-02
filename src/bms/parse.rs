@@ -645,7 +645,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 for (time, obj) in ids_from_message(*track, message) {
-                    self.notes.bgms.entry(time).or_default().push(obj);
+                    self.notes.push_bgm(time, obj);
                 }
             }
             Token::Message {
@@ -662,7 +662,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             kind,
                             side,
                             key,
-                            obj,
+                            wav_id: obj,
                         });
                     }
                 }
@@ -856,7 +856,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::LnObj(end_id) => {
                 let mut end_note = self
                     .notes
-                    .remove_latest_note(*end_id)
+                    .pop_latest_of(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let WavObj {
                     offset,
@@ -865,16 +865,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     kind,
                     ..
                 } = &end_note;
-                let (_, &begin_id) = self.notes.ids_by_channel
-                    [&T::new(*side, *kind, *key).to_channel_id()]
-                    .range(..offset)
-                    .last()
+                let begin_id = self
+                    .notes
+                    .notes_in(..offset)
+                    .rev()
+                    .find(|(_, obj)| (obj.side, obj.kind, obj.key) == (*side, *kind, *key))
                     .ok_or_else(|| {
                         ParseWarning::SyntaxError(format!(
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
-                    })?;
-                let mut begin_note = self.notes.remove_latest_note(begin_id).ok_or_else(|| {
+                    })
+                    .map(|(_, obj)| obj.wav_id)?;
+                let mut begin_note = self.notes.pop_latest_of(begin_id).ok_or_else(|| {
                     ParseWarning::SyntaxError(format!(
                         "Cannot find begin note for LNOBJ {end_id:?}"
                     ))

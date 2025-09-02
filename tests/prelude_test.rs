@@ -74,7 +74,7 @@ fn test_prelude_imports() {
         kind: _note_kind,
         side: _player_side,
         key: _key,
-        obj: _obj_id,
+        wav_id: _obj_id,
     };
     let _bpm_change_obj = BpmChangeObj {
         time: _obj_time,
