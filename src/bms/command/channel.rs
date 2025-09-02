@@ -9,6 +9,8 @@ use crate::command::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 
+use self::mapper::KeyLayoutMapper;
+
 pub mod converter;
 pub mod mapper;
 
@@ -274,6 +276,11 @@ impl NoteChannelId {
     #[must_use]
     pub const fn bgm() -> Self {
         Self([b'0', b'1'])
+    }
+
+    /// Converts the channel into a key mapping.
+    pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
+        T::from_channel_id(self)
     }
 }
 
