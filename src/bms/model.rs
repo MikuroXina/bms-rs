@@ -203,6 +203,7 @@ pub struct Others {
 
 impl<T> Bms<T> {
     /// Returns the sound note objects information.
+    #[must_use]
     pub fn notes(&self) -> &Notes<T> {
         &self.notes
     }
@@ -210,6 +211,7 @@ impl<T> Bms<T> {
     /// Gets the time of last any object including visible, BGM, BPM change, section length change and so on.
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound.
+    #[must_use]
     pub fn last_obj_time(&self) -> Option<ObjTime> {
         let obj_last = self.notes.last_obj_time();
         let bpm_last = self

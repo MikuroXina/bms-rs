@@ -77,6 +77,7 @@ pub trait KeyMapping {
     /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
     /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
+    #[must_use]
     fn from_tuple((side, kind, key): (PlayerSide, NoteKind, Key)) -> Self
     where
         Self: Sized,

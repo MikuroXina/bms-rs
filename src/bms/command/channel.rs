@@ -279,6 +279,7 @@ impl NoteChannelId {
     }
 
     /// Converts the channel into a key mapping.
+    #[must_use]
     pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
         T::from_channel_id(self)
     }
