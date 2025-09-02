@@ -45,7 +45,7 @@ pub struct Bms<T = KeyLayoutBeat> {
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub(crate) notes: Notes<T>,
+    pub notes: Notes<T>,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
