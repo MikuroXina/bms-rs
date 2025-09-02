@@ -126,7 +126,9 @@ impl<T> Notes<T> {
         T: KeyLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
-            T::from_channel_id(obj.channel_id).map_or(false, |map| map.kind().is_playable())
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_some_and(|map| map.kind().is_playable())
         })
     }
 
@@ -136,7 +138,9 @@ impl<T> Notes<T> {
         T: KeyLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
-            T::from_channel_id(obj.channel_id).map_or(false, |map| map.kind().is_displayable())
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_some_and(|map| map.kind().is_displayable())
         })
     }
 
@@ -146,7 +150,9 @@ impl<T> Notes<T> {
         T: KeyLayoutMapper,
     {
         self.arena.0.iter().sorted().filter(|obj| {
-            T::from_channel_id(obj.channel_id).map_or(true, |map| !map.kind().is_displayable())
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_none_or(|map| !map.kind().is_displayable())
         })
     }
 
@@ -199,7 +205,9 @@ impl<T> Notes<T> {
             .map(|(_, obj)| obj)
             .rev()
             .find(|obj| {
-                T::from_channel_id(obj.channel_id).map_or(false, |map| map.kind().is_displayable())
+                obj.channel_id
+                    .try_into_map::<T>()
+                    .is_some_and(|map| map.kind().is_displayable())
             })
             .map(|obj| obj.offset)
     }
@@ -216,7 +224,9 @@ impl<T> Notes<T> {
             .map(|(_, obj)| obj)
             .rev()
             .find(|obj| {
-                T::from_channel_id(obj.channel_id).map_or(true, |map| !map.kind().is_displayable())
+                obj.channel_id
+                    .try_into_map::<T>()
+                    .is_none_or(|map| !map.kind().is_displayable())
             })
             .map(|obj| obj.offset)
     }
@@ -373,10 +383,7 @@ impl<T> Notes<T> {
     }
 
     /// Duplicates the object with id `src` at the time `at` into the channel of id `dst`.
-    pub fn dup_note_into(&mut self, src: ObjId, at: ObjTime, dst: NoteChannelId)
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn dup_note_into(&mut self, src: ObjId, at: ObjTime, dst: NoteChannelId) {
         let Some(src_obj) = self
             .idx_by_wav_id
             .get(&src)
@@ -387,11 +394,8 @@ impl<T> Notes<T> {
         else {
             return;
         };
-        let Some(new_key) = T::from_channel_id(dst) else {
-            return;
-        };
         let new = WavObj {
-            channel_id: new_key.to_channel_id(),
+            channel_id: dst,
             ..*src_obj
         };
         self.push_note(new);

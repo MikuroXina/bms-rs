@@ -15,6 +15,7 @@ use crate::bms::{
         time::ObjTime,
     },
     model::{Bms, obj::WavObj},
+    prelude::{KeyLayoutBeat, KeyLayoutMapper, KeyMapping},
 };
 
 /// Missing-related validity entries.
@@ -44,9 +45,9 @@ pub enum ValidityMissing {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ValidityInvalid {
-    /// A visible single note is placed in section 000 (works only on LR2).
-    #[error("Visible single note placed in section 000 at {time:?} (side={side:?}, key={key:?})")]
-    VisibleNoteInTrackZero {
+    /// A playable single note is placed in section 000 (but supported by LR2).
+    #[error("Playable note placed in section 000 at {time:?} (side={side:?}, key={key:?})")]
+    PlayableNoteInTrackZero {
         /// Player side where the note is placed.
         side: PlayerSide,
         /// Key lane where the note is placed.
@@ -164,27 +165,27 @@ impl Bms {
         let mut invalid = vec![];
 
         // Placement/overlap checks for notes on lanes.
-        //      - Visible notes in section 000
+        //      - Playable notes in section 000
         //      - Overlap: visible single vs single (same time, same lane)
         //      - Overlap: visible single within long interval (same lane)
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
-        let mut lane_to_notes: HashMap<(PlayerSide, Key), Vec<&WavObj>> = HashMap::new();
+        let mut lane_to_notes: HashMap<Key, Vec<&WavObj>> = HashMap::new();
         for obj in self.notes.all_notes() {
             // Visible note in section 000 (track index 0)
-            if obj.kind == NoteKind::Visible && obj.offset.track.0 == 0 {
-                invalid.push(ValidityInvalid::VisibleNoteInTrackZero {
-                    side: obj.side,
-                    key: obj.key,
+            let Some(map) = KeyLayoutBeat::from_channel_id(obj.channel_id) else {
+                continue;
+            };
+            if map.kind().is_playable() && obj.offset.track.0 == 0 {
+                invalid.push(ValidityInvalid::PlayableNoteInTrackZero {
+                    side: map.side(),
+                    key: map.key(),
                     time: obj.offset,
                 });
             }
-            lane_to_notes
-                .entry((obj.side, obj.key))
-                .or_default()
-                .push(obj);
+            lane_to_notes.entry(map.key()).or_default().push(obj);
         }
-        for ((side, key), objs) in lane_to_notes {
+        for (key, objs) in lane_to_notes {
             if objs.is_empty() {
                 continue;
             }
@@ -195,51 +196,41 @@ impl Bms {
             // Build LN intervals by pairing consecutive Long notes
             let long_times: Vec<ObjTime> = lane_objs
                 .iter()
-                .filter(|o| o.kind == NoteKind::Long)
+                .filter(|o| {
+                    KeyLayoutBeat::from_channel_id(o.channel_id).unwrap().kind() == NoteKind::Long
+                })
                 .map(|o| o.offset)
                 .collect();
 
             // Overlap single vs single at the same time
-            let mut i = 0;
-            while i < lane_objs.len() {
-                let time = lane_objs[i].offset;
-                let mut j = i;
-                let mut visible_count = 0usize;
-                while j < lane_objs.len() && lane_objs[j].offset == time {
-                    if lane_objs[j].kind == NoteKind::Visible {
-                        visible_count += 1;
-                    }
-                    j += 1;
-                }
-                if visible_count >= 2 {
+            let mut single_offsets = HashSet::new();
+            for (single_obj, map) in lane_objs
+                .iter()
+                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .filter(|(_, map)| map.kind() == NoteKind::Visible)
+            {
+                if !single_offsets.insert(single_obj.offset) {
                     invalid.push(ValidityInvalid::OverlapVisibleSingleWithSingle {
-                        side,
+                        side: map.side(),
                         key,
-                        time,
+                        time: single_obj.offset,
                     });
                 }
-                i = j;
             }
 
             // Overlap landmine vs single at the same time
-            let mut i = 0;
-            while i < lane_objs.len() {
-                let time = lane_objs[i].offset;
-                let mut j = i;
-                let mut has_visible = false;
-                let mut has_landmine = false;
-                while j < lane_objs.len() && lane_objs[j].offset == time {
-                    match lane_objs[j].kind {
-                        NoteKind::Visible => has_visible = true,
-                        NoteKind::Landmine => has_landmine = true,
-                        _ => {}
-                    }
-                    j += 1;
+            for (landmine_obj, map) in lane_objs
+                .iter()
+                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .filter(|(_, map)| map.kind() == NoteKind::Landmine)
+            {
+                if single_offsets.contains(&landmine_obj.offset) {
+                    invalid.push(ValidityInvalid::OverlapLandmineWithSingle {
+                        side: map.side(),
+                        key,
+                        time: landmine_obj.offset,
+                    });
                 }
-                if has_visible && has_landmine {
-                    invalid.push(ValidityInvalid::OverlapLandmineWithSingle { side, key, time });
-                }
-                i = j;
             }
 
             // Helper: check if a time is within [s, e]
@@ -277,16 +268,18 @@ impl Bms {
             };
 
             // Overlap single vs long: any visible single inside any LN interval
-            for o in &lane_objs {
-                if o.kind == NoteKind::Visible
-                    && let Some((s, e)) = time_overlaps_any_ln(o.offset)
-                {
+            for (single_obj, map) in lane_objs
+                .iter()
+                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .filter(|(_, map)| map.kind() == NoteKind::Visible)
+            {
+                if let Some((start, end)) = time_overlaps_any_ln(single_obj.offset) {
                     invalid.push(ValidityInvalid::OverlapVisibleSingleWithLong {
-                        side,
+                        side: map.side(),
                         key,
-                        time: o.offset,
-                        ln_start: s,
-                        ln_end: e,
+                        time: single_obj.offset,
+                        ln_start: start,
+                        ln_end: end,
                     });
                 }
             }
@@ -294,16 +287,19 @@ impl Bms {
             // Landmine vs long: warn once per LN interval at the long start
             // if any landmine appears inside that interval (including at start).
             let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
-            for o in &lane_objs {
-                if o.kind == NoteKind::Landmine
-                    && let Some((s, e)) = time_overlaps_any_ln(o.offset)
-                    && warned_ln_intervals.insert((s, e))
+            for (landmine_obj, map) in lane_objs
+                .iter()
+                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .filter(|(_, map)| map.kind() == NoteKind::Landmine)
+            {
+                if let Some((start, end)) = time_overlaps_any_ln(landmine_obj.offset)
+                    && warned_ln_intervals.insert((start, end))
                 {
                     invalid.push(ValidityInvalid::OverlapsLandmineLongAtStart {
-                        side,
+                        side: map.side(),
                         key,
-                        ln_start: s,
-                        ln_end: e,
+                        ln_start: start,
+                        ln_end: end,
                     });
                 }
             }
@@ -340,9 +336,8 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id,
         });
         bms.notes = notes;
@@ -376,9 +371,8 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id,
         });
         bms.notes = notes;
@@ -386,7 +380,7 @@ mod tests {
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
             e,
-            ValidityInvalid::VisibleNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
+            ValidityInvalid::PlayableNoteInTrackZero { time: t0, side: PlayerSide::Player1, key: Key::Key(1) } if *t0 == time
         )));
     }
 
@@ -399,16 +393,14 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id1,
         });
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id2,
         });
         bms.notes = notes;
@@ -433,25 +425,22 @@ mod tests {
         // LN start
         notes.push_note(WavObj {
             offset: ln_start,
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_s,
         });
         // LN end
         notes.push_note(WavObj {
             offset: ln_end,
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_e,
         });
         // Visible inside LN interval
         notes.push_note(WavObj {
             offset: vis_time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_vis,
         });
         bms.notes = notes;
@@ -476,24 +465,21 @@ mod tests {
         // LN interval
         notes.push_note(WavObj {
             offset: ln_start,
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_s,
         });
         notes.push_note(WavObj {
             offset: ln_end,
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_e,
         });
         // Landmine inside the LN
         notes.push_note(WavObj {
             offset: mine_time,
-            kind: NoteKind::Landmine,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_mine,
         });
         bms.notes = notes;
@@ -514,16 +500,14 @@ mod tests {
         let mut notes = Notes::default();
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_vis,
         });
         notes.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Landmine,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_mine,
         });
         bms.notes = notes;
@@ -548,25 +532,22 @@ mod tests {
         // Zero-length long note: start and end at same time
         notes.push_note(WavObj {
             offset: zero_length_time,
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_start,
         });
         notes.push_note(WavObj {
             offset: zero_length_time, // Same time - zero length
-            kind: NoteKind::Long,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_ln_end,
         });
 
         // Visible note at the same time as zero-length LN
         notes.push_note(WavObj {
             offset: vis_time,
-            kind: NoteKind::Visible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                .to_channel_id(),
             wav_id: id_vis,
         });
 

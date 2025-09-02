@@ -1,11 +1,14 @@
 //! Definitions of the note object.
-use crate::bms::{
-    Decimal,
-    command::{
-        JudgeLevel, ObjId,
-        channel::{Channel, Key, NoteKind, PlayerSide},
-        time::{ObjTime, Track},
+use crate::{
+    bms::{
+        Decimal,
+        command::{
+            JudgeLevel, ObjId,
+            channel::Channel,
+            time::{ObjTime, Track},
+        },
     },
+    command::channel::NoteChannelId,
 };
 
 #[cfg(feature = "minor-command")]
@@ -17,12 +20,8 @@ use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 pub struct WavObj {
     /// The time offset in the track.
     pub offset: ObjTime,
-    /// The note kind of the the object.
-    pub kind: NoteKind,
-    /// The side of the player.
-    pub side: PlayerSide,
     /// The key, or lane, where the object is placed.
-    pub key: Key,
+    pub channel_id: NoteChannelId,
     /// The `#WAVxx` id to be rung on play.
     pub wav_id: ObjId,
 }
@@ -45,16 +44,9 @@ impl WavObj {
     pub(crate) fn dangling() -> Self {
         Self {
             offset: ObjTime::new(1, 0, 1),
-            kind: NoteKind::Invisible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::null(),
         }
-    }
-
-    /// Checks whether the object is an invisible one.
-    pub fn is_invisible(&self) -> bool {
-        matches!(self.kind, NoteKind::Invisible)
     }
 }
 

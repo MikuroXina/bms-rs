@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::bms::command::channel::{NoteKind, mapper::KeyLayoutMapper};
+use crate::bms::command::channel::mapper::KeyLayoutMapper;
 
 use crate::bms::model::Bms;
 
@@ -77,18 +77,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
             playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.notes.all_notes().any(|note| {
-                matches!(
-                    note.kind,
-                    NoteKind::Visible | NoteKind::Long | NoteKind::Landmine
-                )
-            });
+            let has_displayable = self.notes.displayables().next().is_some();
             if !has_displayable {
                 playing_warnings.push(PlayingWarning::NoDisplayableNotes);
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.notes.all_notes().any(|note| note.kind.is_playable());
+            let has_playable = self.notes.playables().next().is_some();
             if !has_playable {
                 playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }
