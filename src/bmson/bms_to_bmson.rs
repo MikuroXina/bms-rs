@@ -122,14 +122,16 @@ impl Bms {
             genre: self.header.genre.unwrap_or_default(),
             mode_hint: {
                 // TODO: Support other modes
-                let is_7keys = self
-                    .notes
-                    .all_notes()
-                    .any(|note| note.key == Key::Key(6) || note.key == Key::Key(7));
-                let is_dp = self
-                    .notes
-                    .all_notes()
-                    .any(|note| note.side == PlayerSide::Player2);
+                let is_7keys = self.notes.all_notes().any(|note| {
+                    note.channel_id
+                        .try_into_map::<KeyLayoutBeat>()
+                        .is_some_and(|map| matches!(map.key(), Key::Key(6 | 7)))
+                });
+                let is_dp = self.notes.all_notes().any(|note| {
+                    note.channel_id
+                        .try_into_map::<KeyLayoutBeat>()
+                        .is_some_and(|map| map.side() == PlayerSide::Player2)
+                });
                 match (is_dp, is_7keys) {
                     (true, true) => "beat-14k".into(),
                     (true, false) => "beat-10k".into(),
@@ -187,10 +189,11 @@ impl Bms {
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
             for note in self.notes.all_notes() {
                 let note_lane = note
-                    .kind
-                    .is_playable()
-                    .then_some(
-                        match note.key {
+                    .channel_id
+                    .try_into_map::<KeyLayoutBeat>()
+                    .filter(|map| map.kind().is_playable())
+                    .map(|map|
+                        match map.key() {
                             Key::Key(1) => 1,
                             Key::Key(2) => 2,
                             Key::Key(3) => 3,
@@ -201,16 +204,20 @@ impl Bms {
                             Key::Scratch(_) | Key::FreeZone => 8,
                             // TODO: Extra key convertion
                             Key::Key(_) | Key::FootPedal => 0,
-                        } + match note.side {
+                        } + match map.side() {
                             PlayerSide::Player1 => 0,
                             PlayerSide::Player2 => 8,
-                        },
+                        }
                     )
                     .and_then(NonZeroU8::new);
 
                 let pulses = converter.get_pulses_at(note.offset);
-                match note.kind {
-                    NoteKind::Landmine => {
+                match note
+                    .channel_id
+                    .try_into_map::<KeyLayoutBeat>()
+                    .map(|map| map.kind())
+                {
+                    Some(NoteKind::Landmine) => {
                         let damage = FinF64::new(100.0).unwrap_or_else(|| {
                             // This should never happen as 100.0 is a valid FinF64 value
                             panic!("Internal error: 100.0 is not a valid FinF64")
@@ -221,17 +228,16 @@ impl Bms {
                             damage,
                         });
                     }
-                    NoteKind::Invisible => {
+                    Some(NoteKind::Invisible) | None => {
                         key_map.entry(note.wav_id).or_default().push(KeyEvent {
                             x: note_lane,
                             y: pulses,
                         });
                     }
-                    _ => {
-                        // Normal note
+                    Some(NoteKind::Long) => {
                         let duration = self
                             .notes
-                            .next_obj_by_key(note.side, NoteKind::Visible, note.key, note.offset)
+                            .next_obj_by_key(note.channel_id, note.offset)
                             .map_or(0, |next_note| {
                                 pulses.abs_diff(converter.get_pulses_at(next_note.offset))
                             });
@@ -239,6 +245,16 @@ impl Bms {
                             x: note_lane,
                             y: pulses,
                             l: duration,
+                            c: false,
+                            t: Some(self.header.ln_mode),
+                            up: Some(false),
+                        });
+                    }
+                    Some(NoteKind::Visible) => {
+                        sound_map.entry(note.wav_id).or_default().push(Note {
+                            x: note_lane,
+                            y: pulses,
+                            l: 0,
                             c: false,
                             t: Some(self.header.ln_mode),
                             up: Some(false),

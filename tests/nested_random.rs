@@ -67,30 +67,26 @@ fn nested_random() {
         vec![
             WavObj {
                 offset: ObjTime::new(1, 0, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(1),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(2),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(5),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                    .to_channel_id(),
                 wav_id: id55,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(4),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    .to_channel_id(),
                 wav_id: id44,
             }
         ]
@@ -115,30 +111,30 @@ fn nested_random() {
         vec![
             WavObj {
                 offset: ObjTime::new(1, 0, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(1),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 1, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(2),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Scratch(1),
+                channel_id: KeyLayoutBeat::new(
+                    PlayerSide::Player1,
+                    NoteKind::Visible,
+                    Key::Scratch(1)
+                )
+                .to_channel_id(),
                 wav_id: id66,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(4),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    .to_channel_id(),
                 wav_id: id44,
             }
         ]
@@ -164,23 +160,20 @@ fn nested_random() {
         vec![
             WavObj {
                 offset: ObjTime::new(1, 0, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(1),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
                 offset: ObjTime::new(1, 2, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(3),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                    .to_channel_id(),
                 wav_id: id33,
             },
             WavObj {
                 offset: ObjTime::new(1, 3, 4),
-                kind: NoteKind::Visible,
-                side: PlayerSide::Player1,
-                key: Key::Key(4),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    .to_channel_id(),
                 wav_id: id44,
             }
         ]

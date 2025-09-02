@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::{bms::prelude::*, command::channel::NoteChannelId};
 use num::BigUint;
 
 #[test]
@@ -71,9 +71,7 @@ fn test_prelude_imports() {
     // Test model::obj types
     let _obj = WavObj {
         offset: _obj_time,
-        kind: _note_kind,
-        side: _player_side,
-        key: _key,
+        channel_id: NoteChannelId::bgm(),
         wav_id: _obj_id,
     };
     let _bpm_change_obj = BpmChangeObj {

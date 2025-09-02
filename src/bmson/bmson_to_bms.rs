@@ -182,9 +182,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    kind,
-                    side,
-                    key,
+                    channel_id: KeyLayoutBeat::new(side, kind, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);
@@ -206,9 +204,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    kind: NoteKind::Landmine,
-                    side,
-                    key,
+                    channel_id: KeyLayoutBeat::new(side, NoteKind::Landmine, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);
@@ -230,9 +226,7 @@ impl Bms {
 
                 let obj = WavObj {
                     offset: time,
-                    kind: NoteKind::Invisible,
-                    side,
-                    key,
+                    channel_id: KeyLayoutBeat::new(side, NoteKind::Invisible, key).to_channel_id(),
                     wav_id: obj_id,
                 };
                 bms.notes.push_note(obj);

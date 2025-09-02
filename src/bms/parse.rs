@@ -654,17 +654,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 // Parse the channel ID to get note components
-                if let Some(layout) = T::from_channel_id(*channel_id) {
-                    let (side, kind, key) = layout.into_tuple();
-                    for (offset, obj) in ids_from_message(*track, message) {
-                        self.notes.push_note(WavObj {
-                            offset,
-                            kind,
-                            side,
-                            key,
-                            wav_id: obj,
-                        });
-                    }
+                for (offset, obj) in ids_from_message(*track, message) {
+                    self.notes.push_note(WavObj {
+                        offset,
+                        channel_id: *channel_id,
+                        wav_id: obj,
+                    });
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -859,31 +854,49 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .pop_latest_of(*end_id)
                     .ok_or(ParseWarning::UndefinedObject(*end_id))?;
                 let WavObj {
-                    offset,
-                    key,
-                    side,
-                    kind,
-                    ..
+                    offset, channel_id, ..
                 } = &end_note;
-                let begin_id = self
+                let begin_idx = self
                     .notes
                     .notes_in(..offset)
                     .rev()
-                    .find(|(_, obj)| (obj.side, obj.kind, obj.key) == (*side, *kind, *key))
+                    .find(|(_, obj)| obj.channel_id == *channel_id)
                     .ok_or_else(|| {
                         ParseWarning::SyntaxError(format!(
                             "expected preceding object for #LNOBJ {end_id:?}",
                         ))
                     })
-                    .map(|(_, obj)| obj.wav_id)?;
-                let mut begin_note = self.notes.pop_latest_of(begin_id).ok_or_else(|| {
+                    .map(|(index, _)| index)?;
+                let mut begin_note = self.notes.pop_by_idx(begin_idx).ok_or_else(|| {
                     ParseWarning::SyntaxError(format!(
                         "Cannot find begin note for LNOBJ {end_id:?}"
                     ))
                 })?;
-                begin_note.kind = NoteKind::Long;
-                end_note.kind = NoteKind::Long;
+
+                let mut begin_note_tuple = begin_note
+                    .channel_id
+                    .try_into_map::<T>()
+                    .ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                        ))
+                    })?
+                    .into_tuple();
+                begin_note_tuple.1 = NoteKind::Long;
+                begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
                 self.notes.push_note(begin_note);
+
+                let mut end_note_tuple = end_note
+                    .channel_id
+                    .try_into_map::<T>()
+                    .ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                        ))
+                    })?
+                    .into_tuple();
+                end_note_tuple.1 = NoteKind::Long;
+                end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
                 self.notes.push_note(end_note);
             }
             Token::DefExRank(judge_level) => {

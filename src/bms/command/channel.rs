@@ -9,6 +9,8 @@ use crate::command::{base62_to_byte, char_to_base62};
 use std::str::FromStr;
 use thiserror::Error;
 
+use self::mapper::KeyLayoutMapper;
+
 pub mod converter;
 pub mod mapper;
 
@@ -35,7 +37,7 @@ pub enum Channel {
     /// For the note which the user can interact.
     Note {
         /// The channel ID from the BMS file.
-        channel_id: ChannelId,
+        channel_id: NoteChannelId,
     },
     /// For the section length change object.
     SectionLen,
@@ -153,10 +155,16 @@ pub enum NoteKind {
 }
 
 impl NoteKind {
+    /// Returns whether the note is a displayable.
+    #[must_use]
+    pub const fn is_displayable(self) -> bool {
+        !matches!(self, Self::Invisible)
+    }
+
     /// Returns whether the note is a playable.
     #[must_use]
     pub const fn is_playable(self) -> bool {
-        !matches!(self, Self::Invisible)
+        matches!(self, Self::Visible | Self::Long)
     }
 
     /// Returns whether the note is a long-press note.
@@ -188,12 +196,12 @@ pub enum ChannelIdParseError {
     InvalidAsBase62(String),
 }
 
-/// A channel ID used in BMS files to identify channel types.
+/// A channel ID of notes playing sound.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ChannelId([u8; 2]);
+pub struct NoteChannelId([u8; 2]);
 
-impl std::fmt::Debug for ChannelId {
+impl std::fmt::Debug for NoteChannelId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("ChannelId")
             .field(&format!("{}{}", self.0[0] as char, self.0[1] as char))
@@ -201,13 +209,13 @@ impl std::fmt::Debug for ChannelId {
     }
 }
 
-impl std::fmt::Display for ChannelId {
+impl std::fmt::Display for NoteChannelId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}", self.0[0] as char, self.0[1] as char)
     }
 }
 
-impl TryFrom<[char; 2]> for ChannelId {
+impl TryFrom<[char; 2]> for NoteChannelId {
     type Error = [char; 2];
     fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
         Ok(Self([
@@ -217,7 +225,7 @@ impl TryFrom<[char; 2]> for ChannelId {
     }
 }
 
-impl TryFrom<[u8; 2]> for ChannelId {
+impl TryFrom<[u8; 2]> for NoteChannelId {
     type Error = [u8; 2];
     fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
         <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
@@ -225,7 +233,7 @@ impl TryFrom<[u8; 2]> for ChannelId {
     }
 }
 
-impl FromStr for ChannelId {
+impl FromStr for NoteChannelId {
     type Err = ChannelIdParseError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 2 {
@@ -239,29 +247,40 @@ impl FromStr for ChannelId {
     }
 }
 
-impl From<ChannelId> for u16 {
-    fn from(value: ChannelId) -> Self {
+impl From<NoteChannelId> for u16 {
+    fn from(value: NoteChannelId) -> Self {
         base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
     }
 }
 
-impl From<ChannelId> for u32 {
-    fn from(value: ChannelId) -> Self {
+impl From<NoteChannelId> for u32 {
+    fn from(value: NoteChannelId) -> Self {
         Into::<u16>::into(value) as u32
     }
 }
 
-impl From<ChannelId> for u64 {
-    fn from(value: ChannelId) -> Self {
+impl From<NoteChannelId> for u64 {
+    fn from(value: NoteChannelId) -> Self {
         Into::<u16>::into(value) as u64
     }
 }
 
-impl ChannelId {
+impl NoteChannelId {
     /// Converts the channel id into an `u16` value.
     #[must_use]
     pub fn as_u16(self) -> u16 {
         self.into()
+    }
+
+    /// Gets a bgm channel ID.
+    #[must_use]
+    pub const fn bgm() -> Self {
+        Self([b'0', b'1'])
+    }
+
+    /// Converts the channel into a key mapping.
+    pub fn try_into_map<T: KeyLayoutMapper>(self) -> Option<T> {
+        T::from_channel_id(self)
     }
 }
 
@@ -388,6 +407,6 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     if let Some(channel) = read_channel_general(channel) {
         return Some(channel);
     }
-    let channel_id = channel.parse::<ChannelId>().ok()?;
+    let channel_id = channel.parse::<NoteChannelId>().ok()?;
     Some(Channel::Note { channel_id })
 }

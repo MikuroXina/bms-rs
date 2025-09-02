@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::{
     bms::prelude::*,
-    command::channel::ChannelId,
+    command::channel::NoteChannelId,
     parse::{Result, prompt::ChannelDuplication},
 };
 
@@ -35,7 +35,7 @@ pub struct Notes<T> {
     /// Note objects index for each wav sound of [`ObjId`].
     idx_by_wav_id: HashMap<ObjId, Vec<WavObjArenaIndex>>,
     /// Note objects index for each channel from the mapping `T`.
-    idx_by_channel: HashMap<ChannelId, Vec<WavObjArenaIndex>>,
+    idx_by_channel: HashMap<NoteChannelId, Vec<WavObjArenaIndex>>,
     /// Note objects index sorted by its time.
     idx_by_time: BTreeMap<ObjTime, Vec<WavObjArenaIndex>>,
     /// The path of MIDI file, which is played as BGM while playing the score.
@@ -120,19 +120,46 @@ impl<T> Notes<T> {
             .map(|(idx, obj)| (WavObjArenaIndex(idx), obj))
     }
 
+    /// Returns all the playable notes in the score.
+    pub fn playables(&self) -> impl Iterator<Item = &WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
+        self.arena.0.iter().sorted().filter(|obj| {
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_some_and(|map| map.kind().is_playable())
+        })
+    }
+
+    /// Returns all the displayable notes in the score.
+    pub fn displayables(&self) -> impl Iterator<Item = &WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
+        self.arena.0.iter().sorted().filter(|obj| {
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_some_and(|map| map.kind().is_displayable())
+        })
+    }
+
     /// Returns all the bgms in the score.
-    pub fn bgms(&self) -> impl Iterator<Item = &WavObj> {
-        self.arena
-            .0
-            .iter()
-            .sorted()
-            .filter(|obj| obj.kind == NoteKind::Invisible)
+    pub fn bgms(&self) -> impl Iterator<Item = &WavObj>
+    where
+        T: KeyLayoutMapper,
+    {
+        self.arena.0.iter().sorted().filter(|obj| {
+            obj.channel_id
+                .try_into_map::<T>()
+                .is_none_or(|map| !map.kind().is_displayable())
+        })
     }
 
     /// Retrieves notes on the specified channel id by the key mapping `T`.
     pub fn notes_on(
         &self,
-        channel_id: ChannelId,
+        channel_id: NoteChannelId,
     ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)>
     where
         T: KeyLayoutMapper,
@@ -157,16 +184,10 @@ impl<T> Notes<T> {
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
     #[must_use]
-    pub fn next_obj_by_key(
-        &self,
-        side: PlayerSide,
-        kind: NoteKind,
-        key: Key,
-        time: ObjTime,
-    ) -> Option<&WavObj> {
+    pub fn next_obj_by_key(&self, channel_id: NoteChannelId, time: ObjTime) -> Option<&WavObj> {
         self.notes_in((Bound::Excluded(time), Bound::Unbounded))
             .map(|(_, obj)| obj)
-            .find(|obj| (obj.side, obj.kind, obj.key) == (side, kind, key))
+            .find(|obj| obj.channel_id == channel_id)
     }
 
     /// Gets the latest starting time of all notes.
@@ -176,11 +197,18 @@ impl<T> Notes<T> {
     }
 
     /// Gets the time of last playable object.
-    pub fn last_playable_time(&self) -> Option<ObjTime> {
+    pub fn last_playable_time(&self) -> Option<ObjTime>
+    where
+        T: KeyLayoutMapper,
+    {
         self.notes_in(..)
             .map(|(_, obj)| obj)
             .rev()
-            .find(|obj| obj.kind.is_playable())
+            .find(|obj| {
+                obj.channel_id
+                    .try_into_map::<T>()
+                    .is_some_and(|map| map.kind().is_displayable())
+            })
             .map(|obj| obj.offset)
     }
 
@@ -188,11 +216,18 @@ impl<T> Notes<T> {
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
     #[must_use]
-    pub fn last_bgm_time(&self) -> Option<ObjTime> {
+    pub fn last_bgm_time(&self) -> Option<ObjTime>
+    where
+        T: KeyLayoutMapper,
+    {
         self.notes_in(..)
             .map(|(_, obj)| obj)
             .rev()
-            .find(|obj| !obj.kind.is_playable())
+            .find(|obj| {
+                obj.channel_id
+                    .try_into_map::<T>()
+                    .is_none_or(|map| !map.kind().is_displayable())
+            })
             .map(|obj| obj.offset)
     }
 }
@@ -200,17 +235,14 @@ impl<T> Notes<T> {
 // push and remove methods
 impl<T> Notes<T> {
     /// Adds the new note object to the notes.
-    pub fn push_note(&mut self, note: WavObj)
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn push_note(&mut self, note: WavObj) {
         let new_index = WavObjArenaIndex(self.arena.0.len());
         self.idx_by_wav_id
             .entry(note.wav_id)
             .or_default()
             .push(new_index);
         self.idx_by_channel
-            .entry(T::new(note.side, note.kind, note.key).to_channel_id())
+            .entry(note.channel_id)
             .or_default()
             .push(new_index);
         self.idx_by_time
@@ -220,11 +252,8 @@ impl<T> Notes<T> {
         self.arena.0.push(note);
     }
 
-    fn remove_index(&mut self, idx: usize, removing: &WavObj)
-    where
-        T: KeyLayoutMapper,
-    {
-        let channel_id = T::new(removing.side, removing.kind, removing.key).to_channel_id();
+    fn remove_index(&mut self, idx: usize, removing: &WavObj) {
+        let channel_id = removing.channel_id;
         if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
             .iter()
             .position(|id| id.0 == idx)
@@ -246,10 +275,7 @@ impl<T> Notes<T> {
     }
 
     /// Removes the latest note from the notes.
-    pub fn pop_note(&mut self) -> Option<WavObj>
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn pop_note(&mut self) -> Option<WavObj> {
         let last_idx = self.arena.0.len();
         let last = self.arena.0.pop()?;
         if let Some(ids_by_wav_id_idx) = self.idx_by_wav_id[&last.wav_id]
@@ -260,7 +286,7 @@ impl<T> Notes<T> {
                 .get_mut(&last.wav_id)?
                 .swap_remove(ids_by_wav_id_idx);
         }
-        let channel_id = T::new(last.side, last.kind, last.key).to_channel_id();
+        let channel_id = last.channel_id;
         if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
             .iter()
             .position(|id| id.0 == last_idx)
@@ -297,6 +323,13 @@ impl<T> Notes<T> {
         objs
     }
 
+    /// Removes a note of the specified index `idx`.
+    pub fn pop_by_idx(&mut self, idx: WavObjArenaIndex) -> Option<WavObj> {
+        let removing = std::mem::replace(self.arena.0.get_mut(idx.0)?, WavObj::dangling());
+        self.remove_index(idx.0, &removing);
+        Some(removing)
+    }
+
     /// Removes the latest note using the wav of `wav_id`.
     pub fn pop_latest_of(&mut self, wav_id: ObjId) -> Option<WavObj>
     where
@@ -315,9 +348,7 @@ impl<T> Notes<T> {
     {
         self.push_note(WavObj {
             offset: time,
-            kind: NoteKind::Invisible,
-            side: PlayerSide::Player1,
-            key: Key::Key(1),
+            channel_id: NoteChannelId::bgm(),
             wav_id,
         });
     }
@@ -352,10 +383,7 @@ impl<T> Notes<T> {
     }
 
     /// Duplicates the object with id `src` at the time `at` into the channel of id `dst`.
-    pub fn dup_note_into(&mut self, src: ObjId, at: ObjTime, dst: ChannelId)
-    where
-        T: KeyLayoutMapper,
-    {
+    pub fn dup_note_into(&mut self, src: ObjId, at: ObjTime, dst: NoteChannelId) {
         let Some(src_obj) = self
             .idx_by_wav_id
             .get(&src)
@@ -366,14 +394,8 @@ impl<T> Notes<T> {
         else {
             return;
         };
-        let Some(new_key) = T::from_channel_id(dst) else {
-            return;
-        };
-        let (side, kind, key) = new_key.into_tuple();
         let new = WavObj {
-            side,
-            kind,
-            key,
+            channel_id: dst,
             ..*src_obj
         };
         self.push_note(new);
@@ -596,23 +618,18 @@ impl<T> Notes<T> {
 // modify methods
 impl<T> Notes<T> {
     /// Changes the channel of notes `target` in `time_span` into another channel `dst`.
-    pub fn change_note_channel<I>(&mut self, targets: I, dst: ChannelId)
+    pub fn change_note_channel<I>(&mut self, targets: I, dst: NoteChannelId)
     where
         T: KeyLayoutMapper,
         I: IntoIterator<Item = WavObjArenaIndex>,
     {
-        let Some(dst_map) = T::from_channel_id(dst) else {
-            return;
-        };
-        let dst_map = dst_map.into_tuple();
-
         for target in targets {
             let Some(obj) = self.arena.0.get_mut(target.0) else {
                 continue;
             };
 
             // Drain all ids from ids_by_channel where channel id matches
-            let src = T::new(obj.side, obj.kind, obj.key).to_channel_id();
+            let src = obj.channel_id;
             if let Some(idx_by_channel_idx) = self.idx_by_channel[&src]
                 .iter()
                 .position(|&idx| idx == target)
@@ -625,7 +642,7 @@ impl<T> Notes<T> {
             self.idx_by_channel.entry(dst).or_default().push(target);
 
             // Modify entry
-            (obj.side, obj.kind, obj.key) = dst_map;
+            obj.channel_id = dst;
         }
     }
 
