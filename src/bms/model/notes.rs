@@ -94,6 +94,7 @@ impl<T> Default for Notes<T> {
 // query methods
 impl<T> Notes<T> {
     /// Checks whether there is no valid notes.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.all_notes().all(|obj| obj.wav_id.is_null())
     }
@@ -190,12 +191,14 @@ impl<T> Notes<T> {
     }
 
     /// Gets the latest starting time of all notes.
+    #[must_use]
     pub fn last_obj_time(&self) -> Option<ObjTime> {
         let (&time, _) = self.idx_by_time.last_key_value()?;
         Some(time)
     }
 
     /// Gets the time of last playable object.
+    #[must_use]
     pub fn last_playable_time(&self) -> Option<ObjTime>
     where
         T: KeyLayoutMapper,
