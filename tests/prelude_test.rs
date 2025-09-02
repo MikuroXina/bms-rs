@@ -1,4 +1,4 @@
-use bms_rs::{bms::prelude::*, command::channel::NoteChannelId};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 
 #[test]
