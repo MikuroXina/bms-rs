@@ -668,3 +668,81 @@ impl<T> Notes<T> {
         Some(old_time)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Notes;
+    use crate::bms::prelude::*;
+
+    #[test]
+    fn push_and_pop() {
+        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let note = WavObj {
+            offset: ObjTime::new(1, 2, 4),
+            channel_id: NoteChannelId::bgm(),
+            wav_id: "01".try_into().unwrap(),
+        };
+
+        assert!(notes.pop_note().is_none());
+
+        notes.push_note(note.clone());
+        let removed = notes.pop_note();
+        assert_eq!(Some(note), removed);
+
+        assert!(notes.pop_note().is_none());
+    }
+
+    #[test]
+    fn change_note_channel() {
+        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let note = WavObj {
+            offset: ObjTime::new(1, 2, 4),
+            channel_id: NoteChannelId::bgm(),
+            wav_id: "01".try_into().unwrap(),
+        };
+
+        assert!(notes.pop_note().is_none());
+
+        notes.push_note(note.clone());
+        let (idx, _) = notes.all_entries().next().unwrap();
+        notes.change_note_channel(
+            [idx],
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)).to_channel_id(),
+        );
+
+        assert_eq!(
+            notes.all_notes().next(),
+            Some(&WavObj {
+                offset: ObjTime::new(1, 2, 4),
+                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    .to_channel_id(),
+                wav_id: "01".try_into().unwrap(),
+            })
+        );
+    }
+
+    #[test]
+    fn change_note_time() {
+        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let note = WavObj {
+            offset: ObjTime::new(1, 2, 4),
+            channel_id: NoteChannelId::bgm(),
+            wav_id: "01".try_into().unwrap(),
+        };
+
+        assert!(notes.pop_note().is_none());
+
+        notes.push_note(note.clone());
+        let (idx, _) = notes.all_entries().next().unwrap();
+        notes.change_note_time(idx, ObjTime::new(1, 1, 4));
+
+        assert_eq!(
+            notes.all_notes().next(),
+            Some(&WavObj {
+                offset: ObjTime::new(1, 1, 4),
+                channel_id: NoteChannelId::bgm(),
+                wav_id: "01".try_into().unwrap(),
+            })
+        );
+    }
+}
