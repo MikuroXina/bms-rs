@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.9.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v0.9.0) (2025-09-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Change WavObj to hold channel id ([#195](https://github.com/MikuroXina/bms-rs/issues/195))
+* Rename Obj into WavObj ([#192](https://github.com/MikuroXina/bms-rs/issues/192))
+* Impl fancy source warnings errors ([#187](https://github.com/MikuroXina/bms-rs/issues/187))
+* impl channel key bindings with Bms ([#188](https://github.com/MikuroXina/bms-rs/issues/188))
+* Move out AST steps ([#164](https://github.com/MikuroXina/bms-rs/issues/164))
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149))
+* impl From<Bmson> for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146))
+
+### Features
+
+* Add AstParseWarning ([#178](https://github.com/MikuroXina/bms-rs/issues/178)) ([7169d5c](https://github.com/MikuroXina/bms-rs/commit/7169d5c0dd7d9f044c6adfa75aec1ffc2b8fc056))
+* Add NoteChannelId to prelude ([#196](https://github.com/MikuroXina/bms-rs/issues/196)) ([b6f6eeb](https://github.com/MikuroXina/bms-rs/commit/b6f6eeb0718feb1722622f99e2b4837a1c622de4))
+* Add Notes API ([#193](https://github.com/MikuroXina/bms-rs/issues/193)) ([29fb89e](https://github.com/MikuroXina/bms-rs/commit/29fb89e57b117835530ce6c1bdc5612b0b9dfc30))
+* add ParseWarning::UnexpectedControlFlow ([#155](https://github.com/MikuroXina/bms-rs/issues/155)) ([5655747](https://github.com/MikuroXina/bms-rs/commit/5655747e435d2e718c465a6acc44c52177e3012a))
+* Add position info for `Token` & `ParseWarning` ([#146](https://github.com/MikuroXina/bms-rs/issues/146)) ([08b61ee](https://github.com/MikuroXina/bms-rs/commit/08b61ee314240ff0eaf512a66f0eb4192d944d04))
+* auto-close random-block ([#175](https://github.com/MikuroXina/bms-rs/issues/175)) ([2c7d9ee](https://github.com/MikuroXina/bms-rs/commit/2c7d9ee87f938b8049f1e152a2455900b38015f8))
+* Delete "extend message" impl ([#157](https://github.com/MikuroXina/bms-rs/issues/157)) ([1c2afb4](https://github.com/MikuroXina/bms-rs/commit/1c2afb445f126dd19fe71e9c655a2692dac9f02c))
+* Impl ast to token ([#170](https://github.com/MikuroXina/bms-rs/issues/170)) ([872293c](https://github.com/MikuroXina/bms-rs/commit/872293ce0f1b62a5f9a26cd58d4164f178463d8a))
+* Impl fancy source warnings errors ([#187](https://github.com/MikuroXina/bms-rs/issues/187)) ([3262dc0](https://github.com/MikuroXina/bms-rs/commit/3262dc04da1c43c48e3a7ca4eb31b0c8f8258655))
+* impl From&lt;Bmson&gt; for Bms ([#145](https://github.com/MikuroXina/bms-rs/issues/145)) ([ed0c95f](https://github.com/MikuroXina/bms-rs/commit/ed0c95f1f74643b73858a11c6c79f6e0186735fb))
+* Impl keymapping convert, add beatoraja's random & r-random impl ([#166](https://github.com/MikuroXina/bms-rs/issues/166)) ([f9f244c](https://github.com/MikuroXina/bms-rs/commit/f9f244ca06de1ab1fd046b9e4bbae2dc96b6b708))
+* Impl text pos mixin ([#151](https://github.com/MikuroXina/bms-rs/issues/151)) ([0460db8](https://github.com/MikuroXina/bms-rs/commit/0460db838709fd2e2bb9f1dead5f289eb75a67ad))
+* Impl token to string ([#167](https://github.com/MikuroXina/bms-rs/issues/167)) ([93f441e](https://github.com/MikuroXina/bms-rs/commit/93f441e2b905facdbef016c8a5d370a5a6bb4688))
+* Impl validity for bms ([#183](https://github.com/MikuroXina/bms-rs/issues/183)) ([82df2f1](https://github.com/MikuroXina/bms-rs/commit/82df2f12ce0e07324af86f129aa71bded294c2da))
+* last add tokens ([#149](https://github.com/MikuroXina/bms-rs/issues/149)) ([159fb8f](https://github.com/MikuroXina/bms-rs/commit/159fb8ffe16f56d0dd2a042d0b877dad37400a80))
+* make `&tokens` able for all steps ([#163](https://github.com/MikuroXina/bms-rs/issues/163)) ([1219c78](https://github.com/MikuroXina/bms-rs/commit/1219c78839fab02875ff53d5b74d29949cd3e8e8))
+* make ast structure public, make the AstParseWarning get the pos ([#182](https://github.com/MikuroXina/bms-rs/issues/182)) ([a6d288d](https://github.com/MikuroXina/bms-rs/commit/a6d288d81de89893b224d9c26642b06a5b0b42f2))
+* Move out ast part ([#159](https://github.com/MikuroXina/bms-rs/issues/159)) ([a0df07b](https://github.com/MikuroXina/bms-rs/commit/a0df07b30e28db883f45b3af8d699773ebd6d72e))
+* Move out AST steps ([#164](https://github.com/MikuroXina/bms-rs/issues/164)) ([f12689d](https://github.com/MikuroXina/bms-rs/commit/f12689d2226798f55129d83712021902746e7846))
+* new channel convert method ([#153](https://github.com/MikuroXina/bms-rs/issues/153)) ([4a7b69d](https://github.com/MikuroXina/bms-rs/commit/4a7b69d3034e46621f23f96a39d87e633b69731f))
+* Split prompt warning types ([#158](https://github.com/MikuroXina/bms-rs/issues/158)) ([b0fe15b](https://github.com/MikuroXina/bms-rs/commit/b0fe15b90d1b21c0cfc75800b8534863e22d3fa1))
+* support for --no-default-features ([#177](https://github.com/MikuroXina/bms-rs/issues/177)) ([fc6d348](https://github.com/MikuroXina/bms-rs/commit/fc6d34843a1b360df4cbc6bbecf263e6318b9179))
+
+
+### Bug Fixes
+
+* Activate must_use_candidate and Append must_use ([#197](https://github.com/MikuroXina/bms-rs/issues/197)) ([6ca4eb7](https://github.com/MikuroXina/bms-rs/commit/6ca4eb7963123e9c711faad7e97cf2ceb45c78a8))
+* base eprintln and clippy(never_loop) ([#174](https://github.com/MikuroXina/bms-rs/issues/174)) ([ed9d9fc](https://github.com/MikuroXina/bms-rs/commit/ed9d9fcfc916ee1e906eb000a7921764cbb3a053))
+* Bring back notes public ([#194](https://github.com/MikuroXina/bms-rs/issues/194)) ([b53edac](https://github.com/MikuroXina/bms-rs/commit/b53edacf5107e4471bdc1ad4e9138b08bbb9a1f7))
+* Change Notes to hold data by logical channel ([#190](https://github.com/MikuroXina/bms-rs/issues/190)) ([be7d484](https://github.com/MikuroXina/bms-rs/commit/be7d4842a82271ce8d4d644d22940d2c27f20133))
+* Change WavObj to hold channel id ([#195](https://github.com/MikuroXina/bms-rs/issues/195)) ([bd66208](https://github.com/MikuroXina/bms-rs/commit/bd66208839d744c4111d6572160f7358a895d0ea))
+* impl channel key bindings with Bms ([#188](https://github.com/MikuroXina/bms-rs/issues/188)) ([3adab1d](https://github.com/MikuroXina/bms-rs/commit/3adab1d575950a8e73eeb55310eb6bf74ed97923))
+* Minor pedantic fixes by cargo clippy ([#189](https://github.com/MikuroXina/bms-rs/issues/189)) ([1fa5c97](https://github.com/MikuroXina/bms-rs/commit/1fa5c976f9ba5a9ea6f2f3f86dc6b7af103984ee))
+* Rename Obj into WavObj ([#192](https://github.com/MikuroXina/bms-rs/issues/192)) ([ec6eae8](https://github.com/MikuroXina/bms-rs/commit/ec6eae8f1cc5f4631bb635df9074ae8938228fd9))
+* split `PlayerSide` for `ids_by_key` ([#168](https://github.com/MikuroXina/bms-rs/issues/168)) ([d9c73fc](https://github.com/MikuroXina/bms-rs/commit/d9c73fcf5f701fe8a406dd76dedd40eca3e63b7d))
+* use "WithPos" postfix ([#152](https://github.com/MikuroXina/bms-rs/issues/152)) ([78a0c4a](https://github.com/MikuroXina/bms-rs/commit/78a0c4adbe1b9327e39d3876dfd0bd747d3ed2db))
+* use struct-binding function for single step ([#154](https://github.com/MikuroXina/bms-rs/issues/154)) ([bad36e8](https://github.com/MikuroXina/bms-rs/commit/bad36e812ce2024c721d8ffbbabeddbdfa598319))
+
+
+### Miscellaneous Chores
+
+* Release 0.9.0 ([#191](https://github.com/MikuroXina/bms-rs/issues/191)) ([bc55df9](https://github.com/MikuroXina/bms-rs/commit/bc55df988c0ffaa8d784cb641178adcf20f3423b))
+
 ## [0.8.0](https://github.com/MikuroXina/bms-rs/compare/v0.7.0...v0.8.0) (2025-08-03)
 
 
