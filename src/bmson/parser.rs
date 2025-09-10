@@ -1,11 +1,11 @@
 //! This is a parser for JSON, using chumsky.
 
-use chumsky::prelude::*;
+use core::fmt;
 use std::collections::HashMap;
 
-use core::fmt;
 use std::collections::hash_map;
 
+use chumsky::prelude::*;
 use serde::de::{
     self, Deserialize, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor,
 };
@@ -263,52 +263,39 @@ pub fn parse_json(src: &str) -> (Option<Json>, Vec<Rich<'_, char>>) {
     (json, errs)
 }
 
-/// Error type for JSON deserialization over `Json` AST.
-#[derive(Debug)]
-pub struct DeError {
-    message: String,
-}
-
-impl DeError {
-    pub fn custom<T: fmt::Display>(msg: T) -> Self {
-        Self {
-            message: msg.to_string(),
-        }
-    }
-}
-
-impl de::Error for DeError {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        Self {
-            message: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for DeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for DeError {}
-
 /// Entry point to deserialize any `T: Deserialize` from a `Json` value.
-pub fn from_json<T: for<'de> Deserialize<'de>>(json: &Json) -> Result<T, DeError> {
-    let de = JsonDeserializer { json };
+pub fn from_json<'a, T: for<'de> Deserialize<'de>>(
+    json: &'a Json,
+) -> Result<T, BmsonWarning<'static>> {
+    let de = JsonDeserializer {
+        json,
+        path: Vec::new(),
+    };
     T::deserialize(de)
 }
 
 struct JsonDeserializer<'a> {
     json: &'a Json,
+    path: Vec<String>,
+}
+
+impl<'a> JsonDeserializer<'a> {
+    fn fail(&self) -> BmsonWarning<'static> {
+        let p = if self.path.is_empty() {
+            "root".to_string()
+        } else {
+            self.path.join(".")
+        };
+        BmsonWarning::DeserializeFailed(p)
+    }
 }
 
 impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
-    type Error = DeError;
+    type Error = BmsonWarning<'static>;
 
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
-            Json::Invalid => Err(<DeError as de::Error>::custom("invalid JSON value")),
+            Json::Invalid => Err(self.fail()),
             Json::Null => visitor.visit_unit(),
             Json::Bool(b) => visitor.visit_bool(*b),
             Json::Str(s) => visitor.visit_string(s.clone()),
@@ -317,8 +304,12 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
             Json::Array(arr) => visitor.visit_seq(SeqAccessImpl {
                 iter: arr.iter(),
                 len: arr.len(),
+                path: self.path.clone(),
+                index: 0,
             }),
-            Json::Object(obj) => visitor.visit_map(MapAccessImpl::new(obj.iter())),
+            Json::Object(obj) => {
+                visitor.visit_map(MapAccessImpl::new(obj.iter(), self.path.clone()))
+            }
         }
     }
 
@@ -342,7 +333,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
         match self.json {
             Json::Int(i) => visitor.visit_i64(*i),
             Json::Float(f) => visitor.visit_i64(*f as i64),
-            _ => Err(<DeError as de::Error>::custom("expected integer")),
+            _ => Err(self.fail()),
         }
     }
 
@@ -359,7 +350,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
         match self.json {
             Json::Int(i) if *i >= 0 => visitor.visit_u64(*i as u64),
             Json::Float(f) if *f >= 0.0 => visitor.visit_u64(*f as u64),
-            _ => Err(<DeError as de::Error>::custom("expected unsigned integer")),
+            _ => Err(self.fail()),
         }
     }
 
@@ -367,14 +358,14 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
         match self.json {
             Json::Int(i) => visitor.visit_f32(*i as f32),
             Json::Float(f) => visitor.visit_f32(*f as f32),
-            _ => Err(<DeError as de::Error>::custom("expected float")),
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
             Json::Int(i) => visitor.visit_f64(*i as f64),
             Json::Float(f) => visitor.visit_f64(*f),
-            _ => Err(<DeError as de::Error>::custom("expected float")),
+            _ => Err(self.fail()),
         }
     }
 
@@ -384,25 +375,23 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
                 let mut iter = s.chars();
                 match (iter.next(), iter.next()) {
                     (Some(c), None) => visitor.visit_char(c),
-                    _ => Err(<DeError as de::Error>::custom(
-                        "expected single-character string",
-                    )),
+                    _ => Err(self.fail()),
                 }
             }
-            _ => Err(<DeError as de::Error>::custom("expected char")),
+            _ => Err(self.fail()),
         }
     }
 
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
             Json::Str(s) => visitor.visit_str(s),
-            _ => Err(<DeError as de::Error>::custom("expected string")),
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
             Json::Str(s) => visitor.visit_string(s.clone()),
-            _ => Err(<DeError as de::Error>::custom("expected string")),
+            _ => Err(self.fail()),
         }
     }
 
@@ -419,10 +408,10 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
                     .collect();
                 match bytes {
                     Some(v) => visitor.visit_byte_buf(v),
-                    None => Err(<DeError as de::Error>::custom("expected byte array")),
+                    None => Err(self.fail()),
                 }
             }
-            _ => Err(<DeError as de::Error>::custom("expected bytes")),
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -439,7 +428,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
             Json::Null => visitor.visit_unit(),
-            _ => Err(<DeError as de::Error>::custom("expected null")),
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_unit_struct<V: Visitor<'de>>(
@@ -462,8 +451,10 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
             Json::Array(arr) => visitor.visit_seq(SeqAccessImpl {
                 iter: arr.iter(),
                 len: arr.len(),
+                path: self.path.clone(),
+                index: 0,
             }),
-            _ => Err(<DeError as de::Error>::custom("expected array")),
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_tuple<V: Visitor<'de>>(
@@ -484,8 +475,10 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
-            Json::Object(obj) => visitor.visit_map(MapAccessImpl::new(obj.iter())),
-            _ => Err(<DeError as de::Error>::custom("expected object")),
+            Json::Object(obj) => {
+                visitor.visit_map(MapAccessImpl::new(obj.iter(), self.path.clone()))
+            }
+            _ => Err(self.fail()),
         }
     }
     fn deserialize_struct<V: Visitor<'de>>(
@@ -509,15 +502,13 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
                 // Externally tagged: { "Variant": value }
                 let mut iter = obj.iter();
                 match (iter.next(), iter.next()) {
-                    (Some((k, v)), None) => visitor.visit_enum(EnumAccessImpl::Tagged(k, v)),
-                    _ => Err(<DeError as de::Error>::custom(
-                        "expected single-key object for enum",
-                    )),
+                    (Some((k, v)), None) => {
+                        visitor.visit_enum(EnumAccessImpl::Tagged(k, v, self.path.clone()))
+                    }
+                    _ => Err(self.fail()),
                 }
             }
-            _ => Err(<DeError as de::Error>::custom(
-                "invalid enum representation",
-            )),
+            _ => Err(self.fail()),
         }
     }
 
@@ -533,17 +524,29 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
 struct SeqAccessImpl<'a> {
     iter: std::slice::Iter<'a, Json>,
     len: usize,
+    path: Vec<String>,
+    index: usize,
 }
 
 impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a> {
-    type Error = DeError;
+    type Error = BmsonWarning<'static>;
 
     fn next_element_seed<T: DeserializeSeed<'de>>(
         &mut self,
         seed: T,
     ) -> Result<Option<T::Value>, Self::Error> {
         match self.iter.next() {
-            Some(next) => seed.deserialize(JsonDeserializer { json: next }).map(Some),
+            Some(next) => {
+                let idx = self.index;
+                self.index += 1;
+                let mut p = self.path.clone();
+                p.push(format!("[{}]", idx));
+                seed.deserialize(JsonDeserializer {
+                    json: next,
+                    path: p,
+                })
+                .map(Some)
+            }
             None => Ok(None),
         }
     }
@@ -556,19 +559,23 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a> {
 struct MapAccessImpl<'a> {
     iter: hash_map::Iter<'a, String, Json>,
     next_value: Option<&'a Json>,
+    path: Vec<String>,
+    current_key: Option<&'a str>,
 }
 
 impl<'a> MapAccessImpl<'a> {
-    fn new(iter: hash_map::Iter<'a, String, Json>) -> Self {
+    fn new(iter: hash_map::Iter<'a, String, Json>, path: Vec<String>) -> Self {
         Self {
             iter,
             next_value: None,
+            path,
+            current_key: None,
         }
     }
 }
 
 impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
-    type Error = DeError;
+    type Error = BmsonWarning<'static>;
 
     fn next_key_seed<K: DeserializeSeed<'de>>(
         &mut self,
@@ -576,6 +583,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
     ) -> Result<Option<K::Value>, Self::Error> {
         match self.iter.next() {
             Some((k, v)) => {
+                self.current_key = Some(k.as_str());
                 self.next_value = Some(v);
                 seed.deserialize(k.as_str().into_deserializer()).map(Some)
             }
@@ -588,19 +596,29 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
         seed: Vv,
     ) -> Result<Vv::Value, Self::Error> {
         match self.next_value.take() {
-            Some(v) => seed.deserialize(JsonDeserializer { json: v }),
-            None => Err(<DeError as de::Error>::custom("value is missing for key")),
+            Some(v) => {
+                let mut p = self.path.clone();
+                if let Some(k) = self.current_key.take() {
+                    p.push(k.to_string());
+                }
+                seed.deserialize(JsonDeserializer { json: v, path: p })
+            }
+            None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
+                "root".to_string()
+            } else {
+                self.path.join(".")
+            })),
         }
     }
 }
 
 enum EnumAccessImpl<'a> {
     Unit(JsonDeserializer<'a>),
-    Tagged(&'a String, &'a Json),
+    Tagged(&'a String, &'a Json, Vec<String>),
 }
 
 impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
-    type Error = DeError;
+    type Error = BmsonWarning<'static>;
     type Variant = VariantAccessImpl<'a>;
 
     fn variant_seed<V: DeserializeSeed<'de>>(
@@ -611,11 +629,23 @@ impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
             EnumAccessImpl::Unit(de) => {
                 // Variant is a simple string or integer
                 let v = seed.deserialize(de)?;
-                Ok((v, VariantAccessImpl { value: None }))
+                Ok((
+                    v,
+                    VariantAccessImpl {
+                        value: None,
+                        path: vec![],
+                    },
+                ))
             }
-            EnumAccessImpl::Tagged(k, v) => {
+            EnumAccessImpl::Tagged(k, v, path) => {
                 let variant = seed.deserialize(k.as_str().into_deserializer())?;
-                Ok((variant, VariantAccessImpl { value: Some(v) }))
+                Ok((
+                    variant,
+                    VariantAccessImpl {
+                        value: Some(v),
+                        path,
+                    },
+                ))
             }
         }
     }
@@ -623,15 +653,20 @@ impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
 
 struct VariantAccessImpl<'a> {
     value: Option<&'a Json>,
+    path: Vec<String>,
 }
 
 impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
-    type Error = DeError;
+    type Error = BmsonWarning<'static>;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
         match self.value {
             None | Some(Json::Null) => Ok(()),
-            _ => Err(<DeError as de::Error>::custom("expected unit variant")),
+            _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
+                "root".to_string()
+            } else {
+                self.path.join(".")
+            })),
         }
     }
 
@@ -640,10 +675,15 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
         seed: T,
     ) -> Result<T::Value, Self::Error> {
         match self.value {
-            Some(v) => seed.deserialize(JsonDeserializer { json: v }),
-            None => Err(<DeError as de::Error>::custom(
-                "expected newtype variant value",
-            )),
+            Some(v) => {
+                let p = self.path.clone();
+                seed.deserialize(JsonDeserializer { json: v, path: p })
+            }
+            None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
+                "root".to_string()
+            } else {
+                self.path.join(".")
+            })),
         }
     }
 
@@ -656,8 +696,14 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
             Some(Json::Array(arr)) => visitor.visit_seq(SeqAccessImpl {
                 iter: arr.iter(),
                 len: arr.len(),
+                path: self.path.clone(),
+                index: 0,
             }),
-            _ => Err(<DeError as de::Error>::custom("expected tuple variant")),
+            _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
+                "root".to_string()
+            } else {
+                self.path.join(".")
+            })),
         }
     }
 
@@ -667,8 +713,14 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         match self.value {
-            Some(Json::Object(obj)) => visitor.visit_map(MapAccessImpl::new(obj.iter())),
-            _ => Err(<DeError as de::Error>::custom("expected struct variant")),
+            Some(Json::Object(obj)) => {
+                visitor.visit_map(MapAccessImpl::new(obj.iter(), self.path.clone()))
+            }
+            _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
+                "root".to_string()
+            } else {
+                self.path.join(".")
+            })),
         }
     }
 }
@@ -708,36 +760,69 @@ fn default_bmson() -> Bmson {
     }
 }
 
+fn minimal_bmson_json() -> Json {
+    let mut min_root = HashMap::new();
+    let mut min_info = HashMap::new();
+    min_root.insert("version".into(), Json::Str("1.0.0".into()));
+    min_root.insert("sound_channels".into(), Json::Array(Vec::new()));
+    min_info.insert("title".into(), Json::Str(String::new()));
+    min_info.insert("artist".into(), Json::Str(String::new()));
+    min_info.insert("genre".into(), Json::Str(String::new()));
+    min_info.insert("level".into(), Json::Int(0));
+    min_info.insert("init_bpm".into(), Json::Float(120.0));
+    min_root.insert("info".into(), Json::Object(min_info));
+    Json::Object(min_root)
+}
+
 /// bmson 解析时的告警/错误。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BmsonWarning {
-    /// JSON 语法错误的数量。
-    JsonSyntaxErrorCount(usize),
+pub enum BmsonWarning<'a> {
+    /// JSON 语法错误（直接返回 Rich）。
+    JsonSyntaxError(Rich<'a, char>),
     /// 根节点不是对象。
     NonObjectRoot,
     /// 缺失字段（使用默认值填充）。
-    MissingField(&'static str),
-    /// 反序列化失败（类型不匹配等）。
-    DeserializeFailed,
+    MissingField(String),
+    /// 反序列化失败（标注具体字段路径）。
+    DeserializeFailed(String),
+}
+
+impl<'a> fmt::Display for BmsonWarning<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BmsonWarning::JsonSyntaxError(rich) => write!(f, "json syntax error: {}", rich),
+            BmsonWarning::NonObjectRoot => write!(f, "root is not an object"),
+            BmsonWarning::MissingField(name) => write!(f, "missing field: {}", name),
+            BmsonWarning::DeserializeFailed(path) => write!(f, "deserialize failed at: {}", path),
+        }
+    }
+}
+
+impl<'a> std::error::Error for BmsonWarning<'a> {}
+
+impl<'a> de::Error for BmsonWarning<'a> {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        BmsonWarning::DeserializeFailed(msg.to_string())
+    }
 }
 
 /// `parse_bmson` 的输出。
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
-pub struct BmsonOutput {
+pub struct BmsonOutput<'a> {
     /// 解析后的 bmson 对象。
     pub bmson: Bmson,
     /// 解析过程中的警告。
-    pub warnings: Vec<BmsonWarning>,
+    pub warnings: Vec<BmsonWarning<'a>>,
 }
 
 /// 解析 bmson 源字符串。不使用 `serde_json`，完全基于 chumsky + serde 反序列化。
 #[must_use]
-pub(crate) fn parse_bmson_inner(src: &str) -> BmsonOutput {
+pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     let (maybe_json, errs) = parse_json(src);
-    let mut warnings: Vec<BmsonWarning> = Vec::new();
+    let mut warnings: Vec<BmsonWarning<'a>> = Vec::new();
     if !errs.is_empty() {
-        warnings.push(BmsonWarning::JsonSyntaxErrorCount(errs.len()));
+        warnings.extend(errs.into_iter().map(BmsonWarning::JsonSyntaxError));
     }
 
     // 准备对象根
@@ -751,11 +836,11 @@ pub(crate) fn parse_bmson_inner(src: &str) -> BmsonOutput {
 
     // 顶层缺失字段默认
     if !root_map.contains_key("version") {
-        warnings.push(BmsonWarning::MissingField("version"));
+        warnings.push(BmsonWarning::MissingField("version".to_string()));
         root_map.insert("version".into(), Json::Str("1.0.0".into()));
     }
     if !root_map.contains_key("sound_channels") {
-        warnings.push(BmsonWarning::MissingField("sound_channels"));
+        warnings.push(BmsonWarning::MissingField("sound_channels".to_string()));
         root_map.insert("sound_channels".into(), Json::Array(Vec::new()));
     }
 
@@ -764,28 +849,28 @@ pub(crate) fn parse_bmson_inner(src: &str) -> BmsonOutput {
     let mut info_map: HashMap<String, Json> = match info_json {
         Some(Json::Object(m)) => m,
         _ => {
-            warnings.push(BmsonWarning::MissingField("info"));
+            warnings.push(BmsonWarning::MissingField("info".to_string()));
             HashMap::new()
         }
     };
     if !info_map.contains_key("title") {
-        warnings.push(BmsonWarning::MissingField("info.title"));
+        warnings.push(BmsonWarning::MissingField("info.title".to_string()));
         info_map.insert("title".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("artist") {
-        warnings.push(BmsonWarning::MissingField("info.artist"));
+        warnings.push(BmsonWarning::MissingField("info.artist".to_string()));
         info_map.insert("artist".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("genre") {
-        warnings.push(BmsonWarning::MissingField("info.genre"));
+        warnings.push(BmsonWarning::MissingField("info.genre".to_string()));
         info_map.insert("genre".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("level") {
-        warnings.push(BmsonWarning::MissingField("info.level"));
+        warnings.push(BmsonWarning::MissingField("info.level".to_string()));
         info_map.insert("level".into(), Json::Int(0));
     }
     if !info_map.contains_key("init_bpm") {
-        warnings.push(BmsonWarning::MissingField("info.init_bpm"));
+        warnings.push(BmsonWarning::MissingField("info.init_bpm".to_string()));
         info_map.insert("init_bpm".into(), Json::Float(120.0));
     }
     root_map.insert("info".into(), Json::Object(info_map));
@@ -794,20 +879,10 @@ pub(crate) fn parse_bmson_inner(src: &str) -> BmsonOutput {
     let json_root = Json::Object(root_map);
     match from_json::<Bmson>(&json_root) {
         Ok(bmson) => BmsonOutput { bmson, warnings },
-        Err(_) => {
-            warnings.push(BmsonWarning::DeserializeFailed);
+        Err(e) => {
+            warnings.push(e);
             // 构造保证可反序列化的最小对象
-            let mut min_root = HashMap::new();
-            let mut min_info = HashMap::new();
-            min_root.insert("version".into(), Json::Str("1.0.0".into()));
-            min_root.insert("sound_channels".into(), Json::Array(Vec::new()));
-            min_info.insert("title".into(), Json::Str(String::new()));
-            min_info.insert("artist".into(), Json::Str(String::new()));
-            min_info.insert("genre".into(), Json::Str(String::new()));
-            min_info.insert("level".into(), Json::Int(0));
-            min_info.insert("init_bpm".into(), Json::Float(120.0));
-            min_root.insert("info".into(), Json::Object(min_info));
-            let min_json = Json::Object(min_root);
+            let min_json = minimal_bmson_json();
             let bmson = match from_json::<Bmson>(&min_json) {
                 Ok(b) => b,
                 Err(_) => {

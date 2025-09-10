@@ -329,6 +329,6 @@ pub struct KeyChannel {
 }
 
 /// Parse a Bmson file from source text.
-pub fn parse_bmson(src: &str) -> BmsonOutput {
+pub fn parse_bmson(src: &str) -> BmsonOutput<'_> {
     parse_bmson_inner(src)
 }
