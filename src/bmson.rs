@@ -29,6 +29,7 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
+mod json_de;
 pub mod parser;
 pub mod pulse;
 
@@ -38,6 +39,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::bms::command::LnMode;
 
+use self::json_de::from_json as from_json_ast;
+use self::parser::{Json, parse_json};
 use self::{fin_f64::FinF64, pulse::PulseNumber};
 
 /// Top-level object for bmson format.
@@ -322,4 +325,18 @@ pub struct KeyChannel {
     pub name: String,
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
+}
+
+/// 解析 bmson 源字符串为 `Bmson`。不使用 `serde_json`，完全基于 chumsky。
+#[must_use]
+pub fn parse_bmson(src: &str) -> Option<Bmson> {
+    let (maybe_json, errs) = parse_json(src);
+    if !errs.is_empty() {
+        return None;
+    }
+    let json: &Json = match maybe_json.as_ref() {
+        Some(j) => j,
+        None => return None,
+    };
+    from_json_ast::<Bmson>(json).ok()
 }
