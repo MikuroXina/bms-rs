@@ -63,6 +63,15 @@ impl<'a> SimpleSource<'a> {
         Self { name, text }
     }
 
+    /// Get name of the source file.
+    ///
+    /// # Returns
+    /// Returns the name of the source file
+    #[must_use]
+    pub const fn name(&self) -> &'a str {
+        self.name
+    }
+
     /// Get source text content.
     ///
     /// # Returns

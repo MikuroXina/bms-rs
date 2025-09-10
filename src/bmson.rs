@@ -29,20 +29,20 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
-mod json_de;
 pub mod parser;
 pub mod pulse;
 
-use std::collections::HashMap;
 use std::num::NonZeroU8;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::bms::command::LnMode;
 
-use self::json_de::from_json as from_json_ast;
-use self::parser::{Json, parse_json};
-use self::{fin_f64::FinF64, pulse::PulseNumber};
+use self::{
+    fin_f64::FinF64,
+    parser::{BmsonOutput, parse_bmson_inner},
+    pulse::PulseNumber,
+};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -328,151 +328,7 @@ pub struct KeyChannel {
     pub notes: Vec<KeyEvent>,
 }
 
-/// bmson 解析时的告警/错误。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BmsonWarning {
-    /// JSON 语法错误的数量。
-    JsonSyntaxErrorCount(usize),
-    /// 根节点不是对象。
-    NonObjectRoot,
-    /// 缺失字段（使用默认值填充）。
-    MissingField(&'static str),
-    /// 反序列化失败（类型不匹配等）。
-    DeserializeFailed,
-}
-
-/// `parse_bmson` 的输出。
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[must_use]
-pub struct BmsonOutput {
-    /// 解析后的 bmson 对象。
-    pub bmson: Bmson,
-    /// 解析过程中的警告。
-    pub warnings: Vec<BmsonWarning>,
-}
-
-/// 解析 bmson 源字符串。不使用 `serde_json`，完全基于 chumsky + serde 反序列化。
-#[must_use]
+/// Parse a Bmson file from source text.
 pub fn parse_bmson(src: &str) -> BmsonOutput {
-    let (maybe_json, errs) = parse_json(src);
-    let mut warnings: Vec<BmsonWarning> = Vec::new();
-    if !errs.is_empty() {
-        warnings.push(BmsonWarning::JsonSyntaxErrorCount(errs.len()));
-    }
-
-    // 准备对象根
-    let mut root_map: HashMap<String, Json> = match maybe_json {
-        Some(Json::Object(ref m)) => m.clone(),
-        _ => {
-            warnings.push(BmsonWarning::NonObjectRoot);
-            HashMap::new()
-        }
-    };
-
-    // 顶层缺失字段默认
-    if !root_map.contains_key("version") {
-        warnings.push(BmsonWarning::MissingField("version"));
-        root_map.insert("version".into(), Json::Str("1.0.0".into()));
-    }
-    if !root_map.contains_key("sound_channels") {
-        warnings.push(BmsonWarning::MissingField("sound_channels"));
-        root_map.insert("sound_channels".into(), Json::Array(Vec::new()));
-    }
-
-    // info 对象缺省与字段默认
-    let info_json = root_map.remove("info");
-    let mut info_map: HashMap<String, Json> = match info_json {
-        Some(Json::Object(m)) => m,
-        _ => {
-            warnings.push(BmsonWarning::MissingField("info"));
-            HashMap::new()
-        }
-    };
-    if !info_map.contains_key("title") {
-        warnings.push(BmsonWarning::MissingField("info.title"));
-        info_map.insert("title".into(), Json::Str(String::new()));
-    }
-    if !info_map.contains_key("artist") {
-        warnings.push(BmsonWarning::MissingField("info.artist"));
-        info_map.insert("artist".into(), Json::Str(String::new()));
-    }
-    if !info_map.contains_key("genre") {
-        warnings.push(BmsonWarning::MissingField("info.genre"));
-        info_map.insert("genre".into(), Json::Str(String::new()));
-    }
-    if !info_map.contains_key("level") {
-        warnings.push(BmsonWarning::MissingField("info.level"));
-        info_map.insert("level".into(), Json::Int(0));
-    }
-    if !info_map.contains_key("init_bpm") {
-        warnings.push(BmsonWarning::MissingField("info.init_bpm"));
-        info_map.insert("init_bpm".into(), Json::Float(120.0));
-    }
-    root_map.insert("info".into(), Json::Object(info_map));
-
-    // 反序列化
-    let json_root = Json::Object(root_map);
-    match from_json_ast::<Bmson>(&json_root) {
-        Ok(bmson) => BmsonOutput { bmson, warnings },
-        Err(_) => {
-            warnings.push(BmsonWarning::DeserializeFailed);
-            // 构造保证可反序列化的最小对象
-            let mut min_root = HashMap::new();
-            let mut min_info = HashMap::new();
-            min_root.insert("version".into(), Json::Str("1.0.0".into()));
-            min_root.insert("sound_channels".into(), Json::Array(Vec::new()));
-            min_info.insert("title".into(), Json::Str(String::new()));
-            min_info.insert("artist".into(), Json::Str(String::new()));
-            min_info.insert("genre".into(), Json::Str(String::new()));
-            min_info.insert("level".into(), Json::Int(0));
-            min_info.insert("init_bpm".into(), Json::Float(120.0));
-            min_root.insert("info".into(), Json::Object(min_info));
-            let min_json = Json::Object(min_root);
-            let bmson = match from_json_ast::<Bmson>(&min_json) {
-                Ok(b) => b,
-                Err(_) => {
-                    // 理论上不会失败；退化到直接复用最小 JSON 再尝试一次
-                    match from_json_ast::<Bmson>(&min_json) {
-                        Ok(b) => b,
-                        Err(_) => {
-                            // 最终兜底：返回空的占位值（尽力而为，避免 unwrap）
-                            Bmson {
-                                version: "1.0.0".to_string(),
-                                info: BmsonInfo {
-                                    title: String::new(),
-                                    subtitle: String::new(),
-                                    artist: String::new(),
-                                    subartists: Vec::new(),
-                                    genre: String::new(),
-                                    mode_hint: default_mode_hint(),
-                                    chart_name: String::new(),
-                                    level: 0,
-                                    init_bpm: FinF64::try_from(120.0)
-                                        .unwrap_or_else(|_| FinF64::try_from(0.0).unwrap()),
-                                    judge_rank: default_percentage(),
-                                    total: default_percentage(),
-                                    back_image: None,
-                                    eyecatch_image: None,
-                                    title_image: None,
-                                    banner_image: None,
-                                    preview_music: None,
-                                    resolution: default_resolution(),
-                                    ln_type: LnMode::default(),
-                                },
-                                lines: None,
-                                bpm_events: Vec::new(),
-                                stop_events: Vec::new(),
-                                sound_channels: Vec::new(),
-                                bga: Bga::default(),
-                                scroll_events: Vec::new(),
-                                mine_channels: Vec::new(),
-                                key_channels: Vec::new(),
-                            }
-                        }
-                    }
-                }
-            };
-            BmsonOutput { bmson, warnings }
-        }
-    }
+    parse_bmson_inner(src)
 }
