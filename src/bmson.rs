@@ -29,6 +29,7 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
+pub mod parser;
 pub mod pulse;
 
 use std::num::NonZeroU8;
