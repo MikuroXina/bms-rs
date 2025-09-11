@@ -34,16 +34,15 @@ pub struct KeyLayoutConvertMirror {
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
     fn convert(&mut self, key: Key) -> Key {
-        if let Some(position) = self.keys.iter().position(|k| k == &key) {
-            let mirror_index = self.keys.len().saturating_sub(position + 1);
-            if let Some(mirror_key) = self.keys.get(mirror_index) {
-                *mirror_key
-            } else {
-                key
-            }
-        } else {
-            key
-        }
+        self.keys
+            .iter()
+            .position(|k| k == &key)
+            .and_then(|position| {
+                let mirror_index = self.keys.len().saturating_sub(position + 1);
+                self.keys.get(mirror_index)
+            })
+            .copied()
+            .unwrap_or(key)
     }
 }
 
