@@ -30,7 +30,7 @@ pub struct BmsonProcessor {
 }
 
 impl BmsonProcessor {
-    /// 创建处理器，初始化默认参数
+    /// 创建 BMSON 处理器并初始化播放状态与默认参数。
     pub fn new(bmson: Bmson) -> Self {
         let init_bpm = bmson.info.init_bpm.as_f64();
         Self {
@@ -59,12 +59,13 @@ impl BmsonProcessor {
 
     /// 当前瞬时位移速度（y 单位每秒）。
     /// y 为归一化后的小节单位：`y = pulses / (4*resolution)`，默认 4/4 下一小节为 1。
+    /// 模型：v = (current_bpm / default_bpm_bound)
+    /// 注：Speed/Scroll 仅影响显示位置（y 缩放），不改变时间轴推进。
     fn current_velocity(&self) -> f64 {
         if self.default_bpm_bound <= 0.0 {
             return 0.0;
         }
-        // 注意：scroll 不影响 y 前进速度，仅影响显示位置
-        (self.current_bpm / self.default_bpm_bound) * self.current_speed
+        self.current_bpm / self.default_bpm_bound
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
@@ -132,7 +133,6 @@ impl BmsonProcessor {
     fn apply_flow_event(&mut self, evt: FlowEvent) {
         match evt {
             FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
-            FlowEvent::Speed(s) => self.current_speed = s,
             FlowEvent::Scroll(s) => self.current_scroll = s,
         }
     }
@@ -298,7 +298,7 @@ impl ChartProcessor for BmsonProcessor {
         self.step_to(now);
         let win_y = self.visible_window_y();
         let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll * win_y;
+        let scaled_upper = self.current_scroll * self.current_speed * win_y;
         let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
             (0.0, scaled_upper)
         } else {
@@ -310,7 +310,7 @@ impl ChartProcessor for BmsonProcessor {
             for Note { y, x, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
-                let scaled_distance = self.current_scroll * raw_distance;
+                let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
                 if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
                     if let Some((side, key)) = Self::lane_from_x(*x) {
                         out.push((
@@ -334,7 +334,6 @@ impl ChartProcessor for BmsonProcessor {
 #[derive(Debug, Clone, Copy)]
 enum FlowEvent {
     Bpm(f64),
-    Speed(f64),
     Scroll(f64),
 }
 
