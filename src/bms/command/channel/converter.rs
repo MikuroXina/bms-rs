@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use super::{Key, PlayerSide, mapper::KeyMapping};
+use crate::bms::ast::rng::JavaRandom;
 
 /// A trait for converting [`KeyMapping`]s.
 ///
@@ -44,57 +45,6 @@ impl KeyLayoutConverter for KeyLayoutConvertMirror {
             key = *mirror_key;
         }
         T::new(side, kind, key)
-    }
-}
-
-/// A random number generator based on Java's `java.util.Random`.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-struct JavaRandom {
-    seed: u64,
-}
-
-impl JavaRandom {
-    const MULT: u64 = 0x5_DEEC_E66D;
-    const ADD: u64 = 0xB;
-
-    /// Create a new [`JavaRandom`] with the given seed.
-    pub const fn new(seed: i64) -> Self {
-        let s = (seed as u64) ^ Self::MULT;
-        Self {
-            seed: s & ((1u64 << 48) - 1),
-        }
-    }
-
-    /// Java's `next(int bits)` method
-    const fn next(&mut self, bits: i32) -> i32 {
-        self.seed =
-            (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
-        ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
-    }
-
-    /// Java's `nextInt()` method - returns any int value
-    #[allow(dead_code)]
-    pub const fn next_int(&mut self) -> i32 {
-        self.next(32)
-    }
-
-    /// Java's `nextInt(int bound)` method
-    pub fn next_int_bound(&mut self, bound: i32) -> i32 {
-        assert!(bound > 0, "bound must be positive");
-
-        let m = bound - 1;
-        if (bound & m) == 0 {
-            // i.e., bound is a power of 2
-            ((bound as i64 * self.next(31) as i64) >> 31) as i32
-        } else {
-            loop {
-                let bits = self.next(31);
-                let val = bits % bound;
-                if bits - val + m >= 0 {
-                    return val;
-                }
-            }
-        }
     }
 }
 
@@ -312,26 +262,6 @@ mod channel_mode_tests {
             println!("  FAILED!");
         }
         println!();
-    }
-
-    #[test]
-    fn test_java_random_consistency() {
-        // Test with seed 123456789
-        let mut rng = JavaRandom::new(123456789);
-
-        // Test nextInt() method (returns any int value)
-        println!("First nextInt(): {}", rng.next_int());
-        println!("Second nextInt(): {}", rng.next_int());
-        println!("Third nextInt(): {}", rng.next_int());
-
-        // Test nextInt(bound) method
-        let mut rng2 = JavaRandom::new(123456789);
-        println!("First nextInt(100): {}", rng2.next_int_bound(100));
-        println!("Second nextInt(100): {}", rng2.next_int_bound(100));
-        println!("Third nextInt(100): {}", rng2.next_int_bound(100));
-
-        // Basic functionality test - should not panic
-        assert!(rng2.next_int_bound(100) >= 0 && rng2.next_int_bound(100) < 100);
     }
 
     /// Test the random shuffle modifier.
