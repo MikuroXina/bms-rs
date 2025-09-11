@@ -2,7 +2,7 @@
 
 use bms_rs::{
     bms::{command::LnMode, model::Bms},
-    bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
+    bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput, fin_f64::FinF64},
 };
 
 #[test]
@@ -19,9 +19,9 @@ fn test_bmson_to_bms_conversion() {
             mode_hint: "beat-7k".into(),
             chart_name: "NORMAL".into(),
             level: 5,
-            init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
-            judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
-            total: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
+            init_bpm: FinF64::new(120.0).unwrap(),
+            judge_rank: FinF64::new(100.0).unwrap(),
+            total: FinF64::new(100.0).unwrap(),
             back_image: Some("back.png".into()),
             eyecatch_image: Some("eyecatch.png".into()),
             title_image: Some("title.png".into()),
@@ -85,9 +85,9 @@ fn test_bmson_to_bms_with_notes() {
             mode_hint: "beat-7k".into(),
             chart_name: "".into(),
             level: 5,
-            init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
-            judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
-            total: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
+            init_bpm: FinF64::new(120.0).unwrap(),
+            judge_rank: FinF64::new(100.0).unwrap(),
+            total: FinF64::new(100.0).unwrap(),
             back_image: None,
             eyecatch_image: None,
             title_image: None,
