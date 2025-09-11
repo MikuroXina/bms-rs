@@ -1,4 +1,4 @@
-//! For one-way converting key/channel, please see [`KeyLayoutConverter`] trait.
+//! For one-way converting key/channel, please see [`KeyMappingConverter`] trait.
 
 use std::collections::HashMap;
 
@@ -10,9 +10,9 @@ use crate::bms::ast::rng::JavaRandom;
 ///
 /// - Difference from [`super::mapper::KeyLayoutMapper`]:
 ///   - [`super::mapper::KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
-///   - [`KeyLayoutConverter`] can convert into another key layout. It's one-way.
-///   - [`KeyLayoutConverter`] operates on iterators of [`KeyMapping`]s, not individual [`Key`]s.
-pub trait KeyLayoutConverter {
+///   - [`KeyMappingConverter`] can convert into another key layout. It's one-way.
+///   - [`KeyMappingConverter`] operates on iterators of [`KeyMapping`]s, not individual [`Key`]s.
+pub trait KeyMappingConverter {
     /// Convert an iterator of [`KeyMapping`]s to another key layout.
     fn convert<T: KeyMapping>(
         &mut self,
@@ -20,8 +20,8 @@ pub trait KeyLayoutConverter {
     ) -> impl Iterator<Item = T>;
 }
 
-impl KeyLayoutConvertMirror {
-    /// Create a new [`KeyLayoutConvertMirror`] with the given [`Key`]s.
+impl KeyMappingConvertMirror {
+    /// Create a new [`KeyMappingConvertMirror`] with the given [`Key`]s.
     #[must_use]
     pub const fn new(keys: Vec<Key>) -> Self {
         Self { keys }
@@ -30,12 +30,12 @@ impl KeyLayoutConvertMirror {
 
 /// Mirror the keys within the specified key list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct KeyLayoutConvertMirror {
+pub struct KeyMappingConvertMirror {
     /// A list of [`Key`]s to mirror. Usually, it should be the keys that actually used in the song.
     keys: Vec<Key>,
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertMirror {
+impl KeyMappingConverter for KeyMappingConvertMirror {
     fn convert<T: KeyMapping>(
         &mut self,
         mappings: impl Iterator<Item = T>,
@@ -59,13 +59,13 @@ impl KeyLayoutConverter for KeyLayoutConvertMirror {
 
 /// A modifier that rotates the lanes of keys.
 #[derive(Debug, Clone)]
-pub struct KeyLayoutConvertLaneRotateShuffle {
+pub struct KeyMappingConvertLaneRotateShuffle {
     /// A map of [`Key`]s to their new [`Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
-impl KeyLayoutConvertLaneRotateShuffle {
-    /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`Key`]s and seed.
+impl KeyMappingConvertLaneRotateShuffle {
+    /// Create a new [`KeyMappingConvertLaneRotateShuffle`] with the given [`Key`]s and seed.
     #[must_use]
     pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
@@ -97,7 +97,7 @@ impl KeyLayoutConvertLaneRotateShuffle {
     }
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
+impl KeyMappingConverter for KeyMappingConvertLaneRotateShuffle {
     fn convert<T: KeyMapping>(
         &mut self,
         mappings: impl Iterator<Item = T>,
@@ -114,13 +114,13 @@ impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
 ///
 /// Its action is similar to beatoraja's lane shuffle.
 #[derive(Debug, Clone)]
-pub struct KeyLayoutConvertLaneRandomShuffle {
+pub struct KeyMappingConvertLaneRandomShuffle {
     /// A map of [`Key`]s to their new [`Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
-impl KeyLayoutConvertLaneRandomShuffle {
-    /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`Key`]s and seed.
+impl KeyMappingConvertLaneRandomShuffle {
+    /// Create a new [`KeyMappingConvertLaneRandomShuffle`] with the given [`Key`]s and seed.
     #[must_use]
     pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
@@ -147,7 +147,7 @@ impl KeyLayoutConvertLaneRandomShuffle {
     }
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
+impl KeyMappingConverter for KeyMappingConvertLaneRandomShuffle {
     fn convert<T: KeyMapping>(
         &mut self,
         mappings: impl Iterator<Item = T>,
@@ -169,7 +169,7 @@ mod channel_mode_tests {
     fn test_key_channel_mode_mirror() {
         // Test 1: 3 keys
         let mut converter =
-            KeyLayoutConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
+            KeyMappingConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
 
         // Test individual key conversions
         let input_mappings = vec![
@@ -228,7 +228,7 @@ mod channel_mode_tests {
         keys: &[Key],
         mut converter: T,
     ) where
-        T: KeyLayoutConverter,
+        T: KeyMappingConverter,
     {
         println!("Test case {}: seed = {}", test_case_idx, seed);
 
@@ -276,7 +276,7 @@ mod channel_mode_tests {
         ];
 
         for (i, (list, seed)) in examples.iter().enumerate() {
-            let rnd = KeyLayoutConvertLaneRandomShuffle::new(&init_keys, *seed);
+            let rnd = KeyMappingConvertLaneRandomShuffle::new(&init_keys, *seed);
             run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
     }
@@ -297,7 +297,7 @@ mod channel_mode_tests {
         ];
 
         for (i, (list, seed)) in examples.iter().enumerate() {
-            let rnd = KeyLayoutConvertLaneRotateShuffle::new(&init_keys, *seed);
+            let rnd = KeyMappingConvertLaneRotateShuffle::new(&init_keys, *seed);
             run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
     }
