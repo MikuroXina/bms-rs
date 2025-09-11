@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use super::{Key, PlayerSide, mapper::KeyMapping};
+#[allow(deprecated)]
 use crate::bms::ast::rng::JavaRandom;
 
 /// A trait for converting [`KeyMapping`]s.
@@ -67,6 +68,7 @@ impl KeyLayoutConvertLaneRotateShuffle {
         }
     }
 
+    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
@@ -123,6 +125,7 @@ impl KeyLayoutConvertLaneRandomShuffle {
         }
     }
 
+    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();

@@ -130,11 +130,21 @@ impl<R: rand::RngCore> Rng for RandRng<R> {
 }
 
 /// A random number generator based on Java's `java.util.Random`.
+///
+/// # Deprecation Notice
+///
+/// This struct is not recommended for external use. For BMS control flow parsing,
+/// prefer using other implementations of [`Rng`] trait, e.g. [`RandRng`].
+#[deprecated(
+    since = "0.10.0",
+    note = "JavaRandom is not recommended for external use. Use other implementations of Rng trait instead."
+)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct JavaRandom {
     seed: u64,
 }
 
+#[allow(deprecated)]
 impl JavaRandom {
     const MULT: u64 = 0x5_DEEC_E66D;
     const ADD: u64 = 0xB;
@@ -180,12 +190,14 @@ impl JavaRandom {
     }
 }
 
+#[allow(deprecated)]
 impl Default for JavaRandom {
     fn default() -> Self {
         Self::new(0)
     }
 }
 
+#[allow(deprecated)]
 impl Rng for JavaRandom {
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
         use num::One;
@@ -261,6 +273,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_java_random_consistency() {
         // Test with seed 123456789
         let mut rng = JavaRandom::new(123456789);
