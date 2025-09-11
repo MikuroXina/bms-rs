@@ -1,4 +1,9 @@
-//! Chart Processor Trait
+//! Chart Processor
+//!
+//! y 坐标统一定义：
+//! - 在默认 4/4 拍的情况下，“一小节”的长度为 1。
+//! - BMS：当节长为默认值时，每个 `Track` 的长度为 1。节长来自每小节的 `#XXX02:V` 消息，其中 `V` 表示默认长度的倍数（例如 `#00302:0.5` 表示第 3 小节长度为默认的一半）。累计 y 以该倍数线性换算。
+//! - BMSON：`info.resolution` 是四分音符（1/4）对应的脉冲数，因而一小节长度为 `4 * resolution` 脉冲；所有位置 y 通过 `pulses / (4 * resolution)` 归一化为小节单位。
 
 use crate::bms::prelude::{Key, NoteKind, PlayerSide};
 
@@ -91,7 +96,7 @@ pub enum ChartEvent {
     },
 }
 
-/// Chart Processor Trait
+/// 统一的 y 单位说明：默认 4/4 拍下一小节为 1；BMS 以 `#SECLEN` 线性换算，BMSON 以 `pulses / (4*resolution)` 归一化。
 pub trait ChartProcessor {
     /// 读取：音频文件资源（id 到路径映射）。
     fn audio_files(&self) -> HashMap<usize, &Path>;
