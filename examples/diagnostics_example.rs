@@ -39,7 +39,7 @@ fn main() {
 
     for warning in &output.warnings {
         let report = warning.to_report(&source);
-        let _ = report.print(("example.bms".to_string(), ariadne_source.clone()));
+        let _ = report.print((source.name(), ariadne_source.clone()));
     }
 
     println!("\nBMS parsing completed!");

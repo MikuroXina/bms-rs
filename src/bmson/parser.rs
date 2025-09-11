@@ -164,20 +164,17 @@ impl ToAriadne for Rich<'_, char> {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> ariadne::Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> ariadne::Report<'a, (&'a str, std::ops::Range<usize>)> {
         use ariadne::{Color, Label, Report, ReportKind};
-        Report::build(
-            ReportKind::Error,
-            (src.name().to_string(), self.span().into_range()),
-        )
-        .with_config(ariadne::Config::new().with_index_type(ariadne::IndexType::Byte))
-        .with_message(self.to_string())
-        .with_label(
-            Label::new((src.name().to_string(), self.span().into_range()))
-                .with_message(self.reason().to_string())
-                .with_color(Color::Red),
-        )
-        .finish()
+        Report::build(ReportKind::Error, (src.name(), self.span().into_range()))
+            .with_config(ariadne::Config::new().with_index_type(ariadne::IndexType::Byte))
+            .with_message(self.to_string())
+            .with_label(
+                Label::new((src.name(), self.span().into_range()))
+                    .with_message(self.reason().to_string())
+                    .with_color(Color::Red),
+            )
+            .finish()
     }
 }
 

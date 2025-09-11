@@ -104,7 +104,7 @@ impl<'a> SimpleSource<'a> {
 /// for warning in &warnings {
 ///     let report = warning.to_report(&source);
 ///     // Use ariadne to render the report - ariadne will automatically handle row/column calculation
-///     let _ = report.print(("test.bms".to_string(), ariadne_source.clone()));
+///     let _ = report.print((source.name(), ariadne_source.clone()));
 /// }
 /// ```
 pub trait ToAriadne {
@@ -115,18 +115,20 @@ pub trait ToAriadne {
     ///
     /// # Returns
     /// Returns the constructed ariadne Report
-    fn to_report<'a>(&self, src: &SimpleSource<'a>)
-    -> Report<'a, (String, std::ops::Range<usize>)>;
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)>;
 }
 
 impl ToAriadne for LexWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+        let filename = src.name();
+        Report::build(ReportKind::Warning, (filename, start..end))
             .with_message("lex: ".to_string() + &self.content().to_string())
             .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
             .finish()
@@ -137,10 +139,10 @@ impl ToAriadne for ParseWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+        let filename = src.name();
+        Report::build(ReportKind::Warning, (filename, start..end))
             .with_message("parse: ".to_string() + &self.content().to_string())
             .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
             .finish()
@@ -151,10 +153,10 @@ impl ToAriadne for AstBuildWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+        let filename = src.name();
+        Report::build(ReportKind::Warning, (filename, start..end))
             .with_message("ast_build: ".to_string() + &self.content().to_string())
             .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
             .finish()
@@ -165,7 +167,7 @@ impl ToAriadne for AstParseWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)> {
         let (start, end) = self.as_span();
 
         // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
@@ -177,8 +179,8 @@ impl ToAriadne for AstParseWarningWithRange {
             }
         };
 
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+        let filename = src.name();
+        Report::build(ReportKind::Warning, (filename, start..end))
             .with_message(format!("ast_parse: {} ({})", self.content(), details))
             .with_label(Label::new((filename, start..end)).with_color(Color::Magenta))
             .finish()
@@ -189,7 +191,7 @@ impl ToAriadne for BmsWarning {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+    ) -> Report<'a, (&'a str, std::ops::Range<usize>)> {
         use BmsWarning::*;
         match self {
             Lex(e) => e.to_report(src),
@@ -198,15 +200,15 @@ impl ToAriadne for BmsWarning {
             Parse(e) => e.to_report(src),
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {
-                let filename = src.name.to_string();
-                Report::build(ReportKind::Warning, (filename.clone(), 0..0))
+                let filename = src.name();
+                Report::build(ReportKind::Warning, (filename, 0..0))
                     .with_message(format!("playing warning: {w}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
             }
             PlayingError(e) => {
-                let filename = src.name.to_string();
-                Report::build(ReportKind::Error, (filename.clone(), 0..0))
+                let filename = src.name();
+                Report::build(ReportKind::Error, (filename, 0..0))
                     .with_message(format!("playing error: {e}"))
                     .with_label(Label::new((filename, 0..0)))
                     .finish()
@@ -248,6 +250,6 @@ pub fn emit_bms_warnings<'a>(
     let ariadne_source = Source::from(source);
     for w in warnings {
         let report = w.to_report(&simple);
-        let _ = report.print((name.to_string(), ariadne_source.clone()));
+        let _ = report.print((name, ariadne_source.clone()));
     }
 }
