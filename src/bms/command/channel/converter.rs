@@ -336,4 +336,63 @@ mod channel_mode_tests {
             println!();
         }
     }
+
+    /// Test the lane rotate shuffle modifier.
+    #[test]
+    fn test_lane_rotate_shuffle() {
+        let examples = ["1765432 3581225"]
+            .iter()
+            .map(|s| {
+                let v = s.split_whitespace().collect::<Vec<_>>();
+                let [list, seed] = v.as_slice() else {
+                    println!("{:?}", v);
+                    panic!("Invalid input");
+                };
+                let list = list
+                    .chars()
+                    .map(|c| c.to_digit(10).unwrap() as usize)
+                    .collect::<Vec<_>>();
+                let seed = seed.parse::<i64>().unwrap();
+                (list, seed)
+            })
+            .collect::<Vec<_>>();
+
+        for (i, (list, seed)) in examples.iter().enumerate() {
+            println!("Test case {}: seed = {}", i, seed);
+            let init_keys = [
+                Key::Key(1),
+                Key::Key(2),
+                Key::Key(3),
+                Key::Key(4),
+                Key::Key(5),
+                Key::Key(6),
+                Key::Key(7),
+            ];
+            let mut rnd =
+                KeyLayoutConvertLaneRotateShuffle::new(PlayerSide::Player1, &init_keys, *seed);
+            let result_values = init_keys
+                .into_iter()
+                .map(|k| {
+                    rnd.convert(KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        k,
+                    ))
+                })
+                .map(|v| match v.key() {
+                    Key::Key(n) => n as usize,
+                    Key::Scratch(n) => n as usize + 10,
+                    Key::FootPedal => 20,
+                    Key::FreeZone => 21,
+                })
+                .collect::<Vec<_>>();
+            println!("  Expected: {:?}", list);
+            println!("  Got:      {:?}", result_values);
+            println!("  Match:    {}", result_values == *list);
+            if result_values != *list {
+                println!("  FAILED!");
+            }
+            println!();
+        }
+    }
 }
