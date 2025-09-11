@@ -83,6 +83,7 @@ pub trait KeyMapping {
     /// Get the [`Key`] from this [`KeyMapping`].
     fn key(&self) -> Key;
     /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
+    #[must_use]
     fn from_tuple(tuple: (PlayerSide, NoteKind, Key)) -> Self
     where
         Self: Sized,

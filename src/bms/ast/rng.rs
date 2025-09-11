@@ -150,6 +150,7 @@ impl JavaRandom {
     const ADD: u64 = 0xB;
 
     /// Create a new [`JavaRandom`] with the given seed.
+    #[must_use]
     pub const fn new(seed: i64) -> Self {
         let s = (seed as u64) ^ Self::MULT;
         Self {
@@ -223,7 +224,7 @@ impl Rng for JavaRandom {
         let mut bits_generated = 0;
         while bits_generated < width_bits {
             let random_int = self.next_int();
-            let random_bits = random_int.abs() as u64;
+            let random_bits = random_int.unsigned_abs();
 
             // Add these bits to our result
             let shift_amount = bits_generated.min(32);
