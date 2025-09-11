@@ -75,7 +75,7 @@ fn demonstrate_integration() {
 
             // Manually convert to Report and print
             let report = warning.to_report(&source);
-            let _ = report.print(("integration_demo.bms".to_string(), ariadne_source.clone()));
+            let _ = report.print((source.name(), ariadne_source.clone()));
         }
     }
 
