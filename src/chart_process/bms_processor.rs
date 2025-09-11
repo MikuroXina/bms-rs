@@ -74,7 +74,7 @@ where
             .unwrap_or(1.0)
     }
 
-    /// 将 `ObjTime` 转换为累计位移 y（f64）
+    /// 将 `ObjTime` 转换为累计位移 y（单位：小节，默认 4/4 下一小节为 1；按 `#SECLEN` 线性换算）。
     fn y_of_time(&self, time: ObjTime) -> f64 {
         let mut y = 0.0f64;
         // 累加完整小节
@@ -213,14 +213,25 @@ where
         let wav_index = Some(obj.wav_id.as_u16() as usize);
         Some((
             y,
-            NoteView { side, key, distance_to_hit: distance, wav_index },
+            NoteView {
+                side,
+                key,
+                distance_to_hit: distance,
+                wav_index,
+            },
         ))
     }
 
     fn event_for_note(&self, obj: &WavObj, y: f64) -> ChartEvent {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
             let wav_index = Some(obj.wav_id.as_u16() as usize);
-            ChartEvent::Note { side, key, kind, y, wav_index }
+            ChartEvent::Note {
+                side,
+                key,
+                kind,
+                y,
+                wav_index,
+            }
         } else {
             let wav_index = Some(obj.wav_id.as_u16() as usize);
             ChartEvent::Bgm { y, wav_index }

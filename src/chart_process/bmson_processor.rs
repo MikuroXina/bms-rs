@@ -6,8 +6,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::bmson::fin_f64::FinF64;
-use crate::bmson::{Bmson, KeyChannel, MineChannel, Note, ScrollEvent, SoundChannel};
+use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
 use crate::chart_process::{ChartEvent, ChartProcessor, NoteView};
 
 /// ChartProcessor of Bmson files.
@@ -31,6 +30,7 @@ pub struct BmsonProcessor {
 }
 
 impl BmsonProcessor {
+    /// 创建处理器，初始化默认参数
     pub fn new(bmson: Bmson) -> Self {
         let init_bpm = bmson.info.init_bpm.as_f64();
         Self {
@@ -47,7 +47,18 @@ impl BmsonProcessor {
         }
     }
 
+    /// 将脉冲数转换为统一的 y 坐标（单位：小节）。一小节 = 4*resolution 脉冲。
+    fn pulses_to_y(&self, pulses: u64) -> f64 {
+        let denom = (4 * self.bmson.info.resolution) as f64;
+        if denom > 0.0 {
+            (pulses as f64) / denom
+        } else {
+            0.0
+        }
+    }
+
     /// 当前瞬时位移速度（y 单位每秒）。
+    /// y 为归一化后的小节单位：`y = pulses / (4*resolution)`，默认 4/4 下一小节为 1。
     fn current_velocity(&self) -> f64 {
         if self.default_bpm_bound <= 0.0 {
             return 0.0;
@@ -61,13 +72,13 @@ impl BmsonProcessor {
         let mut best: Option<(f64, FlowEvent)> = None;
 
         for ev in &self.bmson.bpm_events {
-            let y = ev.y.0 as f64;
+            let y = self.pulses_to_y(ev.y.0);
             if y > y_from_exclusive {
                 best = min_by_y(best, (y, FlowEvent::Bpm(ev.bpm.as_f64())));
             }
         }
         for ScrollEvent { y, rate } in &self.bmson.scroll_events {
-            let y = y.0 as f64;
+            let y = self.pulses_to_y(y.0);
             if y > y_from_exclusive {
                 best = min_by_y(best, (y, FlowEvent::Scroll(rate.as_f64())));
             }
@@ -133,7 +144,11 @@ impl BmsonProcessor {
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
         let lane_value = x.map_or(0, |l| l.get());
-        let (adjusted_lane, side) = if lane_value > 8 { (lane_value - 8, PlayerSide::Player2) } else { (lane_value, PlayerSide::Player1) };
+        let (adjusted_lane, side) = if lane_value > 8 {
+            (lane_value - 8, PlayerSide::Player2)
+        } else {
+            (lane_value, PlayerSide::Player1)
+        };
         let key = match adjusted_lane {
             1 => Key::Key(1),
             2 => Key::Key(2),
@@ -208,19 +223,34 @@ impl ChartProcessor for BmsonProcessor {
         let mut events: Vec<(f64, ChartEvent)> = Vec::new();
         for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
             for Note { y, x, .. } in notes {
-                let yy = y.0 as f64;
+                let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
                     if let Some((side, key)) = Self::lane_from_x(*x) {
-                        events.push((yy, ChartEvent::Note { side, key, kind: NoteKind::Visible, y: yy, wav_index: None }));
+                        events.push((
+                            yy,
+                            ChartEvent::Note {
+                                side,
+                                key,
+                                kind: NoteKind::Visible,
+                                y: yy,
+                                wav_index: None,
+                            },
+                        ));
                     } else {
-                        events.push((yy, ChartEvent::Bgm { y: yy, wav_index: None }));
+                        events.push((
+                            yy,
+                            ChartEvent::Bgm {
+                                y: yy,
+                                wav_index: None,
+                            },
+                        ));
                     }
                 }
             }
         }
 
         for ev in &self.bmson.bpm_events {
-            let y = ev.y.0 as f64;
+            let y = self.pulses_to_y(ev.y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
                     y,
@@ -232,7 +262,7 @@ impl ChartProcessor for BmsonProcessor {
             }
         }
         for ScrollEvent { y, rate } in &self.bmson.scroll_events {
-            let y = y.0 as f64;
+            let y = self.pulses_to_y(y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
                     y,
@@ -243,9 +273,8 @@ impl ChartProcessor for BmsonProcessor {
                 ));
             }
         }
-        // bmson 的 Stop 事件需要从 stop_events 读取（单位 pulses），这里发出 Stop，duration 使用原单位
         for stop in &self.bmson.stop_events {
-            let y = stop.y.0 as f64;
+            let y = self.pulses_to_y(stop.y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
                     y,
@@ -279,12 +308,20 @@ impl ChartProcessor for BmsonProcessor {
         let mut out: Vec<(f64, NoteView)> = Vec::new();
         for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
             for Note { y, x, .. } in notes {
-                let yy = y.0 as f64;
+                let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
                 let scaled_distance = self.current_scroll * raw_distance;
                 if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
                     if let Some((side, key)) = Self::lane_from_x(*x) {
-                        out.push((yy, NoteView { side, key, distance_to_hit: scaled_distance, wav_index: None }));
+                        out.push((
+                            yy,
+                            NoteView {
+                                side,
+                                key,
+                                distance_to_hit: scaled_distance,
+                                wav_index: None,
+                            },
+                        ));
                     }
                 }
             }
