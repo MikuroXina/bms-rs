@@ -1,0 +1,313 @@
+//! Bmson Processor Module.
+#![cfg(feature = "bmson")]
+
+use std::collections::HashMap;
+use std::path::Path;
+use std::time::{Duration, SystemTime};
+
+use crate::bms::prelude::*;
+use crate::bmson::fin_f64::FinF64;
+use crate::bmson::{Bmson, KeyChannel, MineChannel, Note, ScrollEvent, SoundChannel};
+use crate::chart_process::{ChartEvent, ChartProcessor, NoteView};
+
+/// ChartProcessor of Bmson files.
+pub struct BmsonProcessor {
+    bmson: Bmson,
+
+    // Playback state
+    started_at: Option<SystemTime>,
+    last_poll_at: Option<SystemTime>,
+    progressed_y: f64,
+
+    // Flow parameters
+    default_reaction_time: Duration,
+    default_bpm_bound: f64,
+    current_bpm: f64,
+    current_speed: f64,
+    current_scroll: f64,
+
+    /// 待消费的外部事件队列
+    inbox: Vec<ChartEvent>,
+}
+
+impl BmsonProcessor {
+    pub fn new(bmson: Bmson) -> Self {
+        let init_bpm = bmson.info.init_bpm.as_f64();
+        Self {
+            bmson,
+            started_at: None,
+            last_poll_at: None,
+            progressed_y: 0.0,
+            inbox: Vec::new(),
+            default_reaction_time: Duration::from_millis(500),
+            default_bpm_bound: init_bpm,
+            current_bpm: init_bpm,
+            current_speed: 1.0,
+            current_scroll: 1.0,
+        }
+    }
+
+    /// 当前瞬时位移速度（y 单位每秒）。
+    fn current_velocity(&self) -> f64 {
+        if self.default_bpm_bound <= 0.0 {
+            return 0.0;
+        }
+        // 注意：scroll 不影响 y 前进速度，仅影响显示位置
+        (self.current_bpm / self.default_bpm_bound) * self.current_speed
+    }
+
+    /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
+    fn next_flow_event_after(&self, y_from_exclusive: f64) -> Option<(f64, FlowEvent)> {
+        let mut best: Option<(f64, FlowEvent)> = None;
+
+        for ev in &self.bmson.bpm_events {
+            let y = ev.y.0 as f64;
+            if y > y_from_exclusive {
+                best = min_by_y(best, (y, FlowEvent::Bpm(ev.bpm.as_f64())));
+            }
+        }
+        for ScrollEvent { y, rate } in &self.bmson.scroll_events {
+            let y = y.0 as f64;
+            if y > y_from_exclusive {
+                best = min_by_y(best, (y, FlowEvent::Scroll(rate.as_f64())));
+            }
+        }
+        best
+    }
+
+    fn step_to(&mut self, now: SystemTime) {
+        let Some(started) = self.started_at else {
+            return;
+        };
+        let last = self.last_poll_at.unwrap_or(started);
+        if now <= last {
+            return;
+        }
+
+        let mut remaining = now.duration_since(last).unwrap_or_default();
+        let mut cur_vel = self.current_velocity();
+        let mut cur_y = self.progressed_y;
+        loop {
+            let next_event = self.next_flow_event_after(cur_y);
+            if next_event.is_none() || cur_vel <= 0.0 || remaining.is_zero() {
+                cur_y += cur_vel * remaining.as_secs_f64();
+                break;
+            }
+            let (event_y, evt) = next_event.unwrap();
+            if event_y <= cur_y {
+                self.apply_flow_event(evt);
+                cur_vel = self.current_velocity();
+                continue;
+            }
+            let distance = event_y - cur_y;
+            if cur_vel > 0.0 {
+                let time_to_event = Duration::from_secs_f64(distance / cur_vel);
+                if time_to_event <= remaining {
+                    cur_y = event_y;
+                    remaining -= time_to_event;
+                    self.apply_flow_event(evt);
+                    cur_vel = self.current_velocity();
+                    continue;
+                }
+            }
+            cur_y += cur_vel * remaining.as_secs_f64();
+            break;
+        }
+
+        self.progressed_y = cur_y;
+        self.last_poll_at = Some(now);
+    }
+
+    fn apply_flow_event(&mut self, evt: FlowEvent) {
+        match evt {
+            FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
+            FlowEvent::Speed(s) => self.current_speed = s,
+            FlowEvent::Scroll(s) => self.current_scroll = s,
+        }
+    }
+
+    fn visible_window_y(&self) -> f64 {
+        let v = self.current_velocity();
+        v * self.default_reaction_time.as_secs_f64()
+    }
+
+    fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
+        let lane_value = x.map_or(0, |l| l.get());
+        let (adjusted_lane, side) = if lane_value > 8 { (lane_value - 8, PlayerSide::Player2) } else { (lane_value, PlayerSide::Player1) };
+        let key = match adjusted_lane {
+            1 => Key::Key(1),
+            2 => Key::Key(2),
+            3 => Key::Key(3),
+            4 => Key::Key(4),
+            5 => Key::Key(5),
+            6 => Key::Key(6),
+            7 => Key::Key(7),
+            8 => Key::Scratch(1),
+            _ => return None,
+        };
+        Some((side, key))
+    }
+}
+
+impl ChartProcessor for BmsonProcessor {
+    fn audio_files(&self) -> HashMap<usize, &Path> {
+        // bmson 里资源在 channel.name 中，无法映射为索引表；这里返回空表。
+        HashMap::new()
+    }
+
+    fn bmp_files(&self) -> HashMap<usize, &Path> {
+        HashMap::new()
+    }
+
+    fn default_reaction_time(&self) -> Duration {
+        self.default_reaction_time
+    }
+    fn default_bpm_bound(&self) -> f64 {
+        self.default_bpm_bound
+    }
+
+    fn current_bpm(&self) -> f64 {
+        self.current_bpm
+    }
+    fn current_speed(&self) -> f64 {
+        self.current_speed
+    }
+    fn current_scroll(&self) -> f64 {
+        self.current_scroll
+    }
+
+    fn start_play(&mut self, now: SystemTime) {
+        self.started_at = Some(now);
+        self.last_poll_at = Some(now);
+        self.progressed_y = 0.0;
+        self.current_bpm = self.bmson.info.init_bpm.as_f64();
+    }
+
+    fn update(&mut self, now: SystemTime) -> Vec<ChartEvent> {
+        let incoming = std::mem::take(&mut self.inbox);
+        for evt in &incoming {
+            match *evt {
+                ChartEvent::SetDefaultReactionTime { seconds } => {
+                    if seconds.is_finite() && seconds > 0.0 {
+                        self.default_reaction_time = Duration::from_secs_f64(seconds);
+                    }
+                }
+                ChartEvent::SetDefaultBpmBound { bpm } => {
+                    if bpm.is_finite() && bpm > 0.0 {
+                        self.default_bpm_bound = bpm;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let prev_y = self.progressed_y;
+        self.step_to(now);
+        let cur_y = self.progressed_y;
+
+        let mut events: Vec<(f64, ChartEvent)> = Vec::new();
+        for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
+            for Note { y, x, .. } in notes {
+                let yy = y.0 as f64;
+                if yy > prev_y && yy <= cur_y {
+                    if let Some((side, key)) = Self::lane_from_x(*x) {
+                        events.push((yy, ChartEvent::Note { side, key, kind: NoteKind::Visible, y: yy, wav_index: None }));
+                    } else {
+                        events.push((yy, ChartEvent::Bgm { y: yy, wav_index: None }));
+                    }
+                }
+            }
+        }
+
+        for ev in &self.bmson.bpm_events {
+            let y = ev.y.0 as f64;
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y,
+                    ChartEvent::BpmChange {
+                        y,
+                        bpm: ev.bpm.as_f64(),
+                    },
+                ));
+            }
+        }
+        for ScrollEvent { y, rate } in &self.bmson.scroll_events {
+            let y = y.0 as f64;
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y,
+                    ChartEvent::ScrollChange {
+                        y,
+                        factor: rate.as_f64(),
+                    },
+                ));
+            }
+        }
+        // bmson 的 Stop 事件需要从 stop_events 读取（单位 pulses），这里发出 Stop，duration 使用原单位
+        for stop in &self.bmson.stop_events {
+            let y = stop.y.0 as f64;
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y,
+                    ChartEvent::Stop {
+                        y,
+                        duration: stop.duration as f64,
+                    },
+                ));
+            }
+        }
+
+        events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        events.into_iter().map(|(_, e)| e).collect()
+    }
+
+    fn post_events(&mut self, events: &[ChartEvent]) {
+        self.inbox.extend_from_slice(events);
+    }
+
+    fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView> {
+        self.step_to(now);
+        let win_y = self.visible_window_y();
+        let cur_y = self.progressed_y;
+        let scaled_upper = self.current_scroll * win_y;
+        let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
+            (0.0, scaled_upper)
+        } else {
+            (scaled_upper, 0.0)
+        };
+
+        let mut out: Vec<(f64, NoteView)> = Vec::new();
+        for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
+            for Note { y, x, .. } in notes {
+                let yy = y.0 as f64;
+                let raw_distance = yy - cur_y;
+                let scaled_distance = self.current_scroll * raw_distance;
+                if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
+                    if let Some((side, key)) = Self::lane_from_x(*x) {
+                        out.push((yy, NoteView { side, key, distance_to_hit: scaled_distance, wav_index: None }));
+                    }
+                }
+            }
+        }
+        out.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        out.into_iter().map(|(_, v)| v).collect()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum FlowEvent {
+    Bpm(f64),
+    Speed(f64),
+    Scroll(f64),
+}
+
+fn min_by_y(
+    best: Option<(f64, FlowEvent)>,
+    candidate: (f64, FlowEvent),
+) -> Option<(f64, FlowEvent)> {
+    match best {
+        None => Some(candidate),
+        Some((y, _)) if candidate.0 < y => Some(candidate),
+        Some(o) => Some(o),
+    }
+}
