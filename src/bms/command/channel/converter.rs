@@ -11,10 +11,10 @@ use crate::bms::ast::rng::JavaRandom;
 /// - Difference from [`super::mapper::KeyLayoutMapper`]:
 ///   - [`super::mapper::KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
 ///   - [`KeyLayoutConverter`] can convert into another key layout. It's one-way.
-///   - [`KeyLayoutConverter`] operates on individual [`Key`]s, not complete [`super::mapper::KeyMapping`]s.
+///   - [`KeyLayoutConverter`] operates on iterators of [`Key`]s, not complete [`super::mapper::KeyMapping`]s.
 pub trait KeyLayoutConverter {
-    /// Convert a [`Key`] to another key layout.
-    fn convert(&mut self, key: Key) -> Key;
+    /// Convert an iterator of [`Key`]s to another key layout.
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key>;
 }
 
 impl KeyLayoutConvertMirror {
@@ -33,16 +33,18 @@ pub struct KeyLayoutConvertMirror {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
-    fn convert(&mut self, key: Key) -> Key {
-        self.keys
-            .iter()
-            .position(|k| k == &key)
-            .and_then(|position| {
-                let mirror_index = self.keys.len().saturating_sub(position + 1);
-                self.keys.get(mirror_index)
-            })
-            .copied()
-            .unwrap_or(key)
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| {
+            self.keys
+                .iter()
+                .position(|k| k == &key)
+                .and_then(|position| {
+                    let mirror_index = self.keys.len().saturating_sub(position + 1);
+                    self.keys.get(mirror_index)
+                })
+                .copied()
+                .unwrap_or(key)
+        })
     }
 }
 
@@ -87,8 +89,8 @@ impl KeyLayoutConvertLaneRotateShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
-    fn convert(&mut self, key: Key) -> Key {
-        self.arrangement.get(&key).copied().unwrap_or(key)
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
     }
 }
 
@@ -130,8 +132,8 @@ impl KeyLayoutConvertLaneRandomShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
-    fn convert(&mut self, key: Key) -> Key {
-        self.arrangement.get(&key).copied().unwrap_or(key)
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
     }
 }
 
@@ -146,11 +148,22 @@ mod channel_mode_tests {
             KeyLayoutConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
 
         // Test individual key conversions
-        assert_eq!(converter.convert(Key::Key(1)), Key::Key(3));
-        assert_eq!(converter.convert(Key::Key(2)), Key::Key(2));
-        assert_eq!(converter.convert(Key::Key(3)), Key::Key(1));
-        assert_eq!(converter.convert(Key::Key(4)), Key::Key(4)); // Not in mirror list
-        assert_eq!(converter.convert(Key::Key(5)), Key::Key(5)); // Not in mirror list
+        let input_keys = vec![
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+        ];
+        let expected_keys = vec![
+            Key::Key(3),
+            Key::Key(2),
+            Key::Key(1),
+            Key::Key(4),
+            Key::Key(5),
+        ];
+        let result: Vec<_> = converter.convert(input_keys.into_iter()).collect();
+        assert_eq!(result, expected_keys);
     }
 
     /// Parse test examples from string format to (list, seed) tuples.
@@ -195,9 +208,8 @@ mod channel_mode_tests {
     {
         println!("Test case {}: seed = {}", test_case_idx, seed);
 
-        let result_values = keys
-            .iter()
-            .map(|&k| converter.convert(k))
+        let result_values = converter
+            .convert(keys.iter().cloned())
             .map(|k| key_to_value(k))
             .collect::<Vec<_>>();
 
