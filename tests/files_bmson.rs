@@ -9,7 +9,7 @@ fn test_bmson100_lostokens() {
     let data = include_str!("files_bmson/lostokens.bmson");
     let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
     // Basic fields assertion
-    assert_eq!(bmson.info.title, "lostokens");
+    assert_eq!(bmson.info.title.as_ref(), "lostokens");
     assert_eq!(bmson.info.level, 5);
     assert!(!bmson.sound_channels.is_empty());
 }
@@ -19,13 +19,13 @@ fn test_bmson100_bemusic_story_48key() {
     let data = include_str!("files_bmson/bemusicstory_483_48K_ANOTHER.bmson");
     let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
     // Basic fields assertion
-    assert_eq!(bmson.info.title, "BE-MUSiC⇒STORY".to_string());
+    assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");
     // Bga
     assert_eq!(
         bmson.bga.bga_header,
         vec![BgaHeader {
             id: BgaId(1),
-            name: "_BGA.mp4".to_string()
+            name: std::borrow::Cow::Borrowed("_BGA.mp4")
         }]
     );
     assert_eq!(
