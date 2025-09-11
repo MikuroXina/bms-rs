@@ -90,13 +90,13 @@ where
     }
 
     /// 当前瞬时位移速度（y 单位每秒）。
-    /// 模型：v = (current_bpm / default_bpm_bound) * speed * scroll
+    /// 模型：v = (current_bpm / default_bpm_bound)
+    /// 注：Speed 仅影响显示位置（y 缩放），不改变时间轴推进；Scroll 同理仅影响显示。
     fn current_velocity(&self) -> f64 {
         if self.default_bpm_bound <= 0.0 {
             return 0.0;
         }
-        // 注意：scroll 不影响 y 前进速度，仅影响显示位置
-        (self.current_bpm / self.default_bpm_bound) * self.current_speed
+        self.current_bpm / self.default_bpm_bound
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL/SPEED 变更。
@@ -378,7 +378,7 @@ where
         self.step_to(now);
         let win_y = self.visible_window_y();
         let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll * win_y;
+        let scaled_upper = self.current_scroll * self.current_speed * win_y;
         let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
             (0.0, scaled_upper)
         } else {
@@ -389,7 +389,7 @@ where
         for obj in self.bms.notes().all_notes() {
             if let Some((y, mut view)) = self.build_note_view(obj) {
                 let raw_distance = y - cur_y;
-                let scaled_distance = self.current_scroll * raw_distance;
+                let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
                 if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
                     view.distance_to_hit = scaled_distance;
                     views.push((y, view));
