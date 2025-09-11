@@ -1,6 +1,7 @@
 //! This is a parser for JSON, using chumsky.
 
 use core::fmt;
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use std::collections::hash_map;
@@ -286,7 +287,7 @@ impl<'a> JsonDeserializer<'a> {
         } else {
             self.path.join(".")
         };
-        BmsonWarning::DeserializeFailed(p)
+        BmsonWarning::DeserializeFailed(Cow::Owned(p))
     }
 }
 
@@ -604,9 +605,9 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
                 seed.deserialize(JsonDeserializer { json: v, path: p })
             }
             None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                "root".to_string()
+                Cow::Owned("root".to_string())
             } else {
-                self.path.join(".")
+                Cow::Owned(self.path.join("."))
             })),
         }
     }
@@ -663,9 +664,9 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
         match self.value {
             None | Some(Json::Null) => Ok(()),
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                "root".to_string()
+                Cow::Owned("root".to_string())
             } else {
-                self.path.join(".")
+                Cow::Owned(self.path.join("."))
             })),
         }
     }
@@ -680,9 +681,9 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 seed.deserialize(JsonDeserializer { json: v, path: p })
             }
             None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                "root".to_string()
+                Cow::Owned("root".to_string())
             } else {
-                self.path.join(".")
+                Cow::Owned(self.path.join("."))
             })),
         }
     }
@@ -700,9 +701,9 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 index: 0,
             }),
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                "root".to_string()
+                Cow::Owned("root".to_string())
             } else {
-                self.path.join(".")
+                Cow::Owned(self.path.join("."))
             })),
         }
     }
@@ -717,26 +718,26 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 visitor.visit_map(MapAccessImpl::new(obj.iter(), self.path.clone()))
             }
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                "root".to_string()
+                Cow::Owned("root".to_string())
             } else {
-                self.path.join(".")
+                Cow::Owned(self.path.join("."))
             })),
         }
     }
 }
 
-fn default_bmson() -> Bmson {
+fn default_bmson() -> Bmson<'static> {
     // 最终兜底：返回空的占位值（尽力而为，避免 unwrap）
     Bmson {
-        version: "1.0.0".to_string(),
+        version: Cow::Borrowed("1.0.0"),
         info: BmsonInfo {
-            title: String::new(),
-            subtitle: String::new(),
-            artist: String::new(),
+            title: Cow::Borrowed(""),
+            subtitle: Cow::Borrowed(""),
+            artist: Cow::Borrowed(""),
             subartists: Vec::new(),
-            genre: String::new(),
+            genre: Cow::Borrowed(""),
             mode_hint: default_mode_hint(),
-            chart_name: String::new(),
+            chart_name: Cow::Borrowed(""),
             level: 0,
             init_bpm: FinF64::try_from(120.0).unwrap_or_else(|_| FinF64::try_from(0.0).unwrap()),
             judge_rank: default_percentage(),
@@ -782,9 +783,9 @@ pub enum BmsonWarning<'a> {
     /// 根节点不是对象。
     NonObjectRoot,
     /// 缺失字段（使用默认值填充）。
-    MissingField(String),
+    MissingField(Cow<'a, str>),
     /// 反序列化失败（标注具体字段路径）。
-    DeserializeFailed(String),
+    DeserializeFailed(Cow<'static, str>),
 }
 
 impl<'a> fmt::Display for BmsonWarning<'a> {
@@ -802,7 +803,7 @@ impl<'a> std::error::Error for BmsonWarning<'a> {}
 
 impl<'a> de::Error for BmsonWarning<'a> {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        BmsonWarning::DeserializeFailed(msg.to_string())
+        BmsonWarning::DeserializeFailed(Cow::Owned(msg.to_string()))
     }
 }
 
@@ -811,7 +812,7 @@ impl<'a> de::Error for BmsonWarning<'a> {
 #[must_use]
 pub struct BmsonOutput<'a> {
     /// 解析后的 bmson 对象。
-    pub bmson: Bmson,
+    pub bmson: Bmson<'a>,
     /// 解析过程中的警告。
     pub warnings: Vec<BmsonWarning<'a>>,
 }
@@ -836,11 +837,11 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
 
     // 顶层缺失字段默认
     if !root_map.contains_key("version") {
-        warnings.push(BmsonWarning::MissingField("version".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("version")));
         root_map.insert("version".into(), Json::Str("1.0.0".into()));
     }
     if !root_map.contains_key("sound_channels") {
-        warnings.push(BmsonWarning::MissingField("sound_channels".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("sound_channels")));
         root_map.insert("sound_channels".into(), Json::Array(Vec::new()));
     }
 
@@ -849,45 +850,45 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     let mut info_map: HashMap<String, Json> = match info_json {
         Some(Json::Object(m)) => m,
         _ => {
-            warnings.push(BmsonWarning::MissingField("info".to_string()));
+            warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info")));
             HashMap::new()
         }
     };
     if !info_map.contains_key("title") {
-        warnings.push(BmsonWarning::MissingField("info.title".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.title")));
         info_map.insert("title".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("artist") {
-        warnings.push(BmsonWarning::MissingField("info.artist".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.artist")));
         info_map.insert("artist".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("genre") {
-        warnings.push(BmsonWarning::MissingField("info.genre".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.genre")));
         info_map.insert("genre".into(), Json::Str(String::new()));
     }
     if !info_map.contains_key("level") {
-        warnings.push(BmsonWarning::MissingField("info.level".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.level")));
         info_map.insert("level".into(), Json::Int(0));
     }
     if !info_map.contains_key("init_bpm") {
-        warnings.push(BmsonWarning::MissingField("info.init_bpm".to_string()));
+        warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.init_bpm")));
         info_map.insert("init_bpm".into(), Json::Float(120.0));
     }
     root_map.insert("info".into(), Json::Object(info_map));
 
     // 反序列化
     let json_root = Json::Object(root_map);
-    match from_json::<Bmson>(&json_root) {
+    match from_json::<Bmson<'a>>(&json_root) {
         Ok(bmson) => BmsonOutput { bmson, warnings },
         Err(e) => {
             warnings.push(e);
             // 构造保证可反序列化的最小对象
             let min_json = minimal_bmson_json();
-            let bmson = match from_json::<Bmson>(&min_json) {
+            let bmson = match from_json::<Bmson<'a>>(&min_json) {
                 Ok(b) => b,
                 Err(_) => {
                     // 理论上不会失败；退化到直接复用最小 JSON 再尝试一次
-                    match from_json::<Bmson>(&min_json) {
+                    match from_json::<Bmson<'a>>(&min_json) {
                         Ok(b) => b,
                         Err(_) => default_bmson(),
                     }

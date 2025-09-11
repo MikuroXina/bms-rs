@@ -21,13 +21,13 @@ fn test_bmson100_bemusic_story_48key() {
     let output = parse_bmson(data);
     let bmson = output.bmson;
     // Basic fields assertion
-    assert_eq!(bmson.info.title, "BE-MUSiC⇒STORY".to_string());
+    assert_eq!(bmson.info.title, "BE-MUSiC⇒STORY");
     // Bga
     assert_eq!(
         bmson.bga.bga_header,
         vec![BgaHeader {
             id: BgaId(1),
-            name: "_BGA.mp4".to_string()
+            name: "_BGA.mp4".into()
         }]
     );
     assert_eq!(

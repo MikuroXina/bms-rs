@@ -9,24 +9,24 @@ use bms_rs::{
 fn test_bmson_to_bms_conversion() {
     // Create a simple Bmson
     let bmson = Bmson {
-        version: "1.0.0".to_string(),
+        version: "1.0.0".into(),
         info: BmsonInfo {
-            title: "Test Song".to_string(),
-            subtitle: "Test Subtitle".to_string(),
-            artist: "Test Artist".to_string(),
-            subartists: vec!["Test Sub Artist".to_string()],
-            genre: "Test Genre".to_string(),
-            mode_hint: "beat-7k".to_string(),
-            chart_name: "NORMAL".to_string(),
+            title: "Test Song".into(),
+            subtitle: "Test Subtitle".into(),
+            artist: "Test Artist".into(),
+            subartists: vec!["Test Sub Artist".into()],
+            genre: "Test Genre".into(),
+            mode_hint: "beat-7k".into(),
+            chart_name: "NORMAL".into(),
             level: 5,
             init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
             judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
             total: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
-            back_image: Some("back.png".to_string()),
-            eyecatch_image: Some("eyecatch.png".to_string()),
-            title_image: Some("title.png".to_string()),
-            banner_image: Some("banner.png".to_string()),
-            preview_music: Some("preview.wav".to_string()),
+            back_image: Some("back.png".into()),
+            eyecatch_image: Some("eyecatch.png".into()),
+            title_image: Some("title.png".into()),
+            banner_image: Some("banner.png".into()),
+            preview_music: Some("preview.wav".into()),
             resolution: 240,
             ln_type: LnMode::Ln,
         },
@@ -75,15 +75,15 @@ fn test_bmson_to_bms_with_notes() {
     use std::num::NonZeroU8;
 
     let bmson = Bmson {
-        version: "1.0.0".to_string(),
+        version: "1.0.0".into(),
         info: BmsonInfo {
-            title: "Test Song".to_string(),
-            subtitle: "".to_string(),
-            artist: "Test Artist".to_string(),
+            title: "Test Song".into(),
+            subtitle: "".into(),
+            artist: "Test Artist".into(),
             subartists: vec![],
-            genre: "Test Genre".to_string(),
-            mode_hint: "beat-7k".to_string(),
-            chart_name: "".to_string(),
+            genre: "Test Genre".into(),
+            mode_hint: "beat-7k".into(),
+            chart_name: "".into(),
             level: 5,
             init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
             judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
@@ -100,7 +100,7 @@ fn test_bmson_to_bms_with_notes() {
         bpm_events: vec![],
         stop_events: vec![],
         sound_channels: vec![SoundChannel {
-            name: "test.wav".to_string(),
+            name: "test.wav".into(),
             notes: vec![
                 Note {
                     y: PulseNumber(240),                 // 1 quarter note

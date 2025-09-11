@@ -32,7 +32,7 @@ pub mod fin_f64;
 pub mod parser;
 pub mod pulse;
 
-use std::num::NonZeroU8;
+use std::{borrow::Cow, num::NonZeroU8};
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -46,11 +46,11 @@ use self::{
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Bmson {
+pub struct Bmson<'a> {
     /// Version of bmson format, which should be compared using [Semantic Version 2.0.0](http://semver.org/spec/v2.0.0.html). Older bmson file may not have this field, but lacking this must be an error.
-    pub version: String,
+    pub version: Cow<'a, str>,
     /// Score metadata.
-    pub info: BmsonInfo,
+    pub info: BmsonInfo<'a>,
     /// Location of bar lines in pulses. If `None`, then a 4/4 beat is assumed and bar lines will be generates every 4 quarter notes. If `Some(vec![])`, this chart will not have any bar line.
     ///
     /// This format represents an irregular meter by bar lines.
@@ -62,31 +62,31 @@ pub struct Bmson {
     #[serde(default)]
     pub stop_events: Vec<StopEvent>,
     /// Note data.
-    pub sound_channels: Vec<SoundChannel>,
+    pub sound_channels: Vec<SoundChannel<'a>>,
     /// BGA data.
     #[serde(default)]
-    pub bga: Bga,
+    pub bga: Bga<'a>,
     /// Beatoraja implementation of scroll events.
     #[serde(default)]
     pub scroll_events: Vec<ScrollEvent>,
     /// Beatoraja implementation of mine channel.
     #[serde(default)]
-    pub mine_channels: Vec<MineChannel>,
+    pub mine_channels: Vec<MineChannel<'a>>,
     /// Beatoraja implementation of invisible key channel.
     #[serde(default)]
-    pub key_channels: Vec<KeyChannel>,
+    pub key_channels: Vec<KeyChannel<'a>>,
 }
 
 /// Header metadata of chart.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BmsonInfo {
+pub struct BmsonInfo<'a> {
     /// Self explanatory title.
-    pub title: String,
+    pub title: Cow<'a, str>,
     /// Self explanatory subtitle. Usually this is shown as a smaller text than `title`.
     #[serde(default)]
-    pub subtitle: String,
+    pub subtitle: Cow<'a, str>,
     /// Author of the chart. It may multiple names such as `Alice vs Bob`, `Alice feat. Bob` and so on. But you should respect the value because it usually have special meaning.
-    pub artist: String,
+    pub artist: Cow<'a, str>,
     /// Other authors of the chart. This is useful for indexing and searching.
     ///
     /// Value of the array has form of `key:value`. The `key` can be `music`, `vocal`, `chart`, `image`, `movie` or `other`. If it has no `key`, you should treat as that `key` equals to `other`. The value may contains the spaces before and after `key` and `value`, so you should trim them.
@@ -97,17 +97,17 @@ pub struct BmsonInfo {
     /// "subartists": ["music:5argon", "music:encX", "chart:flicknote", "movie:5argon", "image:5argon"]
     /// ```
     #[serde(default)]
-    pub subartists: Vec<String>,
+    pub subartists: Vec<Cow<'a, str>>,
     /// Self explanatory genre.
-    pub genre: String,
+    pub genre: Cow<'a, str>,
     /// Hint for layout lanes, e.g. "beat-7k", "popn-5k", "generic-nkeys". Defaults to `"beat-7k"`.
     ///
     /// If you want to support many lane modes of BMS, you should check this to determine the layout for lanes. Also you can check all lane information in `sound_channels` for strict implementation.
     #[serde(default = "default_mode_hint")]
-    pub mode_hint: String,
+    pub mode_hint: Cow<'static, str>,
     /// Special chart name, e.g. "BEGINNER", "NORMAL", "HYPER", "FOUR DIMENSIONS".
     #[serde(default)]
-    pub chart_name: String,
+    pub chart_name: Cow<'a, str>,
     /// Self explanatory level number. It is usually set with subjective rating by the author.
     pub level: u32,
     /// Initial BPM.
@@ -120,19 +120,19 @@ pub struct BmsonInfo {
     pub total: FinF64,
     /// Background image file name. This should be displayed during the game play.
     #[serde(default)]
-    pub back_image: Option<String>,
+    pub back_image: Option<Cow<'a, str>>,
     /// Eyecatch image file name. This should be displayed during the chart is loading.
     #[serde(default)]
-    pub eyecatch_image: Option<String>,
+    pub eyecatch_image: Option<Cow<'a, str>>,
     /// Title image file name. This should be displayed before the game starts instead of title of the music.
     #[serde(default)]
-    pub title_image: Option<String>,
+    pub title_image: Option<Cow<'a, str>>,
     /// Banner image file name. This should be displayed in music select or result scene. The aspect ratio of image is usually 15:4.
     #[serde(default)]
-    pub banner_image: Option<String>,
+    pub banner_image: Option<Cow<'a, str>>,
     /// Preview music file name. This should be played when this chart is selected in a music select scene.
     #[serde(default)]
-    pub preview_music: Option<String>,
+    pub preview_music: Option<Cow<'a, str>>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
     pub resolution: u64,
@@ -143,8 +143,8 @@ pub struct BmsonInfo {
 
 /// Default mode hint, beatmania 7 keys.
 #[must_use]
-pub fn default_mode_hint() -> String {
-    "beat-7k".into()
+pub fn default_mode_hint() -> Cow<'static, str> {
+    Cow::Borrowed("beat-7k")
 }
 
 /// Default relative percentage, 100%.
@@ -171,7 +171,7 @@ pub struct BarLine {
 
 /// Note sound file and positions to be placed in the chart.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SoundChannel {
+pub struct SoundChannel<'a> {
     /// Sound file path. If the extension is not specified or not supported, you can try search files about other extensions for fallback.
     ///
     /// BMS players are expected to support the audio containers below:
@@ -185,7 +185,7 @@ pub struct SoundChannel {
     /// - LPCM (Linear Pulse-Code Modulation),
     /// - Ogg Vorbis,
     /// - AAC (Advanced Audio Coding).
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// Data of note to be placed.
     pub notes: Vec<Note>,
 }
@@ -242,10 +242,10 @@ pub struct StopEvent {
 
 /// BGA data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct Bga {
+pub struct Bga<'a> {
     /// Pictures data for playing BGA.
     #[serde(default)]
-    pub bga_header: Vec<BgaHeader>,
+    pub bga_header: Vec<BgaHeader<'a>>,
     /// Base picture sequence.
     #[serde(default)]
     pub bga_events: Vec<BgaEvent>,
@@ -259,11 +259,11 @@ pub struct Bga {
 
 /// Picture file information.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BgaHeader {
+pub struct BgaHeader<'a> {
     /// Self explanatory ID of picture.
     pub id: BgaId,
     /// Picture file name.
-    pub name: String,
+    pub name: Cow<'a, str>,
 }
 
 /// BGA note to display the picture.
@@ -302,9 +302,9 @@ pub struct MineEvent {
 
 /// Beatoraja implementation of mine channel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MineChannel {
+pub struct MineChannel<'a> {
     /// Name of the mine sound file.
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// Mine notes.
     pub notes: Vec<MineEvent>,
 }
@@ -321,9 +321,9 @@ pub struct KeyEvent {
 
 /// Beatoraja implementation of invisible key channel.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct KeyChannel {
+pub struct KeyChannel<'a> {
     /// Name of the key sound file.
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
 }
