@@ -35,7 +35,7 @@ pub struct KeyLayoutConvertMirror {
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, mut key) = beat_map.into_tuple();
+        let (side, kind, mut key) = beat_map.as_tuple();
         if side == self.side
             && let Some(position) = self.keys.iter().position(|k| k == &key)
         {
@@ -94,7 +94,7 @@ impl KeyLayoutConvertLaneRotateShuffle {
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, key) = beat_map.into_tuple();
+        let (side, kind, key) = beat_map.as_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
             T::new(side, kind, new_key)
@@ -146,7 +146,7 @@ impl KeyLayoutConvertLaneRandomShuffle {
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
     fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, key) = beat_map.into_tuple();
+        let (side, kind, key) = beat_map.as_tuple();
         if side == self.side {
             let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
             T::new(side, kind, new_key)

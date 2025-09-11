@@ -5,7 +5,7 @@ use Key::*;
 
 /// Convert from [`KeyLayoutBeat`] to [`ChannelId`].
 fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
-    let (side, kind, key) = beat.into_tuple();
+    let (side, kind, key) = beat.as_tuple();
 
     // First character based on NoteKind and PlayerSide
     let first_char = match (kind, side) {
@@ -76,23 +76,25 @@ fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutB
 pub trait KeyMapping {
     /// Create a new [`KeyMapping`] from a [`PlayerSide`], [`NoteKind`] and [`Key`].
     fn new(side: PlayerSide, kind: NoteKind, key: Key) -> Self;
-    /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
-    #[must_use]
-    fn from_tuple((side, kind, key): (PlayerSide, NoteKind, Key)) -> Self
-    where
-        Self: Sized,
-    {
-        Self::new(side, kind, key)
-    }
     /// Get the [`PlayerSide`] from this [`KeyMapping`].
     fn side(&self) -> PlayerSide;
     /// Get the [`NoteKind`] from this [`KeyMapping`].
     fn kind(&self) -> NoteKind;
     /// Get the [`Key`] from this [`KeyMapping`].
     fn key(&self) -> Key;
+    /// Create a new [`KeyMapping`] from a tuple of [`PlayerSide`], [`NoteKind`] and [`Key`].
+    fn from_tuple(tuple: (PlayerSide, NoteKind, Key)) -> Self
+    where
+        Self: Sized,
+    {
+        Self::new(tuple.0, tuple.1, tuple.2)
+    }
     /// Deconstruct into a [`PlayerSide`], [`NoteKind`], [`Key`] tuple.
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key);
+    fn as_tuple(&self) -> (PlayerSide, NoteKind, Key) {
+        (self.side(), self.kind(), self.key())
+    }
 }
+
 /// Trait for key channel mode implementations.
 ///
 /// This trait defines the interface for converting between different key channel modes
@@ -138,10 +140,6 @@ impl KeyMapping for KeyLayoutBeat {
     fn key(&self) -> Key {
         self.2
     }
-
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key) {
-        (self.0, self.1, self.2)
-    }
 }
 
 impl KeyLayoutMapper for KeyLayoutBeat {
@@ -177,15 +175,11 @@ impl KeyMapping for KeyLayoutPmsBmeType {
     fn key(&self) -> Key {
         self.2
     }
-
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key) {
-        (self.0, self.1, self.2)
-    }
 }
 
 impl KeyLayoutMapper for KeyLayoutPmsBmeType {
     fn to_channel_id(self) -> NoteChannelId {
-        let (side, kind, key) = self.into_tuple();
+        let (side, kind, key) = self.as_tuple();
         let key = match key {
             Key(8) => Scratch(1),
             Key(9) => FreeZone,
@@ -197,7 +191,7 @@ impl KeyLayoutMapper for KeyLayoutPmsBmeType {
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         let beat = channel_id_to_key_layout_beat(channel_id)?;
-        let (side, kind, key) = beat.into_tuple();
+        let (side, kind, key) = beat.as_tuple();
         let key = match key {
             Scratch(1) => Key(8),
             FreeZone => Key(9),
@@ -231,16 +225,12 @@ impl KeyMapping for KeyLayoutPms {
     fn key(&self) -> Key {
         self.2
     }
-
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key) {
-        (self.0, self.1, self.2)
-    }
 }
 
 impl KeyLayoutMapper for KeyLayoutPms {
     fn to_channel_id(self) -> NoteChannelId {
         use PlayerSide::*;
-        let (side, kind, key) = self.into_tuple();
+        let (side, kind, key) = self.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
             (Player1, Key(6)) => (Player2, Key(2)),
@@ -256,7 +246,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         use PlayerSide::*;
         let beat = channel_id_to_key_layout_beat(channel_id)?;
-        let (side, kind, key) = beat.into_tuple();
+        let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
             (Player2, Key(2)) => (Player1, Key(6)),
@@ -293,15 +283,11 @@ impl KeyMapping for KeyLayoutBeatNanasi {
     fn key(&self) -> Key {
         self.2
     }
-
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key) {
-        (self.0, self.1, self.2)
-    }
 }
 
 impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn to_channel_id(self) -> NoteChannelId {
-        let (side, kind, key) = self.into_tuple();
+        let (side, kind, key) = self.as_tuple();
         let key = match key {
             FootPedal => FreeZone,
             other => other,
@@ -312,7 +298,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
 
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         let beat = channel_id_to_key_layout_beat(channel_id)?;
-        let (side, kind, key) = beat.into_tuple();
+        let (side, kind, key) = beat.as_tuple();
         let key = match key {
             FreeZone => FootPedal,
             other => other,
@@ -345,16 +331,12 @@ impl KeyMapping for KeyLayoutDscOctFp {
     fn key(&self) -> Key {
         self.2
     }
-
-    fn into_tuple(self) -> (PlayerSide, NoteKind, Key) {
-        (self.0, self.1, self.2)
-    }
 }
 
 impl KeyLayoutMapper for KeyLayoutDscOctFp {
     fn to_channel_id(self) -> NoteChannelId {
         use PlayerSide::*;
-        let (side, kind, key) = self.into_tuple();
+        let (side, kind, key) = self.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
             (Player1, Scratch(2)) => (Player2, Scratch(1)),
@@ -374,7 +356,7 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         use PlayerSide::*;
         let beat = channel_id_to_key_layout_beat(channel_id)?;
-        let (side, kind, key) = beat.into_tuple();
+        let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
             (Player2, Key(1)) => (Player1, FootPedal),
