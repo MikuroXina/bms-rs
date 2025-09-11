@@ -2,19 +2,22 @@
 
 use std::collections::HashMap;
 
-use super::Key;
+use super::{Key, mapper::KeyMapping};
 #[allow(deprecated)]
 use crate::bms::ast::rng::JavaRandom;
 
-/// A trait for converting [`Key`]s in different layouts.
+/// A trait for converting [`KeyMapping`]s in different layouts.
 ///
 /// - Difference from [`super::mapper::KeyLayoutMapper`]:
 ///   - [`super::mapper::KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
 ///   - [`KeyLayoutConverter`] can convert into another key layout. It's one-way.
-///   - [`KeyLayoutConverter`] operates on iterators of [`Key`]s, not complete [`super::mapper::KeyMapping`]s.
+///   - [`KeyLayoutConverter`] operates on iterators of [`KeyMapping`]s, not individual [`Key`]s.
 pub trait KeyLayoutConverter {
-    /// Convert an iterator of [`Key`]s to another key layout.
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key>;
+    /// Convert an iterator of [`KeyMapping`]s to another key layout.
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = T>,
+    ) -> impl Iterator<Item = T>;
 }
 
 impl KeyLayoutConvertMirror {
@@ -33,9 +36,14 @@ pub struct KeyLayoutConvertMirror {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertMirror {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| {
-            self.keys
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = T>,
+    ) -> impl Iterator<Item = T> {
+        mappings.map(|mapping| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self
+                .keys
                 .iter()
                 .position(|k| k == &key)
                 .and_then(|position| {
@@ -43,7 +51,8 @@ impl KeyLayoutConverter for KeyLayoutConvertMirror {
                     self.keys.get(mirror_index)
                 })
                 .copied()
-                .unwrap_or(key)
+                .unwrap_or(key);
+            T::new(side, kind, converted_key)
         })
     }
 }
@@ -89,8 +98,15 @@ impl KeyLayoutConvertLaneRotateShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = T>,
+    ) -> impl Iterator<Item = T> {
+        mappings.map(|mapping| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
+            T::new(side, kind, converted_key)
+        })
     }
 }
 
@@ -132,14 +148,22 @@ impl KeyLayoutConvertLaneRandomShuffle {
 }
 
 impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = T>,
+    ) -> impl Iterator<Item = T> {
+        mappings.map(|mapping| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
+            T::new(side, kind, converted_key)
+        })
     }
 }
 
 #[cfg(test)]
 mod channel_mode_tests {
     use super::*;
+    use crate::bms::prelude::*;
 
     #[test]
     fn test_key_channel_mode_mirror() {
@@ -148,22 +172,22 @@ mod channel_mode_tests {
             KeyLayoutConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
 
         // Test individual key conversions
-        let input_keys = vec![
-            Key::Key(1),
-            Key::Key(2),
-            Key::Key(3),
-            Key::Key(4),
-            Key::Key(5),
+        let input_mappings = vec![
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5)),
         ];
-        let expected_keys = vec![
-            Key::Key(3),
-            Key::Key(2),
-            Key::Key(1),
-            Key::Key(4),
-            Key::Key(5),
+        let expected_mappings = vec![
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5)),
         ];
-        let result: Vec<_> = converter.convert(input_keys.into_iter()).collect();
-        assert_eq!(result, expected_keys);
+        let result: Vec<_> = converter.convert(input_mappings.into_iter()).collect();
+        assert_eq!(result, expected_mappings);
     }
 
     /// Parse test examples from string format to (list, seed) tuples.
@@ -208,9 +232,14 @@ mod channel_mode_tests {
     {
         println!("Test case {}: seed = {}", test_case_idx, seed);
 
+        let mappings: Vec<KeyLayoutBeat> = keys
+            .iter()
+            .map(|&key| KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, key))
+            .collect();
+
         let result_values = converter
-            .convert(keys.iter().cloned())
-            .map(|k| key_to_value(k))
+            .convert(mappings.into_iter())
+            .map(|mapping| key_to_value(mapping.key()))
             .collect::<Vec<_>>();
 
         println!("  Expected: {:?}", expected_list);
