@@ -34,6 +34,7 @@ pub mod pulse;
 use std::{borrow::Cow, num::NonZeroU8};
 
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_path_to_error;
 
 use crate::bms::command::LnMode;
 
@@ -321,4 +322,22 @@ pub struct KeyChannel<'a> {
     pub name: Cow<'a, str>,
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
+}
+
+/// Parse a BMSON file from JSON string.
+///
+/// This function provides a convenient way to parse a BMSON file in one step.
+/// It uses `serde_path_to_error` internally to provide detailed error information
+/// about the path to problematic fields in the JSON.
+///
+/// # Errors
+///
+/// Returns a `serde_path_to_error::Error<serde_json::Error>` if the JSON is malformed or contains invalid data.
+/// The error will include the path to the problematic field in the JSON.
+pub fn parse_bmson(json: &str) -> Result<Bmson<'_>, serde_path_to_error::Error<serde_json::Error>> {
+    // First try to parse with serde_path_to_error for better error reporting
+    let jd = &mut serde_json::Deserializer::from_str(json);
+    let result: Result<Bmson, _> = serde_path_to_error::deserialize(jd);
+
+    result
 }

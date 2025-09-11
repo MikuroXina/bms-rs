@@ -71,6 +71,15 @@ impl<'a> SimpleSource<'a> {
     pub const fn text(&self) -> &'a str {
         self.text
     }
+
+    /// Get source file name.
+    ///
+    /// # Returns
+    /// Returns the name of the source file
+    #[must_use]
+    pub const fn name(&self) -> &'a str {
+        self.name
+    }
 }
 
 /// Trait for converting positioned errors to `ariadne::Report`.
