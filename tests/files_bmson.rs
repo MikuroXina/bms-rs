@@ -100,6 +100,22 @@ fn test_parse_bmson_with_invalid_json() {
     let path = err.path().to_string();
     let inner_err = err.into_inner();
     assert!(!path.is_empty());
+
+    // Check that the error message contains information about the invalid type
+    let error_string = format!("{}", inner_err);
+    assert!(
+        error_string.contains("invalid type") || error_string.contains("expected"),
+        "Error message should indicate invalid type. Got: {}",
+        error_string
+    );
+
+    // The path should contain information about the problematic field
+    assert!(
+        path.contains("info.level"),
+        "Error path should contain 'level' field information. Got path: {}",
+        path
+    );
+
     println!("Error path: {}", path);
     println!("Error message: {}", inner_err);
 }
@@ -119,6 +135,18 @@ fn test_parse_bmson_with_missing_required_field() {
     let path = err.path().to_string();
     let inner_err = err.into_inner();
     assert!(!path.is_empty());
+
+    // Check that the error message contains information about the missing field
+    let error_string = format!("{}", inner_err);
+    assert!(
+        error_string.contains("missing field") || error_string.contains("info"),
+        "Error message should indicate missing 'info' field. Got: {}",
+        error_string
+    );
+
+    // The path may be empty for missing fields, but the error message should contain field info
+    // Note: serde_path_to_error may not always provide path info for missing fields
+
     println!("Error path: {}", path);
     println!("Error message: {}", inner_err);
 }
