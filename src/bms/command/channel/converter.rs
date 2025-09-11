@@ -250,6 +250,70 @@ mod channel_mode_tests {
         assert_eq!(result, expected);
     }
 
+    /// Parse test examples from string format to (list, seed) tuples.
+    fn parse_examples(examples_str: &[&str]) -> Vec<(Vec<usize>, i64)> {
+        examples_str
+            .iter()
+            .map(|s| {
+                let v = s.split_whitespace().collect::<Vec<_>>();
+                let [list, seed] = v.as_slice() else {
+                    println!("{:?}", v);
+                    panic!("Invalid input");
+                };
+                let list = list
+                    .chars()
+                    .map(|c| c.to_digit(10).unwrap() as usize)
+                    .collect::<Vec<_>>();
+                let seed = seed.parse::<i64>().unwrap();
+                (list, seed)
+            })
+            .collect::<Vec<_>>()
+    }
+
+    /// Convert a Key to its numeric value for testing.
+    fn key_to_value(key: Key) -> usize {
+        match key {
+            Key::Key(n) => n as usize,
+            Key::Scratch(n) => n as usize + 10,
+            Key::FootPedal => 20,
+            Key::FreeZone => 21,
+        }
+    }
+
+    /// Run a single shuffle test case with given keys.
+    fn run_shuffle_test_case<T>(
+        test_case_idx: usize,
+        expected_list: &[usize],
+        seed: i64,
+        keys: &[Key],
+        mut converter: T,
+    ) where
+        T: KeyLayoutConverter,
+    {
+        println!("Test case {}: seed = {}", test_case_idx, seed);
+
+        let result_values = keys
+            .iter()
+            .map(|&k| {
+                converter.convert(KeyLayoutBeat::new(
+                    PlayerSide::Player1,
+                    NoteKind::Visible,
+                    k,
+                ))
+            })
+            .map(|v| key_to_value(v.key()))
+            .collect::<Vec<_>>();
+
+        println!("  Expected: {:?}", expected_list);
+        println!("  Got:      {:?}", result_values);
+        println!("  Match:    {}", result_values == expected_list);
+
+        if result_values != expected_list {
+            println!("  FAILED!");
+        }
+        println!();
+    }
+
     #[test]
     fn test_java_random_consistency() {
         // Test with seed 123456789
@@ -275,124 +339,50 @@ mod channel_mode_tests {
     /// Source: <https://www.bilibili.com/opus/1033281595747860483>
     #[test]
     fn test_random_shuffle() {
-        let examples = [
+        let examples_str = [
             "1234567 4752",
             "1234576 2498",
             "4372615 12728",
             "4372651 9734",
             "4375126 139",
-        ]
-        .iter()
-        .map(|s| {
-            let v = s.split_whitespace().collect::<Vec<_>>();
-            let [list, seed] = v.as_slice() else {
-                println!("{:?}", v);
-                panic!("Invalid input");
-            };
-            let list = list
-                .chars()
-                .map(|c| c.to_digit(10).unwrap() as usize)
-                .collect::<Vec<_>>();
-            let seed = seed.parse::<i64>().unwrap();
-            (list, seed)
-        })
-        .collect::<Vec<_>>();
+        ];
+        let examples = parse_examples(&examples_str);
+        let init_keys = [
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+            Key::Key(6),
+            Key::Key(7),
+        ];
 
         for (i, (list, seed)) in examples.iter().enumerate() {
-            println!("Test case {}: seed = {}", i, seed);
-            let init_keys = [
-                Key::Key(1),
-                Key::Key(2),
-                Key::Key(3),
-                Key::Key(4),
-                Key::Key(5),
-                Key::Key(6),
-                Key::Key(7),
-            ];
-            let mut rnd =
+            let rnd =
                 KeyLayoutConvertLaneRandomShuffle::new(PlayerSide::Player1, &init_keys, *seed);
-            let result_values = init_keys
-                .into_iter()
-                .map(|k| {
-                    rnd.convert(KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        k,
-                    ))
-                })
-                .map(|v| match v.key() {
-                    Key::Key(n) => n as usize,
-                    Key::Scratch(n) => n as usize + 10,
-                    Key::FootPedal => 20,
-                    Key::FreeZone => 21,
-                })
-                .collect::<Vec<_>>();
-            println!("  Expected: {:?}", list);
-            println!("  Got:      {:?}", result_values);
-            println!("  Match:    {}", result_values == *list);
-            if result_values != *list {
-                println!("  FAILED!");
-            }
-            println!();
+            run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
     }
 
     /// Test the lane rotate shuffle modifier.
     #[test]
     fn test_lane_rotate_shuffle() {
-        let examples = ["1765432 3581225"]
-            .iter()
-            .map(|s| {
-                let v = s.split_whitespace().collect::<Vec<_>>();
-                let [list, seed] = v.as_slice() else {
-                    println!("{:?}", v);
-                    panic!("Invalid input");
-                };
-                let list = list
-                    .chars()
-                    .map(|c| c.to_digit(10).unwrap() as usize)
-                    .collect::<Vec<_>>();
-                let seed = seed.parse::<i64>().unwrap();
-                (list, seed)
-            })
-            .collect::<Vec<_>>();
+        let examples_str = ["1765432 3581225"];
+        let examples = parse_examples(&examples_str);
+        let init_keys = [
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+            Key::Key(6),
+            Key::Key(7),
+        ];
 
         for (i, (list, seed)) in examples.iter().enumerate() {
-            println!("Test case {}: seed = {}", i, seed);
-            let init_keys = [
-                Key::Key(1),
-                Key::Key(2),
-                Key::Key(3),
-                Key::Key(4),
-                Key::Key(5),
-                Key::Key(6),
-                Key::Key(7),
-            ];
-            let mut rnd =
+            let rnd =
                 KeyLayoutConvertLaneRotateShuffle::new(PlayerSide::Player1, &init_keys, *seed);
-            let result_values = init_keys
-                .into_iter()
-                .map(|k| {
-                    rnd.convert(KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        k,
-                    ))
-                })
-                .map(|v| match v.key() {
-                    Key::Key(n) => n as usize,
-                    Key::Scratch(n) => n as usize + 10,
-                    Key::FootPedal => 20,
-                    Key::FreeZone => 21,
-                })
-                .collect::<Vec<_>>();
-            println!("  Expected: {:?}", list);
-            println!("  Got:      {:?}", result_values);
-            println!("  Match:    {}", result_values == *list);
-            if result_values != *list {
-                println!("  FAILED!");
-            }
-            println!();
+            run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
     }
 }
