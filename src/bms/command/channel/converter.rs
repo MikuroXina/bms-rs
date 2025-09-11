@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::{Key, mapper::KeyMapping};
+use super::{Key, PlayerSide, mapper::KeyMapping};
 #[allow(deprecated)]
 use crate::bms::ast::rng::JavaRandom;
 
@@ -160,6 +160,26 @@ impl KeyMappingConverter for KeyMappingConvertLaneRandomShuffle {
     }
 }
 
+/// A modifier that flips between PlayerSide::Player1 and PlayerSide::Player2.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyMappingConvertFlip;
+
+impl KeyMappingConverter for KeyMappingConvertFlip {
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = T>,
+    ) -> impl Iterator<Item = T> {
+        mappings.map(|mapping| {
+            let (side, kind, key) = mapping.as_tuple();
+            let flipped_side = match side {
+                PlayerSide::Player1 => PlayerSide::Player2,
+                PlayerSide::Player2 => PlayerSide::Player1,
+            };
+            T::new(flipped_side, kind, key)
+        })
+    }
+}
+
 #[cfg(test)]
 mod channel_mode_tests {
     use super::*;
@@ -300,5 +320,37 @@ mod channel_mode_tests {
             let rnd = KeyMappingConvertLaneRotateShuffle::new(&init_keys, *seed);
             run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
+    }
+
+    /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
+    #[test]
+    fn test_key_mapping_convert_flip() {
+        let mut converter = KeyMappingConvertFlip::default();
+
+        // Test flip conversion
+        let input_mappings = vec![
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Long, Key::Key(2)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Invisible, Key::Scratch(1)),
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Landmine, Key::FreeZone),
+        ];
+        let expected_mappings = vec![
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Visible, Key::Key(1)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Long, Key::Key(2)),
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Invisible, Key::Scratch(1)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Landmine, Key::FreeZone),
+        ];
+        let result: Vec<_> = converter.convert(input_mappings.into_iter()).collect();
+        assert_eq!(result, expected_mappings);
+
+        // Test that flipping twice returns to original
+        let original_mappings = vec![
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Long, Key::Key(2)),
+            KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Invisible, Key::Scratch(1)),
+            KeyLayoutBeat::new(PlayerSide::Player2, NoteKind::Landmine, Key::FreeZone),
+        ];
+        let result2: Vec<_> = converter.convert(result.into_iter()).collect();
+        assert_eq!(result2, original_mappings);
     }
 }
