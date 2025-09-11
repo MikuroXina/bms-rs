@@ -881,7 +881,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             "channel of specified note for LNOBJ cannot become LN {end_id:?}"
                         ))
                     })?
-                    .into_tuple();
+                    .as_tuple();
                 begin_note_tuple.1 = NoteKind::Long;
                 begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
                 self.notes.push_note(begin_note);
@@ -894,7 +894,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             "channel of specified note for LNOBJ cannot become LN {end_id:?}"
                         ))
                     })?
-                    .into_tuple();
+                    .as_tuple();
                 end_note_tuple.1 = NoteKind::Long;
                 end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
                 self.notes.push_note(end_note);

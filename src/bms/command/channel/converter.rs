@@ -1,122 +1,80 @@
-//! For one-way converting key/channel, please see [`KeyLayoutConverter`] trait.
+//! For one-way converting key/channel, please see [`KeyMappingConverter`] trait.
 
 use std::collections::HashMap;
 
 use super::{Key, PlayerSide, mapper::KeyMapping};
+#[allow(deprecated)]
+use crate::bms::ast::rng::JavaRandom;
+use crate::bms::command::time::ObjTime;
 
-/// A trait for converting [`KeyMapping`]s.
+/// A trait for converting [`KeyMapping`]s in different layouts.
 ///
-/// - Difference from [`KeyLayoutMapper`]:
-///   - [`KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
-///   - [`KeyLayoutConverter`] can convert into another key layout. It's one-way.
-pub trait KeyLayoutConverter {
-    /// Convert a [`KeyMapping`] to another key layout.
-    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T;
+/// - Difference from [`super::mapper::KeyLayoutMapper`]:
+///   - [`super::mapper::KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
+///   - [`KeyMappingConverter`] can convert into another key layout. It's one-way.
+///   - [`KeyMappingConverter`] operates on iterators of `(ObjTime, KeyMapping)` pairs, preserving timing information.
+pub trait KeyMappingConverter {
+    /// Convert an iterator of `(ObjTime, KeyMapping)` pairs to another key layout.
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = (ObjTime, T)>,
+    ) -> impl Iterator<Item = (ObjTime, T)>;
 }
 
-impl KeyLayoutConvertMirror {
-    /// Create a new [`KeyLayoutConvertMirror`] with the given [`PlayerSide`] and [`Key`]s.
+impl KeyMappingConvertMirror {
+    /// Create a new [`KeyMappingConvertMirror`] with the given [`Key`]s.
     #[must_use]
-    pub const fn new(side: PlayerSide, keys: Vec<Key>) -> Self {
-        Self { side, keys }
+    pub const fn new(keys: Vec<Key>) -> Self {
+        Self { keys }
     }
 }
 
-/// Mirror the note of a [`PlayerSide`].
+/// Mirror the keys within the specified key list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct KeyLayoutConvertMirror {
-    /// The side of the player to mirror.
-    side: PlayerSide,
+pub struct KeyMappingConvertMirror {
     /// A list of [`Key`]s to mirror. Usually, it should be the keys that actually used in the song.
     keys: Vec<Key>,
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertMirror {
-    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, mut key) = beat_map.into_tuple();
-        if side == self.side
-            && let Some(position) = self.keys.iter().position(|k| k == &key)
-        {
-            let mirror_index = self.keys.len().saturating_sub(position + 1);
-            let Some(mirror_key) = self.keys.get(mirror_index) else {
-                return T::new(side, kind, key);
-            };
-            key = *mirror_key;
-        }
-        T::new(side, kind, key)
+impl KeyMappingConverter for KeyMappingConvertMirror {
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = (ObjTime, T)>,
+    ) -> impl Iterator<Item = (ObjTime, T)> {
+        mappings.map(|(time, mapping)| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self
+                .keys
+                .iter()
+                .position(|k| k == &key)
+                .and_then(|position| {
+                    let mirror_index = self.keys.len().saturating_sub(position + 1);
+                    self.keys.get(mirror_index)
+                })
+                .copied()
+                .unwrap_or(key);
+            (time, T::new(side, kind, converted_key))
+        })
     }
 }
 
-/// A random number generator based on Java's `java.util.Random`.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-struct JavaRandom {
-    seed: u64,
-}
-
-impl JavaRandom {
-    const MULT: u64 = 0x5_DEEC_E66D;
-    const ADD: u64 = 0xB;
-
-    /// Create a new [`JavaRandom`] with the given seed.
-    pub const fn new(seed: i64) -> Self {
-        let s = (seed as u64) ^ Self::MULT;
-        Self {
-            seed: s & ((1u64 << 48) - 1),
-        }
-    }
-
-    /// Java's `next(int bits)` method
-    const fn next(&mut self, bits: i32) -> i32 {
-        self.seed =
-            (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
-        ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
-    }
-
-    /// Java's `nextInt()` method - returns any int value
-    #[allow(dead_code)]
-    pub const fn next_int(&mut self) -> i32 {
-        self.next(32)
-    }
-
-    /// Java's `nextInt(int bound)` method
-    pub fn next_int_bound(&mut self, bound: i32) -> i32 {
-        assert!(bound > 0, "bound must be positive");
-
-        let m = bound - 1;
-        if (bound & m) == 0 {
-            // i.e., bound is a power of 2
-            ((bound as i64 * self.next(31) as i64) >> 31) as i32
-        } else {
-            loop {
-                let bits = self.next(31);
-                let val = bits % bound;
-                if bits - val + m >= 0 {
-                    return val;
-                }
-            }
-        }
-    }
-}
-
-/// A modifier that rotates the lanes of a [`KeyMapping`].
+/// A modifier that rotates the lanes of keys.
 #[derive(Debug, Clone)]
-pub struct KeyLayoutConvertLaneRotateShuffle {
-    /// The side of the player to shuffle.
-    side: PlayerSide,
+pub struct KeyMappingConvertLaneRotateShuffle {
     /// A map of [`Key`]s to their new [`Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
-impl KeyLayoutConvertLaneRotateShuffle {
-    /// Create a new [`KeyLayoutConvertLaneRotateShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
+impl KeyMappingConvertLaneRotateShuffle {
+    /// Create a new [`KeyMappingConvertLaneRotateShuffle`] with the given [`Key`]s and seed.
     #[must_use]
-    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
+    pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
-            side,
             arrangement: Self::make_random(keys, seed),
         }
     }
 
+    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
@@ -140,39 +98,38 @@ impl KeyLayoutConvertLaneRotateShuffle {
     }
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertLaneRotateShuffle {
-    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, key) = beat_map.into_tuple();
-        if side == self.side {
-            let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            T::new(side, kind, new_key)
-        } else {
-            T::new(side, kind, key)
-        }
+impl KeyMappingConverter for KeyMappingConvertLaneRotateShuffle {
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = (ObjTime, T)>,
+    ) -> impl Iterator<Item = (ObjTime, T)> {
+        mappings.map(|(time, mapping)| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
+            (time, T::new(side, kind, converted_key))
+        })
     }
 }
 
-/// A modifier that shuffles the lanes of a [`KeyMapping`].
+/// A modifier that shuffles the lanes of keys.
 ///
 /// Its action is similar to beatoraja's lane shuffle.
 #[derive(Debug, Clone)]
-pub struct KeyLayoutConvertLaneRandomShuffle {
-    /// The side of the player to shuffle.
-    side: PlayerSide,
+pub struct KeyMappingConvertLaneRandomShuffle {
     /// A map of [`Key`]s to their new [`Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
-impl KeyLayoutConvertLaneRandomShuffle {
-    /// Create a new [`KeyLayoutConvertLaneRandomShuffle`] with the given [`PlayerSide`], [`Key`]s and seed.
+impl KeyMappingConvertLaneRandomShuffle {
+    /// Create a new [`KeyMappingConvertLaneRandomShuffle`] with the given [`Key`]s and seed.
     #[must_use]
-    pub fn new(side: PlayerSide, keys: &[Key], seed: i64) -> Self {
+    pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
-            side,
             arrangement: Self::make_random(keys, seed),
         }
     }
 
+    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
@@ -191,83 +148,169 @@ impl KeyLayoutConvertLaneRandomShuffle {
     }
 }
 
-impl KeyLayoutConverter for KeyLayoutConvertLaneRandomShuffle {
-    fn convert<T: KeyMapping>(&mut self, beat_map: T) -> T {
-        let (side, kind, key) = beat_map.into_tuple();
-        if side == self.side {
-            let new_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            T::new(side, kind, new_key)
-        } else {
-            T::new(side, kind, key)
-        }
+impl KeyMappingConverter for KeyMappingConvertLaneRandomShuffle {
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = (ObjTime, T)>,
+    ) -> impl Iterator<Item = (ObjTime, T)> {
+        mappings.map(|(time, mapping)| {
+            let (side, kind, key) = mapping.as_tuple();
+            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
+            (time, T::new(side, kind, converted_key))
+        })
+    }
+}
+
+/// A modifier that flips between PlayerSide::Player1 and PlayerSide::Player2.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyMappingConvertFlip;
+
+impl KeyMappingConverter for KeyMappingConvertFlip {
+    fn convert<T: KeyMapping>(
+        &mut self,
+        mappings: impl Iterator<Item = (ObjTime, T)>,
+    ) -> impl Iterator<Item = (ObjTime, T)> {
+        mappings.map(|(time, mapping)| {
+            let (side, kind, key) = mapping.as_tuple();
+            let flipped_side = match side {
+                PlayerSide::Player1 => PlayerSide::Player2,
+                PlayerSide::Player2 => PlayerSide::Player1,
+            };
+            (time, T::new(flipped_side, kind, key))
+        })
     }
 }
 
 #[cfg(test)]
 mod channel_mode_tests {
-    use crate::bms::prelude::{KeyLayoutBeat, NoteKind};
-
     use super::*;
+    use crate::bms::command::time::ObjTime;
+    use crate::bms::prelude::*;
+
+    /// Create a (ObjTime, KeyLayoutBeat) pair for testing.
+    fn create_mapping(
+        track: u64,
+        position: u64,
+        denominator: u64,
+        side: PlayerSide,
+        kind: NoteKind,
+        key: Key,
+    ) -> (ObjTime, KeyLayoutBeat) {
+        (
+            ObjTime::new(track, position, denominator),
+            KeyLayoutBeat::new(side, kind, key),
+        )
+    }
+
+    /// Create a sequence of mappings with the same parameters but different keys.
+    fn create_mappings(
+        keys: impl IntoIterator<Item = Key>,
+        track: u64,
+        denominator: u64,
+        side: PlayerSide,
+        kind: NoteKind,
+    ) -> impl Iterator<Item = (ObjTime, KeyLayoutBeat)> {
+        keys.into_iter()
+            .enumerate()
+            .map(move |(i, key)| create_mapping(track, i as u64, denominator, side, kind, key))
+    }
 
     #[test]
     fn test_key_channel_mode_mirror() {
         // Test 1: 3 keys
+        let mut converter =
+            KeyMappingConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
+
+        // Test individual key conversions
         let keys = vec![
-            (PlayerSide::Player1, Key::Key(1)),
-            (PlayerSide::Player1, Key::Key(2)),
-            (PlayerSide::Player1, Key::Key(3)),
-            (PlayerSide::Player1, Key::Key(4)),
-            (PlayerSide::Player1, Key::Key(5)),
-            (PlayerSide::Player2, Key::Key(1)),
-            (PlayerSide::Player2, Key::Key(2)),
-            (PlayerSide::Player2, Key::Key(3)),
-            (PlayerSide::Player2, Key::Key(4)),
-            (PlayerSide::Player2, Key::Key(5)),
-        ]
-        .into_iter()
-        .map(|(side, key)| KeyLayoutBeat::new(side, NoteKind::Visible, key))
-        .collect::<Vec<_>>();
-        let mut mode = KeyLayoutConvertMirror {
-            side: PlayerSide::Player1,
-            keys: vec![Key::Key(1), Key::Key(2), Key::Key(3)],
-        };
-        let result = keys.iter().map(|k| mode.convert(*k)).collect::<Vec<_>>();
-        let expected = vec![
-            (PlayerSide::Player1, Key::Key(3)),
-            (PlayerSide::Player1, Key::Key(2)),
-            (PlayerSide::Player1, Key::Key(1)),
-            (PlayerSide::Player1, Key::Key(4)),
-            (PlayerSide::Player1, Key::Key(5)),
-            (PlayerSide::Player2, Key::Key(1)),
-            (PlayerSide::Player2, Key::Key(2)),
-            (PlayerSide::Player2, Key::Key(3)),
-            (PlayerSide::Player2, Key::Key(4)),
-            (PlayerSide::Player2, Key::Key(5)),
-        ]
-        .into_iter()
-        .map(|(side, key)| KeyLayoutBeat::new(side, NoteKind::Visible, key))
-        .collect::<Vec<_>>();
-        assert_eq!(result, expected);
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+        ];
+        let input_mappings: Vec<_> =
+            create_mappings(keys.clone(), 0, 4, PlayerSide::Player1, NoteKind::Visible).collect();
+
+        // Expected mappings (mirrored: 1->3, 2->2, 3->1, 4->4, 5->5)
+        let expected_keys = vec![
+            Key::Key(3),
+            Key::Key(2),
+            Key::Key(1),
+            Key::Key(4),
+            Key::Key(5),
+        ];
+        let expected_mappings: Vec<_> =
+            create_mappings(expected_keys, 0, 4, PlayerSide::Player1, NoteKind::Visible).collect();
+
+        let result: Vec<_> = converter.convert(input_mappings.into_iter()).collect();
+        assert_eq!(result, expected_mappings);
     }
 
-    #[test]
-    fn test_java_random_consistency() {
-        // Test with seed 123456789
-        let mut rng = JavaRandom::new(123456789);
+    /// Parse test examples from string format to (list, seed) tuples.
+    fn parse_examples(examples_str: &[&str]) -> Vec<(Vec<usize>, i64)> {
+        examples_str
+            .iter()
+            .map(|s| {
+                let v = s.split_whitespace().collect::<Vec<_>>();
+                let [list, seed] = v.as_slice() else {
+                    println!("{:?}", v);
+                    panic!("Invalid input");
+                };
+                let list = list
+                    .chars()
+                    .map(|c| c.to_digit(10).unwrap() as usize)
+                    .collect::<Vec<_>>();
+                let seed = seed.parse::<i64>().unwrap();
+                (list, seed)
+            })
+            .collect::<Vec<_>>()
+    }
 
-        // Test nextInt() method (returns any int value)
-        println!("First nextInt(): {}", rng.next_int());
-        println!("Second nextInt(): {}", rng.next_int());
-        println!("Third nextInt(): {}", rng.next_int());
+    /// Convert a Key to its numeric value for testing.
+    fn key_to_value(key: Key) -> usize {
+        match key {
+            Key::Key(n) => n as usize,
+            Key::Scratch(n) => n as usize + 10,
+            Key::FootPedal => 20,
+            Key::FreeZone => 21,
+        }
+    }
 
-        // Test nextInt(bound) method
-        let mut rng2 = JavaRandom::new(123456789);
-        println!("First nextInt(100): {}", rng2.next_int_bound(100));
-        println!("Second nextInt(100): {}", rng2.next_int_bound(100));
-        println!("Third nextInt(100): {}", rng2.next_int_bound(100));
+    /// Run a single shuffle test case with given keys.
+    fn run_shuffle_test_case<T>(
+        test_case_idx: usize,
+        expected_list: &[usize],
+        seed: i64,
+        keys: &[Key],
+        mut converter: T,
+    ) where
+        T: KeyMappingConverter,
+    {
+        println!("Test case {}: seed = {}", test_case_idx, seed);
 
-        // Basic functionality test - should not panic
-        assert!(rng2.next_int_bound(100) >= 0 && rng2.next_int_bound(100) < 100);
+        let mappings: Vec<_> = create_mappings(
+            keys.iter().copied(),
+            0,
+            keys.len() as u64,
+            PlayerSide::Player1,
+            NoteKind::Visible,
+        )
+        .collect();
+
+        let result_values = converter
+            .convert(mappings.into_iter())
+            .map(|(_, mapping)| key_to_value(mapping.key()))
+            .collect::<Vec<_>>();
+
+        println!("  Expected: {:?}", expected_list);
+        println!("  Got:      {:?}", result_values);
+        println!("  Match:    {}", result_values == expected_list);
+
+        if result_values != expected_list {
+            println!("  FAILED!");
+        }
+        println!();
     }
 
     /// Test the random shuffle modifier.
@@ -275,65 +318,89 @@ mod channel_mode_tests {
     /// Source: <https://www.bilibili.com/opus/1033281595747860483>
     #[test]
     fn test_random_shuffle() {
-        let examples = [
+        let examples_str = [
             "1234567 4752",
             "1234576 2498",
             "4372615 12728",
             "4372651 9734",
             "4375126 139",
-        ]
-        .iter()
-        .map(|s| {
-            let v = s.split_whitespace().collect::<Vec<_>>();
-            let [list, seed] = v.as_slice() else {
-                println!("{:?}", v);
-                panic!("Invalid input");
-            };
-            let list = list
-                .chars()
-                .map(|c| c.to_digit(10).unwrap() as usize)
-                .collect::<Vec<_>>();
-            let seed = seed.parse::<i64>().unwrap();
-            (list, seed)
-        })
-        .collect::<Vec<_>>();
+        ];
+        let examples = parse_examples(&examples_str);
+        let init_keys = [
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+            Key::Key(6),
+            Key::Key(7),
+        ];
 
         for (i, (list, seed)) in examples.iter().enumerate() {
-            println!("Test case {}: seed = {}", i, seed);
-            let init_keys = [
-                Key::Key(1),
-                Key::Key(2),
-                Key::Key(3),
-                Key::Key(4),
-                Key::Key(5),
-                Key::Key(6),
-                Key::Key(7),
-            ];
-            let mut rnd =
-                KeyLayoutConvertLaneRandomShuffle::new(PlayerSide::Player1, &init_keys, *seed);
-            let result_values = init_keys
-                .into_iter()
-                .map(|k| {
-                    rnd.convert(KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        k,
-                    ))
-                })
-                .map(|v| match v.key() {
-                    Key::Key(n) => n as usize,
-                    Key::Scratch(n) => n as usize + 10,
-                    Key::FootPedal => 20,
-                    Key::FreeZone => 21,
-                })
-                .collect::<Vec<_>>();
-            println!("  Expected: {:?}", list);
-            println!("  Got:      {:?}", result_values);
-            println!("  Match:    {}", result_values == *list);
-            if result_values != *list {
-                println!("  FAILED!");
-            }
-            println!();
+            let rnd = KeyMappingConvertLaneRandomShuffle::new(&init_keys, *seed);
+            run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
         }
+    }
+
+    /// Test the lane rotate shuffle modifier.
+    #[test]
+    fn test_lane_rotate_shuffle() {
+        let examples_str = ["1765432 3581225"];
+        let examples = parse_examples(&examples_str);
+        let init_keys = [
+            Key::Key(1),
+            Key::Key(2),
+            Key::Key(3),
+            Key::Key(4),
+            Key::Key(5),
+            Key::Key(6),
+            Key::Key(7),
+        ];
+
+        for (i, (list, seed)) in examples.iter().enumerate() {
+            let rnd = KeyMappingConvertLaneRotateShuffle::new(&init_keys, *seed);
+            run_shuffle_test_case(i, list, *seed, &init_keys, rnd);
+        }
+    }
+
+    /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
+    #[test]
+    fn test_key_mapping_convert_flip() {
+        let mut converter = KeyMappingConvertFlip::default();
+
+        // Test data: (PlayerSide, NoteKind, Key)
+        let test_cases = vec![
+            (PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
+            (PlayerSide::Player2, NoteKind::Long, Key::Key(2)),
+            (PlayerSide::Player1, NoteKind::Invisible, Key::Scratch(1)),
+            (PlayerSide::Player2, NoteKind::Landmine, Key::FreeZone),
+        ];
+
+        // Test flip conversion
+        let input_mappings: Vec<_> = test_cases
+            .iter()
+            .enumerate()
+            .map(|(i, (side, kind, key))| create_mapping(0, i as u64, 4, *side, *kind, *key))
+            .collect();
+
+        let expected_mappings: Vec<_> = test_cases
+            .iter()
+            .enumerate()
+            .map(|(i, (side, kind, key))| {
+                let flipped_side = match side {
+                    PlayerSide::Player1 => PlayerSide::Player2,
+                    PlayerSide::Player2 => PlayerSide::Player1,
+                };
+                create_mapping(0, i as u64, 4, flipped_side, *kind, *key)
+            })
+            .collect();
+
+        let result: Vec<_> = converter
+            .convert(input_mappings.clone().into_iter())
+            .collect();
+        assert_eq!(&result, &expected_mappings);
+
+        let result2: Vec<_> = converter.convert(result.into_iter()).collect();
+        assert_eq!(&result2, &input_mappings);
     }
 }
