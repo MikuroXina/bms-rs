@@ -104,7 +104,7 @@ pub struct BmsonInfo<'a> {
     ///
     /// If you want to support many lane modes of BMS, you should check this to determine the layout for lanes. Also you can check all lane information in `sound_channels` for strict implementation.
     #[serde(default = "default_mode_hint")]
-    pub mode_hint: Cow<'static, str>,
+    pub mode_hint: Cow<'a, str>,
     /// Special chart name, e.g. "BEGINNER", "NORMAL", "HYPER", "FOUR DIMENSIONS".
     #[serde(default)]
     pub chart_name: Cow<'a, str>,
