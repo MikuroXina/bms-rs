@@ -36,7 +36,13 @@ use std::{borrow::Cow, num::NonZeroU8};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_path_to_error;
 
+#[cfg(feature = "diagnostics")]
+use ariadne::{Color, Label, Report, ReportKind};
+
 use crate::bms::command::LnMode;
+
+#[cfg(feature = "diagnostics")]
+use crate::bms::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{fin_f64::FinF64, pulse::PulseNumber};
 
@@ -340,4 +346,35 @@ pub fn parse_bmson(json: &str) -> Result<Bmson<'_>, serde_path_to_error::Error<s
     let result: Result<Bmson, _> = serde_path_to_error::deserialize(jd);
 
     result
+}
+
+#[cfg(feature = "diagnostics")]
+impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let path = self.path().to_string();
+        let error_message = self.to_string();
+
+        // For JSON errors, we don't have precise line/column info from serde_path_to_error
+        // The error path gives us field information which is more useful
+        let (line, col) = (1, 1);
+
+        let filename = src.name().to_string();
+        let full_span = 0..src.text().len();
+
+        Report::build(ReportKind::Error, (filename.clone(), full_span.clone()))
+            .with_code("BMSON001")
+            .with_message(format!("JSON deserialization error at {}", path))
+            .with_label(
+                Label::new((filename, full_span))
+                    .with_message(format!(
+                        "Error: {} (line {}, column {})",
+                        error_message, line, col
+                    ))
+                    .with_color(Color::Red),
+            )
+            .finish()
+    }
 }
