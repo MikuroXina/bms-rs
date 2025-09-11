@@ -17,7 +17,7 @@ use super::*;
 
 /// JSON enum
 #[derive(Clone, Debug, PartialEq)]
-pub enum Json {
+pub enum Json<'a> {
     /// Invalid JSON value (used for error recovery)
     Invalid,
     /// JSON null value
@@ -25,18 +25,18 @@ pub enum Json {
     /// JSON boolean value
     Bool(bool),
     /// JSON string value
-    Str(String),
+    Str(&'a str),
     /// JSON integer value
     Int(i64),
     /// JSON floating point value
     Float(f64),
     /// JSON array value
-    Array(Vec<Json>),
+    Array(Vec<Json<'a>>),
     /// JSON object value
-    Object(HashMap<String, Json>),
+    Object(HashMap<&'a str, Json<'a>>),
 }
 
-fn parser<'a>() -> impl Parser<'a, &'a str, Json, extra::Err<Rich<'a, char>>> {
+fn parser<'a>() -> impl Parser<'a, &'a str, Json<'a>, extra::Err<Rich<'a, char>>> {
     recursive(|value| {
         let digits = text::digits(10).to_slice();
 
@@ -92,7 +92,6 @@ fn parser<'a>() -> impl Parser<'a, &'a str, Json, extra::Err<Rich<'a, char>>> {
             .or(escape)
             .repeated()
             .to_slice()
-            .map(ToString::to_string)
             .delimited_by(just('"'), just('"'))
             .boxed();
 
@@ -205,7 +204,7 @@ impl ToAriadne for Rich<'_, char> {
 /// # use bms_rs::bmson::parser::{parse_json, Json};
 /// let (result, errors) = parse_json("\"hello world\"");
 /// assert!(errors.is_empty());
-/// assert_eq!(result, Some(Json::Str("hello world".to_string())));
+/// assert_eq!(result, Some(Json::Str("hello world")));
 /// ```
 ///
 /// ```
@@ -240,7 +239,7 @@ impl ToAriadne for Rich<'_, char> {
 /// let (result, errors) = parse_json("{\"key\": \"value\"}");
 /// assert!(errors.is_empty());
 /// if let Some(Json::Object(obj)) = result {
-///     assert_eq!(obj.get("key"), Some(&Json::Str("value".to_string())));
+///     assert_eq!(obj.get("key"), Some(&Json::Str("value")));
 /// }
 /// ```
 ///
@@ -259,14 +258,14 @@ impl ToAriadne for Rich<'_, char> {
 /// assert!(result.is_none());
 /// assert!(!errors.is_empty());
 /// ```
-pub fn parse_json(src: &str) -> (Option<Json>, Vec<Rich<'_, char>>) {
+pub fn parse_json<'a>(src: &'a str) -> (Option<Json<'a>>, Vec<Rich<'a, char>>) {
     let (json, errs) = parser().parse(src.trim()).into_output_errors();
     (json, errs)
 }
 
 /// Entry point to deserialize any `T: Deserialize` from a `Json` value.
 pub fn from_json<'a, T: for<'de> Deserialize<'de>>(
-    json: &'a Json,
+    json: &'a Json<'a>,
 ) -> Result<T, BmsonWarning<'static>> {
     let de = JsonDeserializer {
         json,
@@ -276,18 +275,18 @@ pub fn from_json<'a, T: for<'de> Deserialize<'de>>(
 }
 
 struct JsonDeserializer<'a> {
-    json: &'a Json,
+    json: &'a Json<'a>,
     path: Vec<String>,
 }
 
 impl<'a> JsonDeserializer<'a> {
     fn fail(&self) -> BmsonWarning<'static> {
         let p = if self.path.is_empty() {
-            "root".to_string()
+            Cow::Borrowed("root")
         } else {
-            self.path.join(".")
+            Cow::Owned(self.path.join("."))
         };
-        BmsonWarning::DeserializeFailed(Cow::Owned(p))
+        BmsonWarning::DeserializeFailed(p)
     }
 }
 
@@ -299,7 +298,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
             Json::Invalid => Err(self.fail()),
             Json::Null => visitor.visit_unit(),
             Json::Bool(b) => visitor.visit_bool(*b),
-            Json::Str(s) => visitor.visit_string(s.clone()),
+            Json::Str(s) => visitor.visit_string(s.to_string()),
             Json::Int(i) => visitor.visit_i64(*i),
             Json::Float(f) => visitor.visit_f64(*f),
             Json::Array(arr) => visitor.visit_seq(SeqAccessImpl {
@@ -391,7 +390,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
     }
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.json {
-            Json::Str(s) => visitor.visit_string(s.clone()),
+            Json::Str(s) => visitor.visit_string(s.to_string()),
             _ => Err(self.fail()),
         }
     }
@@ -523,7 +522,7 @@ impl<'de, 'a> serde::Deserializer<'de> for JsonDeserializer<'a> {
 }
 
 struct SeqAccessImpl<'a> {
-    iter: std::slice::Iter<'a, Json>,
+    iter: std::slice::Iter<'a, Json<'a>>,
     len: usize,
     path: Vec<String>,
     index: usize,
@@ -558,14 +557,14 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a> {
 }
 
 struct MapAccessImpl<'a> {
-    iter: hash_map::Iter<'a, String, Json>,
-    next_value: Option<&'a Json>,
+    iter: hash_map::Iter<'a, &'a str, Json<'a>>,
+    next_value: Option<&'a Json<'a>>,
     path: Vec<String>,
     current_key: Option<&'a str>,
 }
 
 impl<'a> MapAccessImpl<'a> {
-    fn new(iter: hash_map::Iter<'a, String, Json>, path: Vec<String>) -> Self {
+    fn new(iter: hash_map::Iter<'a, &'a str, Json<'a>>, path: Vec<String>) -> Self {
         Self {
             iter,
             next_value: None,
@@ -584,9 +583,9 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
     ) -> Result<Option<K::Value>, Self::Error> {
         match self.iter.next() {
             Some((k, v)) => {
-                self.current_key = Some(k.as_str());
+                self.current_key = Some(*k);
                 self.next_value = Some(v);
-                seed.deserialize(k.as_str().into_deserializer()).map(Some)
+                seed.deserialize((*k).into_deserializer()).map(Some)
             }
             None => Ok(None),
         }
@@ -605,7 +604,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
                 seed.deserialize(JsonDeserializer { json: v, path: p })
             }
             None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                Cow::Owned("root".to_string())
+                Cow::Borrowed("root")
             } else {
                 Cow::Owned(self.path.join("."))
             })),
@@ -615,7 +614,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a> {
 
 enum EnumAccessImpl<'a> {
     Unit(JsonDeserializer<'a>),
-    Tagged(&'a String, &'a Json, Vec<String>),
+    Tagged(&'a str, &'a Json<'a>, Vec<String>),
 }
 
 impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
@@ -639,7 +638,7 @@ impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
                 ))
             }
             EnumAccessImpl::Tagged(k, v, path) => {
-                let variant = seed.deserialize(k.as_str().into_deserializer())?;
+                let variant = seed.deserialize((*k).into_deserializer())?;
                 Ok((
                     variant,
                     VariantAccessImpl {
@@ -653,7 +652,7 @@ impl<'de, 'a> de::EnumAccess<'de> for EnumAccessImpl<'a> {
 }
 
 struct VariantAccessImpl<'a> {
-    value: Option<&'a Json>,
+    value: Option<&'a Json<'a>>,
     path: Vec<String>,
 }
 
@@ -664,7 +663,7 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
         match self.value {
             None | Some(Json::Null) => Ok(()),
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                Cow::Owned("root".to_string())
+                Cow::Borrowed("root")
             } else {
                 Cow::Owned(self.path.join("."))
             })),
@@ -681,7 +680,7 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 seed.deserialize(JsonDeserializer { json: v, path: p })
             }
             None => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                Cow::Owned("root".to_string())
+                Cow::Borrowed("root")
             } else {
                 Cow::Owned(self.path.join("."))
             })),
@@ -701,7 +700,7 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 index: 0,
             }),
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                Cow::Owned("root".to_string())
+                Cow::Borrowed("root")
             } else {
                 Cow::Owned(self.path.join("."))
             })),
@@ -718,7 +717,7 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
                 visitor.visit_map(MapAccessImpl::new(obj.iter(), self.path.clone()))
             }
             _ => Err(BmsonWarning::DeserializeFailed(if self.path.is_empty() {
-                Cow::Owned("root".to_string())
+                Cow::Borrowed("root")
             } else {
                 Cow::Owned(self.path.join("."))
             })),
@@ -761,17 +760,17 @@ fn default_bmson() -> Bmson<'static> {
     }
 }
 
-fn minimal_bmson_json() -> Json {
-    let mut min_root = HashMap::new();
-    let mut min_info = HashMap::new();
-    min_root.insert("version".into(), Json::Str("1.0.0".into()));
-    min_root.insert("sound_channels".into(), Json::Array(Vec::new()));
-    min_info.insert("title".into(), Json::Str(String::new()));
-    min_info.insert("artist".into(), Json::Str(String::new()));
-    min_info.insert("genre".into(), Json::Str(String::new()));
-    min_info.insert("level".into(), Json::Int(0));
-    min_info.insert("init_bpm".into(), Json::Float(120.0));
-    min_root.insert("info".into(), Json::Object(min_info));
+fn minimal_bmson_json() -> Json<'static> {
+    let mut min_root: HashMap<&'static str, Json<'static>> = HashMap::new();
+    let mut min_info: HashMap<&'static str, Json<'static>> = HashMap::new();
+    min_root.insert("version", Json::Str("1.0.0"));
+    min_root.insert("sound_channels", Json::Array(Vec::new()));
+    min_info.insert("title", Json::Str(""));
+    min_info.insert("artist", Json::Str(""));
+    min_info.insert("genre", Json::Str(""));
+    min_info.insert("level", Json::Int(0));
+    min_info.insert("init_bpm", Json::Float(120.0));
+    min_root.insert("info", Json::Object(min_info));
     Json::Object(min_root)
 }
 
@@ -785,7 +784,7 @@ pub enum BmsonWarning<'a> {
     /// 缺失字段（使用默认值填充）。
     MissingField(Cow<'a, str>),
     /// 反序列化失败（标注具体字段路径）。
-    DeserializeFailed(Cow<'static, str>),
+    DeserializeFailed(Cow<'a, str>),
 }
 
 impl<'a> fmt::Display for BmsonWarning<'a> {
@@ -827,7 +826,7 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     }
 
     // 准备对象根
-    let mut root_map: HashMap<String, Json> = match maybe_json {
+    let mut root_map: HashMap<&'a str, Json<'a>> = match maybe_json {
         Some(Json::Object(ref m)) => m.clone(),
         _ => {
             warnings.push(BmsonWarning::NonObjectRoot);
@@ -838,16 +837,16 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     // 顶层缺失字段默认
     if !root_map.contains_key("version") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("version")));
-        root_map.insert("version".into(), Json::Str("1.0.0".into()));
+        root_map.insert("version", Json::Str("1.0.0"));
     }
     if !root_map.contains_key("sound_channels") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("sound_channels")));
-        root_map.insert("sound_channels".into(), Json::Array(Vec::new()));
+        root_map.insert("sound_channels", Json::Array(Vec::new()));
     }
 
     // info 对象缺省与字段默认
     let info_json = root_map.remove("info");
-    let mut info_map: HashMap<String, Json> = match info_json {
+    let mut info_map: HashMap<&'a str, Json<'a>> = match info_json {
         Some(Json::Object(m)) => m,
         _ => {
             warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info")));
@@ -856,25 +855,25 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     };
     if !info_map.contains_key("title") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.title")));
-        info_map.insert("title".into(), Json::Str(String::new()));
+        info_map.insert("title", Json::Str(""));
     }
     if !info_map.contains_key("artist") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.artist")));
-        info_map.insert("artist".into(), Json::Str(String::new()));
+        info_map.insert("artist", Json::Str(""));
     }
     if !info_map.contains_key("genre") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.genre")));
-        info_map.insert("genre".into(), Json::Str(String::new()));
+        info_map.insert("genre", Json::Str(""));
     }
     if !info_map.contains_key("level") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.level")));
-        info_map.insert("level".into(), Json::Int(0));
+        info_map.insert("level", Json::Int(0));
     }
     if !info_map.contains_key("init_bpm") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("info.init_bpm")));
-        info_map.insert("init_bpm".into(), Json::Float(120.0));
+        info_map.insert("init_bpm", Json::Float(120.0));
     }
-    root_map.insert("info".into(), Json::Object(info_map));
+    root_map.insert("info", Json::Object(info_map));
 
     // 反序列化
     let json_root = Json::Object(root_map);
