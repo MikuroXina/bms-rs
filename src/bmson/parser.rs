@@ -723,7 +723,7 @@ impl<'de, 'a> de::VariantAccess<'de> for VariantAccessImpl<'a> {
 }
 
 fn default_bmson() -> Bmson<'static> {
-    // 最终兜底：返回空的占位值（尽力而为，避免 unwrap）
+    // Final fallback: return empty placeholder values (best effort, avoid unwrap)
     Bmson {
         version: Cow::Borrowed("1.0.0"),
         info: BmsonInfo {
@@ -771,16 +771,16 @@ fn minimal_bmson_json() -> Json<'static> {
     Json::Object(min_root)
 }
 
-/// bmson 解析时的告警/错误。
+/// Warnings/errors during bmson parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BmsonWarning<'a> {
-    /// JSON 语法错误（直接返回 Rich）。
+    /// JSON syntax error (directly returns Rich).
     JsonSyntaxError(Rich<'a, char>),
-    /// 根节点不是对象。
+    /// Root node is not an object.
     NonObjectRoot,
-    /// 缺失字段（使用默认值填充）。
+    /// Missing field (filled with default values).
     MissingField(Cow<'a, str>),
-    /// 反序列化失败（标注具体字段路径）。
+    /// Deserialization failed (marks specific field path).
     DeserializeFailed(Cow<'a, str>),
 }
 
@@ -803,17 +803,17 @@ impl<'a> de::Error for BmsonWarning<'a> {
     }
 }
 
-/// `parse_bmson` 的输出。
+/// Output of `parse_bmson`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
 pub struct BmsonOutput<'a> {
-    /// 解析后的 bmson 对象。
+    /// The parsed bmson object.
     pub bmson: Bmson<'a>,
-    /// 解析过程中的警告。
+    /// Warnings during parsing.
     pub warnings: Vec<BmsonWarning<'a>>,
 }
 
-/// 解析 bmson 源字符串。不使用 `serde_json`，完全基于 chumsky + serde 反序列化。
+/// Parse bmson source string. Does not use `serde_json`, fully based on chumsky + serde deserialization.
 #[must_use]
 pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     let (maybe_json, errs) = parse_json(src);
@@ -822,7 +822,7 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
         warnings.extend(errs.into_iter().map(BmsonWarning::JsonSyntaxError));
     }
 
-    // 准备对象根
+    // Prepare object root
     let mut root_map: HashMap<&'a str, Json<'a>> = match maybe_json {
         Some(Json::Object(ref m)) => m.clone(),
         _ => {
@@ -831,7 +831,7 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
         }
     };
 
-    // 顶层缺失字段默认
+    // Top-level missing field defaults
     if !root_map.contains_key("version") {
         warnings.push(BmsonWarning::MissingField(Cow::Borrowed("version")));
         root_map.insert("version", Json::Str("1.0.0"));
@@ -841,7 +841,7 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
         root_map.insert("sound_channels", Json::Array(Vec::new()));
     }
 
-    // info 对象缺省与字段默认
+    // info object defaults and field defaults
     let info_json = root_map.remove("info");
     let mut info_map: HashMap<&'a str, Json<'a>> = match info_json {
         Some(Json::Object(m)) => m,
@@ -872,18 +872,18 @@ pub(crate) fn parse_bmson_inner<'a>(src: &'a str) -> BmsonOutput<'a> {
     }
     root_map.insert("info", Json::Object(info_map));
 
-    // 反序列化
+    // Deserialization
     let json_root = Json::Object(root_map);
     match from_json::<Bmson<'a>>(&json_root) {
         Ok(bmson) => BmsonOutput { bmson, warnings },
         Err(e) => {
             warnings.push(e);
-            // 构造保证可反序列化的最小对象
+            // Construct minimal object guaranteed to be deserializable
             let min_json = minimal_bmson_json();
             let bmson = match from_json::<Bmson<'a>>(&min_json) {
                 Ok(b) => b,
                 Err(_) => {
-                    // 理论上不会失败；退化到直接复用最小 JSON 再尝试一次
+                    // Theoretically won't fail; degrade to reusing minimal JSON and try again
                     match from_json::<Bmson<'a>>(&min_json) {
                         Ok(b) => b,
                         Err(_) => default_bmson(),
