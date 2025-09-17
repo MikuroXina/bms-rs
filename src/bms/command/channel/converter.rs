@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 
 use super::{Key, PlayerSide, mapper::KeyMapping};
-#[allow(deprecated)]
 use crate::bms::ast::rng::JavaRandom;
 use crate::bms::command::time::ObjTime;
 
@@ -74,7 +73,6 @@ impl KeyMappingConvertLaneRotateShuffle {
         }
     }
 
-    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
@@ -129,7 +127,6 @@ impl KeyMappingConvertLaneRandomShuffle {
         }
     }
 
-    #[allow(deprecated)]
     fn make_random(keys: &[Key], seed: i64) -> HashMap<Key, Key> {
         let mut rng = JavaRandom::new(seed);
         let mut result: HashMap<Key, Key> = HashMap::new();
