@@ -8,6 +8,8 @@ use super::{
     AstParseWarning, AstParseWarningWithRange,
     structure::{BlockValue, CaseBranchValue, Unit},
 };
+use crate::diagnostics::{SimpleSource, ToAriadne};
+use ariadne::{Color, Label, Report, ReportKind};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,
@@ -345,5 +347,29 @@ mod tests {
             })
             .collect();
         assert!(titles.iter().any(|s| **s == "DEEP_NESTED"));
+    }
+}
+
+impl ToAriadne for AstParseWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+
+        // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
+        // We use the top-level position to annotate the error range and append expected/actual information to the message.
+        let details = match self.content() {
+            AstParseWarning::RandomGeneratedValueOutOfRange { expected, actual }
+            | AstParseWarning::SwitchGeneratedValueOutOfRange { expected, actual } => {
+                format!("expected {:?}, got {}", expected.content(), actual)
+            }
+        };
+
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message(format!("ast_parse: {} ({})", self.content(), details))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Magenta))
+            .finish()
     }
 }
