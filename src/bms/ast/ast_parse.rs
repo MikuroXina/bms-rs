@@ -1,11 +1,17 @@
-use num::BigUint;
-
-use crate::bms::{command::mixin::SourceRangeMixinExt, lex::token::TokenWithRange};
 use core::ops::RangeInclusive;
 
-use super::rng::Rng;
+use ariadne::{Color, Label, Report, ReportKind};
+use num::BigUint;
+
+use crate::bms::{
+    command::mixin::SourceRangeMixinExt,
+    diagnostics::{SimpleSource, ToAriadne},
+    lex::token::TokenWithRange,
+};
+
 use super::{
     AstParseWarning, AstParseWarningWithRange,
+    rng::Rng,
     structure::{BlockValue, CaseBranchValue, Unit},
 };
 
@@ -345,5 +351,29 @@ mod tests {
             })
             .collect();
         assert!(titles.iter().any(|s| **s == "DEEP_NESTED"));
+    }
+}
+
+impl ToAriadne for AstParseWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+
+        // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
+        // We use the top-level position to annotate the error range and append expected/actual information to the message.
+        let details = match self.content() {
+            AstParseWarning::RandomGeneratedValueOutOfRange { expected, actual }
+            | AstParseWarning::SwitchGeneratedValueOutOfRange { expected, actual } => {
+                format!("expected {:?}, got {}", expected.content(), actual)
+            }
+        };
+
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message(format!("ast_parse: {} ({})", self.content(), details))
+            .with_label(Label::new((filename, start..end)).with_color(Color::Magenta))
+            .finish()
     }
 }

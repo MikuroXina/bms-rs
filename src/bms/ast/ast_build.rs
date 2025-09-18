@@ -11,8 +11,10 @@ use crate::bms::{
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+    diagnostics::{SimpleSource, ToAriadne},
     lex::token::{Token, TokenWithRange},
 };
+use ariadne::{Color, Label, Report, ReportKind};
 
 use super::AstBuildWarning;
 
@@ -976,5 +978,19 @@ mod tests {
             panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
         assert!(matches!(token.content(), Title("00114:00000044")));
+    }
+}
+
+impl ToAriadne for AstBuildWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message("ast_build: ".to_string() + &self.content().to_string())
+            .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
+            .finish()
     }
 }

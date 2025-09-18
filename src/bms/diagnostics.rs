@@ -11,7 +11,7 @@
 //! # Usage Example
 //!
 //! ```rust
-//! use bms_rs::bms::{parse_bms, diagnostics::emit_bms_warnings, command::channel::mapper::KeyLayoutBeat};
+//! use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat};
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
@@ -21,14 +21,9 @@
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);
 //! ```
 
-use crate::bms::{
-    BmsWarning,
-    ast::{AstBuildWarningWithRange, AstParseWarning, AstParseWarningWithRange},
-    lex::LexWarningWithRange,
-    parse::ParseWarningWithRange,
-};
+use crate::bms::BmsWarning;
 
-use ariadne::{Color, Label, Report, ReportKind, Source};
+use ariadne::{Report, Source};
 
 /// Simple source container that holds the filename and source text.
 /// Ariadne will automatically handle row/column calculations from byte offsets.
@@ -71,6 +66,15 @@ impl<'a> SimpleSource<'a> {
     pub const fn text(&self) -> &'a str {
         self.text
     }
+
+    /// Get source file name.
+    ///
+    /// # Returns
+    /// Returns the name of the source file
+    #[must_use]
+    pub const fn name(&self) -> &'a str {
+        self.name
+    }
 }
 
 /// Trait for converting positioned errors to `ariadne::Report`.
@@ -108,102 +112,6 @@ pub trait ToAriadne {
     /// Returns the constructed ariadne Report
     fn to_report<'a>(&self, src: &SimpleSource<'a>)
     -> Report<'a, (String, std::ops::Range<usize>)>;
-}
-
-impl ToAriadne for LexWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("lex: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
-            .finish()
-    }
-}
-
-impl ToAriadne for ParseWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("parse: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
-            .finish()
-    }
-}
-
-impl ToAriadne for AstBuildWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("ast_build: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
-            .finish()
-    }
-}
-
-impl ToAriadne for AstParseWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-
-        // AstParseWarning internally has nested SourcePosMixin<RangeInclusive<BigUint>>, but it also has a top-level position.
-        // We use the top-level position to annotate the error range and append expected/actual information to the message.
-        let details = match self.content() {
-            AstParseWarning::RandomGeneratedValueOutOfRange { expected, actual }
-            | AstParseWarning::SwitchGeneratedValueOutOfRange { expected, actual } => {
-                format!("expected {:?}, got {}", expected.content(), actual)
-            }
-        };
-
-        let filename = src.name.to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message(format!("ast_parse: {} ({})", self.content(), details))
-            .with_label(Label::new((filename, start..end)).with_color(Color::Magenta))
-            .finish()
-    }
-}
-
-impl ToAriadne for BmsWarning {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        use BmsWarning::*;
-        match self {
-            Lex(e) => e.to_report(src),
-            AstBuild(e) => e.to_report(src),
-            AstParse(e) => e.to_report(src),
-            Parse(e) => e.to_report(src),
-            // PlayingWarning / PlayingError have no position, locate to file start 0..0
-            PlayingWarning(w) => {
-                let filename = src.name.to_string();
-                Report::build(ReportKind::Warning, (filename.clone(), 0..0))
-                    .with_message(format!("playing warning: {w}"))
-                    .with_label(Label::new((filename, 0..0)))
-                    .finish()
-            }
-            PlayingError(e) => {
-                let filename = src.name.to_string();
-                Report::build(ReportKind::Error, (filename.clone(), 0..0))
-                    .with_message(format!("playing error: {e}"))
-                    .with_label(Label::new((filename, 0..0)))
-                    .finish()
-            }
-        }
-    }
 }
 
 /// Convenience method: batch render `BmsWarning` list.

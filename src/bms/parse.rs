@@ -12,6 +12,9 @@ use itertools::Itertools;
 use std::str::FromStr;
 use thiserror::Error;
 
+use crate::bms::diagnostics::{SimpleSource, ToAriadne};
+use ariadne::{Color, Label, Report, ReportKind};
+
 use super::prelude::*;
 use crate::bms::{
     ast::{
@@ -1066,5 +1069,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
             ast_parse_warnings,
             parse_warnings,
         }
+    }
+}
+
+impl ToAriadne for ParseWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message("parse: ".to_string() + &self.content().to_string())
+            .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
+            .finish()
     }
 }

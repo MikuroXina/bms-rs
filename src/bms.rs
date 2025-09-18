@@ -28,6 +28,10 @@ pub mod prelude;
 
 use thiserror::Error;
 
+use ariadne::{Label, Report, ReportKind};
+
+use crate::bms::diagnostics::{SimpleSource, ToAriadne};
+
 #[cfg(feature = "rand")]
 use self::ast::rng::RandRng;
 use self::{
@@ -156,4 +160,34 @@ pub fn parse_bms_with_rng<T: KeyLayoutMapper>(source: &str, rng: impl Rng) -> Bm
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
     BmsOutput { bms, warnings }
+}
+
+impl ToAriadne for BmsWarning {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        use BmsWarning::*;
+        match self {
+            Lex(e) => e.to_report(src),
+            AstBuild(e) => e.to_report(src),
+            AstParse(e) => e.to_report(src),
+            Parse(e) => e.to_report(src),
+            // PlayingWarning / PlayingError have no position, locate to file start 0..0
+            PlayingWarning(w) => {
+                let filename = src.name().to_string();
+                Report::build(ReportKind::Warning, (filename.clone(), 0..0))
+                    .with_message(format!("playing warning: {w}"))
+                    .with_label(Label::new((filename, 0..0)))
+                    .finish()
+            }
+            PlayingError(e) => {
+                let filename = src.name().to_string();
+                Report::build(ReportKind::Error, (filename.clone(), 0..0))
+                    .with_message(format!("playing error: {e}"))
+                    .with_label(Label::new((filename, 0..0)))
+                    .finish()
+            }
+        }
+    }
 }
