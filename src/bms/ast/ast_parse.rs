@@ -1,15 +1,19 @@
-use num::BigUint;
-
-use crate::bms::{command::mixin::SourceRangeMixinExt, lex::token::TokenWithRange};
 use core::ops::RangeInclusive;
 
-use super::rng::Rng;
+use ariadne::{Color, Label, Report, ReportKind};
+use num::BigUint;
+
+use crate::bms::{
+    command::mixin::SourceRangeMixinExt,
+    diagnostics::{SimpleSource, ToAriadne},
+    lex::token::TokenWithRange,
+};
+
 use super::{
     AstParseWarning, AstParseWarningWithRange,
+    rng::Rng,
     structure::{BlockValue, CaseBranchValue, Unit},
 };
-use crate::diagnostics::{SimpleSource, ToAriadne};
-use ariadne::{Color, Label, Report, ReportKind};
 
 pub(super) fn parse_control_flow_ast<'a>(
     iter: &mut std::iter::Peekable<impl Iterator<Item = Unit<'a>>>,

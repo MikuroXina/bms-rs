@@ -11,7 +11,7 @@
 //! # Usage Example
 //!
 //! ```rust
-//! use bms_rs::{diagnostics::emit_bms_warnings, bms::{BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat}};
+//! use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat};
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
@@ -31,7 +31,7 @@ use ariadne::{Report, Source};
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::diagnostics::SimpleSource;
+/// use bms_rs::bms::diagnostics::SimpleSource;
 ///
 /// // Create source container
 /// let source_text = "#TITLE test\n#ARTIST composer\n";
@@ -82,7 +82,7 @@ impl<'a> SimpleSource<'a> {
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, bms::BmsWarning};
+/// use bms_rs::bms::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, BmsWarning};
 /// use ariadne::Source;
 ///
 /// // Assume there are warnings generated during BMS parsing
@@ -122,7 +122,7 @@ pub trait ToAriadne {
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::{diagnostics::emit_bms_warnings, bms::BmsWarning};
+/// use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning};
 ///
 /// // BMS source text
 /// let bms_source = "#TITLE My Song\n#ARTIST Composer\n#BPM 120\n";

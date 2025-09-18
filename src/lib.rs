@@ -162,6 +162,5 @@
 
 pub mod bms;
 pub mod bmson;
-pub mod diagnostics;
 
 pub use bms::{ast, command, lex, parse};

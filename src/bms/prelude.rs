@@ -3,14 +3,12 @@
 //! This module re-exports all public types from the BMS module for convenient access.
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
-// Re-export diagnostics from crate level
-pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
+// Re-export diagnostics from bms level
+pub use super::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
 pub use super::{
-    BmsOutput,
-    BmsWarning,
-    Decimal,
+    BmsOutput, BmsWarning, Decimal,
     ast::{
         AstBuildOutput, AstBuildWarning, AstBuildWarningWithRange, AstParseOutput, AstParseWarning,
         AstParseWarningWithRange, AstRoot,
@@ -35,7 +33,6 @@ pub use super::{
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
-    // diagnostics is now at crate level
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         token::{Token, TokenWithRange},

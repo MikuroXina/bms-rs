@@ -11,9 +11,9 @@ use crate::bms::{
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+    diagnostics::{SimpleSource, ToAriadne},
     lex::token::{Token, TokenWithRange},
 };
-use crate::diagnostics::{SimpleSource, ToAriadne};
 use ariadne::{Color, Label, Report, ReportKind};
 
 use super::AstBuildWarning;

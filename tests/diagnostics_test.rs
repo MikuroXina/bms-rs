@@ -1,8 +1,11 @@
 //! Test diagnostics module functionality
 
-use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
-use bms_rs::bms::{BmsWarning, parse_bms};
-use bms_rs::diagnostics::{SimpleSource, emit_bms_warnings};
+use bms_rs::bms::{
+    BmsWarning,
+    command::channel::mapper::KeyLayoutBeat,
+    diagnostics::{SimpleSource, emit_bms_warnings},
+    parse_bms,
+};
 
 #[test]
 fn test_simple_source_creation() {

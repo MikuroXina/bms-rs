@@ -9,8 +9,10 @@ pub mod token;
 
 use thiserror::Error;
 
-use crate::bms::command::mixin::{SourceRangeMixin, SourceRangeMixinExt};
-use crate::diagnostics::{SimpleSource, ToAriadne};
+use crate::bms::{
+    command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+    diagnostics::{SimpleSource, ToAriadne},
+};
 use ariadne::{Color, Label, Report, ReportKind};
 
 use self::{
