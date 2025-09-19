@@ -1,23 +1,29 @@
-//! For one-way converting key/channel, please see [`KeyMappingConverter`] trait.
+//! For one-way converting key/channel, please see [`KeyConverter`] and [`PlayerSideKeyConverter`] traits.
 
 use std::collections::HashMap;
 
-use super::{Key, PlayerSide, mapper::KeyMapping};
+use super::{Key, PlayerSide};
 use crate::bms::ast::rng::JavaRandom;
-use crate::bms::command::time::ObjTime;
 
-/// A trait for converting [`KeyMapping`]s in different layouts.
+/// A trait for converting [`Key`]s in different layouts.
 ///
-/// - Difference from [`super::mapper::KeyLayoutMapper`]:
-///   - [`super::mapper::KeyLayoutMapper`] can convert between different key channel modes. It's two-way.
-///   - [`KeyMappingConverter`] can convert into another key layout. It's one-way.
-///   - [`KeyMappingConverter`] operates on iterators of `(ObjTime, KeyMapping)` pairs, preserving timing information.
-pub trait KeyMappingConverter {
-    /// Convert an iterator of `(ObjTime, KeyMapping)` pairs to another key layout.
-    fn convert<T: KeyMapping>(
+/// This trait provides a simple interface for converting keys without considering player sides.
+/// It operates on iterators of keys, making it suitable for key-only transformations.
+pub trait KeyConverter {
+    /// Convert an iterator of [`Key`]s to another key layout.
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key>;
+}
+
+/// A trait for converting [`PlayerSide`] and [`Key`] pairs in different layouts.
+///
+/// This trait provides an interface for converting (PlayerSide, Key) pairs,
+/// making it suitable for transformations that need to consider both player side and key.
+pub trait PlayerSideKeyConverter {
+    /// Convert an iterator of `(PlayerSide, Key)` pairs to another layout.
+    fn convert(
         &mut self,
-        mappings: impl Iterator<Item = (ObjTime, T)>,
-    ) -> impl Iterator<Item = (ObjTime, T)>;
+        pairs: impl Iterator<Item = (PlayerSide, Key)>,
+    ) -> impl Iterator<Item = (PlayerSide, Key)>;
 }
 
 impl KeyMappingConvertMirror {
@@ -35,15 +41,10 @@ pub struct KeyMappingConvertMirror {
     keys: Vec<Key>,
 }
 
-impl KeyMappingConverter for KeyMappingConvertMirror {
-    fn convert<T: KeyMapping>(
-        &mut self,
-        mappings: impl Iterator<Item = (ObjTime, T)>,
-    ) -> impl Iterator<Item = (ObjTime, T)> {
-        mappings.map(|(time, mapping)| {
-            let (side, kind, key) = mapping.as_tuple();
-            let converted_key = self
-                .keys
+impl KeyConverter for KeyMappingConvertMirror {
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| {
+            self.keys
                 .iter()
                 .position(|k| k == &key)
                 .and_then(|position| {
@@ -51,8 +52,7 @@ impl KeyMappingConverter for KeyMappingConvertMirror {
                     self.keys.get(mirror_index)
                 })
                 .copied()
-                .unwrap_or(key);
-            (time, T::new(side, kind, converted_key))
+                .unwrap_or(key)
         })
     }
 }
@@ -96,16 +96,9 @@ impl KeyMappingConvertLaneRotateShuffle {
     }
 }
 
-impl KeyMappingConverter for KeyMappingConvertLaneRotateShuffle {
-    fn convert<T: KeyMapping>(
-        &mut self,
-        mappings: impl Iterator<Item = (ObjTime, T)>,
-    ) -> impl Iterator<Item = (ObjTime, T)> {
-        mappings.map(|(time, mapping)| {
-            let (side, kind, key) = mapping.as_tuple();
-            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            (time, T::new(side, kind, converted_key))
-        })
+impl KeyConverter for KeyMappingConvertLaneRotateShuffle {
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
     }
 }
 
@@ -145,16 +138,9 @@ impl KeyMappingConvertLaneRandomShuffle {
     }
 }
 
-impl KeyMappingConverter for KeyMappingConvertLaneRandomShuffle {
-    fn convert<T: KeyMapping>(
-        &mut self,
-        mappings: impl Iterator<Item = (ObjTime, T)>,
-    ) -> impl Iterator<Item = (ObjTime, T)> {
-        mappings.map(|(time, mapping)| {
-            let (side, kind, key) = mapping.as_tuple();
-            let converted_key = self.arrangement.get(&key).copied().unwrap_or(key);
-            (time, T::new(side, kind, converted_key))
-        })
+impl KeyConverter for KeyMappingConvertLaneRandomShuffle {
+    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
+        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
     }
 }
 
@@ -162,18 +148,17 @@ impl KeyMappingConverter for KeyMappingConvertLaneRandomShuffle {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyMappingConvertFlip;
 
-impl KeyMappingConverter for KeyMappingConvertFlip {
-    fn convert<T: KeyMapping>(
+impl PlayerSideKeyConverter for KeyMappingConvertFlip {
+    fn convert(
         &mut self,
-        mappings: impl Iterator<Item = (ObjTime, T)>,
-    ) -> impl Iterator<Item = (ObjTime, T)> {
-        mappings.map(|(time, mapping)| {
-            let (side, kind, key) = mapping.as_tuple();
+        pairs: impl Iterator<Item = (PlayerSide, Key)>,
+    ) -> impl Iterator<Item = (PlayerSide, Key)> {
+        pairs.map(|(side, key)| {
             let flipped_side = match side {
                 PlayerSide::Player1 => PlayerSide::Player2,
                 PlayerSide::Player2 => PlayerSide::Player1,
             };
-            (time, T::new(flipped_side, kind, key))
+            (flipped_side, key)
         })
     }
 }
@@ -181,39 +166,9 @@ impl KeyMappingConverter for KeyMappingConvertFlip {
 #[cfg(test)]
 mod channel_mode_tests {
     use super::*;
-    use crate::bms::command::time::ObjTime;
-    use crate::bms::prelude::*;
-
-    /// Create a (ObjTime, KeyLayoutBeat) pair for testing.
-    fn create_mapping(
-        track: u64,
-        position: u64,
-        denominator: u64,
-        side: PlayerSide,
-        kind: NoteKind,
-        key: Key,
-    ) -> (ObjTime, KeyLayoutBeat) {
-        (
-            ObjTime::new(track, position, denominator),
-            KeyLayoutBeat::new(side, kind, key),
-        )
-    }
-
-    /// Create a sequence of mappings with the same parameters but different keys.
-    fn create_mappings(
-        keys: impl IntoIterator<Item = Key>,
-        track: u64,
-        denominator: u64,
-        side: PlayerSide,
-        kind: NoteKind,
-    ) -> impl Iterator<Item = (ObjTime, KeyLayoutBeat)> {
-        keys.into_iter()
-            .enumerate()
-            .map(move |(i, key)| create_mapping(track, i as u64, denominator, side, kind, key))
-    }
 
     #[test]
-    fn test_key_channel_mode_mirror() {
+    fn test_key_converter_mirror() {
         // Test 1: 3 keys
         let mut converter =
             KeyMappingConvertMirror::new(vec![Key::Key(1), Key::Key(2), Key::Key(3)]);
@@ -226,10 +181,8 @@ mod channel_mode_tests {
             Key::Key(4),
             Key::Key(5),
         ];
-        let input_mappings: Vec<_> =
-            create_mappings(keys.clone(), 0, 4, PlayerSide::Player1, NoteKind::Visible).collect();
 
-        // Expected mappings (mirrored: 1->3, 2->2, 3->1, 4->4, 5->5)
+        // Expected keys (mirrored: 1->3, 2->2, 3->1, 4->4, 5->5)
         let expected_keys = vec![
             Key::Key(3),
             Key::Key(2),
@@ -237,11 +190,9 @@ mod channel_mode_tests {
             Key::Key(4),
             Key::Key(5),
         ];
-        let expected_mappings: Vec<_> =
-            create_mappings(expected_keys, 0, 4, PlayerSide::Player1, NoteKind::Visible).collect();
 
-        let result: Vec<_> = converter.convert(input_mappings.into_iter()).collect();
-        assert_eq!(result, expected_mappings);
+        let result: Vec<_> = converter.convert(keys.into_iter()).collect();
+        assert_eq!(result, expected_keys);
     }
 
     /// Parse test examples from string format to (list, seed) tuples.
@@ -282,22 +233,13 @@ mod channel_mode_tests {
         keys: &[Key],
         mut converter: T,
     ) where
-        T: KeyMappingConverter,
+        T: KeyConverter,
     {
         println!("Test case {}: seed = {}", test_case_idx, seed);
 
-        let mappings: Vec<_> = create_mappings(
-            keys.iter().copied(),
-            0,
-            keys.len() as u64,
-            PlayerSide::Player1,
-            NoteKind::Visible,
-        )
-        .collect();
-
         let result_values = converter
-            .convert(mappings.into_iter())
-            .map(|(_, mapping)| key_to_value(mapping.key()))
+            .convert(keys.iter().copied())
+            .map(|key| key_to_value(key))
             .collect::<Vec<_>>();
 
         println!("  Expected: {:?}", expected_list);
@@ -362,42 +304,35 @@ mod channel_mode_tests {
 
     /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
     #[test]
-    fn test_key_mapping_convert_flip() {
+    fn test_player_side_key_converter_flip() {
         let mut converter = KeyMappingConvertFlip::default();
 
-        // Test data: (PlayerSide, NoteKind, Key)
+        // Test data: (PlayerSide, Key)
         let test_cases = vec![
-            (PlayerSide::Player1, NoteKind::Visible, Key::Key(1)),
-            (PlayerSide::Player2, NoteKind::Long, Key::Key(2)),
-            (PlayerSide::Player1, NoteKind::Invisible, Key::Scratch(1)),
-            (PlayerSide::Player2, NoteKind::Landmine, Key::FreeZone),
+            (PlayerSide::Player1, Key::Key(1)),
+            (PlayerSide::Player2, Key::Key(2)),
+            (PlayerSide::Player1, Key::Scratch(1)),
+            (PlayerSide::Player2, Key::FreeZone),
         ];
 
         // Test flip conversion
-        let input_mappings: Vec<_> = test_cases
-            .iter()
-            .enumerate()
-            .map(|(i, (side, kind, key))| create_mapping(0, i as u64, 4, *side, *kind, *key))
-            .collect();
+        let input_pairs: Vec<_> = test_cases.clone();
 
-        let expected_mappings: Vec<_> = test_cases
+        let expected_pairs: Vec<_> = test_cases
             .iter()
-            .enumerate()
-            .map(|(i, (side, kind, key))| {
+            .map(|(side, key)| {
                 let flipped_side = match side {
                     PlayerSide::Player1 => PlayerSide::Player2,
                     PlayerSide::Player2 => PlayerSide::Player1,
                 };
-                create_mapping(0, i as u64, 4, flipped_side, *kind, *key)
+                (flipped_side, *key)
             })
             .collect();
 
-        let result: Vec<_> = converter
-            .convert(input_mappings.clone().into_iter())
-            .collect();
-        assert_eq!(&result, &expected_mappings);
+        let result: Vec<_> = converter.convert(input_pairs.clone().into_iter()).collect();
+        assert_eq!(&result, &expected_pairs);
 
         let result2: Vec<_> = converter.convert(result.into_iter()).collect();
-        assert_eq!(&result2, &input_mappings);
+        assert_eq!(&result2, &input_pairs);
     }
 }
