@@ -81,17 +81,30 @@ impl Bms {
         let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
 
         // Convert info to header
-        bms.header.title = Some(value.info.title);
-        bms.header.subtitle = Some(value.info.subtitle);
-        bms.header.artist = Some(value.info.artist);
-        bms.header.sub_artist = value.info.subartists.first().cloned();
-        bms.header.genre = Some(value.info.genre);
+        bms.header.title = Some(value.info.title.into_owned());
+        bms.header.subtitle = Some(value.info.subtitle.into_owned());
+        bms.header.artist = Some(value.info.artist.into_owned());
+        bms.header.sub_artist = value
+            .info
+            .subartists
+            .first()
+            .map(|s| s.clone().into_owned());
+        bms.header.genre = Some(value.info.genre.into_owned());
         bms.header.play_level = Some(value.info.level as u8);
         bms.header.total = Some(Decimal::from(value.info.total.as_f64()));
-        bms.header.back_bmp = value.info.back_image.map(PathBuf::from);
-        bms.header.stage_file = value.info.eyecatch_image.map(PathBuf::from);
-        bms.header.banner = value.info.banner_image.map(PathBuf::from);
-        bms.header.preview_music = value.info.preview_music.map(PathBuf::from);
+        bms.header.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
+        bms.header.stage_file = value
+            .info
+            .eyecatch_image
+            .map(|s| PathBuf::from(s.into_owned()));
+        bms.header.banner = value
+            .info
+            .banner_image
+            .map(|s| PathBuf::from(s.into_owned()));
+        bms.header.preview_music = value
+            .info
+            .preview_music
+            .map(|s| PathBuf::from(s.into_owned()));
 
         // Convert judge rank
         let judge_rank_value = (value.info.judge_rank.as_f64() * 18.0) as i64;
@@ -164,7 +177,7 @@ impl Bms {
 
         // Convert sound channels to notes
         for sound_channel in value.sound_channels {
-            let wav_path = PathBuf::from(sound_channel.name);
+            let wav_path = PathBuf::from(sound_channel.name.into_owned());
             let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
@@ -191,7 +204,7 @@ impl Bms {
 
         // Convert mine channels
         for mine_channel in value.mine_channels {
-            let wav_path = PathBuf::from(mine_channel.name);
+            let wav_path = PathBuf::from(mine_channel.name.into_owned());
             let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
@@ -213,7 +226,7 @@ impl Bms {
 
         // Convert key channels (invisible notes)
         for key_channel in value.key_channels {
-            let wav_path = PathBuf::from(key_channel.name);
+            let wav_path = PathBuf::from(key_channel.name.into_owned());
             let obj_id = wav_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
@@ -238,7 +251,7 @@ impl Bms {
         let mut bga_id_to_obj_id = std::collections::HashMap::new();
 
         for bga_header in value.bga.bga_header {
-            let bmp_path = PathBuf::from(bga_header.name);
+            let bmp_path = PathBuf::from(bga_header.name.into_owned());
             let obj_id = bga_header_obj_id_issuer.next().unwrap_or_else(|| {
                 warnings.push(BmsonToBmsWarning::BgaHeaderObjIdOutOfRange);
                 ObjId::null()

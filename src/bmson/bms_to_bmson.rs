@@ -1,6 +1,6 @@
 //! Part: Convert `Bms` to `Bmson`.
 
-use std::{collections::HashMap, num::NonZeroU8};
+use std::{borrow::Cow, collections::HashMap, num::NonZeroU8};
 
 use num::ToPrimitive;
 use thiserror::Error;
@@ -47,16 +47,16 @@ pub enum BmsToBmsonWarning {
 /// Output of the conversion from `Bms` to `Bmson`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
-pub struct BmsToBmsonOutput {
+pub struct BmsToBmsonOutput<'a> {
     /// The converted `Bmson` object.
-    pub bmson: Bmson,
+    pub bmson: Bmson<'a>,
     /// Warnings that occurred during the conversion.
     pub warnings: Vec<BmsToBmsonWarning>,
 }
 
 impl Bms {
     /// Convert `Bms` to `Bmson`.
-    pub fn to_bmson(self) -> BmsToBmsonOutput {
+    pub fn to_bmson<'a>(self) -> BmsToBmsonOutput<'a> {
         const EASY_WIDTH: f64 = 21.0;
         const VERY_EASY_WIDTH: f64 = EASY_WIDTH * 1.25;
         const NORMAL_WIDTH: f64 = 18.0;
@@ -115,11 +115,11 @@ impl Bms {
             .collect();
 
         let info = BmsonInfo {
-            title: self.header.title.unwrap_or_default(),
-            subtitle: self.header.subtitle.unwrap_or_default(),
-            artist: self.header.artist.unwrap_or_default(),
-            subartists: vec![self.header.sub_artist.unwrap_or_default()],
-            genre: self.header.genre.unwrap_or_default(),
+            title: Cow::Owned(self.header.title.unwrap_or_default()),
+            subtitle: Cow::Owned(self.header.subtitle.unwrap_or_default()),
+            artist: Cow::Owned(self.header.artist.unwrap_or_default()),
+            subartists: vec![Cow::Owned(self.header.sub_artist.unwrap_or_default())],
+            genre: Cow::Owned(self.header.genre.unwrap_or_default()),
             mode_hint: {
                 // TODO: Support other modes
                 let is_7keys = self.notes.all_notes().any(|note| {
@@ -139,7 +139,7 @@ impl Bms {
                     (false, false) => "beat-5k".into(),
                 }
             },
-            chart_name: String::new(),
+            chart_name: Cow::Owned(String::new()),
             level: self.header.play_level.unwrap_or_default() as u32,
             init_bpm: {
                 let bpm_value = if let Some(bpm) = self.arrangers.bpm.as_ref() {
@@ -170,13 +170,19 @@ impl Bms {
                 .header
                 .back_bmp
                 .clone()
-                .map(|path| path.display().to_string()),
+                .map(|path| Cow::Owned(path.display().to_string())),
             eyecatch_image: self
                 .header
                 .stage_file
-                .map(|path| path.display().to_string()),
-            title_image: self.header.back_bmp.map(|path| path.display().to_string()),
-            banner_image: self.header.banner.map(|path| path.display().to_string()),
+                .map(|path| Cow::Owned(path.display().to_string())),
+            title_image: self
+                .header
+                .back_bmp
+                .map(|path| Cow::Owned(path.display().to_string())),
+            banner_image: self
+                .header
+                .banner
+                .map(|path| Cow::Owned(path.display().to_string())),
             preview_music: None,
             resolution,
             ln_type: self.header.ln_mode,
@@ -268,7 +274,7 @@ impl Bms {
                     let sound_path =
                         path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     SoundChannel {
-                        name: sound_path.display().to_string(),
+                        name: Cow::Owned(sound_path.display().to_string()),
                         notes,
                     }
                 })
@@ -279,7 +285,7 @@ impl Bms {
                     let sound_path =
                         path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     MineChannel {
-                        name: sound_path.display().to_string(),
+                        name: Cow::Owned(sound_path.display().to_string()),
                         notes,
                     }
                 })
@@ -290,7 +296,7 @@ impl Bms {
                     let sound_path =
                         path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
                     KeyChannel {
-                        name: sound_path.display().to_string(),
+                        name: Cow::Owned(sound_path.display().to_string()),
                         notes,
                     }
                 })
@@ -308,7 +314,7 @@ impl Bms {
             for (id, bmp) in &self.graphics.bmp_files {
                 bga.bga_header.push(BgaHeader {
                     id: BgaId(id.as_u32()),
-                    name: bmp.file.display().to_string(),
+                    name: Cow::Owned(bmp.file.display().to_string()),
                 });
             }
             for (&time, change) in self.graphics.bga_changes() {
@@ -343,7 +349,7 @@ impl Bms {
             .collect();
 
         let bmson = Bmson {
-            version: "1.0.0".into(),
+            version: Cow::Borrowed("1.0.0"),
             info,
             lines: Some(lines),
             bpm_events,

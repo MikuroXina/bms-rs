@@ -4,29 +4,30 @@ use bms_rs::{
     bms::{command::LnMode, model::Bms},
     bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
 };
+use std::borrow::Cow;
 
 #[test]
 fn test_bmson_to_bms_conversion() {
     // Create a simple Bmson
     let bmson = Bmson {
-        version: "1.0.0".to_string(),
+        version: Cow::Borrowed("1.0.0"),
         info: BmsonInfo {
-            title: "Test Song".to_string(),
-            subtitle: "Test Subtitle".to_string(),
-            artist: "Test Artist".to_string(),
-            subartists: vec!["Test Sub Artist".to_string()],
-            genre: "Test Genre".to_string(),
-            mode_hint: "beat-7k".to_string(),
-            chart_name: "NORMAL".to_string(),
+            title: Cow::Borrowed("Test Song"),
+            subtitle: Cow::Borrowed("Test Subtitle"),
+            artist: Cow::Borrowed("Test Artist"),
+            subartists: vec![Cow::Borrowed("Test Sub Artist")],
+            genre: Cow::Borrowed("Test Genre"),
+            mode_hint: Cow::Borrowed("beat-7k"),
+            chart_name: Cow::Borrowed("NORMAL"),
             level: 5,
             init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
             judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
             total: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
-            back_image: Some("back.png".to_string()),
-            eyecatch_image: Some("eyecatch.png".to_string()),
-            title_image: Some("title.png".to_string()),
-            banner_image: Some("banner.png".to_string()),
-            preview_music: Some("preview.wav".to_string()),
+            back_image: Some(Cow::Borrowed("back.png")),
+            eyecatch_image: Some(Cow::Borrowed("eyecatch.png")),
+            title_image: Some(Cow::Borrowed("title.png")),
+            banner_image: Some(Cow::Borrowed("banner.png")),
+            preview_music: Some(Cow::Borrowed("preview.wav")),
             resolution: 240,
             ln_type: LnMode::Ln,
         },
@@ -75,15 +76,15 @@ fn test_bmson_to_bms_with_notes() {
     use std::num::NonZeroU8;
 
     let bmson = Bmson {
-        version: "1.0.0".to_string(),
+        version: Cow::Borrowed("1.0.0"),
         info: BmsonInfo {
-            title: "Test Song".to_string(),
-            subtitle: "".to_string(),
-            artist: "Test Artist".to_string(),
+            title: Cow::Borrowed("Test Song"),
+            subtitle: Cow::Borrowed(""),
+            artist: Cow::Borrowed("Test Artist"),
             subartists: vec![],
-            genre: "Test Genre".to_string(),
-            mode_hint: "beat-7k".to_string(),
-            chart_name: "".to_string(),
+            genre: Cow::Borrowed("Test Genre"),
+            mode_hint: Cow::Borrowed("beat-7k"),
+            chart_name: Cow::Borrowed(""),
             level: 5,
             init_bpm: bms_rs::bmson::fin_f64::FinF64::new(120.0).unwrap(),
             judge_rank: bms_rs::bmson::fin_f64::FinF64::new(100.0).unwrap(),
@@ -100,7 +101,7 @@ fn test_bmson_to_bms_with_notes() {
         bpm_events: vec![],
         stop_events: vec![],
         sound_channels: vec![SoundChannel {
-            name: "test.wav".to_string(),
+            name: Cow::Borrowed("test.wav"),
             notes: vec![
                 Note {
                     y: PulseNumber(240),                 // 1 quarter note

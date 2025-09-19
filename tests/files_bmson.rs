@@ -1,7 +1,7 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, pulse::PulseNumber,
+    BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, parse_bmson, pulse::PulseNumber,
 };
 
 #[test]
@@ -9,7 +9,7 @@ fn test_bmson100_lostokens() {
     let data = include_str!("files_bmson/lostokens.bmson");
     let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
     // Basic fields assertion
-    assert_eq!(bmson.info.title, "lostokens");
+    assert_eq!(bmson.info.title.as_ref(), "lostokens");
     assert_eq!(bmson.info.level, 5);
     assert!(!bmson.sound_channels.is_empty());
 }
@@ -19,13 +19,13 @@ fn test_bmson100_bemusic_story_48key() {
     let data = include_str!("files_bmson/bemusicstory_483_48K_ANOTHER.bmson");
     let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
     // Basic fields assertion
-    assert_eq!(bmson.info.title, "BE-MUSiC⇒STORY".to_string());
+    assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");
     // Bga
     assert_eq!(
         bmson.bga.bga_header,
         vec![BgaHeader {
             id: BgaId(1),
-            name: "_BGA.mp4".to_string()
+            name: std::borrow::Cow::Borrowed("_BGA.mp4")
         }]
     );
     assert_eq!(
@@ -49,4 +49,104 @@ fn test_bmson100_bemusic_story_48key() {
             }
         ]
     );
+}
+
+#[test]
+fn test_parse_bmson_success() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "genre": "Test Genre",
+            "level": 5,
+            "init_bpm": 120.0,
+            "judge_rank": 100.0,
+            "total": 100.0,
+            "resolution": 240
+        },
+        "sound_channels": []
+    }"#;
+
+    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    assert_eq!(bmson.info.title.as_ref(), "Test Song");
+    assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
+    assert_eq!(bmson.info.level, 5);
+    assert_eq!(bmson.info.resolution, 240);
+}
+
+#[test]
+fn test_parse_bmson_with_invalid_json() {
+    let invalid_json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "genre": "Test Genre",
+            "level": "invalid_level",
+            "init_bpm": 120.0,
+            "judge_rank": 100.0,
+            "total": 100.0,
+            "resolution": 240
+        },
+        "sound_channels": []
+    }"#;
+
+    let result = parse_bmson(invalid_json);
+    assert!(result.is_err());
+
+    let err = result.unwrap_err();
+    // The error should contain path information about the invalid field "level"
+    let path = err.path().to_string();
+    let inner_err = err.into_inner();
+    assert!(!path.is_empty());
+
+    // Check that the error message contains information about the invalid type
+    let error_string = format!("{}", inner_err);
+    assert!(
+        error_string.contains("invalid type") || error_string.contains("expected"),
+        "Error message should indicate invalid type. Got: {}",
+        error_string
+    );
+
+    // The path should contain information about the problematic field
+    assert!(
+        path.contains("info.level"),
+        "Error path should contain 'level' field information. Got path: {}",
+        path
+    );
+
+    println!("Error path: {}", path);
+    println!("Error message: {}", inner_err);
+}
+
+#[test]
+fn test_parse_bmson_with_missing_required_field() {
+    let incomplete_json = r#"{
+        "version": "1.0.0",
+        "sound_channels": []
+    }"#;
+
+    let result = parse_bmson(incomplete_json);
+    assert!(result.is_err());
+
+    let err = result.unwrap_err();
+    // Should indicate missing "info" field
+    let path = err.path().to_string();
+    let inner_err = err.into_inner();
+    assert!(!path.is_empty());
+
+    // Check that the error message contains information about the missing field
+    let error_string = format!("{}", inner_err);
+    assert!(
+        error_string.contains("missing field") || error_string.contains("info"),
+        "Error message should indicate missing 'info' field. Got: {}",
+        error_string
+    );
+
+    // The path may be empty for missing fields, but the error message should contain field info
+    // Note: serde_path_to_error may not always provide path info for missing fields
+
+    println!("Error path: {}", path);
+    println!("Error message: {}", inner_err);
 }
