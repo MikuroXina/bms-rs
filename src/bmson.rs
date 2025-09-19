@@ -99,7 +99,7 @@ pub struct BmsonInfo<'a> {
     /// Hint for layout lanes, e.g. "beat-7k", "popn-5k", "generic-nkeys". Defaults to `"beat-7k"`.
     ///
     /// If you want to support many lane modes of BMS, you should check this to determine the layout for lanes. Also you can check all lane information in `sound_channels` for strict implementation.
-    #[serde(default = "default_mode_hint")]
+    #[serde(default = "default_mode_hint_cow")]
     pub mode_hint: Cow<'a, str>,
     /// Special chart name, e.g. "BEGINNER", "NORMAL", "HYPER", "FOUR DIMENSIONS".
     #[serde(default)]
@@ -138,9 +138,12 @@ pub struct BmsonInfo<'a> {
 }
 
 /// Default mode hint, beatmania 7 keys.
-#[must_use]
-pub fn default_mode_hint() -> Cow<'static, str> {
-    Cow::Borrowed("beat-7k")
+pub fn default_mode_hint() -> &'static str {
+    "beat-7k"
+}
+
+fn default_mode_hint_cow() -> Cow<'static, str> {
+    Cow::Borrowed(default_mode_hint())
 }
 
 /// Default relative percentage, 100%.
