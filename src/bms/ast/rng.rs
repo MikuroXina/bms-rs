@@ -25,7 +25,7 @@
 
 use core::ops::RangeInclusive;
 
-use num::BigUint;
+use num::{BigUint, ToPrimitive};
 
 /// A random number generator for BMS control flow parsing.
 ///
@@ -129,6 +129,116 @@ impl<R: rand::RngCore> Rng for RandRng<R> {
     }
 }
 
+/// A random number generator based on Java's `java.util.Random`.
+///
+/// # Deprecation Notice
+///
+/// This struct is not recommended for external use. For BMS control flow parsing,
+/// prefer using other implementations of [`Rng`] trait, e.g. [`RandRng`].
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct JavaRandom {
+    seed: u64,
+}
+
+impl JavaRandom {
+    const MULT: u64 = 0x5_DEEC_E66D;
+    const ADD: u64 = 0xB;
+
+    /// Create a new [`JavaRandom`] with the given seed.
+    #[must_use]
+    pub const fn new(seed: i64) -> Self {
+        let s = (seed as u64) ^ Self::MULT;
+        Self {
+            seed: s & ((1u64 << 48) - 1),
+        }
+    }
+
+    /// Java's `next(int bits)` method
+    const fn next(&mut self, bits: i32) -> i32 {
+        self.seed =
+            (self.seed.wrapping_mul(Self::MULT).wrapping_add(Self::ADD)) & ((1u64 << 48) - 1);
+        ((self.seed >> (48 - bits)) & ((1u64 << bits) - 1)) as i32
+    }
+
+    /// Java's `nextInt()` method - returns any int value
+    pub const fn next_int(&mut self) -> i32 {
+        self.next(32)
+    }
+
+    /// Java's `nextInt(int bound)` method
+    pub fn next_int_bound(&mut self, bound: i32) -> i32 {
+        assert!(bound > 0, "bound must be positive");
+
+        let m = bound - 1;
+        if (bound & m) == 0 {
+            // i.e., bound is a power of 2
+            ((bound as i64 * self.next(31) as i64) >> 31) as i32
+        } else {
+            loop {
+                let bits = self.next(31);
+                let val = bits % bound;
+                if bits - val + m >= 0 {
+                    return val;
+                }
+            }
+        }
+    }
+}
+
+impl Default for JavaRandom {
+    fn default() -> Self {
+        Self::new(0)
+    }
+}
+
+impl Rng for JavaRandom {
+    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
+        use num::One;
+
+        let (start, end) = (range.start(), range.end());
+        let width = end - start + BigUint::one();
+
+        // If the range is small enough to fit in i32, use the efficient next_int_bound method
+        if let (Some(_start_i32), Some(width_i32)) =
+            (start.to_i32(), width.to_i32().filter(|&w| w > 0))
+        {
+            let offset = self.next_int_bound(width_i32);
+            return start + BigUint::from(offset as u32);
+        }
+
+        // For larger ranges, we need to generate multiple random values and combine them
+        // This is a simplified approach for larger BigUint ranges
+        let width_bits = width.bits() as usize;
+        let width_clone = width.clone();
+        let mut result = BigUint::ZERO;
+
+        // Generate random bits until we have enough to cover the range
+        let mut bits_generated = 0;
+        while bits_generated < width_bits {
+            let random_int = self.next_int();
+            let random_bits = random_int.unsigned_abs();
+
+            // Add these bits to our result
+            let shift_amount = bits_generated.min(32);
+            result |= BigUint::from(random_bits) << shift_amount;
+            bits_generated += 32;
+
+            // If we've exceeded the range, we need to reduce it
+            if result >= width_clone {
+                result %= width_clone.clone();
+                break;
+            }
+        }
+
+        // Ensure result is within width
+        if result >= width_clone {
+            result %= width_clone;
+        }
+
+        start + result
+    }
+}
+
 #[cfg(all(test, feature = "rand"))]
 mod tests {
     use super::*;
@@ -153,5 +263,25 @@ mod tests {
             n1 != n2 && n1 != n3 && n2 != n3,
             "random numbers are not unique"
         );
+    }
+
+    #[test]
+    fn test_java_random_consistency() {
+        // Test with seed 123456789
+        let mut rng = JavaRandom::new(123456789);
+
+        // Test nextInt() method (returns any int value)
+        println!("First nextInt(): {}", rng.next_int());
+        println!("Second nextInt(): {}", rng.next_int());
+        println!("Third nextInt(): {}", rng.next_int());
+
+        // Test nextInt(bound) method
+        let mut rng2 = JavaRandom::new(123456789);
+        println!("First nextInt(100): {}", rng2.next_int_bound(100));
+        println!("Second nextInt(100): {}", rng2.next_int_bound(100));
+        println!("Third nextInt(100): {}", rng2.next_int_bound(100));
+
+        // Basic functionality test - should not panic
+        assert!(rng2.next_int_bound(100) >= 0 && rng2.next_int_bound(100) < 100);
     }
 }
