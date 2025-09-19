@@ -138,6 +138,7 @@ pub struct BmsonInfo<'a> {
 }
 
 /// Default mode hint, beatmania 7 keys.
+#[must_use]
 pub fn default_mode_hint() -> &'static str {
     "beat-7k"
 }
