@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/MikuroXina/bms-rs/compare/v0.9.0...v0.10.0) (2025-09-19)
+
+
+### Features
+
+* parse_bmson, serde_path_to_error version ([#201](https://github.com/MikuroXina/bms-rs/issues/201)) ([6ab9044](https://github.com/MikuroXina/bms-rs/commit/6ab904406f30931cb8a07d141b23565fd5a75227))
+
 ## [0.9.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v0.9.0) (2025-09-02)
 
 
