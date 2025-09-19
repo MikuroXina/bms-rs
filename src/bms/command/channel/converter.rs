@@ -5,16 +5,16 @@ use std::collections::HashMap;
 use super::{Key, PlayerSide};
 use crate::bms::ast::rng::JavaRandom;
 
-/// A trait for converting [`Key`]s in different layouts.
+/// A trait for converting [`super::Key`]s in different layouts.
 ///
 /// This trait provides a simple interface for converting keys without considering player sides.
 /// It operates on iterators of keys, making it suitable for key-only transformations.
 pub trait KeyConverter {
-    /// Convert an iterator of [`Key`]s to another key layout.
+    /// Convert an iterator of [`super::Key`]s to another key layout.
     fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key>;
 }
 
-/// A trait for converting [`PlayerSide`] and [`Key`] pairs in different layouts.
+/// A trait for converting [`super::PlayerSide`] and [`super::Key`] pairs in different layouts.
 ///
 /// This trait provides an interface for converting (PlayerSide, Key) pairs,
 /// making it suitable for transformations that need to consider both player side and key.
@@ -27,7 +27,7 @@ pub trait PlayerSideKeyConverter {
 }
 
 impl KeyMappingConvertMirror {
-    /// Create a new [`KeyMappingConvertMirror`] with the given [`Key`]s.
+    /// Create a new [`KeyMappingConvertMirror`] with the given [`super::Key`]s.
     #[must_use]
     pub const fn new(keys: Vec<Key>) -> Self {
         Self { keys }
@@ -37,7 +37,7 @@ impl KeyMappingConvertMirror {
 /// Mirror the keys within the specified key list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyMappingConvertMirror {
-    /// A list of [`Key`]s to mirror. Usually, it should be the keys that actually used in the song.
+    /// A list of [`super::Key`]s to mirror. Usually, it should be the keys that actually used in the song.
     keys: Vec<Key>,
 }
 
@@ -60,12 +60,12 @@ impl KeyConverter for KeyMappingConvertMirror {
 /// A modifier that rotates the lanes of keys.
 #[derive(Debug, Clone)]
 pub struct KeyMappingConvertLaneRotateShuffle {
-    /// A map of [`Key`]s to their new [`Key`]s.
+    /// A map of [`super::Key`]s to their new [`super::Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
 impl KeyMappingConvertLaneRotateShuffle {
-    /// Create a new [`KeyMappingConvertLaneRotateShuffle`] with the given [`Key`]s and seed.
+    /// Create a new [`KeyMappingConvertLaneRotateShuffle`] with the given [`super::Key`]s and seed.
     #[must_use]
     pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
@@ -107,12 +107,12 @@ impl KeyConverter for KeyMappingConvertLaneRotateShuffle {
 /// Its action is similar to beatoraja's lane shuffle.
 #[derive(Debug, Clone)]
 pub struct KeyMappingConvertLaneRandomShuffle {
-    /// A map of [`Key`]s to their new [`Key`]s.
+    /// A map of [`super::Key`]s to their new [`super::Key`]s.
     arrangement: HashMap<Key, Key>,
 }
 
 impl KeyMappingConvertLaneRandomShuffle {
-    /// Create a new [`KeyMappingConvertLaneRandomShuffle`] with the given [`Key`]s and seed.
+    /// Create a new [`KeyMappingConvertLaneRandomShuffle`] with the given [`super::Key`]s and seed.
     #[must_use]
     pub fn new(keys: &[Key], seed: i64) -> Self {
         Self {
