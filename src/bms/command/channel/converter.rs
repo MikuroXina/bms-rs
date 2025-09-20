@@ -8,10 +8,10 @@ use crate::bms::ast::rng::JavaRandom;
 /// A trait for converting [`super::Key`]s in different layouts.
 ///
 /// This trait provides a simple interface for converting keys without considering player sides.
-/// It operates on iterators of keys, making it suitable for key-only transformations.
+/// It operates on single keys, making it suitable for key-only transformations.
 pub trait KeyConverter {
-    /// Convert an iterator of [`super::Key`]s to another key layout.
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key>;
+    /// Convert a single [`super::Key`] to another key layout.
+    fn convert(&mut self, key: Key) -> Key;
 }
 
 /// A trait for converting [`super::PlayerSide`] and [`super::Key`] pairs in different layouts.
@@ -19,11 +19,8 @@ pub trait KeyConverter {
 /// This trait provides an interface for converting (PlayerSide, Key) pairs,
 /// making it suitable for transformations that need to consider both player side and key.
 pub trait PlayerSideKeyConverter {
-    /// Convert an iterator of `(PlayerSide, Key)` pairs to another layout.
-    fn convert(
-        &mut self,
-        pairs: impl Iterator<Item = (PlayerSide, Key)>,
-    ) -> impl Iterator<Item = (PlayerSide, Key)>;
+    /// Convert a single `(PlayerSide, Key)` pair to another layout.
+    fn convert(&mut self, pair: (PlayerSide, Key)) -> (PlayerSide, Key);
 }
 
 impl KeyMappingConvertMirror {
@@ -42,18 +39,16 @@ pub struct KeyMappingConvertMirror {
 }
 
 impl KeyConverter for KeyMappingConvertMirror {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| {
-            self.keys
-                .iter()
-                .position(|k| k == &key)
-                .and_then(|position| {
-                    let mirror_index = self.keys.len().saturating_sub(position + 1);
-                    self.keys.get(mirror_index)
-                })
-                .copied()
-                .unwrap_or(key)
-        })
+    fn convert(&mut self, key: Key) -> Key {
+        self.keys
+            .iter()
+            .position(|k| k == &key)
+            .and_then(|position| {
+                let mirror_index = self.keys.len().saturating_sub(position + 1);
+                self.keys.get(mirror_index)
+            })
+            .copied()
+            .unwrap_or(key)
     }
 }
 
@@ -97,8 +92,8 @@ impl KeyMappingConvertLaneRotateShuffle {
 }
 
 impl KeyConverter for KeyMappingConvertLaneRotateShuffle {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
+    fn convert(&mut self, key: Key) -> Key {
+        self.arrangement.get(&key).copied().unwrap_or(key)
     }
 }
 
@@ -139,8 +134,8 @@ impl KeyMappingConvertLaneRandomShuffle {
 }
 
 impl KeyConverter for KeyMappingConvertLaneRandomShuffle {
-    fn convert(&mut self, keys: impl Iterator<Item = Key>) -> impl Iterator<Item = Key> {
-        keys.map(|key| self.arrangement.get(&key).copied().unwrap_or(key))
+    fn convert(&mut self, key: Key) -> Key {
+        self.arrangement.get(&key).copied().unwrap_or(key)
     }
 }
 
@@ -149,17 +144,13 @@ impl KeyConverter for KeyMappingConvertLaneRandomShuffle {
 pub struct KeyMappingConvertFlip;
 
 impl PlayerSideKeyConverter for KeyMappingConvertFlip {
-    fn convert(
-        &mut self,
-        pairs: impl Iterator<Item = (PlayerSide, Key)>,
-    ) -> impl Iterator<Item = (PlayerSide, Key)> {
-        pairs.map(|(side, key)| {
-            let flipped_side = match side {
-                PlayerSide::Player1 => PlayerSide::Player2,
-                PlayerSide::Player2 => PlayerSide::Player1,
-            };
-            (flipped_side, key)
-        })
+    fn convert(&mut self, pair: (PlayerSide, Key)) -> (PlayerSide, Key) {
+        let (side, key) = pair;
+        let flipped_side = match side {
+            PlayerSide::Player1 => PlayerSide::Player2,
+            PlayerSide::Player2 => PlayerSide::Player1,
+        };
+        (flipped_side, key)
     }
 }
 
@@ -191,7 +182,7 @@ mod channel_mode_tests {
             Key::Key(5),
         ];
 
-        let result: Vec<_> = converter.convert(keys.into_iter()).collect();
+        let result: Vec<_> = keys.into_iter().map(|key| converter.convert(key)).collect();
         assert_eq!(result, expected_keys);
     }
 
@@ -237,9 +228,9 @@ mod channel_mode_tests {
     {
         println!("Test case {}: seed = {}", test_case_idx, seed);
 
-        let result_values = converter
-            .convert(keys.iter().copied())
-            .map(|key| key_to_value(key))
+        let result_values = keys
+            .iter()
+            .map(|&key| key_to_value(converter.convert(key)))
             .collect::<Vec<_>>();
 
         println!("  Expected: {:?}", expected_list);
@@ -329,10 +320,16 @@ mod channel_mode_tests {
             })
             .collect();
 
-        let result: Vec<_> = converter.convert(input_pairs.clone().into_iter()).collect();
-        assert_eq!(&result, &expected_pairs);
+        let result: Vec<_> = input_pairs
+            .iter()
+            .map(|&pair| (&mut converter).convert(pair))
+            .collect();
+        assert_eq!(result, expected_pairs);
 
-        let result2: Vec<_> = converter.convert(result.into_iter()).collect();
-        assert_eq!(&result2, &input_pairs);
+        let result2: Vec<_> = result
+            .iter()
+            .map(|&pair| (&mut converter).convert(pair))
+            .collect();
+        assert_eq!(result2, input_pairs);
     }
 }
