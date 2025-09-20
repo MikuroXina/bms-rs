@@ -296,7 +296,7 @@ mod channel_mode_tests {
     /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
     #[test]
     fn test_player_side_key_converter_flip() {
-        let mut converter = KeyMappingConvertFlip::default();
+        let mut converter = KeyMappingConvertFlip;
 
         // Test data: (PlayerSide, Key)
         let test_cases = vec![
@@ -322,14 +322,11 @@ mod channel_mode_tests {
 
         let result: Vec<_> = input_pairs
             .iter()
-            .map(|&pair| (&mut converter).convert(pair))
+            .map(|&pair| converter.convert(pair))
             .collect();
         assert_eq!(result, expected_pairs);
 
-        let result2: Vec<_> = result
-            .iter()
-            .map(|&pair| (&mut converter).convert(pair))
-            .collect();
+        let result2: Vec<_> = result.iter().map(|&pair| converter.convert(pair)).collect();
         assert_eq!(result2, input_pairs);
     }
 }
