@@ -30,6 +30,7 @@ pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
 pub mod parse;
+pub mod prelude;
 pub mod pulse;
 
 use std::{borrow::Cow, num::NonZeroU8};
