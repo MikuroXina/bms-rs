@@ -5,14 +5,16 @@ use std::{
 
 use num::BigUint;
 
-use crate::bms::{
-    ast::{
-        AstBuildWarningWithRange,
-        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
+use crate::{
+    bms::{
+        ast::{
+            AstBuildWarningWithRange,
+            structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
+        },
+        command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+        lex::token::{Token, TokenWithRange},
     },
-    command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
     diagnostics::{SimpleSource, ToAriadne},
-    lex::token::{Token, TokenWithRange},
 };
 use ariadne::{Color, Label, Report, ReportKind};
 

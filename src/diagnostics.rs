@@ -11,7 +11,7 @@
 //! # Usage Example
 //!
 //! ```rust
-//! use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat};
+//! use bms_rs::{diagnostics::emit_bms_warnings, bms::{BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat}};
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
@@ -21,8 +21,6 @@
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);
 //! ```
 
-use crate::bms::BmsWarning;
-
 use ariadne::{Report, Source};
 
 /// Simple source container that holds the filename and source text.
@@ -31,7 +29,7 @@ use ariadne::{Report, Source};
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::bms::diagnostics::SimpleSource;
+/// use bms_rs::diagnostics::SimpleSource;
 ///
 /// // Create source container
 /// let source_text = "#TITLE test\n#ARTIST composer\n";
@@ -82,7 +80,7 @@ impl<'a> SimpleSource<'a> {
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::bms::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, BmsWarning};
+/// use bms_rs::{diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings}, bms::BmsWarning};
 /// use ariadne::Source;
 ///
 /// // Assume there are warnings generated during BMS parsing
@@ -122,7 +120,7 @@ pub trait ToAriadne {
 /// # Usage Example
 ///
 /// ```rust
-/// use bms_rs::bms::{diagnostics::emit_bms_warnings, BmsWarning};
+/// use bms_rs::{diagnostics::emit_bms_warnings, bms::BmsWarning};
 ///
 /// // BMS source text
 /// let bms_source = "#TITLE My Song\n#ARTIST Composer\n#BPM 120\n";
@@ -141,7 +139,7 @@ pub trait ToAriadne {
 pub fn emit_bms_warnings<'a>(
     name: &'a str,
     source: &'a str,
-    warnings: impl IntoIterator<Item = &'a BmsWarning>,
+    warnings: impl IntoIterator<Item = &'a crate::bms::BmsWarning>,
 ) {
     let simple = SimpleSource::new(name, source);
     let ariadne_source = Source::from(source);

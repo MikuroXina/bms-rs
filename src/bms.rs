@@ -20,7 +20,6 @@ use num::BigUint;
 
 pub mod ast;
 pub mod command;
-pub mod diagnostics;
 pub mod lex;
 pub mod model;
 pub mod parse;
@@ -30,7 +29,7 @@ use thiserror::Error;
 
 use ariadne::{Label, Report, ReportKind};
 
-use crate::bms::diagnostics::{SimpleSource, ToAriadne};
+use crate::diagnostics::{SimpleSource, ToAriadne};
 
 #[cfg(feature = "rand")]
 use self::ast::rng::RandRng;

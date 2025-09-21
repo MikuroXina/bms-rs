@@ -4,7 +4,7 @@ use ariadne::{Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use serde_json::Value;
 
-use crate::bms::diagnostics::{SimpleSource, ToAriadne};
+use crate::diagnostics::{SimpleSource, ToAriadne};
 
 /// This is a parser for JSON.
 ///
