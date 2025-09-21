@@ -20,8 +20,9 @@ pub use super::{
         channel::{
             Channel, Key, NoteChannelId, NoteKind, PlayerSide,
             converter::{
-                KeyLayoutConvertLaneRandomShuffle, KeyLayoutConvertLaneRotateShuffle,
-                KeyLayoutConvertMirror, KeyLayoutConverter,
+                KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
+                KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror,
+                PlayerSideKeyConverter,
             },
             mapper::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
