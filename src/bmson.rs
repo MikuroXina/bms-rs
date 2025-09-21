@@ -31,7 +31,10 @@ pub mod bmson_to_bms;
 pub mod fin_f64;
 pub mod pulse;
 
-use std::{borrow::Cow, num::NonZeroU8};
+use std::{
+    borrow::Cow,
+    num::{NonZeroU8, NonZeroU64},
+};
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_path_to_error;
@@ -131,7 +134,7 @@ pub struct BmsonInfo<'a> {
     pub preview_music: Option<Cow<'a, str>>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
     #[serde(default = "default_resolution")]
-    pub resolution: u64,
+    pub resolution: NonZeroU64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
     pub ln_type: LnMode,
@@ -158,8 +161,8 @@ pub fn default_percentage() -> FinF64 {
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
 #[must_use]
-pub const fn default_resolution() -> u64 {
-    240
+pub fn default_resolution() -> NonZeroU64 {
+    NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
 }
 
 /// Event of bar line of the chart.

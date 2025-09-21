@@ -3,6 +3,7 @@
 use bms_rs::bmson::{
     BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, parse_bmson, pulse::PulseNumber,
 };
+use std::num::NonZeroU64;
 
 #[test]
 fn test_bmson100_lostokens() {
@@ -72,7 +73,7 @@ fn test_parse_bmson_success() {
     assert_eq!(bmson.info.title.as_ref(), "Test Song");
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.level, 5);
-    assert_eq!(bmson.info.resolution, 240);
+    assert_eq!(bmson.info.resolution, NonZeroU64::new(240).unwrap());
 }
 
 #[test]

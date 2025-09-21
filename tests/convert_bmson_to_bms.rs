@@ -5,6 +5,7 @@ use bms_rs::{
     bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
 };
 use std::borrow::Cow;
+use std::num::NonZeroU64;
 
 #[test]
 fn test_bmson_to_bms_conversion() {
@@ -28,7 +29,7 @@ fn test_bmson_to_bms_conversion() {
             title_image: Some(Cow::Borrowed("title.png")),
             banner_image: Some(Cow::Borrowed("banner.png")),
             preview_music: Some(Cow::Borrowed("preview.wav")),
-            resolution: 240,
+            resolution: NonZeroU64::new(240).unwrap(),
             ln_type: LnMode::Ln,
         },
         lines: None,
@@ -94,7 +95,7 @@ fn test_bmson_to_bms_with_notes() {
             title_image: None,
             banner_image: None,
             preview_music: None,
-            resolution: 240,
+            resolution: NonZeroU64::new(240).unwrap(),
             ln_type: LnMode::Ln,
         },
         lines: None,

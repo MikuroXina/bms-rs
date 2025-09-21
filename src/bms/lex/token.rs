@@ -954,13 +954,11 @@ impl<'a> Token<'a> {
                 let pos: u16 = pos
                     .parse()
                     .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
-                let time = unsafe {
-                    crate::bms::command::time::ObjTime::new_unchecked(
-                        measure as u64,
-                        pos as u64,
-                        1000,
-                    )
-                };
+                let time = crate::bms::command::time::ObjTime::new(
+                    measure as u64,
+                    pos as u64,
+                    std::num::NonZeroU64::new(1000).expect("1000 should be a valid NonZeroU64"),
+                );
                 let duration = Duration::from_millis(ms as u64);
                 Self::Stp(StpEvent { time, duration })
             }

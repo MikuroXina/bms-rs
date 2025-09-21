@@ -1,6 +1,10 @@
 //! Part: Convert `Bms` to `Bmson`.
 
-use std::{borrow::Cow, collections::HashMap, num::NonZeroU8};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    num::{NonZeroU8, NonZeroU64},
+};
 
 use num::ToPrimitive;
 use thiserror::Error;
@@ -79,9 +83,13 @@ impl Bms {
 
         let resolution = self.resolution_for_pulses();
 
-        let last_obj_time = self
-            .last_obj_time()
-            .unwrap_or_else(|| unsafe { ObjTime::new_unchecked(0, 0, 4) });
+        let last_obj_time = self.last_obj_time().unwrap_or_else(|| {
+            ObjTime::new(
+                0,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            )
+        });
         let lines = (0..=last_obj_time.track.0)
             .map(|track| BarLine {
                 y: converter.get_pulses_on(Track(track)),
@@ -184,7 +192,7 @@ impl Bms {
                 .banner
                 .map(|path| Cow::Owned(path.display().to_string())),
             preview_music: None,
-            resolution,
+            resolution: NonZeroU64::new(resolution).expect("resolution should be non-zero"),
             ln_type: self.header.ln_mode,
         };
 

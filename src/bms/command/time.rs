@@ -49,18 +49,6 @@ impl ObjTime {
                 .expect("GCD should never make denominator zero"),
         }
     }
-
-    /// Create a new time with a non-zero denominator.
-    ///
-    /// # Safety
-    ///
-    /// This function is unsafe because it can cause undefined behavior if `denominator == 0`.
-    #[must_use]
-    pub unsafe fn new_unchecked(track: u64, numerator: u64, denominator: u64) -> Self {
-        let denominator =
-            NonZeroU64::new(denominator).expect("denominator should be non-zero in new_unchecked");
-        Self::new(track, numerator, denominator)
-    }
 }
 
 impl PartialOrd for ObjTime {

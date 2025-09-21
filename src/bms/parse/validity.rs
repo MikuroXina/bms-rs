@@ -337,6 +337,8 @@ impl Bms {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU64;
+
     use super::*;
     use crate::bms::{
         command::{
@@ -351,7 +353,11 @@ mod tests {
     };
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
-        unsafe { ObjTime::new_unchecked(track, num, den) }
+        ObjTime::new(
+            track,
+            num,
+            NonZeroU64::new(den).expect("denominator should be non-zero"),
+        )
     }
 
     #[test]

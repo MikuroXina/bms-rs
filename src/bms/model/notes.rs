@@ -674,6 +674,8 @@ impl<T> Notes<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU64;
+
     use super::Notes;
     use crate::bms::prelude::*;
 
@@ -681,7 +683,11 @@ mod tests {
     fn push_and_pop() {
         let mut notes = Notes::<KeyLayoutBeat>::default();
         let note = WavObj {
-            offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
+            offset: ObjTime::new(
+                1,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            ),
             channel_id: NoteChannelId::bgm(),
             wav_id: "01".try_into().unwrap(),
         };
@@ -699,7 +705,11 @@ mod tests {
     fn change_note_channel() {
         let mut notes = Notes::<KeyLayoutBeat>::default();
         let note = WavObj {
-            offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
+            offset: ObjTime::new(
+                1,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            ),
             channel_id: NoteChannelId::bgm(),
             wav_id: "01".try_into().unwrap(),
         };
@@ -716,7 +726,11 @@ mod tests {
         assert_eq!(
             notes.all_notes().next(),
             Some(&WavObj {
-                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
+                offset: ObjTime::new(
+                    1,
+                    2,
+                    NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+                ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: "01".try_into().unwrap(),
@@ -728,7 +742,11 @@ mod tests {
     fn change_note_time() {
         let mut notes = Notes::<KeyLayoutBeat>::default();
         let note = WavObj {
-            offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
+            offset: ObjTime::new(
+                1,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            ),
             channel_id: NoteChannelId::bgm(),
             wav_id: "01".try_into().unwrap(),
         };
@@ -737,12 +755,23 @@ mod tests {
 
         notes.push_note(note.clone());
         let (idx, _) = notes.all_entries().next().unwrap();
-        notes.change_note_time(idx, unsafe { ObjTime::new_unchecked(1, 1, 4) });
+        notes.change_note_time(
+            idx,
+            ObjTime::new(
+                1,
+                1,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            ),
+        );
 
         assert_eq!(
             notes.all_notes().next(),
             Some(&WavObj {
-                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
+                offset: ObjTime::new(
+                    1,
+                    1,
+                    NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+                ),
                 channel_id: NoteChannelId::bgm(),
                 wav_id: "01".try_into().unwrap(),
             })
