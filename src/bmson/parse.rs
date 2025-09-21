@@ -1,7 +1,10 @@
 //! This is a parser for JSON.
 
+use ariadne::{Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use serde_json::Value;
+
+use crate::bms::diagnostics::{SimpleSource, ToAriadne};
 
 /// This is a parser for JSON.
 ///
@@ -141,4 +144,52 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
         ))
         .padded()
     })
+}
+
+/// Implementation of `ToAriadne` for chumsky `Rich<char>` errors.
+///
+/// This allows chumsky parsing errors to be converted to beautiful ariadne reports
+/// for display to users.
+impl<'a> ToAriadne for Rich<'a, char> {
+    fn to_report<'b>(
+        &self,
+        src: &SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let span = self.span();
+        let message = self.to_string();
+        let filename = src.name().to_string();
+        let range = span.start..span.end;
+
+        Report::build(ReportKind::Error, (filename.clone(), range.clone()))
+            .with_message("JSON parsing error")
+            .with_label(
+                Label::new((filename, range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+    }
+}
+
+/// Convenience function to emit chumsky parsing errors.
+///
+/// This function converts a list of chumsky `Rich<char>` errors to ariadne reports
+/// and prints them to the console.
+///
+/// # Parameters
+/// * `name` - Name of the source file
+/// * `source` - Complete source text
+/// * `errors` - List of chumsky parsing errors
+pub fn emit_chumsky_errors<'a>(
+    name: &'a str,
+    source: &'a str,
+    errors: impl IntoIterator<Item = &'a Rich<'a, char>>,
+) {
+    let simple = SimpleSource::new(name, source);
+    let ariadne_source = ariadne::Source::from(source);
+
+    for error in errors {
+        let report = error.to_report(&simple);
+        let _ = report.print((name.to_string(), ariadne_source.clone()));
+    }
 }
