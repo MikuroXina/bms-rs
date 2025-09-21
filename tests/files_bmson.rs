@@ -1,14 +1,17 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, Bmson, BmsonParseStatus, BpmEvent, fin_f64::FinF64, parse_bmson,
+    BgaEvent, BgaHeader, BgaId, BmsonParseStatus, BpmEvent, fin_f64::FinF64, parse_bmson,
     pulse::PulseNumber,
 };
 
 #[test]
 fn test_bmson100_lostokens() {
     let data = include_str!("files_bmson/lostokens.bmson");
-    let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
+    let output = parse_bmson(data);
+    let BmsonParseStatus::Success { bmson } = output.status else {
+        panic!("Failed to parse BMSON: {:?}", output.status);
+    };
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "lostokens");
     assert_eq!(bmson.info.level, 5);
@@ -18,7 +21,10 @@ fn test_bmson100_lostokens() {
 #[test]
 fn test_bmson100_bemusic_story_48key() {
     let data = include_str!("files_bmson/bemusicstory_483_48K_ANOTHER.bmson");
-    let bmson: Bmson = serde_json::from_str(data).expect("failed to parse bmson json");
+    let output = parse_bmson(data);
+    let BmsonParseStatus::Success { bmson } = output.status else {
+        panic!("Failed to parse BMSON: {:?}", output.status);
+    };
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");
     // Bga
