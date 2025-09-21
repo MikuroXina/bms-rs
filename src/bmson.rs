@@ -334,12 +334,27 @@ pub struct KeyChannel<'a> {
 /// This struct contains the parsed BMSON data (if successful), along with any
 /// parsing errors that occurred during the process.
 pub struct BmsonParseOutput<'a> {
-    /// The parsed BMSON data, if parsing was successful.
-    pub bmson: Option<Bmson<'a>>,
+    /// Status of the parser.
+    pub status: BmsonParseStatus<'a>,
     /// Errors from the chumsky JSON parser.
     pub chumsky_errors: Vec<Rich<'a, char>>,
-    /// Error from serde deserialization, if any.
-    pub serde_error: Option<serde_path_to_error::Error<serde_json::Error>>,
+}
+
+/// Status of the parse step
+#[derive(Debug)]
+pub enum BmsonParseStatus<'a> {
+    /// The parsing was successful.
+    Success {
+        /// The parsed BMSON data.
+        bmson: Bmson<'a>,
+    },
+    /// The parsing failed due to chumsky errors.
+    ChumskyError,
+    /// The parsing failed due to serde errors.
+    SerdeError {
+        /// The serde deserialization error.
+        serde_error: serde_path_to_error::Error<serde_json::Error>,
+    },
 }
 
 /// Parse a BMSON file from JSON string.
@@ -361,16 +376,15 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     let json_value = value.or(serde_json::from_str(json).ok());
 
     // Try to deserialize the JSON value into Bmson
-    let (bmson, serde_error) = json_value
+    let status = json_value
         .map(|value| serde_path_to_error::deserialize(&value))
-        .map_or((None, None), |value| match value {
-            Ok(bmson) => (Some(bmson), None),
-            Err(e) => (None, Some(e)),
+        .map_or(BmsonParseStatus::ChumskyError, |value| match value {
+            Ok(bmson) => BmsonParseStatus::Success { bmson },
+            Err(e) => BmsonParseStatus::SerdeError { serde_error: e },
         });
 
     BmsonParseOutput {
-        bmson,
+        status,
         chumsky_errors: parse_errors,
-        serde_error,
     }
 }

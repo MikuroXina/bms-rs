@@ -1,7 +1,8 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, parse_bmson, pulse::PulseNumber,
+    BgaEvent, BgaHeader, BgaId, Bmson, BmsonParseStatus, BpmEvent, fin_f64::FinF64, parse_bmson,
+    pulse::PulseNumber,
 };
 
 #[test]
@@ -69,8 +70,8 @@ fn test_parse_bmson_success() {
     }"#;
 
     let output = parse_bmson(json);
-    let Some(bmson) = output.bmson else {
-        panic!("Failed to parse BMSON: {:?}", output.serde_error);
+    let BmsonParseStatus::Success { bmson } = output.status else {
+        panic!("Failed to parse BMSON: {:?}", output.status);
     };
     assert_eq!(bmson.info.title.as_ref(), "Test Song");
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
@@ -96,11 +97,8 @@ fn test_parse_bmson_with_invalid_json() {
     }"#;
 
     let output = parse_bmson(invalid_json);
-    assert!(output.bmson.is_none());
-    assert!(output.serde_error.is_some());
-
-    let Some(err) = output.serde_error else {
-        panic!("Expected serde error but got none");
+    let BmsonParseStatus::SerdeError { serde_error: err } = output.status else {
+        panic!("Expected serde error but got: {:?}", output.status);
     };
     // The error should contain path information about the invalid field "level"
     let path = err.path().to_string();
@@ -134,11 +132,8 @@ fn test_parse_bmson_with_missing_required_field() {
     }"#;
 
     let output = parse_bmson(incomplete_json);
-    assert!(output.bmson.is_none());
-    assert!(output.serde_error.is_some());
-
-    let Some(err) = output.serde_error else {
-        panic!("Expected serde error but got none");
+    let BmsonParseStatus::SerdeError { serde_error: err } = output.status else {
+        panic!("Expected serde error but got: {:?}", output.status);
     };
     // Should indicate missing "info" field
     let path = err.path().to_string();
