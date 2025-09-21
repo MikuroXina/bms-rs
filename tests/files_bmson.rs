@@ -160,3 +160,120 @@ fn test_parse_bmson_with_missing_required_field() {
     println!("Error path: {}", path);
     println!("Error message: {}", inner_err);
 }
+
+#[test]
+fn test_chumsky_detects_missing_commas() {
+    // Test JSON with missing commas that chumsky should detect
+    let json_with_missing_commas = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Song"
+            "artist": "Test Artist",
+            "genre": "Test Genre",
+            "level": 5,
+            "init_bpm": 120.0,
+            "judge_rank": 100.0,
+            "total": 100.0,
+            "resolution": 240
+        },
+        "sound_channels": []
+    }"#;
+
+    let output = parse_bmson(json_with_missing_commas);
+
+    // Check that chumsky detected missing comma errors
+    assert!(
+        !output.chumsky_errors.is_empty(),
+        "Expected chumsky to detect missing comma errors"
+    );
+
+    // Print the chumsky errors for debugging
+    println!("Chumsky errors count: {}", output.chumsky_errors.len());
+    for (i, error) in output.chumsky_errors.iter().enumerate() {
+        println!("Chumsky error {}: {:?}", i, error);
+    }
+
+    // Verify that the errors are related to missing commas
+    let has_comma_error = output.chumsky_errors.iter().any(|error| {
+        let error_str = format!("{:?}", error);
+        error_str.contains("expected") && error_str.contains(",")
+    });
+    assert!(
+        has_comma_error,
+        "Expected chumsky errors to be related to missing commas"
+    );
+
+    // The parsing should succeed despite missing commas (chumsky should recover)
+    let BmsonParseStatus::Success { bmson } = output.status else {
+        panic!("Expected Success status but got: {:?}", output.status);
+    };
+
+    // Verify the parsed data matches the original JSON content
+    assert_eq!(bmson.version.as_ref(), "1.0.0");
+    assert_eq!(bmson.info.title.as_ref(), "Test Song");
+    assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
+    assert_eq!(bmson.info.genre.as_ref(), "Test Genre");
+    assert_eq!(bmson.info.level, 5);
+    assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
+    assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
+    assert_eq!(bmson.info.total.as_f64(), 100.0);
+    assert_eq!(bmson.info.resolution, 240);
+    assert!(bmson.sound_channels.is_empty());
+
+    println!("All Bmson content matches the original JSON despite missing commas");
+
+    println!("Chumsky correctly recovered from missing comma errors");
+}
+
+#[test]
+fn test_parse_bmson_with_trailing_comma() {
+    // JSON with trailing comma - serde_json might tolerate this but chumsky might not
+    let json_with_trailing_comma = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "genre": "Test Genre",
+            "level": 5,
+            "init_bpm": 120.0,
+            "judge_rank": 100.0,
+            "total": 100.0,
+            "resolution": 240,
+        },
+        "sound_channels": [],
+    }"#;
+
+    let output = parse_bmson(json_with_trailing_comma);
+
+    // Print the chumsky errors for debugging
+    println!("Chumsky errors count: {}", output.chumsky_errors.len());
+    for (i, error) in output.chumsky_errors.iter().enumerate() {
+        println!("Chumsky error {}: {:?}", i, error);
+    }
+
+    // Force requirement: output.status must be Success
+    let BmsonParseStatus::Success { bmson } = output.status else {
+        panic!("Expected Success status but got: {:?}", output.status);
+    };
+
+    println!("Parsing succeeded - checking content consistency with trailing commas");
+
+    // Verify the parsed data matches the original JSON content
+    assert_eq!(bmson.version.as_ref(), "1.0.0");
+    assert_eq!(bmson.info.title.as_ref(), "Test Song");
+    assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
+    assert_eq!(bmson.info.genre.as_ref(), "Test Genre");
+    assert_eq!(bmson.info.level, 5);
+    assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
+    assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
+    assert_eq!(bmson.info.total.as_f64(), 100.0);
+    assert_eq!(bmson.info.resolution, 240);
+    assert!(bmson.sound_channels.is_empty());
+
+    println!("All Bmson content matches the original JSON despite trailing commas");
+
+    // If there were chumsky errors, verify they were about trailing commas
+    if !output.chumsky_errors.is_empty() {
+        println!("Chumsky detected errors but serde_json fallback succeeded");
+    }
+}

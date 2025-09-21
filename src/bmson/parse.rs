@@ -92,14 +92,49 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
             )
             .boxed();
 
-        let member = string.clone().then_ignore(just(':').padded()).then(value);
-        let object = member
+        let member = string
             .clone()
-            .separated_by(just(',').padded().recover_with(skip_then_retry_until(
-                any().ignored(),
-                one_of(",}").ignored(),
-            )))
-            .collect::<Vec<_>>()
+            .then_ignore(just(':').padded())
+            .then(value.clone());
+
+        // Support objects with:
+        // - normal commas
+        // - missing commas between members (emit an error but continue)
+        // - a trailing comma before the closing '}'
+        let subsequent_member = choice((
+            // Normal: comma then member
+            just(',').padded().ignore_then(member.clone()).map(Some),
+            // Missing comma: directly another member. Emit an error and continue.
+            member
+                .clone()
+                .validate(|m, e, emitter| {
+                    emitter.emit(Rich::custom(
+                        e.span(),
+                        "expected ',' between object members",
+                    ));
+                    m
+                })
+                .map(Some),
+            // Trailing comma: consume it and yield no item
+            just(',').padded().to::<Option<(String, Value)>>(None),
+        ));
+
+        let members = member
+            .clone()
+            .or_not()
+            .then(subsequent_member.repeated().collect::<Vec<_>>())
+            .map(|(first_opt, rest)| {
+                let mut pairs: Vec<(String, Value)> = Vec::new();
+                if let Some(first) = first_opt {
+                    pairs.push(first);
+                }
+                for item in rest.into_iter().flatten() {
+                    pairs.push(item);
+                }
+                pairs
+            });
+
+        let object = members
             .map(|pairs| {
                 let mut map = serde_json::Map::new();
                 for (key, value) in pairs {
