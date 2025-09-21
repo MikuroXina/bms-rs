@@ -19,11 +19,11 @@ impl std::fmt::Display for Track {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjTime {
     /// The track, or measure, where the object is in.
-    pub track: Track,
+    track: Track,
     /// The time offset numerator in the track.
-    pub numerator: u64,
+    numerator: u64,
     /// The time offset denominator in the track.
-    pub denominator: NonZeroU64,
+    denominator: NonZeroU64,
 }
 
 impl ObjTime {
@@ -49,6 +49,30 @@ impl ObjTime {
                 .expect("GCD should never make denominator zero"),
         }
     }
+
+    /// Get the track where the object is in.
+    #[must_use]
+    pub fn track(&self) -> Track {
+        self.track
+    }
+
+    /// Get the time offset numerator in the track.
+    #[must_use]
+    pub fn numerator(&self) -> u64 {
+        self.numerator
+    }
+
+    /// Get the time offset denominator in the track.
+    #[must_use]
+    pub fn denominator(&self) -> NonZeroU64 {
+        self.denominator
+    }
+
+    /// Get the time offset denominator in the track as u64.
+    #[must_use]
+    pub fn denominator_u64(&self) -> u64 {
+        self.denominator.get()
+    }
 }
 
 impl PartialOrd for ObjTime {
@@ -59,10 +83,10 @@ impl PartialOrd for ObjTime {
 
 impl Ord for ObjTime {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let self_time_in_track = self.numerator * other.denominator.get();
-        let other_time_in_track = other.numerator * self.denominator.get();
-        self.track
-            .cmp(&other.track)
+        let self_time_in_track = self.numerator() * other.denominator().get();
+        let other_time_in_track = other.numerator() * self.denominator().get();
+        self.track()
+            .cmp(&other.track())
             .then(self_time_in_track.cmp(&other_time_in_track))
     }
 }
@@ -72,9 +96,9 @@ impl std::fmt::Display for ObjTime {
         write!(
             f,
             "ObjTime: {}, {} / {}",
-            self.track,
-            self.numerator,
-            self.denominator.get()
+            self.track(),
+            self.numerator(),
+            self.denominator().get()
         )
     }
 }

@@ -90,7 +90,7 @@ impl Bms {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             )
         });
-        let lines = (0..=last_obj_time.track.0)
+        let lines = (0..=last_obj_time.track().0)
             .map(|track| BarLine {
                 y: converter.get_pulses_on(Track(track)),
             })

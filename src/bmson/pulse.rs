@@ -34,7 +34,7 @@ impl PulseConverter {
     pub fn new(bms: &crate::bms::model::Bms) -> Self {
         let resolution =
             NonZeroU64::new(bms.resolution_for_pulses()).expect("resolution should be non-zero");
-        let last_track = bms.last_obj_time().map_or(0, |time| time.track.0);
+        let last_track = bms.last_obj_time().map_or(0, |time| time.track().0);
 
         let mut pulses_at_track_start = BTreeMap::new();
         pulses_at_track_start.insert(Track(0), 0);
@@ -81,9 +81,9 @@ impl PulseConverter {
     /// Gets pulses at the [`ObjTime`].
     #[must_use]
     pub fn get_pulses_at(&self, time: ObjTime) -> PulseNumber {
-        let PulseNumber(track_base) = self.get_pulses_on(time.track);
+        let PulseNumber(track_base) = self.get_pulses_on(time.track());
         PulseNumber(
-            track_base + (4 * self.resolution.get() * time.numerator / time.denominator.get()),
+            track_base + (4 * self.resolution.get() * time.numerator() / time.denominator().get()),
         )
     }
 }
@@ -131,71 +131,71 @@ fn pulse_conversion() {
 
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(0),
-                numerator: 0,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                0,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         0
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(0),
-                numerator: 2,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                0,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         2
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(1),
-                numerator: 0,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                1,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         4
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(1),
-                numerator: 2,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                1,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         6
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(2),
-                numerator: 0,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                2,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         7
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(2),
-                numerator: 2,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                2,
+                2,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         9
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime {
-                track: Track(3),
-                numerator: 0,
-                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            })
+            .get_pulses_at(ObjTime::new(
+                3,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
+            ))
             .0,
         12
     );

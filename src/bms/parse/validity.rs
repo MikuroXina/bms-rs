@@ -176,7 +176,7 @@ impl Bms {
             let Some(map) = KeyLayoutBeat::from_channel_id(obj.channel_id) else {
                 continue;
             };
-            if map.kind().is_playable() && obj.offset.track.0 == 0 {
+            if map.kind().is_playable() && obj.offset.track().0 == 0 {
                 invalid.push(ValidityInvalid::PlayableNoteInTrackZero {
                     side: map.side(),
                     key: map.key(),
