@@ -1489,8 +1489,8 @@ impl std::fmt::Display for Token<'_> {
             Token::Stop(id, beats) => write!(f, "#STOP{id} {beats}"),
             #[cfg(feature = "minor-command")]
             Token::Stp(ev) => {
-                let measure = ev.time.track.0;
-                let pos = (ev.time.numerator * 1000 / ev.time.denominator) as u16;
+                let measure = ev.time.track().0;
+                let pos = (ev.time.numerator() * 1000 / ev.time.denominator().get()) as u16;
                 let ms = ev.duration.as_millis() as u32;
                 write!(f, "#STP {measure:03}.{pos:03} {ms}")
             }
@@ -1817,9 +1817,9 @@ mod tests {
         let Token::Stp(stp) = parse_token("#STP 001.500 1500") else {
             panic!("Not StpSeq");
         };
-        assert_eq!(stp.time.track, Track(1));
-        assert_eq!(stp.time.numerator, 1);
-        assert_eq!(stp.time.denominator, 2); // After GCD(500, 1000)
+        assert_eq!(stp.time.track(), Track(1));
+        assert_eq!(stp.time.numerator(), 1);
+        assert_eq!(stp.time.denominator().get(), 2); // After GCD(500, 1000)
         assert_eq!(stp.duration.as_millis(), 1500);
     }
 
