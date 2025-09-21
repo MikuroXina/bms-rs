@@ -20,28 +20,36 @@ fn test_channel_volume() {
     assert_eq!(bms.notes().bgm_volume_changes.len(), 8);
     assert_eq!(bms.notes().key_volume_changes.len(), 4);
     assert_eq!(
-        bms.notes().bgm_volume_changes.get(&ObjTime::new(1, 0, 1)),
+        bms.notes()
+            .bgm_volume_changes
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             volume: 1,
         })
     );
     assert_eq!(
-        bms.notes().key_volume_changes.get(&ObjTime::new(1, 0, 1)),
+        bms.notes()
+            .key_volume_changes
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&KeyVolumeObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             volume: 2 * 16 + 2,
         })
     );
     assert_eq!(
-        bms.notes().bgm_volume_changes.get(&ObjTime::new(2, 0, 1)),
+        bms.notes()
+            .bgm_volume_changes
+            .get(&unsafe { ObjTime::new_unchecked(2, 0, 1) }),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(2, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(2, 0, 1) },
             volume: 5,
         })
     );
     assert_eq!(
-        bms.notes().key_volume_changes.get(&ObjTime::new(2, 0, 1)),
+        bms.notes()
+            .key_volume_changes
+            .get(&unsafe { ObjTime::new_unchecked(2, 0, 1) }),
         None
     );
 }
@@ -66,16 +74,20 @@ fn test_channel_text() {
 
     assert_eq!(bms.notes().text_events.len(), 4);
     assert_eq!(
-        bms.notes().text_events.get(&ObjTime::new(1, 0, 1)),
+        bms.notes()
+            .text_events
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&TextObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             text: "Hello World".to_string(),
         })
     );
     assert_eq!(
-        bms.notes().text_events.get(&ObjTime::new(2, 0, 1)),
+        bms.notes()
+            .text_events
+            .get(&unsafe { ObjTime::new_unchecked(2, 0, 1) }),
         Some(&TextObj {
-            time: ObjTime::new(2, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(2, 0, 1) },
             text: "Test Message".to_string(),
         })
     );
@@ -106,23 +118,29 @@ fn test_channel_judge() {
 
     assert_eq!(bms.notes().judge_events.len(), 4);
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(1, 0, 1)),
+        bms.notes()
+            .judge_events
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&JudgeObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             judge_level: JudgeLevel::Easy,
         })
     );
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(2, 0, 1)),
+        bms.notes()
+            .judge_events
+            .get(&unsafe { ObjTime::new_unchecked(2, 0, 1) }),
         Some(&JudgeObj {
-            time: ObjTime::new(2, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(2, 0, 1) },
             judge_level: JudgeLevel::Normal,
         })
     );
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(2, 1, 2)),
+        bms.notes()
+            .judge_events
+            .get(&unsafe { ObjTime::new_unchecked(2, 1, 2) }),
         Some(&JudgeObj {
-            time: ObjTime::new(2, 1, 2),
+            time: unsafe { ObjTime::new_unchecked(2, 1, 2) },
             judge_level: JudgeLevel::Easy,
         })
     );
@@ -158,9 +176,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Base)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Base,
             opacity: 0x80, // 128
         })
@@ -172,9 +190,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Overlay,
             opacity: 0x90, // 144
         })
@@ -186,9 +204,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Overlay2,
             opacity: 0xA0, // 160
         })
@@ -200,9 +218,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Poor)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Poor,
             opacity: 0xB0, // 176
         })
@@ -243,9 +261,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Base)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaArgbObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Base,
             argb: Argb {
                 alpha: 255,
@@ -262,9 +280,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaArgbObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Overlay,
             argb: Argb {
                 alpha: 0,
@@ -281,9 +299,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaArgbObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Overlay2,
             argb: Argb {
                 alpha: 0,
@@ -300,9 +318,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Poor)
             .unwrap()
-            .get(&ObjTime::new(1, 0, 1)),
+            .get(&unsafe { ObjTime::new_unchecked(1, 0, 1) }),
         Some(&BgaArgbObj {
-            time: ObjTime::new(1, 0, 1),
+            time: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             layer: BgaLayer::Poor,
             argb: Argb {
                 alpha: 255,

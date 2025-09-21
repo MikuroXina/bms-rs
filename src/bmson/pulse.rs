@@ -86,6 +86,8 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
+    use std::num::NonZeroU64;
+
     use crate::bms::model::{Arrangers, obj::SectionLenChangeObj};
 
     // Source BMS:
@@ -104,7 +106,7 @@ fn pulse_conversion() {
                 },
                 &mut prompt_handler,
             )
-            .unwrap();
+            .expect("NonZeroU64::new should succeed for non-zero values");
         notes
             .push_section_len_change(
                 SectionLenChangeObj {
@@ -113,7 +115,7 @@ fn pulse_conversion() {
                 },
                 &mut prompt_handler,
             )
-            .unwrap();
+            .expect("NonZeroU64::new should succeed for non-zero values");
         notes
     };
     let converter = PulseConverter::new(&crate::bms::model::Bms {
@@ -128,7 +130,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(0),
                 numerator: 0,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         0
@@ -138,7 +140,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(0),
                 numerator: 2,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         2
@@ -148,7 +150,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(1),
                 numerator: 0,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         4
@@ -158,7 +160,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(1),
                 numerator: 2,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         6
@@ -168,7 +170,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(2),
                 numerator: 0,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         7
@@ -178,7 +180,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(2),
                 numerator: 2,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         9
@@ -188,7 +190,7 @@ fn pulse_conversion() {
             .get_pulses_at(ObjTime {
                 track: Track(3),
                 numerator: 0,
-                denominator: 4
+                denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
             })
             .0,
         12

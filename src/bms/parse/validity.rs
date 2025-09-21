@@ -197,7 +197,10 @@ impl Bms {
             let long_times: Vec<ObjTime> = lane_objs
                 .iter()
                 .filter(|o| {
-                    KeyLayoutBeat::from_channel_id(o.channel_id).unwrap().kind() == NoteKind::Long
+                    KeyLayoutBeat::from_channel_id(o.channel_id)
+                        .expect("channel_id should be valid")
+                        .kind()
+                        == NoteKind::Long
                 })
                 .map(|o| o.offset)
                 .collect();
@@ -206,7 +209,13 @@ impl Bms {
             let mut single_offsets = HashSet::new();
             for (single_obj, map) in lane_objs
                 .iter()
-                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .map(|obj| {
+                    (
+                        obj,
+                        KeyLayoutBeat::from_channel_id(obj.channel_id)
+                            .expect("channel_id should be valid"),
+                    )
+                })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
                 if !single_offsets.insert(single_obj.offset) {
@@ -221,7 +230,13 @@ impl Bms {
             // Overlap landmine vs single at the same time
             for (landmine_obj, map) in lane_objs
                 .iter()
-                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .map(|obj| {
+                    (
+                        obj,
+                        KeyLayoutBeat::from_channel_id(obj.channel_id)
+                            .expect("channel_id should be valid"),
+                    )
+                })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {
                 if single_offsets.contains(&landmine_obj.offset) {
@@ -270,7 +285,13 @@ impl Bms {
             // Overlap single vs long: any visible single inside any LN interval
             for (single_obj, map) in lane_objs
                 .iter()
-                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .map(|obj| {
+                    (
+                        obj,
+                        KeyLayoutBeat::from_channel_id(obj.channel_id)
+                            .expect("channel_id should be valid"),
+                    )
+                })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
                 if let Some((start, end)) = time_overlaps_any_ln(single_obj.offset) {
@@ -289,7 +310,13 @@ impl Bms {
             let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
             for (landmine_obj, map) in lane_objs
                 .iter()
-                .map(|obj| (obj, KeyLayoutBeat::from_channel_id(obj.channel_id).unwrap()))
+                .map(|obj| {
+                    (
+                        obj,
+                        KeyLayoutBeat::from_channel_id(obj.channel_id)
+                            .expect("channel_id should be valid"),
+                    )
+                })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {
                 if let Some((start, end)) = time_overlaps_any_ln(landmine_obj.offset)
@@ -324,7 +351,7 @@ mod tests {
     };
 
     fn t(track: u64, num: u64, den: u64) -> ObjTime {
-        ObjTime::new(track, num, den)
+        unsafe { ObjTime::new_unchecked(track, num, den) }
     }
 
     #[test]

@@ -32,7 +32,7 @@ fn test_prelude_imports() {
     let _obj_time = ObjTime {
         track: _track,
         numerator: 0,
-        denominator: 1,
+        denominator: std::num::NonZeroU64::new(1).unwrap(),
     };
 
     // Test model types

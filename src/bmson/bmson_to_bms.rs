@@ -1,6 +1,9 @@
 //! Part: Convert `Bmson` to `Bms`.
 
-use std::{num::NonZeroU8, path::PathBuf};
+use std::{
+    num::{NonZeroU8, NonZeroU64},
+    path::PathBuf,
+};
 
 use thiserror::Error;
 
@@ -338,6 +341,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
     let numerator = remaining_pulses;
     let denominator = pulses_per_measure;
 
+    let denominator = NonZeroU64::new(denominator).expect("resolution should be non-zero");
     ObjTime::new(track, numerator, denominator)
 }
 

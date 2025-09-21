@@ -7,7 +7,7 @@ mod graphics;
 mod notes;
 pub mod obj;
 
-use std::{collections::HashMap, fmt::Debug, path::PathBuf};
+use std::{collections::HashMap, fmt::Debug, num::NonZeroU64, path::PathBuf};
 
 #[cfg(feature = "minor-command")]
 use num::BigUint;
@@ -226,7 +226,7 @@ impl<T> Bms<T> {
                 .map(|(&time, _)| ObjTime {
                     track: time,
                     numerator: 0,
-                    denominator: 4,
+                    denominator: NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
                 });
         let stop_last = self.arrangers.stops.last_key_value().map(|(&time, _)| time);
         let bga_last = self
@@ -247,10 +247,10 @@ impl<T> Bms<T> {
 
         let mut hyp_resolution = 1u64;
         for obj in self.notes.all_notes() {
-            hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator);
+            hyp_resolution = hyp_resolution.lcm(&obj.offset.denominator.get());
         }
         for bpm_change in self.arrangers.bpm_changes.values() {
-            hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator);
+            hyp_resolution = hyp_resolution.lcm(&bpm_change.time.denominator.get());
         }
         hyp_resolution
     }

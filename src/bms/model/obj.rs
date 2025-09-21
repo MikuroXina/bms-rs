@@ -43,7 +43,7 @@ impl Ord for WavObj {
 impl WavObj {
     pub(crate) fn dangling() -> Self {
         Self {
-            offset: ObjTime::new(1, 0, 1),
+            offset: unsafe { ObjTime::new_unchecked(1, 0, 1) },
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::null(),
         }

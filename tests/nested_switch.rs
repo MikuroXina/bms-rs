@@ -145,25 +145,25 @@ fn nested_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 wav_id: id55,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -188,19 +188,19 @@ fn nested_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -210,7 +210,7 @@ fn nested_switch() {
                 wav_id: id66,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -235,19 +235,19 @@ fn nested_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: id33,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -316,25 +316,25 @@ fn nested_random_in_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 wav_id: id55,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -359,19 +359,19 @@ fn nested_random_in_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -381,7 +381,7 @@ fn nested_random_in_switch() {
                 wav_id: id66,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -406,19 +406,19 @@ fn nested_random_in_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: id33,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -487,25 +487,25 @@ fn nested_switch_in_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
                     .to_channel_id(),
                 wav_id: id55,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -530,19 +530,19 @@ fn nested_switch_in_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 1, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 1, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
                 wav_id: id22,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -552,7 +552,7 @@ fn nested_switch_in_random() {
                 wav_id: id66,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -577,19 +577,19 @@ fn nested_switch_in_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 0, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
             },
             WavObj {
-                offset: ObjTime::new(1, 2, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 2, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: id33,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4),
+                offset: unsafe { ObjTime::new_unchecked(1, 3, 4) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
@@ -656,13 +656,13 @@ fn test_switch_insane() {
         vec![
             // #CASE 1, #RANDOM 1, #IF 1
             WavObj {
-                offset: ObjTime::new(0, 0, 8),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 8) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: "01".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 1) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: "04".try_into().unwrap(),
@@ -689,13 +689,13 @@ fn test_switch_insane() {
         vec![
             // #CASE 1, #RANDOM 2, #ELSE
             WavObj {
-                offset: ObjTime::new(0, 0, 8),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 8) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: "01".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 0, 1),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 1) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: "05".try_into().unwrap(),
@@ -722,7 +722,7 @@ fn test_switch_insane() {
         vec![
             // #CASE 2
             WavObj {
-                offset: ObjTime::new(0, 0, 8),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 8) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: "02".try_into().unwrap(),
@@ -749,13 +749,13 @@ fn test_switch_insane() {
         vec![
             // #CASE 3, #SWITCH 1
             WavObj {
-                offset: ObjTime::new(0, 0, 8),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 8) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: "03".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 0, 2),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 2) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -765,7 +765,7 @@ fn test_switch_insane() {
                 wav_id: "11".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 1, 2),
+                offset: unsafe { ObjTime::new_unchecked(0, 1, 2) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -796,13 +796,13 @@ fn test_switch_insane() {
         vec![
             // #CASE 3, #SWITCH 2
             WavObj {
-                offset: ObjTime::new(0, 0, 8),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 8) },
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
                 wav_id: "03".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 0, 2),
+                offset: unsafe { ObjTime::new_unchecked(0, 0, 2) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -812,7 +812,7 @@ fn test_switch_insane() {
                 wav_id: "22".try_into().unwrap(),
             },
             WavObj {
-                offset: ObjTime::new(0, 1, 2),
+                offset: unsafe { ObjTime::new_unchecked(0, 1, 2) },
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
@@ -841,7 +841,7 @@ fn test_switch_insane() {
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![WavObj {
-            offset: ObjTime::new(0, 1, 2),
+            offset: unsafe { ObjTime::new_unchecked(0, 1, 2) },
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
             wav_id: "55".try_into().unwrap(),

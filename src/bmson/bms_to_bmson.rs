@@ -81,7 +81,7 @@ impl Bms {
 
         let last_obj_time = self
             .last_obj_time()
-            .unwrap_or_else(|| ObjTime::new(0, 0, 4));
+            .unwrap_or_else(|| unsafe { ObjTime::new_unchecked(0, 0, 4) });
         let lines = (0..=last_obj_time.track.0)
             .map(|track| BarLine {
                 y: converter.get_pulses_on(Track(track)),
