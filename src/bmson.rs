@@ -29,16 +29,17 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
+pub mod parse;
 pub mod pulse;
 
 use std::{borrow::Cow, num::NonZeroU8};
 
+use chumsky::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_path_to_error;
 
 use crate::bms::command::LnMode;
 
-use self::{fin_f64::FinF64, pulse::PulseNumber};
+use self::{fin_f64::FinF64, parse::parser, pulse::PulseNumber};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -328,20 +329,48 @@ pub struct KeyChannel<'a> {
     pub notes: Vec<KeyEvent>,
 }
 
+/// Output of parsing a BMSON file.
+///
+/// This struct contains the parsed BMSON data (if successful), along with any
+/// parsing errors that occurred during the process.
+pub struct BmsonParseOutput<'a> {
+    /// The parsed BMSON data, if parsing was successful.
+    pub bmson: Option<Bmson<'a>>,
+    /// Errors from the chumsky JSON parser.
+    pub chumsky_errors: Vec<Rich<'a, char>>,
+    /// Error from serde deserialization, if any.
+    pub serde_error: Option<serde_path_to_error::Error<serde_json::Error>>,
+}
+
 /// Parse a BMSON file from JSON string.
 ///
 /// This function provides a convenient way to parse a BMSON file in one step.
-/// It uses `serde_path_to_error` internally to provide detailed error information
-/// about the path to problematic fields in the JSON.
+/// It uses chumsky parser internally to parse JSON, then deserializes the result
+/// using `serde_path_to_error` for detailed error information.
 ///
-/// # Errors
+/// # Returns
 ///
-/// Returns a `serde_path_to_error::Error<serde_json::Error>` if the JSON is malformed or contains invalid data.
-/// The error will include the path to the problematic field in the JSON.
-pub fn parse_bmson(json: &str) -> Result<Bmson<'_>, serde_path_to_error::Error<serde_json::Error>> {
-    // First try to parse with serde_path_to_error for better error reporting
-    let jd = &mut serde_json::Deserializer::from_str(json);
-    let result: Result<Bmson, _> = serde_path_to_error::deserialize(jd);
+/// Returns a `BmsonParseOutput` containing the parsed BMSON data (if successful),
+/// chumsky parsing errors, and serde deserialization errors.
+#[must_use]
+pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
+    // First parse JSON using chumsky parser
+    let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
-    result
+    // Try to get a JSON value from either chumsky or serde_json
+    let json_value = value.or(serde_json::from_str(json).ok());
+
+    // Try to deserialize the JSON value into Bmson
+    let (bmson, serde_error) = json_value
+        .map(|value| serde_path_to_error::deserialize(&value))
+        .map_or((None, None), |value| match value {
+            Ok(bmson) => (Some(bmson), None),
+            Err(e) => (None, Some(e)),
+        });
+
+    BmsonParseOutput {
+        bmson,
+        chumsky_errors: parse_errors,
+        serde_error,
+    }
 }

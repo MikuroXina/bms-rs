@@ -68,7 +68,10 @@ fn test_parse_bmson_success() {
         "sound_channels": []
     }"#;
 
-    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    let output = parse_bmson(json);
+    let Some(bmson) = output.bmson else {
+        panic!("Failed to parse BMSON: {:?}", output.serde_error);
+    };
     assert_eq!(bmson.info.title.as_ref(), "Test Song");
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.level, 5);
@@ -92,10 +95,13 @@ fn test_parse_bmson_with_invalid_json() {
         "sound_channels": []
     }"#;
 
-    let result = parse_bmson(invalid_json);
-    assert!(result.is_err());
+    let output = parse_bmson(invalid_json);
+    assert!(output.bmson.is_none());
+    assert!(output.serde_error.is_some());
 
-    let err = result.unwrap_err();
+    let Some(err) = output.serde_error else {
+        panic!("Expected serde error but got none");
+    };
     // The error should contain path information about the invalid field "level"
     let path = err.path().to_string();
     let inner_err = err.into_inner();
@@ -127,10 +133,13 @@ fn test_parse_bmson_with_missing_required_field() {
         "sound_channels": []
     }"#;
 
-    let result = parse_bmson(incomplete_json);
-    assert!(result.is_err());
+    let output = parse_bmson(incomplete_json);
+    assert!(output.bmson.is_none());
+    assert!(output.serde_error.is_some());
 
-    let err = result.unwrap_err();
+    let Some(err) = output.serde_error else {
+        panic!("Expected serde error but got none");
+    };
     // Should indicate missing "info" field
     let path = err.path().to_string();
     let inner_err = err.into_inner();
