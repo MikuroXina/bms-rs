@@ -83,6 +83,9 @@ impl Bms {
         let mut stop_def_obj_id_issuer = ObjIdIssuer::new();
         let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
 
+        let resolution =
+            NonZeroU64::new(value.info.resolution).expect("resolution should be non-zero");
+
         // Convert info to header
         bms.header.title = Some(value.info.title.into_owned());
         bms.header.subtitle = Some(value.info.subtitle.into_owned());
@@ -121,13 +124,13 @@ impl Bms {
             Track(0),
             SectionLenChangeObj {
                 track: Track(0),
-                length: Decimal::from(value.info.resolution.get()),
+                length: Decimal::from(resolution.get()),
             },
         );
 
         // Convert BPM events
         for bpm_event in value.bpm_events {
-            let time = convert_pulse_to_obj_time(bpm_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
             let bpm = Decimal::from(bpm_event.bpm.as_f64());
 
             // Add to scope_defines
@@ -144,7 +147,7 @@ impl Bms {
 
         // Convert stop events
         for stop_event in value.stop_events {
-            let time = convert_pulse_to_obj_time(stop_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(stop_event.y, resolution);
             let duration = Decimal::from(stop_event.duration);
 
             // Add to scope_defines
@@ -161,7 +164,7 @@ impl Bms {
 
         // Convert scroll events
         for scroll_event in value.scroll_events {
-            let time = convert_pulse_to_obj_time(scroll_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(scroll_event.y, resolution);
             let factor = Decimal::from(scroll_event.rate.as_f64());
 
             // Add to scope_defines
@@ -188,7 +191,7 @@ impl Bms {
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for note in sound_channel.notes {
-                let time = convert_pulse_to_obj_time(note.y, value.info.resolution.get());
+                let time = convert_pulse_to_obj_time(note.y, resolution);
                 let (key, side) = convert_lane_to_key_side(note.x);
                 let kind = if note.l > 0 {
                     NoteKind::Long
@@ -215,7 +218,7 @@ impl Bms {
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for mine_event in mine_channel.notes {
-                let time = convert_pulse_to_obj_time(mine_event.y, value.info.resolution.get());
+                let time = convert_pulse_to_obj_time(mine_event.y, resolution);
                 let (key, side) = convert_lane_to_key_side(mine_event.x);
 
                 let obj = WavObj {
@@ -237,7 +240,7 @@ impl Bms {
             bms.notes.wav_files.insert(obj_id, wav_path);
 
             for key_event in key_channel.notes {
-                let time = convert_pulse_to_obj_time(key_event.y, value.info.resolution.get());
+                let time = convert_pulse_to_obj_time(key_event.y, resolution);
                 let (key, side) = convert_lane_to_key_side(key_event.x);
 
                 let obj = WavObj {
@@ -278,7 +281,7 @@ impl Bms {
         };
 
         for bga_event in value.bga.bga_events {
-            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
@@ -291,7 +294,7 @@ impl Bms {
         }
 
         for bga_event in value.bga.layer_events {
-            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
@@ -304,7 +307,7 @@ impl Bms {
         }
 
         for bga_event in value.bga.poor_events {
-            let time = convert_pulse_to_obj_time(bga_event.y, value.info.resolution.get());
+            let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
             bms.graphics.bga_changes.insert(
                 time,
@@ -331,9 +334,9 @@ impl Bms {
 }
 
 /// Converts a pulse number to [`ObjTime`]
-fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: u64) -> ObjTime {
+fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjTime {
     // Simple conversion: assume 4/4 time signature and convert pulses to track/time
-    let pulses_per_measure = resolution * 4; // 4 quarter notes per measure
+    let pulses_per_measure = resolution.get() * 4; // 4 quarter notes per measure
     let track = pulse.0 / pulses_per_measure;
     let remaining_pulses = pulse.0 % pulses_per_measure;
 

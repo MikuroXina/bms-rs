@@ -1,6 +1,6 @@
 //! Pulse definition for bmson format. It represents only beat on the score, so you need to know previous BPMs for finding happening seconds of a note.
 
-use std::{collections::BTreeMap, num::NonZeroU64};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -25,15 +25,14 @@ impl PulseNumber {
 #[derive(Debug, Clone)]
 pub struct PulseConverter {
     pulses_at_track_start: BTreeMap<Track, u64>,
-    resolution: NonZeroU64,
+    resolution: u64,
 }
 
 impl PulseConverter {
     /// Creates a new converter from [`Notes`].
     #[must_use]
     pub fn new(bms: &crate::bms::model::Bms) -> Self {
-        let resolution =
-            NonZeroU64::new(bms.resolution_for_pulses()).expect("resolution should be non-zero");
+        let resolution = bms.resolution_for_pulses();
         let last_track = bms.last_obj_time().map_or(0, |time| time.track().0);
 
         let mut pulses_at_track_start = BTreeMap::new();
@@ -48,8 +47,7 @@ impl PulseConverter {
                 .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
-            current_pulses =
-                current_pulses.saturating_add((section_len * 4.0) as u64 * resolution.get());
+            current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
             current_track += 1;
             pulses_at_track_start.insert(Track(current_track), current_pulses);
             if last_track < current_track {
@@ -83,7 +81,7 @@ impl PulseConverter {
     pub fn get_pulses_at(&self, time: ObjTime) -> PulseNumber {
         let PulseNumber(track_base) = self.get_pulses_on(time.track());
         PulseNumber(
-            track_base + (4 * self.resolution.get() * time.numerator() / time.denominator().get()),
+            track_base + (4 * self.resolution * time.numerator() / time.denominator().get()),
         )
     }
 }
@@ -127,7 +125,7 @@ fn pulse_conversion() {
         ..Default::default()
     });
 
-    assert_eq!(converter.resolution.get(), 1);
+    assert_eq!(converter.resolution, 1);
 
     assert_eq!(
         converter

@@ -192,7 +192,7 @@ impl Bms {
                 .banner
                 .map(|path| Cow::Owned(path.display().to_string())),
             preview_music: None,
-            resolution: NonZeroU64::new(resolution).expect("resolution should be non-zero"),
+            resolution,
             ln_type: self.header.ln_mode,
         };
 
