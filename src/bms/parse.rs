@@ -7,9 +7,10 @@ pub mod check_playing;
 pub mod prompt;
 pub mod validity;
 
+use std::{borrow::Cow, num::NonZeroU64, str::FromStr};
+
 use fraction::GenericFraction;
 use itertools::Itertools;
-use std::{num::NonZeroU64, str::FromStr};
 use thiserror::Error;
 
 use crate::bms::diagnostics::{SimpleSource, ToAriadne};
@@ -475,7 +476,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChange,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     // Record used BPM change id for validity checks
                     self.arrangers.bpm_change_ids_used.insert(obj);
                     let bpm = self
@@ -497,6 +499,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
+                let message = filter_message(message);
+                let message = message.as_ref();
                 let denominator = NonZeroU64::new(message.len() as u64 / 2).ok_or_else(|| {
                     ParseWarning::SyntaxError(
                         "message length must be greater than or equals to 2".to_string(),
@@ -527,7 +531,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Scroll,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     let factor = self
                         .scope_defines
                         .scroll_defs
@@ -547,7 +552,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Speed,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     let factor = self
                         .scope_defines
                         .speed_defs
@@ -568,7 +574,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::ChangeOption,
                 message,
             } => {
-                for (_time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (_time, obj) in ids_from_message(*track, &message) {
                     let _option = self
                         .others
                         .change_options
@@ -583,6 +590,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::SectionLen,
                 message,
             } => {
+                let message = filter_message(message);
+                let message = message.as_ref();
                 let length = Decimal::from(Decimal::from_fraction(
                     GenericFraction::from_str(message).map_err(|_| {
                         ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
@@ -606,7 +615,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Stop,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     // Record used STOP id for validity checks
                     self.arrangers.stop_ids_used.insert(obj);
                     let duration = self
@@ -629,7 +639,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     | Channel::BgaLayer2),
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     if !self.graphics.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
@@ -651,7 +662,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Bgm,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, obj) in ids_from_message(*track, &message) {
                     self.notes.push_bgm(time, obj);
                 }
             }
@@ -661,7 +673,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 // Parse the channel ID to get note components
-                for (offset, obj) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (offset, obj) in ids_from_message(*track, &message) {
                     self.notes.push_note(WavObj {
                         offset,
                         channel_id: *channel_id,
@@ -679,7 +692,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     | Channel::BgaPoorOpacity),
                 message,
             } => {
-                for (time, opacity_value) in opacity_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, opacity_value) in opacity_from_message(*track, &message) {
                     let layer = BgaLayer::from_channel(*channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     self.graphics.push_bga_opacity_change(
@@ -698,7 +712,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BgmVolume,
                 message,
             } => {
-                for (time, volume_value) in volume_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, volume_value) in volume_from_message(*track, &message) {
                     self.notes.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
@@ -713,7 +728,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::KeyVolume,
                 message,
             } => {
-                for (time, volume_value) in volume_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, volume_value) in volume_from_message(*track, &message) {
                     self.notes.push_key_volume_change(
                         KeyVolumeObj {
                             time,
@@ -733,7 +749,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     | Channel::BgaPoorArgb),
                 message,
             } => {
-                for (time, argb_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, argb_id) in ids_from_message(*track, &message) {
                     let layer = BgaLayer::from_channel(*channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = self
@@ -758,7 +775,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Seek,
                 message,
             } => {
-                for (time, seek_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, seek_id) in ids_from_message(*track, &message) {
                     let position = self
                         .others
                         .seek_events
@@ -778,7 +796,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Text,
                 message,
             } => {
-                for (time, text_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, text_id) in ids_from_message(*track, &message) {
                     let text = self
                         .others
                         .texts
@@ -798,7 +817,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Judge,
                 message,
             } => {
-                for (time, judge_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, judge_id) in ids_from_message(*track, &message) {
                     let exrank_def = self
                         .scope_defines
                         .exrank_defs
@@ -819,7 +839,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BgaKeybound,
                 message,
             } => {
-                for (time, keybound_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, keybound_id) in ids_from_message(*track, &message) {
                     let event = self
                         .scope_defines
                         .swbga_events
@@ -840,7 +861,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Option,
                 message,
             } => {
-                for (time, option_id) in ids_from_message(*track, message) {
+                let message = filter_message(message);
+                for (time, option_id) in ids_from_message(*track, &message) {
                     let option = self
                         .others
                         .change_options
@@ -1022,6 +1044,23 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
     parse_message_values(track, message, |c1, c2| {
         u8::from_str_radix(&format!("{c1}{c2}"), 16).ok()
     })
+}
+
+fn filter_message(message: &str) -> Cow<'_, str> {
+    let result = message
+        .chars()
+        .try_fold(String::with_capacity(message.len()), |mut acc, ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '.' {
+                acc.push(ch);
+                Ok(acc)
+            } else {
+                Err(acc)
+            }
+        });
+    match result {
+        Ok(_) => Cow::Borrowed(message),
+        Err(filtered) => Cow::Owned(filtered),
+    }
 }
 
 /// Bms Parse Output with AST
