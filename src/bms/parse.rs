@@ -1027,9 +1027,6 @@ where
     // This will be None if the message length is less than 2
     let denominator_opt = NonZeroU64::new((chars.len() / 2) as u64);
 
-    // Track whether we've already emitted a length error to avoid duplicate warnings
-    let mut emitted_len_err = false;
-
     // Create an iterator that yields character pairs from the filtered message
     let mut pairs_iter = chars.into_iter().tuples::<(char, char)>();
 
@@ -1039,13 +1036,10 @@ where
     std::iter::from_fn(move || {
         // Ensure we have a valid denominator (at least 2 characters in original message)
         let Some(denominator) = denominator_opt else {
-            // Emit a warning only once for invalid message length
-            if !emitted_len_err {
-                parse_warnings.push(ParseWarning::SyntaxError(
-                    "message length must be greater than or equals to 2".to_string(),
-                ));
-                emitted_len_err = true;
-            }
+            // Emit a warning for invalid message length
+            parse_warnings.push(ParseWarning::SyntaxError(
+                "message length must be greater than or equals to 2".to_string(),
+            ));
             return None;
         };
 
