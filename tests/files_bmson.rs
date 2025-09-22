@@ -99,7 +99,8 @@ fn test_parse_bmson_with_zero_resolution() {
         "sound_channels": []
     }"#;
 
-    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
@@ -121,7 +122,8 @@ fn test_parse_bmson_with_negative_resolution() {
         "sound_channels": []
     }"#;
 
-    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(480).expect("480 should be a valid NonZeroU64")
@@ -142,7 +144,8 @@ fn test_parse_bmson_with_missing_resolution() {
         "sound_channels": []
     }"#;
 
-    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
@@ -169,7 +172,8 @@ fn test_parse_bmson_with_large_resolution() {
         large_value
     );
 
-    let bmson = parse_bmson(&json).expect("Failed to parse BMSON");
+    let output = parse_bmson(&json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(large_value).expect("large_value should be a valid NonZeroU64")
@@ -192,7 +196,8 @@ fn test_parse_bmson_with_float_resolution() {
         "sound_channels": []
     }"#;
 
-    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(480).expect("480 should be a valid NonZeroU64")
@@ -350,7 +355,10 @@ fn test_chumsky_detects_missing_commas() {
     assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
     assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
     assert_eq!(bmson.info.total.as_f64(), 100.0);
-    assert_eq!(bmson.info.resolution, 240);
+    assert_eq!(
+        bmson.info.resolution,
+        NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
+    );
     assert!(bmson.sound_channels.is_empty());
 
     println!("All Bmson content matches the original JSON despite missing commas");
@@ -407,7 +415,10 @@ fn test_parse_bmson_with_trailing_comma() {
     assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
     assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
     assert_eq!(bmson.info.total.as_f64(), 100.0);
-    assert_eq!(bmson.info.resolution, 240);
+    assert_eq!(
+        bmson.info.resolution,
+        NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
+    );
     assert!(bmson.sound_channels.is_empty());
 
     println!("All Bmson content matches the original JSON despite trailing commas");
