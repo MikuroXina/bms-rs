@@ -1,6 +1,7 @@
 //! Definitions of time in BMS.
 
 use num::Integer;
+use std::num::NonZeroU64;
 
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -18,37 +19,59 @@ impl std::fmt::Display for Track {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ObjTime {
     /// The track, or measure, where the object is in.
-    pub track: Track,
+    track: Track,
     /// The time offset numerator in the track.
-    pub numerator: u64,
+    numerator: u64,
     /// The time offset denominator in the track.
-    pub denominator: u64,
+    denominator: NonZeroU64,
 }
 
 impl ObjTime {
     /// Create a new time.
-    ///
-    /// # Panics
-    ///
-    /// When `denominator == 0`.
     #[must_use]
-    pub fn new(track: u64, numerator: u64, denominator: u64) -> Self {
-        // If denominator is 0, it panics.
-        assert!(denominator > 0);
+    pub fn new(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
-        let (track, numerator) = if numerator > denominator {
-            (track + (numerator / denominator), numerator % denominator)
+        let (track, numerator) = if numerator > denominator.get() {
+            (
+                track + (numerator / denominator.get()),
+                numerator % denominator.get(),
+            )
         } else {
             (track, numerator)
         };
         // Reduce the fraction to the simplest form.
         // Note: 0.gcd(&num) == num, when num > 0
-        let gcd = numerator.gcd(&denominator);
+        let gcd = numerator.gcd(&denominator.get());
         Self {
             track: Track(track),
             numerator: numerator / gcd,
-            denominator: denominator / gcd,
+            denominator: NonZeroU64::new(denominator.get() / gcd)
+                .expect("GCD should never make denominator zero"),
         }
+    }
+
+    /// Get the track where the object is in.
+    #[must_use]
+    pub fn track(&self) -> Track {
+        self.track
+    }
+
+    /// Get the time offset numerator in the track.
+    #[must_use]
+    pub fn numerator(&self) -> u64 {
+        self.numerator
+    }
+
+    /// Get the time offset denominator in the track.
+    #[must_use]
+    pub fn denominator(&self) -> NonZeroU64 {
+        self.denominator
+    }
+
+    /// Get the time offset denominator in the track as u64.
+    #[must_use]
+    pub fn denominator_u64(&self) -> u64 {
+        self.denominator.get()
     }
 }
 
@@ -60,10 +83,10 @@ impl PartialOrd for ObjTime {
 
 impl Ord for ObjTime {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let self_time_in_track = self.numerator * other.denominator;
-        let other_time_in_track = other.numerator * self.denominator;
-        self.track
-            .cmp(&other.track)
+        let self_time_in_track = self.numerator() * other.denominator().get();
+        let other_time_in_track = other.numerator() * self.denominator().get();
+        self.track()
+            .cmp(&other.track())
             .then(self_time_in_track.cmp(&other_time_in_track))
     }
 }
@@ -73,7 +96,9 @@ impl std::fmt::Display for ObjTime {
         write!(
             f,
             "ObjTime: {}, {} / {}",
-            self.track, self.numerator, self.denominator
+            self.track(),
+            self.numerator(),
+            self.denominator().get()
         )
     }
 }
