@@ -981,6 +981,30 @@ impl<T: KeyLayoutMapper> Bms<T> {
 }
 
 /// Parses message values with warnings.
+///
+/// This function processes BMS message strings by filtering out invalid characters,
+/// then parsing character pairs into values using the provided `parse_value` function.
+/// It returns an iterator that yields `(ObjTime, T)` pairs for each successfully parsed value.
+///
+/// # Arguments
+/// * `track` - The track number for time calculation
+/// * `message` - The raw message string to parse
+/// * `parse_value` - A closure that takes two characters and a mutable warnings vector,
+///   returning `Option<T>` if parsing succeeds or `None` if the pair should be skipped
+/// * `parse_warnings` - A mutable vector to collect parsing warnings
+///
+/// # Returns
+/// An iterator yielding `(ObjTime, T)` pairs where:
+/// - `ObjTime` represents the timing position within the track
+/// - `T` is the parsed value from character pairs
+///
+/// # Behavior
+/// - Messages are first filtered to remove invalid characters
+/// - Character pairs are processed sequentially
+/// - Empty pairs ('00') are typically skipped by the parse_value function
+/// - Time calculation uses the track number and pair index as numerator,
+///   with total pair count as denominator
+/// - Length validation ensures message length is at least 2 characters
 fn parse_message_values_with_warnings<'a, T, F>(
     track: Track,
     message: &'a str,
@@ -992,14 +1016,30 @@ where
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.
+
+    // Filter the message to remove invalid characters and convert to owned string
     let filtered = filter_message(message).into_owned();
+
+    // Convert the filtered string to a vector of characters for pair-wise processing
     let chars: Vec<char> = filtered.chars().collect();
+
+    // Calculate the denominator for time calculation (total number of character pairs)
+    // This will be None if the message length is less than 2
     let denominator_opt = NonZeroU64::new((chars.len() / 2) as u64);
+
+    // Track whether we've already emitted a length error to avoid duplicate warnings
     let mut emitted_len_err = false;
+
+    // Create an iterator that yields character pairs from the filtered message
     let mut pairs_iter = chars.into_iter().tuples::<(char, char)>();
+
+    // Track the current pair index for time calculation
     let mut pair_index: u64 = 0;
+
     std::iter::from_fn(move || {
+        // Ensure we have a valid denominator (at least 2 characters in original message)
         let Some(denominator) = denominator_opt else {
+            // Emit a warning only once for invalid message length
             if !emitted_len_err {
                 parse_warnings.push(ParseWarning::SyntaxError(
                     "message length must be greater than or equals to 2".to_string(),
@@ -1010,15 +1050,22 @@ where
         };
 
         loop {
+            // Get the next character pair, or end iteration if none remain
             let Some((c1, c2)) = pairs_iter.next() else {
                 return None;
             };
+
+            // Store current pair index before incrementing
             let current_index = pair_index;
             pair_index += 1;
+
+            // Try to parse the character pair using the provided parse_value function
             if let Some(value) = parse_value(c1, c2, parse_warnings) {
+                // Successfully parsed a value, calculate its timing position
                 let time = ObjTime::new(track.0, current_index, denominator);
                 return Some((time, value));
             }
+            // If parsing failed (returned None), continue to the next pair
         }
     })
 }
