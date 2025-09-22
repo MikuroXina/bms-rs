@@ -144,6 +144,56 @@ fn test_parse_bmson_with_missing_resolution() {
 }
 
 #[test]
+fn test_parse_bmson_with_large_resolution() {
+    // Test with a value larger than i64::MAX but within u64::MAX
+    let large_value = 10000000000000000000u64; // 10^19, larger than i64::MAX
+    let json = format!(
+        r#"{{
+        "version": "1.0.0",
+        "info": {{
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "genre": "Test",
+            "level": 1,
+            "init_bpm": 120,
+            "resolution": {}
+        }},
+        "sound_channels": []
+    }}"#,
+        large_value
+    );
+
+    let bmson = parse_bmson(&json).expect("Failed to parse BMSON");
+    assert_eq!(
+        bmson.info.resolution,
+        std::num::NonZeroU64::new(large_value).unwrap()
+    );
+}
+
+#[test]
+fn test_parse_bmson_with_float_resolution() {
+    // Test with a float value that represents a whole number
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test Song",
+            "artist": "Test Artist",
+            "genre": "Test",
+            "level": 1,
+            "init_bpm": 120,
+            "resolution": 480.0
+        },
+        "sound_channels": []
+    }"#;
+
+    let bmson = parse_bmson(json).expect("Failed to parse BMSON");
+    assert_eq!(
+        bmson.info.resolution,
+        std::num::NonZeroU64::new(480).unwrap()
+    );
+}
+
+#[test]
 fn test_parse_bmson_with_invalid_json() {
     let invalid_json = r#"{
         "version": "1.0.0",
