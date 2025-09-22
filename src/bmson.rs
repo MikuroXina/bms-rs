@@ -349,10 +349,10 @@ pub enum BmsonParseStatus<'a> {
         /// The parsed BMSON data.
         bmson: Bmson<'a>,
     },
-    /// The parsing failed due to chumsky errors.
-    ChumskyError,
-    /// The parsing failed due to serde errors.
-    SerdeError {
+    /// The parsing failed due to JSON parsing errors.
+    JsonError,
+    /// The parsing failed due to deserialization errors.
+    DeserializeError {
         /// The serde deserialization error.
         serde_error: serde_path_to_error::Error<serde_json::Error>,
     },
@@ -379,9 +379,9 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     // Try to deserialize the JSON value into Bmson
     let status = json_value
         .map(|value| serde_path_to_error::deserialize(&value))
-        .map_or(BmsonParseStatus::ChumskyError, |value| match value {
+        .map_or(BmsonParseStatus::JsonError, |value| match value {
             Ok(bmson) => BmsonParseStatus::Success { bmson },
-            Err(e) => BmsonParseStatus::SerdeError { serde_error: e },
+            Err(e) => BmsonParseStatus::DeserializeError { serde_error: e },
         });
 
     BmsonParseOutput {

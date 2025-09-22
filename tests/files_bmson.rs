@@ -103,8 +103,8 @@ fn test_parse_bmson_with_invalid_json() {
     }"#;
 
     let output = parse_bmson(invalid_json);
-    let BmsonParseStatus::SerdeError { serde_error: err } = output.status else {
-        panic!("Expected serde error but got: {:?}", output.status);
+    let BmsonParseStatus::DeserializeError { serde_error: err } = output.status else {
+        panic!("Expected deserialize error but got: {:?}", output.status);
     };
     // The error should contain path information about the invalid field "level"
     let path = err.path().to_string();
@@ -138,8 +138,8 @@ fn test_parse_bmson_with_missing_required_field() {
     }"#;
 
     let output = parse_bmson(incomplete_json);
-    let BmsonParseStatus::SerdeError { serde_error: err } = output.status else {
-        panic!("Expected serde error but got: {:?}", output.status);
+    let BmsonParseStatus::DeserializeError { serde_error: err } = output.status else {
+        panic!("Expected deserialize error but got: {:?}", output.status);
     };
     // Should indicate missing "info" field
     let path = err.path().to_string();
