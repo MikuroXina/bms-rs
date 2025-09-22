@@ -1175,7 +1175,7 @@ impl<'a> Token<'a> {
                     && message.chars().nth(6) == Some(':')
                     && 8 <= message.len() =>
             {
-                let message_line = c.next_line_entire();
+                let message_line = c.next_line_entire().trim_start();
                 let track = message_line[1..4]
                     .parse()
                     .map_err(|_| c.make_err_expected_token("[000-999]"))?;
