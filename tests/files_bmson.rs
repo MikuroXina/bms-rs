@@ -1,5 +1,7 @@
 #![cfg(feature = "bmson")]
 
+use std::num::NonZeroU64;
+
 use bms_rs::bmson::{
     BgaEvent, BgaHeader, BgaId, Bmson, BpmEvent, fin_f64::FinF64, parse_bmson, pulse::PulseNumber,
 };
@@ -74,7 +76,7 @@ fn test_parse_bmson_success() {
     assert_eq!(bmson.info.level, 5);
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(240).unwrap()
+        NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
     );
 }
 
@@ -96,7 +98,7 @@ fn test_parse_bmson_with_zero_resolution() {
     let bmson = parse_bmson(json).expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(240).unwrap()
+        NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
     );
 }
 
@@ -118,7 +120,7 @@ fn test_parse_bmson_with_negative_resolution() {
     let bmson = parse_bmson(json).expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(480).unwrap()
+        NonZeroU64::new(480).expect("480 should be a valid NonZeroU64")
     );
 }
 
@@ -139,7 +141,7 @@ fn test_parse_bmson_with_missing_resolution() {
     let bmson = parse_bmson(json).expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(240).unwrap()
+        NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
     );
 }
 
@@ -166,7 +168,7 @@ fn test_parse_bmson_with_large_resolution() {
     let bmson = parse_bmson(&json).expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(large_value).unwrap()
+        NonZeroU64::new(large_value).expect("large_value should be a valid NonZeroU64")
     );
 }
 
@@ -189,7 +191,7 @@ fn test_parse_bmson_with_float_resolution() {
     let bmson = parse_bmson(json).expect("Failed to parse BMSON");
     assert_eq!(
         bmson.info.resolution,
-        std::num::NonZeroU64::new(480).unwrap()
+        NonZeroU64::new(480).expect("480 should be a valid NonZeroU64")
     );
 }
 
