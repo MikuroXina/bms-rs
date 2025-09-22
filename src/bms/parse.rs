@@ -980,8 +980,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-// parse_message_values removed in favor of parse_message_values_with_warnings
-
+/// Parses message values with warnings.
 fn parse_message_values_with_warnings<'a, T, F>(
     track: Track,
     message: &'a str,
