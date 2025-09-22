@@ -35,10 +35,11 @@ pub mod pulse;
 
 use std::{borrow::Cow, num::NonZeroU8};
 
+use ariadne::{Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::bms::command::LnMode;
+use crate::{bms::command::LnMode, diagnostics::ToAriadne};
 
 use self::{fin_f64::FinF64, parse::parser, pulse::PulseNumber};
 
@@ -330,32 +331,59 @@ pub struct KeyChannel<'a> {
     pub notes: Vec<KeyEvent>,
 }
 
+/// Errors that can occur during BMSON parsing.
+#[derive(Debug)]
+pub enum BmsonParseError<'a> {
+    /// JSON parsing error from chumsky parser.
+    JsonParse {
+        /// The specific parsing error.
+        error: Rich<'a, char>,
+    },
+    /// Deserialization error from serde.
+    Deserialize {
+        /// The serde deserialization error.
+        error: serde_path_to_error::Error<serde_json::Error>,
+    },
+}
+
+impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
+    fn to_report<'b>(
+        &self,
+        src: &crate::diagnostics::SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Error, (filename.clone(), 0..0))
+            .with_message("BMSON deserialization error")
+            .with_label(
+                Label::new((filename, 0..0))
+                    .with_message(format!("{}", self))
+                    .with_color(Color::Red),
+            )
+            .finish()
+    }
+}
+
+impl<'a> ToAriadne for BmsonParseError<'a> {
+    fn to_report<'b>(
+        &self,
+        src: &crate::diagnostics::SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        match self {
+            BmsonParseError::JsonParse { error } => error.to_report(src),
+            BmsonParseError::Deserialize { error } => error.to_report(src),
+        }
+    }
+}
+
 /// Output of parsing a BMSON file.
 ///
 /// This struct contains the parsed BMSON data (if successful), along with any
 /// parsing errors that occurred during the process.
 pub struct BmsonParseOutput<'a> {
-    /// Status of the parser.
-    pub status: BmsonParseStatus<'a>,
-    /// Errors from the chumsky JSON parser.
-    pub chumsky_errors: Vec<Rich<'a, char>>,
-}
-
-/// Status of the parse step
-#[derive(Debug)]
-pub enum BmsonParseStatus<'a> {
-    /// The parsing was successful.
-    Success {
-        /// The parsed BMSON data.
-        bmson: Bmson<'a>,
-    },
-    /// The parsing failed due to JSON parsing errors.
-    JsonError,
-    /// The parsing failed due to deserialization errors.
-    DeserializeError {
-        /// The serde deserialization error.
-        serde_error: serde_path_to_error::Error<serde_json::Error>,
-    },
+    /// The parsed BMSON data, or None if parsing failed.
+    pub bmson: Option<Bmson<'a>>,
+    /// Errors that occurred during parsing.
+    pub errors: Vec<BmsonParseError<'a>>,
 }
 
 /// Parse a BMSON file from JSON string.
@@ -367,25 +395,31 @@ pub enum BmsonParseStatus<'a> {
 /// # Returns
 ///
 /// Returns a `BmsonParseOutput` containing the parsed BMSON data (if successful),
-/// chumsky parsing errors, and serde deserialization errors.
+/// or various types of parsing errors that occurred during the process.
 #[must_use]
 pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     // First parse JSON using chumsky parser
     let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
+    // Collect JSON parsing errors
+    let mut errors: Vec<BmsonParseError<'a>> = parse_errors
+        .into_iter()
+        .map(|error| BmsonParseError::JsonParse { error })
+        .collect();
+
     // Try to get a JSON value from either chumsky or serde_json
     let json_value = value.or(serde_json::from_str(json).ok());
 
     // Try to deserialize the JSON value into Bmson
-    let status = json_value
+    let bmson = json_value
         .map(|value| serde_path_to_error::deserialize(&value))
-        .map_or(BmsonParseStatus::JsonError, |value| match value {
-            Ok(bmson) => BmsonParseStatus::Success { bmson },
-            Err(e) => BmsonParseStatus::DeserializeError { serde_error: e },
+        .map_or(None, |value| match value {
+            Ok(bmson) => Some(bmson),
+            Err(error) => {
+                errors.push(BmsonParseError::Deserialize { error });
+                None
+            }
         });
 
-    BmsonParseOutput {
-        status,
-        chumsky_errors: parse_errors,
-    }
+    BmsonParseOutput { bmson, errors }
 }

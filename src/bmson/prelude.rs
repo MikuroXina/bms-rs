@@ -26,7 +26,7 @@ pub use super::{
 };
 
 // Re-export parsing functions and types
-pub use super::{BmsonParseOutput, BmsonParseStatus, parse_bmson};
+pub use super::{BmsonParseError, BmsonParseOutput, parse_bmson};
 
 // Re-export default functions
 pub use super::{default_mode_hint, default_percentage, default_resolution};

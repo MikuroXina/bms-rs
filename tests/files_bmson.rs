@@ -1,7 +1,7 @@
 #![cfg(feature = "bmson")]
 
 use bms_rs::bmson::{
-    BgaEvent, BgaHeader, BgaId, BmsonParseStatus, BpmEvent, fin_f64::FinF64, parse_bmson,
+    BgaEvent, BgaHeader, BgaId, BmsonParseError, BpmEvent, fin_f64::FinF64, parse_bmson,
     pulse::PulseNumber,
 };
 
@@ -9,9 +9,7 @@ use bms_rs::bmson::{
 fn test_bmson100_lostokens() {
     let data = include_str!("files_bmson/lostokens.bmson");
     let output = parse_bmson(data);
-    let BmsonParseStatus::Success { bmson } = output.status else {
-        panic!("Failed to parse BMSON: {:?}", output.status);
-    };
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "lostokens");
     assert_eq!(bmson.info.level, 5);
@@ -22,9 +20,7 @@ fn test_bmson100_lostokens() {
 fn test_bmson100_bemusic_story_48key() {
     let data = include_str!("files_bmson/bemusicstory_483_48K_ANOTHER.bmson");
     let output = parse_bmson(data);
-    let BmsonParseStatus::Success { bmson } = output.status else {
-        panic!("Failed to parse BMSON: {:?}", output.status);
-    };
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");
     // Bga
@@ -76,9 +72,7 @@ fn test_parse_bmson_success() {
     }"#;
 
     let output = parse_bmson(json);
-    let BmsonParseStatus::Success { bmson } = output.status else {
-        panic!("Failed to parse BMSON: {:?}", output.status);
-    };
+    let bmson = output.bmson.expect("Failed to parse BMSON");
     assert_eq!(bmson.info.title.as_ref(), "Test Song");
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.level, 5);
@@ -103,16 +97,22 @@ fn test_parse_bmson_with_invalid_json() {
     }"#;
 
     let output = parse_bmson(invalid_json);
-    let BmsonParseStatus::DeserializeError { serde_error: err } = output.status else {
-        panic!("Expected deserialize error but got: {:?}", output.status);
+
+    // Should be a failure
+    assert!(output.bmson.is_none(), "Expected parsing to fail");
+
+    // Should have exactly one deserialize error
+    assert_eq!(output.errors.len(), 1);
+    let BmsonParseError::Deserialize { error } = &output.errors[0] else {
+        panic!("Expected deserialize error but got: {:?}", output.errors[0]);
     };
+
     // The error should contain path information about the invalid field "level"
-    let path = err.path().to_string();
-    let inner_err = err.into_inner();
+    let path = error.path().to_string();
     assert!(!path.is_empty());
 
     // Check that the error message contains information about the invalid type
-    let error_string = format!("{}", inner_err);
+    let error_string = format!("{}", error);
     assert!(
         error_string.contains("invalid type") || error_string.contains("expected"),
         "Error message should indicate invalid type. Got: {}",
@@ -127,7 +127,7 @@ fn test_parse_bmson_with_invalid_json() {
     );
 
     println!("Error path: {}", path);
-    println!("Error message: {}", inner_err);
+    println!("Error message: {}", error);
 }
 
 #[test]
@@ -138,16 +138,22 @@ fn test_parse_bmson_with_missing_required_field() {
     }"#;
 
     let output = parse_bmson(incomplete_json);
-    let BmsonParseStatus::DeserializeError { serde_error: err } = output.status else {
-        panic!("Expected deserialize error but got: {:?}", output.status);
+
+    // Should be a failure
+    assert!(output.bmson.is_none(), "Expected parsing to fail");
+
+    // Should have exactly one deserialize error
+    assert_eq!(output.errors.len(), 1);
+    let BmsonParseError::Deserialize { error } = &output.errors[0] else {
+        panic!("Expected deserialize error but got: {:?}", output.errors[0]);
     };
+
     // Should indicate missing "info" field
-    let path = err.path().to_string();
-    let inner_err = err.into_inner();
+    let path = error.path().to_string();
     assert!(!path.is_empty());
 
     // Check that the error message contains information about the missing field
-    let error_string = format!("{}", inner_err);
+    let error_string = format!("{}", error);
     assert!(
         error_string.contains("missing field") || error_string.contains("info"),
         "Error message should indicate missing 'info' field. Got: {}",
@@ -158,7 +164,7 @@ fn test_parse_bmson_with_missing_required_field() {
     // Note: serde_path_to_error may not always provide path info for missing fields
 
     println!("Error path: {}", path);
-    println!("Error message: {}", inner_err);
+    println!("Error message: {}", error);
 }
 
 #[test]
@@ -182,19 +188,28 @@ fn test_chumsky_detects_missing_commas() {
     let output = parse_bmson(json_with_missing_commas);
 
     // Check that chumsky detected missing comma errors
+    let json_parse_errors: Vec<_> = output
+        .errors
+        .iter()
+        .filter_map(|e| match e {
+            BmsonParseError::JsonParse { error } => Some(error),
+            _ => None,
+        })
+        .collect();
+
     assert!(
-        !output.chumsky_errors.is_empty(),
+        !json_parse_errors.is_empty(),
         "Expected chumsky to detect missing comma errors"
     );
 
     // Print the chumsky errors for debugging
-    println!("Chumsky errors count: {}", output.chumsky_errors.len());
-    for (i, error) in output.chumsky_errors.iter().enumerate() {
+    println!("Chumsky errors count: {}", json_parse_errors.len());
+    for (i, error) in json_parse_errors.iter().enumerate() {
         println!("Chumsky error {}: {:?}", i, error);
     }
 
     // Verify that the errors are related to missing commas
-    let has_comma_error = output.chumsky_errors.iter().any(|error| {
+    let has_comma_error = json_parse_errors.iter().any(|error| {
         let error_str = format!("{:?}", error);
         error_str.contains("expected") && error_str.contains(",")
     });
@@ -204,9 +219,7 @@ fn test_chumsky_detects_missing_commas() {
     );
 
     // The parsing should succeed despite missing commas (chumsky should recover)
-    let BmsonParseStatus::Success { bmson } = output.status else {
-        panic!("Expected Success status but got: {:?}", output.status);
-    };
+    let bmson = output.bmson.expect("Expected parsing to succeed");
 
     // Verify the parsed data matches the original JSON content
     assert_eq!(bmson.version.as_ref(), "1.0.0");
@@ -246,15 +259,22 @@ fn test_parse_bmson_with_trailing_comma() {
     let output = parse_bmson(json_with_trailing_comma);
 
     // Print the chumsky errors for debugging
-    println!("Chumsky errors count: {}", output.chumsky_errors.len());
-    for (i, error) in output.chumsky_errors.iter().enumerate() {
+    let json_parse_errors: Vec<_> = output
+        .errors
+        .iter()
+        .filter_map(|e| match e {
+            BmsonParseError::JsonParse { error } => Some(error),
+            _ => None,
+        })
+        .collect();
+
+    println!("Chumsky errors count: {}", json_parse_errors.len());
+    for (i, error) in json_parse_errors.iter().enumerate() {
         println!("Chumsky error {}: {:?}", i, error);
     }
 
-    // Force requirement: output.status must be Success
-    let BmsonParseStatus::Success { bmson } = output.status else {
-        panic!("Expected Success status but got: {:?}", output.status);
-    };
+    // The parsing should succeed despite trailing commas
+    let bmson = output.bmson.expect("Expected parsing to succeed");
 
     println!("Parsing succeeded - checking content consistency with trailing commas");
 
@@ -273,7 +293,7 @@ fn test_parse_bmson_with_trailing_comma() {
     println!("All Bmson content matches the original JSON despite trailing commas");
 
     // If there were chumsky errors, verify they were about trailing commas
-    if !output.chumsky_errors.is_empty() {
+    if !json_parse_errors.is_empty() {
         println!("Chumsky detected errors but serde_json fallback succeeded");
     }
 }
