@@ -133,7 +133,10 @@ pub struct BmsonInfo<'a> {
     #[serde(default)]
     pub preview_music: Option<Cow<'a, str>>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
-    #[serde(default = "default_resolution")]
+    #[serde(
+        deserialize_with = "deserialize_resolution",
+        default = "default_resolution"
+    )]
     pub resolution: NonZeroU64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
@@ -163,6 +166,37 @@ pub fn default_percentage() -> FinF64 {
 #[must_use]
 pub fn default_resolution() -> NonZeroU64 {
     NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
+}
+
+/// Custom deserializer for resolution field that handles invalid values according to BMSON specification.
+///
+/// According to the BMSON spec:
+/// - resolution must be > 0
+/// - If 0, null or undefined, use the default value (240)
+/// - If negative, take the absolute value
+fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<i64>::deserialize(deserializer)?;
+    match opt {
+        None | Some(0) => Ok(default_resolution()),
+        Some(negative @ i64::MIN..0) => {
+            let positive = negative.unsigned_abs();
+            NonZeroU64::new(positive).ok_or_else(|| {
+                serde::de::Error::custom(format!(
+                    "Cannot convert negative resolution {} to valid NonZeroU64",
+                    negative
+                ))
+            })
+        }
+        Some(positive @ 1..) => NonZeroU64::new(positive as u64).ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "Cannot convert resolution {} to valid NonZeroU64",
+                positive
+            ))
+        }),
+    }
 }
 
 /// Event of bar line of the chart.
