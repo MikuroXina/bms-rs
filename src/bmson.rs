@@ -31,7 +31,10 @@ pub mod bmson_to_bms;
 pub mod fin_f64;
 pub mod pulse;
 
-use std::{borrow::Cow, num::NonZeroU8};
+use std::{
+    borrow::Cow,
+    num::{NonZeroU8, NonZeroU64},
+};
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_path_to_error;
@@ -130,8 +133,11 @@ pub struct BmsonInfo<'a> {
     #[serde(default)]
     pub preview_music: Option<Cow<'a, str>>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
-    #[serde(default = "default_resolution")]
-    pub resolution: u64,
+    #[serde(
+        default = "default_resolution_nonzero",
+        deserialize_with = "deserialize_resolution"
+    )]
+    pub resolution: NonZeroU64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
     pub ln_type: LnMode,
@@ -326,6 +332,31 @@ pub struct KeyChannel<'a> {
     pub name: Cow<'a, str>,
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
+}
+
+fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let opt = Option::<i64>::deserialize(deserializer)?;
+    match opt {
+        None | Some(0) => Ok(NonZeroU64::new(default_resolution() as u64)
+            .expect("default_resolution should be non-zero")),
+        Some(v) if v < 0 => {
+            // Take absolute value for negative numbers
+            NonZeroU64::new(-v as u64)
+                .ok_or_else(|| D::Error::custom(format!("Invalid resolution value: {}", v)))
+        }
+        Some(v) if v > 0 => NonZeroU64::new(v as u64)
+            .ok_or_else(|| D::Error::custom(format!("Invalid resolution value: {}", v))),
+        Some(v) => Err(D::Error::custom(format!("Invalid resolution value: {}", v))),
+    }
+}
+
+fn default_resolution_nonzero() -> NonZeroU64 {
+    NonZeroU64::new(default_resolution() as u64).expect("default_resolution should be non-zero")
 }
 
 /// Parse a BMSON file from JSON string.
