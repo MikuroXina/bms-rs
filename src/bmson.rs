@@ -354,8 +354,7 @@ where
         where
             E: Error,
         {
-            NonZeroU64::new(default_resolution())
-                .ok_or_else(|| E::custom("default_resolution should be non-zero"))
+            Ok(default_resolution_nonzero())
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -370,8 +369,7 @@ where
             E: Error,
         {
             match v {
-                0 => NonZeroU64::new(default_resolution())
-                    .ok_or_else(|| E::custom("default_resolution should be non-zero")),
+                0 => Ok(default_resolution_nonzero()),
                 v => NonZeroU64::new(v.abs() as u64)
                     .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
             }
@@ -382,8 +380,7 @@ where
             E: Error,
         {
             match v {
-                0 => NonZeroU64::new(default_resolution())
-                    .ok_or_else(|| E::custom("default_resolution should be non-zero")),
+                0 => Ok(default_resolution_nonzero()),
                 v => NonZeroU64::new(v)
                     .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
             }
@@ -394,8 +391,7 @@ where
             E: Error,
         {
             if v == 0.0 {
-                NonZeroU64::new(default_resolution())
-                    .ok_or_else(|| E::custom("default_resolution should be non-zero"))
+                Ok(default_resolution_nonzero())
             } else if v.fract() == 0.0 && v > 0.0 {
                 // Only accept whole positive numbers
                 let as_u64 = v as u64;
