@@ -81,7 +81,8 @@ impl Bms {
             FinF64::new(1.0).expect("Internal error: 1.0 is not a valid FinF64")
         });
 
-        let resolution = self.resolution_for_pulses();
+        let resolution = NonZeroU64::new(self.resolution_for_pulses())
+            .expect("resolution_for_pulses should return non-zero value");
 
         let last_obj_time = self.last_obj_time().unwrap_or_else(|| {
             ObjTime::new(
@@ -351,7 +352,7 @@ impl Bms {
                 }
                 Some(ScrollEvent {
                     y: converter.get_pulses_at(scroll.time),
-                    rate: rate.unwrap(),
+                    rate: rate.expect("rate should be valid FinF64"),
                 })
             })
             .collect();

@@ -84,7 +84,7 @@ impl Bms {
         let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
 
         let resolution =
-            NonZeroU64::new(value.info.resolution).expect("resolution should be non-zero");
+            NonZeroU64::new(value.info.resolution.get()).expect("resolution should be non-zero");
 
         // Convert info to header
         bms.header.title = Some(value.info.title.into_owned());

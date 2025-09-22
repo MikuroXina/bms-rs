@@ -31,7 +31,10 @@ pub mod bmson_to_bms;
 pub mod fin_f64;
 pub mod pulse;
 
-use std::{borrow::Cow, num::NonZeroU8};
+use std::{
+    borrow::Cow,
+    num::{NonZeroU8, NonZeroU64},
+};
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_path_to_error;
@@ -130,8 +133,11 @@ pub struct BmsonInfo<'a> {
     #[serde(default)]
     pub preview_music: Option<Cow<'a, str>>,
     /// Numbers of pulse per quarter note in 4/4 measure. You must check this because it affects the actual seconds of `PulseNumber`.
-    #[serde(default = "default_resolution")]
-    pub resolution: u64,
+    #[serde(
+        default = "default_resolution_nonzero",
+        deserialize_with = "deserialize_resolution"
+    )]
+    pub resolution: NonZeroU64,
     /// Beatoraja implementation of long note type.
     #[serde(default)]
     pub ln_type: LnMode,
@@ -326,6 +332,91 @@ pub struct KeyChannel<'a> {
     pub name: Cow<'a, str>,
     /// Invisible key notes.
     pub notes: Vec<KeyEvent>,
+}
+
+fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{Error, Visitor};
+    use std::fmt;
+
+    struct ResolutionVisitor;
+
+    impl<'de> Visitor<'de> for ResolutionVisitor {
+        type Value = NonZeroU64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a number or null")
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(default_resolution_nonzero())
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(self)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => Ok(default_resolution_nonzero()),
+                v => Ok(NonZeroU64::new(v.abs() as u64)
+                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
+            }
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => Ok(default_resolution_nonzero()),
+                v => Ok(NonZeroU64::new(v)
+                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
+            }
+        }
+
+        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            // Bmson (WebIDL unsigned long): must be an unsigned integer; negative allowed via abs
+            let av = v.abs();
+            if !av.is_finite() {
+                return Err(E::custom("Resolution must be a finite number"));
+            }
+            // Reject any non-integer (has fractional part)
+            if av.fract() != 0.0 {
+                return Err(E::custom("Resolution must be an integer (unsigned long)"));
+            }
+            if av == 0.0 {
+                return Ok(default_resolution_nonzero());
+            }
+            // Now av is a positive integer value in f64
+            if av > (u64::MAX as f64) {
+                return Err(E::custom(format!("Resolution value too large: {}", v)));
+            }
+            Ok(NonZeroU64::new(av as u64).expect(
+                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
+            ))
+        }
+    }
+
+    deserializer.deserialize_option(ResolutionVisitor)
+}
+
+fn default_resolution_nonzero() -> NonZeroU64 {
+    NonZeroU64::new(default_resolution() as u64).expect("default_resolution should be non-zero")
 }
 
 /// Parse a BMSON file from JSON string.
