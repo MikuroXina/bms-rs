@@ -338,21 +338,83 @@ fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Erro
 where
     D: Deserializer<'de>,
 {
-    use serde::de::Error;
+    use serde::de::{Error, Visitor};
+    use std::fmt;
 
-    let opt = Option::<i64>::deserialize(deserializer)?;
-    match opt {
-        None | Some(0) => Ok(NonZeroU64::new(default_resolution() as u64)
-            .expect("default_resolution should be non-zero")),
-        Some(v) if v < 0 => {
-            // Take absolute value for negative numbers
-            NonZeroU64::new(-v as u64)
-                .ok_or_else(|| D::Error::custom(format!("Invalid resolution value: {}", v)))
+    struct ResolutionVisitor;
+
+    impl<'de> Visitor<'de> for ResolutionVisitor {
+        type Value = NonZeroU64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a number or null")
         }
-        Some(v) if v > 0 => NonZeroU64::new(v as u64)
-            .ok_or_else(|| D::Error::custom(format!("Invalid resolution value: {}", v))),
-        Some(v) => Err(D::Error::custom(format!("Invalid resolution value: {}", v))),
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            NonZeroU64::new(default_resolution())
+                .ok_or_else(|| E::custom("default_resolution should be non-zero"))
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(self)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => NonZeroU64::new(default_resolution())
+                    .ok_or_else(|| E::custom("default_resolution should be non-zero")),
+                v => NonZeroU64::new(v.abs() as u64)
+                    .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
+            }
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => NonZeroU64::new(default_resolution())
+                    .ok_or_else(|| E::custom("default_resolution should be non-zero")),
+                v => NonZeroU64::new(v)
+                    .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
+            }
+        }
+
+        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            if v == 0.0 {
+                NonZeroU64::new(default_resolution())
+                    .ok_or_else(|| E::custom("default_resolution should be non-zero"))
+            } else if v.fract() == 0.0 && v > 0.0 {
+                // Only accept whole positive numbers
+                let as_u64 = v as u64;
+                if (as_u64 as f64) == v {
+                    NonZeroU64::new(as_u64)
+                        .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v)))
+                } else {
+                    Err(E::custom(format!("Resolution value too large: {}", v)))
+                }
+            } else {
+                Err(E::custom(format!(
+                    "Resolution must be a positive whole number, got: {}",
+                    v
+                )))
+            }
+        }
     }
+
+    deserializer.deserialize_option(ResolutionVisitor)
 }
 
 fn default_resolution_nonzero() -> NonZeroU64 {
