@@ -497,7 +497,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                let denominator = message.len() as u64 / 2;
+                let denominator = NonZeroU64::new(message.len() as u64 / 2).ok_or_else(|| {
+                    ParseWarning::SyntaxError("denominator cannot be zero".to_string())
+                })?;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).ok_or_else(|| {
                         ParseWarning::SyntaxError(format!("Invalid hex digit: {c1}",))
@@ -508,9 +510,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     if bpm == 0 {
                         continue;
                     }
-                    let denominator = NonZeroU64::new(denominator).ok_or_else(|| {
-                        ParseWarning::SyntaxError("denominator cannot be zero".to_string())
-                    })?;
                     let time = ObjTime::new(track.0, i as u64, denominator);
                     self.arrangers.push_bpm_change(
                         BpmChangeObj {
