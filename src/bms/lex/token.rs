@@ -810,24 +810,6 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
                 Self::LnObj(ObjId::try_load(id, c)?)
             }
-            message
-                if message.starts_with('#')
-                    && message.chars().nth(6) == Some(':')
-                    && 8 <= message.len() =>
-            {
-                let track = command[1..4]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
-                let channel = &command[4..6];
-
-                let message = &command[7..];
-                Self::Message {
-                    track: Track(track),
-                    channel: channel_parser(channel)
-                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
-                    message: Cow::Borrowed(message),
-                }
-            }
             // New command parsing
             #[cfg(feature = "minor-command")]
             extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
@@ -1187,6 +1169,41 @@ impl<'a> Token<'a> {
                     .map(Path::new)
                     .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
                 Self::Movie(path)
+            }
+            message
+                if message.starts_with('#')
+                    && message.chars().nth(6) == Some(':')
+                    && 8 <= message.len() =>
+            {
+                let message_line = c.next_line_entire();
+                let track = message_line[1..4]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
+                let channel = &message_line[4..6];
+
+                let raw_message = &message_line[7..];
+                // Filter out non-ascii alphanumeric characters in single pass
+                let filtered_result = raw_message.chars().try_fold(
+                    String::with_capacity(raw_message.len()),
+                    |mut acc, ch| {
+                        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '.' {
+                            acc.push(ch);
+                            Ok(acc)
+                        } else {
+                            Err(acc)
+                        }
+                    },
+                );
+                let filtered_message = match filtered_result {
+                    Ok(_) => Cow::Borrowed(raw_message),   // All ASCII
+                    Err(filtered) => Cow::Owned(filtered), // Contains non-ASCII
+                };
+                Self::Message {
+                    track: Track(track),
+                    channel: channel_parser(channel)
+                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
+                    message: filtered_message,
+                }
             }
             // Unknown command & Not a command
             command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
@@ -2110,6 +2127,29 @@ mod tests {
             let parsed_token = parse_token(&output);
             assert_eq!(token, parsed_token, "Failed roundtrip for: {}", output);
         }
+    }
+
+    #[test]
+    fn test_message_filter_non_ascii() {
+        // Test that non-ASCII characters are filtered from messages
+        let token = parse_token("#00101:01020304中文");
+        let Token::Message { message, .. } = token else {
+            panic!("Not a Message token");
+        };
+        assert_eq!(
+            message, "01020304",
+            "Non-ASCII characters should be filtered out"
+        );
+
+        // Test that ASCII-only messages remain unchanged
+        let token = parse_token("#00101:01020304");
+        let Token::Message { message, .. } = token else {
+            panic!("Not a Message token");
+        };
+        assert_eq!(
+            message, "01020304",
+            "ASCII-only message should remain unchanged"
+        );
     }
 
     #[test]
