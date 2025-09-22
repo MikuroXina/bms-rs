@@ -87,9 +87,16 @@ impl<T: KeyLayoutMapper> Bms<T> {
         mut prompt_handler: impl PromptHandler,
     ) -> ParseOutput<T> {
         let mut bms = Self::default();
-        let mut parse_warnings = vec![];
+        let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for token in token_iter {
-            if let Err(error) = bms.parse(token, &mut prompt_handler) {
+            let mut parse_warnings_buf: Vec<ParseWarning> = vec![];
+            let parse_result = bms.parse(token, &mut prompt_handler, &mut parse_warnings_buf);
+            parse_warnings.extend(
+                parse_warnings_buf
+                    .into_iter()
+                    .map(|error| error.into_wrapper(token)),
+            );
+            if let Err(error) = parse_result {
                 parse_warnings.push(error.into_wrapper(token));
             }
         }
@@ -106,6 +113,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         &mut self,
         token: &TokenWithRange,
         prompt_handler: &mut impl PromptHandler,
+        _parse_warnings: &mut Vec<ParseWarning>,
     ) -> Result<()> {
         match token.content() {
             Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
