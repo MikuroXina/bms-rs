@@ -9,7 +9,7 @@ pub mod validity;
 
 use fraction::GenericFraction;
 use itertools::Itertools;
-use std::str::FromStr;
+use std::{num::NonZeroU64, str::FromStr};
 use thiserror::Error;
 
 use crate::bms::diagnostics::{SimpleSource, ToAriadne};
@@ -497,7 +497,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                let denominator = message.len() as u64 / 2;
+                let denominator = NonZeroU64::new(message.len() as u64 / 2).ok_or_else(|| {
+                    ParseWarning::SyntaxError(
+                        "message length must be greater than or equals to 2".to_string(),
+                    )
+                })?;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).ok_or_else(|| {
                         ParseWarning::SyntaxError(format!("Invalid hex digit: {c1}",))
@@ -987,6 +991,7 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
             }
         };
         let obj = ObjId::try_from([c1, c2]).ok()?;
+        let denominator = NonZeroU64::new(denominator)?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, obj))
     })
@@ -1009,6 +1014,7 @@ fn opacity_from_message(
         // Parse opacity value from hex string
         let opacity_hex = format!("{c1}{c2}");
         let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
+        let denominator = NonZeroU64::new(denominator)?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, opacity_value))
     })
@@ -1027,6 +1033,7 @@ fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (
         // Parse volume value from hex string
         let volume_hex = format!("{c1}{c2}");
         let volume_value = u8::from_str_radix(&volume_hex, 16).ok()?;
+        let denominator = NonZeroU64::new(denominator)?;
         let time = ObjTime::new(track.0, i as u64, denominator);
         Some((time, volume_value))
     })
