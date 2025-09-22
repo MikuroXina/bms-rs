@@ -10,7 +10,7 @@ pub mod validity;
 use std::{borrow::Cow, num::NonZeroU64, str::FromStr};
 
 use fraction::GenericFraction;
-// use itertools::Itertools;
+use itertools::Itertools;
 use thiserror::Error;
 
 use crate::bms::diagnostics::{SimpleSource, ToAriadne};
@@ -992,41 +992,35 @@ where
     F: FnMut(char, char, &mut Vec<ParseWarning>) -> Option<T> + 'a,
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
-    // Move the filtered string into the closure and lazily build the iterator to ensure
-    // the borrowed state lives as long as the iterator itself.
-    let filtered_message = Some(filter_message(message));
-    let denominator_opt = NonZeroU64::new(filtered_message.as_ref().unwrap().len() as u64 / 2);
-    let mut pair_index: usize = 0;
+    // Use a simple pair-wise char reader without storing self-referential iterators.
+    let filtered = filter_message(message).into_owned();
+    let chars: Vec<char> = filtered.chars().collect();
+    let denominator_opt = NonZeroU64::new((chars.len() / 2) as u64);
     let mut emitted_len_err = false;
+    let mut pairs_iter = chars.into_iter().tuples::<(char, char)>();
+    let mut pair_index: u64 = 0;
     std::iter::from_fn(move || {
-        let denominator = match denominator_opt {
-            Some(d) => d,
-            None => {
-                if !emitted_len_err {
-                    parse_warnings.push(ParseWarning::SyntaxError(
-                        "message length must be greater than or equals to 2".to_string(),
-                    ));
-                    emitted_len_err = true;
-                }
-                return None;
+        let Some(denominator) = denominator_opt else {
+            if !emitted_len_err {
+                parse_warnings.push(ParseWarning::SyntaxError(
+                    "message length must be greater than or equals to 2".to_string(),
+                ));
+                emitted_len_err = true;
             }
+            return None;
         };
 
-        let s: &str = filtered_message.as_ref().unwrap().as_ref();
-        let total_pairs = s.len() / 2;
-        while pair_index < total_pairs {
-            let i = pair_index;
-            // Safe because `filter_message` only keeps ASCII chars
-            let bytes = s.as_bytes();
-            let c1 = bytes[i * 2] as char;
-            let c2 = bytes[i * 2 + 1] as char;
+        loop {
+            let Some((c1, c2)) = pairs_iter.next() else {
+                return None;
+            };
+            let current_index = pair_index;
             pair_index += 1;
             if let Some(value) = parse_value(c1, c2, parse_warnings) {
-                let time = ObjTime::new(track.0, i as u64, denominator);
+                let time = ObjTime::new(track.0, current_index, denominator);
                 return Some((time, value));
             }
         }
-        None
     })
 }
 
@@ -1042,15 +1036,13 @@ fn ids_from_message<'a>(
             if c1 == '0' && c2 == '0' {
                 return None;
             }
-            match ObjId::try_from([c1, c2]) {
-                Ok(v) => Some(v),
-                Err(_) => {
-                    warnings.push(ParseWarning::SyntaxError(format!(
-                        "Invalid object id digits: {c1}{c2}"
-                    )));
-                    None
-                }
-            }
+            let Ok(obj) = ObjId::try_from([c1, c2]) else {
+                warnings.push(ParseWarning::SyntaxError(format!(
+                    "Invalid object id digits: {c1}{c2}"
+                )));
+                return None;
+            };
+            Some(obj)
         },
         parse_warnings,
     )
@@ -1069,15 +1061,13 @@ fn hex_values_from_message<'a>(
             if c1 == '0' && c2 == '0' {
                 return None;
             }
-            match u8::from_str_radix(&format!("{c1}{c2}"), 16) {
-                Ok(v) => Some(v),
-                Err(_) => {
-                    warnings.push(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digits: {c1}{c2}"
-                    )));
-                    None
-                }
-            }
+            let Ok(v) = u8::from_str_radix(&format!("{c1}{c2}"), 16) else {
+                warnings.push(ParseWarning::SyntaxError(format!(
+                    "Invalid hex digits: {c1}{c2}"
+                )));
+                return None;
+            };
+            Some(v)
         },
         parse_warnings,
     )
