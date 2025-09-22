@@ -390,30 +390,24 @@ where
         where
             E: Error,
         {
-            // Bmson spec: if negative, take the absolute value
+            // Bmson (WebIDL unsigned long): must be an unsigned integer; negative allowed via abs
             let av = v.abs();
             if !av.is_finite() {
                 return Err(E::custom("Resolution must be a finite number"));
             }
-
-            // Accept numbers that round to an integer
-            let rounded = av.round();
-            assert!(
-                rounded >= 0.0,
-                "Rounded value is negative: {} -> {}",
-                v,
-                rounded
-            );
-            if rounded == 0.0 {
+            // Reject any non-integer (has fractional part)
+            if av.fract() != 0.0 {
+                return Err(E::custom("Resolution must be an integer (unsigned long)"));
+            }
+            if av == 0.0 {
                 return Ok(default_resolution_nonzero());
             }
-
-            // Ensure the rounded value fits in u64 exactly
-            if rounded > (u64::MAX as f64) {
+            // Now av is a positive integer value in f64
+            if av > (u64::MAX as f64) {
                 return Err(E::custom(format!("Resolution value too large: {}", v)));
             }
-            Ok(NonZeroU64::new(rounded as u64).expect(
-                "NonZeroU64::new should not fail for non-zero u64 value converted from rounded f64",
+            Ok(NonZeroU64::new(av as u64).expect(
+                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
             ))
         }
     }
