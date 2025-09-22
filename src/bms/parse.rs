@@ -498,7 +498,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 let denominator = NonZeroU64::new(message.len() as u64 / 2).ok_or_else(|| {
-                    ParseWarning::SyntaxError("denominator cannot be zero".to_string())
+                    ParseWarning::SyntaxError("message length cannot be zero".to_string())
                 })?;
                 for (i, (c1, c2)) in message.chars().tuples().enumerate() {
                     let bpm = c1.to_digit(16).ok_or_else(|| {
