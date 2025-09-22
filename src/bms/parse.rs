@@ -980,7 +980,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
+fn parse_message_values<'a, T, F>(
+    track: Track,
+    message: &'a str,
+    mut parse_value: F,
+) -> impl Iterator<Item = (ObjTime, T)> + 'a
+where
+    F: FnMut(char, char) -> Option<T> + 'a,
+{
     let denominator = message.len() as u64 / 2;
     let mut chars = message.chars().tuples().enumerate();
     std::iter::from_fn(move || {
@@ -990,11 +997,15 @@ fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (Obj
                 break (i, c1, c2);
             }
         };
-        let obj = ObjId::try_from([c1, c2]).ok()?;
+        let value = parse_value(c1, c2)?;
         let denominator = NonZeroU64::new(denominator)?;
         let time = ObjTime::new(track.0, i as u64, denominator);
-        Some((time, obj))
+        Some((time, value))
     })
+}
+
+fn ids_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, ObjId)> + '_ {
+    parse_message_values(track, message, |c1, c2| ObjId::try_from([c1, c2]).ok())
 }
 
 #[cfg(feature = "minor-command")]
@@ -1002,40 +1013,14 @@ fn opacity_from_message(
     track: Track,
     message: &'_ str,
 ) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
-    let denominator = message.len() as u64 / 2;
-    let mut chars = message.chars().tuples().enumerate();
-    std::iter::from_fn(move || {
-        let (i, c1, c2) = loop {
-            let (i, (c1, c2)) = chars.next()?;
-            if !(c1 == '0' && c2 == '0') {
-                break (i, c1, c2);
-            }
-        };
-        // Parse opacity value from hex string
-        let opacity_hex = format!("{c1}{c2}");
-        let opacity_value = u8::from_str_radix(&opacity_hex, 16).ok()?;
-        let denominator = NonZeroU64::new(denominator)?;
-        let time = ObjTime::new(track.0, i as u64, denominator);
-        Some((time, opacity_value))
+    parse_message_values(track, message, |c1, c2| {
+        u8::from_str_radix(&format!("{c1}{c2}"), 16).ok()
     })
 }
 
 fn volume_from_message(track: Track, message: &'_ str) -> impl Iterator<Item = (ObjTime, u8)> + '_ {
-    let denominator = message.len() as u64 / 2;
-    let mut chars = message.chars().tuples().enumerate();
-    std::iter::from_fn(move || {
-        let (i, c1, c2) = loop {
-            let (i, (c1, c2)) = chars.next()?;
-            if !(c1 == '0' && c2 == '0') {
-                break (i, c1, c2);
-            }
-        };
-        // Parse volume value from hex string
-        let volume_hex = format!("{c1}{c2}");
-        let volume_value = u8::from_str_radix(&volume_hex, 16).ok()?;
-        let denominator = NonZeroU64::new(denominator)?;
-        let time = ObjTime::new(track.0, i as u64, denominator);
-        Some((time, volume_value))
+    parse_message_values(track, message, |c1, c2| {
+        u8::from_str_radix(&format!("{c1}{c2}"), 16).ok()
     })
 }
 
