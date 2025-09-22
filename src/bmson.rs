@@ -370,8 +370,8 @@ where
         {
             match v {
                 0 => Ok(default_resolution_nonzero()),
-                v => NonZeroU64::new(v.abs() as u64)
-                    .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
+                v => Ok(NonZeroU64::new(v.abs() as u64)
+                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
             }
         }
 
@@ -381,8 +381,8 @@ where
         {
             match v {
                 0 => Ok(default_resolution_nonzero()),
-                v => NonZeroU64::new(v)
-                    .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v))),
+                v => Ok(NonZeroU64::new(v)
+                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
             }
         }
 
@@ -396,8 +396,9 @@ where
                 // Only accept whole positive numbers
                 let as_u64 = v as u64;
                 if (as_u64 as f64) == v {
-                    NonZeroU64::new(as_u64)
-                        .ok_or_else(|| E::custom(format!("Invalid resolution value: {}", v)))
+                    Ok(NonZeroU64::new(as_u64).expect(
+                        "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
+                    ))
                 } else {
                     Err(E::custom(format!("Resolution value too large: {}", v)))
                 }
