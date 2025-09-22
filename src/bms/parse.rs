@@ -1017,8 +1017,8 @@ where
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.
 
-    // Filter the message to remove invalid characters and convert to owned string
-    let filtered = filter_message(message).into_owned();
+    // Filter the message to remove invalid characters
+    let filtered = filter_message(message);
 
     // Convert the filtered string to a vector of characters for pair-wise processing
     let chars: Vec<char> = filtered.chars().collect();
