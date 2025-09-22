@@ -390,24 +390,31 @@ where
         where
             E: Error,
         {
-            if v == 0.0 {
-                Ok(default_resolution_nonzero())
-            } else if v.fract() == 0.0 && v > 0.0 {
-                // Only accept whole positive numbers
-                let as_u64 = v as u64;
-                if (as_u64 as f64) == v {
-                    Ok(NonZeroU64::new(as_u64).expect(
-                        "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
-                    ))
-                } else {
-                    Err(E::custom(format!("Resolution value too large: {}", v)))
-                }
-            } else {
-                Err(E::custom(format!(
-                    "Resolution must be a positive whole number, got: {}",
-                    v
-                )))
+            // Bmson spec: if negative, take the absolute value
+            let av = v.abs();
+            if !av.is_finite() {
+                return Err(E::custom("Resolution must be a finite number"));
             }
+
+            // Accept numbers that round to an integer
+            let rounded = av.round();
+            assert!(
+                rounded >= 0.0,
+                "Rounded value is negative: {} -> {}",
+                v,
+                rounded
+            );
+            if rounded == 0.0 {
+                return Ok(default_resolution_nonzero());
+            }
+
+            // Ensure the rounded value fits in u64 exactly
+            if rounded > (u64::MAX as f64) {
+                return Err(E::custom(format!("Resolution value too large: {}", v)));
+            }
+            Ok(NonZeroU64::new(rounded as u64).expect(
+                "NonZeroU64::new should not fail for non-zero u64 value converted from rounded f64",
+            ))
         }
     }
 
