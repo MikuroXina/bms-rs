@@ -509,34 +509,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } => {
                 let message = filter_message(message);
                 let message = message.as_ref();
-                for (time, bpm_value) in parse_message_values_with_warnings(
-                    *track,
-                    message,
-                    |c1, c2, warnings| {
-                        let Some(high) = c1.to_digit(16) else {
-                            warnings.push(ParseWarning::SyntaxError(format!(
-                                "Invalid hex digit: {c1}"
-                            )));
-                            return None;
-                        };
-                        let Some(low) = c2.to_digit(16) else {
-                            warnings.push(ParseWarning::SyntaxError(format!(
-                                "Invalid hex digit: {c2}"
-                            )));
-                            return None;
-                        };
-                        let value = high * 16 + low;
-                        if value == 0 {
-                            return None;
-                        }
-                        Some(Decimal::from(value))
-                    },
-                    parse_warnings,
-                ) {
+                for (time, value) in hex_values_from_message(*track, &message, parse_warnings) {
                     self.arrangers.push_bpm_change(
                         BpmChangeObj {
                             time,
-                            bpm: bpm_value,
+                            bpm: Decimal::from(value),
                         },
                         prompt_handler,
                     )?;
@@ -709,7 +686,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 let message = filter_message(message);
-                for (time, opacity_value) in opacity_from_message(*track, &message, parse_warnings)
+                for (time, opacity_value) in
+                    hex_values_from_message(*track, &message, parse_warnings)
                 {
                     let layer = BgaLayer::from_channel(*channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
@@ -730,7 +708,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 let message = filter_message(message);
-                for (time, volume_value) in volume_from_message(*track, &message, parse_warnings) {
+                for (time, volume_value) in
+                    hex_values_from_message(*track, &message, parse_warnings)
+                {
                     self.notes.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
@@ -746,7 +726,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 let message = filter_message(message);
-                for (time, volume_value) in volume_from_message(*track, &message, parse_warnings) {
+                for (time, volume_value) in
+                    hex_values_from_message(*track, &message, parse_warnings)
+                {
                     self.notes.push_key_volume_change(
                         KeyVolumeObj {
                             time,
@@ -1088,34 +1070,8 @@ fn ids_from_message<'a>(
     )
 }
 
-#[cfg(feature = "minor-command")]
-fn opacity_from_message<'a>(
-    track: Track,
-    message: &'a str,
-    parse_warnings: &'a mut Vec<ParseWarning>,
-) -> impl Iterator<Item = (ObjTime, u8)> + 'a {
-    parse_message_values_with_warnings(
-        track,
-        message,
-        |c1, c2, warnings| {
-            if c1 == '0' && c2 == '0' {
-                return None;
-            }
-            match u8::from_str_radix(&format!("{c1}{c2}"), 16) {
-                Ok(v) => Some(v),
-                Err(_) => {
-                    warnings.push(ParseWarning::SyntaxError(format!(
-                        "Invalid hex digits: {c1}{c2}"
-                    )));
-                    None
-                }
-            }
-        },
-        parse_warnings,
-    )
-}
-
-fn volume_from_message<'a>(
+// Unified hex pair parser for message channels emitting u8 values
+fn hex_values_from_message<'a>(
     track: Track,
     message: &'a str,
     parse_warnings: &'a mut Vec<ParseWarning>,
