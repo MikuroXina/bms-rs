@@ -120,6 +120,14 @@ impl<T> Notes<T> {
             .map(|(idx, obj)| (WavObjArenaIndex(idx), obj))
     }
 
+    /// Returns the iterator having all of the notes in the original insertion order.
+    ///
+    /// This reflects the order notes were pushed into the arena during parsing, which
+    /// corresponds to the lexical order of `Token::Message` entries in the source.
+    pub fn all_notes_insertion_order(&self) -> impl Iterator<Item = &WavObj> {
+        self.arena.0.iter()
+    }
+
     /// Returns all the playable notes in the score.
     pub fn playables(&self) -> impl Iterator<Item = &WavObj>
     where
