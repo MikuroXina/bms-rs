@@ -1,0 +1,12 @@
+mod base_62;
+mod comment;
+mod cursor_with_edges;
+mod diagnostics_test;
+mod extra_channel;
+mod files;
+mod nested_random;
+mod nested_switch;
+mod parse_extended_tokens;
+mod playing_conditions;
+mod prelude_test;
+mod prompt_handlers;

@@ -9,7 +9,7 @@ use bms_rs::bmson::{
 
 #[test]
 fn test_bmson100_lostokens() {
-    let data = include_str!("files_bmson/lostokens.bmson");
+    let data = include_str!("files/lostokens.bmson");
     let output = parse_bmson(data);
     let bmson = output.bmson.expect("Failed to parse BMSON");
     // Basic fields assertion
@@ -20,7 +20,7 @@ fn test_bmson100_lostokens() {
 
 #[test]
 fn test_bmson100_bemusic_story_48key() {
-    let data = include_str!("files_bmson/bemusicstory_483_48K_ANOTHER.bmson");
+    let data = include_str!("files/bemusicstory_483_48K_ANOTHER.bmson");
     let output = parse_bmson(data);
     let bmson = output.bmson.expect("Failed to parse BMSON");
     // Basic fields assertion
