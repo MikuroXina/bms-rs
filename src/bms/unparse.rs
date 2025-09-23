@@ -7,10 +7,13 @@ use num::Integer;
 
 use crate::bms::prelude::*;
 
+type BgaTrackLayerMap<'a> = BTreeMap<(Track, (u16, u16)), Vec<(ObjTime, ObjId)>>;
+
 impl<T: KeyLayoutMapper> Bms<T> {
     /// 将 Bms 转换为 Vec<Token>（按常规顺序：头部 -> 定义 -> 资源 -> 消息）。
     /// - 避免重复解析：直接使用模型数据构造 Token；
     /// - 对需要 ObjId 的消息，优先复用现有定义；若缺失则分配新 ObjId 并补充定义 Token（仅体现在返回的 Token 列表中）。
+    #[must_use]
     pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
@@ -198,7 +201,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let mut message_tokens: Vec<Token<'a>> = Vec::new();
 
         // Messages: Section length
-        for (_track, obj) in &self.arrangers.section_len_changes {
+        for obj in self.arrangers.section_len_changes.values() {
             let msg = obj.length.to_string();
             message_tokens.push(Token::Message {
                 track: obj.track,
@@ -291,16 +294,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         s.pop();
                     }
                 }
-                if s.chars().all(|c| c.is_ascii_digit()) {
-                    if let Ok(v) = s.parse::<u64>() {
-                        if v <= u8::MAX as u64 {
-                            by_track_u8
-                                .entry(time.track())
-                                .or_default()
-                                .push((time, v as u8));
-                            continue;
-                        }
-                    }
+                if s.chars().all(|c| c.is_ascii_digit())
+                    && let Ok(v) = s.parse::<u64>()
+                    && v <= u8::MAX as u64
+                {
+                    by_track_u8
+                        .entry(time.track())
+                        .or_default()
+                        .push((time, v as u8));
+                    continue;
                 }
                 // otherwise, allocate new id definition
                 let new_id = alloc_id(&mut used_bpm_ids);
@@ -312,22 +314,24 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .push((time, new_id));
             }
             for (track, items) in by_track_id {
-                if let Some(message) = build_id_message(items) {
-                    message_tokens.push(Token::Message {
-                        track,
-                        channel: Channel::BpmChange,
-                        message,
-                    });
-                }
+                let Some(message) = build_id_message(items) else {
+                    continue;
+                };
+                message_tokens.push(Token::Message {
+                    track,
+                    channel: Channel::BpmChange,
+                    message,
+                });
             }
             for (track, items) in by_track_u8 {
-                if let Some(message) = build_hex_message(items) {
-                    message_tokens.push(Token::Message {
-                        track,
-                        channel: Channel::BpmChangeU8,
-                        message,
-                    });
-                }
+                let Some(message) = build_hex_message(items) else {
+                    continue;
+                };
+                message_tokens.push(Token::Message {
+                    track,
+                    channel: Channel::BpmChangeU8,
+                    message,
+                });
             }
         }
 
@@ -384,8 +388,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         {
-            let mut by_track_layer: BTreeMap<(Track, (u16, u16)), Vec<(ObjTime, ObjId)>> =
-                BTreeMap::new();
+            let mut by_track_layer: BgaTrackLayerMap = BTreeMap::new();
             for (&time, bga) in &self.graphics.bga_changes {
                 let channel = bga.layer.to_channel();
                 let key = (time.track(), channel_sort_key(channel));
@@ -405,13 +408,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         _ => Channel::BgaBase,
                     }
                 };
-                if let Some(message) = build_id_message(items) {
-                    message_tokens.push(Token::Message {
-                        track,
-                        channel,
-                        message,
-                    });
-                }
+                let Some(message) = build_id_message(items) else {
+                    continue;
+                };
+                message_tokens.push(Token::Message {
+                    track,
+                    channel,
+                    message,
+                });
             }
         }
 
@@ -487,13 +491,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .push((time, id));
             }
             for (track, items) in by_track_text {
-                if let Some(message) = build_id_message(items) {
-                    message_tokens.push(Token::Message {
-                        track,
-                        channel: Channel::Text,
-                        message,
-                    });
-                }
+                let Some(message) = build_id_message(items) else {
+                    continue;
+                };
+                message_tokens.push(Token::Message {
+                    track,
+                    channel: Channel::Text,
+                    message,
+                });
             }
 
             let mut by_track_judge: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
@@ -512,22 +517,23 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .push((time, id));
             }
             for (track, items) in by_track_judge {
-                if let Some(message) = build_id_message(items) {
-                    message_tokens.push(Token::Message {
-                        track,
-                        channel: Channel::Judge,
-                        message,
-                    });
-                }
+                let Some(message) = build_id_message(items) else {
+                    continue;
+                };
+                message_tokens.push(Token::Message {
+                    track,
+                    channel: Channel::Judge,
+                    message,
+                });
             }
         }
 
         // 组装：先头部/定义/资源/其他 -> 延迟定义 -> 消息
         if !late_def_tokens.is_empty() {
-            tokens.extend(late_def_tokens.into_iter());
+            tokens.extend(late_def_tokens);
         }
         if !message_tokens.is_empty() {
-            tokens.extend(message_tokens.into_iter());
+            tokens.extend(message_tokens);
         }
 
         tokens
@@ -552,13 +558,13 @@ fn build_id_message<'a>(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>
     }
     let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
     for i in 0..=last_index {
-        if let Some(id) = slots.get(&i) {
-            s.push((id.to_string()).chars().nth(0).unwrap_or('0'));
-            s.push((id.to_string()).chars().nth(1).unwrap_or('0'));
-        } else {
+        let Some(id) = slots.get(&i) else {
             s.push('0');
             s.push('0');
-        }
+            continue;
+        };
+        s.push((id.to_string()).chars().next().unwrap_or('0'));
+        s.push((id.to_string()).chars().nth(1).unwrap_or('0'));
     }
     Some(Cow::Owned(s))
 }
@@ -581,13 +587,13 @@ fn build_hex_message<'a>(mut items: Vec<(ObjTime, u8)>) -> Option<Cow<'a, str>> 
     }
     let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
     for i in 0..=last_index {
-        if let Some(v) = slots.get(&i) {
-            use std::fmt::Write as _;
-            let _ = write!(&mut s, "{:02X}", v);
-        } else {
+        let Some(v) = slots.get(&i) else {
             s.push('0');
             s.push('0');
-        }
+            continue;
+        };
+        use std::fmt::Write as _;
+        let _ = write!(&mut s, "{:02X}", v);
     }
     Some(Cow::Owned(s))
 }
@@ -598,13 +604,14 @@ fn push_grouped_id_messages<'a>(
     by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>>,
 ) {
     for (track, items) in by_track {
-        if let Some(message) = build_id_message(items) {
-            message_tokens.push(Token::Message {
-                track,
-                channel,
-                message,
-            });
-        }
+        let Some(message) = build_id_message(items) else {
+            continue;
+        };
+        message_tokens.push(Token::Message {
+            track,
+            channel,
+            message,
+        });
     }
 }
 
@@ -614,13 +621,14 @@ fn push_grouped_hex_messages<'a>(
     by_track: BTreeMap<Track, Vec<(ObjTime, u8)>>,
 ) {
     for (track, items) in by_track {
-        if let Some(message) = build_hex_message(items) {
-            message_tokens.push(Token::Message {
-                track,
-                channel,
-                message,
-            });
-        }
+        let Some(message) = build_hex_message(items) else {
+            continue;
+        };
+        message_tokens.push(Token::Message {
+            track,
+            channel,
+            message,
+        });
     }
 }
 
