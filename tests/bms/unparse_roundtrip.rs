@@ -1,9 +1,6 @@
 use bms_rs::bms::prelude::*;
 
-#[test]
-fn roundtrip_lilith_mx_file_bms_tokens_bms() {
-    let source = include_str!("files/lilith_mx.bms");
-
+fn roundtrip_source_bms_tokens_bms(source: &str) {
     // file -> tokens
     let LexOutput {
         tokens,
@@ -35,4 +32,10 @@ fn roundtrip_lilith_mx_file_bms_tokens_bms() {
     assert_eq!(parse_warnings2, vec![]);
 
     assert_eq!(bms2, bms1);
+}
+
+#[test]
+fn roundtrip_lilith_mx_file_bms_tokens_bms() {
+    let source = include_str!("files/lilith_mx.bms");
+    roundtrip_source_bms_tokens_bms(source);
 }
