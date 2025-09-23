@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.9.0...v1.0.0) (2025-09-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **bmson:** parse_bmson use chumsky, move `bms::diagnostics` to `crate::diagnostics` ([#205](https://github.com/MikuroXina/bms-rs/issues/205))
+* ObjTime should use NonZeroU64 ([#207](https://github.com/MikuroXina/bms-rs/issues/207))
+
+### Features
+
+* **bmson:** parse_bmson use chumsky, move `bms::diagnostics` to `crate::diagnostics` ([#205](https://github.com/MikuroXina/bms-rs/issues/205)) ([94a523d](https://github.com/MikuroXina/bms-rs/commit/94a523d517ebc8972c630679f330510686a19c1c))
+* Merge message parse logic, dealing with non-fit chars, and more recovable message parsing ([#210](https://github.com/MikuroXina/bms-rs/issues/210)) ([db4bc02](https://github.com/MikuroXina/bms-rs/commit/db4bc0291a863e3ba706218ea3693e628496cf46))
+* parse_bmson, serde_path_to_error version ([#201](https://github.com/MikuroXina/bms-rs/issues/201)) ([6ab9044](https://github.com/MikuroXina/bms-rs/commit/6ab904406f30931cb8a07d141b23565fd5a75227))
+
+
+### Bug Fixes
+
+* bmson resolution deserialize ([#209](https://github.com/MikuroXina/bms-rs/issues/209)) ([da713c1](https://github.com/MikuroXina/bms-rs/commit/da713c12a2432029d9ca29006dfc3f94c844c752))
+* ObjTime should use NonZeroU64 ([#207](https://github.com/MikuroXina/bms-rs/issues/207)) ([2711155](https://github.com/MikuroXina/bms-rs/commit/2711155345512b787abfcdff4475fe531e4bb20f))
+
 ## [0.9.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v0.9.0) (2025-09-02)
 
 
