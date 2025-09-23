@@ -1058,9 +1058,7 @@ where
 
         loop {
             // Get the next character pair, or end iteration if none remain
-            let Some((c1, c2)) = pairs_iter.next() else {
-                return None;
-            };
+            let (c1, c2) = pairs_iter.next()?;
 
             // Store current pair index before incrementing
             let current_index = pair_index;
