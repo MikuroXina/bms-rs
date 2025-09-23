@@ -24,8 +24,8 @@ fn roundtrip_lilith_mx_file_bms_tokens_bms() {
     );
 
     // Bms -> tokens (unparse)
-    let tokens2: Vec<Token<'static>> = bms1.unparse();
-    let tokens2_wrapped: Vec<TokenWithRange<'static>> = tokens2
+    let tokens2 = bms1.unparse();
+    let tokens2_wrapped: Vec<TokenWithRange<'_>> = tokens2
         .into_iter()
         .map(|t| SourceRangeMixin::new(t, 0..0))
         .collect();

@@ -11,17 +11,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
     /// 将 Bms 转换为 Vec<Token>（按常规顺序：头部 -> 定义 -> 资源 -> 消息）。
     /// - 避免重复解析：直接使用模型数据构造 Token；
     /// - 对需要 ObjId 的消息，优先复用现有定义；若缺失则分配新 ObjId 并补充定义 Token（仅体现在返回的 Token 列表中）。
-    pub fn unparse(&self) -> Vec<Token<'static>> {
-        let mut tokens: Vec<Token<'static>> = Vec::new();
+    pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
+        let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
         for line in &self.others.non_command_lines {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(line.as_str()));
-            tokens.push(Token::NotACommand(s));
+            tokens.push(Token::NotACommand(line.as_str()));
         }
         for line in &self.others.unknown_command_lines {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(line.as_str()));
-            tokens.push(Token::UnknownCommand(s));
+            tokens.push(Token::UnknownCommand(line.as_str()));
         }
 
         // Header
@@ -29,28 +27,22 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::Player(player));
         }
         if let Some(maker) = self.header.maker.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(maker));
-            tokens.push(Token::Maker(s));
+            tokens.push(Token::Maker(maker));
         }
         if let Some(genre) = self.header.genre.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(genre));
-            tokens.push(Token::Genre(s))
+            tokens.push(Token::Genre(genre))
         }
         if let Some(title) = self.header.title.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(title));
-            tokens.push(Token::Title(s))
+            tokens.push(Token::Title(title))
         }
         if let Some(subtitle) = self.header.subtitle.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(subtitle));
-            tokens.push(Token::SubTitle(s))
+            tokens.push(Token::SubTitle(subtitle))
         }
         if let Some(artist) = self.header.artist.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(artist));
-            tokens.push(Token::Artist(s))
+            tokens.push(Token::Artist(artist))
         }
         if let Some(sub_artist) = self.header.sub_artist.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(sub_artist));
-            tokens.push(Token::SubArtist(s))
+            tokens.push(Token::SubArtist(sub_artist))
         }
         if let Some(play_level) = self.header.play_level {
             tokens.push(Token::PlayLevel(play_level));
@@ -65,43 +57,30 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::Total(total.clone()));
         }
         if let Some(stage_file) = self.header.stage_file.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(stage_file.to_string_lossy().into_owned()));
-            tokens.push(Token::StageFile(std::path::Path::new(s)));
+            tokens.push(Token::StageFile(stage_file.as_ref()));
         }
         if let Some(back_bmp) = self.header.back_bmp.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(back_bmp.to_string_lossy().into_owned()));
-            tokens.push(Token::BackBmp(std::path::Path::new(s)));
+            tokens.push(Token::BackBmp(back_bmp.as_ref()));
         }
         if let Some(banner) = self.header.banner.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(banner.to_string_lossy().into_owned()));
-            tokens.push(Token::Banner(std::path::Path::new(s)));
+            tokens.push(Token::Banner(banner.as_ref()));
         }
         if let Some(preview) = self.header.preview_music.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(preview.to_string_lossy().into_owned()));
-            tokens.push(Token::Preview(std::path::Path::new(s)));
+            tokens.push(Token::Preview(preview.as_ref()));
         }
         if let Some(movie) = self.header.movie.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(movie.to_string_lossy().into_owned()));
-            tokens.push(Token::Movie(std::path::Path::new(s)));
+            tokens.push(Token::Movie(movie.as_ref()));
         }
         if let Some(comment_lines) = self.header.comment.as_ref() {
             for line in comment_lines {
-                let s: &'static str = Box::<str>::leak(Box::<str>::from(line.as_str()));
-                tokens.push(Token::Comment(s));
+                tokens.push(Token::Comment(line.as_str()));
             }
         }
         if let Some(email) = self.header.email.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(email));
-            tokens.push(Token::Email(s));
+            tokens.push(Token::Email(email));
         }
         if let Some(url) = self.header.url.as_deref() {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(url));
-            tokens.push(Token::Url(s));
+            tokens.push(Token::Url(url));
         }
 
         // LnType
@@ -139,8 +118,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::Speed(*id, v.clone()));
         }
         for (id, text) in &self.others.texts {
-            let s: &'static str = Box::<str>::leak(Box::<str>::from(text.as_str()));
-            tokens.push(Token::Text(*id, s));
+            tokens.push(Token::Text(*id, text.as_str()));
         }
         for (id, exrank) in &self.scope_defines.exrank_defs {
             tokens.push(Token::ExRank(*id, exrank.judge_level));
@@ -148,17 +126,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
         #[cfg(feature = "minor-command")]
         {
             for (id, def) in &self.scope_defines.exwav_defs {
-                let p: &'static std::path::Path = {
-                    let s: &'static str =
-                        Box::<str>::leak(Box::<str>::from(def.path.to_string_lossy().into_owned()));
-                    std::path::Path::new(s)
-                };
                 tokens.push(Token::ExWav {
                     id: *id,
                     pan: def.pan,
                     volume: def.volume,
                     frequency: def.frequency,
-                    path: p,
+                    path: def.path.as_ref(),
                 });
             }
             for (_id, ev) in &self.scope_defines.wavcmd_events {
@@ -189,37 +162,23 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         // Resources
         if let Some(path_root) = self.notes.wav_path_root.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(path_root.to_string_lossy().into_owned()));
-            tokens.push(Token::PathWav(std::path::Path::new(s)));
+            tokens.push(Token::PathWav(path_root.as_ref()));
         }
         for (id, path) in &self.notes.wav_files {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(path.to_string_lossy().into_owned()));
-            tokens.push(Token::Wav(*id, std::path::Path::new(s)));
+            tokens.push(Token::Wav(*id, path.as_ref()));
         }
         if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(poor_bmp.to_string_lossy().into_owned()));
-            tokens.push(Token::Bmp(None, std::path::Path::new(s)));
+            tokens.push(Token::Bmp(None, poor_bmp.as_ref()));
         }
         for (id, bmp) in &self.graphics.bmp_files {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(bmp.file.to_string_lossy().into_owned()));
             if bmp.transparent_color == Argb::default() {
-                tokens.push(Token::Bmp(Some(*id), std::path::Path::new(s)));
+                tokens.push(Token::Bmp(Some(*id), bmp.file.as_ref()));
             } else {
-                tokens.push(Token::ExBmp(
-                    *id,
-                    bmp.transparent_color,
-                    std::path::Path::new(s),
-                ));
+                tokens.push(Token::ExBmp(*id, bmp.transparent_color, bmp.file.as_ref()));
             }
         }
         if let Some(video_file) = self.graphics.video_file.as_ref() {
-            let s: &'static str =
-                Box::<str>::leak(Box::<str>::from(video_file.to_string_lossy().into_owned()));
-            tokens.push(Token::VideoFile(std::path::Path::new(s)));
+            tokens.push(Token::VideoFile(video_file.as_ref()));
         }
         #[cfg(feature = "minor-command")]
         {
@@ -235,17 +194,16 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Collect late definition tokens and message tokens
-        let mut late_def_tokens: Vec<Token<'static>> = Vec::new();
-        let mut message_tokens: Vec<Token<'static>> = Vec::new();
+        let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
+        let mut message_tokens: Vec<Token<'a>> = Vec::new();
 
         // Messages: Section length
         for (_track, obj) in &self.arrangers.section_len_changes {
             let msg = obj.length.to_string();
-            let msg: &'static str = Box::<str>::leak(Box::<str>::from(msg));
             message_tokens.push(Token::Message {
                 track: obj.track,
                 channel: Channel::SectionLen,
-                message: Cow::Borrowed(msg),
+                message: Cow::Owned(msg),
             });
         }
 
@@ -520,8 +478,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 } else {
                     let new_id = alloc_id(&mut used_text_ids);
                     text_value_to_id.insert(ev.text.as_str(), new_id);
-                    let s: &'static str = Box::<str>::leak(Box::<str>::from(ev.text.as_str()));
-                    late_def_tokens.push(Token::Text(new_id, s));
+                    late_def_tokens.push(Token::Text(new_id, ev.text.as_str()));
                     new_id
                 };
                 by_track_text
@@ -577,7 +534,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-fn build_id_message(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'static, str>> {
+fn build_id_message<'a>(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>> {
     if items.is_empty() {
         return None;
     }
@@ -606,7 +563,7 @@ fn build_id_message(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'static, str
     Some(Cow::Owned(s))
 }
 
-fn build_hex_message(mut items: Vec<(ObjTime, u8)>) -> Option<Cow<'static, str>> {
+fn build_hex_message<'a>(mut items: Vec<(ObjTime, u8)>) -> Option<Cow<'a, str>> {
     if items.is_empty() {
         return None;
     }
@@ -635,8 +592,8 @@ fn build_hex_message(mut items: Vec<(ObjTime, u8)>) -> Option<Cow<'static, str>>
     Some(Cow::Owned(s))
 }
 
-fn push_grouped_id_messages(
-    message_tokens: &mut Vec<Token<'static>>,
+fn push_grouped_id_messages<'a>(
+    message_tokens: &mut Vec<Token<'a>>,
     channel: Channel,
     by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>>,
 ) {
@@ -651,8 +608,8 @@ fn push_grouped_id_messages(
     }
 }
 
-fn push_grouped_hex_messages(
-    message_tokens: &mut Vec<Token<'static>>,
+fn push_grouped_hex_messages<'a>(
+    message_tokens: &mut Vec<Token<'a>>,
     channel: Channel,
     by_track: BTreeMap<Track, Vec<(ObjTime, u8)>>,
 ) {
