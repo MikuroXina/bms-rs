@@ -59,19 +59,29 @@ impl<T: KeyLayoutMapper> Bms<T> {
         if let Some(total) = self.header.total.as_ref() {
             tokens.push(Token::Total(total.clone()));
         }
-        if let Some(stage_file) = self.header.stage_file.as_ref() {
+        if let Some(stage_file) = self.header.stage_file.as_ref()
+            && !stage_file.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::StageFile(stage_file.as_ref()));
         }
-        if let Some(back_bmp) = self.header.back_bmp.as_ref() {
+        if let Some(back_bmp) = self.header.back_bmp.as_ref()
+            && !back_bmp.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::BackBmp(back_bmp.as_ref()));
         }
-        if let Some(banner) = self.header.banner.as_ref() {
+        if let Some(banner) = self.header.banner.as_ref()
+            && !banner.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::Banner(banner.as_ref()));
         }
-        if let Some(preview) = self.header.preview_music.as_ref() {
+        if let Some(preview) = self.header.preview_music.as_ref()
+            && !preview.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::Preview(preview.as_ref()));
         }
-        if let Some(movie) = self.header.movie.as_ref() {
+        if let Some(movie) = self.header.movie.as_ref()
+            && !movie.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::Movie(movie.as_ref()));
         }
         if let Some(comment_lines) = self.header.comment.as_ref() {
@@ -168,19 +178,29 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::PathWav(path_root.as_ref()));
         }
         for (id, path) in &self.notes.wav_files {
+            if path.as_path().as_os_str().is_empty() {
+                continue;
+            }
             tokens.push(Token::Wav(*id, path.as_ref()));
         }
-        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref() {
+        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
+            && !poor_bmp.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::Bmp(None, poor_bmp.as_ref()));
         }
         for (id, bmp) in &self.graphics.bmp_files {
+            if bmp.file.as_path().as_os_str().is_empty() {
+                continue;
+            }
             if bmp.transparent_color == Argb::default() {
                 tokens.push(Token::Bmp(Some(*id), bmp.file.as_ref()));
             } else {
                 tokens.push(Token::ExBmp(*id, bmp.transparent_color, bmp.file.as_ref()));
             }
         }
-        if let Some(video_file) = self.graphics.video_file.as_ref() {
+        if let Some(video_file) = self.graphics.video_file.as_ref()
+            && !video_file.as_path().as_os_str().is_empty()
+        {
             tokens.push(Token::VideoFile(video_file.as_ref()));
         }
         #[cfg(feature = "minor-command")]
