@@ -78,13 +78,24 @@ impl<'a> Cursor<'a> {
         self.next_token_with_range().map(|(_, token)| token)
     }
 
-    /// Move cursor, through and return the remaining part of this line.
-    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
-        // Get remaining
+    /// Determine the end of the current line and handle CRLF (\r\n) correctly.
+    ///
+    /// Returns a tuple `(remaining_end, line_end_index)` where:
+    /// - `remaining_end` is the byte offset from current `index` to the first `\n` if any,
+    ///   otherwise the remaining source length from `index` to the end.
+    /// - `line_end_index` is the absolute byte index where the line content ends (exclusive).
+    ///   If CRLF is detected right before the `\n`, the `\r` will be excluded from the line
+    ///   content so that callers get a clean line without the trailing `\r`.
+    fn current_line_bounds(&self) -> (usize, usize) {
+        // Find the end of the remaining part until the first line feed (\n),
+        // or the end of the source if no line feed exists.
         let remaining_end = self.source[self.index..]
             .find('\n')
             .unwrap_or_else(|| self.source[self.index..].len());
-        let ret_line_end_index = if self
+
+        // If the slice right before the line feed is a CRLF sequence ("\r\n"),
+        // exclude the carriage return (\r) from the returned line content.
+        let line_end_index = if self
             .source
             .get(self.index + remaining_end - 1..=self.index + remaining_end)
             == Some("\r\n")
@@ -93,36 +104,33 @@ impl<'a> Cursor<'a> {
         } else {
             self.index + remaining_end
         };
+
+        (remaining_end, line_end_index)
+    }
+
+    /// Move cursor, through and return the remaining part of this line.
+    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        // Compute the current line bounds without consuming the trailing newline.
+        let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
-        // Record from remaining
+        // Update cursor column and index based on the consumed content.
         self.col += ret_remaining.chars().count();
         self.index += remaining_end;
-        // Return remaining
+        // Return the remaining content of the current line, trimmed.
         ret_remaining.trim()
     }
 
     /// Move cursor, through and return the entire line.
     pub(crate) fn next_line_entire(&mut self) -> &'a str {
-        // Get remaining
-        let remaining_end = self.source[self.index..]
-            .find('\n')
-            .unwrap_or_else(|| self.source[self.index..].len());
-        let ret_line_end_index = if self
-            .source
-            .get(self.index + remaining_end - 1..=self.index + remaining_end)
-            == Some("\r\n")
-        {
-            self.index + remaining_end - 1
-        } else {
-            self.index + remaining_end
-        };
+        // Compute the current line bounds without consuming the trailing newline.
+        let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
-        // Get line start index
+        // Find the start of the line to return the full line content.
         let line_start_index = self.source[..self.index].rfind('\n').unwrap_or(0);
-        // Record from remaining
+        // Update cursor column and index based on the consumed content.
         self.col += ret_remaining.chars().count();
         self.index += remaining_end;
-        // Return entire line
+        // Return the entire line content (from line start to line end), trimmed.
         self.source[line_start_index..ret_line_end_index].trim()
     }
 
@@ -205,4 +213,60 @@ fn test2() {
     assert_eq!(cursor.next_line_remaining(), "Sound piercer feat.DAZBEE");
     assert_eq!(cursor.next_token(), Some("#BPM"));
     assert_eq!(cursor.next_line_remaining(), "187");
+}
+
+#[test]
+fn test_next_line_crlf() {
+    const SOURCE: &str = "#TITLE Hello\r\n#ARTIST Foo\r\nLAST\r\n";
+
+    let mut cursor = Cursor::new(SOURCE);
+
+    // remaining variant
+    assert_eq!(cursor.next_token(), Some("#TITLE"));
+    assert_eq!(cursor.next_line_remaining(), "Hello");
+
+    assert_eq!(cursor.next_token(), Some("#ARTIST"));
+    assert_eq!(cursor.next_line_remaining(), "Foo");
+
+    assert_eq!(cursor.next_token(), Some("LAST"));
+    assert_eq!(cursor.next_line_remaining(), "");
+
+    // reset for entire variant
+    let mut cursor = Cursor::new(SOURCE);
+    assert_eq!(cursor.next_token(), Some("#TITLE"));
+    assert_eq!(cursor.next_line_entire(), "#TITLE Hello");
+
+    assert_eq!(cursor.next_token(), Some("#ARTIST"));
+    assert_eq!(cursor.next_line_entire(), "#ARTIST Foo");
+
+    assert_eq!(cursor.next_token(), Some("LAST"));
+    assert_eq!(cursor.next_line_entire(), "LAST");
+}
+
+#[test]
+fn test_next_line_no_trailing_newline() {
+    const SOURCE: &str = "#A Alpha\n#B Beta\nEND";
+
+    let mut cursor = Cursor::new(SOURCE);
+
+    // remaining variant
+    assert_eq!(cursor.next_token(), Some("#A"));
+    assert_eq!(cursor.next_line_remaining(), "Alpha");
+
+    assert_eq!(cursor.next_token(), Some("#B"));
+    assert_eq!(cursor.next_line_remaining(), "Beta");
+
+    assert_eq!(cursor.next_token(), Some("END"));
+    assert_eq!(cursor.next_line_remaining(), "");
+
+    // reset for entire variant
+    let mut cursor = Cursor::new(SOURCE);
+    assert_eq!(cursor.next_token(), Some("#A"));
+    assert_eq!(cursor.next_line_entire(), "#A Alpha");
+
+    assert_eq!(cursor.next_token(), Some("#B"));
+    assert_eq!(cursor.next_line_entire(), "#B Beta");
+
+    assert_eq!(cursor.next_token(), Some("END"));
+    assert_eq!(cursor.next_line_entire(), "END");
 }

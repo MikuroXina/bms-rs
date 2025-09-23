@@ -810,24 +810,6 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
                 Self::LnObj(ObjId::try_load(id, c)?)
             }
-            message
-                if message.starts_with('#')
-                    && message.chars().nth(6) == Some(':')
-                    && 8 <= message.len() =>
-            {
-                let track = command[1..4]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
-                let channel = &command[4..6];
-
-                let message = &command[7..];
-                Self::Message {
-                    track: Track(track),
-                    channel: channel_parser(channel)
-                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
-                    message: Cow::Borrowed(message),
-                }
-            }
             // New command parsing
             #[cfg(feature = "minor-command")]
             extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
@@ -1187,6 +1169,24 @@ impl<'a> Token<'a> {
                     .map(Path::new)
                     .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
                 Self::Movie(path)
+            }
+            message
+                if message.starts_with('#')
+                    && message.chars().nth(6) == Some(':')
+                    && 8 <= message.len() =>
+            {
+                let message_line = c.next_line_entire().trim_start();
+                let track = message_line[1..4]
+                    .parse()
+                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
+                let channel = &message_line[4..6];
+                let message = &message_line[7..];
+                Self::Message {
+                    track: Track(track),
+                    channel: channel_parser(channel)
+                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
+                    message: Cow::Borrowed(message),
+                }
             }
             // Unknown command & Not a command
             command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
