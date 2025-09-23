@@ -317,7 +317,8 @@ fn test_chumsky_detects_missing_commas() {
         .errors
         .iter()
         .filter_map(|e| match e {
-            BmsonParseError::JsonParse { error } => Some(error),
+            BmsonParseError::JsonWarning { warning } => Some(&warning.0),
+            BmsonParseError::JsonRecovered { error } => Some(&error.0),
             _ => None,
         })
         .collect();
@@ -391,7 +392,8 @@ fn test_parse_bmson_with_trailing_comma() {
         .errors
         .iter()
         .filter_map(|e| match e {
-            BmsonParseError::JsonParse { error } => Some(error),
+            BmsonParseError::JsonWarning { warning } => Some(&warning.0),
+            BmsonParseError::JsonRecovered { error } => Some(&error.0),
             _ => None,
         })
         .collect();
@@ -427,4 +429,30 @@ fn test_parse_bmson_with_trailing_comma() {
     if !json_parse_errors.is_empty() {
         println!("Chumsky detected errors but serde_json fallback succeeded");
     }
+}
+
+#[test]
+fn test_parse_bmson_totally_broken_json() {
+    // A completely broken JSON that neither chumsky nor serde_json can parse into a value
+    let broken = "";
+
+    let output = parse_bmson(broken);
+
+    // No bmson should be produced
+    assert!(output.bmson.is_none());
+
+    // Must contain at least one fatal JSON error
+    for e in &output.errors {
+        match e {
+            BmsonParseError::JsonError { .. } => println!("saw JsonError"),
+            BmsonParseError::JsonRecovered { .. } => println!("saw JsonRecovered"),
+            BmsonParseError::JsonWarning { .. } => println!("saw JsonWarning"),
+            BmsonParseError::Deserialize { .. } => println!("saw Deserialize"),
+        }
+    }
+    let has_fatal = output
+        .errors
+        .iter()
+        .any(|e| matches!(e, BmsonParseError::JsonError { .. }));
+    assert!(has_fatal, "Expected a fatal JSON error");
 }

@@ -39,12 +39,19 @@ use std::{
 };
 
 use ariadne::{Color, Label, Report, ReportKind};
-use chumsky::prelude::*;
+use chumsky::{prelude::*, span::SimpleSpan};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{bms::command::LnMode, diagnostics::ToAriadne};
 
-use self::{fin_f64::FinF64, parse::parser, pulse::PulseNumber};
+use self::{
+    fin_f64::FinF64,
+    parse::{
+        Error as JsonError, Recovered as JsonRecovered, Warning as JsonWarning, parser,
+        split_chumsky_errors,
+    },
+    pulse::PulseNumber,
+};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -425,11 +432,12 @@ pub struct KeyChannel<'a> {
 /// Errors that can occur during BMSON parsing.
 #[derive(Debug)]
 pub enum BmsonParseError<'a> {
-    /// JSON parsing error from chumsky parser.
-    JsonParse {
-        /// The specific parsing error.
-        error: Rich<'a, char>,
-    },
+    /// JSON parsing warning intentionally emitted by the parser.
+    JsonWarning { warning: JsonWarning<'a> },
+    /// JSON grammar error that was recovered by the parser.
+    JsonRecovered { error: JsonRecovered<'a> },
+    /// Unrecoverable JSON parsing error (no value produced).
+    JsonError { error: JsonError<'a> },
     /// Deserialization error from serde.
     Deserialize {
         /// The serde deserialization error.
@@ -460,7 +468,9 @@ impl<'a> ToAriadne for BmsonParseError<'a> {
         src: &crate::diagnostics::SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         match self {
-            BmsonParseError::JsonParse { error } => error.to_report(src),
+            BmsonParseError::JsonWarning { warning } => warning.to_report(src),
+            BmsonParseError::JsonRecovered { error } => error.to_report(src),
+            BmsonParseError::JsonError { error } => error.to_report(src),
             BmsonParseError::Deserialize { error } => error.to_report(src),
         }
     }
@@ -492,14 +502,48 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     // First parse JSON using chumsky parser
     let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
-    // Collect JSON parsing errors
-    let mut errors: Vec<BmsonParseError<'a>> = parse_errors
-        .into_iter()
-        .map(|error| BmsonParseError::JsonParse { error })
-        .collect();
+    let had_output = value.is_some();
+    // Split chumsky errors into warnings, recovered errors, and fatal errors
+    let (warnings, recovered, fatal) = split_chumsky_errors(parse_errors, had_output);
+
+    // Collect JSON parsing diagnostics
+    let mut errors: Vec<BmsonParseError<'a>> =
+        Vec::with_capacity(warnings.len() + recovered.len() + fatal.len());
+    errors.extend(
+        warnings
+            .into_iter()
+            .map(|warning| BmsonParseError::JsonWarning { warning }),
+    );
+    errors.extend(
+        recovered
+            .into_iter()
+            .map(|error| BmsonParseError::JsonRecovered { error }),
+    );
+    errors.extend(
+        fatal
+            .into_iter()
+            .map(|error| BmsonParseError::JsonError { error }),
+    );
 
     // Try to get a JSON value from either chumsky or serde_json
-    let json_value = value.or(serde_json::from_str(json).ok());
+    let serde_fallback = serde_json::from_str(json);
+    let json_value = value.or_else(|| serde_fallback.as_ref().ok().cloned());
+
+    // If neither parser produced a value and no fatal chumsky error existed,
+    // synthesize a fatal JSON error from the serde error for better diagnostics.
+    if json_value.is_none() {
+        if let Err(e) = serde_fallback {
+            if !errors
+                .iter()
+                .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
+            {
+                let span = SimpleSpan::new((), 0..json.len());
+                errors.push(BmsonParseError::JsonError {
+                    error: JsonError(Rich::custom(span, format!("Invalid JSON: {}", e))),
+                });
+            }
+        }
+    }
 
     // Try to deserialize the JSON value into Bmson
     let bmson = json_value

@@ -1,14 +1,16 @@
 //! This is a parser for JSON.
 
 use ariadne::{Color, Label, Report, ReportKind};
-use chumsky::prelude::*;
+use chumsky::{error::RichReason, prelude::*};
 use serde_json::Value;
 
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 /// This is a parser for JSON.
 ///
-/// Parsing from str, returning [`Value`] and error with [`Rich`] type.
+/// Parsing from str, returning [`Value`]. Chumsky emits `Rich<char>` internally,
+/// which we later classify into `Warning` (custom diagnostics) and `Recovered`
+/// (grammar errors recovered by the parser).
 #[must_use]
 pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>>> {
     recursive(|value| {
@@ -181,17 +183,68 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
     })
 }
 
-/// Implementation of `ToAriadne` for chumsky `Rich<char>` errors.
-///
-/// This allows chumsky parsing errors to be converted to beautiful ariadne reports
-/// for display to users.
-impl<'a> ToAriadne for Rich<'a, char> {
+/// Error recovered by the JSON parser. These originated from grammar mismatches
+/// that were recovered via `recover_with` or similar mechanisms.
+#[derive(Debug, Clone)]
+pub struct Recovered<'a>(pub Rich<'a, char>);
+
+/// Diagnostic warning intentionally emitted by the JSON parser using `Rich::custom`.
+#[derive(Debug, Clone)]
+pub struct Warning<'a>(pub Rich<'a, char>);
+
+/// Unrecoverable JSON parsing error (no output value was produced).
+#[derive(Debug, Clone)]
+pub struct Error<'a>(pub Rich<'a, char>);
+
+impl<'a> ToAriadne for Recovered<'a> {
     fn to_report<'b>(
         &self,
         src: &SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let span = self.span();
-        let message = self.to_string();
+        let span = self.0.span();
+        let message = self.0.to_string();
+        let filename = src.name().to_string();
+        let range = span.start..span.end;
+
+        Report::build(ReportKind::Error, (filename.clone(), range.clone()))
+            .with_message("JSON recovered parsing error")
+            .with_label(
+                Label::new((filename, range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+    }
+}
+
+impl<'a> ToAriadne for Warning<'a> {
+    fn to_report<'b>(
+        &self,
+        src: &SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let span = self.0.span();
+        let message = self.0.to_string();
+        let filename = src.name().to_string();
+        let range = span.start..span.end;
+
+        Report::build(ReportKind::Warning, (filename.clone(), range.clone()))
+            .with_message("JSON parsing warning")
+            .with_label(
+                Label::new((filename, range))
+                    .with_message(message)
+                    .with_color(Color::Yellow),
+            )
+            .finish()
+    }
+}
+
+impl<'a> ToAriadne for Error<'a> {
+    fn to_report<'b>(
+        &self,
+        src: &SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let span = self.0.span();
+        let message = self.0.to_string();
         let filename = src.name().to_string();
         let range = span.start..span.end;
 
@@ -206,25 +259,24 @@ impl<'a> ToAriadne for Rich<'a, char> {
     }
 }
 
-/// Convenience function to emit chumsky parsing errors.
-///
-/// This function converts a list of chumsky `Rich<char>` errors to ariadne reports
-/// and prints them to the console.
-///
-/// # Parameters
-/// * `name` - Name of the source file
-/// * `source` - Complete source text
-/// * `errors` - List of chumsky parsing errors
-pub fn emit_chumsky_errors<'a>(
-    name: &'a str,
-    source: &'a str,
-    errors: impl IntoIterator<Item = &'a Rich<'a, char>>,
-) {
-    let simple = SimpleSource::new(name, source);
-    let ariadne_source = ariadne::Source::from(source);
-
-    for error in errors {
-        let report = error.to_report(&simple);
-        let _ = report.print((name.to_string(), ariadne_source.clone()));
+/// Split chumsky `Rich<char>` errors into `Warning`, `Recovered`, and `Error` buckets.
+#[must_use]
+pub fn split_chumsky_errors<'a>(
+    errors: impl IntoIterator<Item = Rich<'a, char>>,
+    had_output: bool,
+) -> (Vec<Warning<'a>>, Vec<Recovered<'a>>, Vec<Error<'a>>) {
+    let mut warnings = Vec::new();
+    let mut recovered = Vec::new();
+    let mut fatal = Vec::new();
+    for err in errors {
+        match err.reason() {
+            // Custom reasons are produced via `Rich::custom(...)` in this module,
+            // which we treat as non-fatal parser diagnostics.
+            RichReason::Custom(_) => warnings.push(Warning(err)),
+            // All other errors: recovered if we produced an output value, otherwise fatal.
+            _ if had_output => recovered.push(Recovered(err)),
+            _ => fatal.push(Error(err)),
+        }
     }
+    (warnings, recovered, fatal)
 }
