@@ -19,7 +19,7 @@
 //! use num::BigUint;
 //! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
 //!
-//! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
 //! let BmsOutput { bms, warnings }: BmsOutput<KeyLayoutBeat> = parse_bms(&source);
 //! #[cfg(not(feature = "rand"))]
@@ -41,7 +41,7 @@
 //! use bms_rs::bms::prelude::*;
 //! use num::BigUint;
 //!
-//! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
@@ -73,7 +73,7 @@
 //! ```rust
 //! use bms_rs::bms::prelude::*;
 //!
-//! let source = std::fs::read_to_string("tests/files/lilith_mx.bms").unwrap();
+//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //!
