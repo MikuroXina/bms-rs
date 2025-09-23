@@ -29,6 +29,8 @@
 pub mod bms_to_bmson;
 pub mod bmson_to_bms;
 pub mod fin_f64;
+pub mod parse;
+pub mod prelude;
 pub mod pulse;
 
 use std::{
@@ -36,12 +38,23 @@ use std::{
     num::{NonZeroU8, NonZeroU64},
 };
 
+use ariadne::{Color, Report, ReportKind};
+use chumsky::{prelude::*, span::SimpleSpan};
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_path_to_error;
 
-use crate::bms::command::LnMode;
+use crate::{
+    bms::command::LnMode,
+    diagnostics::{ToAriadne, build_report},
+};
 
-use self::{fin_f64::FinF64, pulse::PulseNumber};
+use self::{
+    fin_f64::FinF64,
+    parse::{
+        Error as JsonError, Recovered as JsonRecovered, Warning as JsonWarning, parser,
+        split_chumsky_errors,
+    },
+    pulse::PulseNumber,
+};
 
 /// Top-level object for bmson format.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,6 +179,91 @@ pub fn default_percentage() -> FinF64 {
 #[must_use]
 pub const fn default_resolution() -> u64 {
     240
+}
+
+fn default_resolution_nonzero() -> NonZeroU64 {
+    NonZeroU64::new(default_resolution()).expect("default_resolution should be non-zero")
+}
+
+fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::{Error, Visitor};
+    use std::fmt;
+
+    struct ResolutionVisitor;
+
+    impl<'de> Visitor<'de> for ResolutionVisitor {
+        type Value = NonZeroU64;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a number or null")
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            Ok(default_resolution_nonzero())
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(self)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => Ok(default_resolution_nonzero()),
+                v => Ok(NonZeroU64::new(v.unsigned_abs())
+                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
+            }
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            match v {
+                0 => Ok(default_resolution_nonzero()),
+                v => Ok(NonZeroU64::new(v)
+                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
+            }
+        }
+
+        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+        where
+            E: Error,
+        {
+            // Bmson (WebIDL unsigned long): must be an unsigned integer; negative allowed via abs
+            let av = v.abs();
+            if !av.is_finite() {
+                return Err(E::custom("Resolution must be a finite number"));
+            }
+            // Reject any non-integer (has fractional part)
+            if av.fract() != 0.0 {
+                return Err(E::custom("Resolution must be an integer (unsigned long)"));
+            }
+            if av == 0.0 {
+                return Ok(default_resolution_nonzero());
+            }
+            // Now av is a positive integer value in f64
+            if av > (u64::MAX as f64) {
+                return Err(E::custom(format!("Resolution value too large: {}", v)));
+            }
+            Ok(NonZeroU64::new(av as u64).expect(
+                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
+            ))
+        }
+    }
+
+    deserializer.deserialize_option(ResolutionVisitor)
 }
 
 /// Event of bar line of the chart.
@@ -334,105 +432,138 @@ pub struct KeyChannel<'a> {
     pub notes: Vec<KeyEvent>,
 }
 
-fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::{Error, Visitor};
-    use std::fmt;
-
-    struct ResolutionVisitor;
-
-    impl<'de> Visitor<'de> for ResolutionVisitor {
-        type Value = NonZeroU64;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a number or null")
-        }
-
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: Error,
-        {
-            Ok(default_resolution_nonzero())
-        }
-
-        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            deserializer.deserialize_any(self)
-        }
-
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where
-            E: Error,
-        {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v.abs() as u64)
-                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
-            }
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: Error,
-        {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v)
-                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
-            }
-        }
-
-        fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
-        where
-            E: Error,
-        {
-            // Bmson (WebIDL unsigned long): must be an unsigned integer; negative allowed via abs
-            let av = v.abs();
-            if !av.is_finite() {
-                return Err(E::custom("Resolution must be a finite number"));
-            }
-            // Reject any non-integer (has fractional part)
-            if av.fract() != 0.0 {
-                return Err(E::custom("Resolution must be an integer (unsigned long)"));
-            }
-            if av == 0.0 {
-                return Ok(default_resolution_nonzero());
-            }
-            // Now av is a positive integer value in f64
-            if av > (u64::MAX as f64) {
-                return Err(E::custom(format!("Resolution value too large: {}", v)));
-            }
-            Ok(NonZeroU64::new(av as u64).expect(
-                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
-            ))
-        }
-    }
-
-    deserializer.deserialize_option(ResolutionVisitor)
+/// Errors that can occur during BMSON parsing.
+#[derive(Debug)]
+pub enum BmsonParseError<'a> {
+    /// JSON parsing warning intentionally emitted by the parser.
+    JsonWarning {
+        /// The parser-emitted warning diagnostic.
+        warning: JsonWarning<'a>,
+    },
+    /// JSON grammar error that was recovered by the parser.
+    JsonRecovered {
+        /// The recovered chumsky error.
+        error: JsonRecovered<'a>,
+    },
+    /// Unrecoverable JSON parsing error (no value produced).
+    JsonError {
+        /// The unrecoverable JSON parsing error.
+        error: JsonError<'a>,
+    },
+    /// Deserialization error from serde.
+    Deserialize {
+        /// The serde deserialization error.
+        error: serde_path_to_error::Error<serde_json::Error>,
+    },
 }
 
-fn default_resolution_nonzero() -> NonZeroU64 {
-    NonZeroU64::new(default_resolution() as u64).expect("default_resolution should be non-zero")
+impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
+    fn to_report<'b>(
+        &self,
+        src: &crate::diagnostics::SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        build_report(
+            src,
+            ReportKind::Error,
+            0..0,
+            "BMSON deserialization error",
+            format!("{}", self),
+            Color::Red,
+        )
+    }
+}
+
+impl<'a> ToAriadne for BmsonParseError<'a> {
+    fn to_report<'b>(
+        &self,
+        src: &crate::diagnostics::SimpleSource<'b>,
+    ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        match self {
+            BmsonParseError::JsonWarning { warning } => warning.to_report(src),
+            BmsonParseError::JsonRecovered { error } => error.to_report(src),
+            BmsonParseError::JsonError { error } => error.to_report(src),
+            BmsonParseError::Deserialize { error } => error.to_report(src),
+        }
+    }
+}
+
+/// Output of parsing a BMSON file.
+///
+/// This struct contains the parsed BMSON data (if successful), along with any
+/// parsing errors that occurred during the process.
+pub struct BmsonParseOutput<'a> {
+    /// The parsed BMSON data, or None if parsing failed.
+    pub bmson: Option<Bmson<'a>>,
+    /// Errors that occurred during parsing.
+    pub errors: Vec<BmsonParseError<'a>>,
 }
 
 /// Parse a BMSON file from JSON string.
 ///
 /// This function provides a convenient way to parse a BMSON file in one step.
-/// It uses `serde_path_to_error` internally to provide detailed error information
-/// about the path to problematic fields in the JSON.
+/// It uses chumsky parser internally to parse JSON, then deserializes the result
+/// using `serde_path_to_error` for detailed error information.
 ///
-/// # Errors
+/// # Returns
 ///
-/// Returns a `serde_path_to_error::Error<serde_json::Error>` if the JSON is malformed or contains invalid data.
-/// The error will include the path to the problematic field in the JSON.
-pub fn parse_bmson(json: &str) -> Result<Bmson<'_>, serde_path_to_error::Error<serde_json::Error>> {
-    // First try to parse with serde_path_to_error for better error reporting
-    let jd = &mut serde_json::Deserializer::from_str(json);
-    let result: Result<Bmson, _> = serde_path_to_error::deserialize(jd);
+/// Returns a `BmsonParseOutput` containing the parsed BMSON data (if successful),
+/// or various types of parsing errors that occurred during the process.
+#[must_use]
+pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
+    // First parse JSON using chumsky parser
+    let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
 
-    result
+    let had_output = value.is_some();
+    // Split chumsky errors into warnings, recovered errors, and fatal errors
+    let (warnings, recovered, fatal) = split_chumsky_errors(parse_errors, had_output);
+
+    // Collect JSON parsing diagnostics
+    let mut errors: Vec<BmsonParseError<'a>> =
+        Vec::with_capacity(warnings.len() + recovered.len() + fatal.len());
+    errors.extend(
+        warnings
+            .into_iter()
+            .map(|warning| BmsonParseError::JsonWarning { warning }),
+    );
+    errors.extend(
+        recovered
+            .into_iter()
+            .map(|error| BmsonParseError::JsonRecovered { error }),
+    );
+    errors.extend(
+        fatal
+            .into_iter()
+            .map(|error| BmsonParseError::JsonError { error }),
+    );
+
+    // Try to get a JSON value from either chumsky or serde_json
+    let serde_fallback = serde_json::from_str(json);
+    let json_value = value.or_else(|| serde_fallback.as_ref().ok().cloned());
+
+    // If neither parser produced a value and no fatal chumsky error existed,
+    // synthesize a fatal JSON error from the serde error for better diagnostics.
+    if json_value.is_none()
+        && let Err(e) = serde_fallback
+        && !errors
+            .iter()
+            .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
+    {
+        let span = SimpleSpan::new((), 0..json.len());
+        errors.push(BmsonParseError::JsonError {
+            error: JsonError(Rich::custom(span, format!("Invalid JSON: {}", e))),
+        });
+    }
+
+    // Try to deserialize the JSON value into Bmson
+    let bmson = json_value
+        .map(|value| serde_path_to_error::deserialize(&value))
+        .and_then(|value| match value {
+            Ok(bmson) => Some(bmson),
+            Err(error) => {
+                errors.push(BmsonParseError::Deserialize { error });
+                None
+            }
+        });
+
+    BmsonParseOutput { bmson, errors }
 }

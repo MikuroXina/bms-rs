@@ -1,10 +1,8 @@
 //! Test diagnostics module functionality
 
-use bms_rs::bms::{
-    BmsWarning,
-    command::channel::mapper::KeyLayoutBeat,
+use bms_rs::{
+    bms::{BmsWarning, command::channel::mapper::KeyLayoutBeat, parse_bms},
     diagnostics::{SimpleSource, emit_bms_warnings},
-    parse_bms,
 };
 
 #[test]

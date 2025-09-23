@@ -3,10 +3,9 @@ use core::ops::RangeInclusive;
 use ariadne::{Color, Label, Report, ReportKind};
 use num::BigUint;
 
-use crate::bms::{
-    command::mixin::SourceRangeMixinExt,
+use crate::{
+    bms::{command::mixin::SourceRangeMixinExt, lex::token::TokenWithRange},
     diagnostics::{SimpleSource, ToAriadne},
-    lex::token::TokenWithRange,
 };
 
 use super::{

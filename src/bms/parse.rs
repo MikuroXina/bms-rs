@@ -13,7 +13,7 @@ use fraction::GenericFraction;
 use itertools::Itertools;
 use thiserror::Error;
 
-use crate::bms::diagnostics::{SimpleSource, ToAriadne};
+use crate::diagnostics::{SimpleSource, ToAriadne};
 use ariadne::{Color, Label, Report, ReportKind};
 
 use super::prelude::*;
