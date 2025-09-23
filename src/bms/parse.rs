@@ -484,7 +484,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChange,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     // Record used BPM change id for validity checks
                     self.arrangers.bpm_change_ids_used.insert(obj);
                     let bpm = self
@@ -506,7 +506,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BpmChangeU8,
                 message,
             } => {
-                for (time, value) in hex_values_from_message(*track, message, parse_warnings) {
+                for (time, value) in
+                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     self.arrangers.push_bpm_change(
                         BpmChangeObj {
                             time,
@@ -521,7 +523,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Scroll,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     let factor = self
                         .scope_defines
                         .scroll_defs
@@ -541,7 +543,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Speed,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     let factor = self
                         .scope_defines
                         .speed_defs
@@ -562,7 +564,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::ChangeOption,
                 message,
             } => {
-                for (_time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (_time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     let _option = self
                         .others
                         .change_options
@@ -602,7 +604,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Stop,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     // Record used STOP id for validity checks
                     self.arrangers.stop_ids_used.insert(obj);
                     let duration = self
@@ -625,7 +627,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     | Channel::BgaLayer2),
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     if !self.graphics.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
@@ -647,7 +649,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Bgm,
                 message,
             } => {
-                for (time, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     self.notes.push_bgm(time, obj);
                 }
             }
@@ -657,7 +659,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 // Parse the channel ID to get note components
-                for (offset, obj) in ids_from_message(*track, message, parse_warnings) {
+                for (offset, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
                     self.notes.push_note(WavObj {
                         offset,
                         channel_id: *channel_id,
@@ -676,7 +678,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 message,
             } => {
                 for (time, opacity_value) in
-                    hex_values_from_message(*track, message, parse_warnings)
+                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
                 {
                     let layer = BgaLayer::from_channel(*channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
@@ -696,7 +698,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BgmVolume,
                 message,
             } => {
-                for (time, volume_value) in hex_values_from_message(*track, message, parse_warnings)
+                for (time, volume_value) in
+                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
                 {
                     self.notes.push_bgm_volume_change(
                         BgmVolumeObj {
@@ -712,7 +715,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::KeyVolume,
                 message,
             } => {
-                for (time, volume_value) in hex_values_from_message(*track, message, parse_warnings)
+                for (time, volume_value) in
+                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
                 {
                     self.notes.push_key_volume_change(
                         KeyVolumeObj {
@@ -733,7 +737,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     | Channel::BgaPoorArgb),
                 message,
             } => {
-                for (time, argb_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, argb_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let layer = BgaLayer::from_channel(*channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = self
@@ -758,7 +763,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Seek,
                 message,
             } => {
-                for (time, seek_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, seek_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let position = self
                         .others
                         .seek_events
@@ -778,7 +784,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Text,
                 message,
             } => {
-                for (time, text_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, text_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let text = self
                         .others
                         .texts
@@ -798,7 +805,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Judge,
                 message,
             } => {
-                for (time, judge_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, judge_id) in
+                    ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let exrank_def = self
                         .scope_defines
                         .exrank_defs
@@ -819,7 +828,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::BgaKeybound,
                 message,
             } => {
-                for (time, keybound_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, keybound_id) in
+                    ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let event = self
                         .scope_defines
                         .swbga_events
@@ -840,7 +851,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 channel: Channel::Option,
                 message,
             } => {
-                for (time, option_id) in ids_from_message(*track, message, parse_warnings) {
+                for (time, option_id) in
+                    ids_from_message(*track, message, |w| parse_warnings.push(w))
+                {
                     let option = self
                         .others
                         .change_options
@@ -1009,10 +1022,10 @@ fn parse_message_values_with_warnings<'a, T, F>(
     track: Track,
     message: &'a str,
     mut parse_value: F,
-    parse_warnings: &'a mut Vec<ParseWarning>,
+    mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, T)> + 'a
 where
-    F: FnMut(char, char, &mut Vec<ParseWarning>) -> Option<T> + 'a,
+    F: FnMut(char, char) -> Option<Result<T>> + 'a,
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.
@@ -1037,7 +1050,7 @@ where
         // Ensure we have a valid denominator (at least 2 characters in original message)
         let Some(denominator) = denominator_opt else {
             // Emit a warning for invalid message length
-            parse_warnings.push(ParseWarning::SyntaxError(
+            push_parse_warning(ParseWarning::SyntaxError(
                 "message length must be greater than or equals to 2".to_string(),
             ));
             return None;
@@ -1054,12 +1067,21 @@ where
             pair_index += 1;
 
             // Try to parse the character pair using the provided parse_value function
-            if let Some(value) = parse_value(c1, c2, parse_warnings) {
-                // Successfully parsed a value, calculate its timing position
-                let time = ObjTime::new(track.0, current_index, denominator);
-                return Some((time, value));
+            match parse_value(c1, c2) {
+                Some(Ok(value)) => {
+                    // Successfully parsed a value, calculate its timing position
+                    let time = ObjTime::new(track.0, current_index, denominator);
+                    return Some((time, value));
+                }
+                Some(Err(warning)) => {
+                    // Push the warning and continue to the next pair
+                    push_parse_warning(warning);
+                }
+                None => {
+                    // Skip this value, don't report a warning
+                    continue;
+                }
             }
-            // If parsing failed (returned None), continue to the next pair
         }
     })
 }
@@ -1067,24 +1089,23 @@ where
 fn ids_from_message<'a>(
     track: Track,
     message: &'a str,
-    parse_warnings: &'a mut Vec<ParseWarning>,
+    push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + 'a {
     parse_message_values_with_warnings(
         track,
         message,
-        |c1, c2, warnings| {
+        |c1, c2| {
             if c1 == '0' && c2 == '0' {
                 return None;
             }
-            let Ok(obj) = ObjId::try_from([c1, c2]) else {
-                warnings.push(ParseWarning::SyntaxError(format!(
+            Some(match ObjId::try_from([c1, c2]) {
+                Ok(obj) => Ok(obj),
+                Err(_) => Err(ParseWarning::SyntaxError(format!(
                     "Invalid object id digits: {c1}{c2}"
-                )));
-                return None;
-            };
-            Some(obj)
+                ))),
+            })
         },
-        parse_warnings,
+        push_parse_warning,
     )
 }
 
@@ -1092,24 +1113,23 @@ fn ids_from_message<'a>(
 fn hex_values_from_message<'a>(
     track: Track,
     message: &'a str,
-    parse_warnings: &'a mut Vec<ParseWarning>,
+    push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, u8)> + 'a {
     parse_message_values_with_warnings(
         track,
         message,
-        |c1, c2, warnings| {
+        |c1, c2| {
             if c1 == '0' && c2 == '0' {
                 return None;
             }
-            let Ok(v) = u8::from_str_radix(&format!("{c1}{c2}"), 16) else {
-                warnings.push(ParseWarning::SyntaxError(format!(
+            Some(match u8::from_str_radix(&format!("{c1}{c2}"), 16) {
+                Ok(v) => Ok(v),
+                Err(_) => Err(ParseWarning::SyntaxError(format!(
                     "Invalid hex digits: {c1}{c2}"
-                )));
-                return None;
-            };
-            Some(v)
+                ))),
+            })
         },
-        parse_warnings,
+        push_parse_warning,
     )
 }
 
