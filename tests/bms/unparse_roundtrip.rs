@@ -1,36 +1,5 @@
 use bms_rs::bms::prelude::*;
 
-fn assert_maps_equal<K, V>(
-    left: &std::collections::HashMap<K, V>,
-    right: &std::collections::HashMap<K, V>,
-    field_name: &str,
-) where
-    K: std::fmt::Debug + std::cmp::Eq + std::hash::Hash,
-    V: std::fmt::Debug + std::cmp::PartialEq,
-{
-    assert_eq!(left.len(), right.len(), "{} length mismatch", field_name);
-
-    for (key, left_value) in left {
-        match right.get(key) {
-            Some(right_value) => assert_eq!(
-                left_value, right_value,
-                "{} key {:?} mismatch",
-                field_name, key
-            ),
-            None => panic!("{} missing key {:?} in right map", field_name, key),
-        }
-    }
-
-    for key in right.keys() {
-        assert!(
-            left.contains_key(key),
-            "{} missing key {:?} in left map",
-            field_name,
-            key
-        );
-    }
-}
-
 fn assert_btree_maps_equal<K, V>(
     left: &std::collections::BTreeMap<K, V>,
     right: &std::collections::BTreeMap<K, V>,
