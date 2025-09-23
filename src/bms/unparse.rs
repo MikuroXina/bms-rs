@@ -1,4 +1,4 @@
-//! Unparse Bms model into Vec<Token> without重复解析逻辑。
+//! Unparse Bms model into Vec<Token> without duplicate parsing logic.
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -10,9 +10,9 @@ use crate::bms::prelude::*;
 type BgaTrackLayerMap<'a> = BTreeMap<(Track, (u16, u16)), Vec<(ObjTime, ObjId)>>;
 
 impl<T: KeyLayoutMapper> Bms<T> {
-    /// 将 Bms 转换为 Vec<Token>（按常规顺序：头部 -> 定义 -> 资源 -> 消息）。
-    /// - 避免重复解析：直接使用模型数据构造 Token；
-    /// - 对需要 ObjId 的消息，优先复用现有定义；若缺失则分配新 ObjId 并补充定义 Token（仅体现在返回的 Token 列表中）。
+    /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
+    /// - Avoid duplicate parsing: directly construct Tokens using model data;
+    /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
     #[must_use]
     pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -528,7 +528,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
         }
 
-        // 组装：先头部/定义/资源/其他 -> 延迟定义 -> 消息
+        // Assembly: header/definitions/resources/others -> late definitions -> messages
         if !late_def_tokens.is_empty() {
             tokens.extend(late_def_tokens);
         }
