@@ -39,3 +39,9 @@ fn roundtrip_lilith_mx_file_bms_tokens_bms() {
     let source = include_str!("files/lilith_mx.bms");
     roundtrip_source_bms_tokens_bms(source);
 }
+
+#[test]
+fn roundtrip_bemuse_ext_file_bms_tokens_bms() {
+    let source = include_str!("files/bemuse_ext.bms");
+    roundtrip_source_bms_tokens_bms(source);
+}
