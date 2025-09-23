@@ -1,10 +1,10 @@
 //! This is a parser for JSON.
 
-use ariadne::{Color, Label, Report, ReportKind};
+use ariadne::{Color, Report, ReportKind};
 use chumsky::{error::RichReason, prelude::*};
 use serde_json::Value;
 
-use crate::diagnostics::{SimpleSource, ToAriadne};
+use crate::diagnostics::{SimpleSource, ToAriadne, build_report};
 
 /// This is a parser for JSON.
 ///
@@ -203,17 +203,14 @@ impl<'a> ToAriadne for Recovered<'a> {
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
         let message = self.0.to_string();
-        let filename = src.name().to_string();
-        let range = span.start..span.end;
-
-        Report::build(ReportKind::Error, (filename.clone(), range.clone()))
-            .with_message("JSON recovered parsing error")
-            .with_label(
-                Label::new((filename, range))
-                    .with_message(message)
-                    .with_color(Color::Red),
-            )
-            .finish()
+        build_report(
+            src,
+            ReportKind::Advice,
+            span.start..span.end,
+            "JSON recovered parsing issue",
+            message,
+            Color::Blue,
+        )
     }
 }
 
@@ -224,17 +221,14 @@ impl<'a> ToAriadne for Warning<'a> {
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
         let message = self.0.to_string();
-        let filename = src.name().to_string();
-        let range = span.start..span.end;
-
-        Report::build(ReportKind::Warning, (filename.clone(), range.clone()))
-            .with_message("JSON parsing warning")
-            .with_label(
-                Label::new((filename, range))
-                    .with_message(message)
-                    .with_color(Color::Yellow),
-            )
-            .finish()
+        build_report(
+            src,
+            ReportKind::Warning,
+            span.start..span.end,
+            "JSON parsing warning",
+            message,
+            Color::Yellow,
+        )
     }
 }
 
@@ -245,17 +239,14 @@ impl<'a> ToAriadne for Error<'a> {
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
         let message = self.0.to_string();
-        let filename = src.name().to_string();
-        let range = span.start..span.end;
-
-        Report::build(ReportKind::Error, (filename.clone(), range.clone()))
-            .with_message("JSON parsing error")
-            .with_label(
-                Label::new((filename, range))
-                    .with_message(message)
-                    .with_color(Color::Red),
-            )
-            .finish()
+        build_report(
+            src,
+            ReportKind::Error,
+            span.start..span.end,
+            "JSON parsing error",
+            message,
+            Color::Red,
+        )
     }
 }
 

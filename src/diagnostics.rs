@@ -21,7 +21,7 @@
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);
 //! ```
 
-use ariadne::{Report, Source};
+use ariadne::{Color, Label, Report, ReportKind, Source};
 
 /// Simple source container that holds the filename and source text.
 /// Ariadne will automatically handle row/column calculations from byte offsets.
@@ -110,6 +110,29 @@ pub trait ToAriadne {
     /// Returns the constructed ariadne Report
     fn to_report<'a>(&self, src: &SimpleSource<'a>)
     -> Report<'a, (String, std::ops::Range<usize>)>;
+}
+
+/// Helper to build a styled ariadne `Report` consistently.
+///
+/// This reduces duplication across multiple `ToAriadne` implementations.
+#[must_use]
+pub fn build_report<'a>(
+    src: &SimpleSource<'a>,
+    kind: ReportKind<'a>,
+    range: std::ops::Range<usize>,
+    title: &str,
+    label_message: impl ToString,
+    color: Color,
+) -> Report<'a, (String, std::ops::Range<usize>)> {
+    let filename = src.name().to_string();
+    Report::build(kind, (filename.clone(), range.clone()))
+        .with_message(title)
+        .with_label(
+            Label::new((filename, range))
+                .with_message(label_message.to_string())
+                .with_color(color),
+        )
+        .finish()
 }
 
 /// Convenience method: batch render `BmsWarning` list.

@@ -38,11 +38,14 @@ use std::{
     num::{NonZeroU8, NonZeroU64},
 };
 
-use ariadne::{Color, Label, Report, ReportKind};
+use ariadne::{Color, Report, ReportKind};
 use chumsky::{prelude::*, span::SimpleSpan};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::{bms::command::LnMode, diagnostics::ToAriadne};
+use crate::{
+    bms::command::LnMode,
+    diagnostics::{ToAriadne, build_report},
+};
 
 use self::{
     fin_f64::FinF64,
@@ -179,7 +182,7 @@ pub const fn default_resolution() -> u64 {
 }
 
 fn default_resolution_nonzero() -> NonZeroU64 {
-    NonZeroU64::new(default_resolution() as u64).expect("default_resolution should be non-zero")
+    NonZeroU64::new(default_resolution()).expect("default_resolution should be non-zero")
 }
 
 fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
@@ -218,7 +221,7 @@ where
         {
             match v {
                 0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v.abs() as u64)
+                v => Ok(NonZeroU64::new(v.unsigned_abs())
                     .expect("NonZeroU64::new should not fail for non-zero i64 value")),
             }
         }
@@ -433,11 +436,20 @@ pub struct KeyChannel<'a> {
 #[derive(Debug)]
 pub enum BmsonParseError<'a> {
     /// JSON parsing warning intentionally emitted by the parser.
-    JsonWarning { warning: JsonWarning<'a> },
+    JsonWarning {
+        /// The parser-emitted warning diagnostic.
+        warning: JsonWarning<'a>,
+    },
     /// JSON grammar error that was recovered by the parser.
-    JsonRecovered { error: JsonRecovered<'a> },
+    JsonRecovered {
+        /// The recovered chumsky error.
+        error: JsonRecovered<'a>,
+    },
     /// Unrecoverable JSON parsing error (no value produced).
-    JsonError { error: JsonError<'a> },
+    JsonError {
+        /// The unrecoverable JSON parsing error.
+        error: JsonError<'a>,
+    },
     /// Deserialization error from serde.
     Deserialize {
         /// The serde deserialization error.
@@ -450,15 +462,14 @@ impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
         &self,
         src: &crate::diagnostics::SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
-        let filename = src.name().to_string();
-        Report::build(ReportKind::Error, (filename.clone(), 0..0))
-            .with_message("BMSON deserialization error")
-            .with_label(
-                Label::new((filename, 0..0))
-                    .with_message(format!("{}", self))
-                    .with_color(Color::Red),
-            )
-            .finish()
+        build_report(
+            src,
+            ReportKind::Error,
+            0..0,
+            "BMSON deserialization error",
+            format!("{}", self),
+            Color::Red,
+        )
     }
 }
 
@@ -531,24 +542,22 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
 
     // If neither parser produced a value and no fatal chumsky error existed,
     // synthesize a fatal JSON error from the serde error for better diagnostics.
-    if json_value.is_none() {
-        if let Err(e) = serde_fallback {
-            if !errors
-                .iter()
-                .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
-            {
-                let span = SimpleSpan::new((), 0..json.len());
-                errors.push(BmsonParseError::JsonError {
-                    error: JsonError(Rich::custom(span, format!("Invalid JSON: {}", e))),
-                });
-            }
-        }
+    if json_value.is_none()
+        && let Err(e) = serde_fallback
+        && !errors
+            .iter()
+            .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
+    {
+        let span = SimpleSpan::new((), 0..json.len());
+        errors.push(BmsonParseError::JsonError {
+            error: JsonError(Rich::custom(span, format!("Invalid JSON: {}", e))),
+        });
     }
 
     // Try to deserialize the JSON value into Bmson
     let bmson = json_value
         .map(|value| serde_path_to_error::deserialize(&value))
-        .map_or(None, |value| match value {
+        .and_then(|value| match value {
             Ok(bmson) => Some(bmson),
             Err(error) => {
                 errors.push(BmsonParseError::Deserialize { error });
