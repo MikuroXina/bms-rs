@@ -280,17 +280,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .map(|(k, v)| (v.judge_level, *k))
             .collect();
 
-        let alloc_id = |used: &mut HashSet<ObjId>| -> ObjId {
-            for i in 1..(62 * 62) {
-                let id = create_obj_id_from_u16(i as u16);
-                if !used.contains(&id) {
-                    used.insert(id);
-                    return id;
-                }
-            }
-            ObjId::null()
-        };
-
         // Messages: BPM change (#xxx08 or #xxx03)
         {
             let mut by_track_id: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
@@ -356,55 +345,40 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Messages: STOP (#xxx09)
-        {
-            let mut by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
-            for (&time, ev) in &self.arrangers.stops {
-                let id = if let Some(&id) = stop_value_to_id.get(&ev.duration) {
-                    id
-                } else {
-                    let new_id = alloc_id(&mut used_stop_ids);
-                    stop_value_to_id.insert(ev.duration.clone(), new_id);
-                    late_def_tokens.push(Token::Stop(new_id, ev.duration.clone()));
-                    new_id
-                };
-                by_track.entry(time.track()).or_default().push((time, id));
-            }
-            push_grouped_id_messages(&mut message_tokens, Channel::Stop, by_track);
-        }
+        process_message_events(
+            &self.arrangers.stops,
+            &mut stop_value_to_id,
+            &mut used_stop_ids,
+            &mut late_def_tokens,
+            Token::Stop,
+            |ev| ev.duration.clone(),
+            Channel::Stop,
+            &mut message_tokens,
+        );
 
         // Messages: SCROLL (#xxxSC)
-        {
-            let mut by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
-            for (&time, ev) in &self.arrangers.scrolling_factor_changes {
-                let id = if let Some(&id) = scroll_value_to_id.get(&ev.factor) {
-                    id
-                } else {
-                    let new_id = alloc_id(&mut used_scroll_ids);
-                    scroll_value_to_id.insert(ev.factor.clone(), new_id);
-                    late_def_tokens.push(Token::Scroll(new_id, ev.factor.clone()));
-                    new_id
-                };
-                by_track.entry(time.track()).or_default().push((time, id));
-            }
-            push_grouped_id_messages(&mut message_tokens, Channel::Scroll, by_track);
-        }
+        process_message_events(
+            &self.arrangers.scrolling_factor_changes,
+            &mut scroll_value_to_id,
+            &mut used_scroll_ids,
+            &mut late_def_tokens,
+            Token::Scroll,
+            |ev| ev.factor.clone(),
+            Channel::Scroll,
+            &mut message_tokens,
+        );
 
         // Messages: SPEED (#xxxSP)
-        {
-            let mut by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
-            for (&time, ev) in &self.arrangers.speed_factor_changes {
-                let id = if let Some(&id) = speed_value_to_id.get(&ev.factor) {
-                    id
-                } else {
-                    let new_id = alloc_id(&mut used_speed_ids);
-                    speed_value_to_id.insert(ev.factor.clone(), new_id);
-                    late_def_tokens.push(Token::Speed(new_id, ev.factor.clone()));
-                    new_id
-                };
-                by_track.entry(time.track()).or_default().push((time, id));
-            }
-            push_grouped_id_messages(&mut message_tokens, Channel::Speed, by_track);
-        }
+        process_message_events(
+            &self.arrangers.speed_factor_changes,
+            &mut speed_value_to_id,
+            &mut used_speed_ids,
+            &mut late_def_tokens,
+            Token::Speed,
+            |ev| ev.factor.clone(),
+            Channel::Speed,
+            &mut message_tokens,
+        );
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         {
@@ -415,18 +389,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 by_track_layer.entry(key).or_default().push((time, bga.id));
             }
             for ((track, (_r1, _r2)), items) in by_track_layer {
-                let channel = {
-                    // reconstruct channel from rank not stored; but we don't need for emission since we lost it.
-                    // However we can infer from the first item's layer time reconstruct original channel again:
-                    // We can't access layer here, so instead derive from key (_r1 identifies which channel group)
-                    // Build back using match on r1
-                    match _r1 {
-                        0x0004 => Channel::BgaBase,
-                        0x0006 => Channel::BgaPoor,
-                        0x0007 => Channel::BgaLayer,
-                        0x000A => Channel::BgaLayer2,
-                        _ => Channel::BgaBase,
-                    }
+                let channel = match _r1 {
+                    0x0004 => Channel::BgaBase,
+                    0x0006 => Channel::BgaPoor,
+                    0x0007 => Channel::BgaLayer,
+                    0x000A => Channel::BgaLayer2,
+                    _ => Channel::BgaBase,
                 };
                 let Some(message) = build_id_message(items) else {
                     continue;
@@ -440,37 +408,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
-        {
-            for obj in self.notes.all_notes_insertion_order() {
-                let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                    Channel::Note {
-                        channel_id: obj.channel_id,
-                    }
-                } else {
-                    Channel::Bgm
-                };
-                let track = obj.offset.track();
-                let denom = obj.offset.denominator().get();
-                let num = obj.offset.numerator();
-                let mut s = String::with_capacity((denom as usize) * 2);
-                for i in 0..denom {
-                    if i == num {
-                        let id_str = obj.wav_id.to_string();
-                        let mut chars = id_str.chars();
-                        s.push(chars.next().unwrap_or('0'));
-                        s.push(chars.next().unwrap_or('0'));
-                    } else {
-                        s.push('0');
-                        s.push('0');
-                    }
-                }
-                message_tokens.push(Token::Message {
-                    track,
-                    channel,
-                    message: Cow::Owned(s),
-                });
-            }
-        }
+        process_bgm_note_events(&self.notes, &mut message_tokens);
 
         // Messages: BGM volume (#97) and KEY volume (#98)
         {
@@ -481,7 +419,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            push_grouped_hex_messages(&mut message_tokens, Channel::BgmVolume, by_track_bgm);
+            build_hex_messages(by_track_bgm, Channel::BgmVolume, &mut message_tokens);
 
             let mut by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = BTreeMap::new();
             for (&time, ev) in &self.notes.key_volume_changes {
@@ -490,10 +428,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            push_grouped_hex_messages(&mut message_tokens, Channel::KeyVolume, by_track_key);
+            build_hex_messages(by_track_key, Channel::KeyVolume, &mut message_tokens);
         }
 
-        // Messages: TEXT (#99) and JUDGE (#A0)
+        // Messages: TEXT (#99)
         {
             let mut by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
             for (&time, ev) in &self.notes.text_events {
@@ -510,43 +448,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, id));
             }
-            for (track, items) in by_track_text {
-                let Some(message) = build_id_message(items) else {
-                    continue;
-                };
-                message_tokens.push(Token::Message {
-                    track,
-                    channel: Channel::Text,
-                    message,
-                });
-            }
-
-            let mut by_track_judge: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
-            for (&time, ev) in &self.notes.judge_events {
-                let id = if let Some(&id) = exrank_value_to_id.get(&ev.judge_level) {
-                    id
-                } else {
-                    let new_id = alloc_id(&mut used_exrank_ids);
-                    exrank_value_to_id.insert(ev.judge_level, new_id);
-                    late_def_tokens.push(Token::ExRank(new_id, ev.judge_level));
-                    new_id
-                };
-                by_track_judge
-                    .entry(time.track())
-                    .or_default()
-                    .push((time, id));
-            }
-            for (track, items) in by_track_judge {
-                let Some(message) = build_id_message(items) else {
-                    continue;
-                };
-                message_tokens.push(Token::Message {
-                    track,
-                    channel: Channel::Judge,
-                    message,
-                });
-            }
+            build_id_messages(by_track_text, Channel::Text, &mut message_tokens);
         }
+
+        process_message_events(
+            &self.notes.judge_events,
+            &mut exrank_value_to_id,
+            &mut used_exrank_ids,
+            &mut late_def_tokens,
+            Token::ExRank,
+            |ev| ev.judge_level,
+            Channel::Judge,
+            &mut message_tokens,
+        );
 
         // Assembly: header/definitions/resources/others -> late definitions -> messages
         if !late_def_tokens.is_empty() {
@@ -560,7 +474,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-fn build_id_message<'a>(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>> {
+/// Generic function to build message strings from time-indexed values
+fn build_message<'a, T, F>(mut items: Vec<(ObjTime, T)>, formatter: F) -> Option<Cow<'a, str>>
+where
+    F: Fn(&T) -> String,
+{
     if items.is_empty() {
         return None;
     }
@@ -570,86 +488,40 @@ fn build_id_message<'a>(mut items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>
         denom = denom.lcm(&t.denominator().get());
     }
     let mut last_index = 0u64;
-    let mut slots: HashMap<u64, ObjId> = HashMap::new();
-    for (t, id) in items {
+    let mut slots: HashMap<u64, T> = HashMap::new();
+    for (t, value) in items {
         let idx = t.numerator() * (denom / t.denominator().get());
         last_index = last_index.max(idx);
-        slots.insert(idx, id);
+        slots.insert(idx, value);
     }
     let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
     for i in 0..=last_index {
-        let Some(id) = slots.get(&i) else {
+        let Some(value) = slots.get(&i) else {
             s.push('0');
             s.push('0');
             continue;
         };
-        s.push((id.to_string()).chars().next().unwrap_or('0'));
-        s.push((id.to_string()).chars().nth(1).unwrap_or('0'));
+        s.push_str(&formatter(value));
     }
     Some(Cow::Owned(s))
 }
 
-fn build_hex_message<'a>(mut items: Vec<(ObjTime, u8)>) -> Option<Cow<'a, str>> {
-    if items.is_empty() {
-        return None;
-    }
-    items.sort_by_key(|(t, _)| *t);
-    let mut denom: u64 = 1;
-    for (t, _) in &items {
-        denom = denom.lcm(&t.denominator().get());
-    }
-    let mut last_index = 0u64;
-    let mut slots: HashMap<u64, u8> = HashMap::new();
-    for (t, v) in items {
-        let idx = t.numerator() * (denom / t.denominator().get());
-        last_index = last_index.max(idx);
-        slots.insert(idx, v);
-    }
-    let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
-    for i in 0..=last_index {
-        let Some(v) = slots.get(&i) else {
-            s.push('0');
-            s.push('0');
-            continue;
-        };
-        use std::fmt::Write as _;
-        let _ = write!(&mut s, "{:02X}", v);
-    }
-    Some(Cow::Owned(s))
+/// Build message string for ObjId values (2-character base62 format)
+fn build_id_message<'a>(items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>> {
+    build_message(items, |id| {
+        let id_str = id.to_string();
+        let mut chars = id_str.chars();
+        format!(
+            "{}{}",
+            chars.next().unwrap_or('0'),
+            chars.next().unwrap_or('0')
+        )
+    })
 }
 
-fn push_grouped_id_messages<'a>(
-    message_tokens: &mut Vec<Token<'a>>,
-    channel: Channel,
-    by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>>,
-) {
-    for (track, items) in by_track {
-        let Some(message) = build_id_message(items) else {
-            continue;
-        };
-        message_tokens.push(Token::Message {
-            track,
-            channel,
-            message,
-        });
-    }
-}
-
-fn push_grouped_hex_messages<'a>(
-    message_tokens: &mut Vec<Token<'a>>,
-    channel: Channel,
-    by_track: BTreeMap<Track, Vec<(ObjTime, u8)>>,
-) {
-    for (track, items) in by_track {
-        let Some(message) = build_hex_message(items) else {
-            continue;
-        };
-        message_tokens.push(Token::Message {
-            track,
-            channel,
-            message,
-        });
-    }
+/// Build message string for u8 values (2-character hex format)
+fn build_hex_message<'a>(items: Vec<(ObjTime, u8)>) -> Option<Cow<'a, str>> {
+    build_message(items, |value| format!("{:02X}", value))
 }
 
 fn create_obj_id_from_u16(value: u16) -> ObjId {
@@ -714,4 +586,122 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
         ChangeOption => (0x0A60, 0),
         Note { channel_id } => (0xFFFF, channel_id.as_u16()),
     }
+}
+
+/// Unified generic function to process all message types with ID allocation
+fn process_message_events<'a, T, K, F1, F2>(
+    events: &std::collections::BTreeMap<ObjTime, T>,
+    value_to_id: &mut HashMap<K, ObjId>,
+    used_ids: &mut HashSet<ObjId>,
+    late_def_tokens: &mut Vec<Token<'a>>,
+    token_fn: F1,
+    value_extractor: F2,
+    channel: Channel,
+    message_tokens: &mut Vec<Token<'a>>,
+) where
+    T: Clone,
+    K: std::hash::Hash + Eq + Clone,
+    F1: Fn(ObjId, K) -> Token<'a>,
+    F2: Fn(&T) -> K,
+{
+    let mut by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = BTreeMap::new();
+
+    for (&time, event) in events {
+        let key = value_extractor(event);
+        let id = if let Some(&id) = value_to_id.get(&key) {
+            id
+        } else {
+            let new_id = alloc_id(used_ids);
+            value_to_id.insert(key.clone(), new_id);
+            late_def_tokens.push(token_fn(new_id, key.clone()));
+            new_id
+        };
+        by_track.entry(time.track()).or_default().push((time, id));
+    }
+
+    build_id_messages(by_track, channel, message_tokens);
+}
+
+/// Process BGM and Note events (special case that doesn't use ID allocation)
+fn process_bgm_note_events<T: KeyLayoutMapper>(notes: &Notes<T>, message_tokens: &mut Vec<Token>) {
+    for obj in notes.all_notes_insertion_order() {
+        let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+            Channel::Note {
+                channel_id: obj.channel_id,
+            }
+        } else {
+            Channel::Bgm
+        };
+        let track = obj.offset.track();
+        let denom = obj.offset.denominator().get();
+        let num = obj.offset.numerator();
+        let mut s = String::with_capacity((denom as usize) * 2);
+        for i in 0..denom {
+            if i == num {
+                let id_str = obj.wav_id.to_string();
+                let mut chars = id_str.chars();
+                s.push(chars.next().unwrap_or('0'));
+                s.push(chars.next().unwrap_or('0'));
+            } else {
+                s.push('0');
+                s.push('0');
+            }
+        }
+        message_tokens.push(Token::Message {
+            track,
+            channel,
+            message: Cow::Owned(s),
+        });
+    }
+}
+
+/// Generic message builder for track-based messages
+fn build_messages<T, F>(
+    by_track: BTreeMap<Track, Vec<(ObjTime, T)>>,
+    channel: Channel,
+    message_tokens: &mut Vec<Token>,
+    message_builder: F,
+) where
+    F: Fn(Vec<(ObjTime, T)>) -> Option<Cow<'static, str>>,
+{
+    for (track, items) in by_track {
+        let Some(message) = message_builder(items) else {
+            continue;
+        };
+        message_tokens.push(Token::Message {
+            track,
+            channel,
+            message,
+        });
+    }
+}
+
+/// Message builder for ID-based messages
+fn build_id_messages(
+    by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>>,
+    channel: Channel,
+    message_tokens: &mut Vec<Token>,
+) {
+    build_messages(by_track, channel, message_tokens, build_id_message);
+}
+
+/// Message builder for hex-based messages
+fn build_hex_messages(
+    by_track: BTreeMap<Track, Vec<(ObjTime, u8)>>,
+    channel: Channel,
+    message_tokens: &mut Vec<Token>,
+) {
+    build_messages(by_track, channel, message_tokens, build_hex_message);
+}
+
+/// Helper function to allocate a new ObjId
+fn alloc_id(used: &mut HashSet<ObjId>) -> ObjId {
+    for i in 1..(62 * 62) {
+        let id = create_obj_id_from_u16(i as u16);
+        if !used.contains(&id) {
+            used.insert(id);
+            return id;
+        }
+    }
+    ObjId::null()
 }
