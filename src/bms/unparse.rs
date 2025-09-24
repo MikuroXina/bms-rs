@@ -323,7 +323,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .push((time, new_id));
             }
             for (track, items) in by_track_id {
-                let Some(message) = build_message(items, |id| id.to_string()) else {
+                let Some(message) = build_message_line_content(items, |id| id.to_string()) else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -333,7 +333,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 });
             }
             for (track, items) in by_track_u8 {
-                let Some(message) = build_message(items, |value| format!("{:02X}", value)) else {
+                let Some(message) =
+                    build_message_line_content(items, |value| format!("{:02X}", value))
+                else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -396,7 +398,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     0x000A => Channel::BgaLayer2,
                     _ => Channel::BgaBase,
                 };
-                let Some(message) = build_message(items, |id| id.to_string()) else {
+                let Some(message) = build_message_line_content(items, |id| id.to_string()) else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -419,11 +421,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            build_messages(
+            build_messages_from_track(
                 by_track_bgm,
                 Channel::BgmVolume,
                 &mut message_tokens,
-                |items| build_message(items, |value| format!("{:02X}", value)),
+                |items| build_message_line_content(items, |value| format!("{:02X}", value)),
             );
 
             let mut by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = BTreeMap::new();
@@ -433,11 +435,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            build_messages(
+            build_messages_from_track(
                 by_track_key,
                 Channel::KeyVolume,
                 &mut message_tokens,
-                |items| build_message(items, |value| format!("{:02X}", value)),
+                |items| build_message_line_content(items, |value| format!("{:02X}", value)),
             );
         }
 
@@ -458,8 +460,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, id));
             }
-            build_messages(by_track_text, Channel::Text, &mut message_tokens, |items| {
-                build_message(items, |id| id.to_string())
+            build_messages_from_track(by_track_text, Channel::Text, &mut message_tokens, |items| {
+                build_message_line_content(items, |id| id.to_string())
             });
         }
 
@@ -487,7 +489,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
 }
 
 /// Generic function to build message strings from time-indexed values
-fn build_message<'a, T, F>(mut items: Vec<(ObjTime, T)>, formatter: F) -> Option<Cow<'a, str>>
+fn build_message_line_content<'a, T, F>(
+    mut items: Vec<(ObjTime, T)>,
+    formatter: F,
+) -> Option<Cow<'a, str>>
 where
     F: Fn(&T) -> String,
 {
@@ -613,8 +618,8 @@ fn process_message_events<'a, T, K, F1, F2>(
         by_track.entry(time.track()).or_default().push((time, id));
     }
 
-    build_messages(by_track, channel, message_tokens, |items| {
-        build_message(items, |id| id.to_string())
+    build_messages_from_track(by_track, channel, message_tokens, |items| {
+        build_message_line_content(items, |id| id.to_string())
     });
 }
 
@@ -652,7 +657,7 @@ fn process_bgm_note_events<T: KeyLayoutMapper>(notes: &Notes<T>, message_tokens:
 }
 
 /// Generic message builder for track-based messages
-fn build_messages<T, F>(
+fn build_messages_from_track<T, F>(
     by_track: BTreeMap<Track, Vec<(ObjTime, T)>>,
     channel: Channel,
     message_tokens: &mut Vec<Token>,
