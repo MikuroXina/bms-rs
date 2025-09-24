@@ -624,76 +624,6 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
     }
 }
 
-/// Generic function to build message strings from time-indexed values
-///
-/// This function processes time-indexed values from an iterator and converts them into a formatted message string.
-/// It uses iterator chains to efficiently process and sort the items, calculate timing parameters,
-/// and build the final message content.
-///
-/// Arguments:
-///     items: An iterator yielding (time, value) pairs to be processed
-///     formatter: Function to format values into strings
-///
-/// Execution flow:
-/// 1. Collect all items from the iterator into a Vec for processing
-/// 2. Early return if no items provided
-/// 3. Sort items by time using iterator
-/// 4. Calculate least common multiple of denominators using iterator
-/// 5. Build slots map by iterating over items and calculating indices
-/// 6. Find the maximum index to determine message length
-/// 7. Build final string by iterating over all indices and formatting values
-///
-/// Returns:
-///     Option<Cow<str>> - Formatted message string, or None if no items provided
-///
-/// The function leverages Rust's iterator chains for efficient processing. The Vec allocation is necessary
-/// for sorting and multiple passes over the data, but this is more efficient than multiple allocations.
-fn build_message_line_content<'a, T, I, F>(items: I, formatter: F) -> Option<Cow<'a, str>>
-where
-    I: Iterator<Item = (ObjTime, T)>,
-    F: Fn(&T) -> String,
-{
-    // Collect items into a Vec for processing (necessary for sorting and multiple passes)
-    let mut items: Vec<_> = items.collect();
-
-    if items.is_empty() {
-        return None;
-    }
-
-    // Sort items by time and calculate parameters using iterators
-    items.sort_by_key(|(t, _)| *t);
-
-    let denom: u64 = items
-        .iter()
-        .map(|(t, _)| t.denominator().get())
-        .reduce(|acc, d| acc.lcm(&d))
-        .unwrap_or(1);
-
-    let (last_index, slots): (u64, HashMap<u64, T>) = items
-        .into_iter()
-        .map(|(t, value)| {
-            let idx = t.numerator() * (denom / t.denominator().get());
-            (idx, value)
-        })
-        .fold((0u64, HashMap::new()), |mut acc, (idx, value)| {
-            acc.0 = acc.0.max(idx);
-            acc.1.insert(idx, value);
-            acc
-        });
-
-    // Build final string using iterator chain
-    let message: String = (0..=last_index)
-        .map(|i| {
-            slots
-                .get(&i)
-                .map(|value| formatter(value))
-                .unwrap_or_else(|| "00".to_string())
-        })
-        .collect();
-
-    Some(Cow::Owned(message))
-}
-
 /// Generic message builder for track-based messages
 ///
 /// This function processes an iterator of track-based events and converts them into message tokens.
@@ -703,12 +633,6 @@ where
 ///     track_events: An iterator yielding (track, items) pairs where items is an iterator of (time, value) pairs
 ///     channel: The channel type for all messages
 ///     formatter: Function to format values into strings
-///
-/// Execution flow:
-/// 1. Iterate over each track and its associated time-value pairs from the provided iterator
-/// 2. For each track, attempt to build message content using the provided formatter
-/// 3. Filter out tracks that result in empty messages (None)
-/// 4. Convert valid messages into Token::Message and return the complete vector
 ///
 /// Returns:
 ///     Vec<Token<'a>> - A vector of message tokens for all valid tracks
@@ -725,13 +649,52 @@ where
     J: Iterator<Item = (ObjTime, T)>,
     F: Fn(&T) -> String + Copy,
 {
-    // Use iterator chain: iterate -> filter_map -> collect
     track_events
         .filter_map(|(track, items)| {
-            build_message_line_content(items, formatter).map(|message| Token::Message {
+            // Collect items into a Vec for processing (necessary for sorting and multiple passes)
+            let mut items_vec: Vec<_> = items.collect();
+
+            if items_vec.is_empty() {
+                return None;
+            }
+
+            // Step 1: Sort items by time
+            items_vec.sort_by_key(|(t, _)| *t);
+
+            // Step 2: Calculate least common multiple of denominators
+            let denom: u64 = items_vec
+                .iter()
+                .map(|(t, _)| t.denominator().get())
+                .reduce(|acc, d| acc.lcm(&d))
+                .unwrap_or(1);
+
+            // Step 3: Build slots map and find last index
+            let (last_index, slots): (u64, HashMap<u64, T>) = items_vec
+                .into_iter()
+                .map(|(t, value)| {
+                    let idx = t.numerator() * (denom / t.denominator().get());
+                    (idx, value)
+                })
+                .fold((0u64, HashMap::new()), |mut acc, (idx, value)| {
+                    acc.0 = acc.0.max(idx);
+                    acc.1.insert(idx, value);
+                    acc
+                });
+
+            // Step 4: Build final message string using iterator chain
+            let message: String = (0..=last_index)
+                .map(|i| {
+                    slots
+                        .get(&i)
+                        .map(|value| formatter(value))
+                        .unwrap_or_else(|| "00".to_string())
+                })
+                .collect();
+
+            Some(Token::Message {
                 track,
                 channel,
-                message,
+                message: Cow::Owned(message),
             })
         })
         .collect()
