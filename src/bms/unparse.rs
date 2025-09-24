@@ -419,7 +419,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            build_hex_messages(by_track_bgm, Channel::BgmVolume, &mut message_tokens);
+            build_messages(
+                by_track_bgm,
+                Channel::BgmVolume,
+                &mut message_tokens,
+                build_hex_message,
+            );
 
             let mut by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = BTreeMap::new();
             for (&time, ev) in &self.notes.key_volume_changes {
@@ -428,7 +433,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, ev.volume));
             }
-            build_hex_messages(by_track_key, Channel::KeyVolume, &mut message_tokens);
+            build_messages(
+                by_track_key,
+                Channel::KeyVolume,
+                &mut message_tokens,
+                build_hex_message,
+            );
         }
 
         // Messages: TEXT (#99)
@@ -448,7 +458,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, id));
             }
-            build_id_messages(by_track_text, Channel::Text, &mut message_tokens);
+            build_messages(
+                by_track_text,
+                Channel::Text,
+                &mut message_tokens,
+                build_id_message,
+            );
         }
 
         process_message_events(
@@ -619,7 +634,7 @@ fn process_message_events<'a, T, K, F1, F2>(
         by_track.entry(time.track()).or_default().push((time, id));
     }
 
-    build_id_messages(by_track, channel, message_tokens);
+    build_messages(by_track, channel, message_tokens, build_id_message);
 }
 
 /// Process BGM and Note events (special case that doesn't use ID allocation)
@@ -674,24 +689,6 @@ fn build_messages<T, F>(
             message,
         });
     }
-}
-
-/// Message builder for ID-based messages
-fn build_id_messages(
-    by_track: BTreeMap<Track, Vec<(ObjTime, ObjId)>>,
-    channel: Channel,
-    message_tokens: &mut Vec<Token>,
-) {
-    build_messages(by_track, channel, message_tokens, build_id_message);
-}
-
-/// Message builder for hex-based messages
-fn build_hex_messages(
-    by_track: BTreeMap<Track, Vec<(ObjTime, u8)>>,
-    channel: Channel,
-    message_tokens: &mut Vec<Token>,
-) {
-    build_messages(by_track, channel, message_tokens, build_hex_message);
 }
 
 /// Helper function to allocate a new ObjId
