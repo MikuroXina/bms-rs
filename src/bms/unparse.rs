@@ -488,41 +488,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-/// Generic function to build message strings from time-indexed values
-fn build_message_line_content<'a, T, F>(
-    mut items: Vec<(ObjTime, T)>,
-    formatter: F,
-) -> Option<Cow<'a, str>>
-where
-    F: Fn(&T) -> String,
-{
-    if items.is_empty() {
-        return None;
-    }
-    items.sort_by_key(|(t, _)| *t);
-    let mut denom: u64 = 1;
-    for (t, _) in &items {
-        denom = denom.lcm(&t.denominator().get());
-    }
-    let mut last_index = 0u64;
-    let mut slots: HashMap<u64, T> = HashMap::new();
-    for (t, value) in items {
-        let idx = t.numerator() * (denom / t.denominator().get());
-        last_index = last_index.max(idx);
-        slots.insert(idx, value);
-    }
-    let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
-    for i in 0..=last_index {
-        let Some(value) = slots.get(&i) else {
-            s.push('0');
-            s.push('0');
-            continue;
-        };
-        s.push_str(&formatter(value));
-    }
-    Some(Cow::Owned(s))
-}
-
 fn channel_sort_key(channel: Channel) -> (u16, u16) {
     use Channel::*;
     match channel {
@@ -566,6 +531,62 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
         #[cfg(feature = "minor-command")]
         ChangeOption => (0x0A60, 0),
         Note { channel_id } => (0xFFFF, channel_id.as_u16()),
+    }
+}
+
+/// Generic function to build message strings from time-indexed values
+fn build_message_line_content<'a, T, F>(
+    mut items: Vec<(ObjTime, T)>,
+    formatter: F,
+) -> Option<Cow<'a, str>>
+where
+    F: Fn(&T) -> String,
+{
+    if items.is_empty() {
+        return None;
+    }
+    items.sort_by_key(|(t, _)| *t);
+    let mut denom: u64 = 1;
+    for (t, _) in &items {
+        denom = denom.lcm(&t.denominator().get());
+    }
+    let mut last_index = 0u64;
+    let mut slots: HashMap<u64, T> = HashMap::new();
+    for (t, value) in items {
+        let idx = t.numerator() * (denom / t.denominator().get());
+        last_index = last_index.max(idx);
+        slots.insert(idx, value);
+    }
+    let mut s = String::with_capacity(((last_index + 1) * 2) as usize);
+    for i in 0..=last_index {
+        let Some(value) = slots.get(&i) else {
+            s.push('0');
+            s.push('0');
+            continue;
+        };
+        s.push_str(&formatter(value));
+    }
+    Some(Cow::Owned(s))
+}
+
+/// Generic message builder for track-based messages
+fn build_messages_from_track<T, F>(
+    by_track: BTreeMap<Track, Vec<(ObjTime, T)>>,
+    channel: Channel,
+    message_tokens: &mut Vec<Token>,
+    message_builder: F,
+) where
+    F: Fn(Vec<(ObjTime, T)>) -> Option<Cow<'static, str>>,
+{
+    for (track, items) in by_track {
+        let Some(message) = message_builder(items) else {
+            continue;
+        };
+        message_tokens.push(Token::Message {
+            track,
+            channel,
+            message,
+        });
     }
 }
 
@@ -634,27 +655,6 @@ fn process_bgm_note_events<T: KeyLayoutMapper>(notes: &Notes<T>, message_tokens:
             track,
             channel,
             message: Cow::Owned(s),
-        });
-    }
-}
-
-/// Generic message builder for track-based messages
-fn build_messages_from_track<T, F>(
-    by_track: BTreeMap<Track, Vec<(ObjTime, T)>>,
-    channel: Channel,
-    message_tokens: &mut Vec<Token>,
-    message_builder: F,
-) where
-    F: Fn(Vec<(ObjTime, T)>) -> Option<Cow<'static, str>>,
-{
-    for (track, items) in by_track {
-        let Some(message) = message_builder(items) else {
-            continue;
-        };
-        message_tokens.push(Token::Message {
-            track,
-            channel,
-            message,
         });
     }
 }
