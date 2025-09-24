@@ -382,3 +382,15 @@ fn roundtrip_dive_withblank_file_bms_tokens_bms() {
     let source = include_str!("files/dive_withblank.bme");
     roundtrip_source_bms_tokens_bms(source);
 }
+
+#[test]
+fn roundtrip_j219_7key_file_bms_tokens_bms() {
+    let source = include_str!("files/J219_7key.bms");
+    roundtrip_source_bms_tokens_bms(source);
+}
+
+#[test]
+fn roundtrip_nc_mx_file_bms_tokens_bms() {
+    let source = include_str!("files/nc_mx.bme");
+    roundtrip_source_bms_tokens_bms(source);
+}
