@@ -828,12 +828,10 @@ where
 ///
 /// The function leverages Rust's iterator methods for efficient searching and early termination.
 fn alloc_id(used: &mut HashSet<ObjId>) -> ObjId {
-    (1..(62 * 62))
-        .map(|i| ObjId::try_from(i as u16).unwrap_or_else(|_| ObjId::null()))
+    ObjId::all_values()
         .find(|id| !used.contains(id))
-        .map(|id| {
-            used.insert(id);
-            id
+        .inspect(|id| {
+            used.insert(*id);
         })
         .unwrap_or_else(ObjId::null)
 }
