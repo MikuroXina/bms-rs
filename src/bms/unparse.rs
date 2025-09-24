@@ -478,8 +478,28 @@ impl<T: KeyLayoutMapper> Bms<T> {
             ));
         }
 
-        // Messages: BGM (#xxx01) and Notes (various #xx)
-        process_bgm_note_events(&self.notes, &mut message_tokens);
+        // Messages: BGM (#xxx01) and Notes (various #xx) - Use build_messages_from_track for proper handling of multiple objects
+        {
+            // Process each note/BGM object individually to preserve multiple objects at same time/channel
+            for obj in self.notes.all_notes_insertion_order() {
+                let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+                    Channel::Note {
+                        channel_id: obj.channel_id,
+                    }
+                } else {
+                    Channel::Bgm
+                };
+
+                let track = obj.offset.track();
+
+                // Create a single token for this specific object
+                message_tokens.extend(build_messages_from_track(
+                    std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
+                    channel,
+                    |id| id.to_string(),
+                ));
+            }
+        }
 
         // Messages: BGM volume (#97) and KEY volume (#98) - Use iterator chains
         {
@@ -650,12 +670,12 @@ where
     F: Fn(&T) -> String + Copy,
 {
     track_events
-        .filter_map(|(track, items)| {
-            // Collect items into a Vec for processing (necessary for sorting and multiple passes)
+        .flat_map(|(track, items)| {
+            // Collect items into a Vec for processing
             let mut items_vec: Vec<_> = items.collect();
 
             if items_vec.is_empty() {
-                return None;
+                return Vec::new();
             }
 
             // Step 1: Sort items by time
@@ -668,34 +688,36 @@ where
                 .reduce(|acc, d| acc.lcm(&d))
                 .unwrap_or(1);
 
-            // Step 3: Build slots map and find last index
-            let (last_index, slots): (u64, HashMap<u64, T>) = items_vec
+            // Step 3: Group items by time slot to handle multiple values at same time
+            let mut time_groups: BTreeMap<u64, Vec<T>> = BTreeMap::new();
+            for (t, value) in items_vec {
+                let idx = t.numerator() * (denom / t.denominator().get());
+                time_groups.entry(idx).or_default().push(value);
+            }
+
+            // Step 4: Generate tokens for each time group
+            time_groups
                 .into_iter()
-                .map(|(t, value)| {
-                    let idx = t.numerator() * (denom / t.denominator().get());
-                    (idx, value)
+                .flat_map(|(time_idx, values)| {
+                    // Create a separate token for each value at this time slot
+                    values.into_iter().map(move |value| {
+                        // Create message string with value at position and 00s elsewhere
+                        let mut message_parts = Vec::new();
+                        for i in 0..denom {
+                            if i == time_idx {
+                                message_parts.push(formatter(&value));
+                            } else {
+                                message_parts.push("00".to_string());
+                            }
+                        }
+                        Token::Message {
+                            track,
+                            channel,
+                            message: Cow::Owned(message_parts.join("")),
+                        }
+                    })
                 })
-                .fold((0u64, HashMap::new()), |mut acc, (idx, value)| {
-                    acc.0 = acc.0.max(idx);
-                    acc.1.insert(idx, value);
-                    acc
-                });
-
-            // Step 4: Build final message string using iterator chain
-            let message: String = (0..=last_index)
-                .map(|i| {
-                    slots
-                        .get(&i)
-                        .map(|value| formatter(value))
-                        .unwrap_or_else(|| "00".to_string())
-                })
-                .collect();
-
-            Some(Token::Message {
-                track,
-                channel,
-                message: Cow::Owned(message),
-            })
+                .collect::<Vec<_>>()
         })
         .collect()
 }
@@ -790,65 +812,6 @@ where
         updated_value_to_id: value_to_id,
         updated_used_ids: used_ids,
     }
-}
-
-/// Process BGM and Note events (special case that doesn't use ID allocation)
-///
-/// This function processes all note events and converts them into message tokens.
-/// It uses iterator chains to efficiently process each note and build the corresponding message strings.
-///
-/// Execution flow:
-/// 1. Iterate over all notes in insertion order
-/// 2. Determine channel type based on whether it's a note or BGM event
-/// 3. Calculate timing parameters (denominator and numerator)
-/// 4. Build message string by iterating over all time slots:
-///    - Place '00' for empty slots
-///    - Place formatted WAV ID for the note's actual position
-/// 5. Create Token::Message and add to output vector
-///
-/// The function leverages Rust's iterator chains for efficient string building and memory allocation.
-fn process_bgm_note_events<T: KeyLayoutMapper>(notes: &Notes<T>, message_tokens: &mut Vec<Token>) {
-    let new_tokens: Vec<Token> = notes
-        .all_notes_insertion_order()
-        .map(|obj| {
-            let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                Channel::Note {
-                    channel_id: obj.channel_id,
-                }
-            } else {
-                Channel::Bgm
-            };
-
-            let track = obj.offset.track();
-            let denom = obj.offset.denominator().get();
-            let num = obj.offset.numerator();
-
-            // Build message string using iterator chain
-            let message: String = (0..denom)
-                .map(|i| {
-                    if i == num {
-                        let id_str = obj.wav_id.to_string();
-                        let mut chars = id_str.chars();
-                        format!(
-                            "{}{}",
-                            chars.next().unwrap_or('0'),
-                            chars.next().unwrap_or('0')
-                        )
-                    } else {
-                        "00".to_string()
-                    }
-                })
-                .collect();
-
-            Token::Message {
-                track,
-                channel,
-                message: Cow::Owned(message),
-            }
-        })
-        .collect();
-
-    message_tokens.extend(new_tokens);
 }
 
 /// Helper function to allocate a new ObjId
