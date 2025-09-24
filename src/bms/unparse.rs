@@ -425,7 +425,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 by_track_bgm,
                 Channel::BgmVolume,
                 &mut message_tokens,
-                |items| build_message_line_content(items, |value| format!("{:02X}", value)),
+                |value| format!("{:02X}", value),
             );
 
             let mut by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = BTreeMap::new();
@@ -439,7 +439,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 by_track_key,
                 Channel::KeyVolume,
                 &mut message_tokens,
-                |items| build_message_line_content(items, |value| format!("{:02X}", value)),
+                |value| format!("{:02X}", value),
             );
         }
 
@@ -460,8 +460,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, id));
             }
-            build_messages_from_track(by_track_text, Channel::Text, &mut message_tokens, |items| {
-                build_message_line_content(items, |id| id.to_string())
+            build_messages_from_track(by_track_text, Channel::Text, &mut message_tokens, |id| {
+                id.to_string()
             });
         }
 
@@ -574,12 +574,13 @@ fn build_messages_from_track<T, F>(
     by_track: BTreeMap<Track, Vec<(ObjTime, T)>>,
     channel: Channel,
     message_tokens: &mut Vec<Token>,
-    message_builder: F,
+    formatter: F,
 ) where
-    F: Fn(Vec<(ObjTime, T)>) -> Option<Cow<'static, str>>,
+    F: Fn(&T) -> String,
+    F: Copy,
 {
     for (track, items) in by_track {
-        let Some(message) = message_builder(items) else {
+        let Some(message) = build_message_line_content(items, formatter) else {
             continue;
         };
         message_tokens.push(Token::Message {
@@ -621,9 +622,7 @@ fn process_message_events<'a, T, K, F1, F2>(
         by_track.entry(time.track()).or_default().push((time, id));
     }
 
-    build_messages_from_track(by_track, channel, message_tokens, |items| {
-        build_message_line_content(items, |id| id.to_string())
-    });
+    build_messages_from_track(by_track, channel, message_tokens, |id| id.to_string());
 }
 
 /// Process BGM and Note events (special case that doesn't use ID allocation)
