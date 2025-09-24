@@ -143,9 +143,19 @@ impl TryFrom<[char; 2]> for ObjId {
 
 impl TryFrom<[u8; 2]> for ObjId {
     type Error = [u8; 2];
+
     fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
         <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
             .map_err(|_| value)
+    }
+}
+
+/// Value Range: `0..62*62`
+impl TryFrom<u16> for ObjId {
+    type Error = u16;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        Self::try_from([(value / 62) as u8, (value % 62) as u8]).map_err(|_| value)
     }
 }
 

@@ -523,24 +523,6 @@ where
     Some(Cow::Owned(s))
 }
 
-fn create_obj_id_from_u16(value: u16) -> ObjId {
-    let first = (value / 62) as u8;
-    let second = (value % 62) as u8;
-    let c1 = match first {
-        0..=9 => (b'0' + first) as char,
-        10..=35 => (b'A' + (first - 10)) as char,
-        36..=61 => (b'a' + (first - 36)) as char,
-        _ => '0',
-    };
-    let c2 = match second {
-        0..=9 => (b'0' + second) as char,
-        10..=35 => (b'A' + (second - 10)) as char,
-        36..=61 => (b'a' + (second - 36)) as char,
-        _ => '0',
-    };
-    ObjId::try_from([c1, c2]).unwrap_or_else(|_| ObjId::null())
-}
-
 fn channel_sort_key(channel: Channel) -> (u16, u16) {
     use Channel::*;
     match channel {
@@ -680,7 +662,7 @@ fn build_messages_from_track<T, F>(
 /// Helper function to allocate a new ObjId
 fn alloc_id(used: &mut HashSet<ObjId>) -> ObjId {
     for i in 1..(62 * 62) {
-        let id = create_obj_id_from_u16(i as u16);
+        let id = ObjId::try_from(i as u16).unwrap_or_else(|_| ObjId::null());
         if !used.contains(&id) {
             used.insert(id);
             return id;

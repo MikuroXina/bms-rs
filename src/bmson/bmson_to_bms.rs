@@ -54,7 +54,7 @@ impl Iterator for ObjIdIssuer {
         }
         let id = self.0;
         self.0 += 1;
-        create_obj_id_from_u16(id).ok()
+        ObjId::try_from(id).ok()
     }
 }
 
@@ -373,27 +373,4 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
     };
 
     (key, side)
-}
-
-/// Creates an [`ObjId`] from `u16`
-fn create_obj_id_from_u16(value: u16) -> Result<ObjId, ()> {
-    let mut chars = ['0'; 2];
-    let first = (value / 62) as u8;
-    let second = (value % 62) as u8;
-
-    chars[0] = match first {
-        0..=9 => (b'0' + first) as char,
-        10..=35 => (b'A' + (first - 10)) as char,
-        36..=61 => (b'a' + (first - 36)) as char,
-        _ => return Err(()),
-    };
-
-    chars[1] = match second {
-        0..=9 => (b'0' + second) as char,
-        10..=35 => (b'A' + (second - 10)) as char,
-        36..=61 => (b'a' + (second - 36)) as char,
-        _ => return Err(()),
-    };
-
-    chars.try_into().map_err(|_| ())
 }
