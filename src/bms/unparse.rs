@@ -397,24 +397,21 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 );
 
             // Build message tokens using iterator chains
-            message_tokens.extend(by_track_id.into_iter().filter_map(|(track, items)| {
-                build_message_line_content(items.into_iter(), |id: &_| id.to_string()).map(
-                    |message| Token::Message {
-                        track,
-                        channel: Channel::BpmChange,
-                        message,
-                    },
-                )
-            }));
+            message_tokens.extend(build_messages_from_track(
+                by_track_id
+                    .into_iter()
+                    .map(|(track, items)| (track, items.into_iter())),
+                Channel::BpmChange,
+                |id: &_| id.to_string(),
+            ));
 
-            message_tokens.extend(by_track_u8.into_iter().filter_map(|(track, items)| {
-                build_message_line_content(items.into_iter(), |value: &_| format!("{:02X}", value))
-                    .map(|message| Token::Message {
-                        track,
-                        channel: Channel::BpmChangeU8,
-                        message,
-                    })
-            }));
+            message_tokens.extend(build_messages_from_track(
+                by_track_u8
+                    .into_iter()
+                    .map(|(track, items)| (track, items.into_iter())),
+                Channel::BpmChangeU8,
+                |value: &_| format!("{:02X}", value),
+            ));
         }
 
         // Messages: STOP (#xxx09)
@@ -456,14 +453,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A) - Use iterator chains
         {
             // Build track-grouped BGA data using iterator chains
-            let by_track_layer: BTreeMap<(Track, (u16, u16)), Vec<(ObjTime, ObjId)>> = self
+            let by_track_layer: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = self
                 .graphics
                 .bga_changes
                 .iter()
                 .map(|(&time, bga)| {
                     let channel = bga.layer.to_channel();
-                    let key = (time.track(), channel_sort_key(channel));
-                    (key, (time, bga.id))
+                    ((time.track(), channel), (time, bga.id))
                 })
                 .fold(BTreeMap::new(), |mut acc, (key, time_id)| {
                     acc.entry(key).or_default().push(time_id);
@@ -471,21 +467,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 });
 
             // Build message tokens using iterator chains
-            message_tokens.extend(by_track_layer.into_iter().filter_map(
-                |((track, (_r1, _r2)), items)| {
-                    let channel = match _r1 {
-                        0x0004 => Channel::BgaBase,
-                        0x0006 => Channel::BgaPoor,
-                        0x0007 => Channel::BgaLayer,
-                        0x000A => Channel::BgaLayer2,
-                        _ => Channel::BgaBase,
-                    };
-                    build_message_line_content(items.into_iter(), |id| id.to_string()).map(
-                        |message| Token::Message {
-                            track,
-                            channel,
-                            message,
-                        },
+            message_tokens.extend(by_track_layer.into_iter().flat_map(
+                |((track, channel), items)| {
+                    build_messages_from_track(
+                        std::iter::once((track, items.into_iter())),
+                        channel,
+                        |id| id.to_string(),
                     )
                 },
             ));
@@ -590,6 +577,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
+#[allow(dead_code)]
 fn channel_sort_key(channel: Channel) -> (u16, u16) {
     use Channel::*;
     match channel {
