@@ -347,7 +347,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Messages: STOP (#xxx09)
-        process_message_events(
+        build_messages_event(
             &self.arrangers.stops,
             &mut stop_value_to_id,
             &mut used_stop_ids,
@@ -359,7 +359,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         );
 
         // Messages: SCROLL (#xxxSC)
-        process_message_events(
+        build_messages_event(
             &self.arrangers.scrolling_factor_changes,
             &mut scroll_value_to_id,
             &mut used_scroll_ids,
@@ -371,7 +371,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         );
 
         // Messages: SPEED (#xxxSP)
-        process_message_events(
+        build_messages_event(
             &self.arrangers.speed_factor_changes,
             &mut speed_value_to_id,
             &mut used_speed_ids,
@@ -465,7 +465,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             });
         }
 
-        process_message_events(
+        build_messages_event(
             &self.notes.judge_events,
             &mut exrank_value_to_id,
             &mut used_exrank_ids,
@@ -592,7 +592,7 @@ fn build_messages_from_track<T, F>(
 }
 
 /// Unified generic function to process all message types with ID allocation
-fn process_message_events<'a, T, K, F1, F2>(
+fn build_messages_event<'a, T, K, F1, F2>(
     events: &std::collections::BTreeMap<ObjTime, T>,
     value_to_id: &mut HashMap<K, ObjId>,
     used_ids: &mut HashSet<ObjId>,
