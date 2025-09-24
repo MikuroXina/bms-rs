@@ -323,7 +323,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .push((time, new_id));
             }
             for (track, items) in by_track_id {
-                let Some(message) = build_id_message(items) else {
+                let Some(message) = build_message(items, |id| id.to_string()) else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -333,7 +333,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 });
             }
             for (track, items) in by_track_u8 {
-                let Some(message) = build_hex_message(items) else {
+                let Some(message) = build_message(items, |value| format!("{:02X}", value)) else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -396,7 +396,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     0x000A => Channel::BgaLayer2,
                     _ => Channel::BgaBase,
                 };
-                let Some(message) = build_id_message(items) else {
+                let Some(message) = build_message(items, |id| id.to_string()) else {
                     continue;
                 };
                 message_tokens.push(Token::Message {
@@ -423,7 +423,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 by_track_bgm,
                 Channel::BgmVolume,
                 &mut message_tokens,
-                build_hex_message,
+                |items| build_message(items, |value| format!("{:02X}", value)),
             );
 
             let mut by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = BTreeMap::new();
@@ -437,7 +437,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 by_track_key,
                 Channel::KeyVolume,
                 &mut message_tokens,
-                build_hex_message,
+                |items| build_message(items, |value| format!("{:02X}", value)),
             );
         }
 
@@ -458,12 +458,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .or_default()
                     .push((time, id));
             }
-            build_messages(
-                by_track_text,
-                Channel::Text,
-                &mut message_tokens,
-                build_id_message,
-            );
+            build_messages(by_track_text, Channel::Text, &mut message_tokens, |items| {
+                build_message(items, |id| id.to_string())
+            });
         }
 
         process_message_events(
@@ -519,24 +516,6 @@ where
         s.push_str(&formatter(value));
     }
     Some(Cow::Owned(s))
-}
-
-/// Build message string for ObjId values (2-character base62 format)
-fn build_id_message<'a>(items: Vec<(ObjTime, ObjId)>) -> Option<Cow<'a, str>> {
-    build_message(items, |id| {
-        let id_str = id.to_string();
-        let mut chars = id_str.chars();
-        format!(
-            "{}{}",
-            chars.next().unwrap_or('0'),
-            chars.next().unwrap_or('0')
-        )
-    })
-}
-
-/// Build message string for u8 values (2-character hex format)
-fn build_hex_message<'a>(items: Vec<(ObjTime, u8)>) -> Option<Cow<'a, str>> {
-    build_message(items, |value| format!("{:02X}", value))
 }
 
 fn create_obj_id_from_u16(value: u16) -> ObjId {
@@ -634,7 +613,9 @@ fn process_message_events<'a, T, K, F1, F2>(
         by_track.entry(time.track()).or_default().push((time, id));
     }
 
-    build_messages(by_track, channel, message_tokens, build_id_message);
+    build_messages(by_track, channel, message_tokens, |items| {
+        build_message(items, |id| id.to_string())
+    });
 }
 
 /// Process BGM and Note events (special case that doesn't use ID allocation)
