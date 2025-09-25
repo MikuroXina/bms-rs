@@ -330,7 +330,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .iter()
             .map(|(k, v)| (v.clone(), *k))
             .collect();
-        let mut text_value_to_id: HashMap<&str, ObjId> = self
+        let mut text_value_to_id: HashMap<&'a str, ObjId> = self
             .others
             .texts
             .iter()
@@ -343,65 +343,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .map(|(k, v)| (v.judge_level, *k))
             .collect();
 
-        // Messages: BPM change (#xxx08 or #xxx03) - Use build_messages_from_track for processing
-        {
-            // Process BPM changes using the build_messages_from_track function
-            // First, collect all BPM changes and determine their channels and values
-            let bpm_events: Vec<(ObjTime, Channel, String)> = self
-                .arrangers
-                .bpm_changes
-                .iter()
-                .map(|(&time, ev)| {
-                    // Check if already defined
-                    if let Some(&id) = bpm_value_to_id.get(&ev.bpm) {
-                        return (time, Channel::BpmChange, id.to_string());
-                    }
-
-                    // Try to treat as u8 bpm
-                    if ev.bpm.fract() == Decimal::zero()
-                        && ev.bpm >= Decimal::one()
-                        && ev.bpm <= Decimal::from(0xFF)
-                    {
-                        let u8_value = ev.bpm.to_u64().expect("filtered bpm should be u64") as u8;
-                        return (time, Channel::BpmChangeU8, format!("{:02X}", u8_value));
-                    }
-
-                    // Otherwise, allocate new id definition
-                    let new_id = alloc_id(&mut used_bpm_ids);
-                    bpm_value_to_id.insert(ev.bpm.clone(), new_id);
-                    late_def_tokens.push(Token::BpmChange(new_id, ev.bpm.clone()));
-                    (time, Channel::BpmChange, new_id.to_string())
-                })
-                .collect();
-
-            // Group by track and channel
-            let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, String)>> = bpm_events
-                .into_iter()
-                .map(|(time, channel, value)| ((time.track(), channel), (time, value)))
-                .fold(
-                    BTreeMap::new(),
-                    |mut acc, ((track, channel), time_value)| {
-                        acc.entry((track, channel)).or_default().push(time_value);
-                        acc
-                    },
-                );
-
-            // Build message tokens using the modified function
-            message_tokens.extend(build_messages_from_track(
-                by_track_channel
-                    .into_iter()
-                    .map(|((track, channel), items)| {
-                        (
-                            track,
-                            items
-                                .into_iter()
-                                .map(move |(time, value)| (time, (channel, value))),
-                        )
-                    }),
-                |(channel, _value)| *channel,
-                |(_channel, value)| value.clone(),
-            ));
-        }
+        // Messages: BPM change (#xxx08 or #xxx03)
+        message_tokens.extend(build_bpm_change_messages(
+            self,
+            &mut bpm_value_to_id,
+            &mut used_bpm_ids,
+            &mut late_def_tokens,
+        ));
 
         // Messages: STOP (#xxx09)
         let stop_result = build_messages_event(
@@ -439,137 +387,25 @@ impl<T: KeyLayoutMapper> Bms<T> {
         late_def_tokens.extend(speed_result.late_def_tokens);
         message_tokens.extend(speed_result.message_tokens);
 
-        // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A) - Use build_messages_from_track
-        {
-            // Build track-grouped BGA data using the modified function
-            let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = self
-                .graphics
-                .bga_changes
-                .iter()
-                .map(|(&time, bga)| {
-                    let channel = bga.layer.to_channel();
-                    ((time.track(), channel), (time, bga.id))
-                })
-                .fold(BTreeMap::new(), |mut acc, ((track, channel), time_id)| {
-                    acc.entry((track, channel)).or_default().push(time_id);
-                    acc
-                });
+        // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
+        message_tokens.extend(build_bga_change_messages(self));
 
-            // Build message tokens using the modified function
-            message_tokens.extend(build_messages_from_track(
-                by_track_channel
-                    .into_iter()
-                    .map(|((track, channel), items)| {
-                        (
-                            track,
-                            items
-                                .into_iter()
-                                .map(move |(time, id)| (time, (channel, id))),
-                        )
-                    }),
-                |(channel, _id)| *channel,
-                |(_channel, id)| id.to_string(),
-            ));
-        }
+        // Messages: BGM (#xxx01) and Notes (various #xx)
+        message_tokens.extend(build_note_messages(self));
 
-        // Messages: BGM (#xxx01) and Notes (various #xx) - Use build_messages_from_track for proper handling of multiple objects
-        {
-            // Process each note/BGM object individually to preserve multiple objects at same time/channel
-            for obj in self.notes.all_notes_insertion_order() {
-                let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                    Channel::Note {
-                        channel_id: obj.channel_id,
-                    }
-                } else {
-                    Channel::Bgm
-                };
+        // Messages: BGM volume (#97)
+        message_tokens.extend(build_bgm_volume_messages(self));
 
-                let track = obj.offset.track();
+        // Messages: KEY volume (#98)
+        message_tokens.extend(build_key_volume_messages(self));
 
-                // Create a single token for this specific object
-                message_tokens.extend(build_messages_from_track(
-                    std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
-                    |_id| channel,
-                    |id| id.to_string(),
-                ));
-            }
-        }
-
-        // Messages: BGM volume (#97) - Use iterator chains
-        {
-            // Build track-grouped volume data using iterator chains
-            let by_track_bgm: BTreeMap<Track, Vec<(ObjTime, u8)>> = self
-                .notes
-                .bgm_volume_changes
-                .iter()
-                .map(|(&time, ev)| (time.track(), (time, ev.volume)))
-                .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
-                    acc.entry(track).or_default().push(time_vol);
-                    acc
-                });
-
-            message_tokens.extend(build_messages_from_track(
-                by_track_bgm
-                    .into_iter()
-                    .map(|(track, items)| (track, items.into_iter())),
-                |_value| Channel::BgmVolume,
-                |value| format!("{:02X}", value),
-            ));
-        }
-
-        // Messages: KEY volume (#98) - Use iterator chains
-        {
-            let by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = self
-                .notes
-                .key_volume_changes
-                .iter()
-                .map(|(&time, ev)| (time.track(), (time, ev.volume)))
-                .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
-                    acc.entry(track).or_default().push(time_vol);
-                    acc
-                });
-
-            message_tokens.extend(build_messages_from_track(
-                by_track_key
-                    .into_iter()
-                    .map(|(track, items)| (track, items.into_iter())),
-                |_value| Channel::KeyVolume,
-                |value| format!("{:02X}", value),
-            ));
-        }
-
-        // Messages: TEXT (#99) - Use build_messages_from_track for processing
-        {
-            // Process text events and build track-grouped data using iterator chains
-            let by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = self
-                .notes
-                .text_events
-                .iter()
-                .map(|(&time, ev)| {
-                    let id = text_value_to_id
-                        .get(ev.text.as_str())
-                        .copied()
-                        .unwrap_or_else(|| {
-                            let new_id = alloc_id(&mut used_text_ids);
-                            text_value_to_id.insert(ev.text.as_str(), new_id);
-                            late_def_tokens.push(Token::Text(new_id, ev.text.as_str()));
-                            new_id
-                        });
-                    (time.track(), (time, id))
-                })
-                .fold(BTreeMap::new(), |mut acc, (track, time_id)| {
-                    acc.entry(track).or_default().push(time_id);
-                    acc
-                });
-
-            message_tokens.extend(build_messages_from_track(
-                by_track_text
-                    .into_iter()
-                    .map(|(track, items)| (track, items.into_iter())),
-                |_id| Channel::Text,
-                |id| id.to_string(),
-            ));
-        }
+        // Messages: TEXT (#99)
+        message_tokens.extend(build_text_messages(
+            self,
+            &mut text_value_to_id,
+            &mut used_text_ids,
+            &mut late_def_tokens,
+        ));
 
         let judge_result = build_messages_event(
             self.notes.judge_events.iter(),
@@ -859,6 +695,212 @@ where
         updated_value_to_id: id_manager.value_to_id,
         updated_used_ids: id_manager.used_ids,
     }
+}
+
+/// Helper function to build BPM change messages
+fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
+    bms: &'a Bms<T>,
+    bpm_value_to_id: &mut HashMap<Decimal, ObjId>,
+    used_bpm_ids: &mut HashSet<ObjId>,
+    late_def_tokens: &mut Vec<Token<'a>>,
+) -> Vec<Token<'a>> {
+    // Process BPM changes using the build_messages_from_track function
+    // First, collect all BPM changes and determine their channels and values
+    let bpm_events: Vec<(ObjTime, Channel, String)> = bms
+        .arrangers
+        .bpm_changes
+        .iter()
+        .map(|(&time, ev)| {
+            // Check if already defined
+            if let Some(&id) = bpm_value_to_id.get(&ev.bpm) {
+                return (time, Channel::BpmChange, id.to_string());
+            }
+
+            // Try to treat as u8 bpm
+            if ev.bpm.fract() == Decimal::zero()
+                && ev.bpm >= Decimal::one()
+                && ev.bpm <= Decimal::from(0xFF)
+            {
+                let u8_value = ev.bpm.to_u64().expect("filtered bpm should be u64") as u8;
+                return (time, Channel::BpmChangeU8, format!("{:02X}", u8_value));
+            }
+
+            // Otherwise, allocate new id definition
+            let new_id = alloc_id(used_bpm_ids);
+            bpm_value_to_id.insert(ev.bpm.clone(), new_id);
+            late_def_tokens.push(Token::BpmChange(new_id, ev.bpm.clone()));
+            (time, Channel::BpmChange, new_id.to_string())
+        })
+        .collect();
+
+    // Group by track and channel
+    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, String)>> = bpm_events
+        .into_iter()
+        .map(|(time, channel, value)| ((time.track(), channel), (time, value)))
+        .fold(
+            BTreeMap::new(),
+            |mut acc, ((track, channel), time_value)| {
+                acc.entry((track, channel)).or_default().push(time_value);
+                acc
+            },
+        );
+
+    // Build message tokens using the modified function
+    build_messages_from_track(
+        by_track_channel
+            .into_iter()
+            .map(|((track, channel), items)| {
+                (
+                    track,
+                    items
+                        .into_iter()
+                        .map(move |(time, value)| (time, (channel, value))),
+                )
+            }),
+        |(channel, _value)| *channel,
+        |(_channel, value)| value.clone(),
+    )
+}
+
+/// Helper function to build BGA change messages
+fn build_bga_change_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
+    // Build track-grouped BGA data using the modified function
+    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = bms
+        .graphics
+        .bga_changes
+        .iter()
+        .map(|(&time, bga)| {
+            let channel = bga.layer.to_channel();
+            ((time.track(), channel), (time, bga.id))
+        })
+        .fold(BTreeMap::new(), |mut acc, ((track, channel), time_id)| {
+            acc.entry((track, channel)).or_default().push(time_id);
+            acc
+        });
+
+    // Build message tokens using the modified function
+    build_messages_from_track(
+        by_track_channel
+            .into_iter()
+            .map(|((track, channel), items)| {
+                (
+                    track,
+                    items
+                        .into_iter()
+                        .map(move |(time, id)| (time, (channel, id))),
+                )
+            }),
+        |(channel, _id)| *channel,
+        |(_channel, id)| id.to_string(),
+    )
+}
+
+/// Helper function to build note and BGM messages
+fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
+    let mut message_tokens = Vec::new();
+
+    // Process each note/BGM object individually to preserve multiple objects at same time/channel
+    for obj in bms.notes.all_notes_insertion_order() {
+        let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+            Channel::Note {
+                channel_id: obj.channel_id,
+            }
+        } else {
+            Channel::Bgm
+        };
+
+        let track = obj.offset.track();
+
+        // Create a single token for this specific object
+        message_tokens.extend(build_messages_from_track(
+            std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
+            |_id| channel,
+            |id| id.to_string(),
+        ));
+    }
+
+    message_tokens
+}
+
+/// Helper function to build BGM volume messages
+fn build_bgm_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
+    // Build track-grouped volume data using iterator chains
+    let by_track_bgm: BTreeMap<Track, Vec<(ObjTime, u8)>> = bms
+        .notes
+        .bgm_volume_changes
+        .iter()
+        .map(|(&time, ev)| (time.track(), (time, ev.volume)))
+        .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
+            acc.entry(track).or_default().push(time_vol);
+            acc
+        });
+
+    build_messages_from_track(
+        by_track_bgm
+            .into_iter()
+            .map(|(track, items)| (track, items.into_iter())),
+        |_value| Channel::BgmVolume,
+        |value| format!("{:02X}", value),
+    )
+}
+
+/// Helper function to build KEY volume messages
+fn build_key_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
+    let by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = bms
+        .notes
+        .key_volume_changes
+        .iter()
+        .map(|(&time, ev)| (time.track(), (time, ev.volume)))
+        .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
+            acc.entry(track).or_default().push(time_vol);
+            acc
+        });
+
+    build_messages_from_track(
+        by_track_key
+            .into_iter()
+            .map(|(track, items)| (track, items.into_iter())),
+        |_value| Channel::KeyVolume,
+        |value| format!("{:02X}", value),
+    )
+}
+
+/// Helper function to build text messages
+fn build_text_messages<'a, T: KeyLayoutMapper>(
+    bms: &'a Bms<T>,
+    text_value_to_id: &mut HashMap<&'a str, ObjId>,
+    used_text_ids: &mut HashSet<ObjId>,
+    late_def_tokens: &mut Vec<Token<'a>>,
+) -> Vec<Token<'a>> {
+    // Process text events and build track-grouped data using iterator chains
+    let by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = bms
+        .notes
+        .text_events
+        .iter()
+        .map(|(&time, ev)| {
+            let id = text_value_to_id
+                .get(ev.text.as_str())
+                .copied()
+                .unwrap_or_else(|| {
+                    let new_id = alloc_id(used_text_ids);
+                    text_value_to_id.insert(ev.text.as_str(), new_id);
+                    late_def_tokens.push(Token::Text(new_id, ev.text.as_str()));
+                    new_id
+                });
+            (time.track(), (time, id))
+        })
+        .fold(BTreeMap::new(), |mut acc, (track, time_id)| {
+            acc.entry(track).or_default().push(time_id);
+            acc
+        });
+
+    build_messages_from_track(
+        by_track_text
+            .into_iter()
+            .map(|(track, items)| (track, items.into_iter())),
+        |_id| Channel::Text,
+        |id| id.to_string(),
+    )
 }
 
 /// Helper function to allocate a new ObjId
