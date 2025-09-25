@@ -496,7 +496,7 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 fn build_messages_from_track<'a, T, I, J, F1, F2>(
     track_events: I,
     channel_mapper: F1,
-    fn_obj_to_message_unit: F2,
+    message_formatter: F2,
 ) -> Vec<Token<'a>>
 where
     I: Iterator<Item = (Track, J)>,
@@ -544,7 +544,7 @@ where
                         let mut message_parts = Vec::new();
                         for i in 0..denom {
                             if i == time_idx {
-                                message_parts.push(fn_obj_to_message_unit(&value));
+                                message_parts.push(message_formatter(&value));
                             } else {
                                 message_parts.push("00".to_string());
                             }
@@ -638,12 +638,12 @@ where
 /// This design allows processing events from any source while maintaining full ownership semantics.
 /// The resolve_channel function allows the same event type to be converted to different channels.
 fn build_messages_event<'a, T, K, I, F1, F2, F3, F4>(
-    events: I,
+    event_iter: I,
     mut id_manager: IdManager<K>,
-    create_definition_token: F1,
-    extract_key: F2,
-    resolve_channel: F3,
-    fn_obj_to_message_unit: F4,
+    def_token_creator: F1,
+    key_extractor: F2,
+    channel_resolver: F3,
+    message_formatter: F4,
 ) -> EventProcessingResult<'a, K>
 where
     I: Iterator<Item = (&'a ObjTime, &'a T)>,
@@ -657,15 +657,15 @@ where
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
 
     // Use iterator chain to process events and build track-channel-grouped data
-    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = events
+    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = event_iter
         .map(|(&time, event)| {
-            let key = extract_key(event);
+            let key = key_extractor(event);
             let (id, maybe_token) =
-                id_manager.get_or_allocate_id(key.clone(), &create_definition_token);
+                id_manager.get_or_allocate_id(key.clone(), &def_token_creator);
             if let Some(token) = maybe_token {
                 late_def_tokens.push(token);
             }
-            let channel = resolve_channel(event);
+            let channel = channel_resolver(event);
             ((time.track(), channel), (time, id))
         })
         .fold(BTreeMap::new(), |mut acc, ((track, channel), time_id)| {
@@ -686,7 +686,7 @@ where
                 )
             }),
         |(channel, _id)| *channel,
-        |(_channel, id)| fn_obj_to_message_unit(id),
+        |(_channel, id)| message_formatter(id),
     );
 
     EventProcessingResult {
