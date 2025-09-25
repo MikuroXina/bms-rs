@@ -495,22 +495,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
         }
 
-        // Messages: BGM volume (#97) and KEY volume (#98) - Use iterator chains
+        // Messages: BGM volume (#97) - Use iterator chains
         {
             // Build track-grouped volume data using iterator chains
             let by_track_bgm: BTreeMap<Track, Vec<(ObjTime, u8)>> = self
                 .notes
                 .bgm_volume_changes
-                .iter()
-                .map(|(&time, ev)| (time.track(), (time, ev.volume)))
-                .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
-                    acc.entry(track).or_default().push(time_vol);
-                    acc
-                });
-
-            let by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = self
-                .notes
-                .key_volume_changes
                 .iter()
                 .map(|(&time, ev)| (time.track(), (time, ev.volume)))
                 .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
@@ -525,6 +515,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 |_value| Channel::BgmVolume,
                 |value| format!("{:02X}", value),
             ));
+        }
+
+        // Messages: KEY volume (#98) - Use iterator chains
+        {
+            let by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = self
+                .notes
+                .key_volume_changes
+                .iter()
+                .map(|(&time, ev)| (time.track(), (time, ev.volume)))
+                .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
+                    acc.entry(track).or_default().push(time_vol);
+                    acc
+                });
 
             message_tokens.extend(build_messages_from_track(
                 by_track_key
