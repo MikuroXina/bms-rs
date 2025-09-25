@@ -352,7 +352,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         ));
 
         // Messages: STOP (#xxx09)
-        let stop_result = build_messages_event(
+        let stop_result = build_event_messages(
             self.arrangers.stops.iter(),
             IdManager::new(stop_value_to_id, used_stop_ids),
             Token::Stop,
@@ -364,7 +364,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(stop_result.message_tokens);
 
         // Messages: SCROLL (#xxxSC)
-        let scroll_result = build_messages_event(
+        let scroll_result = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
             IdManager::new(scroll_value_to_id, used_scroll_ids),
             Token::Scroll,
@@ -376,7 +376,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(scroll_result.message_tokens);
 
         // Messages: SPEED (#xxxSP)
-        let speed_result = build_messages_event(
+        let speed_result = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
             IdManager::new(speed_value_to_id, used_speed_ids),
             Token::Speed,
@@ -407,7 +407,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             &mut late_def_tokens,
         ));
 
-        let judge_result = build_messages_event(
+        let judge_result = build_event_messages(
             self.notes.judge_events.iter(),
             IdManager::new(exrank_value_to_id, used_exrank_ids),
             Token::ExRank,
@@ -493,7 +493,7 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 /// The function leverages Rust's iterator chains for efficient processing. This design allows for maximum
 /// flexibility - callers can pass BTreeMap, HashMap, Vec, or any other Iterator without needing to build Vecs.
 /// The channel_mapper function allows the same value type to be converted to different channels.
-fn build_messages_from_track<
+fn build_event_track_messages<
     'a,
     Event,
     EventIterator,
@@ -646,7 +646,7 @@ where
 /// The function leverages Rust's iterator chains and HashMap for efficient lookups and ID allocation.
 /// This design allows processing events from any source while maintaining full ownership semantics.
 /// The channel_mapper function allows the same event type to be converted to different channels.
-fn build_messages_event<
+fn build_event_messages<
     'a,
     Event,
     Key,
@@ -690,7 +690,7 @@ where
             acc
         });
 
-    let message_tokens = build_messages_from_track(
+    let message_tokens = build_event_track_messages(
         by_track_channel
             .into_iter()
             .map(|((track, channel), items)| {
@@ -763,7 +763,7 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
         );
 
     // Build message tokens using the modified function
-    build_messages_from_track(
+    build_event_track_messages(
         by_track_channel
             .into_iter()
             .map(|((track, channel), items)| {
@@ -804,7 +804,7 @@ fn build_bga_change_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
         });
 
     // Build message tokens using the modified function
-    build_messages_from_track(
+    build_event_track_messages(
         by_track_channel
             .into_iter()
             .map(|((track, channel), items)| {
@@ -837,7 +837,7 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
         let track = obj.offset.track();
 
         // Create a single token for this specific object
-        message_tokens.extend(build_messages_from_track(
+        message_tokens.extend(build_event_track_messages(
             std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
             |_id| channel,
             |id| MessageValue::ObjId(*id),
@@ -860,7 +860,7 @@ fn build_bgm_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
             acc
         });
 
-    build_messages_from_track(
+    build_event_track_messages(
         by_track_bgm
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
@@ -881,7 +881,7 @@ fn build_key_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
             acc
         });
 
-    build_messages_from_track(
+    build_event_track_messages(
         by_track_key
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
@@ -919,7 +919,7 @@ fn build_text_messages<'a, T: KeyLayoutMapper>(
             acc
         });
 
-    build_messages_from_track(
+    build_event_track_messages(
         by_track_text
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
