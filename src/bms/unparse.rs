@@ -102,11 +102,6 @@ where
             .get_or_allocate_id(key.clone(), &self.token_creator)
     }
 
-    /// Create a definition token for an existing ID and key
-    fn create_token(&self, id: ObjId, key: Key) -> Token<'a> {
-        (self.token_creator)(id, key)
-    }
-
     /// Consume the generator and return the ObjIdManager
     fn into_id_manager(self) -> ObjIdManager<Key> {
         self.id_manager
@@ -248,58 +243,33 @@ impl<T: KeyLayoutMapper> Bms<T> {
             def_tokens.push(Token::BaseBpm(base_bpm.clone()));
         }
 
-        // Collect definition tokens using iterator chains with ObjIdDefTokenGenerator
-        // Create empty ObjIdManagers for existing definitions (no new allocation needed)
-        let bpm_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-        let bpm_generator = DefTokenGenerator::create_generator(
-            bpm_manager,
-            |id, bpm| Token::BpmChange(id, bpm),
-            |bpm: &Decimal| bpm.clone(),
-        );
+        // Collect definition tokens using iterator chains
         def_tokens.extend(
             self.scope_defines
                 .bpm_defs
                 .iter()
-                .map(|(id, v)| bpm_generator.create_token(*id, v.clone())),
+                .map(|(id, v)| Token::BpmChange(*id, v.clone())),
         );
 
-        let stop_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-        let stop_generator = DefTokenGenerator::create_generator(
-            stop_manager,
-            |id, duration| Token::Stop(id, duration),
-            |duration: &Decimal| duration.clone(),
-        );
         def_tokens.extend(
             self.scope_defines
                 .stop_defs
                 .iter()
-                .map(|(id, v)| stop_generator.create_token(*id, v.clone())),
+                .map(|(id, v)| Token::Stop(*id, v.clone())),
         );
 
-        let scroll_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-        let scroll_generator = DefTokenGenerator::create_generator(
-            scroll_manager,
-            |id, factor| Token::Scroll(id, factor),
-            |factor: &Decimal| factor.clone(),
-        );
         def_tokens.extend(
             self.scope_defines
                 .scroll_defs
                 .iter()
-                .map(|(id, v)| scroll_generator.create_token(*id, v.clone())),
+                .map(|(id, v)| Token::Scroll(*id, v.clone())),
         );
 
-        let speed_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-        let speed_generator = DefTokenGenerator::create_generator(
-            speed_manager,
-            |id, factor| Token::Speed(id, factor),
-            |factor: &Decimal| factor.clone(),
-        );
         def_tokens.extend(
             self.scope_defines
                 .speed_defs
                 .iter()
-                .map(|(id, v)| speed_generator.create_token(*id, v.clone())),
+                .map(|(id, v)| Token::Speed(*id, v.clone())),
         );
 
         def_tokens.extend(
@@ -309,102 +279,66 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .map(|(id, text)| Token::Text(*id, text.as_str())),
         );
 
-        let exrank_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-        let exrank_generator = DefTokenGenerator::create_generator(
-            exrank_manager,
-            |id, judge_level| Token::ExRank(id, judge_level),
-            |exrank: &ExRankDef| exrank.judge_level,
-        );
         def_tokens.extend(
             self.scope_defines
                 .exrank_defs
                 .iter()
-                .map(|(id, exrank)| exrank_generator.create_token(*id, exrank.judge_level)),
+                .map(|(id, exrank)| Token::ExRank(*id, exrank.judge_level)),
         );
 
         #[cfg(feature = "minor-command")]
         {
-            let exwav_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-            let exwav_generator = DefTokenGenerator::create_generator(
-                exwav_manager,
-                |id, def| Token::ExWav {
-                    id,
-                    pan: def.pan,
-                    volume: def.volume,
-                    frequency: def.frequency,
-                    path: def.path.as_ref(),
-                },
-                |def: &ExWavDef| *def,
-            );
             def_tokens.extend(
                 self.scope_defines
                     .exwav_defs
                     .iter()
-                    .map(|(id, def)| exwav_generator.create_token(*id, def)),
+                    .map(|(id, def)| Token::ExWav {
+                        id: *id,
+                        pan: def.pan,
+                        volume: def.volume,
+                        frequency: def.frequency,
+                        path: def.path.as_ref(),
+                    }),
             );
 
-            let wavcmd_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-            let wavcmd_generator = DefTokenGenerator::create_generator(
-                wavcmd_manager,
-                |_id, event| Token::WavCmd(*event),
-                |event: &WavCmdEvent| *event,
-            );
             def_tokens.extend(
                 self.scope_defines
                     .wavcmd_events
                     .values()
-                    .map(|ev| wavcmd_generator.create_token(ObjId::null(), ev)),
+                    .map(|ev| Token::WavCmd(*ev)),
             );
 
-            let atbga_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-            let atbga_generator = DefTokenGenerator::create_generator(
-                atbga_manager,
-                |id, def| Token::AtBga {
-                    id,
-                    source_bmp: def.source_bmp,
-                    trim_top_left: def.trim_top_left.into(),
-                    trim_size: def.trim_size.into(),
-                    draw_point: def.draw_point.into(),
-                },
-                |def: &AtBgaDef| *def,
-            );
             def_tokens.extend(
                 self.scope_defines
                     .atbga_defs
                     .iter()
-                    .map(|(id, def)| atbga_generator.create_token(*id, def)),
+                    .map(|(id, def)| Token::AtBga {
+                        id: *id,
+                        source_bmp: def.source_bmp,
+                        trim_top_left: def.trim_top_left.into(),
+                        trim_size: def.trim_size.into(),
+                        draw_point: def.draw_point.into(),
+                    }),
             );
 
-            let bga_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-            let bga_generator = DefTokenGenerator::create_generator(
-                bga_manager,
-                |id, def| Token::Bga {
-                    id,
-                    source_bmp: def.source_bmp,
-                    trim_top_left: def.trim_top_left.into(),
-                    trim_bottom_right: def.trim_bottom_right.into(),
-                    draw_point: def.draw_point.into(),
-                },
-                |def: &BgaDef| *def,
-            );
             def_tokens.extend(
                 self.scope_defines
                     .bga_defs
                     .iter()
-                    .map(|(id, def)| bga_generator.create_token(*id, def)),
+                    .map(|(id, def)| Token::Bga {
+                        id: *id,
+                        source_bmp: def.source_bmp,
+                        trim_top_left: def.trim_top_left.into(),
+                        trim_bottom_right: def.trim_bottom_right.into(),
+                        draw_point: def.draw_point.into(),
+                    }),
             );
 
-            let argb_manager = ObjIdManager::new(HashMap::new(), HashSet::new());
-            let argb_generator = DefTokenGenerator::create_generator(
-                argb_manager,
-                |id, argb| Token::Argb(id, argb),
-                |argb: &ArgbValue| *argb,
-            );
             def_tokens.extend(
                 self.scope_defines
                     .argb_defs
                     .iter()
-                    .map(|(id, argb)| argb_generator.create_token(*id, *argb)),
+                    .map(|(id, argb)| Token::Argb(*id, *argb)),
             );
         }
 
