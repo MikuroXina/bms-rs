@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use fraction::{One, ToPrimitive, Zero};
 use num::Integer;
 
 use crate::bms::prelude::*;
@@ -353,27 +354,26 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .bpm_changes
                 .iter()
                 .map(|(&time, ev)| {
+                    // already defined
                     if let Some(&id) = bpm_value_to_id.get(&ev.bpm) {
                         return (Some((time.track(), (time, id))), None);
                     }
 
-                    // try treat as u8 bpm (allow trailing .0/zeros)
-                    let mut s = ev.bpm.to_string();
-                    if let Some(_dot_pos) = s.find('.') {
-                        // trim trailing zeros and possible dot
-                        while s.ends_with('0') {
-                            s.pop();
-                        }
-                        if s.ends_with('.') {
-                            s.pop();
-                        }
-                    }
-
-                    if s.chars().all(|c| c.is_ascii_digit())
-                        && let Ok(v) = s.parse::<u64>()
-                        && v <= u8::MAX as u64
+                    // try treat as u8 bpm
+                    if ev.bpm.fract() == Decimal::zero()
+                        && ev.bpm >= Decimal::one()
+                        && ev.bpm <= Decimal::from(0xFF)
                     {
-                        return (None, Some((time.track(), (time, v as u8))));
+                        return (
+                            None,
+                            Some((
+                                time.track(),
+                                (
+                                    time,
+                                    ev.bpm.to_u64().expect("filtered bpm should be u64") as u8,
+                                ),
+                            )),
+                        );
                     }
 
                     // otherwise, allocate new id definition
