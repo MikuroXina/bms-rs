@@ -496,7 +496,7 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 fn build_messages_from_track<'a, T, I, J, F1, F2>(
     track_events: I,
     channel_mapper: F1,
-    formatter: F2,
+    fn_obj_to_message_unit: F2,
 ) -> Vec<Token<'a>>
 where
     I: Iterator<Item = (Track, J)>,
@@ -544,7 +544,7 @@ where
                         let mut message_parts = Vec::new();
                         for i in 0..denom {
                             if i == time_idx {
-                                message_parts.push(formatter(&value));
+                                message_parts.push(fn_obj_to_message_unit(&value));
                             } else {
                                 message_parts.push("00".to_string());
                             }
@@ -643,7 +643,7 @@ fn build_messages_event<'a, T, K, I, F1, F2, F3, F4>(
     create_definition_token: F1,
     extract_key: F2,
     resolve_channel: F3,
-    format_message: F4,
+    fn_obj_to_message_unit: F4,
 ) -> EventProcessingResult<'a, K>
 where
     I: Iterator<Item = (&'a ObjTime, &'a T)>,
@@ -686,7 +686,7 @@ where
                 )
             }),
         |(channel, _id)| *channel,
-        |(_channel, id)| format_message(id),
+        |(_channel, id)| fn_obj_to_message_unit(id),
     );
 
     EventProcessingResult {
