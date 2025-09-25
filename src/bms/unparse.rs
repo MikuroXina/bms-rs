@@ -302,7 +302,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.scope_defines.scroll_defs.keys().copied().collect();
         let used_speed_ids: HashSet<ObjId> =
             self.scope_defines.speed_defs.keys().copied().collect();
-        let mut used_text_ids: HashSet<ObjId> = self.others.texts.keys().copied().collect();
+        let used_text_ids: HashSet<ObjId> = self.others.texts.keys().copied().collect();
         let used_exrank_ids: HashSet<ObjId> =
             self.scope_defines.exrank_defs.keys().copied().collect();
 
@@ -330,7 +330,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .iter()
             .map(|(k, v)| (v.clone(), *k))
             .collect();
-        let mut text_value_to_id: HashMap<&'a str, ObjId> = self
+        let text_value_to_id: HashMap<&'a str, ObjId> = self
             .others
             .texts
             .iter()
@@ -352,7 +352,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         ));
 
         // Messages: STOP (#xxx09)
-        let stop_result = build_event_messages(
+        let stop_result = build_event_messages_with_id(
             self.arrangers.stops.iter(),
             IdManager::new(stop_value_to_id, used_stop_ids),
             Token::Stop,
@@ -364,7 +364,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(stop_result.message_tokens);
 
         // Messages: SCROLL (#xxxSC)
-        let scroll_result = build_event_messages(
+        let scroll_result = build_event_messages_with_id(
             self.arrangers.scrolling_factor_changes.iter(),
             IdManager::new(scroll_value_to_id, used_scroll_ids),
             Token::Scroll,
@@ -376,7 +376,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(scroll_result.message_tokens);
 
         // Messages: SPEED (#xxxSP)
-        let speed_result = build_event_messages(
+        let speed_result = build_event_messages_with_id(
             self.arrangers.speed_factor_changes.iter(),
             IdManager::new(speed_value_to_id, used_speed_ids),
             Token::Speed,
@@ -388,26 +388,40 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(speed_result.message_tokens);
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
-        message_tokens.extend(build_bga_change_messages(self));
+        message_tokens.extend(build_event_messages_direct(
+            self.graphics.bga_changes.iter(),
+            |bga| bga.layer.to_channel(),
+            |bga| MessageValue::ObjId(bga.id),
+        ));
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
         message_tokens.extend(build_note_messages(self));
 
         // Messages: BGM volume (#97)
-        message_tokens.extend(build_bgm_volume_messages(self));
+        message_tokens.extend(build_event_messages_direct(
+            self.notes.bgm_volume_changes.iter(),
+            |_ev| Channel::BgmVolume,
+            |ev| MessageValue::U8(ev.volume),
+        ));
 
         // Messages: KEY volume (#98)
-        message_tokens.extend(build_key_volume_messages(self));
+        message_tokens.extend(build_event_messages_direct(
+            self.notes.key_volume_changes.iter(),
+            |_ev| Channel::KeyVolume,
+            |ev| MessageValue::U8(ev.volume),
+        ));
 
         // Messages: TEXT (#99)
+        let mut text_value_to_id_mut = text_value_to_id;
+        let mut used_text_ids_mut = used_text_ids;
         message_tokens.extend(build_text_messages(
             self,
-            &mut text_value_to_id,
-            &mut used_text_ids,
+            &mut text_value_to_id_mut,
+            &mut used_text_ids_mut,
             &mut late_def_tokens,
         ));
 
-        let judge_result = build_event_messages(
+        let judge_result = build_event_messages_with_id(
             self.notes.judge_events.iter(),
             IdManager::new(exrank_value_to_id, used_exrank_ids),
             Token::ExRank,
@@ -613,40 +627,30 @@ where
     }
 }
 
-/// Unified generic function to process all message types with ID allocation
+/// Unified generic function to process all message types with optional ID allocation
 ///
-/// This function processes time-indexed events from an iterator and converts them into message tokens with automatic ID allocation.
-/// It uses iterator chains to efficiently process events and handle ID allocation for new values.
+/// This function processes time-indexed events from an iterator and converts them into message tokens.
+/// It supports both ID allocation mode and direct value mode through different function signatures.
 ///
-/// Arguments:
+/// For ID allocation mode (with definition tokens):
 ///     events: An iterator yielding (&time, &event) pairs to process
 ///     id_manager: Manager for ID allocation and tracking (will be modified and returned)
 ///     def_token_creator: Function to create definition tokens for new IDs
 ///     key_extractor: Function to extract key values from events
-///     channel_mapper: Function to map events to channels (allows same event type to map to different channels)
-///     message_formatter: Function to format IDs into message strings
+///     channel_mapper: Function to map events to channels
+///     message_formatter: Function to format ObjId into MessageValue
 ///
-/// Execution flow:
-/// 1. Iterate over each time-event pair from the provided iterator
-/// 2. For each event, extract the key value using the key_extractor function
-/// 3. Check if an ID already exists for this key value:
-///    - If yes, use the existing ID
-///    - If no, allocate a new ID, store the key->ID mapping, and create a late definition token
-/// 4. Group events by track and channel, collecting (time, id) pairs for each track-channel combination
-/// 5. Use build_messages_from_track to convert the track-grouped data into message tokens
-/// 6. Each track's events are formatted as a single message line with proper timing
+/// For direct value mode:
+///     events: An iterator yielding (&time, &event) pairs to process
+///     channel_mapper: Function to map events to channels
+///     message_formatter: Function to format events into MessageValue
 ///
 /// Returns:
-///     EventProcessingResult - Contains:
-///     - Message tokens for all processed events
-///     - Late definition tokens for any new IDs created
-///     - Updated value-to-ID mapping with any new allocations
-///     - Updated set of used IDs with any new allocations
+///     Either EventProcessingResult (for ID allocation) or Vec<Token> (for direct values)
 ///
-/// The function leverages Rust's iterator chains and HashMap for efficient lookups and ID allocation.
-/// This design allows processing events from any source while maintaining full ownership semantics.
-/// The channel_mapper function allows the same event type to be converted to different channels.
-fn build_event_messages<
+/// The function leverages Rust's iterator chains for efficient processing and supports
+/// both ID-based and direct value-based event processing in a unified interface.
+fn build_event_messages_with_id<
     'a,
     Event,
     Key,
@@ -694,7 +698,6 @@ where
         by_track_channel
             .into_iter()
             .map(|((track, channel), items)| {
-                // Group by track, but keep channel information in the items
                 (
                     track,
                     items
@@ -712,6 +715,47 @@ where
         updated_value_to_id: id_manager.value_to_id,
         updated_used_ids: id_manager.used_ids,
     }
+}
+
+fn build_event_messages_direct<'a, Event, EventIterator, ChannelMapper, MessageFormatter>(
+    event_iter: EventIterator,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
+) -> Vec<Token<'a>>
+where
+    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
+    Event: Clone + 'a,
+    ChannelMapper: Fn(&Event) -> Channel,
+    MessageFormatter: Fn(&Event) -> MessageValue,
+{
+    // Use iterator chain to process events and build track-channel-grouped data
+    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, Event)>> = event_iter
+        .map(|(&time, event)| {
+            let channel = channel_mapper(event);
+            ((time.track(), channel), (time, event.clone()))
+        })
+        .fold(
+            BTreeMap::new(),
+            |mut acc, ((track, channel), time_event)| {
+                acc.entry((track, channel)).or_default().push(time_event);
+                acc
+            },
+        );
+
+    build_event_track_messages(
+        by_track_channel
+            .into_iter()
+            .map(|((track, channel), items)| {
+                (
+                    track,
+                    items
+                        .into_iter()
+                        .map(move |(time, event)| (time, (channel, event))),
+                )
+            }),
+        |(channel, _event)| *channel,
+        |(_channel, event)| message_formatter(event),
+    )
 }
 
 /// Helper function to build BPM change messages
@@ -787,39 +831,6 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
     )
 }
 
-/// Helper function to build BGA change messages
-fn build_bga_change_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
-    // Build track-grouped BGA data using the modified function
-    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = bms
-        .graphics
-        .bga_changes
-        .iter()
-        .map(|(&time, bga)| {
-            let channel = bga.layer.to_channel();
-            ((time.track(), channel), (time, bga.id))
-        })
-        .fold(BTreeMap::new(), |mut acc, ((track, channel), time_id)| {
-            acc.entry((track, channel)).or_default().push(time_id);
-            acc
-        });
-
-    // Build message tokens using the modified function
-    build_event_track_messages(
-        by_track_channel
-            .into_iter()
-            .map(|((track, channel), items)| {
-                (
-                    track,
-                    items
-                        .into_iter()
-                        .map(move |(time, id)| (time, (channel, id))),
-                )
-            }),
-        |(channel, _id)| *channel,
-        |(_channel, id)| MessageValue::ObjId(*id),
-    )
-}
-
 /// Helper function to build note and BGM messages
 fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
     let mut message_tokens = Vec::new();
@@ -845,49 +856,6 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
     }
 
     message_tokens
-}
-
-/// Helper function to build BGM volume messages
-fn build_bgm_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
-    // Build track-grouped volume data using iterator chains
-    let by_track_bgm: BTreeMap<Track, Vec<(ObjTime, u8)>> = bms
-        .notes
-        .bgm_volume_changes
-        .iter()
-        .map(|(&time, ev)| (time.track(), (time, ev.volume)))
-        .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
-            acc.entry(track).or_default().push(time_vol);
-            acc
-        });
-
-    build_event_track_messages(
-        by_track_bgm
-            .into_iter()
-            .map(|(track, items)| (track, items.into_iter())),
-        |_value| Channel::BgmVolume,
-        |value| MessageValue::U8(*value),
-    )
-}
-
-/// Helper function to build KEY volume messages
-fn build_key_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
-    let by_track_key: BTreeMap<Track, Vec<(ObjTime, u8)>> = bms
-        .notes
-        .key_volume_changes
-        .iter()
-        .map(|(&time, ev)| (time.track(), (time, ev.volume)))
-        .fold(BTreeMap::new(), |mut acc, (track, time_vol)| {
-            acc.entry(track).or_default().push(time_vol);
-            acc
-        });
-
-    build_event_track_messages(
-        by_track_key
-            .into_iter()
-            .map(|(track, items)| (track, items.into_iter())),
-        |_value| Channel::KeyVolume,
-        |value| MessageValue::U8(*value),
-    )
 }
 
 /// Helper function to build text messages
