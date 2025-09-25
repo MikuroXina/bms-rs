@@ -36,28 +36,6 @@ pub enum BmsonToBmsWarning {
     ScrollDefOutOfRange,
 }
 
-#[derive(Debug)]
-struct ObjIdIssuer(u16);
-
-impl ObjIdIssuer {
-    const fn new() -> Self {
-        Self(1)
-    }
-}
-
-impl Iterator for ObjIdIssuer {
-    type Item = ObjId;
-    fn next(&mut self) -> Option<Self::Item> {
-        const MAX_ID: u16 = 62 * 62;
-        if self.0 > MAX_ID {
-            return None;
-        }
-        let id = self.0;
-        self.0 += 1;
-        ObjId::try_from(id).ok()
-    }
-}
-
 /// Output of the conversion from `Bmson` to `Bms`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
@@ -77,11 +55,11 @@ impl Bms {
     pub fn from_bmson(value: Bmson) -> BmsonToBmsOutput {
         let mut bms = Self::default();
         let mut warnings = Vec::new();
-        let mut wav_obj_id_issuer = ObjIdIssuer::new();
-        let mut bga_header_obj_id_issuer = ObjIdIssuer::new();
-        let mut bpm_def_obj_id_issuer = ObjIdIssuer::new();
-        let mut stop_def_obj_id_issuer = ObjIdIssuer::new();
-        let mut scroll_def_obj_id_issuer = ObjIdIssuer::new();
+        let mut wav_obj_id_issuer = ObjId::all_values();
+        let mut bga_header_obj_id_issuer = ObjId::all_values();
+        let mut bpm_def_obj_id_issuer = ObjId::all_values();
+        let mut stop_def_obj_id_issuer = ObjId::all_values();
+        let mut scroll_def_obj_id_issuer = ObjId::all_values();
 
         let resolution =
             NonZeroU64::new(value.info.resolution.get()).expect("resolution should be non-zero");
