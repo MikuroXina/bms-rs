@@ -691,8 +691,7 @@ where
     let mut updated_value_to_id: HashMap<Key, ObjId> = HashMap::new();
     let mut updated_used_ids: HashSet<ObjId> = HashSet::new();
 
-    // Process events and prepare data for unified message building
-    let message_tokens =
+    let processed_events: Vec<(Track, Vec<(ObjTime, (Channel, MessageValue))>)> =
         if let (Some(mut id_manager), Some(def_token_creator), Some(key_extractor)) =
             (id_manager, def_token_creator, key_extractor)
         {
@@ -716,21 +715,19 @@ where
             updated_value_to_id = id_manager.value_to_id;
             updated_used_ids = id_manager.used_ids;
 
-            // Single unified call to build_event_track_messages
-            build_event_track_messages(
-                by_track_channel
-                    .into_iter()
-                    .map(|((track, channel), items)| {
-                        (
-                            track,
-                            items
-                                .into_iter()
-                                .map(move |(time, id)| (time, (channel, id))),
-                        )
-                    }),
-                |(channel, _id)| *channel,
-                |(_channel, id)| MessageValue::ObjId(*id),
-            )
+            // Convert to unified format
+            by_track_channel
+                .into_iter()
+                .map(|((track, channel), items)| {
+                    (
+                        track,
+                        items
+                            .into_iter()
+                            .map(|(time, id)| (time, (channel, MessageValue::ObjId(id))))
+                            .collect(),
+                    )
+                })
+                .collect()
         } else {
             // Direct mode: process events with direct values
             let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, Event)>> = event_iter
@@ -746,22 +743,29 @@ where
                     },
                 );
 
-            // Single unified call to build_event_track_messages
-            build_event_track_messages(
-                by_track_channel
-                    .into_iter()
-                    .map(|((track, channel), items)| {
-                        (
-                            track,
-                            items
-                                .into_iter()
-                                .map(move |(time, event)| (time, (channel, event))),
-                        )
-                    }),
-                |(channel, _event)| *channel,
-                |(_channel, event)| message_formatter(event),
-            )
+            // Convert to unified format
+            by_track_channel
+                .into_iter()
+                .map(|((track, channel), items)| {
+                    (
+                        track,
+                        items
+                            .into_iter()
+                            .map(|(time, event)| (time, (channel, message_formatter(&event))))
+                            .collect(),
+                    )
+                })
+                .collect()
         };
+
+    // Single unified call to build_event_track_messages
+    let message_tokens = build_event_track_messages(
+        processed_events
+            .into_iter()
+            .map(|(track, events)| (track, events.into_iter())),
+        |(channel, _msg_value)| *channel,
+        |(_channel, msg_value)| *msg_value,
+    );
 
     // Unified result building
     EventProcessingResult {
