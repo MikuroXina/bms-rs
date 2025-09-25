@@ -358,11 +358,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Stop,
             |ev| ev.duration.clone(),
             |_ev| Channel::Stop,
-            |id| {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
+            |id| MessageValue::ObjId(*id),
         );
         late_def_tokens.extend(stop_result.late_def_tokens);
         message_tokens.extend(stop_result.message_tokens);
@@ -374,11 +370,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Scroll,
             |ev| ev.factor.clone(),
             |_ev| Channel::Scroll,
-            |id| {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
+            |id| MessageValue::ObjId(*id),
         );
         late_def_tokens.extend(scroll_result.late_def_tokens);
         message_tokens.extend(scroll_result.message_tokens);
@@ -390,11 +382,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Speed,
             |ev| ev.factor.clone(),
             |_ev| Channel::Speed,
-            |id| {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
+            |id| MessageValue::ObjId(*id),
         );
         late_def_tokens.extend(speed_result.late_def_tokens);
         message_tokens.extend(speed_result.message_tokens);
@@ -425,11 +413,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::ExRank,
             |ev| ev.judge_level,
             |_ev| Channel::Judge,
-            |id| {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
+            |id| MessageValue::ObjId(*id),
         );
         late_def_tokens.extend(judge_result.late_def_tokens);
         message_tokens.extend(judge_result.message_tokens);
@@ -525,7 +509,7 @@ where
     EventIterator: Iterator<Item = (Track, TrackEventIterator)>,
     TrackEventIterator: Iterator<Item = (ObjTime, Event)>,
     ChannelMapper: Fn(&Event) -> Channel + Copy,
-    MessageFormatter: Fn(&Event) -> [char; 2] + Copy,
+    MessageFormatter: Fn(&Event) -> MessageValue + Copy,
 {
     track_events
         .flat_map(|(track, items)| {
@@ -567,7 +551,8 @@ where
                         let mut message_parts = Vec::new();
                         for i in 0..denom {
                             if i == time_idx {
-                                let chars = message_formatter(&value);
+                                let msg_value = message_formatter(&value);
+                                let chars = msg_value.to_chars();
                                 message_parts.push(chars.iter().collect::<String>());
                             } else {
                                 message_parts.push("00".to_string());
@@ -685,7 +670,7 @@ where
     DefinitionTokenCreator: Fn(ObjId, Key) -> Token<'a>,
     KeyExtractor: Fn(&Event) -> Key,
     ChannelMapper: Fn(&Event) -> Channel,
-    MessageFormatter: Fn(&ObjId) -> [char; 2],
+    MessageFormatter: Fn(&ObjId) -> MessageValue,
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
 
@@ -792,7 +777,12 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
         |(channel, _value)| *channel,
         |(_channel, value)| {
             let mut chars = value.chars();
-            [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            let char_array = [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')];
+            // Try to parse as ObjId first, fallback to u8
+            match ObjId::try_from(char_array) {
+                Ok(obj_id) => MessageValue::ObjId(obj_id),
+                Err(_) => MessageValue::U8(char_array[0].to_digit(16).unwrap_or(0) as u8),
+            }
         },
     )
 }
@@ -826,11 +816,7 @@ fn build_bga_change_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
                 )
             }),
         |(channel, _id)| *channel,
-        |(_channel, id)| {
-            let s = id.to_string();
-            let mut chars = s.chars();
-            [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-        },
+        |(_channel, id)| MessageValue::ObjId(*id),
     )
 }
 
@@ -854,11 +840,7 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
         message_tokens.extend(build_messages_from_track(
             std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
             |_id| channel,
-            |id| {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            },
+            |id| MessageValue::ObjId(*id),
         ));
     }
 
@@ -883,11 +865,7 @@ fn build_bgm_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
         |_value| Channel::BgmVolume,
-        |value| {
-            let s = format!("{:02X}", value);
-            let mut chars = s.chars();
-            [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-        },
+        |value| MessageValue::U8(*value),
     )
 }
 
@@ -908,11 +886,7 @@ fn build_key_volume_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Tok
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
         |_value| Channel::KeyVolume,
-        |value| {
-            let s = format!("{:02X}", value);
-            let mut chars = s.chars();
-            [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-        },
+        |value| MessageValue::U8(*value),
     )
 }
 
@@ -950,11 +924,7 @@ fn build_text_messages<'a, T: KeyLayoutMapper>(
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
         |_id| Channel::Text,
-        |id| {
-            let s = id.to_string();
-            let mut chars = s.chars();
-            [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-        },
+        |id| MessageValue::ObjId(*id),
     )
 }
 
