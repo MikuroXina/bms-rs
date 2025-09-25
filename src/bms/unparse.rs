@@ -483,9 +483,9 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 /// It uses iterator chains to efficiently process each track's events and filter out empty messages.
 ///
 /// Arguments:
-///     track_events: An iterator yielding (track, items) pairs where items is an iterator of (time, value) pairs
-///     channel_mapper: Function to map values to channels (allows same value type to map to different channels)
-///     formatter: Function to format values into strings
+///     track_events: An iterator yielding (track, items) pairs where items is an iterator of (time, event) pairs
+///     channel_mapper: Function to map events to channels (allows same event type to map to different channels)
+///     message_formatter: Function to format events into strings
 ///
 /// Returns:
 ///     Vec<Token<'a>> - A vector of message tokens for all valid tracks
@@ -493,16 +493,23 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 /// The function leverages Rust's iterator chains for efficient processing. This design allows for maximum
 /// flexibility - callers can pass BTreeMap, HashMap, Vec, or any other Iterator without needing to build Vecs.
 /// The channel_mapper function allows the same value type to be converted to different channels.
-fn build_messages_from_track<'a, T, I, J, F1, F2>(
-    track_events: I,
-    channel_mapper: F1,
-    message_formatter: F2,
+fn build_messages_from_track<
+    'a,
+    Event,
+    EventIterator,
+    TrackEventIterator,
+    ChannelMapper,
+    MessageFormatter,
+>(
+    track_events: EventIterator,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
 ) -> Vec<Token<'a>>
 where
-    I: Iterator<Item = (Track, J)>,
-    J: Iterator<Item = (ObjTime, T)>,
-    F1: Fn(&T) -> Channel + Copy,
-    F2: Fn(&T) -> String + Copy,
+    EventIterator: Iterator<Item = (Track, TrackEventIterator)>,
+    TrackEventIterator: Iterator<Item = (ObjTime, Event)>,
+    ChannelMapper: Fn(&Event) -> Channel + Copy,
+    MessageFormatter: Fn(&Event) -> String + Copy,
 {
     track_events
         .flat_map(|(track, items)| {
@@ -524,7 +531,7 @@ where
                 .unwrap_or(1);
 
             // Step 3: Group items by time slot and channel to handle multiple values at same time
-            let mut time_channel_groups: BTreeMap<(u64, Channel), Vec<T>> = BTreeMap::new();
+            let mut time_channel_groups: BTreeMap<(u64, Channel), Vec<Event>> = BTreeMap::new();
             for (t, value) in items_vec {
                 let idx = t.numerator() * (denom / t.denominator().get());
                 let channel = channel_mapper(&value);
@@ -612,14 +619,14 @@ where
 /// Arguments:
 ///     events: An iterator yielding (&time, &event) pairs to process
 ///     id_manager: Manager for ID allocation and tracking (will be modified and returned)
-///     create_definition_token: Function to create definition tokens for new IDs
-///     extract_key: Function to extract key values from events
-///     resolve_channel: Function to map events to channels (allows same event type to map to different channels)
-///     format_message: Function to format IDs into message strings
+///     def_token_creator: Function to create definition tokens for new IDs
+///     key_extractor: Function to extract key values from events
+///     channel_mapper: Function to map events to channels (allows same event type to map to different channels)
+///     message_formatter: Function to format IDs into message strings
 ///
 /// Execution flow:
 /// 1. Iterate over each time-event pair from the provided iterator
-/// 2. For each event, extract the key value using the extract_key function
+/// 2. For each event, extract the key value using the key_extractor function
 /// 3. Check if an ID already exists for this key value:
 ///    - If yes, use the existing ID
 ///    - If no, allocate a new ID, store the key->ID mapping, and create a late definition token
@@ -636,23 +643,32 @@ where
 ///
 /// The function leverages Rust's iterator chains and HashMap for efficient lookups and ID allocation.
 /// This design allows processing events from any source while maintaining full ownership semantics.
-/// The resolve_channel function allows the same event type to be converted to different channels.
-fn build_messages_event<'a, T, K, I, F1, F2, F3, F4>(
-    event_iter: I,
-    mut id_manager: IdManager<K>,
-    def_token_creator: F1,
-    key_extractor: F2,
-    channel_resolver: F3,
-    message_formatter: F4,
-) -> EventProcessingResult<'a, K>
+/// The channel_mapper function allows the same event type to be converted to different channels.
+fn build_messages_event<
+    'a,
+    Event,
+    Key,
+    EventIterator,
+    DefinitionTokenCreator,
+    KeyExtractor,
+    ChannelMapper,
+    MessageFormatter,
+>(
+    event_iter: EventIterator,
+    mut id_manager: IdManager<Key>,
+    def_token_creator: DefinitionTokenCreator,
+    key_extractor: KeyExtractor,
+    channel_mapper: ChannelMapper,
+    message_formatter: MessageFormatter,
+) -> EventProcessingResult<'a, Key>
 where
-    I: Iterator<Item = (&'a ObjTime, &'a T)>,
-    T: Clone + 'a,
-    K: std::hash::Hash + Eq + Clone,
-    F1: Fn(ObjId, K) -> Token<'a>,
-    F2: Fn(&T) -> K,
-    F3: Fn(&T) -> Channel,
-    F4: Fn(&ObjId) -> String,
+    EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
+    Event: Clone + 'a,
+    Key: std::hash::Hash + Eq + Clone,
+    DefinitionTokenCreator: Fn(ObjId, Key) -> Token<'a>,
+    KeyExtractor: Fn(&Event) -> Key,
+    ChannelMapper: Fn(&Event) -> Channel,
+    MessageFormatter: Fn(&ObjId) -> String,
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
 
@@ -660,12 +676,11 @@ where
     let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, ObjId)>> = event_iter
         .map(|(&time, event)| {
             let key = key_extractor(event);
-            let (id, maybe_token) =
-                id_manager.get_or_allocate_id(key.clone(), &def_token_creator);
+            let (id, maybe_token) = id_manager.get_or_allocate_id(key.clone(), &def_token_creator);
             if let Some(token) = maybe_token {
                 late_def_tokens.push(token);
             }
-            let channel = channel_resolver(event);
+            let channel = channel_mapper(event);
             ((time.track(), channel), (time, id))
         })
         .fold(BTreeMap::new(), |mut acc, ((track, channel), time_id)| {
