@@ -854,26 +854,30 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
 
 /// Helper function to build note and BGM messages
 fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
+    // Use build_event_messages to process note and BGM objects
+    // We need to preserve the original insertion order, so we process each object individually
     let mut message_tokens = Vec::new();
 
-    // Process each note/BGM object individually to preserve multiple objects at same time/channel
     for obj in bms.notes.all_notes_insertion_order() {
-        let channel = if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-            Channel::Note {
-                channel_id: obj.channel_id,
-            }
-        } else {
-            Channel::Bgm
-        };
+        let result = build_event_messages(
+            std::iter::once((&obj.offset, obj)),
+            None::<ObjIdManager<()>>, // No ID management needed for notes
+            None::<fn(ObjId, ()) -> Token<'a>>, // No definition tokens needed
+            None::<fn(&WavObj) -> ()>, // No key extraction needed
+            |obj| {
+                // Channel mapping: determine channel based on channel_id
+                if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+                    Channel::Note {
+                        channel_id: obj.channel_id,
+                    }
+                } else {
+                    Channel::Bgm
+                }
+            },
+            |obj| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
+        );
 
-        let track = obj.offset.track();
-
-        // Create a single token for this specific object
-        message_tokens.extend(build_event_track_messages(
-            std::iter::once((track, std::iter::once((obj.offset, obj.wav_id)))),
-            |_id| channel,
-            |id| MessageValue::ObjId(*id),
-        ));
+        message_tokens.extend(result.message_tokens);
     }
 
     message_tokens
