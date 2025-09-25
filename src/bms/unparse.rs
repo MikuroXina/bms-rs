@@ -1,7 +1,7 @@
 //! Unparse Bms model into Vec<Token> without duplicate parsing logic.
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use fraction::{One, ToPrimitive, Zero};
 use num::Integer;
@@ -295,8 +295,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }));
 
         // Helper closures for mapping definitions
-        let mut used_bpm_ids: HashSet<ObjId> =
-            self.scope_defines.bpm_defs.keys().copied().collect();
+        let used_bpm_ids: HashSet<ObjId> = self.scope_defines.bpm_defs.keys().copied().collect();
         let used_stop_ids: HashSet<ObjId> = self.scope_defines.stop_defs.keys().copied().collect();
         let used_scroll_ids: HashSet<ObjId> =
             self.scope_defines.scroll_defs.keys().copied().collect();
@@ -306,7 +305,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let used_exrank_ids: HashSet<ObjId> =
             self.scope_defines.exrank_defs.keys().copied().collect();
 
-        let mut bpm_value_to_id: HashMap<Decimal, ObjId> = self
+        let bpm_value_to_id: HashMap<Decimal, ObjId> = self
             .scope_defines
             .bpm_defs
             .iter()
@@ -344,17 +343,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
-        message_tokens.extend(build_bpm_change_messages(
+        let (bpm_messages, _updated_bpm_manager) = build_bpm_change_messages(
             self,
-            &mut bpm_value_to_id,
-            &mut used_bpm_ids,
+            ObjIdManager::new(bpm_value_to_id, used_bpm_ids),
             &mut late_def_tokens,
-        ));
+        );
+        message_tokens.extend(bpm_messages);
 
         // Messages: STOP (#xxx09)
         let stop_result = build_event_messages(
             self.arrangers.stops.iter(),
-            Some(IdManager::new(stop_value_to_id, used_stop_ids)),
+            Some(ObjIdManager::new(stop_value_to_id, used_stop_ids)),
             Some(Token::Stop),
             Some(|ev: &StopObj| ev.duration.clone()),
             |_ev| Channel::Stop,
@@ -366,7 +365,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: SCROLL (#xxxSC)
         let scroll_result = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
-            Some(IdManager::new(scroll_value_to_id, used_scroll_ids)),
+            Some(ObjIdManager::new(scroll_value_to_id, used_scroll_ids)),
             Some(Token::Scroll),
             Some(|ev: &ScrollingFactorObj| ev.factor.clone()),
             |_ev| Channel::Scroll,
@@ -378,7 +377,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: SPEED (#xxxSP)
         let speed_result = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
-            Some(IdManager::new(speed_value_to_id, used_speed_ids)),
+            Some(ObjIdManager::new(speed_value_to_id, used_speed_ids)),
             Some(Token::Speed),
             Some(|ev: &SpeedObj| ev.factor.clone()),
             |_ev| Channel::Speed,
@@ -390,7 +389,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         let bga_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.graphics.bga_changes.iter(),
-            None::<IdManager<()>>,
+            None::<ObjIdManager<()>>,
             None::<fn(ObjId, ()) -> Token<'a>>,
             None::<fn(&BgaObj) -> ()>,
             |bga| bga.layer.to_channel(),
@@ -404,7 +403,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGM volume (#97)
         let bgm_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.notes.bgm_volume_changes.iter(),
-            None::<IdManager<()>>,
+            None::<ObjIdManager<()>>,
             None::<fn(ObjId, ()) -> Token<'a>>,
             None::<fn(&BgmVolumeObj) -> ()>,
             |_ev| Channel::BgmVolume,
@@ -415,7 +414,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: KEY volume (#98)
         let key_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.notes.key_volume_changes.iter(),
-            None::<IdManager<()>>,
+            None::<ObjIdManager<()>>,
             None::<fn(ObjId, ()) -> Token<'a>>,
             None::<fn(&KeyVolumeObj) -> ()>,
             |_ev| Channel::KeyVolume,
@@ -424,18 +423,16 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(key_volume_result.message_tokens);
 
         // Messages: TEXT (#99)
-        let mut text_value_to_id_mut = text_value_to_id;
-        let mut used_text_ids_mut = used_text_ids;
-        message_tokens.extend(build_text_messages(
+        let (text_messages, _updated_text_manager) = build_text_messages(
             self,
-            &mut text_value_to_id_mut,
-            &mut used_text_ids_mut,
+            ObjIdManager::new(text_value_to_id, used_text_ids),
             &mut late_def_tokens,
-        ));
+        );
+        message_tokens.extend(text_messages);
 
         let judge_result = build_event_messages(
             self.notes.judge_events.iter(),
-            Some(IdManager::new(exrank_value_to_id, used_exrank_ids)),
+            Some(ObjIdManager::new(exrank_value_to_id, used_exrank_ids)),
             Some(Token::ExRank),
             Some(|ev: &JudgeObj| ev.judge_level),
             |_ev| Channel::Judge,
@@ -607,19 +604,25 @@ struct EventProcessingResult<'a, K> {
 }
 
 /// Configuration for ID management in build_messages_event
-struct IdManager<K> {
+struct ObjIdManager<K> {
     value_to_id: HashMap<K, ObjId>,
     used_ids: HashSet<ObjId>,
+    unused_ids: VecDeque<ObjId>,
 }
 
-impl<K> IdManager<K>
+impl<K> ObjIdManager<K>
 where
     K: std::hash::Hash + Eq + Clone,
 {
     fn new(value_to_id: HashMap<K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
+        let unused_ids: VecDeque<ObjId> = ObjId::all_values()
+            .filter(|id| !used_ids.contains(id))
+            .collect();
+
         Self {
             value_to_id,
             used_ids,
+            unused_ids,
         }
     }
 
@@ -631,7 +634,8 @@ where
         if let Some(&id) = self.value_to_id.get(&key) {
             (id, None)
         } else {
-            let new_id = alloc_id(&mut self.used_ids);
+            let new_id = self.unused_ids.pop_front().unwrap_or_else(ObjId::null);
+            self.used_ids.insert(new_id);
             self.value_to_id.insert(key.clone(), new_id);
             let token = create_token(new_id, key);
             (new_id, Some(token))
@@ -668,7 +672,7 @@ fn build_event_messages<
     MessageFormatter,
 >(
     event_iter: EventIterator,
-    id_manager: Option<IdManager<Key>>,
+    id_manager: Option<ObjIdManager<Key>>,
     def_token_creator: Option<DefinitionTokenCreator>,
     key_extractor: Option<KeyExtractor>,
     channel_mapper: ChannelMapper,
@@ -771,10 +775,9 @@ where
 /// Helper function to build BPM change messages
 fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
     bms: &'a Bms<T>,
-    bpm_value_to_id: &mut HashMap<Decimal, ObjId>,
-    used_bpm_ids: &mut HashSet<ObjId>,
+    mut id_manager: ObjIdManager<Decimal>,
     late_def_tokens: &mut Vec<Token<'a>>,
-) -> Vec<Token<'a>> {
+) -> (Vec<Token<'a>>, ObjIdManager<Decimal>) {
     // Process BPM changes using the build_messages_from_track function
     // First, collect all BPM changes and determine their channels and values
     let bpm_events: Vec<(ObjTime, Channel, String)> = bms
@@ -783,7 +786,7 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
         .iter()
         .map(|(&time, ev)| {
             // Check if already defined
-            if let Some(&id) = bpm_value_to_id.get(&ev.bpm) {
+            if let Some(&id) = id_manager.value_to_id.get(&ev.bpm) {
                 return (time, Channel::BpmChange, id.to_string());
             }
 
@@ -797,9 +800,11 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
             }
 
             // Otherwise, allocate new id definition
-            let new_id = alloc_id(used_bpm_ids);
-            bpm_value_to_id.insert(ev.bpm.clone(), new_id);
-            late_def_tokens.push(Token::BpmChange(new_id, ev.bpm.clone()));
+            let (new_id, maybe_token) =
+                id_manager.get_or_allocate_id(ev.bpm.clone(), |id, bpm| Token::BpmChange(id, bpm));
+            if let Some(token) = maybe_token {
+                late_def_tokens.push(token);
+            }
             (time, Channel::BpmChange, new_id.to_string())
         })
         .collect();
@@ -817,7 +822,7 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
         );
 
     // Build message tokens using the modified function
-    build_event_track_messages(
+    let message_tokens = build_event_track_messages(
         by_track_channel
             .into_iter()
             .map(|((track, channel), items)| {
@@ -838,7 +843,9 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
                 Err(_) => MessageValue::U8(char_array[0].to_digit(16).unwrap_or(0) as u8),
             }
         },
-    )
+    );
+
+    (message_tokens, id_manager)
 }
 
 /// Helper function to build note and BGM messages
@@ -871,23 +878,25 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
 /// Helper function to build text messages
 fn build_text_messages<'a, T: KeyLayoutMapper>(
     bms: &'a Bms<T>,
-    text_value_to_id: &mut HashMap<&'a str, ObjId>,
-    used_text_ids: &mut HashSet<ObjId>,
+    mut id_manager: ObjIdManager<&'a str>,
     late_def_tokens: &mut Vec<Token<'a>>,
-) -> Vec<Token<'a>> {
+) -> (Vec<Token<'a>>, ObjIdManager<&'a str>) {
     // Process text events and build track-grouped data using iterator chains
     let by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = bms
         .notes
         .text_events
         .iter()
         .map(|(&time, ev)| {
-            let id = text_value_to_id
+            let id = id_manager
+                .value_to_id
                 .get(ev.text.as_str())
                 .copied()
                 .unwrap_or_else(|| {
-                    let new_id = alloc_id(used_text_ids);
-                    text_value_to_id.insert(ev.text.as_str(), new_id);
-                    late_def_tokens.push(Token::Text(new_id, ev.text.as_str()));
+                    let (new_id, maybe_token) = id_manager
+                        .get_or_allocate_id(ev.text.as_str(), |id, text| Token::Text(id, text));
+                    if let Some(token) = maybe_token {
+                        late_def_tokens.push(token);
+                    }
                     new_id
                 });
             (time.track(), (time, id))
@@ -897,33 +906,13 @@ fn build_text_messages<'a, T: KeyLayoutMapper>(
             acc
         });
 
-    build_event_track_messages(
+    let message_tokens = build_event_track_messages(
         by_track_text
             .into_iter()
             .map(|(track, items)| (track, items.into_iter())),
         |_id| Channel::Text,
         |id| MessageValue::ObjId(*id),
-    )
-}
+    );
 
-/// Helper function to allocate a new ObjId
-///
-/// This function searches for an unused ObjId within the valid range and adds it to the used set.
-/// It uses iterator chains to efficiently search through possible ID values.
-///
-/// Execution flow:
-/// 1. Generate iterator over possible ID values (1 to 62*62-1)
-/// 2. Convert each number to ObjId
-/// 3. Find first ID that is not in the used set
-/// 4. Insert the found ID into the used set and return it
-/// 5. Return null ID if no available ID found
-///
-/// The function leverages Rust's iterator methods for efficient searching and early termination.
-fn alloc_id(used: &mut HashSet<ObjId>) -> ObjId {
-    ObjId::all_values()
-        .find(|id| !used.contains(id))
-        .inspect(|id| {
-            used.insert(*id);
-        })
-        .unwrap_or_else(ObjId::null)
+    (message_tokens, id_manager)
 }
