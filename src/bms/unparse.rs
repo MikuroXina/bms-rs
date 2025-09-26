@@ -574,7 +574,27 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(bga_result.message_tokens);
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
-        message_tokens.extend(build_note_messages(self));
+        // Use build_event_messages to process note and BGM objects
+        // We need to preserve the original insertion order, so we process each object individually
+        for obj in self.notes.all_notes_insertion_order() {
+            let result: EventProcessingResult<'_, ()> = build_event_messages(
+                std::iter::once((&obj.offset, obj)),
+                None::<DefTokenGenerator<_, (), fn(ObjId, &()) -> Token, fn(&_) -> &()>>,
+                |obj| {
+                    // Channel mapping: determine channel based on channel_id
+                    if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+                        Channel::Note {
+                            channel_id: obj.channel_id,
+                        }
+                    } else {
+                        Channel::Bgm
+                    }
+                },
+                |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
+            );
+
+            message_tokens.extend(result.message_tokens);
+        }
 
         // Messages: BGM volume (#97)
         let bgm_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
@@ -921,33 +941,4 @@ where
         updated_value_to_id,
         updated_used_ids,
     }
-}
-
-/// Helper function to build note and BGM messages
-fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>> {
-    // Use build_event_messages to process note and BGM objects
-    // We need to preserve the original insertion order, so we process each object individually
-    let mut message_tokens = Vec::new();
-
-    for obj in bms.notes.all_notes_insertion_order() {
-        let result: EventProcessingResult<'_, ()> = build_event_messages(
-            std::iter::once((&obj.offset, obj)),
-            None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
-            |obj| {
-                // Channel mapping: determine channel based on channel_id
-                if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                    Channel::Note {
-                        channel_id: obj.channel_id,
-                    }
-                } else {
-                    Channel::Bgm
-                }
-            },
-            |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
-        );
-
-        message_tokens.extend(result.message_tokens);
-    }
-
-    message_tokens
 }
