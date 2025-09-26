@@ -1022,7 +1022,7 @@ fn build_event_messages<
     MessageFormatter,
 >(
     event_iter: EventIterator,
-    def_token_generator: Option<DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>>,
+    mut def_token_generator: Option<DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>>,
     channel_mapper: ChannelMapper,
     message_formatter: MessageFormatter,
 ) -> EventProcessingResult<'a>
@@ -1039,35 +1039,34 @@ where
 
     // Process events based on whether DefTokenGenerator is provided
     // Keep original order from event_iter instead of grouping by track/channel
-    let processed_events: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)> =
-        if let Some(mut generator) = def_token_generator {
-            // ID allocation mode: process events with DefTokenGenerator
-            let events: Vec<_> = event_iter
-                .map(|(&time, event)| {
-                    let (id, maybe_def_token) = generator.process_event(event);
+    let processed_events: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)> = event_iter
+        .map(|(&time, event)| {
+            let id = def_token_generator
+                .as_mut()
+                .map(|generator| {
+                    // ID allocation mode: process events with DefTokenGenerator
+                    generator.process_event(event)
+                })
+                .map(|(id, maybe_def_token)| {
                     if let Some(def_token) = maybe_def_token {
                         late_def_tokens.push(def_token);
                     }
                     id_map.insert(time, id);
                     // Collect this ObjId as used
                     used_ids.insert(id);
-                    (time, event, channel_mapper(event), Some(id))
-                })
-                .collect();
+                    id
+                });
+            (time, event, channel_mapper(event), id)
+        })
+        .collect();
 
-            // Extract updated state from the def token generator
-            let (_def_id_manager_value_to_id, def_id_manager_used_ids, _def_id_manager_unused_ids) =
-                generator.into_id_manager().extract();
-            // Merge updated_used_ids into used_ids to consolidate all used IDs
-            used_ids = def_id_manager_used_ids;
-
-            events
-        } else {
-            // Direct mode: process events with direct values
-            event_iter
-                .map(|(&time, event)| (time, event, channel_mapper(event), None))
-                .collect()
-        };
+    // Extract updated state from the def token generator if it was used
+    if let Some(generator) = def_token_generator {
+        let (_def_id_manager_value_to_id, def_id_manager_used_ids, _def_id_manager_unused_ids) =
+            generator.into_id_manager().extract();
+        // Merge updated_used_ids into used_ids to consolidate all used IDs
+        used_ids = def_id_manager_used_ids;
+    }
 
     // === STEP 1: GROUP EVENTS BY TRACK, CHANNEL, AND TIME ===
     // Group events by adjacent same track, channel and non-strictly increasing time
@@ -1078,40 +1077,7 @@ where
     // - Same channel type
     // - Non-strictly increasing time (last_time <= current_time)
     // ...are grouped together. This is the foundation for efficient message generation.
-    let grouped_events: Vec<Vec<_>> = {
-        let (mut groups, current_group) = processed_events.into_iter().fold(
-            (
-                Vec::<Vec<(ObjTime, &Event, Channel, Option<ObjId>)>>::new(),
-                Vec::<(ObjTime, &Event, Channel, Option<ObjId>)>::new(),
-            ),
-            |(mut groups, mut current), (time, event, channel, id)| {
-                let should_join = current
-                    .last()
-                    .map(|&(last_time, _last_event, last_channel, _last_id)| {
-                        time.track() == last_time.track()
-                            && last_channel == channel
-                            && last_time <= time
-                    })
-                    .unwrap_or(false);
-
-                if should_join {
-                    current.push((time, event, channel, id));
-                } else {
-                    if !current.is_empty() {
-                        groups.push(current);
-                    }
-                    current = vec![(time, event, channel, id)];
-                }
-
-                (groups, current)
-            },
-        );
-
-        if !current_group.is_empty() {
-            groups.push(current_group);
-        }
-        groups
-    };
+    let grouped_events = group_events_by_track_channel_time(processed_events);
 
     // === STEP 2: SPLIT GROUPS INTO SUBGROUPS ===
     // Split each group into subgroups based on time ordering and denominator consistency
@@ -1126,46 +1092,7 @@ where
     // in a single message string without conflicts or information loss.
     let sub_grouped_events: Vec<Vec<_>> = grouped_events
         .into_iter()
-        .flat_map(|group| {
-            let (mut sub_groups, current_sub_group) = group.into_iter().fold(
-                (
-                    Vec::<Vec<(ObjTime, &Event, Channel, Option<ObjId>)>>::new(),
-                    Vec::<(ObjTime, &Event, Channel, Option<ObjId>)>::new(),
-                ),
-                |(mut sub_groups, mut current), (time, event, channel, id)| {
-                    // Determine if current event should join the current subgroup
-                    let should_join = current
-                        .last()
-                        .map(|&(last_time, _last_event, _last_channel, _last_id)| {
-                            // SUBGROUP JOINING RULES:
-                            // 1. Time must be strictly increasing (prevents overlapping events)
-                            // 2. Denominators must be the same starting from the second element
-                            //    - First element (current.is_empty()) can have any denominator
-                            //    - Subsequent elements must match the first element's denominator
-                            (last_time < time)
-                                && (current.is_empty()
-                                    || time.denominator() == last_time.denominator())
-                        })
-                        .unwrap_or(true); // Empty subgroup always accepts the first event
-
-                    if should_join {
-                        current.push((time, event, channel, id));
-                    } else {
-                        if !current.is_empty() {
-                            sub_groups.push(current);
-                        }
-                        current = vec![(time, event, channel, id)];
-                    }
-
-                    (sub_groups, current)
-                },
-            );
-
-            if !current_sub_group.is_empty() {
-                sub_groups.push(current_sub_group);
-            }
-            sub_groups
-        })
+        .flat_map(split_group_into_subgroups)
         .collect();
 
     // === STEP 3: GENERATE MESSAGE TOKENS FROM SUBGROUPS ===
@@ -1176,67 +1103,162 @@ where
     // with correct timing and without information loss.
     let message_tokens: Vec<Token<'a>> = sub_grouped_events
         .into_iter()
-        .map(|sub_group| {
-            if sub_group.is_empty() {
-                return Token::Message {
-                    track: Track(0),
-                    channel: Channel::Bgm,
-                    message: Cow::Borrowed(""),
-                };
-            }
-
-            // EXTRACT METADATA FROM SUBGROUP
-            // All events in subgroup should have same track and channel (guaranteed by grouping logic)
-            let first_event = &sub_group[0];
-            let (track, channel) = (first_event.0.track(), first_event.2);
-
-            // CALCULATE MESSAGE LENGTH
-            // Find the maximum denominator to determine message length - this ensures
-            // all events in the subgroup can be accurately positioned in the message string.
-            // Example: if we have events at 1/4, 1/2, 3/4, we need length 4 to represent them all.
-            let max_denom = sub_group
-                .iter()
-                .map(|&(time, _, _, _)| time.denominator_u64())
-                .max()
-                .unwrap_or(1);
-
-            let message_len = max_denom as usize;
-            let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
-
-            // PLACE EVENTS IN MESSAGE STRING
-            // For each event in the subgroup, calculate its exact position in the message
-            // and place its value there. The time_idx calculation converts fractional time
-            // to array index using the formula: (numerator * max_denom / denominator)
-            for (time, event, _, id_opt) in sub_group {
-                let message_value = message_formatter(event, id_opt);
-                // Collect this ObjId as used if it's an ObjId
-                if let MessageValue::ObjId(id) = message_value {
-                    used_ids.insert(id);
-                }
-                let denom_u64 = time.denominator_u64();
-
-                // Calculate exact position: convert fraction to index in the message array
-                // Example: time=3/4, max_denom=4: (3 * 4 / 4) = 3, so place at index 3
-                let time_idx = (time.numerator() * (max_denom / denom_u64)) as usize;
-
-                // Ensure we don't go out of bounds (safety check)
-                if time_idx < message_len {
-                    let chars = message_value.to_chars();
-                    message_parts[time_idx] = chars.iter().collect::<String>();
-                }
-            }
-
-            Token::Message {
-                track,
-                channel,
-                message: Cow::Owned(message_parts.join("")),
-            }
-        })
+        .map(|sub_group| convert_subgroup_to_token(sub_group, &message_formatter, &mut used_ids))
         .collect();
 
     EventProcessingResult {
         message_tokens,
         late_def_tokens,
         used_ids,
+    }
+}
+
+/// Group events by track, channel, and non-strictly increasing time
+fn group_events_by_track_channel_time<'a, Event>(
+    processed_events: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
+) -> Vec<Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>> {
+    let mut groups = Vec::new();
+    let mut current_group = Vec::new();
+
+    for (time, event, channel, id) in processed_events {
+        let should_join = current_group
+            .last()
+            .map(
+                |&(last_time, _last_event, last_channel, _last_id): &(
+                    ObjTime,
+                    &'a Event,
+                    Channel,
+                    Option<ObjId>,
+                )| {
+                    time.track() == last_time.track()
+                        && last_channel == channel
+                        && last_time <= time
+                },
+            )
+            .unwrap_or(false);
+
+        if should_join {
+            current_group.push((time, event, channel, id));
+        } else {
+            if !current_group.is_empty() {
+                groups.push(current_group);
+            }
+            current_group = vec![(time, event, channel, id)];
+        }
+    }
+
+    if !current_group.is_empty() {
+        groups.push(current_group);
+    }
+    groups
+}
+
+/// Split a group into subgroups based on time ordering and denominator consistency
+fn split_group_into_subgroups<'a, Event>(
+    group: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
+) -> Vec<Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>> {
+    let mut sub_groups = Vec::new();
+    let mut current_sub_group = Vec::new();
+
+    for (time, event, channel, id) in group {
+        let should_join = current_sub_group
+            .last()
+            .map(
+                |&(last_time, _last_event, _last_channel, _last_id): &(
+                    ObjTime,
+                    &'a Event,
+                    Channel,
+                    Option<ObjId>,
+                )| {
+                    // SUBGROUP JOINING RULES:
+                    // 1. Time must be strictly increasing (prevents overlapping events)
+                    // 2. Denominators must be the same starting from the second element
+                    //    - First element (current_sub_group.is_empty()) can have any denominator
+                    //    - Subsequent elements must match the first element's denominator
+                    (last_time < time)
+                        && (current_sub_group.is_empty()
+                            || time.denominator() == last_time.denominator())
+                },
+            )
+            .unwrap_or(true); // Empty subgroup always accepts the first event
+
+        if should_join {
+            current_sub_group.push((time, event, channel, id));
+        } else {
+            if !current_sub_group.is_empty() {
+                sub_groups.push(current_sub_group);
+            }
+            current_sub_group = vec![(time, event, channel, id)];
+        }
+    }
+
+    if !current_sub_group.is_empty() {
+        sub_groups.push(current_sub_group);
+    }
+    sub_groups
+}
+
+/// Convert a subgroup of events into a single Token::Message
+fn convert_subgroup_to_token<'a, Event, MessageFormatter>(
+    sub_group: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
+    message_formatter: &MessageFormatter,
+    used_ids: &mut HashSet<ObjId>,
+) -> Token<'a>
+where
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
+{
+    if sub_group.is_empty() {
+        return Token::Message {
+            track: Track(0),
+            channel: Channel::Bgm,
+            message: Cow::Borrowed(""),
+        };
+    }
+
+    // EXTRACT METADATA FROM SUBGROUP
+    // All events in subgroup should have same track and channel (guaranteed by grouping logic)
+    let first_event = &sub_group[0];
+    let (track, channel) = (first_event.0.track(), first_event.2);
+
+    // CALCULATE MESSAGE LENGTH
+    // Find the maximum denominator to determine message length - this ensures
+    // all events in the subgroup can be accurately positioned in the message string.
+    // Example: if we have events at 1/4, 1/2, 3/4, we need length 4 to represent them all.
+    let max_denom = sub_group
+        .iter()
+        .map(|&(time, _, _, _)| time.denominator_u64())
+        .max()
+        .unwrap_or(1);
+
+    let message_len = max_denom as usize;
+    let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
+
+    // PLACE EVENTS IN MESSAGE STRING
+    // For each event in the subgroup, calculate its exact position in the message
+    // and place its value there. The time_idx calculation converts fractional time
+    // to array index using the formula: (numerator * max_denom / denominator)
+    for (time, event, _, id_opt) in sub_group {
+        let message_value = message_formatter(event, id_opt);
+        // Collect this ObjId as used if it's an ObjId
+        if let MessageValue::ObjId(id) = message_value {
+            used_ids.insert(id);
+        }
+        let denom_u64 = time.denominator_u64();
+
+        // Calculate exact position: convert fraction to index in the message array
+        // Example: time=3/4, max_denom=4: (3 * 4 / 4) = 3, so place at index 3
+        let time_idx = (time.numerator() * (max_denom / denom_u64)) as usize;
+
+        // Ensure we don't go out of bounds (safety check)
+        if time_idx < message_len {
+            let chars = message_value.to_chars();
+            message_parts[time_idx] = chars.iter().collect::<String>();
+        }
+    }
+
+    Token::Message {
+        track,
+        channel,
+        message: Cow::Owned(message_parts.join("")),
     }
 }
