@@ -873,8 +873,49 @@ where
         groups
     };
 
+    // Split each group into subgroups based on time ordering and denominator consistency
+    let sub_grouped_events: Vec<Vec<_>> = grouped_events
+        .into_iter()
+        .map(|group| {
+            let (mut sub_groups, current_sub_group) = group.into_iter().fold(
+                (
+                    Vec::<Vec<(ObjTime, &Event, Channel, Option<ObjId>)>>::new(),
+                    Vec::<(ObjTime, &Event, Channel, Option<ObjId>)>::new(),
+                ),
+                |(mut sub_groups, mut current), (time, event, channel, id)| {
+                    let should_join = current
+                        .last()
+                        .map(|&(last_time, _last_event, _last_channel, _last_id)| {
+                            // Time must be strictly increasing
+                            last_time < time &&
+                            // Denominators must be the same starting from the second element
+                            (current.len() == 0 || time.denominator() == last_time.denominator())
+                        })
+                        .unwrap_or(true);
+
+                    if should_join {
+                        current.push((time, event, channel, id));
+                    } else {
+                        if !current.is_empty() {
+                            sub_groups.push(current);
+                        }
+                        current = vec![(time, event, channel, id)];
+                    }
+
+                    (sub_groups, current)
+                },
+            );
+
+            if !current_sub_group.is_empty() {
+                sub_groups.push(current_sub_group);
+            }
+            sub_groups
+        })
+        .flatten()
+        .collect();
+
     // Generate message tokens directly while preserving original order
-    let message_tokens: Vec<Token<'a>> = grouped_events
+    let message_tokens: Vec<Token<'a>> = sub_grouped_events
         .into_iter()
         .flatten()
         .map(|(time, event, channel, id_opt)| {
