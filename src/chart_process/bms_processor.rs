@@ -42,13 +42,14 @@ where
     T: KeyLayoutMapper,
 {
     /// 创建处理器，初始化默认参数
+    #[must_use]
     pub fn new(bms: Bms<T>) -> Self {
         // 初始化 BPM：优先使用谱面初始 BPM，否则 120
         let init_bpm = bms
             .arrangers
             .bpm
             .as_ref()
-            .and_then(|d| dec_to_f64(d))
+            .and_then(dec_to_f64)
             .unwrap_or(120.0);
         Self {
             bms,
@@ -78,13 +79,13 @@ where
     fn y_of_time(&self, time: ObjTime) -> f64 {
         let mut y = 0.0f64;
         // 累加完整小节
-        for t in 0..time.track.0 {
+        for t in 0..time.track().0 {
             y += self.section_length_of(Track(t));
         }
         // 当前小节内按比例累加
-        let current_len = self.section_length_of(time.track);
-        if time.denominator > 0 {
-            y += current_len * (time.numerator as f64) / (time.denominator as f64);
+        let current_len = self.section_length_of(time.track());
+        if time.denominator().get() > 0 {
+            y += current_len * (time.numerator() as f64) / (time.denominator().get() as f64);
         }
         y
     }
@@ -288,7 +289,7 @@ where
             .arrangers
             .bpm
             .as_ref()
-            .and_then(|d| dec_to_f64(d))
+            .and_then(dec_to_f64)
             .unwrap_or(self.default_bpm_bound.max(120.0));
     }
 
@@ -329,40 +330,44 @@ where
         // BPM 变更
         for change in self.bms.arrangers.bpm_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                if let Some(bpm) = dec_to_f64(&change.bpm) {
-                    events.push((y, ChartEvent::BpmChange { y, bpm }));
-                }
+            if y > prev_y
+                && y <= cur_y
+                && let Some(bpm) = dec_to_f64(&change.bpm)
+            {
+                events.push((y, ChartEvent::BpmChange { y, bpm }));
             }
         }
 
         // Scroll 变更
         for change in self.bms.arrangers.scrolling_factor_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                if let Some(factor) = dec_to_f64(&change.factor) {
-                    events.push((y, ChartEvent::ScrollChange { y, factor }));
-                }
+            if y > prev_y
+                && y <= cur_y
+                && let Some(factor) = dec_to_f64(&change.factor)
+            {
+                events.push((y, ChartEvent::ScrollChange { y, factor }));
             }
         }
 
         // Speed 变更
         for change in self.bms.arrangers.speed_factor_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                if let Some(factor) = dec_to_f64(&change.factor) {
-                    events.push((y, ChartEvent::SpeedChange { y, factor }));
-                }
+            if y > prev_y
+                && y <= cur_y
+                && let Some(factor) = dec_to_f64(&change.factor)
+            {
+                events.push((y, ChartEvent::SpeedChange { y, factor }));
             }
         }
 
         // Stop 事件
         for stop in self.bms.arrangers.stops.values() {
             let y = self.y_of_time(stop.time);
-            if y > prev_y && y <= cur_y {
-                if let Some(d) = dec_to_f64(&stop.duration) {
-                    events.push((y, ChartEvent::Stop { y, duration: d }));
-                }
+            if y > prev_y
+                && y <= cur_y
+                && let Some(d) = dec_to_f64(&stop.duration)
+            {
+                events.push((y, ChartEvent::Stop { y, duration: d }));
             }
         }
 

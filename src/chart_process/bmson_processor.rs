@@ -1,5 +1,4 @@
 //! Bmson Processor Module.
-#![cfg(feature = "bmson")]
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -10,8 +9,8 @@ use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
 use crate::chart_process::{ChartEvent, ChartProcessor, NoteView};
 
 /// ChartProcessor of Bmson files.
-pub struct BmsonProcessor {
-    bmson: Bmson,
+pub struct BmsonProcessor<'a> {
+    bmson: Bmson<'a>,
 
     // Playback state
     started_at: Option<SystemTime>,
@@ -29,9 +28,10 @@ pub struct BmsonProcessor {
     inbox: Vec<ChartEvent>,
 }
 
-impl BmsonProcessor {
+impl<'a> BmsonProcessor<'a> {
     /// 创建 BMSON 处理器并初始化播放状态与默认参数。
-    pub fn new(bmson: Bmson) -> Self {
+    #[must_use]
+    pub fn new(bmson: Bmson<'a>) -> Self {
         let init_bpm = bmson.info.init_bpm.as_f64();
         Self {
             bmson,
@@ -49,7 +49,7 @@ impl BmsonProcessor {
 
     /// 将脉冲数转换为统一的 y 坐标（单位：小节）。一小节 = 4*resolution 脉冲。
     fn pulses_to_y(&self, pulses: u64) -> f64 {
-        let denom = (4 * self.bmson.info.resolution) as f64;
+        let denom = (4 * self.bmson.info.resolution.get()) as f64;
         if denom > 0.0 {
             (pulses as f64) / denom
         } else {
@@ -164,7 +164,7 @@ impl BmsonProcessor {
     }
 }
 
-impl ChartProcessor for BmsonProcessor {
+impl<'a> ChartProcessor for BmsonProcessor<'a> {
     fn audio_files(&self) -> HashMap<usize, &Path> {
         // bmson 里资源在 channel.name 中，无法映射为索引表；这里返回空表。
         HashMap::new()
@@ -225,7 +225,7 @@ impl ChartProcessor for BmsonProcessor {
             for Note { y, x, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
-                    if let Some((side, key)) = Self::lane_from_x(*x) {
+                    if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
                         events.push((
                             yy,
                             ChartEvent::Note {
@@ -311,18 +311,19 @@ impl ChartProcessor for BmsonProcessor {
                 let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
                 let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
-                if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
-                    if let Some((side, key)) = Self::lane_from_x(*x) {
-                        out.push((
-                            yy,
-                            NoteView {
-                                side,
-                                key,
-                                distance_to_hit: scaled_distance,
-                                wav_index: None,
-                            },
-                        ));
-                    }
+                if scaled_distance >= min_scaled
+                    && scaled_distance <= max_scaled
+                    && let Some((side, key)) = Self::lane_from_x(x.as_ref().copied())
+                {
+                    out.push((
+                        yy,
+                        NoteView {
+                            side,
+                            key,
+                            distance_to_hit: scaled_distance,
+                            wav_index: None,
+                        },
+                    ));
                 }
             }
         }
