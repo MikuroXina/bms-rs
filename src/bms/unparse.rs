@@ -1175,12 +1175,13 @@ fn split_group_into_message_segments<'a, Event>(
             .map(|last_unit: &EventUnit<'a, Event>| {
                 // MESSAGE SEGMENT JOINING RULES:
                 // 1. Time must be strictly increasing (prevents overlapping events)
-                // 2. Denominators must be the same starting from the second element
-                //    - First element (current_message_segment.is_empty()) can have any denominator
-                //    - Subsequent elements must match the first element's denominator
+                // 2. Denominators must be compatible:
+                //    - If current message segment is empty, accept any denominator
+                //    - Otherwise, denominators must share a factor relationship (either is a factor of the other)
+                //    - Reference denominator is the maximum denominator currently in the message segment
                 (last_unit.time < event_unit.time)
                     && (current_message_segment.is_empty()
-                        || event_unit.time.denominator() == last_unit.time.denominator())
+                        || is_denominator_compatible(&event_unit, &current_message_segment))
             })
             .unwrap_or(true); // Empty message segment always accepts the first event
 
@@ -1198,6 +1199,32 @@ fn split_group_into_message_segments<'a, Event>(
         message_segments.push(current_message_segment);
     }
     message_segments
+}
+
+/// Check if an event unit's denominator is compatible with the current message segment
+/// Two denominators are compatible if either is a factor of the other
+fn is_denominator_compatible<'a, Event>(
+    event_unit: &EventUnit<'a, Event>,
+    message_segment: &[EventUnit<'a, Event>],
+) -> bool {
+    // Find the maximum denominator from the current message segment as reference
+    let reference_denominator = message_segment
+        .iter()
+        .map(|event_unit| event_unit.time.denominator_u64())
+        .max()
+        .unwrap_or(1);
+
+    // Check if the event unit's denominator shares a common factor relationship
+    let event_denominator = event_unit.time.denominator_u64();
+    are_denominators_compatible(reference_denominator, event_denominator)
+}
+
+/// Check if two denominators are compatible (either is a factor of the other)
+fn are_denominators_compatible(a: u64, b: u64) -> bool {
+    if a == 0 || b == 0 {
+        return false;
+    }
+    a % b == 0 || b % a == 0
 }
 
 /// Convert a message segment of events into a single Token::Message
@@ -1312,5 +1339,26 @@ mod tests {
         // Test with 1
         assert_eq!(lcm_slice(&[1, 3]), 3);
         assert_eq!(lcm_slice(&[3, 1]), 3);
+    }
+
+    #[test]
+    fn test_are_denominators_compatible() {
+        // Test cases where denominators are compatible
+        assert!(are_denominators_compatible(2, 4)); // 2 divides 4
+        assert!(are_denominators_compatible(4, 2)); // 4 divides 2? No, but 2 divides 4, so should be compatible
+        assert!(are_denominators_compatible(4, 8)); // 4 divides 8
+        assert!(are_denominators_compatible(8, 4)); // 8 divides 4? No, but 4 divides 8, so should be compatible
+        assert!(are_denominators_compatible(6, 3)); // 6 divides 3? No, but 3 divides 6, so should be compatible
+        assert!(are_denominators_compatible(3, 6)); // 3 divides 6
+        assert!(are_denominators_compatible(1, 5)); // 1 divides any number
+        assert!(are_denominators_compatible(5, 1)); // 5 divides 1? No, but 1 divides 5, so should be compatible
+        assert!(are_denominators_compatible(12, 6)); // 12 divides 6? No, but 6 divides 12, so should be compatible
+        assert!(are_denominators_compatible(6, 12)); // 6 divides 12
+
+        // Test cases where denominators are not compatible
+        assert!(!are_denominators_compatible(3, 5)); // 3 doesn't divide 5, 5 doesn't divide 3
+        assert!(!are_denominators_compatible(7, 9)); // 7 doesn't divide 9, 9 doesn't divide 7
+        assert!(!are_denominators_compatible(0, 5)); // Zero should not be compatible
+        assert!(!are_denominators_compatible(5, 0)); // Zero should not be compatible
     }
 }
