@@ -9,78 +9,6 @@ use crate::bms::prelude::*;
 
 use crate::bms::command::ObjIdManager;
 
-/// Generic token generator for ObjId-based definition tokens
-///
-/// This struct integrates with ObjIdManager to provide centralized management
-/// of definition token generation, combining ID allocation, key extraction, and token creation.
-pub(crate) struct DefTokenGenerator<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
-where
-    Key: std::hash::Hash + Eq,
-    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
-    KeyExtractor: Fn(&'a Event) -> &'a Key,
-{
-    pub id_manager: ObjIdManager<'a, Key>,
-    token_creator: TokenCreator,
-    key_extractor: KeyExtractor,
-    _phantom: std::marker::PhantomData<&'a Event>,
-}
-
-impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
-    DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
-where
-    Key: std::hash::Hash + Eq,
-    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
-    KeyExtractor: Fn(&'a Event) -> &'a Key,
-{
-    /// Create a new instance with an ObjIdManager, token creator function, and key extractor
-    pub fn new(
-        id_manager: ObjIdManager<'a, Key>,
-        token_creator: TokenCreator,
-        key_extractor: KeyExtractor,
-    ) -> Self {
-        Self {
-            id_manager,
-            token_creator,
-            key_extractor,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Process an event: extract key, get/allocate ID, and optionally create a definition token
-    ///
-    /// Returns (ObjId, Option<Token>) where the token is Some only if a new ID was allocated
-    pub fn process_event(&mut self, event: &'a Event) -> (ObjId, Option<Token<'a>>) {
-        let key = (self.key_extractor)(event);
-        self.id_manager.get_or_allocate_id(key, &self.token_creator)
-    }
-
-    /// Consume the generator and return the ObjIdManager
-    pub fn into_id_manager(self) -> ObjIdManager<'a, Key> {
-        self.id_manager
-    }
-}
-
-/// Convenience functions for creating common definition token generators
-impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
-    DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
-where
-    Key: std::hash::Hash + Eq,
-    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
-    KeyExtractor: Fn(&'a Event) -> &'a Key,
-{
-    /// Create a token generator with all required components
-    ///
-    /// This function allows creating token generators by providing
-    /// an ObjIdManager, token creator function, and key extractor function
-    pub fn create_generator(
-        id_manager: ObjIdManager<'a, Key>,
-        token_creator: TokenCreator,
-        key_extractor: KeyExtractor,
-    ) -> Self {
-        Self::new(id_manager, token_creator, key_extractor)
-    }
-}
-
 impl<T: KeyLayoutMapper> Bms<T> {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
@@ -978,6 +906,78 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
         #[cfg(feature = "minor-command")]
         ChangeOption => (0x0A60, 0),
         Note { channel_id } => (0xFFFF, channel_id.as_u16()),
+    }
+}
+
+/// Generic token generator for ObjId-based definition tokens
+///
+/// This struct integrates with ObjIdManager to provide centralized management
+/// of definition token generation, combining ID allocation, key extraction, and token creation.
+pub(crate) struct DefTokenGenerator<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
+where
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
+{
+    pub id_manager: ObjIdManager<'a, Key>,
+    token_creator: TokenCreator,
+    key_extractor: KeyExtractor,
+    _phantom: std::marker::PhantomData<&'a Event>,
+}
+
+impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
+    DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
+where
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
+{
+    /// Create a new instance with an ObjIdManager, token creator function, and key extractor
+    pub fn new(
+        id_manager: ObjIdManager<'a, Key>,
+        token_creator: TokenCreator,
+        key_extractor: KeyExtractor,
+    ) -> Self {
+        Self {
+            id_manager,
+            token_creator,
+            key_extractor,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Process an event: extract key, get/allocate ID, and optionally create a definition token
+    ///
+    /// Returns (ObjId, Option<Token>) where the token is Some only if a new ID was allocated
+    pub fn process_event(&mut self, event: &'a Event) -> (ObjId, Option<Token<'a>>) {
+        let key = (self.key_extractor)(event);
+        self.id_manager.get_or_allocate_id(key, &self.token_creator)
+    }
+
+    /// Consume the generator and return the ObjIdManager
+    pub fn into_id_manager(self) -> ObjIdManager<'a, Key> {
+        self.id_manager
+    }
+}
+
+/// Convenience functions for creating common definition token generators
+impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
+    DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
+where
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
+{
+    /// Create a token generator with all required components
+    ///
+    /// This function allows creating token generators by providing
+    /// an ObjIdManager, token creator function, and key extractor function
+    pub fn create_generator(
+        id_manager: ObjIdManager<'a, Key>,
+        token_creator: TokenCreator,
+        key_extractor: KeyExtractor,
+    ) -> Self {
+        Self::new(id_manager, token_creator, key_extractor)
     }
 }
 
