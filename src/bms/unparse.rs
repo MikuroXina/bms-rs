@@ -663,11 +663,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         // Messages: TEXT (#99)
         let text_manager = ObjIdManager::new(text_value_to_id, used_text_ids);
-        let text_def_generator = DefTokenGenerator::create_generator(
-            text_manager,
-            |id, text| Token::Text(id, text),
-            |ev: &TextObj| ev.text.as_str(),
-        );
+        let text_def_generator =
+            DefTokenGenerator::create_generator(text_manager, Token::Text, |ev: &TextObj| {
+                ev.text.as_str()
+            });
         let text_result = build_event_messages(
             self.notes.text_events.iter(),
             Some(text_def_generator),
@@ -680,7 +679,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let exrank_manager = ObjIdManager::new(exrank_value_to_id, used_exrank_ids);
         let exrank_def_generator = DefTokenGenerator::create_generator(
             exrank_manager,
-            |id, judge_level| Token::ExRank(id, judge_level.clone()),
+            |id, judge_level| Token::ExRank(id, *judge_level),
             |ev: &JudgeObj| &ev.judge_level,
         );
         let judge_result = build_event_messages(
@@ -755,9 +754,7 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 struct EventProcessingResult<'a, K: ?Sized> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
-    #[allow(unused)]
     updated_value_to_id: HashMap<&'a K, ObjId>,
-    #[allow(unused)]
     updated_used_ids: HashSet<ObjId>,
 }
 
@@ -787,7 +784,7 @@ struct EventProcessingResult<'a, K: ?Sized> {
 fn build_event_messages<
     'a,
     Event: 'a,
-    Key: ?Sized + 'a,
+    Key: 'a + ?Sized + std::hash::Hash + Eq,
     EventIterator,
     TokenCreator,
     KeyExtractor,
@@ -801,7 +798,6 @@ fn build_event_messages<
 ) -> EventProcessingResult<'a, Key>
 where
     EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
-    Key: std::hash::Hash + Eq,
     TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
     KeyExtractor: Fn(&'a Event) -> &'a Key,
     ChannelMapper: Fn(&'a Event) -> Channel,
@@ -901,7 +897,7 @@ where
     // in a single message string without conflicts or information loss.
     let sub_grouped_events: Vec<Vec<_>> = grouped_events
         .into_iter()
-        .map(|group| {
+        .flat_map(|group| {
             let (mut sub_groups, current_sub_group) = group.into_iter().fold(
                 (
                     Vec::<Vec<(ObjTime, &Event, Channel, Option<ObjId>)>>::new(),
@@ -915,10 +911,10 @@ where
                             // SUBGROUP JOINING RULES:
                             // 1. Time must be strictly increasing (prevents overlapping events)
                             // 2. Denominators must be the same starting from the second element
-                            //    - First element (current.len() == 0) can have any denominator
+                            //    - First element (current.is_empty()) can have any denominator
                             //    - Subsequent elements must match the first element's denominator
                             (last_time < time)
-                                && (current.len() == 0
+                                && (current.is_empty()
                                     || time.denominator() == last_time.denominator())
                         })
                         .unwrap_or(true); // Empty subgroup always accepts the first event
@@ -941,7 +937,6 @@ where
             }
             sub_groups
         })
-        .flatten()
         .collect();
 
     // === STEP 3: GENERATE MESSAGE TOKENS FROM SUBGROUPS ===
