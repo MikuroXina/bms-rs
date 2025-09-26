@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use fraction::{One, ToPrimitive, Zero};
+use fraction::{Integer, One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 
@@ -1221,22 +1221,22 @@ where
     let (track, channel) = (first_event.time.track(), first_event.channel);
 
     // CALCULATE MESSAGE LENGTH
-    // Find the maximum denominator to determine message length - this ensures
+    // Find the least common multiple (LCM) of all denominators to determine message length - this ensures
     // all events in the subgroup can be accurately positioned in the message string.
-    // Example: if we have events at 1/4, 1/2, 3/4, we need length 4 to represent them all.
-    let max_denom = sub_group
+    // Example: if we have events at 1/3 and 1/5, LCM(3,5)=15, so we need length 15 to represent them both accurately.
+    let denominators: Vec<u64> = sub_group
         .iter()
         .map(|event_unit| event_unit.time.denominator_u64())
-        .max()
-        .unwrap_or(1);
+        .collect();
+    let lcm_denom = lcm_slice(&denominators);
 
-    let message_len = max_denom as usize;
+    let message_len = lcm_denom as usize;
     let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
 
     // PLACE EVENTS IN MESSAGE STRING
     // For each event in the subgroup, calculate its exact position in the message
     // and place its value there. The time_idx calculation converts fractional time
-    // to array index using the formula: (numerator * max_denom / denominator)
+    // to array index using the formula: (numerator * lcm_denom / denominator)
     for event_unit in sub_group {
         let EventUnit {
             event, id, time, ..
@@ -1249,8 +1249,9 @@ where
         let denom_u64 = time.denominator_u64();
 
         // Calculate exact position: convert fraction to index in the message array
-        // Example: time=3/4, max_denom=4: (3 * 4 / 4) = 3, so place at index 3
-        let time_idx = (time.numerator() * (max_denom / denom_u64)) as usize;
+        // Example: time=3/4, lcm_denom=4: (3 * 4 / 4) = 3, so place at index 3
+        // Example: time=1/3, lcm_denom=15: (1 * 15 / 3) = 5, so place at index 5
+        let time_idx = ((time.numerator() * (lcm_denom / denom_u64)) as u64) as usize;
 
         // Ensure we don't go out of bounds (safety check)
         if time_idx < message_len {
@@ -1263,5 +1264,51 @@ where
         track,
         channel,
         message: Cow::Owned(message_parts.join("")),
+    }
+}
+
+/// Calculate the least common multiple (LCM) of a slice of u64 values
+/// Returns 1 if the slice is empty
+fn lcm_slice(denominators: &[u64]) -> u64 {
+    if denominators.is_empty() {
+        return 1;
+    }
+
+    let mut result = denominators[0];
+    for &denom in &denominators[1..] {
+        if result == 0 || denom == 0 {
+            return 0;
+        }
+        result = result.lcm(&denom);
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lcm_slice() {
+        // Test empty slice
+        assert_eq!(lcm_slice(&[]), 1);
+
+        // Test single value
+        assert_eq!(lcm_slice(&[3]), 3);
+        assert_eq!(lcm_slice(&[5]), 5);
+
+        // Test two values
+        assert_eq!(lcm_slice(&[3, 5]), 15);
+        assert_eq!(lcm_slice(&[4, 6]), 12);
+        assert_eq!(lcm_slice(&[2, 4, 8]), 8);
+
+        // Test multiple values
+        assert_eq!(lcm_slice(&[2, 3, 4]), 12);
+        assert_eq!(lcm_slice(&[3, 5, 7]), 105);
+        assert_eq!(lcm_slice(&[6, 8, 10]), 120);
+
+        // Test with 1
+        assert_eq!(lcm_slice(&[1, 3]), 3);
+        assert_eq!(lcm_slice(&[3, 1]), 3);
     }
 }
