@@ -837,19 +837,49 @@ where
                 .collect()
         };
 
-    // Convert to message values while preserving original order
-    let message_data: Vec<(Track, ObjTime, Channel, MessageValue)> = processed_events
+    // Group events by adjacent same track, channel and non-strictly increasing time
+    let grouped_events: Vec<Vec<_>> = {
+        let (mut groups, current_group) = processed_events.into_iter().fold(
+            (
+                Vec::<Vec<(ObjTime, &Event, Channel, Option<ObjId>)>>::new(),
+                Vec::<(ObjTime, &Event, Channel, Option<ObjId>)>::new(),
+            ),
+            |(mut groups, mut current), (time, event, channel, id)| {
+                let should_join = current
+                    .last()
+                    .map(|&(last_time, _last_event, last_channel, _last_id)| {
+                        time.track() == last_time.track()
+                            && last_channel == channel
+                            && last_time <= time
+                    })
+                    .unwrap_or(false);
+
+                if should_join {
+                    current.push((time, event, channel, id));
+                } else {
+                    if !current.is_empty() {
+                        groups.push(current);
+                    }
+                    current = vec![(time, event, channel, id)];
+                }
+
+                (groups, current)
+            },
+        );
+
+        if !current_group.is_empty() {
+            groups.push(current_group);
+        }
+        groups
+    };
+
+    // Generate message tokens directly while preserving original order
+    let message_tokens: Vec<Token<'a>> = grouped_events
         .into_iter()
+        .flatten()
         .map(|(time, event, channel, id_opt)| {
             let message_value = message_formatter(event, id_opt);
-            (time.track(), time, channel, message_value)
-        })
-        .collect();
 
-    // Generate message tokens while preserving original order
-    let message_tokens: Vec<Token<'a>> = message_data
-        .into_iter()
-        .map(|(track, time, channel, message_value)| {
             // Calculate the message length based on the time's denominator
             let denom_u64 = time.denominator_u64();
             let message_len = denom_u64 as usize;
@@ -865,7 +895,7 @@ where
             }
 
             Token::Message {
-                track: track,
+                track: time.track(),
                 channel: channel,
                 message: Cow::Owned(message_parts.join("")),
             }
