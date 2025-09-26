@@ -576,25 +576,25 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGM (#xxx01) and Notes (various #xx)
         // Use build_event_messages to process note and BGM objects
         // We need to preserve the original insertion order, so we process each object individually
-        for obj in self.notes.all_notes_insertion_order() {
-            let result: EventProcessingResult<'_, ()> = build_event_messages(
-                std::iter::once((&obj.offset, obj)),
-                None::<DefTokenGenerator<_, (), fn(ObjId, &()) -> Token, fn(&_) -> &()>>,
-                |obj| {
-                    // Channel mapping: determine channel based on channel_id
-                    if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                        Channel::Note {
-                            channel_id: obj.channel_id,
-                        }
-                    } else {
-                        Channel::Bgm
+        let result: EventProcessingResult<'_, ()> = build_event_messages(
+            self.notes
+                .all_notes_insertion_order()
+                .map(|obj| (&obj.offset, obj)),
+            None::<DefTokenGenerator<_, (), fn(ObjId, &()) -> Token, fn(&_) -> &()>>,
+            |obj| {
+                // Channel mapping: determine channel based on channel_id
+                if let Some(_map) = obj.channel_id.try_into_map::<T>() {
+                    Channel::Note {
+                        channel_id: obj.channel_id,
                     }
-                },
-                |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
-            );
+                } else {
+                    Channel::Bgm
+                }
+            },
+            |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
+        );
 
-            message_tokens.extend(result.message_tokens);
-        }
+        message_tokens.extend(result.message_tokens);
 
         // Messages: BGM volume (#97)
         let bgm_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
@@ -786,9 +786,7 @@ where
             updated_used_ids = HashSet::new();
 
             event_iter
-                .map(|(&time, event)| {
-                    (time, event, channel_mapper(event), None)
-                })
+                .map(|(&time, event)| (time, event, channel_mapper(event), None))
                 .collect()
         };
 
