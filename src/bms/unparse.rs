@@ -529,7 +529,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
 
         // Process U8 type BPM changes
-        let bpm_u8_result: EventProcessingResult<'_, ()> = build_event_messages(
+        let EventProcessingResult {
+            message_tokens: bpm_u8_message_tokens,
+            ..
+        } = build_event_messages(
             u8_bpm_events.into_iter(),
             None::<DefTokenGenerator<_, (), fn(ObjId, &()) -> Token, fn(&_) -> &()>>,
             |_ev| Channel::BpmChangeU8,
@@ -538,7 +541,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 MessageValue::U8(u8_value)
             },
         );
-        bpm_message_tokens.extend(bpm_u8_result.message_tokens);
+        bpm_message_tokens.extend(bpm_u8_message_tokens);
 
         // Process other type BPM changes using build_event_messages
         let bpm_manager = ObjIdManager::new(bpm_id_manager.value_to_id, bpm_id_manager.used_ids);
@@ -547,7 +550,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |id, bpm| Token::BpmChange(id, (*bpm).clone()),
             |ev: &BpmChangeObj| &ev.bpm,
         );
-        let other_result = build_event_messages(
+        let EventProcessingResult {
+            updated_value_to_id: other_updated_value_to_id,
+            updated_used_ids: other_updated_used_ids,
+            late_def_tokens: other_late_def_tokens,
+            message_tokens: other_message_tokens,
+        } = build_event_messages(
             other_bpm_events.into_iter(),
             Some(bpm_def_generator),
             |_ev| Channel::BpmChange,
@@ -555,11 +563,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
         );
 
         // Update id_manager with the results
-        bpm_id_manager.value_to_id = other_result.updated_value_to_id;
-        bpm_id_manager.used_ids = other_result.updated_used_ids;
+        bpm_id_manager.value_to_id = other_updated_value_to_id;
+        bpm_id_manager.used_ids = other_updated_used_ids;
 
-        late_def_tokens.extend(other_result.late_def_tokens);
-        bpm_message_tokens.extend(other_result.message_tokens);
+        late_def_tokens.extend(other_late_def_tokens);
+        bpm_message_tokens.extend(other_message_tokens);
 
         message_tokens.extend(bpm_message_tokens);
 
@@ -570,14 +578,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |id, duration| Token::Stop(id, (*duration).clone()),
             |ev: &StopObj| &ev.duration,
         );
-        let stop_result = build_event_messages(
+        let EventProcessingResult {
+            late_def_tokens: stop_late_def_tokens,
+            message_tokens: stop_message_tokens,
+            ..
+        } = build_event_messages(
             self.arrangers.stops.iter(),
             Some(stop_def_generator),
             |_ev| Channel::Stop,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        late_def_tokens.extend(stop_result.late_def_tokens);
-        message_tokens.extend(stop_result.message_tokens);
+        late_def_tokens.extend(stop_late_def_tokens);
+        message_tokens.extend(stop_message_tokens);
 
         // Messages: SCROLL (#xxxSC)
         let scroll_manager = ObjIdManager::new(scroll_value_to_id, used_scroll_ids);
@@ -586,14 +598,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |id, factor| Token::Scroll(id, factor.clone()),
             |ev: &ScrollingFactorObj| &ev.factor,
         );
-        let scroll_result = build_event_messages(
+        let EventProcessingResult {
+            late_def_tokens: scroll_late_def_tokens,
+            message_tokens: scroll_message_tokens,
+            ..
+        } = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
             Some(scroll_def_generator),
             |_ev| Channel::Scroll,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        late_def_tokens.extend(scroll_result.late_def_tokens);
-        message_tokens.extend(scroll_result.message_tokens);
+        late_def_tokens.extend(scroll_late_def_tokens);
+        message_tokens.extend(scroll_message_tokens);
 
         // Messages: SPEED (#xxxSP)
         let speed_manager = ObjIdManager::new(speed_value_to_id, used_speed_ids);
@@ -602,28 +618,38 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |id, factor| Token::Speed(id, factor.clone()),
             |ev: &SpeedObj| &ev.factor,
         );
-        let speed_result = build_event_messages(
+        let EventProcessingResult {
+            late_def_tokens: speed_late_def_tokens,
+            message_tokens: speed_message_tokens,
+            ..
+        } = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
             Some(speed_def_generator),
             |_ev| Channel::Speed,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        late_def_tokens.extend(speed_result.late_def_tokens);
-        message_tokens.extend(speed_result.message_tokens);
+        late_def_tokens.extend(speed_late_def_tokens);
+        message_tokens.extend(speed_message_tokens);
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
-        let bga_result: EventProcessingResult<'_, ()> = build_event_messages(
+        let EventProcessingResult {
+            message_tokens: bga_message_tokens,
+            ..
+        } = build_event_messages(
             self.graphics.bga_changes.iter(),
             None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |bga| bga.layer.to_channel(),
             |bga, _id| MessageValue::ObjId(bga.id),
         );
-        message_tokens.extend(bga_result.message_tokens);
+        message_tokens.extend(bga_message_tokens);
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
         // Use build_event_messages to process note and BGM objects
         // We need to preserve the original insertion order, so we process each object individually
-        let result: EventProcessingResult<'_, ()> = build_event_messages(
+        let EventProcessingResult {
+            message_tokens: notes_message_tokens,
+            ..
+        } = build_event_messages(
             self.notes
                 .all_notes_insertion_order()
                 .map(|obj| (&obj.offset, obj)),
@@ -641,25 +667,31 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
         );
 
-        message_tokens.extend(result.message_tokens);
+        message_tokens.extend(notes_message_tokens);
 
         // Messages: BGM volume (#97)
-        let bgm_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
+        let EventProcessingResult {
+            message_tokens: bgm_volume_message_tokens,
+            ..
+        } = build_event_messages(
             self.notes.bgm_volume_changes.iter(),
             None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |_ev| Channel::BgmVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
-        message_tokens.extend(bgm_volume_result.message_tokens);
+        message_tokens.extend(bgm_volume_message_tokens);
 
         // Messages: KEY volume (#98)
-        let key_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
+        let EventProcessingResult {
+            message_tokens: key_volume_message_tokens,
+            ..
+        } = build_event_messages(
             self.notes.key_volume_changes.iter(),
             None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |_ev| Channel::KeyVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
-        message_tokens.extend(key_volume_result.message_tokens);
+        message_tokens.extend(key_volume_message_tokens);
 
         // Messages: TEXT (#99)
         let text_manager = ObjIdManager::new(text_value_to_id, used_text_ids);
@@ -667,14 +699,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             DefTokenGenerator::create_generator(text_manager, Token::Text, |ev: &TextObj| {
                 ev.text.as_str()
             });
-        let text_result = build_event_messages(
+        let EventProcessingResult {
+            late_def_tokens: text_late_def_tokens,
+            message_tokens: text_message_tokens,
+            ..
+        } = build_event_messages(
             self.notes.text_events.iter(),
             Some(text_def_generator),
             |_ev| Channel::Text,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        late_def_tokens.extend(text_result.late_def_tokens);
-        message_tokens.extend(text_result.message_tokens);
+        late_def_tokens.extend(text_late_def_tokens);
+        message_tokens.extend(text_message_tokens);
 
         let exrank_manager = ObjIdManager::new(exrank_value_to_id, used_exrank_ids);
         let exrank_def_generator = DefTokenGenerator::create_generator(
@@ -682,14 +718,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |id, judge_level| Token::ExRank(id, *judge_level),
             |ev: &JudgeObj| &ev.judge_level,
         );
-        let judge_result = build_event_messages(
+        let EventProcessingResult {
+            late_def_tokens: judge_late_def_tokens,
+            message_tokens: judge_message_tokens,
+            ..
+        } = build_event_messages(
             self.notes.judge_events.iter(),
             Some(exrank_def_generator),
             |_ev| Channel::Judge,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        late_def_tokens.extend(judge_result.late_def_tokens);
-        message_tokens.extend(judge_result.message_tokens);
+        late_def_tokens.extend(judge_late_def_tokens);
+        message_tokens.extend(judge_message_tokens);
 
         // Assembly: header/definitions/resources/others -> late definitions -> messages
         if !late_def_tokens.is_empty() {
