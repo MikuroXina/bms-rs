@@ -759,7 +759,7 @@ fn build_event_messages<
 ) -> EventProcessingResult<'a, Key>
 where
     EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
-    Event: Clone + 'a,
+    Event: ?Sized + 'a,
     Key: std::hash::Hash + Eq + Clone,
     TokenCreator: Fn(ObjId, Key) -> Token<'a>,
     KeyExtractor: Fn(&Event) -> Key,
@@ -772,7 +772,7 @@ where
     let updated_used_ids: HashSet<ObjId>;
 
     // Process events based on whether DefTokenGenerator is provided
-    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, Event)>> =
+    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, &'a Event)>> =
         if let Some(mut generator) = def_token_generator {
             // ID allocation mode: process events with DefTokenGenerator
             let events: Vec<_> = event_iter
@@ -782,7 +782,7 @@ where
                         late_def_tokens.push(def_token);
                     }
                     id_map.insert(time, id);
-                    (time, event.clone())
+                    (time, event)
                 })
                 .collect();
 
@@ -795,7 +795,7 @@ where
             events
                 .into_iter()
                 .map(|(time, event)| {
-                    let channel = channel_mapper(&event);
+                    let channel = channel_mapper(event);
                     ((time.track(), channel), (time, event))
                 })
                 .fold(
@@ -813,7 +813,7 @@ where
             event_iter
                 .map(|(&time, event)| {
                     let channel = channel_mapper(event);
-                    ((time.track(), channel), (time, event.clone()))
+                    ((time.track(), channel), (time, event))
                 })
                 .fold(
                     BTreeMap::new(),
@@ -837,7 +837,7 @@ where
                             time,
                             (
                                 channel,
-                                message_formatter(&event, id_map.get(&time).copied()),
+                                message_formatter(event, id_map.get(&time).copied()),
                             ),
                         )
                     })
