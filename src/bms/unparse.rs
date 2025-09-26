@@ -1,7 +1,7 @@
 //! Unparse Bms model into Vec<Token> without duplicate parsing logic.
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use fraction::{One, ToPrimitive, Zero};
 
@@ -233,47 +233,59 @@ impl<T: KeyLayoutMapper> Bms<T> {
             def_tokens.push(Token::BaseBpm(base_bpm.clone()));
         }
 
-        // Collect definition tokens using iterator chains
+        // Collect definition tokens using iterator chains (sorted by ID for consistent output)
         def_tokens.extend(
             self.scope_defines
                 .bpm_defs
                 .iter()
-                .map(|(id, v)| Token::BpmChange(*id, v.clone())),
+                .map(|(id, v)| (*id, Token::BpmChange(*id, v.clone())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         def_tokens.extend(
             self.scope_defines
                 .stop_defs
                 .iter()
-                .map(|(id, v)| Token::Stop(*id, v.clone())),
+                .map(|(id, v)| (*id, Token::Stop(*id, v.clone())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         def_tokens.extend(
             self.scope_defines
                 .scroll_defs
                 .iter()
-                .map(|(id, v)| Token::Scroll(*id, v.clone())),
+                .map(|(id, v)| (*id, Token::Scroll(*id, v.clone())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         def_tokens.extend(
             self.scope_defines
                 .speed_defs
                 .iter()
-                .map(|(id, v)| Token::Speed(*id, v.clone())),
+                .map(|(id, v)| (*id, Token::Speed(*id, v.clone())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         def_tokens.extend(
             self.others
                 .texts
                 .iter()
-                .map(|(id, text)| Token::Text(*id, text.as_str())),
+                .map(|(id, text)| (*id, Token::Text(*id, text.as_str())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         def_tokens.extend(
             self.scope_defines
                 .exrank_defs
                 .iter()
-                .map(|(id, exrank)| Token::ExRank(*id, exrank.judge_level)),
+                .map(|(id, exrank)| (*id, Token::ExRank(*id, exrank.judge_level)))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         #[cfg(feature = "minor-command")]
@@ -282,53 +294,74 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.scope_defines
                     .exwav_defs
                     .iter()
-                    .map(|(id, def)| Token::ExWav {
-                        id: *id,
-                        pan: def.pan,
-                        volume: def.volume,
-                        frequency: def.frequency,
-                        path: def.path.as_ref(),
-                    }),
+                    .map(|(id, def)| {
+                        (
+                            *id,
+                            Token::ExWav {
+                                id: *id,
+                                pan: def.pan,
+                                volume: def.volume,
+                                frequency: def.frequency,
+                                path: def.path.as_ref(),
+                            },
+                        )
+                    })
+                    .collect::<BTreeMap<_, _>>()
+                    .into_values(),
             );
 
-            def_tokens.extend(
-                self.scope_defines
-                    .wavcmd_events
-                    .values()
-                    .map(|ev| Token::WavCmd(*ev)),
-            );
+            // wavcmd_events should be sorted by wav_index for consistent output
+            let mut wavcmd_events: Vec<_> = self.scope_defines.wavcmd_events.values().collect();
+            wavcmd_events.sort_by_key(|ev| ev.wav_index);
+            def_tokens.extend(wavcmd_events.into_iter().map(|ev| Token::WavCmd(*ev)));
 
             def_tokens.extend(
                 self.scope_defines
                     .atbga_defs
                     .iter()
-                    .map(|(id, def)| Token::AtBga {
-                        id: *id,
-                        source_bmp: def.source_bmp,
-                        trim_top_left: def.trim_top_left.into(),
-                        trim_size: def.trim_size.into(),
-                        draw_point: def.draw_point.into(),
-                    }),
+                    .map(|(id, def)| {
+                        (
+                            *id,
+                            Token::AtBga {
+                                id: *id,
+                                source_bmp: def.source_bmp,
+                                trim_top_left: def.trim_top_left.into(),
+                                trim_size: def.trim_size.into(),
+                                draw_point: def.draw_point.into(),
+                            },
+                        )
+                    })
+                    .collect::<BTreeMap<_, _>>()
+                    .into_values(),
             );
 
             def_tokens.extend(
                 self.scope_defines
                     .bga_defs
                     .iter()
-                    .map(|(id, def)| Token::Bga {
-                        id: *id,
-                        source_bmp: def.source_bmp,
-                        trim_top_left: def.trim_top_left.into(),
-                        trim_bottom_right: def.trim_bottom_right.into(),
-                        draw_point: def.draw_point.into(),
-                    }),
+                    .map(|(id, def)| {
+                        (
+                            *id,
+                            Token::Bga {
+                                id: *id,
+                                source_bmp: def.source_bmp,
+                                trim_top_left: def.trim_top_left.into(),
+                                trim_bottom_right: def.trim_bottom_right.into(),
+                                draw_point: def.draw_point.into(),
+                            },
+                        )
+                    })
+                    .collect::<BTreeMap<_, _>>()
+                    .into_values(),
             );
 
             def_tokens.extend(
                 self.scope_defines
                     .argb_defs
                     .iter()
-                    .map(|(id, argb)| Token::Argb(*id, *argb)),
+                    .map(|(id, argb)| (*id, Token::Argb(*id, *argb)))
+                    .collect::<BTreeMap<_, _>>()
+                    .into_values(),
             );
         }
 
@@ -367,13 +400,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
         }
 
-        // Collect WAV and BMP file tokens using iterator chains
+        // Collect WAV and BMP file tokens using iterator chains (sorted by ID for consistent output)
         resource_tokens.extend(
             self.notes
                 .wav_files
                 .iter()
                 .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
-                .map(|(id, path)| Token::Wav(*id, path.as_ref())),
+                .map(|(id, path)| (*id, Token::Wav(*id, path.as_ref())))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         resource_tokens.extend(
@@ -382,12 +417,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .iter()
                 .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
                 .map(|(id, bmp)| {
-                    if bmp.transparent_color == Argb::default() {
-                        Token::Bmp(Some(*id), bmp.file.as_ref())
-                    } else {
-                        Token::ExBmp(*id, bmp.transparent_color, bmp.file.as_ref())
-                    }
-                }),
+                    (
+                        *id,
+                        if bmp.transparent_color == Argb::default() {
+                            Token::Bmp(Some(*id), bmp.file.as_ref())
+                        } else {
+                            Token::ExBmp(*id, bmp.transparent_color, bmp.file.as_ref())
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
         );
 
         tokens.extend(resource_tokens);
@@ -396,14 +436,22 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
         let mut message_tokens: Vec<Token<'a>> = Vec::new();
 
-        // Messages: Section length - Use iterator chain to collect tokens
-        message_tokens.extend(self.arrangers.section_len_changes.values().map(|obj| {
-            Token::Message {
+        // Messages: Section length - Use iterator chain to collect tokens (sorted by track for consistent output)
+        let mut section_len_tokens: Vec<_> = self
+            .arrangers
+            .section_len_changes
+            .values()
+            .map(|obj| Token::Message {
                 track: obj.track,
                 channel: Channel::SectionLen,
                 message: Cow::Owned(obj.length.to_string()),
-            }
-        }));
+            })
+            .collect();
+        section_len_tokens.sort_by_key(|token| match token {
+            Token::Message { track, .. } => *track,
+            _ => Track(0),
+        });
+        message_tokens.extend(section_len_tokens);
 
         // Helper closures for mapping definitions
         let used_bpm_ids: HashSet<ObjId> = self.scope_defines.bpm_defs.keys().copied().collect();
