@@ -126,6 +126,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
     #[must_use]
     pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
+        let mut needs_base62_token = false;
+
+        // Helper function to check if ObjId needs base62
+        let mut check_base62 = |id: &ObjId| {
+            needs_base62_token = needs_base62_token || (!id.is_base36() && id.is_base62());
+        };
 
         // Others section lines FIRST to preserve order equality on roundtrip
         for line in &self.others.non_command_lines {
@@ -239,6 +245,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .bpm_defs
                 .iter()
                 .map(|(id, v)| (*id, Token::BpmChange(*id, v.clone())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -248,6 +255,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .stop_defs
                 .iter()
                 .map(|(id, v)| (*id, Token::Stop(*id, v.clone())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -257,6 +265,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .scroll_defs
                 .iter()
                 .map(|(id, v)| (*id, Token::Scroll(*id, v.clone())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -266,6 +275,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .speed_defs
                 .iter()
                 .map(|(id, v)| (*id, Token::Speed(*id, v.clone())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -275,6 +285,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .texts
                 .iter()
                 .map(|(id, text)| (*id, Token::Text(*id, text.as_str())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -284,6 +295,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .exrank_defs
                 .iter()
                 .map(|(id, exrank)| (*id, Token::ExRank(*id, exrank.judge_level)))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -294,6 +306,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.scope_defines
                     .exwav_defs
                     .iter()
+                    .inspect(|(id, _)| check_base62(id))
                     .map(|(id, def)| {
                         (
                             *id,
@@ -319,6 +332,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.scope_defines
                     .atbga_defs
                     .iter()
+                    .inspect(|(id, def)| {
+                        check_base62(id);
+                        check_base62(&def.source_bmp)
+                    })
                     .map(|(id, def)| {
                         (
                             *id,
@@ -339,6 +356,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.scope_defines
                     .bga_defs
                     .iter()
+                    .inspect(|(id, def)| {
+                        check_base62(id);
+                        check_base62(&def.source_bmp)
+                    })
                     .map(|(id, def)| {
                         (
                             *id,
@@ -360,6 +381,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .argb_defs
                     .iter()
                     .map(|(id, argb)| (*id, Token::Argb(*id, *argb)))
+                    .inspect(|(id, _)| check_base62(id))
                     .collect::<BTreeMap<_, _>>()
                     .into_values(),
             );
@@ -407,6 +429,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .iter()
                 .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
                 .map(|(id, path)| (*id, Token::Wav(*id, path.as_ref())))
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -426,6 +449,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         },
                     )
                 })
+                .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -531,6 +555,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Process U8 type BPM changes
         let EventProcessingResult {
             message_tokens: bpm_u8_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             u8_bpm_events.into_iter(),
@@ -541,6 +566,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 MessageValue::U8(u8_value)
             },
         );
+        needs_base62_token = needs_base62_token || is_base62;
         bpm_message_tokens.extend(bpm_u8_message_tokens);
 
         // Process other type BPM changes using build_event_messages
@@ -555,12 +581,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
             updated_used_ids: other_updated_used_ids,
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
+            needs_base62: is_base62,
         } = build_event_messages(
             other_bpm_events.into_iter(),
             Some(bpm_def_generator),
             |_ev| Channel::BpmChange,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
 
         // Update id_manager with the results
         bpm_id_manager.value_to_id = other_updated_value_to_id;
@@ -581,6 +609,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: stop_late_def_tokens,
             message_tokens: stop_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.arrangers.stops.iter(),
@@ -588,6 +617,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Stop,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(stop_late_def_tokens);
         message_tokens.extend(stop_message_tokens);
 
@@ -601,6 +631,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: scroll_late_def_tokens,
             message_tokens: scroll_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
@@ -608,6 +639,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Scroll,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(scroll_late_def_tokens);
         message_tokens.extend(scroll_message_tokens);
 
@@ -621,6 +653,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: speed_late_def_tokens,
             message_tokens: speed_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
@@ -628,12 +661,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Speed,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         let EventProcessingResult {
             message_tokens: bga_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.graphics.bga_changes.iter(),
@@ -641,6 +676,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |bga| bga.layer.to_channel(),
             |bga, _id| MessageValue::ObjId(bga.id),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         message_tokens.extend(bga_message_tokens);
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
@@ -648,6 +684,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // We need to preserve the original insertion order, so we process each object individually
         let EventProcessingResult {
             message_tokens: notes_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.notes
@@ -666,12 +703,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
             },
             |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
         );
+        needs_base62_token = needs_base62_token || is_base62;
 
         message_tokens.extend(notes_message_tokens);
 
         // Messages: BGM volume (#97)
         let EventProcessingResult {
             message_tokens: bgm_volume_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.notes.bgm_volume_changes.iter(),
@@ -679,11 +718,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::BgmVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         message_tokens.extend(bgm_volume_message_tokens);
 
         // Messages: KEY volume (#98)
         let EventProcessingResult {
             message_tokens: key_volume_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.notes.key_volume_changes.iter(),
@@ -691,6 +732,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::KeyVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         message_tokens.extend(key_volume_message_tokens);
 
         // Messages: TEXT (#99)
@@ -702,6 +744,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: text_late_def_tokens,
             message_tokens: text_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.notes.text_events.iter(),
@@ -709,6 +752,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Text,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(text_late_def_tokens);
         message_tokens.extend(text_message_tokens);
 
@@ -721,6 +765,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: judge_late_def_tokens,
             message_tokens: judge_message_tokens,
+            needs_base62: is_base62,
             ..
         } = build_event_messages(
             self.notes.judge_events.iter(),
@@ -728,6 +773,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Judge,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
+        needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
 
@@ -737,6 +783,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
         }
         if !message_tokens.is_empty() {
             tokens.extend(message_tokens);
+        }
+
+        // Add Base62 token if needed
+        if needs_base62_token {
+            tokens.push(Token::Base62);
         }
 
         tokens
@@ -796,6 +847,7 @@ struct EventProcessingResult<'a, K: ?Sized> {
     late_def_tokens: Vec<Token<'a>>,
     updated_value_to_id: HashMap<&'a K, ObjId>,
     updated_used_ids: HashSet<ObjId>,
+    needs_base62: bool,
 }
 
 /// Generic function to process message types with optional ID allocation
@@ -845,6 +897,7 @@ where
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
     let mut id_map: HashMap<ObjTime, ObjId> = HashMap::new();
+    let mut needs_base62 = false;
     let updated_value_to_id: HashMap<&'a Key, ObjId>;
     let updated_used_ids: HashSet<ObjId>;
 
@@ -860,6 +913,8 @@ where
                         late_def_tokens.push(def_token);
                     }
                     id_map.insert(time, id);
+                    // Check if this ObjId requires Base62
+                    needs_base62 = needs_base62 || (!id.is_base36() && id.is_base62());
                     (time, event, channel_mapper(event), Some(id))
                 })
                 .collect();
@@ -1020,6 +1075,10 @@ where
             // to array index using the formula: (numerator * max_denom / denominator)
             for (time, event, _, id_opt) in sub_group {
                 let message_value = message_formatter(event, id_opt);
+                // Check if this message value contains an ObjId that requires Base62
+                if let MessageValue::ObjId(id) = message_value {
+                    needs_base62 = needs_base62 || (!id.is_base36() && id.is_base62());
+                }
                 let denom_u64 = time.denominator_u64();
 
                 // Calculate exact position: convert fraction to index in the message array
@@ -1046,5 +1105,6 @@ where
         late_def_tokens,
         updated_value_to_id,
         updated_used_ids,
+        needs_base62,
     }
 }
