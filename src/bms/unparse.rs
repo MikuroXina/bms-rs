@@ -850,7 +850,25 @@ where
     let message_tokens: Vec<Token<'a>> = message_data
         .into_iter()
         .map(|(track, time, channel, message_value)| {
-            create_message_for_time(track, channel, time, message_value)
+            // Calculate the message length based on the time's denominator
+            let denom_u64 = time.denominator_u64();
+            let message_len = denom_u64 as usize;
+
+            // Create message string with value at time position and 00s elsewhere
+            let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
+            let time_idx = (time.numerator() * (denom_u64 / time.denominator_u64())) as usize;
+
+            // Ensure we don't go out of bounds
+            if time_idx < message_len {
+                let chars = message_value.to_chars();
+                message_parts[time_idx] = chars.iter().collect::<String>();
+            }
+
+            Token::Message {
+                track: track,
+                channel: channel,
+                message: Cow::Owned(message_parts.join("")),
+            }
         })
         .collect();
 
@@ -859,37 +877,5 @@ where
         late_def_tokens,
         updated_value_to_id,
         updated_used_ids,
-    }
-}
-
-/// Create a message for a single event at a specific time
-///
-/// This function creates a message string for a single event, where each 2-character
-/// unit represents a time position. The message length is determined by the time's
-/// denominator, ensuring every 2 characters form a complete unit.
-fn create_message_for_time(
-    track: Track,
-    channel: Channel,
-    time: ObjTime,
-    message_value: MessageValue,
-) -> Token<'static> {
-    // Calculate the message length based on the time's denominator
-    let denom_u64 = time.denominator_u64();
-    let message_len = denom_u64 as usize;
-
-    // Create message string with value at time position and 00s elsewhere
-    let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
-    let time_idx = (time.numerator() * (denom_u64 / time.denominator_u64())) as usize;
-
-    // Ensure we don't go out of bounds
-    if time_idx < message_len {
-        let chars = message_value.to_chars();
-        message_parts[time_idx] = chars.iter().collect::<String>();
-    }
-
-    Token::Message {
-        track,
-        channel,
-        message: Cow::Owned(message_parts.join("")),
     }
 }
