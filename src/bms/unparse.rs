@@ -704,99 +704,6 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
     }
 }
 
-/// Generic message builder for track-based messages
-///
-/// This function processes an iterator of track-based events and converts them into message tokens.
-/// It uses iterator chains to efficiently process each track's events and filter out empty messages.
-///
-/// Arguments:
-///     track_events: An iterator yielding (track, items) pairs where items is an iterator of (time, event) pairs
-///     channel_mapper: Function to map events to channels (allows same event type to map to different channels)
-///     message_formatter: Function to format events into strings
-///
-/// Returns:
-///     Vec<Token<'a>> - A vector of message tokens for all valid tracks
-///
-/// The function leverages Rust's iterator chains for efficient processing. This design allows for maximum
-/// flexibility - callers can pass BTreeMap, HashMap, Vec, or any other Iterator without needing to build Vecs.
-/// The channel_mapper function allows the same value type to be converted to different channels.
-fn build_event_track_messages<
-    'a,
-    Event,
-    EventIterator,
-    TrackEventIterator,
-    ChannelMapper,
-    MessageFormatter,
->(
-    track_events: EventIterator,
-    channel_mapper: ChannelMapper,
-    message_formatter: MessageFormatter,
-) -> Vec<Token<'a>>
-where
-    EventIterator: Iterator<Item = (Track, TrackEventIterator)>,
-    TrackEventIterator: Iterator<Item = (ObjTime, Event)>,
-    ChannelMapper: Fn(&Event) -> Channel + Copy,
-    MessageFormatter: Fn(&Event) -> MessageValue + Copy,
-{
-    track_events
-        .flat_map(|(track, items)| {
-            // Collect items into a Vec for processing
-            let mut items_vec: Vec<_> = items.collect();
-
-            if items_vec.is_empty() {
-                return Vec::new();
-            }
-
-            // Step 1: Sort items by time
-            items_vec.sort_by_key(|(t, _)| *t);
-
-            // Step 2: Calculate least common multiple of denominators
-            let denom: u64 = items_vec
-                .iter()
-                .map(|(t, _)| t.denominator().get())
-                .reduce(|acc, d| acc.lcm(&d))
-                .unwrap_or(1);
-
-            // Step 3: Group items by time slot and channel to handle multiple values at same time
-            let mut time_channel_groups: BTreeMap<(u64, Channel), Vec<Event>> = BTreeMap::new();
-            for (t, value) in items_vec {
-                let idx = t.numerator() * (denom / t.denominator().get());
-                let channel = channel_mapper(&value);
-                time_channel_groups
-                    .entry((idx, channel))
-                    .or_default()
-                    .push(value);
-            }
-
-            // Step 4: Generate tokens for each time-channel group
-            time_channel_groups
-                .into_iter()
-                .flat_map(|((time_idx, channel), values)| {
-                    // Create a separate token for each value at this time slot and channel
-                    values.into_iter().map(move |value| {
-                        // Create message string with value at position and 00s elsewhere
-                        let mut message_parts = Vec::new();
-                        for i in 0..denom {
-                            if i == time_idx {
-                                let msg_value = message_formatter(&value);
-                                let chars = msg_value.to_chars();
-                                message_parts.push(chars.iter().collect::<String>());
-                            } else {
-                                message_parts.push("00".to_string());
-                            }
-                        }
-                        Token::Message {
-                            track,
-                            channel,
-                            message: Cow::Owned(message_parts.join("")),
-                        }
-                    })
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
-
 /// Complete result from build_messages_event containing all processing outputs
 struct EventProcessingResult<'a, K: ?Sized> {
     message_tokens: Vec<Token<'a>>,
@@ -926,14 +833,65 @@ where
         })
         .collect();
 
-    // Single unified call to build_event_track_messages
-    let message_tokens = build_event_track_messages(
-        processed_events
-            .into_iter()
-            .map(|(track, events)| (track, events.into_iter())),
-        |(channel, _msg_value)| *channel,
-        |(_channel, msg_value)| *msg_value,
-    );
+    // Inline build_event_track_messages logic
+    let message_tokens = processed_events
+        .into_iter()
+        .map(|(track, events)| (track, events.into_iter()))
+        .flat_map(|(track, items)| {
+            // Collect items into a Vec for processing
+            let mut items_vec: Vec<_> = items.collect();
+
+            if items_vec.is_empty() {
+                return Vec::new();
+            }
+
+            // Step 1: Sort items by time
+            items_vec.sort_by_key(|(t, _)| *t);
+
+            // Step 2: Calculate least common multiple of denominators
+            let denom: u64 = items_vec
+                .iter()
+                .map(|(t, _)| t.denominator().get())
+                .reduce(|acc, d| acc.lcm(&d))
+                .unwrap_or(1);
+
+            // Step 3: Group items by time slot and channel to handle multiple values at same time
+            let mut time_channel_groups: BTreeMap<(u64, Channel), Vec<(Channel, MessageValue)>> =
+                BTreeMap::new();
+            for (t, (_channel, value)) in items_vec {
+                let idx = t.numerator() * (denom / t.denominator().get());
+                time_channel_groups
+                    .entry((idx, _channel))
+                    .or_default()
+                    .push((_channel, value));
+            }
+
+            // Step 4: Generate tokens for each time-channel group
+            time_channel_groups
+                .into_iter()
+                .flat_map(|((time_idx, channel), values)| {
+                    // Create a separate token for each value at this time slot and channel
+                    values.into_iter().map(move |(_ch, value)| {
+                        // Create message string with value at position and 00s elsewhere
+                        let mut message_parts = Vec::new();
+                        for i in 0..denom {
+                            if i == time_idx {
+                                let chars = value.to_chars();
+                                message_parts.push(chars.iter().collect::<String>());
+                            } else {
+                                message_parts.push("00".to_string());
+                            }
+                        }
+                        Token::Message {
+                            track,
+                            channel,
+                            message: Cow::Owned(message_parts.join("")),
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
     EventProcessingResult {
         message_tokens,
