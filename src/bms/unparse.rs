@@ -455,12 +455,66 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
-        let (bpm_messages, _updated_bpm_manager) = build_bpm_change_messages(
-            self,
-            ObjIdManager::new(bpm_value_to_id, used_bpm_ids),
-            &mut late_def_tokens,
+        let mut bpm_id_manager = ObjIdManager::new(bpm_value_to_id, used_bpm_ids);
+        let mut bpm_message_tokens = Vec::new();
+
+        // Split BPM changes into two types: U8 (not in value list and is u8) and others
+        let mut u8_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
+        let mut other_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
+
+        for (time, ev) in &self.arrangers.bpm_changes {
+            // Check if already defined
+            if bpm_id_manager.value_to_id.contains_key(&ev.bpm) {
+                // Already defined, treat as other type
+                other_bpm_events.push((time, ev));
+            } else
+            // Not in value list, check if it's U8 type
+            if ev.bpm.fract() == Decimal::zero()
+                && ev.bpm >= Decimal::one()
+                && ev.bpm <= Decimal::from(0xFF)
+            {
+                // U8 type: not in value list and is u8
+                u8_bpm_events.push((time, ev));
+            } else {
+                // Other type: needs ID allocation
+                other_bpm_events.push((time, ev));
+            }
+        }
+
+        // Process U8 type BPM changes
+        let bpm_u8_result: EventProcessingResult<'_, ()> = build_event_messages(
+            u8_bpm_events.into_iter(),
+            None::<DefTokenGenerator<_, (), fn(ObjId, &()) -> Token, fn(&_) -> &()>>,
+            |_ev| Channel::BpmChangeU8,
+            |ev, _id| {
+                let u8_value = ev.bpm.to_u64().unwrap_or(1) as u8;
+                MessageValue::U8(u8_value)
+            },
         );
-        message_tokens.extend(bpm_messages);
+        bpm_message_tokens.extend(bpm_u8_result.message_tokens);
+
+        // Process other type BPM changes using build_event_messages
+        let bpm_manager = ObjIdManager::new(bpm_id_manager.value_to_id, bpm_id_manager.used_ids);
+        let bpm_def_generator = DefTokenGenerator::create_generator(
+            bpm_manager,
+            |id, bpm| Token::BpmChange(id, (*bpm).clone()),
+            |ev: &BpmChangeObj| &ev.bpm,
+        );
+        let other_result = build_event_messages(
+            other_bpm_events.into_iter(),
+            Some(bpm_def_generator),
+            |_ev| Channel::BpmChange,
+            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+        );
+
+        // Update id_manager with the results
+        bpm_id_manager.value_to_id = other_result.updated_value_to_id;
+        bpm_id_manager.used_ids = other_result.updated_used_ids;
+
+        late_def_tokens.extend(other_result.late_def_tokens);
+        bpm_message_tokens.extend(other_result.message_tokens);
+
+        message_tokens.extend(bpm_message_tokens);
 
         // Messages: STOP (#xxx09)
         let stop_manager = ObjIdManager::new(stop_value_to_id, used_stop_ids);
@@ -867,77 +921,6 @@ where
         updated_value_to_id,
         updated_used_ids,
     }
-}
-
-/// Helper function to build BPM change messages
-fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
-    bms: &'a Bms<T>,
-    mut id_manager: ObjIdManager<'a, Decimal>,
-    late_def_tokens: &mut Vec<Token<'a>>,
-) -> (Vec<Token<'a>>, ObjIdManager<'a, Decimal>) {
-    let mut message_tokens = Vec::new();
-
-    // Process BPM changes using the simplified approach
-    // First, collect all BPM changes and determine their channels and values
-    let bpm_events: Vec<(ObjTime, Channel, MessageValue)> = bms
-        .arrangers
-        .bpm_changes
-        .iter()
-        .map(|(&time, ev)| {
-            // Check if already defined
-            if let Some(&id) = id_manager.value_to_id.get(&ev.bpm) {
-                return (time, Channel::BpmChange, MessageValue::ObjId(id));
-            }
-
-            // Try to treat as u8 bpm
-            if ev.bpm.fract() == Decimal::zero()
-                && ev.bpm >= Decimal::one()
-                && ev.bpm <= Decimal::from(0xFF)
-            {
-                let u8_value = ev.bpm.to_u64().unwrap_or(1) as u8;
-                return (time, Channel::BpmChangeU8, MessageValue::U8(u8_value));
-            }
-
-            // Otherwise, allocate new id definition
-            let (new_id, maybe_def_token) = id_manager
-                .get_or_allocate_id(&ev.bpm, |id, bpm| Token::BpmChange(id, (*bpm).clone()));
-            if let Some(def_token) = maybe_def_token {
-                late_def_tokens.push(def_token);
-            }
-            (time, Channel::BpmChange, MessageValue::ObjId(new_id))
-        })
-        .collect();
-
-    // Group by track and channel
-    let by_track_channel: BTreeMap<(Track, Channel), Vec<(ObjTime, MessageValue)>> = bpm_events
-        .into_iter()
-        .map(|(time, channel, value)| ((time.track(), channel), (time, value)))
-        .fold(
-            BTreeMap::new(),
-            |mut acc, ((track, channel), time_value)| {
-                acc.entry((track, channel)).or_default().push(time_value);
-                acc
-            },
-        );
-
-    // Build message tokens using the simplified function
-    let tokens = build_event_track_messages(
-        by_track_channel
-            .into_iter()
-            .map(|((track, channel), items)| {
-                (
-                    track,
-                    items
-                        .into_iter()
-                        .map(move |(time, value)| (time, (channel, value))),
-                )
-            }),
-        |(channel, _value)| *channel,
-        |(_channel, value)| *value,
-    );
-
-    message_tokens.extend(tokens);
-    (message_tokens, id_manager)
 }
 
 /// Helper function to build note and BGM messages
