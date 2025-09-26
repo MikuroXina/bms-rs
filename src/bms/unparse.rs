@@ -541,12 +541,20 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(key_volume_result.message_tokens);
 
         // Messages: TEXT (#99)
-        let (text_messages, _updated_text_manager) = build_text_messages(
-            self,
-            ObjIdManager::new(text_value_to_id, used_text_ids),
-            &mut late_def_tokens,
+        let text_manager = ObjIdManager::new(text_value_to_id, used_text_ids);
+        let text_def_generator = DefTokenGenerator::create_generator(
+            text_manager,
+            |id, text| Token::Text(id, text),
+            |ev: &TextObj| ev.text.as_str(),
         );
-        message_tokens.extend(text_messages);
+        let text_result = build_event_messages(
+            self.notes.text_events.iter(),
+            Some(text_def_generator),
+            |_ev| Channel::Text,
+            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+        );
+        late_def_tokens.extend(text_result.late_def_tokens);
+        message_tokens.extend(text_result.message_tokens);
 
         let exrank_manager = ObjIdManager::new(exrank_value_to_id, used_exrank_ids);
         let exrank_def_generator = DefTokenGenerator::create_generator(
@@ -959,48 +967,4 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
     }
 
     message_tokens
-}
-
-/// Helper function to build text messages
-fn build_text_messages<'a, T: KeyLayoutMapper>(
-    bms: &'a Bms<T>,
-    mut id_manager: ObjIdManager<'a, str>,
-    late_def_tokens: &mut Vec<Token<'a>>,
-) -> (Vec<Token<'a>>, ObjIdManager<'a, str>) {
-    // Process text events and build track-grouped data using iterator chains
-    let by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = bms
-        .notes
-        .text_events
-        .iter()
-        .map(|(&time, ev)| {
-            let id = id_manager
-                .value_to_id
-                .get(ev.text.as_str())
-                .copied()
-                .unwrap_or_else(|| {
-                    let (new_id, maybe_token) = id_manager
-                        .get_or_allocate_id(ev.text.as_str(), &|id: ObjId, text: &'a str| {
-                            Token::Text(id, text)
-                        });
-                    if let Some(token) = maybe_token {
-                        late_def_tokens.push(token);
-                    }
-                    new_id
-                });
-            (time.track(), (time, id))
-        })
-        .fold(BTreeMap::new(), |mut acc, (track, time_id)| {
-            acc.entry(track).or_default().push(time_id);
-            acc
-        });
-
-    let message_tokens = build_event_track_messages(
-        by_track_text
-            .into_iter()
-            .map(|(track, items)| (track, items.into_iter())),
-        |_id| Channel::Text,
-        |id| MessageValue::ObjId(*id),
-    );
-
-    (message_tokens, id_manager)
 }
