@@ -215,28 +215,23 @@ impl ObjId {
     /// Returns whether both characters are valid Base36 characters (0-9, A-Z).
     #[must_use]
     pub fn is_base36(self) -> bool {
-        let [first, second] = self.0;
-        (first >= b'0' && first <= b'9' || first >= b'A' && first <= b'Z')
-            && (second >= b'0' && second <= b'9' || second >= b'A' && second <= b'Z')
+        self.0
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())
     }
 
     /// Returns whether both characters are valid Base62 characters (0-9, A-Z, a-z).
     #[must_use]
     pub fn is_base62(self) -> bool {
-        let [first, second] = self.0;
-        (first >= b'0' && first <= b'9'
-            || first >= b'A' && first <= b'Z'
-            || first >= b'a' && first <= b'z')
-            && (second >= b'0' && second <= b'9'
-                || second >= b'A' && second <= b'Z'
-                || second >= b'a' && second <= b'z')
+        self.0
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
     }
 
     /// Returns an iterator over all possible ObjId values, ordered by priority:
     /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
     ///
     /// Total: 3843 values (excluding null "00"), with first 1295 being Base36.
-    #[must_use]
     pub fn all_values() -> impl Iterator<Item = Self> {
         const BASE36_CHARS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const BASE62_CHARS: &[u8] =
@@ -276,6 +271,7 @@ pub enum MessageValue {
 
 impl MessageValue {
     /// Convert the message value to [char; 2]
+    #[must_use]
     pub fn to_chars(self) -> [char; 2] {
         match self {
             MessageValue::ObjId(id) => {
