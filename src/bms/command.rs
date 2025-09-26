@@ -359,7 +359,8 @@ impl TryFrom<u8> for LnMode {
     }
 }
 
-/// Configuration for ID management in build_messages_event
+/// Associates between object `K` and [`ObjId`] with memoization.
+/// It is useful to assign object ids for many objects with its equality.
 pub struct ObjIdManager<'a, K: ?Sized> {
     value_to_id: HashMap<&'a K, ObjId>,
     used_ids: HashSet<ObjId>,
