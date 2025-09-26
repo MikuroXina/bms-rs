@@ -1,63 +1,25 @@
 //! Unparse Bms model into Vec<Token> without duplicate parsing logic.
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use fraction::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 
-/// Configuration for ID management in build_messages_event
-struct ObjIdManager<'a, K: ?Sized> {
-    value_to_id: HashMap<&'a K, ObjId>,
-    used_ids: HashSet<ObjId>,
-    unused_ids: VecDeque<ObjId>,
-}
-
-impl<'a, K: ?Sized> ObjIdManager<'a, K>
-where
-    K: std::hash::Hash + Eq,
-{
-    fn new(value_to_id: HashMap<&'a K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
-        let unused_ids: VecDeque<ObjId> = ObjId::all_values()
-            .filter(|id| !used_ids.contains(id))
-            .collect();
-
-        Self {
-            value_to_id,
-            used_ids,
-            unused_ids,
-        }
-    }
-
-    fn get_or_allocate_id(
-        &mut self,
-        key: &'a K,
-        create_token: impl Fn(ObjId, &'a K) -> Token<'a>,
-    ) -> (ObjId, Option<Token<'a>>) {
-        if let Some(&id) = self.value_to_id.get(key) {
-            (id, None)
-        } else {
-            let new_id = self.unused_ids.pop_front().unwrap_or_else(ObjId::null);
-            self.used_ids.insert(new_id);
-            self.value_to_id.insert(key, new_id);
-            let token = create_token(new_id, key);
-            (new_id, Some(token))
-        }
-    }
-}
+use crate::bms::command::ObjIdManager;
 
 /// Generic token generator for ObjId-based definition tokens
 ///
 /// This struct integrates with ObjIdManager to provide centralized management
 /// of definition token generation, combining ID allocation, key extraction, and token creation.
-struct DefTokenGenerator<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
+pub(crate) struct DefTokenGenerator<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
 where
     Key: std::hash::Hash + Eq,
     TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
     KeyExtractor: Fn(&'a Event) -> &'a Key,
 {
-    id_manager: ObjIdManager<'a, Key>,
+    pub id_manager: ObjIdManager<'a, Key>,
     token_creator: TokenCreator,
     key_extractor: KeyExtractor,
     _phantom: std::marker::PhantomData<&'a Event>,
@@ -71,7 +33,7 @@ where
     KeyExtractor: Fn(&'a Event) -> &'a Key,
 {
     /// Create a new instance with an ObjIdManager, token creator function, and key extractor
-    fn new(
+    pub fn new(
         id_manager: ObjIdManager<'a, Key>,
         token_creator: TokenCreator,
         key_extractor: KeyExtractor,
@@ -87,13 +49,13 @@ where
     /// Process an event: extract key, get/allocate ID, and optionally create a definition token
     ///
     /// Returns (ObjId, Option<Token>) where the token is Some only if a new ID was allocated
-    fn process_event(&mut self, event: &'a Event) -> (ObjId, Option<Token<'a>>) {
+    pub fn process_event(&mut self, event: &'a Event) -> (ObjId, Option<Token<'a>>) {
         let key = (self.key_extractor)(event);
         self.id_manager.get_or_allocate_id(key, &self.token_creator)
     }
 
     /// Consume the generator and return the ObjIdManager
-    fn into_id_manager(self) -> ObjIdManager<'a, Key> {
+    pub fn into_id_manager(self) -> ObjIdManager<'a, Key> {
         self.id_manager
     }
 }
@@ -596,7 +558,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
-        let mut bpm_id_manager = ObjIdManager::new(bpm_value_to_id, used_bpm_ids);
+        let bpm_id_manager = ObjIdManager::new(bpm_value_to_id, used_bpm_ids);
         let mut bpm_message_tokens = Vec::new();
 
         // Split BPM changes into two types: U8 (not in value list and is u8) and others
@@ -605,7 +567,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         for (time, ev) in &self.arrangers.bpm_changes {
             // Check if already defined
-            if bpm_id_manager.value_to_id.contains_key(&ev.bpm) {
+            if bpm_id_manager.get_value_to_id().contains_key(&ev.bpm) {
                 // Already defined, treat as other type
                 other_bpm_events.push((time, ev));
             } else
@@ -640,17 +602,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
         bpm_message_tokens.extend(bpm_u8_message_tokens);
 
         // Process other type BPM changes using build_event_messages
-        let bpm_manager = ObjIdManager::new(bpm_id_manager.value_to_id, bpm_id_manager.used_ids);
+        let bpm_manager = bpm_id_manager;
         let bpm_def_generator = DefTokenGenerator::create_generator(
             bpm_manager,
             |id, bpm| Token::BpmChange(id, (*bpm).clone()),
             |ev: &BpmChangeObj| &ev.bpm,
         );
         let EventProcessingResult {
-            updated_value_to_id: other_updated_value_to_id,
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
             used_ids: other_used_ids,
+            ..
         } = build_event_messages(
             other_bpm_events.into_iter(),
             Some(bpm_def_generator),
@@ -660,9 +622,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         used_ids.extend(other_used_ids.clone());
 
         // Update id_manager with the results
-        bpm_id_manager.value_to_id = other_updated_value_to_id;
-        bpm_id_manager.used_ids = other_used_ids;
-
         late_def_tokens.extend(other_late_def_tokens);
         bpm_message_tokens.extend(other_message_tokens);
 
@@ -1023,10 +982,9 @@ fn channel_sort_key(channel: Channel) -> (u16, u16) {
 }
 
 /// Complete result from build_messages_event containing all processing outputs
-struct EventProcessingResult<'a, K: ?Sized> {
+struct EventProcessingResult<'a> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
-    updated_value_to_id: HashMap<&'a K, ObjId>,
     used_ids: HashSet<ObjId>,
 }
 
@@ -1067,7 +1025,7 @@ fn build_event_messages<
     def_token_generator: Option<DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>>,
     channel_mapper: ChannelMapper,
     message_formatter: MessageFormatter,
-) -> EventProcessingResult<'a, Key>
+) -> EventProcessingResult<'a>
 where
     EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
     TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
@@ -1078,7 +1036,6 @@ where
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
     let mut id_map: HashMap<ObjTime, ObjId> = HashMap::new();
     let mut used_ids: HashSet<ObjId> = HashSet::new();
-    let updated_value_to_id: HashMap<&'a Key, ObjId>;
 
     // Process events based on whether DefTokenGenerator is provided
     // Keep original order from event_iter instead of grouping by track/channel
@@ -1099,16 +1056,14 @@ where
                 .collect();
 
             // Extract updated state from the def token generator
-            let def_id_manager = generator.into_id_manager();
-            updated_value_to_id = def_id_manager.value_to_id;
+            let (_def_id_manager_value_to_id, def_id_manager_used_ids, _def_id_manager_unused_ids) =
+                generator.into_id_manager().extract();
             // Merge updated_used_ids into used_ids to consolidate all used IDs
-            used_ids = def_id_manager.used_ids;
+            used_ids = def_id_manager_used_ids;
 
             events
         } else {
             // Direct mode: process events with direct values
-            updated_value_to_id = HashMap::new();
-
             event_iter
                 .map(|(&time, event)| (time, event, channel_mapper(event), None))
                 .collect()
@@ -1282,7 +1237,6 @@ where
     EventProcessingResult {
         message_tokens,
         late_def_tokens,
-        updated_value_to_id,
         used_ids,
     }
 }

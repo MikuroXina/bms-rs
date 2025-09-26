@@ -2,6 +2,10 @@
 //!
 //! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
 
+use std::collections::{HashMap, HashSet, VecDeque};
+
+use crate::bms::lex::token::Token;
+
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
@@ -131,15 +135,6 @@ impl TryFrom<[u8; 2]> for ObjId {
     fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
         <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
             .map_err(|_| value)
-    }
-}
-
-/// Value Range: `0..62*62`
-impl TryFrom<u16> for ObjId {
-    type Error = u16;
-
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        Self::try_from([(value / 62) as u8, (value % 62) as u8]).map_err(|_| value)
     }
 }
 
@@ -361,6 +356,68 @@ impl TryFrom<u8> for LnMode {
             3 => Self::Hcn,
             _ => return Err(value),
         })
+    }
+}
+
+/// Configuration for ID management in build_messages_event
+pub struct ObjIdManager<'a, K: ?Sized> {
+    value_to_id: HashMap<&'a K, ObjId>,
+    used_ids: HashSet<ObjId>,
+    unused_ids: VecDeque<ObjId>,
+}
+
+impl<'a, K: ?Sized> ObjIdManager<'a, K>
+where
+    K: std::hash::Hash + Eq,
+{
+    /// Create a new ObjIdManager
+    pub fn new(value_to_id: HashMap<&'a K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
+        let unused_ids: VecDeque<ObjId> = ObjId::all_values()
+            .filter(|id| !used_ids.contains(id))
+            .collect();
+
+        Self {
+            value_to_id,
+            used_ids,
+            unused_ids,
+        }
+    }
+
+    /// Get or allocate an ObjId for a key
+    pub fn get_or_allocate_id(
+        &mut self,
+        key: &'a K,
+        create_token: impl Fn(ObjId, &'a K) -> Token<'a>,
+    ) -> (ObjId, Option<Token<'a>>) {
+        if let Some(&id) = self.value_to_id.get(key) {
+            (id, None)
+        } else {
+            let new_id = self.unused_ids.pop_front().unwrap_or_else(ObjId::null);
+            self.used_ids.insert(new_id);
+            self.value_to_id.insert(key, new_id);
+            let token = create_token(new_id, key);
+            (new_id, Some(token))
+        }
+    }
+
+    /// Get used ids
+    pub fn get_used_ids(&self) -> &HashSet<ObjId> {
+        &self.used_ids
+    }
+
+    /// Get value to id
+    pub fn get_value_to_id(&self) -> &HashMap<&'a K, ObjId> {
+        &self.value_to_id
+    }
+
+    /// Get unused ids
+    pub fn get_unused_ids(&self) -> &VecDeque<ObjId> {
+        &self.unused_ids
+    }
+
+    /// Extract the ObjIdManager
+    pub fn extract(self) -> (HashMap<&'a K, ObjId>, HashSet<ObjId>, VecDeque<ObjId>) {
+        (self.value_to_id, self.used_ids, self.unused_ids)
     }
 }
 
