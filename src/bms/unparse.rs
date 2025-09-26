@@ -981,6 +981,15 @@ where
     }
 }
 
+/// A unit of event processing containing all necessary information for token generation
+#[derive(Debug, Clone)]
+struct EventUnit<'a, Event> {
+    time: ObjTime,
+    event: &'a Event,
+    channel: Channel,
+    id: Option<ObjId>,
+}
+
 /// Complete result from build_messages_event containing all processing outputs
 struct EventProcessingResult<'a> {
     message_tokens: Vec<Token<'a>>,
@@ -1039,7 +1048,7 @@ where
 
     // Process events based on whether DefTokenGenerator is provided
     // Keep original order from event_iter instead of grouping by track/channel
-    let processed_events: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)> = event_iter
+    let processed_events: Vec<EventUnit<'a, Event>> = event_iter
         .map(|(&time, event)| {
             let id = def_token_generator
                 .as_mut()
@@ -1056,7 +1065,12 @@ where
                     used_ids.insert(id);
                     id
                 });
-            (time, event, channel_mapper(event), id)
+            EventUnit {
+                time,
+                event,
+                channel: channel_mapper(event),
+                id,
+            }
         })
         .collect();
 
@@ -1115,35 +1129,28 @@ where
 
 /// Group events by track, channel, and non-strictly increasing time
 fn group_events_by_track_channel_time<'a, Event>(
-    processed_events: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
-) -> Vec<Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>> {
+    processed_events: Vec<EventUnit<'a, Event>>,
+) -> Vec<Vec<EventUnit<'a, Event>>> {
     let mut groups = Vec::new();
     let mut current_group = Vec::new();
 
-    for (time, event, channel, id) in processed_events {
+    for event_unit in processed_events {
         let should_join = current_group
             .last()
-            .map(
-                |&(last_time, _last_event, last_channel, _last_id): &(
-                    ObjTime,
-                    &'a Event,
-                    Channel,
-                    Option<ObjId>,
-                )| {
-                    time.track() == last_time.track()
-                        && last_channel == channel
-                        && last_time <= time
-                },
-            )
+            .map(|last_unit: &EventUnit<'a, Event>| {
+                event_unit.time.track() == last_unit.time.track()
+                    && last_unit.channel == event_unit.channel
+                    && last_unit.time <= event_unit.time
+            })
             .unwrap_or(false);
 
         if should_join {
-            current_group.push((time, event, channel, id));
+            current_group.push(event_unit);
         } else {
             if !current_group.is_empty() {
                 groups.push(current_group);
             }
-            current_group = vec![(time, event, channel, id)];
+            current_group = vec![event_unit];
         }
     }
 
@@ -1155,40 +1162,33 @@ fn group_events_by_track_channel_time<'a, Event>(
 
 /// Split a group into subgroups based on time ordering and denominator consistency
 fn split_group_into_subgroups<'a, Event>(
-    group: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
-) -> Vec<Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>> {
+    group: Vec<EventUnit<'a, Event>>,
+) -> Vec<Vec<EventUnit<'a, Event>>> {
     let mut sub_groups = Vec::new();
     let mut current_sub_group = Vec::new();
 
-    for (time, event, channel, id) in group {
+    for event_unit in group {
         let should_join = current_sub_group
             .last()
-            .map(
-                |&(last_time, _last_event, _last_channel, _last_id): &(
-                    ObjTime,
-                    &'a Event,
-                    Channel,
-                    Option<ObjId>,
-                )| {
-                    // SUBGROUP JOINING RULES:
-                    // 1. Time must be strictly increasing (prevents overlapping events)
-                    // 2. Denominators must be the same starting from the second element
-                    //    - First element (current_sub_group.is_empty()) can have any denominator
-                    //    - Subsequent elements must match the first element's denominator
-                    (last_time < time)
-                        && (current_sub_group.is_empty()
-                            || time.denominator() == last_time.denominator())
-                },
-            )
+            .map(|last_unit: &EventUnit<'a, Event>| {
+                // SUBGROUP JOINING RULES:
+                // 1. Time must be strictly increasing (prevents overlapping events)
+                // 2. Denominators must be the same starting from the second element
+                //    - First element (current_sub_group.is_empty()) can have any denominator
+                //    - Subsequent elements must match the first element's denominator
+                (last_unit.time < event_unit.time)
+                    && (current_sub_group.is_empty()
+                        || event_unit.time.denominator() == last_unit.time.denominator())
+            })
             .unwrap_or(true); // Empty subgroup always accepts the first event
 
         if should_join {
-            current_sub_group.push((time, event, channel, id));
+            current_sub_group.push(event_unit);
         } else {
             if !current_sub_group.is_empty() {
                 sub_groups.push(current_sub_group);
             }
-            current_sub_group = vec![(time, event, channel, id)];
+            current_sub_group = vec![event_unit];
         }
     }
 
@@ -1200,7 +1200,7 @@ fn split_group_into_subgroups<'a, Event>(
 
 /// Convert a subgroup of events into a single Token::Message
 fn convert_subgroup_to_token<'a, Event, MessageFormatter>(
-    sub_group: Vec<(ObjTime, &'a Event, Channel, Option<ObjId>)>,
+    sub_group: Vec<EventUnit<'a, Event>>,
     message_formatter: &MessageFormatter,
     used_ids: &mut HashSet<ObjId>,
 ) -> Token<'a>
@@ -1218,7 +1218,7 @@ where
     // EXTRACT METADATA FROM SUBGROUP
     // All events in subgroup should have same track and channel (guaranteed by grouping logic)
     let first_event = &sub_group[0];
-    let (track, channel) = (first_event.0.track(), first_event.2);
+    let (track, channel) = (first_event.time.track(), first_event.channel);
 
     // CALCULATE MESSAGE LENGTH
     // Find the maximum denominator to determine message length - this ensures
@@ -1226,7 +1226,7 @@ where
     // Example: if we have events at 1/4, 1/2, 3/4, we need length 4 to represent them all.
     let max_denom = sub_group
         .iter()
-        .map(|&(time, _, _, _)| time.denominator_u64())
+        .map(|event_unit| event_unit.time.denominator_u64())
         .max()
         .unwrap_or(1);
 
@@ -1237,8 +1237,11 @@ where
     // For each event in the subgroup, calculate its exact position in the message
     // and place its value there. The time_idx calculation converts fractional time
     // to array index using the formula: (numerator * max_denom / denominator)
-    for (time, event, _, id_opt) in sub_group {
-        let message_value = message_formatter(event, id_opt);
+    for event_unit in sub_group {
+        let EventUnit {
+            event, id, time, ..
+        } = event_unit;
+        let message_value = message_formatter(event, id);
         // Collect this ObjId as used if it's an ObjId
         if let MessageValue::ObjId(id) = message_value {
             used_ids.insert(id);
