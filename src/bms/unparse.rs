@@ -134,6 +134,41 @@ impl<T: KeyLayoutMapper> Bms<T> {
         };
 
         // Others section lines FIRST to preserve order equality on roundtrip
+        #[cfg(feature = "minor-command")]
+        {
+            // Options
+            if let Some(options) = self.others.options.as_ref() {
+                for option in options {
+                    tokens.push(Token::Option(option.as_str()));
+                }
+            }
+            // Octave mode
+            if self.others.is_octave {
+                tokens.push(Token::OctFp);
+            }
+            // CDDA events
+            for cdda in &self.others.cdda {
+                tokens.push(Token::Cdda(cdda.clone()));
+            }
+            // Extended character events
+            for extchr in &self.others.extchr_events {
+                tokens.push(Token::ExtChr(extchr.clone()));
+            }
+            // Change options
+            for (id, option) in &self.others.change_options {
+                tokens.push(Token::ChangeOption(*id, option.as_str()));
+            }
+            // Divide property
+            if let Some(divide_prop) = self.others.divide_prop.as_ref() {
+                tokens.push(Token::DivideProp(divide_prop.as_str()));
+            }
+            // Materials path
+            if let Some(materials_path) = self.others.materials_path.as_ref()
+                && !materials_path.as_path().as_os_str().is_empty()
+            {
+                tokens.push(Token::Materials(materials_path.as_ref()));
+            }
+        }
         for line in &self.others.non_command_lines {
             tokens.push(Token::NotACommand(line.as_str()));
         }
@@ -149,19 +184,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::Maker(maker));
         }
         if let Some(genre) = self.header.genre.as_deref() {
-            tokens.push(Token::Genre(genre))
+            tokens.push(Token::Genre(genre));
         }
         if let Some(title) = self.header.title.as_deref() {
-            tokens.push(Token::Title(title))
+            tokens.push(Token::Title(title));
         }
         if let Some(subtitle) = self.header.subtitle.as_deref() {
-            tokens.push(Token::SubTitle(subtitle))
+            tokens.push(Token::SubTitle(subtitle));
         }
         if let Some(artist) = self.header.artist.as_deref() {
-            tokens.push(Token::Artist(artist))
+            tokens.push(Token::Artist(artist));
         }
         if let Some(sub_artist) = self.header.sub_artist.as_deref() {
-            tokens.push(Token::SubArtist(sub_artist))
+            tokens.push(Token::SubArtist(sub_artist));
         }
         if let Some(play_level) = self.header.play_level {
             tokens.push(Token::PlayLevel(play_level));
@@ -226,6 +261,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::VolWav(self.header.volume));
         }
 
+        // PoorBga mode
+        #[cfg(feature = "minor-command")]
+        if self.graphics.poor_bga_mode != PoorMode::default() {
+            tokens.push(Token::PoorBga(self.graphics.poor_bga_mode));
+        }
+
         // Definitions in scope (existing ones first)
         // Use iterator chains to efficiently collect all definition tokens
         let mut def_tokens: Vec<Token> = Vec::new();
@@ -255,6 +296,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .stop_defs
                 .iter()
                 .map(|(id, v)| (*id, Token::Stop(*id, v.clone())))
+                .inspect(|(id, _)| check_base62(id))
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
+
+        #[cfg(feature = "minor-command")]
+        def_tokens.extend(
+            self.others
+                .seek_events
+                .iter()
+                .map(|(id, v)| (*id, Token::Seek(*id, v.clone())))
                 .inspect(|(id, _)| check_base62(id))
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
@@ -385,6 +437,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .collect::<BTreeMap<_, _>>()
                     .into_values(),
             );
+
+            // SWBGA events, sorted by ObjId for consistent output
+            let mut swbga_events: Vec<_> = self.scope_defines.swbga_events.iter().collect();
+            swbga_events.sort_by_key(|(id, _)| *id);
+            def_tokens.extend(
+                swbga_events
+                    .into_iter()
+                    .map(|(id, ev)| Token::SwBga(*id, ev.clone())),
+            );
         }
 
         tokens.extend(def_tokens);
@@ -395,6 +456,20 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Add basic resource tokens
         if let Some(path_root) = self.notes.wav_path_root.as_ref() {
             resource_tokens.push(Token::PathWav(path_root.as_ref()));
+        }
+
+        #[cfg(feature = "minor-command")]
+        {
+            if let Some(midi_file) = self.notes.midi_file.as_ref()
+                && !midi_file.as_path().as_os_str().is_empty()
+            {
+                resource_tokens.push(Token::MidiFile(midi_file.as_ref()));
+            }
+            if let Some(materials_wav) = self.notes.materials_wav.first()
+                && !materials_wav.as_path().as_os_str().is_empty()
+            {
+                resource_tokens.push(Token::MaterialsWav(materials_wav.as_ref()));
+            }
         }
 
         if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
@@ -419,6 +494,16 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             if let Some(fps) = self.graphics.video_fs.as_ref() {
                 resource_tokens.push(Token::VideoFs(fps.clone()));
+            }
+            if let Some(char_file) = self.graphics.char_file.as_ref()
+                && !char_file.as_path().as_os_str().is_empty()
+            {
+                resource_tokens.push(Token::CharFile(char_file.as_ref()));
+            }
+            if let Some(materials_bmp) = self.graphics.materials_bmp.first()
+                && !materials_bmp.as_path().as_os_str().is_empty()
+            {
+                resource_tokens.push(Token::MaterialsBmp(materials_bmp.as_ref()));
             }
         }
 
@@ -480,6 +565,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Helper closures for mapping definitions
         let used_bpm_ids: HashSet<ObjId> = self.scope_defines.bpm_defs.keys().copied().collect();
         let used_stop_ids: HashSet<ObjId> = self.scope_defines.stop_defs.keys().copied().collect();
+        #[cfg(feature = "minor-command")]
+        let used_seek_ids: HashSet<ObjId> = self.others.seek_events.keys().copied().collect();
         let used_scroll_ids: HashSet<ObjId> =
             self.scope_defines.scroll_defs.keys().copied().collect();
         let used_speed_ids: HashSet<ObjId> =
@@ -523,6 +610,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .exrank_defs
             .iter()
             .map(|(k, v)| (&v.judge_level, *k))
+            .collect();
+        #[cfg(feature = "minor-command")]
+        let seek_value_to_id: HashMap<&'a Decimal, ObjId> = self
+            .others
+            .seek_events
+            .iter()
+            .map(|(k, v)| (v, *k))
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
@@ -665,6 +759,14 @@ impl<T: KeyLayoutMapper> Bms<T> {
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
+        #[cfg(feature = "minor-command")]
+        {
+            // STP events, sorted by time for consistent output
+            let mut stp_events: Vec<_> = self.arrangers.stp_events.values().collect();
+            stp_events.sort_by_key(|ev| ev.time);
+            tokens.extend(stp_events.into_iter().map(|ev| Token::Stp(*ev)));
+        }
+
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         let EventProcessingResult {
             message_tokens: bga_message_tokens,
@@ -678,6 +780,55 @@ impl<T: KeyLayoutMapper> Bms<T> {
         );
         needs_base62_token = needs_base62_token || is_base62;
         message_tokens.extend(bga_message_tokens);
+
+        #[cfg(feature = "minor-command")]
+        {
+            // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
+            for (layer, opacity_changes) in &self.graphics.bga_opacity_changes {
+                let EventProcessingResult {
+                    message_tokens: opacity_message_tokens,
+                    needs_base62: is_base62,
+                    ..
+                } = build_event_messages(
+                    opacity_changes.iter(),
+                    None::<
+                        DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>,
+                    >,
+                    |_ev| match layer {
+                        BgaLayer::Base => Channel::BgaBaseOpacity,
+                        BgaLayer::Poor => Channel::BgaPoorOpacity,
+                        BgaLayer::Overlay => Channel::BgaLayerOpacity,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
+                    },
+                    |ev, _id| MessageValue::U8(ev.opacity),
+                );
+                needs_base62_token = needs_base62_token || is_base62;
+                message_tokens.extend(opacity_message_tokens);
+            }
+
+            // Messages: BGA ARGB changes (#xxxA1/#xxxA2/#xxxA3/#xxxA4)
+            for (layer, argb_changes) in &self.graphics.bga_argb_changes {
+                let EventProcessingResult {
+                    message_tokens: argb_message_tokens,
+                    needs_base62: is_base62,
+                    ..
+                } = build_event_messages(
+                    argb_changes.iter(),
+                    None::<
+                        DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>,
+                    >,
+                    |_ev| match layer {
+                        BgaLayer::Base => Channel::BgaBaseArgb,
+                        BgaLayer::Poor => Channel::BgaPoorArgb,
+                        BgaLayer::Overlay => Channel::BgaLayerArgb,
+                        BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
+                    },
+                    |ev, _id| MessageValue::U8(ev.argb.alpha),
+                );
+                needs_base62_token = needs_base62_token || is_base62;
+                message_tokens.extend(argb_message_tokens);
+            }
+        }
 
         // Messages: BGM (#xxx01) and Notes (various #xx)
         // Use build_event_messages to process note and BGM objects
@@ -776,6 +927,59 @@ impl<T: KeyLayoutMapper> Bms<T> {
         needs_base62_token = needs_base62_token || is_base62;
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
+
+        #[cfg(feature = "minor-command")]
+        {
+            // Messages: SEEK (#xxx05)
+            let seek_manager = ObjIdManager::new(seek_value_to_id, used_seek_ids);
+            let seek_def_generator = DefTokenGenerator::create_generator(
+                seek_manager,
+                |id, position| Token::Seek(id, (*position).clone()),
+                |ev: &SeekObj| &ev.position,
+            );
+            let EventProcessingResult {
+                late_def_tokens: seek_late_def_tokens,
+                message_tokens: seek_message_tokens,
+                needs_base62: is_base62,
+                ..
+            } = build_event_messages(
+                self.notes.seek_events.iter(),
+                Some(seek_def_generator),
+                |_ev| Channel::Seek,
+                |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            );
+            needs_base62_token = needs_base62_token || is_base62;
+            late_def_tokens.extend(seek_late_def_tokens);
+            message_tokens.extend(seek_message_tokens);
+
+            // Messages: BGA keybound (#xxxA5)
+            let EventProcessingResult {
+                message_tokens: bga_keybound_message_tokens,
+                needs_base62: is_base62,
+                ..
+            } = build_event_messages(
+                self.notes.bga_keybound_events.iter(),
+                None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
+                |_ev| Channel::BgaKeybound,
+                |ev, _id| MessageValue::U8(ev.event.line),
+            );
+            needs_base62_token = needs_base62_token || is_base62;
+            message_tokens.extend(bga_keybound_message_tokens);
+
+            // Messages: OPTION (#xxxA6)
+            let EventProcessingResult {
+                message_tokens: option_message_tokens,
+                needs_base62: is_base62,
+                ..
+            } = build_event_messages(
+                self.notes.option_events.iter(),
+                None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
+                |_ev| Channel::Option,
+                |_ev, _id| MessageValue::U8(0), // Option events don't use values
+            );
+            needs_base62_token = needs_base62_token || is_base62;
+            message_tokens.extend(option_message_tokens);
+        }
 
         // Assembly: header/definitions/resources/others -> late definitions -> messages
         if !late_def_tokens.is_empty() {
