@@ -766,6 +766,13 @@ struct EventProcessingResult<'a, K: ?Sized> {
 /// This function processes time-indexed events from an iterator and converts them into message tokens.
 /// It supports both ID allocation mode (using DefTokenGenerator) and direct mode (without ID allocation).
 ///
+/// # PROCESSING FLOW OVERVIEW:
+/// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
+/// 2. **SPLIT INTO SUBGROUPS**: Each group is further split into subgroups with stricter rules:
+///    - Strictly increasing time (prevents overlaps)
+///    - Consistent denominators (ensures accurate representation)
+/// 3. **GENERATE TOKENS**: Each subgroup becomes one Token::Message with all events encoded
+///
 /// Arguments:
 ///     events: An iterator yielding (&time, &event) pairs to process
 ///     def_token_generator: Optional DefTokenGenerator for centralized ID and def token management
@@ -837,7 +844,15 @@ where
                 .collect()
         };
 
+    // === STEP 1: GROUP EVENTS BY TRACK, CHANNEL, AND TIME ===
     // Group events by adjacent same track, channel and non-strictly increasing time
+    //
+    // This creates the first level of grouping where events that share:
+    // - Preserve the original event iterator order
+    // - Same track number
+    // - Same channel type
+    // - Non-strictly increasing time (last_time <= current_time)
+    // ...are grouped together. This is the foundation for efficient message generation.
     let grouped_events: Vec<Vec<_>> = {
         let (mut groups, current_group) = processed_events.into_iter().fold(
             (
@@ -873,7 +888,17 @@ where
         groups
     };
 
+    // === STEP 2: SPLIT GROUPS INTO SUBGROUPS ===
     // Split each group into subgroups based on time ordering and denominator consistency
+    //
+    // This creates the second level of grouping with stricter rules:
+    // - Not preserve the original event iterator order
+    // - Time must be strictly increasing (last_time < current_time)
+    // - Denominators must be the same starting from the second element
+    // - First element can have 0 numerator, or the same denominator as elements after it
+    //
+    // The purpose is to ensure that events within a subgroup can be represented
+    // in a single message string without conflicts or information loss.
     let sub_grouped_events: Vec<Vec<_>> = grouped_events
         .into_iter()
         .map(|group| {
@@ -883,15 +908,20 @@ where
                     Vec::<(ObjTime, &Event, Channel, Option<ObjId>)>::new(),
                 ),
                 |(mut sub_groups, mut current), (time, event, channel, id)| {
+                    // Determine if current event should join the current subgroup
                     let should_join = current
                         .last()
                         .map(|&(last_time, _last_event, _last_channel, _last_id)| {
-                            // Time must be strictly increasing
-                            last_time < time &&
-                            // Denominators must be the same starting from the second element
-                            (current.len() == 0 || time.denominator() == last_time.denominator())
+                            // SUBGROUP JOINING RULES:
+                            // 1. Time must be strictly increasing (prevents overlapping events)
+                            // 2. Denominators must be the same starting from the second element
+                            //    - First element (current.len() == 0) can have any denominator
+                            //    - Subsequent elements must match the first element's denominator
+                            (last_time < time)
+                                && (current.len() == 0
+                                    || time.denominator() == last_time.denominator())
                         })
-                        .unwrap_or(true);
+                        .unwrap_or(true); // Empty subgroup always accepts the first event
 
                     if should_join {
                         current.push((time, event, channel, id));
@@ -914,7 +944,12 @@ where
         .flatten()
         .collect();
 
+    // === STEP 3: GENERATE MESSAGE TOKENS FROM SUBGROUPS ===
     // Generate message tokens: each subgroup generates one Token::Message
+    //
+    // This is the final step where each subgroup is converted into a single Token::Message.
+    // The process ensures that all events in a subgroup are represented in one message string
+    // with correct timing and without information loss.
     let message_tokens: Vec<Token<'a>> = sub_grouped_events
         .into_iter()
         .map(|sub_group| {
@@ -926,11 +961,15 @@ where
                 };
             }
 
-            // All events in subgroup should have same track and channel
+            // EXTRACT METADATA FROM SUBGROUP
+            // All events in subgroup should have same track and channel (guaranteed by grouping logic)
             let first_event = &sub_group[0];
             let (track, channel) = (first_event.0.track(), first_event.2);
 
-            // Find the maximum denominator to determine message length
+            // CALCULATE MESSAGE LENGTH
+            // Find the maximum denominator to determine message length - this ensures
+            // all events in the subgroup can be accurately positioned in the message string.
+            // Example: if we have events at 1/4, 1/2, 3/4, we need length 4 to represent them all.
             let max_denom = sub_group
                 .iter()
                 .map(|&(time, _, _, _)| time.denominator_u64())
@@ -940,13 +979,19 @@ where
             let message_len = max_denom as usize;
             let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
 
-            // Place each event value at its corresponding time position
+            // PLACE EVENTS IN MESSAGE STRING
+            // For each event in the subgroup, calculate its exact position in the message
+            // and place its value there. The time_idx calculation converts fractional time
+            // to array index using the formula: (numerator * max_denom / denominator)
             for (time, event, _, id_opt) in sub_group {
                 let message_value = message_formatter(event, id_opt);
                 let denom_u64 = time.denominator_u64();
+
+                // Calculate exact position: convert fraction to index in the message array
+                // Example: time=3/4, max_denom=4: (3 * 4 / 4) = 3, so place at index 3
                 let time_idx = (time.numerator() * (max_denom / denom_u64)) as usize;
 
-                // Ensure we don't go out of bounds
+                // Ensure we don't go out of bounds (safety check)
                 if time_idx < message_len {
                     let chars = message_value.to_chars();
                     message_parts[time_idx] = chars.iter().collect::<String>();
