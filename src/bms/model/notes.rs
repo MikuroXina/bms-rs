@@ -383,7 +383,7 @@ impl<T> Notes<T> {
             .0
             .iter()
             .enumerate()
-            .filter(|&(_, obj)| cond(obj))
+            .filter(|&(_, obj)| !cond(obj))
             .map(|(i, _)| i)
             .collect();
         for removing_idx in removing_indexes {
