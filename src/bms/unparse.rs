@@ -9,17 +9,17 @@ use num::Integer;
 use crate::bms::prelude::*;
 
 /// Configuration for ID management in build_messages_event
-struct ObjIdManager<K> {
-    value_to_id: HashMap<K, ObjId>,
+struct ObjIdManager<'a, K: ?Sized> {
+    value_to_id: HashMap<&'a K, ObjId>,
     used_ids: HashSet<ObjId>,
     unused_ids: VecDeque<ObjId>,
 }
 
-impl<K> ObjIdManager<K>
+impl<'a, K: ?Sized> ObjIdManager<'a, K>
 where
-    K: std::hash::Hash + Eq + Clone,
+    K: std::hash::Hash + Eq,
 {
-    fn new(value_to_id: HashMap<K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
+    fn new(value_to_id: HashMap<&'a K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
         let unused_ids: VecDeque<ObjId> = ObjId::all_values()
             .filter(|id| !used_ids.contains(id))
             .collect();
@@ -31,17 +31,17 @@ where
         }
     }
 
-    fn get_or_allocate_id<'a>(
+    fn get_or_allocate_id(
         &mut self,
-        key: K,
-        create_token: impl Fn(ObjId, K) -> Token<'a>,
+        key: &'a K,
+        create_token: impl Fn(ObjId, &'a K) -> Token<'a>,
     ) -> (ObjId, Option<Token<'a>>) {
-        if let Some(&id) = self.value_to_id.get(&key) {
+        if let Some(&id) = self.value_to_id.get(key) {
             (id, None)
         } else {
             let new_id = self.unused_ids.pop_front().unwrap_or_else(ObjId::null);
             self.used_ids.insert(new_id);
-            self.value_to_id.insert(key.clone(), new_id);
+            self.value_to_id.insert(key, new_id);
             let token = create_token(new_id, key);
             (new_id, Some(token))
         }
@@ -52,28 +52,28 @@ where
 ///
 /// This struct integrates with ObjIdManager to provide centralized management
 /// of definition token generation, combining ID allocation, key extraction, and token creation.
-struct DefTokenGenerator<'a, Event: ?Sized, Key, TokenCreator, KeyExtractor>
+struct DefTokenGenerator<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
 where
-    Key: std::hash::Hash + Eq + Clone,
-    TokenCreator: Fn(ObjId, Key) -> Token<'a>,
-    KeyExtractor: Fn(&Event) -> Key,
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
 {
-    id_manager: ObjIdManager<Key>,
+    id_manager: ObjIdManager<'a, Key>,
     token_creator: TokenCreator,
     key_extractor: KeyExtractor,
     _phantom: std::marker::PhantomData<&'a Event>,
 }
 
-impl<'a, Event: ?Sized, Key, TokenCreator, KeyExtractor>
+impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
     DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
 where
-    Key: std::hash::Hash + Eq + Clone,
-    TokenCreator: Fn(ObjId, Key) -> Token<'a>,
-    KeyExtractor: Fn(&Event) -> Key,
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
 {
     /// Create a new instance with an ObjIdManager, token creator function, and key extractor
     fn new(
-        id_manager: ObjIdManager<Key>,
+        id_manager: ObjIdManager<'a, Key>,
         token_creator: TokenCreator,
         key_extractor: KeyExtractor,
     ) -> Self {
@@ -88,32 +88,31 @@ where
     /// Process an event: extract key, get/allocate ID, and optionally create a definition token
     ///
     /// Returns (ObjId, Option<Token>) where the token is Some only if a new ID was allocated
-    fn process_event(&mut self, event: &Event) -> (ObjId, Option<Token<'a>>) {
+    fn process_event(&mut self, event: &'a Event) -> (ObjId, Option<Token<'a>>) {
         let key = (self.key_extractor)(event);
-        self.id_manager
-            .get_or_allocate_id(key.clone(), &self.token_creator)
+        self.id_manager.get_or_allocate_id(key, &self.token_creator)
     }
 
     /// Consume the generator and return the ObjIdManager
-    fn into_id_manager(self) -> ObjIdManager<Key> {
+    fn into_id_manager(self) -> ObjIdManager<'a, Key> {
         self.id_manager
     }
 }
 
 /// Convenience functions for creating common definition token generators
-impl<'a, Event: ?Sized, Key, TokenCreator, KeyExtractor>
+impl<'a, Event: 'a, Key: ?Sized + 'a, TokenCreator, KeyExtractor>
     DefTokenGenerator<'a, Event, Key, TokenCreator, KeyExtractor>
 where
-    Key: std::hash::Hash + Eq + Clone,
-    TokenCreator: Fn(ObjId, Key) -> Token<'a>,
-    KeyExtractor: Fn(&Event) -> Key,
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
 {
     /// Create a token generator with all required components
     ///
     /// This function allows creating token generators by providing
     /// an ObjIdManager, token creator function, and key extractor function
     pub fn create_generator(
-        id_manager: ObjIdManager<Key>,
+        id_manager: ObjIdManager<'a, Key>,
         token_creator: TokenCreator,
         key_extractor: KeyExtractor,
     ) -> Self {
@@ -418,29 +417,29 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let used_exrank_ids: HashSet<ObjId> =
             self.scope_defines.exrank_defs.keys().copied().collect();
 
-        let bpm_value_to_id: HashMap<Decimal, ObjId> = self
+        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> = self
             .scope_defines
             .bpm_defs
             .iter()
-            .map(|(k, v)| (v.clone(), *k))
+            .map(|(k, v)| (v, *k))
             .collect();
-        let stop_value_to_id: HashMap<Decimal, ObjId> = self
+        let stop_value_to_id: HashMap<&'a Decimal, ObjId> = self
             .scope_defines
             .stop_defs
             .iter()
-            .map(|(k, v)| (v.clone(), *k))
+            .map(|(k, v)| (v, *k))
             .collect();
-        let scroll_value_to_id: HashMap<Decimal, ObjId> = self
+        let scroll_value_to_id: HashMap<&'a Decimal, ObjId> = self
             .scope_defines
             .scroll_defs
             .iter()
-            .map(|(k, v)| (v.clone(), *k))
+            .map(|(k, v)| (v, *k))
             .collect();
-        let speed_value_to_id: HashMap<Decimal, ObjId> = self
+        let speed_value_to_id: HashMap<&'a Decimal, ObjId> = self
             .scope_defines
             .speed_defs
             .iter()
-            .map(|(k, v)| (v.clone(), *k))
+            .map(|(k, v)| (v, *k))
             .collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .others
@@ -448,11 +447,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .iter()
             .map(|(k, v)| (v.as_str(), *k))
             .collect();
-        let exrank_value_to_id: HashMap<JudgeLevel, ObjId> = self
+        let exrank_value_to_id: HashMap<&'a JudgeLevel, ObjId> = self
             .scope_defines
             .exrank_defs
             .iter()
-            .map(|(k, v)| (v.judge_level, *k))
+            .map(|(k, v)| (&v.judge_level, *k))
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
@@ -467,8 +466,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let stop_manager = ObjIdManager::new(stop_value_to_id, used_stop_ids);
         let stop_def_generator = DefTokenGenerator::create_generator(
             stop_manager,
-            |id, duration| Token::Stop(id, duration),
-            |ev: &StopObj| ev.duration.clone(),
+            |id, duration| Token::Stop(id, (*duration).clone()),
+            |ev: &StopObj| &ev.duration,
         );
         let stop_result = build_event_messages(
             self.arrangers.stops.iter(),
@@ -483,8 +482,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let scroll_manager = ObjIdManager::new(scroll_value_to_id, used_scroll_ids);
         let scroll_def_generator = DefTokenGenerator::create_generator(
             scroll_manager,
-            |id, factor| Token::Scroll(id, factor),
-            |ev: &ScrollingFactorObj| ev.factor.clone(),
+            |id, factor| Token::Scroll(id, factor.clone()),
+            |ev: &ScrollingFactorObj| &ev.factor,
         );
         let scroll_result = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
@@ -499,8 +498,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let speed_manager = ObjIdManager::new(speed_value_to_id, used_speed_ids);
         let speed_def_generator = DefTokenGenerator::create_generator(
             speed_manager,
-            |id, factor| Token::Speed(id, factor),
-            |ev: &SpeedObj| ev.factor.clone(),
+            |id, factor| Token::Speed(id, factor.clone()),
+            |ev: &SpeedObj| &ev.factor,
         );
         let speed_result = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
@@ -514,7 +513,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         let bga_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.graphics.bga_changes.iter(),
-            None::<DefTokenGenerator<_, (), fn(ObjId, ()) -> Token<'a>, fn(&_) -> ()>>,
+            None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |bga| bga.layer.to_channel(),
             |bga, _id| MessageValue::ObjId(bga.id),
         );
@@ -526,7 +525,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGM volume (#97)
         let bgm_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.notes.bgm_volume_changes.iter(),
-            None::<DefTokenGenerator<_, (), fn(ObjId, ()) -> Token<'a>, fn(&_) -> ()>>,
+            None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |_ev| Channel::BgmVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
@@ -535,7 +534,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: KEY volume (#98)
         let key_volume_result: EventProcessingResult<'_, ()> = build_event_messages(
             self.notes.key_volume_changes.iter(),
-            None::<DefTokenGenerator<_, (), fn(ObjId, ()) -> Token<'a>, fn(&_) -> ()>>,
+            None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |_ev| Channel::KeyVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
@@ -552,8 +551,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let exrank_manager = ObjIdManager::new(exrank_value_to_id, used_exrank_ids);
         let exrank_def_generator = DefTokenGenerator::create_generator(
             exrank_manager,
-            |id, judge_level| Token::ExRank(id, judge_level),
-            |ev: &JudgeObj| ev.judge_level,
+            |id, judge_level| Token::ExRank(id, judge_level.clone()),
+            |ev: &JudgeObj| &ev.judge_level,
         );
         let judge_result = build_event_messages(
             self.notes.judge_events.iter(),
@@ -717,11 +716,11 @@ where
 }
 
 /// Complete result from build_messages_event containing all processing outputs
-struct EventProcessingResult<'a, K> {
+struct EventProcessingResult<'a, K: ?Sized> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
     #[allow(unused)]
-    updated_value_to_id: HashMap<K, ObjId>,
+    updated_value_to_id: HashMap<&'a K, ObjId>,
     #[allow(unused)]
     updated_used_ids: HashSet<ObjId>,
 }
@@ -744,8 +743,8 @@ struct EventProcessingResult<'a, K> {
 /// both ID-based and direct value-based event processing.
 fn build_event_messages<
     'a,
-    Event,
-    Key,
+    Event: 'a,
+    Key: ?Sized + 'a,
     EventIterator,
     TokenCreator,
     KeyExtractor,
@@ -759,16 +758,15 @@ fn build_event_messages<
 ) -> EventProcessingResult<'a, Key>
 where
     EventIterator: Iterator<Item = (&'a ObjTime, &'a Event)>,
-    Event: ?Sized + 'a,
-    Key: std::hash::Hash + Eq + Clone,
-    TokenCreator: Fn(ObjId, Key) -> Token<'a>,
-    KeyExtractor: Fn(&Event) -> Key,
-    ChannelMapper: Fn(&Event) -> Channel,
-    MessageFormatter: Fn(&Event, Option<ObjId>) -> MessageValue,
+    Key: std::hash::Hash + Eq,
+    TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
+    KeyExtractor: Fn(&'a Event) -> &'a Key,
+    ChannelMapper: Fn(&'a Event) -> Channel,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
     let mut id_map: HashMap<ObjTime, ObjId> = HashMap::new();
-    let updated_value_to_id: HashMap<Key, ObjId>;
+    let updated_value_to_id: HashMap<&'a Key, ObjId>;
     let updated_used_ids: HashSet<ObjId>;
 
     // Process events based on whether DefTokenGenerator is provided
@@ -866,9 +864,9 @@ where
 /// Helper function to build BPM change messages
 fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
     bms: &'a Bms<T>,
-    mut id_manager: ObjIdManager<Decimal>,
+    mut id_manager: ObjIdManager<'a, Decimal>,
     late_def_tokens: &mut Vec<Token<'a>>,
-) -> (Vec<Token<'a>>, ObjIdManager<Decimal>) {
+) -> (Vec<Token<'a>>, ObjIdManager<'a, Decimal>) {
     let mut message_tokens = Vec::new();
 
     // Process BPM changes using the simplified approach
@@ -893,8 +891,8 @@ fn build_bpm_change_messages<'a, T: KeyLayoutMapper>(
             }
 
             // Otherwise, allocate new id definition
-            let (new_id, maybe_def_token) =
-                id_manager.get_or_allocate_id(ev.bpm.clone(), |id, bpm| Token::BpmChange(id, bpm));
+            let (new_id, maybe_def_token) = id_manager
+                .get_or_allocate_id(&ev.bpm, |id, bpm| Token::BpmChange(id, (*bpm).clone()));
             if let Some(def_token) = maybe_def_token {
                 late_def_tokens.push(def_token);
             }
@@ -943,7 +941,7 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
     for obj in bms.notes.all_notes_insertion_order() {
         let result: EventProcessingResult<'_, ()> = build_event_messages(
             std::iter::once((&obj.offset, obj)),
-            None::<DefTokenGenerator<_, (), fn(ObjId, ()) -> Token<'a>, fn(&_) -> ()>>,
+            None::<DefTokenGenerator<_, (), fn(ObjId, &'a ()) -> Token<'a>, fn(&_) -> &'a ()>>,
             |obj| {
                 // Channel mapping: determine channel based on channel_id
                 if let Some(_map) = obj.channel_id.try_into_map::<T>() {
@@ -966,9 +964,9 @@ fn build_note_messages<'a, T: KeyLayoutMapper>(bms: &'a Bms<T>) -> Vec<Token<'a>
 /// Helper function to build text messages
 fn build_text_messages<'a, T: KeyLayoutMapper>(
     bms: &'a Bms<T>,
-    mut id_manager: ObjIdManager<&'a str>,
+    mut id_manager: ObjIdManager<'a, str>,
     late_def_tokens: &mut Vec<Token<'a>>,
-) -> (Vec<Token<'a>>, ObjIdManager<&'a str>) {
+) -> (Vec<Token<'a>>, ObjIdManager<'a, str>) {
     // Process text events and build track-grouped data using iterator chains
     let by_track_text: BTreeMap<Track, Vec<(ObjTime, ObjId)>> = bms
         .notes
@@ -981,7 +979,9 @@ fn build_text_messages<'a, T: KeyLayoutMapper>(
                 .copied()
                 .unwrap_or_else(|| {
                     let (new_id, maybe_token) = id_manager
-                        .get_or_allocate_id(ev.text.as_str(), &|id, text| Token::Text(id, text));
+                        .get_or_allocate_id(ev.text.as_str(), &|id: ObjId, text: &'a str| {
+                            Token::Text(id, text)
+                        });
                     if let Some(token) = maybe_token {
                         late_def_tokens.push(token);
                     }
