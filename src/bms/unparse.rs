@@ -1004,10 +1004,10 @@ struct EventProcessingResult<'a> {
 ///
 /// # PROCESSING FLOW OVERVIEW:
 /// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
-/// 2. **SPLIT INTO SUBGROUPS**: Each group is further split into subgroups with stricter rules:
+/// 2. **SPLIT INTO MESSAGE SEGMENTS**: Each group is further split into message segments with stricter rules:
 ///    - Strictly increasing time (prevents overlaps)
 ///    - Consistent denominators (ensures accurate representation)
-/// 3. **GENERATE TOKENS**: Each subgroup becomes one Token::Message with all events encoded
+/// 3. **GENERATE TOKENS**: Each message segment becomes one Token::Message with all events encoded
 ///
 /// Arguments:
 ///     events: An iterator yielding (&time, &event) pairs to process
@@ -1093,8 +1093,8 @@ where
     // ...are grouped together. This is the foundation for efficient message generation.
     let grouped_events = group_events_by_track_channel_time(processed_events);
 
-    // === STEP 2: SPLIT GROUPS INTO SUBGROUPS ===
-    // Split each group into subgroups based on time ordering and denominator consistency
+    // === STEP 2: SPLIT GROUPS INTO MESSAGE SEGMENTS ===
+    // Split each group into message segments based on time ordering and denominator consistency
     //
     // This creates the second level of grouping with stricter rules:
     // - Not preserve the original event iterator order
@@ -1102,22 +1102,24 @@ where
     // - Denominators must be the same starting from the second element
     // - First element can have 0 numerator, or the same denominator as elements after it
     //
-    // The purpose is to ensure that events within a subgroup can be represented
+    // The purpose is to ensure that events within a message segment can be represented
     // in a single message string without conflicts or information loss.
-    let sub_grouped_events: Vec<Vec<_>> = grouped_events
+    let message_segmented_events: Vec<Vec<_>> = grouped_events
         .into_iter()
-        .flat_map(split_group_into_subgroups)
+        .flat_map(split_group_into_message_segments)
         .collect();
 
-    // === STEP 3: GENERATE MESSAGE TOKENS FROM SUBGROUPS ===
-    // Generate message tokens: each subgroup generates one Token::Message
+    // === STEP 3: GENERATE MESSAGE TOKENS FROM MESSAGE SEGMENTS ===
+    // Generate message tokens: each message segment generates one Token::Message
     //
-    // This is the final step where each subgroup is converted into a single Token::Message.
-    // The process ensures that all events in a subgroup are represented in one message string
+    // This is the final step where each message segment is converted into a single Token::Message.
+    // The process ensures that all events in a message segment are represented in one message string
     // with correct timing and without information loss.
-    let message_tokens: Vec<Token<'a>> = sub_grouped_events
+    let message_tokens: Vec<Token<'a>> = message_segmented_events
         .into_iter()
-        .map(|sub_group| convert_subgroup_to_token(sub_group, &message_formatter, &mut used_ids))
+        .map(|message_segment| {
+            convert_message_segment_to_token(message_segment, &message_formatter, &mut used_ids)
+        })
         .collect();
 
     EventProcessingResult {
@@ -1160,54 +1162,54 @@ fn group_events_by_track_channel_time<'a, Event>(
     groups
 }
 
-/// Split a group into subgroups based on time ordering and denominator consistency
-fn split_group_into_subgroups<'a, Event>(
+/// Split a group into message segments based on time ordering and denominator consistency
+fn split_group_into_message_segments<'a, Event>(
     group: Vec<EventUnit<'a, Event>>,
 ) -> Vec<Vec<EventUnit<'a, Event>>> {
-    let mut sub_groups = Vec::new();
-    let mut current_sub_group = Vec::new();
+    let mut message_segments = Vec::new();
+    let mut current_message_segment = Vec::new();
 
     for event_unit in group {
-        let should_join = current_sub_group
+        let should_join = current_message_segment
             .last()
             .map(|last_unit: &EventUnit<'a, Event>| {
-                // SUBGROUP JOINING RULES:
+                // MESSAGE SEGMENT JOINING RULES:
                 // 1. Time must be strictly increasing (prevents overlapping events)
                 // 2. Denominators must be the same starting from the second element
-                //    - First element (current_sub_group.is_empty()) can have any denominator
+                //    - First element (current_message_segment.is_empty()) can have any denominator
                 //    - Subsequent elements must match the first element's denominator
                 (last_unit.time < event_unit.time)
-                    && (current_sub_group.is_empty()
+                    && (current_message_segment.is_empty()
                         || event_unit.time.denominator() == last_unit.time.denominator())
             })
-            .unwrap_or(true); // Empty subgroup always accepts the first event
+            .unwrap_or(true); // Empty message segment always accepts the first event
 
         if should_join {
-            current_sub_group.push(event_unit);
+            current_message_segment.push(event_unit);
         } else {
-            if !current_sub_group.is_empty() {
-                sub_groups.push(current_sub_group);
+            if !current_message_segment.is_empty() {
+                message_segments.push(current_message_segment);
             }
-            current_sub_group = vec![event_unit];
+            current_message_segment = vec![event_unit];
         }
     }
 
-    if !current_sub_group.is_empty() {
-        sub_groups.push(current_sub_group);
+    if !current_message_segment.is_empty() {
+        message_segments.push(current_message_segment);
     }
-    sub_groups
+    message_segments
 }
 
-/// Convert a subgroup of events into a single Token::Message
-fn convert_subgroup_to_token<'a, Event, MessageFormatter>(
-    sub_group: Vec<EventUnit<'a, Event>>,
+/// Convert a message segment of events into a single Token::Message
+fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
+    message_segment: Vec<EventUnit<'a, Event>>,
     message_formatter: &MessageFormatter,
     used_ids: &mut HashSet<ObjId>,
 ) -> Token<'a>
 where
     MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
 {
-    if sub_group.is_empty() {
+    if message_segment.is_empty() {
         return Token::Message {
             track: Track(0),
             channel: Channel::Bgm,
@@ -1215,16 +1217,16 @@ where
         };
     }
 
-    // EXTRACT METADATA FROM SUBGROUP
-    // All events in subgroup should have same track and channel (guaranteed by grouping logic)
-    let first_event = &sub_group[0];
+    // EXTRACT METADATA FROM MESSAGE SEGMENT
+    // All events in message segment should have same track and channel (guaranteed by grouping logic)
+    let first_event = &message_segment[0];
     let (track, channel) = (first_event.time.track(), first_event.channel);
 
     // CALCULATE MESSAGE LENGTH
     // Find the least common multiple (LCM) of all denominators to determine message length - this ensures
-    // all events in the subgroup can be accurately positioned in the message string.
+    // all events in the message segment can be accurately positioned in the message string.
     // Example: if we have events at 1/3 and 1/5, LCM(3,5)=15, so we need length 15 to represent them both accurately.
-    let denominators: Vec<u64> = sub_group
+    let denominators: Vec<u64> = message_segment
         .iter()
         .map(|event_unit| event_unit.time.denominator_u64())
         .collect();
@@ -1234,10 +1236,10 @@ where
     let mut message_parts: Vec<String> = vec!["00".to_string(); message_len];
 
     // PLACE EVENTS IN MESSAGE STRING
-    // For each event in the subgroup, calculate its exact position in the message
+    // For each event in the message segment, calculate its exact position in the message
     // and place its value there. The time_idx calculation converts fractional time
     // to array index using the formula: (numerator * lcm_denom / denominator)
-    for event_unit in sub_group {
+    for event_unit in message_segment {
         let EventUnit {
             event, id, time, ..
         } = event_unit;
