@@ -106,11 +106,35 @@ impl<T> Notes<T> {
     }
 
     /// Returns the iterator having all of the notes sorted by time.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.all_notes().filter(|obj| !obj.wav_id.is_null())
+    /// ```
     pub fn all_notes(&self) -> impl Iterator<Item = &WavObj> {
         self.arena.0.iter().sorted()
     }
 
     /// Returns the iterator having all of the notes and its index sorted by time.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.all_entries().filter(|(_, obj)| !obj.wav_id.is_null())
+    /// ```
     pub fn all_entries(&self) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)> {
         self.arena
             .0
@@ -120,7 +144,43 @@ impl<T> Notes<T> {
             .map(|(idx, obj)| (WavObjArenaIndex(idx), obj))
     }
 
+    /// Returns the iterator having all of the notes in the original insertion order.
+    ///
+    /// This reflects the order notes were pushed into the arena during parsing, which
+    /// corresponds to the lexical order of `Token::Message` entries in the source.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// **Important**: The insertion order is preserved only until you modify the Notes object
+    /// using methods like `retain_notes`, `remove_note`, `pop_note`, etc. After such modifications,
+    /// the order may be disrupted as some objects may be replaced with dangling objects.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.all_notes_insertion_order().filter(|obj| !obj.wav_id.is_null())
+    /// ```
+    pub fn all_notes_insertion_order(&self) -> impl Iterator<Item = &WavObj> {
+        self.arena.0.iter()
+    }
+
     /// Returns all the playable notes in the score.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.playables().filter(|obj| !obj.wav_id.is_null())
+    /// ```
     pub fn playables(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
@@ -133,6 +193,18 @@ impl<T> Notes<T> {
     }
 
     /// Returns all the displayable notes in the score.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.displayables().filter(|obj| !obj.wav_id.is_null())
+    /// ```
     pub fn displayables(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
@@ -145,6 +217,18 @@ impl<T> Notes<T> {
     }
 
     /// Returns all the bgms in the score.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.bgms().filter(|obj| !obj.wav_id.is_null())
+    /// ```
     pub fn bgms(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
@@ -157,6 +241,18 @@ impl<T> Notes<T> {
     }
 
     /// Retrieves notes on the specified channel id by the key mapping `T`.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.notes_on(channel_id).filter(|(_, obj)| !obj.wav_id.is_null())
+    /// ```
     pub fn notes_on(
         &self,
         channel_id: NoteChannelId,
@@ -172,6 +268,18 @@ impl<T> Notes<T> {
     }
 
     /// Retrieves notes in the specified time span.
+    ///
+    /// # Note
+    /// This iterator may include dangling objects (objects with null `wav_id`) that reference
+    /// non-existent WAV files. These dangling objects represent invalid or unassigned notes
+    /// and do not affect musical playback.
+    /// They may originate from parsing issues in the original BMS file or from user modifications
+    /// to the Notes object.
+    ///
+    /// To filter out dangling objects, use:
+    /// ```rust,ignore
+    /// notes.notes_in(time_span).filter(|(_, obj)| !obj.wav_id.is_null())
+    /// ```
     pub fn notes_in<R: std::ops::RangeBounds<ObjTime>>(
         &self,
         time_span: R,
@@ -375,7 +483,7 @@ impl<T> Notes<T> {
             .0
             .iter()
             .enumerate()
-            .filter(|&(_, obj)| cond(obj))
+            .filter(|&(_, obj)| !cond(obj))
             .map(|(i, _)| i)
             .collect();
         for removing_idx in removing_indexes {

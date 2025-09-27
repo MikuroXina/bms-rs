@@ -499,6 +499,20 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     (result, errors, end_if_pos)
 }
 
+impl ToAriadne for AstBuildWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message("ast_build: ".to_string() + &self.content().to_string())
+            .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -980,19 +994,5 @@ mod tests {
             panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
         assert!(matches!(token.content(), Title("00114:00000044")));
-    }
-}
-
-impl ToAriadne for AstBuildWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-        let filename = src.name().to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("ast_build: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Cyan))
-            .finish()
     }
 }

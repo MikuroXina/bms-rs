@@ -922,11 +922,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
                 self.scope_defines.exrank_defs.insert(
-                    ObjId::try_from([0, 0]).map_err(|_| {
+                    ObjId::try_from([b'0', b'0']).map_err(|_| {
                         ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
                     })?,
                     ExRankDef {
-                        id: ObjId::try_from([0, 0]).map_err(|_| {
+                        id: ObjId::try_from([b'0', b'0']).map_err(|_| {
                             ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
                         })?,
                         judge_level,
