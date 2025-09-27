@@ -13,6 +13,16 @@ pub mod time;
 /// when the `minor-command` feature is enabled.
 pub mod minor_command;
 
+/// Represents the base type for object ID encoding in BMS files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BaseType {
+    /// Base 36: Case-insensitive IDs (0-9A-Z)
+    Base36,
+    /// Base 62: Case-sensitive IDs (0-9A-Za-z)
+    Base62,
+}
+
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

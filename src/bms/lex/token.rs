@@ -12,8 +12,8 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourceRangeMixin, time::Track,
+        BaseType, JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        graphics::Argb, mixin::SourceRangeMixin, time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
 };
@@ -58,8 +58,10 @@ pub enum Token<'a> {
     Banner(&'a Path),
     /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
     BackBmp(&'a Path),
-    /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
-    Base62,
+    /// `#BASE [36|62]`. Declares that the score is using the specified base object id format.
+    /// - `36`: Case-insensitive IDs (0-9A-Z)
+    /// - `62`: Case-sensitive IDs (0-9A-Za-z)
+    Base(BaseType),
     /// `#BASEBPM [f64]` is the base BPM.
     /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
     #[cfg(feature = "minor-command")]
@@ -459,11 +461,13 @@ impl<'a> Token<'a> {
                 })
             }
             "#BASE" => {
-                let base = c.next_line_remaining();
-                if base != "62" {
-                    return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range));
-                }
-                Self::Base62
+                let base_str = c.next_line_remaining();
+                let base_type = match base_str {
+                    "36" => BaseType::Base36,
+                    "62" => BaseType::Base62,
+                    _ => return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range)),
+                };
+                Self::Base(base_type)
             }
             "#COMMENT" => {
                 let comment = c.next_line_remaining();
@@ -1313,7 +1317,13 @@ impl std::fmt::Display for Token<'_> {
             }
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
-            Token::Base62 => write!(f, "#BASE 62"),
+            Token::Base(base_type) => {
+                let base_str = match base_type {
+                    BaseType::Base36 => "36",
+                    BaseType::Base62 => "62",
+                };
+                write!(f, "#BASE {base_str}")
+            }
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
             #[cfg(feature = "minor-command")]
@@ -1943,6 +1953,19 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_base_rejection() {
+        use super::LexWarning;
+        use crate::bms::lex::cursor::Cursor;
+
+        let mut cursor = Cursor::new("#BASE 10\n");
+        let result = Token::parse(&mut cursor);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err.into_content(), LexWarning::OutOfBase62));
+        }
+    }
+
+    #[test]
     fn test_display_roundtrip() {
         // Test basic commands
         let test_cases = vec![
@@ -1957,6 +1980,7 @@ mod tests {
             "#PLAYER 1",
             "#DIFFICULTY 3",
             "#BASE 62",
+            "#BASE 36",
             "#LNTYPE 1",
             "#LNTYPE 2",
             "#VOLWAV 100",

@@ -19,6 +19,7 @@ use self::{
     cursor::Cursor,
     token::{Token, TokenWithRange},
 };
+use crate::bms::command::BaseType;
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -43,8 +44,8 @@ pub enum LexWarning {
         /// The object id that was not recognized.
         object: String,
     },
-    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
-    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
+    /// Failed to convert a byte into a base-36 or base-62 character.
+    #[error("expected id format is base 36 (0-9A-Z) or base 62 (0-9A-Za-z)")]
     OutOfBase62,
     /// An unknown command was encountered.
     #[error("unknown command `{command}`")]
@@ -152,7 +153,7 @@ impl<'a> TokenStream<'a> {
 
         let case_sensitive = tokens
             .iter()
-            .any(|token| matches!(token.content(), Token::Base62));
+            .any(|token| matches!(token.content(), Token::Base(BaseType::Base62)));
         if !case_sensitive {
             for token in &mut tokens {
                 token.content_mut().make_id_uppercase();
