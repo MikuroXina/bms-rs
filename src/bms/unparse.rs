@@ -1299,18 +1299,7 @@ where
 /// Calculate the least common multiple (LCM) of a slice of u64 values
 /// Returns 1 if the slice is empty
 fn lcm_slice(denominators: &[u64]) -> u64 {
-    if denominators.is_empty() {
-        return 1;
-    }
-
-    let mut result = denominators[0];
-    for &denom in &denominators[1..] {
-        if result == 0 || denom == 0 {
-            return 0;
-        }
-        result = result.lcm(&denom);
-    }
-    result
+    denominators.iter().fold(1, |acc, denom| acc.lcm(denom))
 }
 
 #[cfg(test)]
