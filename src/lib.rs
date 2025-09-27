@@ -162,6 +162,7 @@
 
 pub mod bms;
 pub mod bmson;
+pub mod chart_process;
 pub mod diagnostics;
 
 pub use bms::{ast, command, lex, parse};
