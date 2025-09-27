@@ -1220,14 +1220,6 @@ fn is_denominator_compatible<'a, Event>(
         || event_denominator.is_multiple_of(reference_denominator)
 }
 
-/// Check if two denominators are compatible (either is a factor of the other)
-fn are_denominators_compatible(a: u64, b: u64) -> bool {
-    if a == 0 || b == 0 {
-        return false;
-    }
-    a % b == 0 || b % a == 0
-}
-
 /// Convert a message segment of events into a single Token::Message
 fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
     message_segment: Vec<EventUnit<'a, Event>>,
@@ -1329,26 +1321,5 @@ mod tests {
         // Test with 1
         assert_eq!(lcm_slice(&[1, 3]), 3);
         assert_eq!(lcm_slice(&[3, 1]), 3);
-    }
-
-    #[test]
-    fn test_are_denominators_compatible() {
-        // Test cases where denominators are compatible
-        assert!(are_denominators_compatible(2, 4)); // 2 divides 4
-        assert!(are_denominators_compatible(4, 2)); // 4 divides 2? No, but 2 divides 4, so should be compatible
-        assert!(are_denominators_compatible(4, 8)); // 4 divides 8
-        assert!(are_denominators_compatible(8, 4)); // 8 divides 4? No, but 4 divides 8, so should be compatible
-        assert!(are_denominators_compatible(6, 3)); // 6 divides 3? No, but 3 divides 6, so should be compatible
-        assert!(are_denominators_compatible(3, 6)); // 3 divides 6
-        assert!(are_denominators_compatible(1, 5)); // 1 divides any number
-        assert!(are_denominators_compatible(5, 1)); // 5 divides 1? No, but 1 divides 5, so should be compatible
-        assert!(are_denominators_compatible(12, 6)); // 12 divides 6? No, but 6 divides 12, so should be compatible
-        assert!(are_denominators_compatible(6, 12)); // 6 divides 12
-
-        // Test cases where denominators are not compatible
-        assert!(!are_denominators_compatible(3, 5)); // 3 doesn't divide 5, 5 doesn't divide 3
-        assert!(!are_denominators_compatible(7, 9)); // 7 doesn't divide 9, 9 doesn't divide 7
-        assert!(!are_denominators_compatible(0, 5)); // Zero should not be compatible
-        assert!(!are_denominators_compatible(5, 0)); // Zero should not be compatible
     }
 }
