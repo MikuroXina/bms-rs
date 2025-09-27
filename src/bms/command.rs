@@ -255,34 +255,6 @@ impl ObjId {
     }
 }
 
-/// Enum representing the source of a message value that can be converted to [char; 2]
-#[derive(Clone, Copy, Debug)]
-pub enum MessageValue {
-    /// Value derived from an ObjId
-    ObjId(ObjId),
-    /// Value derived from a u8
-    U8(u8),
-}
-
-impl MessageValue {
-    /// Convert the message value to [char; 2]
-    #[must_use]
-    pub fn to_chars(self) -> [char; 2] {
-        match self {
-            MessageValue::ObjId(id) => {
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            }
-            MessageValue::U8(value) => {
-                let s = format!("{:02X}", value);
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
-            }
-        }
-    }
-}
-
 /// A play volume of the sound in the score. Defaults to 100.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

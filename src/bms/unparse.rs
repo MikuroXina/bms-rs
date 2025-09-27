@@ -515,7 +515,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::BpmChangeU8,
             |ev, _id| {
                 let u8_value = ev.bpm.to_u64().unwrap_or(1) as u8;
-                MessageValue::U8(u8_value)
+                let s = format!("{:02X}", u8_value);
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
             },
         );
         bpm_message_tokens.extend(bpm_u8_message_tokens);
@@ -534,7 +536,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
 
         // Update id_manager with the results
@@ -558,7 +565,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         late_def_tokens.extend(stop_late_def_tokens);
         message_tokens.extend(stop_message_tokens);
@@ -578,7 +590,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         late_def_tokens.extend(scroll_late_def_tokens);
         message_tokens.extend(scroll_message_tokens);
@@ -598,7 +615,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
@@ -623,7 +645,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut ObjIdManager<()>,
             )>,
             |bga| bga.layer.to_channel(),
-            |bga, _id| MessageValue::ObjId(bga.id),
+            |bga, _id| {
+                let s = bga.id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         message_tokens.extend(bga_message_tokens);
 
@@ -647,7 +673,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         BgaLayer::Overlay => Channel::BgaLayerOpacity,
                         BgaLayer::Overlay2 => Channel::BgaLayer2Opacity,
                     },
-                    |ev, _id| MessageValue::U8(ev.opacity),
+                    |ev, _id| {
+                        let s = format!("{:02X}", ev.opacity);
+                        let mut chars = s.chars();
+                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                    },
                 );
                 message_tokens.extend(opacity_message_tokens);
             }
@@ -670,7 +700,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         BgaLayer::Overlay => Channel::BgaLayerArgb,
                         BgaLayer::Overlay2 => Channel::BgaLayer2Argb,
                     },
-                    |ev, _id| MessageValue::U8(ev.argb.alpha),
+                    |ev, _id| {
+                        let s = format!("{:02X}", ev.argb.alpha);
+                        let mut chars = s.chars();
+                        [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                    },
                 );
                 message_tokens.extend(argb_message_tokens);
             }
@@ -701,7 +735,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     Channel::Bgm
                 }
             },
-            |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
+            |obj, _id| {
+                let s = obj.wav_id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            }, // Message formatting: use wav_id
         );
 
         message_tokens.extend(notes_message_tokens);
@@ -718,7 +756,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut ObjIdManager<()>,
             )>,
             |_ev| Channel::BgmVolume,
-            |ev, _id| MessageValue::U8(ev.volume),
+            |ev, _id| {
+                let s = format!("{:02X}", ev.volume);
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         message_tokens.extend(bgm_volume_message_tokens);
 
@@ -734,7 +776,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut ObjIdManager<()>,
             )>,
             |_ev| Channel::KeyVolume,
-            |ev, _id| MessageValue::U8(ev.volume),
+            |ev, _id| {
+                let s = format!("{:02X}", ev.volume);
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         message_tokens.extend(key_volume_message_tokens);
 
@@ -753,7 +799,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut text_manager,
             )),
             |_ev| Channel::Text,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         late_def_tokens.extend(text_late_def_tokens);
         message_tokens.extend(text_message_tokens);
@@ -772,7 +823,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 &mut exrank_manager,
             )),
             |_ev| Channel::Judge,
-            |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+            |_ev, id| {
+                let id = id.unwrap_or(ObjId::null());
+                let s = id.to_string();
+                let mut chars = s.chars();
+                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+            },
         );
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
@@ -794,7 +850,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     &mut seek_manager,
                 )),
                 |_ev| Channel::Seek,
-                |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
+                |_ev, id| {
+                    let id = id.unwrap_or(ObjId::null());
+                    let s = id.to_string();
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                },
             );
             late_def_tokens.extend(seek_late_def_tokens);
             message_tokens.extend(seek_message_tokens);
@@ -811,7 +872,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     &mut ObjIdManager<()>,
                 )>,
                 |_ev| Channel::BgaKeybound,
-                |ev, _id| MessageValue::U8(ev.event.line),
+                |ev, _id| {
+                    let s = format!("{:02X}", ev.event.line);
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                },
             );
             message_tokens.extend(bga_keybound_message_tokens);
 
@@ -827,7 +892,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     &mut ObjIdManager<()>,
                 )>,
                 |_ev| Channel::Option,
-                |_ev, _id| MessageValue::U8(0), // Option events don't use values
+                |_ev, _id| {
+                    let s = format!("{:02X}", 0);
+                    let mut chars = s.chars();
+                    [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                }, // Option events don't use values
             );
             message_tokens.extend(option_message_tokens);
 
@@ -943,7 +1012,7 @@ struct EventProcessingResult<'a> {
 ///     events: An iterator yielding (&time, &event) pairs to process
 ///     id_allocation: Optional tuple containing (token_creator, key_extractor, id_manager) for ID allocation mode
 ///     channel_mapper: Function to map events to channels
-///     message_formatter: Function to format events into MessageValue
+///     message_formatter: Function to format events into [char; 2]
 ///
 /// Returns:
 ///     EventProcessingResult containing message_tokens, late_def_tokens, and updated maps
@@ -970,7 +1039,7 @@ where
     TokenCreator: Fn(ObjId, &'a Key) -> Token<'a>,
     KeyExtractor: Fn(&'a Event) -> &'a Key,
     ChannelMapper: Fn(&'a Event) -> Channel,
-    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
 
@@ -1141,7 +1210,7 @@ fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
     message_formatter: &MessageFormatter,
 ) -> Token<'a>
 where
-    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
+    MessageFormatter: Fn(&'a Event, Option<ObjId>) -> [char; 2],
 {
     if message_segment.is_empty() {
         return Token::Message {
@@ -1177,7 +1246,7 @@ where
         let EventUnit {
             event, id, time, ..
         } = event_unit;
-        let message_value = message_formatter(event, id);
+        let chars = message_formatter(event, id);
         let denom_u64 = time.denominator_u64();
 
         // Calculate exact position: convert fraction to index in the message array
@@ -1187,7 +1256,6 @@ where
 
         // Ensure we don't go out of bounds (safety check)
         if time_idx < message_len {
-            let chars = message_value.to_chars();
             message_parts[time_idx] = chars.iter().collect::<String>();
         }
     }
