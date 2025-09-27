@@ -16,7 +16,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
     #[must_use]
     pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
-        let mut used_ids: HashSet<ObjId> = HashSet::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
         #[cfg(feature = "minor-command")]
@@ -505,7 +504,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Process U8 type BPM changes
         let EventProcessingResult {
             message_tokens: bpm_u8_message_tokens,
-            used_ids: bpm_used_ids,
             ..
         } = build_event_messages(
             u8_bpm_events.into_iter(),
@@ -520,7 +518,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 MessageValue::U8(u8_value)
             },
         );
-        used_ids.extend(bpm_used_ids);
         bpm_message_tokens.extend(bpm_u8_message_tokens);
 
         // Process other type BPM changes using build_event_messages
@@ -528,7 +525,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
-            used_ids: other_used_ids,
             ..
         } = build_event_messages(
             other_bpm_events.into_iter(),
@@ -540,7 +536,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::BpmChange,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(other_used_ids.clone());
 
         // Update id_manager with the results
         late_def_tokens.extend(other_late_def_tokens);
@@ -554,7 +549,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: stop_late_def_tokens,
             message_tokens: stop_message_tokens,
-            used_ids: stop_used_ids,
             ..
         } = build_event_messages(
             self.arrangers.stops.iter(),
@@ -566,7 +560,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Stop,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(stop_used_ids);
         late_def_tokens.extend(stop_late_def_tokens);
         message_tokens.extend(stop_message_tokens);
 
@@ -576,7 +569,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: scroll_late_def_tokens,
             message_tokens: scroll_message_tokens,
-            used_ids: scroll_used_ids,
             ..
         } = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
@@ -588,7 +580,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Scroll,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(scroll_used_ids);
         late_def_tokens.extend(scroll_late_def_tokens);
         message_tokens.extend(scroll_message_tokens);
 
@@ -598,7 +589,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: speed_late_def_tokens,
             message_tokens: speed_message_tokens,
-            used_ids: speed_used_ids,
             ..
         } = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
@@ -610,7 +600,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Speed,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(speed_used_ids);
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
@@ -625,7 +614,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
         let EventProcessingResult {
             message_tokens: bga_message_tokens,
-            used_ids: bga_used_ids,
             ..
         } = build_event_messages(
             self.graphics.bga_changes.iter(),
@@ -637,7 +625,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |bga| bga.layer.to_channel(),
             |bga, _id| MessageValue::ObjId(bga.id),
         );
-        used_ids.extend(bga_used_ids);
         message_tokens.extend(bga_message_tokens);
 
         #[cfg(feature = "minor-command")]
@@ -646,7 +633,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             for (layer, opacity_changes) in &self.graphics.bga_opacity_changes {
                 let EventProcessingResult {
                     message_tokens: opacity_message_tokens,
-                    used_ids: opacity_used_ids,
                     ..
                 } = build_event_messages(
                     opacity_changes.iter(),
@@ -663,7 +649,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     },
                     |ev, _id| MessageValue::U8(ev.opacity),
                 );
-                used_ids.extend(opacity_used_ids);
                 message_tokens.extend(opacity_message_tokens);
             }
 
@@ -671,7 +656,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             for (layer, argb_changes) in &self.graphics.bga_argb_changes {
                 let EventProcessingResult {
                     message_tokens: argb_message_tokens,
-                    used_ids: argb_used_ids,
                     ..
                 } = build_event_messages(
                     argb_changes.iter(),
@@ -688,7 +672,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     },
                     |ev, _id| MessageValue::U8(ev.argb.alpha),
                 );
-                used_ids.extend(argb_used_ids);
                 message_tokens.extend(argb_message_tokens);
             }
         }
@@ -698,7 +681,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         // We need to preserve the original insertion order, so we process each object individually
         let EventProcessingResult {
             message_tokens: notes_message_tokens,
-            used_ids: notes_used_ids,
             ..
         } = build_event_messages(
             self.notes
@@ -721,14 +703,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
             },
             |obj, _id| MessageValue::ObjId(obj.wav_id), // Message formatting: use wav_id
         );
-        used_ids.extend(notes_used_ids);
 
         message_tokens.extend(notes_message_tokens);
 
         // Messages: BGM volume (#97)
         let EventProcessingResult {
             message_tokens: bgm_volume_message_tokens,
-            used_ids: bgm_volume_used_ids,
             ..
         } = build_event_messages(
             self.notes.bgm_volume_changes.iter(),
@@ -740,13 +720,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::BgmVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
-        used_ids.extend(bgm_volume_used_ids);
         message_tokens.extend(bgm_volume_message_tokens);
 
         // Messages: KEY volume (#98)
         let EventProcessingResult {
             message_tokens: key_volume_message_tokens,
-            used_ids: key_volume_used_ids,
             ..
         } = build_event_messages(
             self.notes.key_volume_changes.iter(),
@@ -758,7 +736,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::KeyVolume,
             |ev, _id| MessageValue::U8(ev.volume),
         );
-        used_ids.extend(key_volume_used_ids);
         message_tokens.extend(key_volume_message_tokens);
 
         // Messages: TEXT (#99)
@@ -767,7 +744,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: text_late_def_tokens,
             message_tokens: text_message_tokens,
-            used_ids: text_used_ids,
             ..
         } = build_event_messages(
             self.notes.text_events.iter(),
@@ -779,7 +755,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Text,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(text_used_ids);
         late_def_tokens.extend(text_late_def_tokens);
         message_tokens.extend(text_message_tokens);
 
@@ -788,7 +763,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let EventProcessingResult {
             late_def_tokens: judge_late_def_tokens,
             message_tokens: judge_message_tokens,
-            used_ids: judge_used_ids,
             ..
         } = build_event_messages(
             self.notes.judge_events.iter(),
@@ -800,19 +774,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
             |_ev| Channel::Judge,
             |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
         );
-        used_ids.extend(judge_used_ids);
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
 
         #[cfg(feature = "minor-command")]
-        {
+        let seek_manager = {
             // Messages: SEEK (#xxx05)
             let mut seek_manager =
                 ObjIdManager::from_entries(seek_value_to_id.iter().map(|(k, v)| (*k, *v)));
             let EventProcessingResult {
                 late_def_tokens: seek_late_def_tokens,
                 message_tokens: seek_message_tokens,
-                used_ids: seek_used_ids,
                 ..
             } = build_event_messages(
                 self.notes.seek_events.iter(),
@@ -824,14 +796,12 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 |_ev| Channel::Seek,
                 |_ev, id| MessageValue::ObjId(id.unwrap_or(ObjId::null())),
             );
-            used_ids.extend(seek_used_ids);
             late_def_tokens.extend(seek_late_def_tokens);
             message_tokens.extend(seek_message_tokens);
 
             // Messages: BGA keybound (#xxxA5)
             let EventProcessingResult {
                 message_tokens: bga_keybound_message_tokens,
-                used_ids: bga_keybound_used_ids,
                 ..
             } = build_event_messages(
                 self.notes.bga_keybound_events.iter(),
@@ -843,13 +813,11 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 |_ev| Channel::BgaKeybound,
                 |ev, _id| MessageValue::U8(ev.event.line),
             );
-            used_ids.extend(bga_keybound_used_ids);
             message_tokens.extend(bga_keybound_message_tokens);
 
             // Messages: OPTION (#xxxA6)
             let EventProcessingResult {
                 message_tokens: option_message_tokens,
-                used_ids: option_used_ids,
                 ..
             } = build_event_messages(
                 self.notes.option_events.iter(),
@@ -861,9 +829,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 |_ev| Channel::Option,
                 |_ev, _id| MessageValue::U8(0), // Option events don't use values
             );
-            used_ids.extend(option_used_ids);
             message_tokens.extend(option_message_tokens);
-        }
+
+            seek_manager
+        };
 
         // Assembly: header/definitions/resources/others -> late definitions -> messages
         if !late_def_tokens.is_empty() {
@@ -875,7 +844,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         // Add Base62 token if needed
         // Check if any of the used IDs require base62 (not base36 but valid base62)
-        let needs_base62 = used_ids.iter().any(|id| !id.is_base36() && id.is_base62());
+        let mut all_used_ids: HashSet<ObjId> = HashSet::new();
+        all_used_ids.extend(bpm_manager.get_used_ids());
+        all_used_ids.extend(stop_manager.get_used_ids());
+        all_used_ids.extend(scroll_manager.get_used_ids());
+        all_used_ids.extend(speed_manager.get_used_ids());
+        all_used_ids.extend(text_manager.get_used_ids());
+        all_used_ids.extend(exrank_manager.get_used_ids());
+        #[cfg(feature = "minor-command")]
+        all_used_ids.extend(seek_manager.get_used_ids());
+
+        let needs_base62 = all_used_ids
+            .iter()
+            .any(|id| !id.is_base36() && id.is_base62());
         if needs_base62 {
             tokens.push(Token::Base62);
         }
@@ -944,7 +925,6 @@ struct EventUnit<'a, Event> {
 struct EventProcessingResult<'a> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
-    used_ids: HashSet<ObjId>,
 }
 
 /// Generic function to process message types with optional ID allocation
@@ -993,7 +973,6 @@ where
     MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
-    let mut used_ids: HashSet<ObjId> = HashSet::new();
 
     // Process events based on whether id_allocation tuple is provided
     // Keep original order from event_iter instead of grouping by track/channel
@@ -1006,8 +985,6 @@ where
                 if let Some(def_token) = maybe_def_token {
                     late_def_tokens.push(def_token);
                 }
-                // Collect this ObjId as used
-                used_ids.insert(id);
                 Some(id)
             } else {
                 None
@@ -1057,14 +1034,13 @@ where
     let message_tokens: Vec<Token<'a>> = message_segmented_events
         .into_iter()
         .map(|message_segment| {
-            convert_message_segment_to_token(message_segment, &message_formatter, &mut used_ids)
+            convert_message_segment_to_token(message_segment, &message_formatter)
         })
         .collect();
 
     EventProcessingResult {
         message_tokens,
         late_def_tokens,
-        used_ids,
     }
 }
 
@@ -1163,7 +1139,6 @@ fn is_denominator_compatible<'a, Event>(
 fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
     message_segment: Vec<EventUnit<'a, Event>>,
     message_formatter: &MessageFormatter,
-    used_ids: &mut HashSet<ObjId>,
 ) -> Token<'a>
 where
     MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
@@ -1203,10 +1178,6 @@ where
             event, id, time, ..
         } = event_unit;
         let message_value = message_formatter(event, id);
-        // Collect this ObjId as used if it's an ObjId
-        if let MessageValue::ObjId(id) = message_value {
-            used_ids.insert(id);
-        }
         let denom_u64 = time.denominator_u64();
 
         // Calculate exact position: convert fraction to index in the message array
