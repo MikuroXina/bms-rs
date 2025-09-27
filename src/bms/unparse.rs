@@ -923,6 +923,58 @@ impl<T: KeyLayoutMapper> Bms<T> {
         #[cfg(feature = "minor-command")]
         all_used_ids.extend(seek_manager.get_used_ids());
 
+        // Add ObjIds from definition tokens that are not covered by managers
+        // ExWav definitions
+        #[cfg(feature = "minor-command")]
+        all_used_ids.extend(self.scope_defines.exwav_defs.keys());
+
+        // WavCmd events (use wav_index ObjId)
+        #[cfg(feature = "minor-command")]
+        all_used_ids.extend(
+            self.scope_defines
+                .wavcmd_events
+                .values()
+                .map(|ev| ev.wav_index),
+        );
+
+        // AtBga definitions (use both id and source_bmp ObjIds)
+        #[cfg(feature = "minor-command")]
+        {
+            all_used_ids.extend(self.scope_defines.atbga_defs.keys());
+            all_used_ids.extend(
+                self.scope_defines
+                    .atbga_defs
+                    .values()
+                    .map(|def| def.source_bmp),
+            );
+        }
+
+        // Bga definitions (use both id and source_bmp ObjIds)
+        #[cfg(feature = "minor-command")]
+        {
+            all_used_ids.extend(self.scope_defines.bga_defs.keys());
+            all_used_ids.extend(
+                self.scope_defines
+                    .bga_defs
+                    .values()
+                    .map(|def| def.source_bmp),
+            );
+        }
+
+        // Argb definitions
+        #[cfg(feature = "minor-command")]
+        all_used_ids.extend(self.scope_defines.argb_defs.keys());
+
+        // SwBga events
+        #[cfg(feature = "minor-command")]
+        all_used_ids.extend(self.scope_defines.swbga_events.keys());
+
+        // Wav resource files
+        all_used_ids.extend(self.notes.wav_files.keys());
+
+        // Bmp/ExBmp resource files
+        all_used_ids.extend(self.graphics.bmp_files.keys());
+
         let needs_base62 = all_used_ids
             .iter()
             .any(|id| !id.is_base36() && id.is_base62());
