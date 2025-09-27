@@ -367,11 +367,21 @@ pub struct ObjIdManager<'a, K: ?Sized> {
     unused_ids: VecDeque<ObjId>,
 }
 
+impl<'a, K: ?Sized> Default for ObjIdManager<'a, K>
+where
+    K: std::hash::Hash + Eq,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a, K: ?Sized> ObjIdManager<'a, K>
 where
     K: std::hash::Hash + Eq,
 {
     /// Create a new empty ObjIdManager
+    #[must_use]
     pub fn new() -> Self {
         let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
 
@@ -449,21 +459,25 @@ where
     }
 
     /// Get used ids (legacy method for compatibility)
+    #[must_use]
     pub fn get_used_ids(&self) -> &HashSet<ObjId> {
         &self.used_ids
     }
 
     /// Get value to id (legacy method for compatibility)
+    #[must_use]
     pub fn get_value_to_id(&self) -> &HashMap<&'a K, ObjId> {
         &self.value_to_id
     }
 
     /// Get unused ids (legacy method for compatibility)
+    #[must_use]
     pub fn get_unused_ids(&self) -> &VecDeque<ObjId> {
         &self.unused_ids
     }
 
     /// Extract the ObjIdManager (legacy method for compatibility)
+    #[must_use]
     pub fn extract(self) -> (HashMap<&'a K, ObjId>, HashSet<ObjId>, VecDeque<ObjId>) {
         (self.value_to_id, self.used_ids, self.unused_ids)
     }

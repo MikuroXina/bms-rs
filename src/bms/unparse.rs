@@ -36,7 +36,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             // Extended character events
             for extchr in &self.others.extchr_events {
-                tokens.push(Token::ExtChr(extchr.clone()));
+                tokens.push(Token::ExtChr(*extchr));
             }
             // Change options
             for (id, option) in &self.others.change_options {
@@ -1183,7 +1183,7 @@ where
         // Calculate exact position: convert fraction to index in the message array
         // Example: time=3/4, lcm_denom=4: (3 * 4 / 4) = 3, so place at index 3
         // Example: time=1/3, lcm_denom=15: (1 * 15 / 3) = 5, so place at index 5
-        let time_idx = ((time.numerator() * (lcm_denom / denom_u64)) as u64) as usize;
+        let time_idx = (time.numerator() * (lcm_denom / denom_u64)) as usize;
 
         // Ensure we don't go out of bounds (safety check)
         if time_idx < message_len {
