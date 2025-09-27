@@ -986,53 +986,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
     }
 }
 
-#[allow(dead_code)]
-fn channel_sort_key(channel: Channel) -> (u16, u16) {
-    use Channel::*;
-    match channel {
-        Bgm => (0x0001, 0),
-        SectionLen => (0x0002, 0),
-        BpmChangeU8 => (0x0003, 0),
-        BgaBase => (0x0004, 0),
-        #[cfg(feature = "minor-command")]
-        Seek => (0x0005, 0),
-        BgaPoor => (0x0006, 0),
-        BgaLayer => (0x0007, 0),
-        BpmChange => (0x0008, 0),
-        Stop => (0x0009, 0),
-        BgaLayer2 => (0x000A, 0),
-        #[cfg(feature = "minor-command")]
-        BgaBaseOpacity => (0x000B, 0),
-        #[cfg(feature = "minor-command")]
-        BgaLayerOpacity => (0x000C, 0),
-        #[cfg(feature = "minor-command")]
-        BgaLayer2Opacity => (0x000D, 0),
-        #[cfg(feature = "minor-command")]
-        BgaPoorOpacity => (0x000E, 0),
-        Scroll => (0x0100, 0),
-        Speed => (0x0101, 0),
-        BgmVolume => (0x0097, 0),
-        KeyVolume => (0x0098, 0),
-        Text => (0x0099, 0),
-        Judge => (0x00A0, 0),
-        #[cfg(feature = "minor-command")]
-        BgaBaseArgb => (0x00A1, 0),
-        #[cfg(feature = "minor-command")]
-        BgaLayerArgb => (0x00A2, 0),
-        #[cfg(feature = "minor-command")]
-        BgaLayer2Argb => (0x00A3, 0),
-        #[cfg(feature = "minor-command")]
-        BgaPoorArgb => (0x00A4, 0),
-        #[cfg(feature = "minor-command")]
-        BgaKeybound => (0x00A5, 0),
-        #[cfg(feature = "minor-command")]
-        Option => (0x00A6, 0),
-        #[cfg(feature = "minor-command")]
-        ChangeOption => (0x0A60, 0),
-        Note { channel_id } => (0xFFFF, channel_id.as_u16()),
-    }
-}
-
 /// A unit of event processing containing all necessary information for token generation
 #[derive(Debug, Clone)]
 struct EventUnit<'a, Event> {
