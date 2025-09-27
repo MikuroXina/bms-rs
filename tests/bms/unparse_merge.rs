@@ -3,17 +3,18 @@ use bms_rs::bms::prelude::*;
 use std::borrow::Cow;
 use std::path::Path;
 
-/// Test scenario 1: No messages can be merged (all have different track/channel combinations)
-/// This test verifies that messages with different track/channel combinations remain separate.
+/// Test scenario 1: Mixed merge behavior (some messages can be merged, others cannot)
+/// This test verifies that messages with same track/channel combinations are merged,
+/// while messages with different track/channel combinations remain separate.
 #[test]
 fn test_scenario_1_no_merge() {
-    // Create tokens where no messages can be merged - all have different track/channel combinations
+    // Create tokens with mixed track/channel combinations - some can be merged, others cannot
     let tokens = vec![
         Token::Title("Test Song"),
         Token::Artist("Test Artist"),
         Token::Bpm(Decimal::from(120)),
         Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
-        // Different track and channel combinations - should not merge
+        // Mixed track and channel combinations - some will merge, others will not
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
@@ -53,7 +54,7 @@ fn test_scenario_1_no_merge() {
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse();
 
-    // Expected tokens - all messages should remain separate (based on actual unparse behavior)
+    // Expected tokens - messages with same track/channel are merged, others remain separate (based on actual unparse behavior)
     let expected_tokens = vec![
         Token::Title("Test Song"),
         Token::Artist("Test Artist"),
@@ -152,10 +153,11 @@ fn test_scenario_2_can_merge() {
     assert_eq!(unparsed_tokens, expected_tokens);
 }
 
-/// Test scenario 3: Cross-track no abnormal merging
-/// This test verifies that messages from different tracks are never merged even with same channel.
-/// Construct scenario: Track 1 and Track 2 both have Bgm channel messages that could be merged,
-/// but they should remain separate because they are on different tracks.
+/// Test scenario 3: Cross-track isolation with intra-track merging
+/// This test verifies that messages from different tracks are never merged even with same channel,
+/// but messages within the same track/channel combination are merged.
+/// Construct scenario: Track 1 and Track 2 both have Bgm channel messages that are merged
+/// within their respective tracks, but remain separate between tracks.
 #[test]
 fn test_scenario_3_cross_track_no_merge() {
     // Create tokens with same channel (Bgm) but different tracks - demonstrating cross-track isolation
@@ -175,16 +177,16 @@ fn test_scenario_3_cross_track_no_merge() {
             channel: Channel::Bgm,
             message: Cow::Borrowed("000000BB"), // Track 1 message 2 - should merge with AA
         },
-        // Track 2 messages - same channel (Bgm) but different track, should NOT merge with Track 1
+        // Track 2 messages - same channel (Bgm) but different track, should merge within Track 2 but NOT with Track 1
         Token::Message {
             track: Track(2),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("0000CC00"), // Track 2 message 1 - should remain separate
+            message: Cow::Borrowed("0000CC00"), // Track 2 message 1 - should merge with DD within Track 2
         },
         Token::Message {
             track: Track(2),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("000000DD"), // Track 2 message 2 - should remain separate
+            message: Cow::Borrowed("000000DD"), // Track 2 message 2 - should merge with CC within Track 2
         },
     ];
 
@@ -224,8 +226,9 @@ fn test_scenario_3_cross_track_no_merge() {
     assert_eq!(unparsed_tokens, expected_tokens);
 }
 
-/// Test scenario 4: Input order preservation when ObjTime differs from input order
-/// This test verifies that message order follows input order, not ObjTime order.
+/// Test scenario 4: Input order preservation with message merging
+/// This test verifies that message order follows input order, and messages with same track/channel
+/// are merged while preserving the relative order of non-mergeable messages.
 /// Using BMS format with 8-character messages for proper merging demonstration.
 #[test]
 fn test_scenario_4_input_order_preservation() {
@@ -235,23 +238,23 @@ fn test_scenario_4_input_order_preservation() {
         Token::Artist("Test Artist"),
         Token::Bpm(Decimal::from(120)),
         Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
-        // Input order: message3, message1, message2 (all at same track/channel)
-        // If we were to sort by ObjTime, they would be sorted by time position
-        // But we should preserve input order: message3, message1, message2
+        // Input order: FF, AA, BB (all at same track/channel)
+        // FF appears first in input and should remain first in output
+        // AA and BB should be merged together while preserving FF's position
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("000000FF"), // Third in input, should remain third
+            message: Cow::Borrowed("000000FF"), // First in input, should remain first
         },
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("0000AA00"), // First in input, should remain first
+            message: Cow::Borrowed("0000AA00"), // Second in input, should merge with BB
         },
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("000000BB"), // Second in input, should remain second
+            message: Cow::Borrowed("000000BB"), // Third in input, should merge with AA
         },
     ];
 
@@ -268,7 +271,7 @@ fn test_scenario_4_input_order_preservation() {
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse();
 
-    // Expected tokens - should preserve input order with merged messages (based on actual unparse behavior)
+    // Expected tokens - FF remains first, AA and BB are merged together (based on actual unparse behavior)
     let expected_tokens = vec![
         Token::Title("Test Song"),
         Token::Artist("Test Artist"),
@@ -278,7 +281,7 @@ fn test_scenario_4_input_order_preservation() {
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
-            message: Cow::Borrowed("000000FF"), // Actual output: "000000FF"
+            message: Cow::Borrowed("000000FF"), // FF remains first as per input order
         },
         Token::Message {
             track: Track(1),
