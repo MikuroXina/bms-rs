@@ -429,17 +429,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(section_len_tokens);
 
         // Helper closures for mapping definitions
-        let used_bpm_ids: HashSet<ObjId> = self.scope_defines.bpm_defs.keys().copied().collect();
-        let used_stop_ids: HashSet<ObjId> = self.scope_defines.stop_defs.keys().copied().collect();
-        #[cfg(feature = "minor-command")]
-        let used_seek_ids: HashSet<ObjId> = self.others.seek_events.keys().copied().collect();
-        let used_scroll_ids: HashSet<ObjId> =
-            self.scope_defines.scroll_defs.keys().copied().collect();
-        let used_speed_ids: HashSet<ObjId> =
-            self.scope_defines.speed_defs.keys().copied().collect();
-        let used_text_ids: HashSet<ObjId> = self.others.texts.keys().copied().collect();
-        let used_exrank_ids: HashSet<ObjId> =
-            self.scope_defines.exrank_defs.keys().copied().collect();
 
         let bpm_value_to_id: HashMap<&'a Decimal, ObjId> = self
             .scope_defines
@@ -486,7 +475,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
-        let bpm_id_manager = ObjIdManager::new(bpm_value_to_id, used_bpm_ids);
+        let bpm_id_manager =
+            ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let mut bpm_message_tokens = Vec::new();
 
         // Split BPM changes into two types: U8 (not in value list and is u8) and others
@@ -495,7 +485,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         for (time, ev) in &self.arrangers.bpm_changes {
             // Check if already defined
-            if bpm_id_manager.get_value_to_id().contains_key(&ev.bpm) {
+            if bpm_id_manager.is_assigned(&ev.bpm) {
                 // Already defined, treat as other type
                 other_bpm_events.push((time, ev));
             } else
@@ -556,7 +546,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(bpm_message_tokens);
 
         // Messages: STOP (#xxx09)
-        let stop_manager = ObjIdManager::new(stop_value_to_id, used_stop_ids);
+        let stop_manager =
+            ObjIdManager::from_entries(stop_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let stop_def_generator = DefTokenGenerator::create_generator(
             stop_manager,
             |id, duration| Token::Stop(id, (*duration).clone()),
@@ -578,7 +569,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(stop_message_tokens);
 
         // Messages: SCROLL (#xxxSC)
-        let scroll_manager = ObjIdManager::new(scroll_value_to_id, used_scroll_ids);
+        let scroll_manager =
+            ObjIdManager::from_entries(scroll_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let scroll_def_generator = DefTokenGenerator::create_generator(
             scroll_manager,
             |id, factor| Token::Scroll(id, factor.clone()),
@@ -600,7 +592,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(scroll_message_tokens);
 
         // Messages: SPEED (#xxxSP)
-        let speed_manager = ObjIdManager::new(speed_value_to_id, used_speed_ids);
+        let speed_manager =
+            ObjIdManager::from_entries(speed_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let speed_def_generator = DefTokenGenerator::create_generator(
             speed_manager,
             |id, factor| Token::Speed(id, factor.clone()),
@@ -749,7 +742,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         message_tokens.extend(key_volume_message_tokens);
 
         // Messages: TEXT (#99)
-        let text_manager = ObjIdManager::new(text_value_to_id, used_text_ids);
+        let text_manager =
+            ObjIdManager::from_entries(text_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let text_def_generator =
             DefTokenGenerator::create_generator(text_manager, Token::Text, |ev: &TextObj| {
                 ev.text.as_str()
@@ -769,7 +763,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         late_def_tokens.extend(text_late_def_tokens);
         message_tokens.extend(text_message_tokens);
 
-        let exrank_manager = ObjIdManager::new(exrank_value_to_id, used_exrank_ids);
+        let exrank_manager =
+            ObjIdManager::from_entries(exrank_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let exrank_def_generator = DefTokenGenerator::create_generator(
             exrank_manager,
             |id, judge_level| Token::ExRank(id, *judge_level),
@@ -793,7 +788,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         #[cfg(feature = "minor-command")]
         {
             // Messages: SEEK (#xxx05)
-            let seek_manager = ObjIdManager::new(seek_value_to_id, used_seek_ids);
+            let seek_manager =
+                ObjIdManager::from_entries(seek_value_to_id.iter().map(|(k, v)| (*k, *v)));
             let seek_def_generator = DefTokenGenerator::create_generator(
                 seek_manager,
                 |id, position| Token::Seek(id, (*position).clone()),

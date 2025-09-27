@@ -371,8 +371,31 @@ impl<'a, K: ?Sized> ObjIdManager<'a, K>
 where
     K: std::hash::Hash + Eq,
 {
-    /// Create a new ObjIdManager
-    pub fn new(value_to_id: HashMap<&'a K, ObjId>, used_ids: HashSet<ObjId>) -> Self {
+    /// Create a new empty ObjIdManager
+    pub fn new() -> Self {
+        let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
+
+        Self {
+            value_to_id: HashMap::new(),
+            used_ids: HashSet::new(),
+            unused_ids,
+        }
+    }
+
+    /// Create a new ObjIdManager with iterator of assigned entries
+    pub fn from_entries<I: IntoIterator<Item = (&'a K, ObjId)>>(iter: I) -> Self {
+        let mut value_to_id: HashMap<&'a K, ObjId> = HashMap::new();
+        let mut used_ids: HashSet<ObjId> = HashSet::new();
+
+        // Collect all entries first
+        let entries: Vec<_> = iter.into_iter().collect();
+
+        // Mark used IDs and build the mapping
+        for (key, assigned_id) in entries {
+            value_to_id.insert(key, assigned_id);
+            used_ids.insert(assigned_id);
+        }
+
         let unused_ids: VecDeque<ObjId> = ObjId::all_values()
             .filter(|id| !used_ids.contains(id))
             .collect();
@@ -384,7 +407,30 @@ where
         }
     }
 
-    /// Get or allocate an ObjId for a key
+    /// Returns whether the key is already assigned any id
+    pub fn is_assigned(&self, key: &'a K) -> bool {
+        self.value_to_id.contains_key(key)
+    }
+
+    /// Gets the id assigned to key, or assigns a new id. If there is no space to assign, it returns None.
+    pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
+        if let Some(&id) = self.value_to_id.get(key) {
+            Some(id)
+        } else if let Some(new_id) = self.unused_ids.pop_front() {
+            self.used_ids.insert(new_id);
+            self.value_to_id.insert(key, new_id);
+            Some(new_id)
+        } else {
+            None
+        }
+    }
+
+    /// Converts it into an iterator of assigned ids.
+    pub fn into_assigned_iter(self) -> impl Iterator<Item = ObjId> {
+        self.used_ids.into_iter()
+    }
+
+    /// Get or allocate an ObjId for a key (legacy method for compatibility)
     pub fn get_or_allocate_id(
         &mut self,
         key: &'a K,
@@ -392,31 +438,32 @@ where
     ) -> (ObjId, Option<Token<'a>>) {
         if let Some(&id) = self.value_to_id.get(key) {
             (id, None)
-        } else {
-            let new_id = self.unused_ids.pop_front().unwrap_or_else(ObjId::null);
+        } else if let Some(new_id) = self.unused_ids.pop_front() {
             self.used_ids.insert(new_id);
             self.value_to_id.insert(key, new_id);
             let token = create_token(new_id, key);
             (new_id, Some(token))
+        } else {
+            (ObjId::null(), None)
         }
     }
 
-    /// Get used ids
+    /// Get used ids (legacy method for compatibility)
     pub fn get_used_ids(&self) -> &HashSet<ObjId> {
         &self.used_ids
     }
 
-    /// Get value to id
+    /// Get value to id (legacy method for compatibility)
     pub fn get_value_to_id(&self) -> &HashMap<&'a K, ObjId> {
         &self.value_to_id
     }
 
-    /// Get unused ids
+    /// Get unused ids (legacy method for compatibility)
     pub fn get_unused_ids(&self) -> &VecDeque<ObjId> {
         &self.unused_ids
     }
 
-    /// Extract the ObjIdManager
+    /// Extract the ObjIdManager (legacy method for compatibility)
     pub fn extract(self) -> (HashMap<&'a K, ObjId>, HashSet<ObjId>, VecDeque<ObjId>) {
         (self.value_to_id, self.used_ids, self.unused_ids)
     }
