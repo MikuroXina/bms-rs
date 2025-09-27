@@ -1216,7 +1216,8 @@ fn is_denominator_compatible<'a, Event>(
 
     // Check if the event unit's denominator shares a common factor relationship
     let event_denominator = event_unit.time.denominator_u64();
-    are_denominators_compatible(reference_denominator, event_denominator)
+    reference_denominator.is_multiple_of(event_denominator)
+        || event_denominator.is_multiple_of(reference_denominator)
 }
 
 /// Check if two denominators are compatible (either is a factor of the other)
