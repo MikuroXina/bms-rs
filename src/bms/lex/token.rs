@@ -465,7 +465,7 @@ impl<'a> Token<'a> {
                 let base_type = match base_str {
                     "36" => BaseType::Base36,
                     "62" => BaseType::Base62,
-                    _ => return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range)),
+                    _ => return Err(LexWarning::OutOfBaseType.into_wrapper_range(command_range)),
                 };
                 Self::Base(base_type)
             }
@@ -1961,7 +1961,7 @@ mod tests {
         let result = Token::parse(&mut cursor);
         assert!(result.is_err());
         if let Err(err) = result {
-            assert!(matches!(err.into_content(), LexWarning::OutOfBase62));
+            assert!(matches!(err.into_content(), LexWarning::OutOfBaseType));
         }
     }
 

@@ -46,7 +46,7 @@ pub enum LexWarning {
     },
     /// Failed to convert a byte into a base-36 or base-62 character.
     #[error("expected id format is base 36 (0-9A-Z) or base 62 (0-9A-Za-z)")]
-    OutOfBase62,
+    OutOfBaseType,
     /// An unknown command was encountered.
     #[error("unknown command `{command}`")]
     UnknownCommand {
