@@ -993,7 +993,6 @@ where
     MessageFormatter: Fn(&'a Event, Option<ObjId>) -> MessageValue,
 {
     let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
-    let mut id_map: HashMap<ObjTime, ObjId> = HashMap::new();
     let mut used_ids: HashSet<ObjId> = HashSet::new();
 
     // Process events based on whether id_allocation tuple is provided
@@ -1007,7 +1006,6 @@ where
                 if let Some(def_token) = maybe_def_token {
                     late_def_tokens.push(def_token);
                 }
-                id_map.insert(time, id);
                 // Collect this ObjId as used
                 used_ids.insert(id);
                 Some(id)
