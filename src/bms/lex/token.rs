@@ -1336,9 +1336,7 @@ impl std::fmt::Display for Token<'_> {
             }
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
-            Token::Base(base_type) => {
-                write!(f, "#BASE {}", base_type)
-            }
+            Token::Base(base_type) => write!(f, "#BASE {}", base_type),
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
             #[cfg(feature = "minor-command")]
