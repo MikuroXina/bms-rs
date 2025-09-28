@@ -111,7 +111,7 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
             }
         }
         #[cfg(feature = "minor-command")]
-        if name == "#BASEBPM" {
+        if name == "BASEBPM" {
             let bpm = Decimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
@@ -158,5 +158,60 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
             }
         }
         Ok(())
+    }
+}
+
+/// It processes `#SCROLLxx` definitions and objects on `Scroll` channel.
+pub struct ScrollProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+
+impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
+    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+        if name.starts_with("SCROLL") {
+            let id = name.trim_start_matches("SCROLL");
+            let factor =
+                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
+                    ParseWarning::SyntaxError("expected decimal scroll factor".into())
+                })?);
+            let scroll_obj_id = ObjId::try_from(id).map_err(|id| {
+                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
+            })?;
+            if let Some(older) = self
+                .0
+                .borrow_mut()
+                .scope_defines
+                .scroll_defs
+                .get_mut(&scroll_obj_id)
+            {
+                self.1
+                    .handle_def_duplication(DefDuplication::ScrollingFactorChange {
+                        id: scroll_obj_id,
+                        older: older.clone(),
+                        newer: factor.clone(),
+                    })
+                    .apply_def(older, factor, scroll_obj_id)?;
+            } else {
+                self.scope_defines.scroll_defs.insert(scroll_obj_id, factor);
+            }
+            Ok(())
+        }
+    }
+
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+        for (time, obj) in ids_from_message(*track, message, |w| self.1.warn(w)) {
+            let factor = self
+                .0
+                .borrow_mut()
+                .scope_defines
+                .scroll_defs
+                .get(&obj)
+                .ok_or(ParseWarning::UndefinedObject(obj))?;
+            self.0.borrow_mut().arrangers.push_scrolling_factor_change(
+                ScrollingFactorObj {
+                    time,
+                    factor: factor.clone(),
+                },
+                self.1,
+            )?;
+        }
     }
 }
