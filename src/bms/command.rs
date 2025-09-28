@@ -2,6 +2,8 @@
 //!
 //! Structures in this module can be used in [Lex] part, [Parse] part, and the output models.
 
+use std::collections::{HashMap, HashSet, VecDeque};
+
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
@@ -94,22 +96,6 @@ pub(crate) fn base62_to_byte(base62: u8) -> u8 {
     }
 }
 
-#[test]
-fn test_base62() {
-    assert_eq!(char_to_base62('/'), None);
-    assert_eq!(char_to_base62('0'), Some(b'0'));
-    assert_eq!(char_to_base62('9'), Some(b'9'));
-    assert_eq!(char_to_base62(':'), None);
-    assert_eq!(char_to_base62('@'), None);
-    assert_eq!(char_to_base62('A'), Some(b'A'));
-    assert_eq!(char_to_base62('Z'), Some(b'Z'));
-    assert_eq!(char_to_base62('['), None);
-    assert_eq!(char_to_base62('`'), None);
-    assert_eq!(char_to_base62('a'), Some(b'a'));
-    assert_eq!(char_to_base62('z'), Some(b'z'));
-    assert_eq!(char_to_base62('{'), None);
-}
-
 /// An object id. Its meaning is determined by the channel belonged to.
 ///
 /// The representation is 2 digits of ASCII characters.
@@ -143,6 +129,7 @@ impl TryFrom<[char; 2]> for ObjId {
 
 impl TryFrom<[u8; 2]> for ObjId {
     type Error = [u8; 2];
+
     fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
         <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
             .map_err(|_| value)
@@ -216,6 +203,53 @@ impl ObjId {
     pub const fn make_uppercase(&mut self) {
         self.0[0] = self.0[0].to_ascii_uppercase();
         self.0[1] = self.0[1].to_ascii_uppercase();
+    }
+
+    /// Returns whether both characters are valid Base36 characters (0-9, A-Z).
+    #[must_use]
+    pub fn is_base36(self) -> bool {
+        self.0
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())
+    }
+
+    /// Returns whether both characters are valid Base62 characters (0-9, A-Z, a-z).
+    #[must_use]
+    pub fn is_base62(self) -> bool {
+        self.0
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
+    }
+
+    /// Returns an iterator over all possible ObjId values, ordered by priority:
+    /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
+    ///
+    /// Total: 3843 values (excluding null "00"), with first 1295 being Base36.
+    pub fn all_values() -> impl Iterator<Item = Self> {
+        const BASE36_CHARS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const BASE62_CHARS: &[u8] =
+            b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+        // Generate all Base36 values first (1296 values: "00" to "ZZ")
+        let base36_values = (0..36usize).flat_map(move |first_idx| {
+            (0..36usize)
+                .map(move |second_idx| Self([BASE36_CHARS[first_idx], BASE36_CHARS[second_idx]]))
+        });
+
+        // Generate all Base62 values, then filter out Base36 ones and "00"
+        let remaining_values = (0..62usize).flat_map(move |first_idx| {
+            (0..62usize)
+                .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
+                .filter(move |obj_id| {
+                    // Skip "00" and Base36 values (already yielded above)
+                    !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
+                })
+        });
+
+        // Chain them: first Base36 (1296 values), then remaining (2548 values)
+        // Total: 1296 + 2548 = 3844 values
+        // Skip the first Base36 value ("00") to get 1295 Base36 + 2548 remaining = 3843 total
+        base36_values.skip(1).chain(remaining_values)
     }
 }
 
@@ -292,5 +326,153 @@ impl TryFrom<u8> for LnMode {
             3 => Self::Hcn,
             _ => return Err(value),
         })
+    }
+}
+
+/// Associates between object `K` and [`ObjId`] with memoization.
+/// It is useful to assign object ids for many objects with its equality.
+pub struct ObjIdManager<'a, K: ?Sized> {
+    value_to_id: HashMap<&'a K, ObjId>,
+    used_ids: HashSet<ObjId>,
+    unused_ids: VecDeque<ObjId>,
+}
+
+impl<'a, K: ?Sized> Default for ObjIdManager<'a, K>
+where
+    K: std::hash::Hash + Eq,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a, K: ?Sized> ObjIdManager<'a, K>
+where
+    K: std::hash::Hash + Eq,
+{
+    /// Create a new empty ObjIdManager
+    #[must_use]
+    pub fn new() -> Self {
+        let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
+
+        Self {
+            value_to_id: HashMap::new(),
+            used_ids: HashSet::new(),
+            unused_ids,
+        }
+    }
+
+    /// Create a new ObjIdManager with iterator of assigned entries
+    pub fn from_entries<I: IntoIterator<Item = (&'a K, ObjId)>>(iter: I) -> Self {
+        let mut value_to_id: HashMap<&'a K, ObjId> = HashMap::new();
+        let mut used_ids: HashSet<ObjId> = HashSet::new();
+
+        // Collect all entries first
+        let entries: Vec<_> = iter.into_iter().collect();
+
+        // Mark used IDs and build the mapping
+        for (key, assigned_id) in entries {
+            value_to_id.insert(key, assigned_id);
+            used_ids.insert(assigned_id);
+        }
+
+        let unused_ids: VecDeque<ObjId> = ObjId::all_values()
+            .filter(|id| !used_ids.contains(id))
+            .collect();
+
+        Self {
+            value_to_id,
+            used_ids,
+            unused_ids,
+        }
+    }
+
+    /// Returns whether the key is already assigned any id
+    pub fn is_assigned(&self, key: &'a K) -> bool {
+        self.value_to_id.contains_key(key)
+    }
+
+    /// Get or allocate an ObjId for a key without creating tokens
+    pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
+        if let Some(&id) = self.value_to_id.get(key) {
+            Some(id)
+        } else if let Some(new_id) = self.unused_ids.pop_front() {
+            self.used_ids.insert(new_id);
+            self.value_to_id.insert(key, new_id);
+            Some(new_id)
+        } else {
+            None
+        }
+    }
+
+    /// Get used ids
+    #[must_use]
+    pub fn get_used_ids(&self) -> &HashSet<ObjId> {
+        &self.used_ids
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_base62() {
+        assert_eq!(char_to_base62('/'), None);
+        assert_eq!(char_to_base62('0'), Some(b'0'));
+        assert_eq!(char_to_base62('9'), Some(b'9'));
+        assert_eq!(char_to_base62(':'), None);
+        assert_eq!(char_to_base62('@'), None);
+        assert_eq!(char_to_base62('A'), Some(b'A'));
+        assert_eq!(char_to_base62('Z'), Some(b'Z'));
+        assert_eq!(char_to_base62('['), None);
+        assert_eq!(char_to_base62('`'), None);
+        assert_eq!(char_to_base62('a'), Some(b'a'));
+        assert_eq!(char_to_base62('z'), Some(b'z'));
+        assert_eq!(char_to_base62('{'), None);
+    }
+
+    #[test]
+    fn test_all_values() {
+        let all_values: Vec<ObjId> = ObjId::all_values().collect();
+
+        // Should have exactly 3843 values
+        assert_eq!(all_values.len(), 3843);
+
+        // First 1295 values should be Base36 (0-9, A-Z)
+        for (i, obj_id) in all_values.iter().enumerate() {
+            if i < 1295 {
+                assert!(
+                    obj_id.is_base36(),
+                    "Value at index {} should be Base36: {:?}",
+                    i,
+                    obj_id
+                );
+            } else {
+                assert!(
+                    !obj_id.is_base36(),
+                    "Value at index {} should NOT be Base36: {:?}",
+                    i,
+                    obj_id
+                );
+            }
+        }
+
+        // Verify some specific values
+        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base36 value
+        assert_eq!(all_values[1294], ObjId::try_from(['Z', 'Z']).unwrap()); // Last Base36 value
+
+        // Verify that "00" is not included
+        assert!(!all_values.contains(&ObjId::null()));
+
+        // Verify that all values are unique
+        let mut unique_values = std::collections::HashSet::new();
+        for value in &all_values {
+            assert!(
+                unique_values.insert(*value),
+                "Duplicate value found: {:?}",
+                value
+            );
+        }
     }
 }
