@@ -269,6 +269,20 @@ pub enum ChartEvent {
         /// 音量值 (0x01-0xFF，0x01表示最小音量，0xFF表示最大音量)
         volume: u8,
     },
+    /// 文本显示事件
+    ///
+    /// 当播放位置到达文本显示时间点时触发，用于在谱面中显示文本信息。
+    TextDisplay {
+        /// 要显示的文本内容
+        text: String,
+    },
+    /// 判定等级变化事件
+    ///
+    /// 当播放位置到达判定等级变化时间点时触发，用于调整判定窗口的严格程度。
+    JudgeLevelChange {
+        /// 判定等级 (VeryHard, Hard, Normal, Easy, OtherInt)
+        level: crate::bms::command::JudgeLevel,
+    },
     /// 小节线事件
     ///
     /// 当播放位置到达小节线位置时触发，用于谱面结构的显示。

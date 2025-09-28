@@ -524,6 +524,32 @@ where
             }
         }
 
+        // 文本显示事件
+        for text_obj in self.bms.notes.text_events.values() {
+            let y = self.y_of_time(text_obj.time);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::TextDisplay {
+                        text: text_obj.text.clone(),
+                    },
+                ));
+            }
+        }
+
+        // 判定等级变化事件
+        for judge_obj in self.bms.notes.judge_events.values() {
+            let y = self.y_of_time(judge_obj.time);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::JudgeLevelChange {
+                        level: judge_obj.judge_level,
+                    },
+                ));
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())
