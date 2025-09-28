@@ -171,8 +171,8 @@ pub struct NoteView {
     pub key: Key,
     /// 距离判定线的剩余位移（y 单位，>=0 表示尚未到达判定线）
     pub distance_to_hit: YCoordinate,
-    /// 关联的声音资源索引（BMS 为 `#WAVxx` 映射的整数；BMSON 常为 None）
-    pub wav_index: Option<usize>,
+    /// 关联的声音资源ID（BMS 为 `#WAVxx` 映射的整数；BMSON 常为 None）
+    pub wav_id: Option<WavId>,
 }
 
 /// 播放过程中产生的事件（Elm 风格）。

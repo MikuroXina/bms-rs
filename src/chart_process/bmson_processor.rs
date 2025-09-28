@@ -365,7 +365,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             side,
                             key,
                             distance_to_hit: scaled_distance.into(),
-                            wav_index: None,
+                            wav_id: None,
                         },
                     ));
                 }

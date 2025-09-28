@@ -220,7 +220,7 @@ where
                 side,
                 key,
                 distance_to_hit: distance.into(),
-                wav_index: wav_id.map(|id| id.value()),
+                wav_id,
             },
         ))
     }
