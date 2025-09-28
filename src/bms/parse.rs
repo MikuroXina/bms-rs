@@ -36,9 +36,7 @@ use crate::bms::{
     model::Bms,
 };
 
-#[cfg(feature = "minor-command")]
-use self::prompt::ChannelDuplication;
-use self::prompt::PromptHandler;
+use self::prompt::Prompter;
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -85,13 +83,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
     /// Parses a token stream into [`Bms`] without AST.
     pub fn from_token_stream<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        mut prompt_handler: impl PromptHandler,
+        prompt_handler: impl Prompter,
     ) -> ParseOutput<T> {
         let mut bms = Self::default();
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for token in token_iter {
             let mut parse_warnings_buf: Vec<ParseWarning> = vec![];
-            let parse_result = bms.parse(token, &mut prompt_handler, &mut parse_warnings_buf);
+            let parse_result = bms.parse(token, &prompt_handler, &mut parse_warnings_buf);
             parse_warnings.extend(
                 parse_warnings_buf
                     .into_iter()
@@ -113,7 +111,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     pub(crate) fn parse(
         &mut self,
         token: &TokenWithRange,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
         parse_warnings: &mut Vec<ParseWarning>,
     ) -> Result<()> {
         match token.content() {
@@ -303,19 +301,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
             Token::Rank(rank) => self.header.rank = Some(*rank),
-            Token::Speed(id, factor) => {
-                if let Some(older) = self.scope_defines.speed_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SpeedFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply_def(older, factor.clone(), *id)?;
-                } else {
-                    self.scope_defines.speed_defs.insert(*id, factor.clone());
-                }
-            }
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
@@ -408,26 +393,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::MaterialsBmp(path) => {
                 self.graphics.materials_bmp.push(path.to_path_buf());
-            }
-            Token::Message {
-                track,
-                channel: Channel::Speed,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let factor = self
-                        .scope_defines
-                        .speed_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_speed_factor_change(
-                        SpeedObj {
-                            time,
-                            factor: factor.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
             }
             #[cfg(feature = "minor-command")]
             Token::Message {

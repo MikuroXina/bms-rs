@@ -229,8 +229,6 @@ pub enum Token<'a> {
     SetSwitch(BigUint),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
-    /// `#SPEED[01-ZZ] [f64]`. Defines the spacing change object. It changes relative spacing of notes with linear interpolation. For example, if playing score between the objects `1.0` and `2.0`, the spaces of notes will increase at the certain rate until the `2.0` object.
-    Speed(ObjId, Decimal),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
@@ -518,17 +516,6 @@ impl<'a> Token<'a> {
                 } else {
                     Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
                 }
-            }
-            speed if speed.starts_with("#SPEED") => {
-                let id = command.trim_start_matches("#SPEED");
-                let s_speed = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("spacing factor"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s_speed)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::Speed(ObjId::try_load(id, c)?, v)
             }
             exbmp if exbmp.starts_with("#EXBMP") => {
                 let id = exbmp.trim_start_matches("#EXBMP");
@@ -1108,9 +1095,6 @@ impl<'a> Token<'a> {
                 if message.chars().any(|ch| ch.is_ascii_lowercase()) {
                     message.to_mut().make_ascii_uppercase();
                 }
-            }
-            Speed(id, _) => {
-                id.make_uppercase();
             }
             Text(id, _) => {
                 id.make_uppercase();
