@@ -17,6 +17,8 @@ pub mod minor_command;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BaseType {
+    /// Base 16: Hexadecimal IDs (0-9A-F)
+    Base16,
     /// Base 36: Case-insensitive IDs (0-9A-Z)
     Base36,
     /// Base 62: Case-sensitive IDs (0-9A-Za-z)
