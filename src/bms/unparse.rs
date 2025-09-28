@@ -901,14 +901,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             seek_manager
         };
 
-        // Assembly: header/definitions/resources/others -> late definitions -> messages
-        if !late_def_tokens.is_empty() {
-            tokens.extend(late_def_tokens);
-        }
-        if !message_tokens.is_empty() {
-            tokens.extend(message_tokens);
-        }
-
         // Add Base62 token if needed
         // Check if any of the used IDs require base62 (not base36 but valid base62)
         let mut all_used_ids: HashSet<ObjId> = HashSet::new();
@@ -980,7 +972,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             tokens.push(Token::Base(BaseType::Base62));
         }
 
-        tokens
+        // Final tokens
+        // Assembly: header/definitions/resources/others -> late definitions -> messages
+        let mut final_tokens = tokens;
+
+        if !late_def_tokens.is_empty() {
+            final_tokens.extend(late_def_tokens);
+        }
+        if !message_tokens.is_empty() {
+            final_tokens.extend(message_tokens);
+        }
+
+        final_tokens
     }
 }
 
