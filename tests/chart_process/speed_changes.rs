@@ -50,7 +50,7 @@ fn test_speed_processor_events() {
     processor.start_play(start_time);
 
     // 验证初始状态
-    assert_eq!(processor.current_speed(), 1.0);
+    assert_eq!(processor.current_speed(), Decimal::from(1));
 
     // 前进到第一个 Speed/Scroll 变化点
     let after_first_change = start_time + Duration::from_secs(1);
@@ -105,8 +105,8 @@ fn test_speed_processor_events() {
     }
 
     // 验证 Speed 和 Scroll 值已更新
-    assert_eq!(processor.current_speed(), 1.0);
-    assert_eq!(processor.current_scroll(), 1.0);
+    assert_eq!(processor.current_speed(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::from(1));
 }
 
 #[test]
@@ -131,13 +131,13 @@ fn test_speed_affects_visible_notes() {
     processor.start_play(start_time);
 
     // 初始状态：Speed = 1.0
-    assert_eq!(processor.current_speed(), 1.0);
+    assert_eq!(processor.current_speed(), Decimal::from(1));
 
     // 前进到第一个 Speed/Scroll 变化点
     let after_first_change = start_time + Duration::from_secs(1);
     processor.update(after_first_change);
 
     // Speed 和 Scroll 应该更新
-    assert_eq!(processor.current_speed(), 1.0);
-    assert_eq!(processor.current_scroll(), 1.0);
+    assert_eq!(processor.current_speed(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::from(1));
 }

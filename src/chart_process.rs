@@ -339,11 +339,11 @@ pub trait ChartProcessor {
     fn default_visible_y_length(&self) -> YCoordinate;
 
     /// 读取：当前 BPM（随事件改变）。
-    fn current_bpm(&self) -> f64;
+    fn current_bpm(&self) -> Decimal;
     /// 读取：当前 Speed 因子（随事件改变）。
-    fn current_speed(&self) -> f64;
+    fn current_speed(&self) -> Decimal;
     /// 读取：当前 Scroll 因子（随事件改变）。
-    fn current_scroll(&self) -> f64;
+    fn current_scroll(&self) -> Decimal;
 
     /// 通知：开始播放，记录起始绝对时间。
     fn start_play(&mut self, now: SystemTime);

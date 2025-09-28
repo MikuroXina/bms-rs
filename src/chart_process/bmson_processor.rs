@@ -9,6 +9,8 @@ use crate::bmson::prelude::*;
 use crate::chart_process::{
     BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
 };
+use num::ToPrimitive;
+use std::str::FromStr;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -27,9 +29,9 @@ pub struct BmsonProcessor<'a> {
 
     // Flow parameters
     default_visible_y_length: YCoordinate,
-    current_bpm: f64,
-    current_speed: f64,
-    current_scroll: f64,
+    current_bpm: Decimal,
+    current_speed: Decimal,
+    current_scroll: Decimal,
 
     /// 待消费的外部事件队列
     inbox: Vec<ControlEvent>,
@@ -39,7 +41,7 @@ impl<'a> BmsonProcessor<'a> {
     /// 创建 BMSON 处理器并初始化播放状态与默认参数。
     #[must_use]
     pub fn new(bmson: Bmson<'a>) -> Self {
-        let init_bpm = bmson.info.init_bpm.as_f64();
+        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
         // 预处理：为所有音频和图像资源分配ID
         let mut audio_name_to_id = HashMap::new();
@@ -90,8 +92,9 @@ impl<'a> BmsonProcessor<'a> {
         // 基于开始BPM和600ms反应时间计算可见Y长度
         // 公式：可见Y长度 = (BPM / 120.0) * 0.6秒
         // 其中 0.6秒 = 600ms，120.0是基准BPM
-        let reaction_time_seconds = 0.6; // 600ms
-        let visible_y_length = (init_bpm / 120.0) * reaction_time_seconds;
+        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
+        let base_bpm = Decimal::from(120);
+        let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
 
         Self {
             bmson,
@@ -103,8 +106,8 @@ impl<'a> BmsonProcessor<'a> {
             inbox: Vec::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
-            current_speed: 1.0,
-            current_scroll: 1.0,
+            current_speed: Decimal::from(1),
+            current_scroll: Decimal::from(1),
         }
     }
 
@@ -133,10 +136,12 @@ impl<'a> BmsonProcessor<'a> {
     /// 模型：v = current_bpm / 120.0（使用固定基准BPM 120）
     /// 注：Speed/Scroll 仅影响显示位置（y 缩放），不改变时间轴推进。
     fn current_velocity(&self) -> f64 {
-        if self.current_bpm <= 0.0 {
+        let base_bpm = Decimal::from(120);
+        if self.current_bpm <= Decimal::from(0) {
             return 0.0;
         }
-        self.current_bpm / 120.0
+        let velocity = self.current_bpm.clone() / base_bpm;
+        velocity.to_f64().unwrap_or(0.0)
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
@@ -203,16 +208,18 @@ impl<'a> BmsonProcessor<'a> {
 
     fn apply_flow_event(&mut self, evt: FlowEvent) {
         match evt {
-            FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
-            FlowEvent::Scroll(s) => self.current_scroll = s,
+            FlowEvent::Bpm(bpm) => self.current_bpm = Decimal::from(bpm),
+            FlowEvent::Scroll(s) => self.current_scroll = Decimal::from(s),
         }
     }
 
     fn visible_window_y(&self) -> f64 {
         // 基于当前BPM和600ms反应时间动态计算可见窗口长度
         // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
-        let reaction_time_seconds = 0.6; // 600ms
-        (self.current_bpm / 120.0) * reaction_time_seconds
+        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
+        let base_bpm = Decimal::from(120);
+        let visible_y = (self.current_bpm.clone() / base_bpm) * reaction_time_seconds;
+        visible_y.to_f64().unwrap_or(0.0)
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -260,21 +267,21 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.default_visible_y_length.clone()
     }
 
-    fn current_bpm(&self) -> f64 {
-        self.current_bpm
+    fn current_bpm(&self) -> Decimal {
+        self.current_bpm.clone()
     }
-    fn current_speed(&self) -> f64 {
-        self.current_speed
+    fn current_speed(&self) -> Decimal {
+        self.current_speed.clone()
     }
-    fn current_scroll(&self) -> f64 {
-        self.current_scroll
+    fn current_scroll(&self) -> Decimal {
+        self.current_scroll.clone()
     }
 
     fn start_play(&mut self, now: SystemTime) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = 0.0;
-        self.current_bpm = self.bmson.info.init_bpm.as_f64();
+        self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
     }
 
     fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
@@ -513,7 +520,9 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.step_to(now);
         let win_y = self.visible_window_y();
         let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll * self.current_speed * win_y;
+        let scaled_upper = self.current_scroll.to_f64().unwrap_or(1.0)
+            * self.current_speed.to_f64().unwrap_or(1.0)
+            * win_y;
         let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
             (0.0, scaled_upper)
         } else {
@@ -525,7 +534,9 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
-                let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
+                let scaled_distance = self.current_scroll.to_f64().unwrap_or(1.0)
+                    * self.current_speed.to_f64().unwrap_or(1.0)
+                    * raw_distance;
                 if scaled_distance >= min_scaled
                     && scaled_distance <= max_scaled
                     && let Some((side, key)) = Self::lane_from_x(x.as_ref().copied())

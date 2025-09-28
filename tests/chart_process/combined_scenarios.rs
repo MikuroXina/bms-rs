@@ -1,6 +1,7 @@
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::{ChartProcessor, bms_processor::BmsProcessor};
 use num::ToPrimitive;
+use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
 #[test]
@@ -49,9 +50,9 @@ fn test_combined_changes_events() {
     processor.start_play(start_time);
 
     // 验证初始状态
-    assert_eq!(processor.current_bpm(), 151.0);
-    assert_eq!(processor.current_speed(), 1.0);
-    assert_eq!(processor.current_scroll(), 1.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
+    assert_eq!(processor.current_speed(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::from(1));
 
     // 前进到第一个 BPM 变化点（第1小节）
     let after_first_change = start_time + Duration::from_secs(1);
@@ -81,7 +82,7 @@ fn test_combined_changes_events() {
     }
 
     // 验证 BPM 值已更新到 75.5
-    assert_eq!(processor.current_bpm(), 75.5);
+    assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // 前进到第二个 BPM 变化点（第5小节）
     let after_second_change = after_first_change + Duration::from_secs(8);
@@ -111,7 +112,7 @@ fn test_combined_changes_events() {
     }
 
     // 验证 BPM 值已更新回 151
-    assert_eq!(processor.current_bpm(), 151.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
 }
 
 #[test]
@@ -136,23 +137,23 @@ fn test_combined_velocity_calculation() {
     processor.start_play(start_time);
 
     // 初始状态：BPM=151, Speed=1.0, Scroll=1.0
-    assert_eq!(processor.current_bpm(), 151.0);
-    assert_eq!(processor.current_speed(), 1.0);
-    assert_eq!(processor.current_scroll(), 1.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
+    assert_eq!(processor.current_speed(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::from(1));
 
     // 前进到第一个 BPM 变化点
     let after_first_change = start_time + Duration::from_secs(1);
     processor.update(after_first_change);
 
     // BPM 应该更新到 75.5
-    assert_eq!(processor.current_bpm(), 75.5);
+    assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // 前进到第二个 BPM 变化点
     let after_second_change = after_first_change + Duration::from_secs(8);
     processor.update(after_second_change);
 
     // BPM 应该更新回 151
-    assert_eq!(processor.current_bpm(), 151.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
 }
 
 #[test]
@@ -177,7 +178,7 @@ fn test_event_timing_with_bpm_changes() {
     processor.start_play(start_time);
 
     // 验证初始状态
-    assert_eq!(processor.current_bpm(), 151.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
 
     // 前进 0.5 秒，应该还没有触发事件
     let half_second = start_time + Duration::from_millis(500);
@@ -210,7 +211,7 @@ fn test_event_timing_with_bpm_changes() {
         panic!("第一个事件应该是BpmChange类型");
     }
 
-    assert_eq!(processor.current_bpm(), 75.5);
+    assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // 继续前进，应该触发第二个 BPM 变化点
     let nine_seconds = start_time + Duration::from_secs(9);
@@ -238,5 +239,5 @@ fn test_event_timing_with_bpm_changes() {
         panic!("第一个事件应该是BpmChange类型");
     }
 
-    assert_eq!(processor.current_bpm(), 151.0);
+    assert_eq!(processor.current_bpm(), Decimal::from(151));
 }

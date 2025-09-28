@@ -9,6 +9,7 @@ use crate::chart_process::{
     BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
 };
 use num::ToPrimitive;
+use std::str::FromStr;
 
 #[inline]
 fn dec_to_f64(d: &Decimal) -> Option<f64> {
@@ -36,9 +37,9 @@ where
 
     // Flow parameters
     default_visible_y_length: YCoordinate,
-    current_bpm: f64,
-    current_speed: f64,
-    current_scroll: f64,
+    current_bpm: Decimal,
+    current_speed: Decimal,
+    current_scroll: Decimal,
 }
 
 impl<T> BmsProcessor<T>
@@ -53,14 +54,15 @@ where
             .arrangers
             .bpm
             .as_ref()
-            .and_then(dec_to_f64)
-            .unwrap_or(120.0);
+            .cloned()
+            .unwrap_or(Decimal::from(120));
 
         // 基于开始BPM和600ms反应时间计算可见Y长度
         // 公式：可见Y长度 = (BPM / 120.0) * 0.6秒
         // 其中 0.6秒 = 600ms，120.0是基准BPM
-        let reaction_time_seconds = 0.6; // 600ms
-        let visible_y_length = (init_bpm / 120.0) * reaction_time_seconds;
+        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
+        let base_bpm = Decimal::from(120);
+        let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
 
         Self {
             bms,
@@ -71,8 +73,8 @@ where
             generated_bar_lines: HashSet::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
-            current_speed: 1.0,
-            current_scroll: 1.0,
+            current_speed: Decimal::from(1),
+            current_scroll: Decimal::from(1),
         }
     }
 
@@ -128,10 +130,12 @@ where
     /// 模型：v = current_bpm / 120.0（使用固定基准BPM 120）
     /// 注：Speed 仅影响显示位置（y 缩放），不改变时间轴推进；Scroll 同理仅影响显示。
     fn current_velocity(&self) -> f64 {
-        if self.current_bpm <= 0.0 {
+        let base_bpm = Decimal::from(120);
+        if self.current_bpm <= Decimal::from(0) {
             return 0.0;
         }
-        self.current_bpm / 120.0
+        let velocity = self.current_bpm.clone() / base_bpm;
+        velocity.to_f64().unwrap_or(0.0)
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL/SPEED 变更。
@@ -142,21 +146,24 @@ where
         for change in self.bms.arrangers.bpm_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
-                let bpm = dec_to_f64(&change.bpm).unwrap_or(self.current_bpm);
+                let bpm =
+                    dec_to_f64(&change.bpm).unwrap_or(self.current_bpm.to_f64().unwrap_or(120.0));
                 best = min_by_y(best, (y, FlowEvent::Bpm(bpm)));
             }
         }
         for change in self.bms.arrangers.scrolling_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
-                let factor = dec_to_f64(&change.factor).unwrap_or(self.current_scroll);
+                let factor = dec_to_f64(&change.factor)
+                    .unwrap_or(self.current_scroll.to_f64().unwrap_or(1.0));
                 best = min_by_y(best, (y, FlowEvent::Scroll(factor)));
             }
         }
         for change in self.bms.arrangers.speed_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
-                let factor = dec_to_f64(&change.factor).unwrap_or(self.current_speed);
+                let factor = dec_to_f64(&change.factor)
+                    .unwrap_or(self.current_speed.to_f64().unwrap_or(1.0));
                 best = min_by_y(best, (y, FlowEvent::Speed(factor)));
             }
         }
@@ -217,9 +224,9 @@ where
 
     fn apply_flow_event(&mut self, evt: FlowEvent) {
         match evt {
-            FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
-            FlowEvent::Speed(s) => self.current_speed = s,
-            FlowEvent::Scroll(s) => self.current_scroll = s,
+            FlowEvent::Bpm(bpm) => self.current_bpm = Decimal::from(bpm),
+            FlowEvent::Speed(s) => self.current_speed = Decimal::from(s),
+            FlowEvent::Scroll(s) => self.current_scroll = Decimal::from(s),
         }
     }
 
@@ -227,8 +234,10 @@ where
     fn visible_window_y(&self) -> f64 {
         // 基于当前BPM和600ms反应时间动态计算可见窗口长度
         // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
-        let reaction_time_seconds = 0.6; // 600ms
-        (self.current_bpm / 120.0) * reaction_time_seconds
+        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
+        let base_bpm = Decimal::from(120);
+        let visible_y = (self.current_bpm.clone() / base_bpm) * reaction_time_seconds;
+        visible_y.to_f64().unwrap_or(0.0)
     }
 
     fn lane_of_channel_id(channel_id: NoteChannelId) -> Option<(PlayerSide, Key, NoteKind)> {
@@ -330,14 +339,14 @@ where
         self.default_visible_y_length.clone()
     }
 
-    fn current_bpm(&self) -> f64 {
-        self.current_bpm
+    fn current_bpm(&self) -> Decimal {
+        self.current_bpm.clone()
     }
-    fn current_speed(&self) -> f64 {
-        self.current_speed
+    fn current_speed(&self) -> Decimal {
+        self.current_speed.clone()
     }
-    fn current_scroll(&self) -> f64 {
-        self.current_scroll
+    fn current_scroll(&self) -> Decimal {
+        self.current_scroll.clone()
     }
 
     fn start_play(&mut self, now: SystemTime) {
@@ -351,8 +360,8 @@ where
             .arrangers
             .bpm
             .as_ref()
-            .and_then(dec_to_f64)
-            .unwrap_or(120.0);
+            .cloned()
+            .unwrap_or(Decimal::from(120));
     }
 
     fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
@@ -599,7 +608,9 @@ where
         self.step_to(now);
         let win_y = self.visible_window_y();
         let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll * self.current_speed * win_y;
+        let scaled_upper = self.current_scroll.to_f64().unwrap_or(1.0)
+            * self.current_speed.to_f64().unwrap_or(1.0)
+            * win_y;
         let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
             (0.0, scaled_upper)
         } else {
@@ -610,7 +621,9 @@ where
         for obj in self.bms.notes().all_notes() {
             if let Some((y, mut view)) = self.build_note_view(obj) {
                 let raw_distance = y - cur_y;
-                let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
+                let scaled_distance = self.current_scroll.to_f64().unwrap_or(1.0)
+                    * self.current_speed.to_f64().unwrap_or(1.0)
+                    * raw_distance;
                 if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
                     view.distance_to_hit = scaled_distance.into();
                     views.push((y, view));
