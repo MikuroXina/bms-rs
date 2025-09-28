@@ -1200,41 +1200,41 @@ impl<'a> Token<'a> {
         Ok(SourceRangeMixin::new(token, token_range))
     }
 
-    pub(crate) fn make_id_uppercase(&mut self) {
+    pub(crate) fn fit_into_type(&mut self, base_type: BaseType) {
         use Token::*;
         match self {
             #[cfg(feature = "minor-command")]
             AtBga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
+                *id = id.fit_into_type(base_type);
+                *source_bmp = source_bmp.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             Bga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
+                *id = id.fit_into_type(base_type);
+                *source_bmp = source_bmp.fit_into_type(base_type);
             }
             Bmp(Some(id), _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             BpmChange(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             ExBmp(id, _, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             ExRank(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             ExWav { id, .. } => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             LnObj(id) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Message { message, .. } => {
                 if message.chars().any(|ch| ch.is_ascii_lowercase()) {
@@ -1242,19 +1242,19 @@ impl<'a> Token<'a> {
                 }
             }
             Scroll(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Speed(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Stop(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Text(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Wav(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             _ => {}
         }

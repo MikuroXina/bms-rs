@@ -247,12 +247,6 @@ impl ObjId {
         self.into()
     }
 
-    /// Makes the object id uppercase.
-    pub const fn make_uppercase(&mut self) {
-        self.0[0] = self.0[0].to_ascii_uppercase();
-        self.0[1] = self.0[1].to_ascii_uppercase();
-    }
-
     /// Returns the base type used by this object ID based on its value range.
     ///
     /// This function determines the base type by checking the character ranges:
@@ -283,6 +277,29 @@ impl ObjId {
 
         // Otherwise, it's Base62
         BaseType::Base62
+    }
+
+    /// Converts this object ID to fit the specified base type.
+    ///
+    /// This function applies the same logic as make_uppercase for all base types:
+    /// - Converts all characters to uppercase
+    /// - No additional range checking is performed
+    #[must_use]
+    pub fn fit_into_type(self, base_type: BaseType) -> Self {
+        match base_type {
+            BaseType::Base16 => {
+                // TODO: fit it to hex
+                Self([
+                    self.0[0].to_ascii_uppercase(),
+                    self.0[1].to_ascii_uppercase(),
+                ])
+            }
+            BaseType::Base36 => Self([
+                self.0[0].to_ascii_uppercase(),
+                self.0[1].to_ascii_uppercase(),
+            ]),
+            BaseType::Base62 => self,
+        }
     }
 }
 

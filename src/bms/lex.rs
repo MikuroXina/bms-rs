@@ -151,14 +151,16 @@ impl<'a> TokenStream<'a> {
             }
         }
 
-        let case_sensitive = tokens
-            .iter()
-            .any(|token| matches!(token.content(), Token::Base(BaseType::Base62)));
-        if !case_sensitive {
-            for token in &mut tokens {
-                token.content_mut().make_id_uppercase();
-            }
-        }
+        // Apply the base type to all tokens
+        tokens
+            .iter_mut()
+            .fold(BaseType::Base36, |mut base_type, token| {
+                if let Token::Base(new_base_type) = token.content() {
+                    base_type = *new_base_type;
+                }
+                token.content_mut().fit_into_type(base_type);
+                base_type
+            });
         LexOutput {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,
