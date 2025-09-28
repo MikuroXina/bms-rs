@@ -326,6 +326,58 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             }
         }
 
+        // 小节线事件
+        if let Some(lines) = &self.bmson.lines {
+            for bar_line in lines {
+                let y = self.pulses_to_y(bar_line.y.0);
+                if y > prev_y && y <= cur_y {
+                    events.push((y.into(), ChartEvent::BarLine));
+                }
+            }
+        }
+
+        // 地雷通道事件
+        for mine_channel in &self.bmson.mine_channels {
+            for mine_event in &mine_channel.notes {
+                let y = self.pulses_to_y(mine_event.y.0);
+                if y > prev_y
+                    && y <= cur_y
+                    && let Some((side, key)) = Self::lane_from_x(mine_event.x)
+                {
+                    events.push((
+                        y.into(),
+                        ChartEvent::Note {
+                            side,
+                            key,
+                            kind: NoteKind::Landmine,
+                            wav_id: None, // 地雷通常没有声音
+                        },
+                    ));
+                }
+            }
+        }
+
+        // 隐藏键通道事件
+        for key_channel in &self.bmson.key_channels {
+            for key_event in &key_channel.notes {
+                let y = self.pulses_to_y(key_event.y.0);
+                if y > prev_y
+                    && y <= cur_y
+                    && let Some((side, key)) = Self::lane_from_x(key_event.x)
+                {
+                    events.push((
+                        y.into(),
+                        ChartEvent::Note {
+                            side,
+                            key,
+                            kind: NoteKind::Invisible,
+                            wav_id: None, // 隐藏键通常没有声音
+                        },
+                    ));
+                }
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())

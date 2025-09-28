@@ -247,6 +247,10 @@ pub enum ChartEvent {
         /// ARGB 颜色值 (格式：0xAARRGGBB)
         argb: u32,
     },
+    /// 小节线事件
+    ///
+    /// 当播放位置到达小节线位置时触发，用于谱面结构的显示。
+    BarLine,
 }
 
 /// 播放器控制和设置事件。

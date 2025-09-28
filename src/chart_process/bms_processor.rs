@@ -1,6 +1,6 @@
 //! Bms Processor Module.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
@@ -31,6 +31,9 @@ where
     /// 待消费的外部事件队列
     inbox: Vec<ControlEvent>,
 
+    /// 已生成小节线的Track集合
+    generated_bar_lines: HashSet<Track>,
+
     // Flow parameters
     default_reaction_time: Duration,
     default_bpm_bound: f64,
@@ -59,6 +62,7 @@ where
             last_poll_at: None,
             progressed_y: 0.0,
             inbox: Vec::new(),
+            generated_bar_lines: HashSet::new(),
             default_reaction_time: Duration::from_millis(500),
             default_bpm_bound: init_bpm,
             current_bpm: init_bpm,
@@ -75,6 +79,29 @@ where
             .get(&track)
             .and_then(|s| dec_to_f64(&s.length))
             .unwrap_or(1.0)
+    }
+
+    /// 生成小节线事件
+    fn generate_bar_line_events(
+        &mut self,
+        prev_y: f64,
+        cur_y: f64,
+        events: &mut Vec<(YCoordinate, ChartEvent)>,
+    ) {
+        // 获取所有存在的Track
+        for track in self.bms.arrangers.section_len_changes.keys() {
+            let track_y = self.y_of_time(ObjTime::new(
+                track.0,
+                0,
+                std::num::NonZeroU64::new(1).unwrap(),
+            ));
+
+            // 检查是否在当前时间范围内且尚未生成小节线
+            if track_y > prev_y && track_y <= cur_y && !self.generated_bar_lines.contains(track) {
+                events.push((track_y.into(), ChartEvent::BarLine));
+                self.generated_bar_lines.insert(*track);
+            }
+        }
     }
 
     /// 将 `ObjTime` 转换为累计位移 y（单位：小节，默认 4/4 下一小节为 1；按 `#SECLEN` 线性换算）。
@@ -287,6 +314,7 @@ where
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = 0.0;
+        self.generated_bar_lines.clear();
         // 初始化 current_bpm 为 header 或默认
         self.current_bpm = self
             .bms
@@ -326,6 +354,9 @@ where
         let cur_y = self.progressed_y;
 
         let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+
+        // 生成小节线事件
+        self.generate_bar_line_events(prev_y, cur_y, &mut events);
 
         // Note / Wav 到达事件
         for obj in self.bms.notes().all_notes() {
