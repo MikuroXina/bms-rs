@@ -6,7 +6,9 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
-use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent, NoteView, YCoordinate};
+use crate::chart_process::{
+    BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
+};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -165,12 +167,12 @@ impl<'a> BmsonProcessor<'a> {
 }
 
 impl<'a> ChartProcessor for BmsonProcessor<'a> {
-    fn audio_files(&self) -> HashMap<usize, &Path> {
+    fn audio_files(&self) -> HashMap<WavId, &Path> {
         // bmson 里资源在 channel.name 中，无法映射为索引表；这里返回空表。
         HashMap::new()
     }
 
-    fn bmp_files(&self) -> HashMap<usize, &Path> {
+    fn bmp_files(&self) -> HashMap<BmpId, &Path> {
         HashMap::new()
     }
 
@@ -283,7 +285,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Base,
-                        bmp_index: bga_event.id.0 as usize,
+                        bmp_id: BmpId::from(bga_event.id.0 as usize),
                     },
                 ));
             }
@@ -297,7 +299,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Overlay,
-                        bmp_index: layer_event.id.0 as usize,
+                        bmp_id: BmpId::from(layer_event.id.0 as usize),
                     },
                 ));
             }
@@ -311,7 +313,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Poor,
-                        bmp_index: poor_event.id.0 as usize,
+                        bmp_id: BmpId::from(poor_event.id.0 as usize),
                     },
                 ));
             }

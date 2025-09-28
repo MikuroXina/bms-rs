@@ -5,7 +5,9 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent, NoteView, YCoordinate};
+use crate::chart_process::{
+    BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
+};
 use num::ToPrimitive;
 
 #[inline]
@@ -246,21 +248,21 @@ impl<T> ChartProcessor for BmsProcessor<T>
 where
     T: KeyLayoutMapper,
 {
-    fn audio_files(&self) -> HashMap<usize, &Path> {
+    fn audio_files(&self) -> HashMap<WavId, &Path> {
         self.bms
             .notes
             .wav_files
             .iter()
-            .map(|(obj_id, path)| (obj_id.as_u16() as usize, path.as_path()))
+            .map(|(obj_id, path)| (WavId::from(obj_id.as_u16() as usize), path.as_path()))
             .collect()
     }
 
-    fn bmp_files(&self) -> HashMap<usize, &Path> {
+    fn bmp_files(&self) -> HashMap<BmpId, &Path> {
         self.bms
             .graphics
             .bmp_files
             .iter()
-            .map(|(obj_id, bmp)| (obj_id.as_u16() as usize, bmp.file.as_path()))
+            .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.as_path()))
             .collect()
     }
 
@@ -381,7 +383,7 @@ where
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: bga_obj.layer,
-                        bmp_index,
+                        bmp_id: BmpId::from(bmp_index),
                     },
                 ));
             }

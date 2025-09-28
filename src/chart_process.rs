@@ -11,6 +11,66 @@ use crate::bms::{
     prelude::{BgaLayer, Key, NoteKind, PlayerSide},
 };
 
+/// WAV音频文件ID的包装类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WavId(pub usize);
+
+impl WavId {
+    /// 创建一个新的WavId
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// 获取内部的usize值
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for WavId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<WavId> for usize {
+    fn from(id: WavId) -> Self {
+        id.0
+    }
+}
+
+/// BMP/BGA图像文件ID的包装类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BmpId(pub usize);
+
+impl BmpId {
+    /// 创建一个新的BmpId
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// 获取内部的usize值
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for BmpId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<BmpId> for usize {
+    fn from(id: BmpId) -> Self {
+        id.0
+    }
+}
+
 pub mod bms_processor;
 #[cfg(feature = "bmson")]
 pub mod bmson_processor;
@@ -165,7 +225,7 @@ pub enum ChartEvent {
         /// BGA 层级
         layer: BgaLayer,
         /// BGA/BMP 资源 ID，通过 `bmp_files()` 方法获取对应的文件路径
-        bmp_index: usize,
+        bmp_id: BmpId,
     },
     /// BGA 不透明度变化事件（需要启用 minor-command 特性）
     ///
@@ -216,9 +276,9 @@ pub enum ControlEvent {
 /// 统一的 y 单位说明：默认 4/4 拍下一小节为 1；BMS 以 `#SECLEN` 线性换算，BMSON 以 `pulses / (4*resolution)` 归一化。
 pub trait ChartProcessor {
     /// 读取：音频文件资源（id 到路径映射）。
-    fn audio_files(&self) -> HashMap<usize, &Path>;
+    fn audio_files(&self) -> HashMap<WavId, &Path>;
     /// 读取：BGA/BMP 图像资源（id 到路径映射）。
-    fn bmp_files(&self) -> HashMap<usize, &Path>;
+    fn bmp_files(&self) -> HashMap<BmpId, &Path>;
 
     /// 读取：默认流速下的反应时间（从音符出现在可见区域到到达判定线的时间，单位秒）。
     fn default_reaction_time(&self) -> Duration;
@@ -259,11 +319,11 @@ pub trait ChartProcessor {
 ///
 ///     for (y, event) in events {
 ///         match event {
-///             ChartEvent::BgaChange { layer, bmp_index } => {
-///                 println!("BGA变化: 层级={:?}, 图片ID={}", layer, bmp_index);
+///             ChartEvent::BgaChange { layer, bmp_id } => {
+///                 println!("BGA变化: 层级={:?}, 图片ID={}", layer, bmp_id.value());
 ///                 // 这里可以加载并显示对应的BMP文件
 ///                 let bmp_files = processor.bmp_files();
-///                 if let Some(bmp_path) = bmp_files.get(&bmp_index) {
+///                 if let Some(bmp_path) = bmp_files.get(&bmp_id) {
 ///                     println!("显示BGA图片: {}", bmp_path.display());
 ///                 }
 ///             }
@@ -281,11 +341,11 @@ pub trait ChartProcessor {
 /// }
 /// ```
 impl ChartProcessor for () {
-    fn audio_files(&self) -> std::collections::HashMap<usize, &std::path::Path> {
+    fn audio_files(&self) -> std::collections::HashMap<WavId, &std::path::Path> {
         std::collections::HashMap::new()
     }
 
-    fn bmp_files(&self) -> std::collections::HashMap<usize, &std::path::Path> {
+    fn bmp_files(&self) -> std::collections::HashMap<BmpId, &std::path::Path> {
         std::collections::HashMap::new()
     }
 
