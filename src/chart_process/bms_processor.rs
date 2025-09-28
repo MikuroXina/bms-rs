@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{ChartEvent, ChartProcessor, NoteView, YCoordinate};
+use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent, NoteView, YCoordinate};
 use num::ToPrimitive;
 
 #[inline]
@@ -27,7 +27,7 @@ where
     progressed_y: f64,
 
     /// 待消费的外部事件队列
-    inbox: Vec<ChartEvent>,
+    inbox: Vec<ControlEvent>,
 
     // Flow parameters
     default_reaction_time: Duration,
@@ -300,17 +300,16 @@ where
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match *evt {
-                ChartEvent::SetDefaultReactionTime { seconds } => {
+                ControlEvent::SetDefaultReactionTime { seconds } => {
                     if seconds.is_finite() && seconds > 0.0 {
                         self.default_reaction_time = Duration::from_secs_f64(seconds);
                     }
                 }
-                ChartEvent::SetDefaultBpmBound { bpm } => {
+                ControlEvent::SetDefaultBpmBound { bpm } => {
                     if bpm.is_finite() && bpm > 0.0 {
                         self.default_bpm_bound = bpm;
                     }
                 }
-                _ => {}
             }
         }
 
@@ -381,7 +380,7 @@ where
         events
     }
 
-    fn post_events(&mut self, events: &[ChartEvent]) {
+    fn post_events(&mut self, events: &[ControlEvent]) {
         self.inbox.extend_from_slice(events);
     }
 

@@ -113,6 +113,9 @@ pub struct NoteView {
 }
 
 /// 播放过程中产生的事件（Elm 风格）。
+///
+/// 这些事件代表图表播放过程中的实际事件，如音符触发、BGM播放、
+/// BPM变化等。设置和控制相关的事件已分离到 [`ControlEvent`]。
 #[derive(Debug, Clone)]
 pub enum ChartEvent {
     /// 按键音符到达判定线（包含可见、长条、地雷、不可见等，通过 `kind` 区分）
@@ -151,12 +154,26 @@ pub enum ChartEvent {
         /// 停止时长（BMS：以谱面定义的时间单位折算；BMSON：脉冲数）
         duration: f64,
     },
+}
+
+/// 播放器控制和设置事件。
+///
+/// 这些事件用于控制播放器的配置参数，如反应时间和BPM基准。
+/// 与图表播放相关的事件（如音符、BGM、BPM变化等）分离，以提供更清晰的API。
+#[derive(Debug, Clone)]
+pub enum ControlEvent {
     /// 设置：默认反应时间（秒）
+    ///
+    /// 反应时间是从音符出现在可见区域到到达判定线的时间。
+    /// 这个时间会影响可见窗口的大小计算。
     SetDefaultReactionTime {
         /// 反应时间（秒，>0）
         seconds: f64,
     },
     /// 设置：默认绑定 BPM
+    ///
+    /// 这个BPM值用作速度计算的基准。
+    /// 实际播放速度 = 当前BPM / 默认BPM基准
     SetDefaultBpmBound {
         /// 作为默认速度基准的 BPM（>0）
         bpm: f64,
@@ -189,8 +206,11 @@ pub trait ChartProcessor {
     /// 更新：推进内部时间轴，返回自上次调用以来产生的时间轴事件（Elm 风格）。
     fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)>;
 
-    /// 投递外部事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
-    fn post_events(&mut self, events: &[ChartEvent]);
+    /// 投递外部控制事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
+    ///
+    /// 这些事件用于动态调整播放器的配置参数。图表播放相关的事件（如音符、BGM等）
+    /// 由 [`update`] 方法返回，不通过此方法投递。
+    fn post_events(&mut self, events: &[ControlEvent]);
 
     /// 查询：当前可见区域中的所有音符（含其轨道与到判定线的剩余距离）。
     fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView>;

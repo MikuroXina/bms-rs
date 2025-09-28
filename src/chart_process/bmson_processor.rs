@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
-use crate::chart_process::{ChartEvent, ChartProcessor, NoteView, YCoordinate};
+use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent, NoteView, YCoordinate};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -25,7 +25,7 @@ pub struct BmsonProcessor<'a> {
     current_scroll: f64,
 
     /// 待消费的外部事件队列
-    inbox: Vec<ChartEvent>,
+    inbox: Vec<ControlEvent>,
 }
 
 impl<'a> BmsonProcessor<'a> {
@@ -202,17 +202,16 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match *evt {
-                ChartEvent::SetDefaultReactionTime { seconds } => {
+                ControlEvent::SetDefaultReactionTime { seconds } => {
                     if seconds.is_finite() && seconds > 0.0 {
                         self.default_reaction_time = Duration::from_secs_f64(seconds);
                     }
                 }
-                ChartEvent::SetDefaultBpmBound { bpm } => {
+                ControlEvent::SetDefaultBpmBound { bpm } => {
                     if bpm.is_finite() && bpm > 0.0 {
                         self.default_bpm_bound = bpm;
                     }
                 }
-                _ => {}
             }
         }
 
@@ -284,7 +283,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         events
     }
 
-    fn post_events(&mut self, events: &[ChartEvent]) {
+    fn post_events(&mut self, events: &[ControlEvent]) {
         self.inbox.extend_from_slice(events);
     }
 
