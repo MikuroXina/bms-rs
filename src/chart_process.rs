@@ -11,6 +11,9 @@ use crate::bms::{
     prelude::{BgaLayer, Key, NoteKind, PlayerSide},
 };
 
+#[cfg(feature = "minor-command")]
+use crate::bms::prelude::SwBgaEvent;
+
 /// WAV音频文件ID的包装类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
@@ -282,6 +285,30 @@ pub enum ChartEvent {
     JudgeLevelChange {
         /// 判定等级 (VeryHard, Hard, Normal, Easy, OtherInt)
         level: crate::bms::command::JudgeLevel,
+    },
+    /// 视频跳转事件（需要启用 minor-command 特性）
+    ///
+    /// 当播放位置到达视频跳转时间点时触发，用于视频播放控制。
+    #[cfg(feature = "minor-command")]
+    VideoSeek {
+        /// 跳转到的时间点（秒）
+        seek_time: f64,
+    },
+    /// BGA 键绑定事件（需要启用 minor-command 特性）
+    ///
+    /// 当播放位置到达BGA键绑定时间点时触发，用于BGA与按键的绑定控制。
+    #[cfg(feature = "minor-command")]
+    BgaKeybound {
+        /// BGA 键绑定事件类型
+        event: SwBgaEvent,
+    },
+    /// 选项变化事件（需要启用 minor-command 特性）
+    ///
+    /// 当播放位置到达选项变化时间点时触发，用于动态调整游戏选项。
+    #[cfg(feature = "minor-command")]
+    OptionChange {
+        /// 选项内容
+        option: String,
     },
     /// 小节线事件
     ///

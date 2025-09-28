@@ -550,6 +550,49 @@ where
             }
         }
 
+        // Minor-command 特性事件
+        #[cfg(feature = "minor-command")]
+        {
+            // 视频跳转事件
+            for seek_obj in self.bms.notes.seek_events.values() {
+                let y = self.y_of_time(seek_obj.time);
+                if y > prev_y && y <= cur_y {
+                    events.push((
+                        y.into(),
+                        ChartEvent::VideoSeek {
+                            seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
+                        },
+                    ));
+                }
+            }
+
+            // BGA 键绑定事件
+            for bga_keybound_obj in self.bms.notes.bga_keybound_events.values() {
+                let y = self.y_of_time(bga_keybound_obj.time);
+                if y > prev_y && y <= cur_y {
+                    events.push((
+                        y.into(),
+                        ChartEvent::BgaKeybound {
+                            event: bga_keybound_obj.event.clone(),
+                        },
+                    ));
+                }
+            }
+
+            // 选项变化事件
+            for option_obj in self.bms.notes.option_events.values() {
+                let y = self.y_of_time(option_obj.time);
+                if y > prev_y && y <= cur_y {
+                    events.push((
+                        y.into(),
+                        ChartEvent::OptionChange {
+                            option: option_obj.option.clone(),
+                        },
+                    ));
+                }
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())
