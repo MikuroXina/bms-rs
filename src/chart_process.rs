@@ -123,43 +123,31 @@ pub enum ChartEvent {
         key: Key,
         /// 音符类型（`NoteKind`）
         kind: NoteKind,
-        /// 发生位置的累计位移（y 单位）
-        y: YCoordinate,
         /// 对应的声音资源索引（若有）
         wav_index: Option<usize>,
     },
     /// BGM 等非按键类触发（无有效 side/key）
     Bgm {
-        /// 发生位置的累计位移（y 单位）
-        y: YCoordinate,
         /// 对应的声音资源索引（若有）
         wav_index: Option<usize>,
     },
     /// BPM 变更
     BpmChange {
-        /// 事件发生的累计位移（y 单位）
-        y: f64,
         /// 新的 BPM 值（单位：每分钟拍数）
         bpm: f64,
     },
     /// Scroll 因子变更
     ScrollChange {
-        /// 事件发生的累计位移（y 单位）
-        y: f64,
         /// 滚动因子（相对值）
         factor: f64,
     },
     /// Speed 因子变更
     SpeedChange {
-        /// 事件发生的累计位移（y 单位）
-        y: f64,
         /// 间距因子（相对值）
         factor: f64,
     },
     /// 停止滚动事件
     Stop {
-        /// 事件发生的累计位移（y 单位）
-        y: f64,
         /// 停止时长（BMS：以谱面定义的时间单位折算；BMSON：脉冲数）
         duration: f64,
     },
@@ -199,7 +187,7 @@ pub trait ChartProcessor {
     fn start_play(&mut self, now: SystemTime);
 
     /// 更新：推进内部时间轴，返回自上次调用以来产生的时间轴事件（Elm 风格）。
-    fn update(&mut self, now: SystemTime) -> Vec<ChartEvent>;
+    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)>;
 
     /// 投递外部事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
     fn post_events(&mut self, events: &[ChartEvent]);

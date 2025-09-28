@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
-use crate::chart_process::{ChartEvent, ChartProcessor, NoteView};
+use crate::chart_process::{ChartEvent, ChartProcessor, NoteView, YCoordinate};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -198,7 +198,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.current_bpm = self.bmson.info.init_bpm.as_f64();
     }
 
-    fn update(&mut self, now: SystemTime) -> Vec<ChartEvent> {
+    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match *evt {
@@ -220,30 +220,23 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.step_to(now);
         let cur_y = self.progressed_y;
 
-        let mut events: Vec<(f64, ChartEvent)> = Vec::new();
+        let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
         for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
             for Note { y, x, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
                     if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
                         events.push((
-                            yy,
+                            yy.into(),
                             ChartEvent::Note {
                                 side,
                                 key,
                                 kind: NoteKind::Visible,
-                                y: yy.into(),
                                 wav_index: None,
                             },
                         ));
                     } else {
-                        events.push((
-                            yy,
-                            ChartEvent::Bgm {
-                                y: yy.into(),
-                                wav_index: None,
-                            },
-                        ));
+                        events.push((yy.into(), ChartEvent::Bgm { wav_index: None }));
                     }
                 }
             }
@@ -253,9 +246,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             let y = self.pulses_to_y(ev.y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
-                    y,
+                    y.into(),
                     ChartEvent::BpmChange {
-                        y,
                         bpm: ev.bpm.as_f64(),
                     },
                 ));
@@ -265,9 +257,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             let y = self.pulses_to_y(y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
-                    y,
+                    y.into(),
                     ChartEvent::ScrollChange {
-                        y,
                         factor: rate.as_f64(),
                     },
                 ));
@@ -277,17 +268,20 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             let y = self.pulses_to_y(stop.y.0);
             if y > prev_y && y <= cur_y {
                 events.push((
-                    y,
+                    y.into(),
                     ChartEvent::Stop {
-                        y,
                         duration: stop.duration as f64,
                     },
                 ));
             }
         }
 
-        events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        events.into_iter().map(|(_, e)| e).collect()
+        events.sort_by(|a, b| {
+            a.0.value()
+                .partial_cmp(&b.0.value())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        events
     }
 
     fn post_events(&mut self, events: &[ChartEvent]) {

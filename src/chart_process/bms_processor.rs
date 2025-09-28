@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{ChartEvent, ChartProcessor, NoteView};
+use crate::chart_process::{ChartEvent, ChartProcessor, NoteView, YCoordinate};
 use num::ToPrimitive;
 
 #[inline]
@@ -223,22 +223,21 @@ where
         ))
     }
 
-    fn event_for_note(&self, obj: &WavObj, y: f64) -> ChartEvent {
+    fn event_for_note(&self, obj: &WavObj, y: f64) -> (YCoordinate, ChartEvent) {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
             let wav_index = Some(obj.wav_id.as_u16() as usize);
-            ChartEvent::Note {
-                side,
-                key,
-                kind,
-                y: y.into(),
-                wav_index,
-            }
+            (
+                y.into(),
+                ChartEvent::Note {
+                    side,
+                    key,
+                    kind,
+                    wav_index,
+                },
+            )
         } else {
             let wav_index = Some(obj.wav_id.as_u16() as usize);
-            ChartEvent::Bgm {
-                y: y.into(),
-                wav_index,
-            }
+            (y.into(), ChartEvent::Bgm { wav_index })
         }
     }
 }
@@ -296,7 +295,7 @@ where
             .unwrap_or(self.default_bpm_bound.max(120.0));
     }
 
-    fn update(&mut self, now: SystemTime) -> Vec<ChartEvent> {
+    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
         // 处理通过 post_events 投递的外部事件
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
@@ -319,14 +318,14 @@ where
         self.step_to(now);
         let cur_y = self.progressed_y;
 
-        let mut events: Vec<(f64, ChartEvent)> = Vec::new();
+        let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
 
         // Note / Wav 到达事件
         for obj in self.bms.notes().all_notes() {
             let y = self.y_of_time(obj.offset);
             if y > prev_y && y <= cur_y {
-                let evt = self.event_for_note(obj, y);
-                events.push((y, evt));
+                let (y_coord, evt) = self.event_for_note(obj, y);
+                events.push((y_coord, evt));
             }
         }
 
@@ -337,7 +336,7 @@ where
                 && y <= cur_y
                 && let Some(bpm) = dec_to_f64(&change.bpm)
             {
-                events.push((y, ChartEvent::BpmChange { y, bpm }));
+                events.push((y.into(), ChartEvent::BpmChange { bpm }));
             }
         }
 
@@ -348,7 +347,7 @@ where
                 && y <= cur_y
                 && let Some(factor) = dec_to_f64(&change.factor)
             {
-                events.push((y, ChartEvent::ScrollChange { y, factor }));
+                events.push((y.into(), ChartEvent::ScrollChange { factor }));
             }
         }
 
@@ -359,7 +358,7 @@ where
                 && y <= cur_y
                 && let Some(factor) = dec_to_f64(&change.factor)
             {
-                events.push((y, ChartEvent::SpeedChange { y, factor }));
+                events.push((y.into(), ChartEvent::SpeedChange { factor }));
             }
         }
 
@@ -370,12 +369,16 @@ where
                 && y <= cur_y
                 && let Some(d) = dec_to_f64(&stop.duration)
             {
-                events.push((y, ChartEvent::Stop { y, duration: d }));
+                events.push((y.into(), ChartEvent::Stop { duration: d }));
             }
         }
 
-        events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        events.into_iter().map(|(_, e)| e).collect()
+        events.sort_by(|a, b| {
+            a.0.value()
+                .partial_cmp(&b.0.value())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        events
     }
 
     fn post_events(&mut self, events: &[ChartEvent]) {

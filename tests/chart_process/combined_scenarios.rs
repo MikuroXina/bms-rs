@@ -1,5 +1,6 @@
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::{ChartProcessor, bms_processor::BmsProcessor};
+use num::ToPrimitive;
 use std::time::{Duration, SystemTime};
 
 #[test]
@@ -59,15 +60,18 @@ fn test_combined_changes_events() {
     // 应该有 BPM 变化事件
     let bpm_events: Vec<_> = events
         .iter()
-        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
 
     // 检查BPM变化事件的具体值
-    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(*bpm, 75.5, "BPM变化事件的值应该是75.5");
-        assert!(*y > 0.0, "BPM变化事件的y坐标应该大于0");
+        assert!(
+            y.value().to_f64().unwrap_or(0.0) > 0.0,
+            "BPM变化事件的y坐标应该大于0"
+        );
     } else {
         panic!("第一个事件应该是BpmChange类型");
     }
@@ -82,15 +86,18 @@ fn test_combined_changes_events() {
     // 应该有第二个 BPM 变化事件
     let bpm_events: Vec<_> = events
         .iter()
-        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
 
     // 检查第二个BPM变化事件的具体值
-    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(*bpm, 151.0, "第二个BPM变化事件的值应该是151.0");
-        assert!(*y > 0.0, "第二个BPM变化事件的y坐标应该大于0");
+        assert!(
+            y.value().to_f64().unwrap_or(0.0) > 0.0,
+            "第二个BPM变化事件的y坐标应该大于0"
+        );
     } else {
         panic!("第一个事件应该是BpmChange类型");
     }
@@ -175,15 +182,18 @@ fn test_event_timing_with_bpm_changes() {
 
     let bpm_events: Vec<_> = events
         .iter()
-        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "1秒时应该有 BPM 变化事件");
 
     // 检查BPM变化事件的具体值
-    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(*bpm, 75.5, "BPM变化事件的值应该是75.5");
-        assert!(*y > 0.0, "BPM变化事件的y坐标应该大于0");
+        assert!(
+            y.value().to_f64().unwrap_or(0.0) > 0.0,
+            "BPM变化事件的y坐标应该大于0"
+        );
     } else {
         panic!("第一个事件应该是BpmChange类型");
     }
@@ -196,15 +206,18 @@ fn test_event_timing_with_bpm_changes() {
 
     let bpm_events: Vec<_> = events
         .iter()
-        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "9秒时应该有 BPM 变化事件");
 
     // 检查第二个BPM变化事件的具体值
-    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(*bpm, 151.0, "第二个BPM变化事件的值应该是151.0");
-        assert!(*y > 0.0, "第二个BPM变化事件的y坐标应该大于0");
+        assert!(
+            y.value().to_f64().unwrap_or(0.0) > 0.0,
+            "第二个BPM变化事件的y坐标应该大于0"
+        );
     } else {
         panic!("第一个事件应该是BpmChange类型");
     }
