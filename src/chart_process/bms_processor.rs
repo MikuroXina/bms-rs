@@ -498,6 +498,32 @@ where
             }
         }
 
+        // BGM 音量变化事件
+        for bgm_volume_obj in self.bms.notes.bgm_volume_changes.values() {
+            let y = self.y_of_time(bgm_volume_obj.time);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::BgmVolumeChange {
+                        volume: bgm_volume_obj.volume,
+                    },
+                ));
+            }
+        }
+
+        // KEY 音量变化事件
+        for key_volume_obj in self.bms.notes.key_volume_changes.values() {
+            let y = self.y_of_time(key_volume_obj.time);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::KeyVolumeChange {
+                        volume: key_volume_obj.volume,
+                    },
+                ));
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())
