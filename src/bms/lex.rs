@@ -19,6 +19,7 @@ use self::{
     cursor::Cursor,
     token::{Token, TokenWithRange},
 };
+use crate::bms::command::BaseType;
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -43,9 +44,9 @@ pub enum LexWarning {
         /// The object id that was not recognized.
         object: String,
     },
-    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
-    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
-    OutOfBase62,
+    /// Failed to convert a byte into a base-16, base-36 or base-62 character.
+    #[error("expected id format is base 16 (0-9A-F), base 36 (0-9A-Z) or base 62 (0-9A-Za-z)")]
+    OutOfBaseType,
     /// An unknown command was encountered.
     #[error("unknown command `{command}`")]
     UnknownCommand {
@@ -150,14 +151,16 @@ impl<'a> TokenStream<'a> {
             }
         }
 
-        let case_sensitive = tokens
-            .iter()
-            .any(|token| matches!(token.content(), Token::Base62));
-        if !case_sensitive {
-            for token in &mut tokens {
-                token.content_mut().make_id_uppercase();
-            }
-        }
+        // Apply the base type to all tokens
+        tokens
+            .iter_mut()
+            .fold(BaseType::Base36, |mut base_type, token| {
+                if let Token::Base(new_base_type) = token.content() {
+                    base_type = *new_base_type;
+                }
+                token.content_mut().fit_into_type(base_type);
+                base_type
+            });
         LexOutput {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,

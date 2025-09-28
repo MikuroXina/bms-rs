@@ -33,10 +33,10 @@ fn test_base_62() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(
         r"
+        #BASE 62
+
         #WAVaa hoge.wav
         #WAVAA fuga.wav
-
-        #BASE 62
     ",
     );
     assert_eq!(warnings, vec![]);

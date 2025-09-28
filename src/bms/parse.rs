@@ -946,7 +946,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
-            Token::Base62 | Token::Charset(_) => {
+            Token::Base(_) | Token::Charset(_) => {
                 // Pass.
             }
             Token::Random(_)

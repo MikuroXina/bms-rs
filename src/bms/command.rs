@@ -15,6 +15,41 @@ pub mod time;
 /// when the `minor-command` feature is enabled.
 pub mod minor_command;
 
+/// Represents the base type for object ID encoding in BMS files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BaseType {
+    /// Base 16: Hexadecimal IDs (0-9A-F)
+    Base16,
+    /// Base 36: Case-insensitive IDs (0-9A-Z)
+    Base36,
+    /// Base 62: Case-sensitive IDs (0-9A-Za-z)
+    Base62,
+}
+
+impl std::fmt::Display for BaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Base16 => write!(f, "16"),
+            Self::Base36 => write!(f, "36"),
+            Self::Base62 => write!(f, "62"),
+        }
+    }
+}
+
+impl std::str::FromStr for BaseType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "16" => Ok(Self::Base16),
+            "36" => Ok(Self::Base36),
+            "62" => Ok(Self::Base62),
+            _ => Err(format!("Invalid base type: {}", s)),
+        }
+    }
+}
+
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -199,57 +234,108 @@ impl ObjId {
         self.into()
     }
 
-    /// Makes the object id uppercase.
-    pub const fn make_uppercase(&mut self) {
-        self.0[0] = self.0[0].to_ascii_uppercase();
-        self.0[1] = self.0[1].to_ascii_uppercase();
+    /// Returns the base type used by this object ID based on its value range.
+    ///
+    /// This function determines the base type by checking the character ranges:
+    /// - If all characters are in 0-9A-F range: Base16
+    /// - If all characters are in 0-9A-Z range: Base36  
+    /// - Otherwise: Base62
+    #[must_use]
+    pub fn base_type(self) -> BaseType {
+        // Check if all characters are valid for Base16 (0-9A-F)
+        if self
+            .0
+            .iter()
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='F'))
+        {
+            return BaseType::Base16;
+        }
+
+        // Check if all characters are valid for Base36 (0-9A-Z)
+        if self
+            .0
+            .iter()
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='Z'))
+        {
+            return BaseType::Base36;
+        }
+
+        // Otherwise, it's Base62
+        BaseType::Base62
     }
 
-    /// Returns whether both characters are valid Base36 characters (0-9, A-Z).
+    /// Converts this object ID to fit the specified base type.
+    ///
+    /// This function applies the same logic as make_uppercase for all base types:
+    /// - Converts all characters to uppercase
+    /// - No additional range checking is performed
     #[must_use]
-    pub fn is_base36(self) -> bool {
-        self.0
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())
-    }
-
-    /// Returns whether both characters are valid Base62 characters (0-9, A-Z, a-z).
-    #[must_use]
-    pub fn is_base62(self) -> bool {
-        self.0
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
+    pub fn fit_into_type(mut self, base_type: BaseType) -> Self {
+        match base_type {
+            BaseType::Base16 => {
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self.0
+                    .iter_mut()
+                    .filter(|ch| (b'G'..=b'Z').contains(ch))
+                    .for_each(|ch| *ch = b'0');
+                self
+            }
+            BaseType::Base36 => {
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self
+            }
+            BaseType::Base62 => self,
+        }
     }
 
     /// Returns an iterator over all possible ObjId values, ordered by priority:
-    /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
+    /// first all Base16 values (0-9, A-F), then Base36 values (0-9, A-Z), then remaining Base62 values.
     ///
-    /// Total: 3843 values (excluding null "00"), with first 1295 being Base36.
+    /// Total: 3843 values (excluding null "00"), with first 255 being Base16, next 1040 being Base36.
     pub fn all_values() -> impl Iterator<Item = Self> {
+        const BASE16_CHARS: &[u8] = b"0123456789ABCDEF";
         const BASE36_CHARS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const BASE62_CHARS: &[u8] =
             b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-        // Generate all Base36 values first (1296 values: "00" to "ZZ")
+        // Generate all Base16 values first (256 values: "00" to "FF")
+        let base16_values = (0..16usize).flat_map(move |first_idx| {
+            (0..16usize)
+                .map(move |second_idx| Self([BASE16_CHARS[first_idx], BASE16_CHARS[second_idx]]))
+        });
+
+        // Generate all Base36 values, then filter out Base16 ones and "00"
         let base36_values = (0..36usize).flat_map(move |first_idx| {
             (0..36usize)
                 .map(move |second_idx| Self([BASE36_CHARS[first_idx], BASE36_CHARS[second_idx]]))
+                .filter(move |obj_id| {
+                    // Skip "00" and Base16 values (already yielded above)
+                    !obj_id.is_null() && obj_id.base_type() == BaseType::Base36
+                })
         });
 
-        // Generate all Base62 values, then filter out Base36 ones and "00"
+        // Generate all Base62 values, then filter out Base16/Base36 ones and "00"
         let remaining_values = (0..62usize).flat_map(move |first_idx| {
             (0..62usize)
                 .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
                 .filter(move |obj_id| {
-                    // Skip "00" and Base36 values (already yielded above)
-                    !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
+                    // Skip "00" and Base16/Base36 values (already yielded above)
+                    !obj_id.is_null() && obj_id.base_type() == BaseType::Base62
                 })
         });
 
-        // Chain them: first Base36 (1296 values), then remaining (2548 values)
-        // Total: 1296 + 2548 = 3844 values
-        // Skip the first Base36 value ("00") to get 1295 Base36 + 2548 remaining = 3843 total
-        base36_values.skip(1).chain(remaining_values)
+        // Chain them: first Base16 (255 values, skip "00"), then Base36 (1040 values), then remaining (2548 values)
+        // Total: 255 + 1040 + 2548 = 3843 values
+        base16_values
+            .skip(1)
+            .chain(base36_values)
+            .chain(remaining_values)
     }
 }
 
@@ -439,19 +525,26 @@ mod tests {
         // Should have exactly 3843 values
         assert_eq!(all_values.len(), 3843);
 
-        // First 1295 values should be Base36 (0-9, A-Z)
+        // First 255 values should be Base16 (0-9, A-F)
         for (i, obj_id) in all_values.iter().enumerate() {
-            if i < 1295 {
+            if i < 255 {
                 assert!(
-                    obj_id.is_base36(),
+                    obj_id.base_type() == BaseType::Base16,
+                    "Value at index {} should be Base16: {:?}",
+                    i,
+                    obj_id
+                );
+            } else if i < 1295 {
+                assert!(
+                    obj_id.base_type() == BaseType::Base36,
                     "Value at index {} should be Base36: {:?}",
                     i,
                     obj_id
                 );
             } else {
                 assert!(
-                    !obj_id.is_base36(),
-                    "Value at index {} should NOT be Base36: {:?}",
+                    obj_id.base_type() == BaseType::Base62,
+                    "Value at index {} should be Base62: {:?}",
                     i,
                     obj_id
                 );
@@ -459,8 +552,11 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base36 value
+        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base16 value
+        assert_eq!(all_values[254], ObjId::try_from(['F', 'F']).unwrap()); // Last Base16 value
+        assert_eq!(all_values[255], ObjId::try_from(['0', 'G']).unwrap()); // First Base36 value
         assert_eq!(all_values[1294], ObjId::try_from(['Z', 'Z']).unwrap()); // Last Base36 value
+        assert_eq!(all_values[1295], ObjId::try_from(['0', 'a']).unwrap()); // First Base62 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

@@ -12,8 +12,8 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
-        mixin::SourceRangeMixin, time::Track,
+        BaseType, JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel,
+        graphics::Argb, mixin::SourceRangeMixin, time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
 };
@@ -58,8 +58,10 @@ pub enum Token<'a> {
     Banner(&'a Path),
     /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
     BackBmp(&'a Path),
-    /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
-    Base62,
+    /// `#BASE [36|62]`. Declares that the score is using the specified base object id format.
+    /// - `36`: Case-insensitive IDs (0-9A-Z)
+    /// - `62`: Case-sensitive IDs (0-9A-Za-z)
+    Base(BaseType),
     /// `#BASEBPM [f64]` is the base BPM.
     /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
     #[cfg(feature = "minor-command")]
@@ -459,11 +461,11 @@ impl<'a> Token<'a> {
                 })
             }
             "#BASE" => {
-                let base = c.next_line_remaining();
-                if base != "62" {
-                    return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range));
-                }
-                Self::Base62
+                let base_str = c.next_line_remaining();
+                let base_type = base_str.parse::<BaseType>().map_err(|_| {
+                    LexWarning::OutOfBaseType.into_wrapper_range(command_range.clone())
+                })?;
+                Self::Base(base_type)
             }
             "#COMMENT" => {
                 let comment = c.next_line_remaining();
@@ -1198,61 +1200,77 @@ impl<'a> Token<'a> {
         Ok(SourceRangeMixin::new(token, token_range))
     }
 
-    pub(crate) fn make_id_uppercase(&mut self) {
+    pub(crate) fn fit_into_type(&mut self, base_type: BaseType) {
         use Token::*;
         match self {
             #[cfg(feature = "minor-command")]
             AtBga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
+                *id = id.fit_into_type(base_type);
+                *source_bmp = source_bmp.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             Bga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
+                *id = id.fit_into_type(base_type);
+                *source_bmp = source_bmp.fit_into_type(base_type);
             }
             Bmp(Some(id), _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             BpmChange(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             ExBmp(id, _, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             ExRank(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             #[cfg(feature = "minor-command")]
             ExWav { id, .. } => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             LnObj(id) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
+            Message {
+                channel: Channel::SectionLen,
+                ..
+            } => {}
             Message { message, .. } => {
-                if message.chars().any(|ch| ch.is_ascii_lowercase()) {
-                    message.to_mut().make_ascii_uppercase();
-                }
+                // Process message by extracting pairs of characters, creating ObjId,
+                // applying fit_into_type, and converting back to string
+                let mut chars = message.chars();
+                let message_string: String = std::iter::from_fn(|| {
+                    let ch1 = chars.next()?;
+                    let ch2 = chars.next()?;
+                    Some((ch1, ch2))
+                })
+                .filter_map(|(ch1, ch2)| ObjId::try_from([ch1, ch2]).ok())
+                .map(|obj_id| obj_id.fit_into_type(base_type))
+                .map(|obj_id| obj_id.to_string())
+                .collect();
+
+                // Update the message with processed characters
+                *message = Cow::Owned(message_string);
             }
             Scroll(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Speed(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Stop(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Text(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             Wav(id, _) => {
-                id.make_uppercase();
+                *id = id.fit_into_type(base_type);
             }
             _ => {}
         }
@@ -1313,7 +1331,7 @@ impl std::fmt::Display for Token<'_> {
             }
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
-            Token::Base62 => write!(f, "#BASE 62"),
+            Token::Base(base_type) => write!(f, "#BASE {}", base_type),
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
             #[cfg(feature = "minor-command")]
@@ -1943,6 +1961,19 @@ mod tests {
     }
 
     #[test]
+    fn test_invalid_base_rejection() {
+        use super::LexWarning;
+        use crate::bms::lex::cursor::Cursor;
+
+        let mut cursor = Cursor::new("#BASE 10\n");
+        let result = Token::parse(&mut cursor);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(matches!(err.into_content(), LexWarning::OutOfBaseType));
+        }
+    }
+
+    #[test]
     fn test_display_roundtrip() {
         // Test basic commands
         let test_cases = vec![
@@ -1957,6 +1988,7 @@ mod tests {
             "#PLAYER 1",
             "#DIFFICULTY 3",
             "#BASE 62",
+            "#BASE 36",
             "#LNTYPE 1",
             "#LNTYPE 2",
             "#VOLWAV 100",

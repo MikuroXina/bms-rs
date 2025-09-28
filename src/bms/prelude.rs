@@ -16,7 +16,7 @@ pub use super::{
         structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     },
     command::{
-        JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
+        BaseType, JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
             Channel, Key, NoteChannelId, NoteKind, PlayerSide,
             converter::{
