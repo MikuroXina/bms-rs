@@ -6,6 +6,7 @@ use std::{borrow::Cow, path::Path, str::FromStr};
 use std::time::Duration;
 
 use fraction::GenericFraction;
+use itertools::Itertools;
 use num::BigUint;
 
 use super::LexWarning;
@@ -1236,10 +1237,30 @@ impl<'a> Token<'a> {
             LnObj(id) => {
                 *id = id.fit_into_type(base_type);
             }
+            Message {
+                channel: Channel::SectionLen,
+                ..
+            } => {}
             Message { message, .. } => {
-                if message.chars().any(|ch| ch.is_ascii_lowercase()) {
-                    message.to_mut().make_ascii_uppercase();
-                }
+                // Process message by extracting pairs of characters, creating ObjId,
+                // applying fit_into_type, and converting back to string
+                let message_chunks = message.chars().chunks(2);
+                let message_string: String = message_chunks
+                    .into_iter()
+                    .filter_map(|mut chunk| {
+                        if let (Some(ch1), Some(ch2)) = (chunk.next(), chunk.next()) {
+                            Some((ch1, ch2))
+                        } else {
+                            None
+                        }
+                    })
+                    .filter_map(|(ch1, ch2)| ObjId::try_from([ch1, ch2]).ok())
+                    .map(|obj_id| obj_id.fit_into_type(base_type))
+                    .map(|obj_id| obj_id.to_string())
+                    .collect();
+
+                // Update the message with processed characters
+                *message = Cow::Owned(message_string);
             }
             Scroll(id, _) => {
                 *id = id.fit_into_type(base_type);
