@@ -294,22 +294,6 @@ impl ObjId {
         }
     }
 
-    /// Returns whether both characters are valid Base36 characters (0-9, A-Z).
-    #[must_use]
-    pub fn is_base36(self) -> bool {
-        self.0
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())
-    }
-
-    /// Returns whether both characters are valid Base62 characters (0-9, A-Z, a-z).
-    #[must_use]
-    pub fn is_base62(self) -> bool {
-        self.0
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
-    }
-
     /// Returns an iterator over all possible ObjId values, ordered by priority:
     /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
     ///
@@ -331,7 +315,7 @@ impl ObjId {
                 .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
                 .filter(move |obj_id| {
                     // Skip "00" and Base36 values (already yielded above)
-                    !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
+                    !obj_id.is_null() && obj_id.base_type() == BaseType::Base62
                 })
         });
 
@@ -532,14 +516,14 @@ mod tests {
         for (i, obj_id) in all_values.iter().enumerate() {
             if i < 1295 {
                 assert!(
-                    obj_id.is_base36(),
+                    obj_id.base_type() != BaseType::Base62,
                     "Value at index {} should be Base36: {:?}",
                     i,
                     obj_id
                 );
             } else {
                 assert!(
-                    !obj_id.is_base36(),
+                    obj_id.base_type() == BaseType::Base62,
                     "Value at index {} should NOT be Base36: {:?}",
                     i,
                     obj_id
