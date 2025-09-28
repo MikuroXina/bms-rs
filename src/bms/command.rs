@@ -329,6 +329,17 @@ impl TryFrom<u8> for LnMode {
     }
 }
 
+/// Result of getting or allocating an ObjId from ObjIdManager
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjIdAllocResult {
+    /// The key was already assigned this ID
+    Assigned(ObjId),
+    /// A new ID was allocated for this key
+    New(ObjId),
+    /// No more IDs are available (manager is full)
+    Full,
+}
+
 /// Associates between object `K` and [`ObjId`] with memoization.
 /// It is useful to assign object ids for many objects with its equality.
 pub struct ObjIdManager<'a, K: ?Sized> {
@@ -393,15 +404,15 @@ where
     }
 
     /// Get or allocate an ObjId for a key without creating tokens
-    pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
+    pub fn get_or_new_id(&mut self, key: &'a K) -> ObjIdAllocResult {
         if let Some(&id) = self.value_to_id.get(key) {
-            Some(id)
+            ObjIdAllocResult::Assigned(id)
         } else if let Some(new_id) = self.unused_ids.pop_front() {
             self.used_ids.insert(new_id);
             self.value_to_id.insert(key, new_id);
-            Some(new_id)
+            ObjIdAllocResult::New(new_id)
         } else {
-            None
+            ObjIdAllocResult::Full
         }
     }
 

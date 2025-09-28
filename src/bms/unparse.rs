@@ -7,7 +7,7 @@ use fraction::{Integer, One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 
-use crate::bms::command::ObjIdManager;
+use crate::bms::command::{ObjIdAllocResult, ObjIdManager};
 
 impl<T: KeyLayoutMapper> Bms<T> {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
@@ -1052,19 +1052,22 @@ where
     // Keep original order from event_iter instead of grouping by track/channel
     let processed_events: Vec<EventUnit<'a, Event>> = event_iter
         .map(|(&time, event)| {
-            let id = if let Some((token_creator, key_extractor, manager)) = &mut id_allocation {
-                // ID allocation mode: process events with token creator and key extractor
-                let key = key_extractor(event);
-                let was_assigned = manager.is_assigned(key);
-                let id = manager.get_or_new_id(key);
-                if !was_assigned {
-                    let def_token = token_creator(id, key);
-                    late_def_tokens.push(def_token);
-                }
-                Some(id)
-            } else {
-                None
-            };
+            let id = id_allocation
+                .as_mut()
+                .map(|(token_creator, key_extractor, manager)| {
+                    // ID allocation mode: process events with token creator and key extractor
+                    let key = key_extractor(event);
+                    match manager.get_or_new_id(key) {
+                        ObjIdAllocResult::Assigned(id) => Some(id),
+                        ObjIdAllocResult::New(id) => {
+                            let def_token = token_creator(id, key);
+                            late_def_tokens.push(def_token);
+                            Some(id)
+                        }
+                        ObjIdAllocResult::Full => None,
+                    }
+                })
+                .flatten();
             EventUnit {
                 time,
                 event,
