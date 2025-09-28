@@ -80,11 +80,7 @@ pub mod bmson_processor;
 #[cfg(not(feature = "bmson"))]
 pub mod bmson_processor {}
 
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashMap, path::Path, time::SystemTime};
 
 /// Y 坐标的包装类型，使用任意精度十进制数。
 ///
@@ -318,25 +314,17 @@ pub enum ChartEvent {
 
 /// 播放器控制和设置事件。
 ///
-/// 这些事件用于控制播放器的配置参数，如反应时间和BPM基准。
+/// 这些事件用于控制播放器的配置参数，如可见Y范围。
 /// 与图表播放相关的事件（如音符、BGM、BPM变化等）分离，以提供更清晰的API。
 #[derive(Debug, Clone)]
 pub enum ControlEvent {
-    /// 设置：默认反应时间（秒）
+    /// 设置：默认可见Y范围长度
     ///
-    /// 反应时间是从音符出现在可见区域到到达判定线的时间。
-    /// 这个时间会影响可见窗口的大小计算。
-    SetDefaultReactionTime {
-        /// 反应时间（秒，>0）
-        seconds: Decimal,
-    },
-    /// 设置：默认绑定 BPM
-    ///
-    /// 这个BPM值用作速度计算的基准。
-    /// 实际播放速度 = 当前BPM / 默认BPM基准
-    SetDefaultBpmBound {
-        /// 作为默认速度基准的 BPM（>0）
-        bpm: Decimal,
+    /// 可见Y范围长度是从音符出现在可见区域到到达判定线的距离。
+    /// 这个长度会影响可见窗口的大小计算。
+    SetDefaultVisibleYLength {
+        /// 可见Y范围长度（y坐标单位，>0）
+        length: YCoordinate,
     },
 }
 
@@ -347,11 +335,8 @@ pub trait ChartProcessor {
     /// 读取：BGA/BMP 图像资源（id 到路径映射）。
     fn bmp_files(&self) -> HashMap<BmpId, &Path>;
 
-    /// 读取：默认流速下的反应时间（从音符出现在可见区域到到达判定线的时间，单位秒）。
-    fn default_reaction_time(&self) -> Duration;
-
-    /// 读取：默认流速绑定的 BPM（用于将反应时间与 BPM 关联的基准）。
-    fn default_bpm_bound(&self) -> f64;
+    /// 读取：默认可见Y范围长度（从音符出现在可见区域到到达判定线的距离，单位：y坐标）。
+    fn default_visible_y_length(&self) -> YCoordinate;
 
     /// 读取：当前 BPM（随事件改变）。
     fn current_bpm(&self) -> f64;

@@ -56,7 +56,14 @@ fn test_bpm_processor_events() {
 
     // 验证初始状态
     assert_eq!(processor.current_bpm(), 151.0);
-    assert_eq!(processor.default_bpm_bound(), 151.0);
+    // 基于BPM 151和600ms反应时间计算期望的可见Y长度：(151/120.0) * 0.6 = 0.755
+    let expected_visible_y = (151.0 / 120.0) * 0.6;
+    assert!(
+        (processor.default_visible_y_length().as_f64() - expected_visible_y).abs() < 0.001,
+        "期望可见Y长度: {:.3}, 实际: {:.3}",
+        expected_visible_y,
+        processor.default_visible_y_length().as_f64()
+    );
 
     // 前进到第一个 BPM 变化点（第1小节）
     let after_first_change = start_time + Duration::from_secs(1);
@@ -140,9 +147,15 @@ fn test_bpm_affects_velocity() {
 
     processor.start_play(start_time);
 
-    // 初始状态：151/151 = 1.0
+    // 初始状态：BPM 151，可见Y长度 = (151/120.0) * 0.6 = 0.755
     assert_eq!(processor.current_bpm(), 151.0);
-    assert_eq!(processor.default_bpm_bound(), 151.0);
+    let expected_visible_y = (151.0 / 120.0) * 0.6;
+    assert!(
+        (processor.default_visible_y_length().as_f64() - expected_visible_y).abs() < 0.001,
+        "期望可见Y长度: {:.3}, 实际: {:.3}",
+        expected_visible_y,
+        processor.default_visible_y_length().as_f64()
+    );
 
     // 前进到第一个 BPM 变化（第1小节）
     let after_first_change = start_time + Duration::from_secs(1);

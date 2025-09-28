@@ -9,7 +9,6 @@ use crate::bmson::prelude::*;
 use crate::chart_process::{
     BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
 };
-use num::ToPrimitive;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -27,8 +26,7 @@ pub struct BmsonProcessor<'a> {
     progressed_y: f64,
 
     // Flow parameters
-    default_reaction_time: Duration,
-    default_bpm_bound: f64,
+    default_visible_y_length: YCoordinate,
     current_bpm: f64,
     current_speed: f64,
     current_scroll: f64,
@@ -89,6 +87,12 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
+        // 基于开始BPM和600ms反应时间计算可见Y长度
+        // 公式：可见Y长度 = (BPM / 120.0) * 0.6秒
+        // 其中 0.6秒 = 600ms，120.0是基准BPM
+        let reaction_time_seconds = 0.6; // 600ms
+        let visible_y_length = (init_bpm / 120.0) * reaction_time_seconds;
+
         Self {
             bmson,
             audio_name_to_id,
@@ -97,8 +101,7 @@ impl<'a> BmsonProcessor<'a> {
             last_poll_at: None,
             progressed_y: 0.0,
             inbox: Vec::new(),
-            default_reaction_time: Duration::from_millis(500),
-            default_bpm_bound: init_bpm,
+            default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
             current_speed: 1.0,
             current_scroll: 1.0,
@@ -127,13 +130,13 @@ impl<'a> BmsonProcessor<'a> {
 
     /// 当前瞬时位移速度（y 单位每秒）。
     /// y 为归一化后的小节单位：`y = pulses / (4*resolution)`，默认 4/4 下一小节为 1。
-    /// 模型：v = (current_bpm / default_bpm_bound)
+    /// 模型：v = current_bpm / 120.0（使用固定基准BPM 120）
     /// 注：Speed/Scroll 仅影响显示位置（y 缩放），不改变时间轴推进。
     fn current_velocity(&self) -> f64 {
-        if self.default_bpm_bound <= 0.0 {
+        if self.current_bpm <= 0.0 {
             return 0.0;
         }
-        self.current_bpm / self.default_bpm_bound
+        self.current_bpm / 120.0
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
@@ -206,8 +209,10 @@ impl<'a> BmsonProcessor<'a> {
     }
 
     fn visible_window_y(&self) -> f64 {
-        let v = self.current_velocity();
-        v * self.default_reaction_time.as_secs_f64()
+        // 基于当前BPM和600ms反应时间动态计算可见窗口长度
+        // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
+        let reaction_time_seconds = 0.6; // 600ms
+        (self.current_bpm / 120.0) * reaction_time_seconds
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -251,11 +256,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             .collect()
     }
 
-    fn default_reaction_time(&self) -> Duration {
-        self.default_reaction_time
-    }
-    fn default_bpm_bound(&self) -> f64 {
-        self.default_bpm_bound
+    fn default_visible_y_length(&self) -> YCoordinate {
+        self.default_visible_y_length.clone()
     }
 
     fn current_bpm(&self) -> f64 {
@@ -279,21 +281,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
-                ControlEvent::SetDefaultReactionTime { seconds } => {
-                    if let Some(seconds_f64) = seconds.to_f64()
-                        && seconds_f64.is_finite()
-                        && seconds_f64 > 0.0
-                    {
-                        self.default_reaction_time = Duration::from_secs_f64(seconds_f64);
-                    }
-                }
-                ControlEvent::SetDefaultBpmBound { bpm } => {
-                    if let Some(bpm_f64) = bpm.to_f64()
-                        && bpm_f64.is_finite()
-                        && bpm_f64 > 0.0
-                    {
-                        self.default_bpm_bound = bpm_f64;
-                    }
+                ControlEvent::SetDefaultVisibleYLength { length } => {
+                    self.default_visible_y_length = length.clone();
                 }
             }
         }
