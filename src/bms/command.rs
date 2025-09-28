@@ -393,15 +393,15 @@ where
     }
 
     /// Get or allocate an ObjId for a key without creating tokens
-    pub fn get_or_new_id(&mut self, key: &'a K) -> ObjId {
+    pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
         if let Some(&id) = self.value_to_id.get(key) {
-            id
+            Some(id)
         } else if let Some(new_id) = self.unused_ids.pop_front() {
             self.used_ids.insert(new_id);
             self.value_to_id.insert(key, new_id);
-            new_id
+            Some(new_id)
         } else {
-            ObjId::null()
+            None
         }
     }
 
