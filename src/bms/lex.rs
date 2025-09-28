@@ -44,8 +44,8 @@ pub enum LexWarning {
         /// The object id that was not recognized.
         object: String,
     },
-    /// Failed to convert a byte into a base-36 or base-62 character.
-    #[error("expected id format is base 36 (0-9A-Z) or base 62 (0-9A-Za-z)")]
+    /// Failed to convert a byte into a base-16, base-36 or base-62 character.
+    #[error("expected id format is base 16 (0-9A-F), base 36 (0-9A-Z) or base 62 (0-9A-Za-z)")]
     OutOfBaseType,
     /// An unknown command was encountered.
     #[error("unknown command `{command}`")]
