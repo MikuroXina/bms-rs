@@ -285,19 +285,24 @@ impl ObjId {
     /// - Converts all characters to uppercase
     /// - No additional range checking is performed
     #[must_use]
-    pub fn fit_into_type(self, base_type: BaseType) -> Self {
+    pub fn fit_into_type(mut self, base_type: BaseType) -> Self {
         match base_type {
             BaseType::Base16 => {
-                // TODO: fit it to hex
-                Self([
-                    self.0[0].to_ascii_uppercase(),
-                    self.0[1].to_ascii_uppercase(),
-                ])
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self.0
+                    .iter_mut()
+                    .filter(|ch| (b'G'..=b'Z').contains(ch))
+                    .for_each(|ch| *ch = b'0');
+                self
             }
-            BaseType::Base36 => Self([
-                self.0[0].to_ascii_uppercase(),
-                self.0[1].to_ascii_uppercase(),
-            ]),
+            BaseType::Base36 => {
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self
+            }
             BaseType::Base62 => self,
         }
     }
