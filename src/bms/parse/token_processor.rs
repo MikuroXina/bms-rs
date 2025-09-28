@@ -3,7 +3,7 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 use fraction::GenericFraction;
 
 use super::{
-    ParseWarning, Result, hex_values_from_message, ids_from_message,
+    ParseWarning, Result, filter_message, hex_values_from_message, ids_from_message,
     prompt::{DefDuplication, Prompter},
 };
 use crate::bms::{model::Bms, prelude::*};
@@ -353,19 +353,56 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
                     .insert(*id, factor.clone());
             }
         }
+        Ok(())
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        for (time, obj) in ids_from_message(*track, message, |w| self.1.warn(w)) {
-            let factor = self
-                .scope_defines
-                .speed_defs
-                .get(&obj)
-                .ok_or(ParseWarning::UndefinedObject(obj))?;
-            self.arrangers.push_speed_factor_change(
-                SpeedObj {
-                    time,
-                    factor: factor.clone(),
+        if let Channel::Speed = channel {
+            for (time, obj) in ids_from_message(*track, message, |w| self.1.warn(w)) {
+                let factor = self
+                    .scope_defines
+                    .speed_defs
+                    .get(&obj)
+                    .ok_or(ParseWarning::UndefinedObject(obj))?;
+                self.arrangers.push_speed_factor_change(
+                    SpeedObj {
+                        time,
+                        factor: factor.clone(),
+                    },
+                    self.1,
+                )?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// It processes objects on `SectionLen` channel.
+pub struct SectionLenProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+
+impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
+    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+        Ok(())
+    }
+
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+        if let Channel::SectionLen = channel {
+            let message = filter_message(message);
+            let message = message.as_ref();
+            let length = Decimal::from(Decimal::from_fraction(
+                GenericFraction::from_str(message).map_err(|_| {
+                    ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
+                })?,
+            ));
+            if length <= Decimal::from(0u64) {
+                return Err(ParseWarning::SyntaxError(
+                    "section length must be greater than zero".to_string(),
+                ));
+            }
+            self.0.borrow_mut().arrangers.push_section_len_change(
+                SectionLenChangeObj {
+                    track: *track,
+                    length,
                 },
                 self.1,
             )?;
