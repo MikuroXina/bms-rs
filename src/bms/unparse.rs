@@ -1055,8 +1055,10 @@ where
             let id = if let Some((token_creator, key_extractor, manager)) = &mut id_allocation {
                 // ID allocation mode: process events with token creator and key extractor
                 let key = key_extractor(event);
-                let (id, maybe_def_token) = manager.get_or_allocate_id(key, &*token_creator);
-                if let Some(def_token) = maybe_def_token {
+                let was_assigned = manager.is_assigned(key);
+                let id = manager.get_or_new_id(key);
+                if !was_assigned {
+                    let def_token = token_creator(id, key);
                     late_def_tokens.push(def_token);
                 }
                 Some(id)

@@ -4,8 +4,6 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::bms::lex::token::Token;
-
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
@@ -394,21 +392,16 @@ where
         self.value_to_id.contains_key(key)
     }
 
-    /// Get or allocate an ObjId for a key (legacy method for compatibility)
-    pub fn get_or_allocate_id(
-        &mut self,
-        key: &'a K,
-        create_token: impl Fn(ObjId, &'a K) -> Token<'a>,
-    ) -> (ObjId, Option<Token<'a>>) {
+    /// Get or allocate an ObjId for a key without creating tokens
+    pub fn get_or_new_id(&mut self, key: &'a K) -> ObjId {
         if let Some(&id) = self.value_to_id.get(key) {
-            (id, None)
+            id
         } else if let Some(new_id) = self.unused_ids.pop_front() {
             self.used_ids.insert(new_id);
             self.value_to_id.insert(key, new_id);
-            let token = create_token(new_id, key);
-            (new_id, Some(token))
+            new_id
         } else {
-            (ObjId::null(), None)
+            ObjId::null()
         }
     }
 
