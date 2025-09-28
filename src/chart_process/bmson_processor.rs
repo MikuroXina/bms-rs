@@ -232,7 +232,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                                 side,
                                 key,
                                 kind: NoteKind::Visible,
-                                y: yy,
+                                y: yy.into(),
                                 wav_index: None,
                             },
                         ));
@@ -240,7 +240,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                         events.push((
                             yy,
                             ChartEvent::Bgm {
-                                y: yy,
+                                y: yy.into(),
                                 wav_index: None,
                             },
                         ));
@@ -320,7 +320,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                         NoteView {
                             side,
                             key,
-                            distance_to_hit: scaled_distance,
+                            distance_to_hit: scaled_distance.into(),
                             wav_index: None,
                         },
                     ));

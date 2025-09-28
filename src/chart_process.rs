@@ -6,7 +6,10 @@
 //! - BMSON：`info.resolution` 是四分音符（1/4）对应的脉冲数，因而一小节长度为 `4 * resolution` 脉冲；所有位置 y 通过 `pulses / (4 * resolution)` 归一化为小节单位。
 //! - Speed（默认 1.0）：仅影响显示坐标（例如 `visible_notes` 的 `distance_to_hit`），即对 y 差值做比例缩放；不改变时间推进与 BPM 值，也不改变该小节的实际持续时间。
 
-use crate::bms::prelude::{Key, NoteKind, PlayerSide};
+use crate::bms::{
+    Decimal,
+    prelude::{Key, NoteKind, PlayerSide},
+};
 
 pub mod bms_processor;
 #[cfg(feature = "bmson")]
@@ -20,6 +23,81 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+/// Y 坐标的包装类型，使用任意精度十进制数。
+///
+/// 统一的 y 单位说明：默认 4/4 拍下一小节为 1；BMS 以 `#SECLEN` 线性换算，BMSON 以 `pulses / (4*resolution)` 归一化为小节单位。
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct YCoordinate(pub Decimal);
+
+impl YCoordinate {
+    /// 创建一个新的 YCoordinate
+    pub fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// 获取内部的 Decimal 值
+    pub fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// 转换为 f64（用于兼容性）
+    pub fn as_f64(&self) -> f64 {
+        self.0.to_string().parse::<f64>().unwrap_or(0.0)
+    }
+}
+
+impl From<Decimal> for YCoordinate {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<f64> for YCoordinate {
+    fn from(value: f64) -> Self {
+        use fraction::{BigUint, GenericDecimal};
+        use std::str::FromStr;
+        // 将 f64 转换为字符串然后解析为 Decimal
+        let decimal_str = value.to_string();
+        let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
+            // 如果解析失败，使用 0
+            GenericDecimal::from(BigUint::from(0u32))
+        });
+        Self(decimal)
+    }
+}
+
+impl std::ops::Add for YCoordinate {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Sub for YCoordinate {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Mul for YCoordinate {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+impl std::ops::Div for YCoordinate {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self(self.0 / rhs.0)
+    }
+}
+
 /// 描述可见音符与已触发音符的最小视图。
 /// 音符可见查询的最小视图。
 #[derive(Debug, Clone)]
@@ -29,7 +107,7 @@ pub struct NoteView {
     /// 键位（含 1..=7、Scratch(1) 等）
     pub key: Key,
     /// 距离判定线的剩余位移（y 单位，>=0 表示尚未到达判定线）
-    pub distance_to_hit: f64,
+    pub distance_to_hit: YCoordinate,
     /// 关联的声音资源索引（BMS 为 `#WAVxx` 映射的整数；BMSON 常为 None）
     pub wav_index: Option<usize>,
 }
@@ -46,14 +124,14 @@ pub enum ChartEvent {
         /// 音符类型（`NoteKind`）
         kind: NoteKind,
         /// 发生位置的累计位移（y 单位）
-        y: f64,
+        y: YCoordinate,
         /// 对应的声音资源索引（若有）
         wav_index: Option<usize>,
     },
     /// BGM 等非按键类触发（无有效 side/key）
     Bgm {
         /// 发生位置的累计位移（y 单位）
-        y: f64,
+        y: YCoordinate,
         /// 对应的声音资源索引（若有）
         wav_index: Option<usize>,
     },

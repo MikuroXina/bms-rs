@@ -217,7 +217,7 @@ where
             NoteView {
                 side,
                 key,
-                distance_to_hit: distance,
+                distance_to_hit: distance.into(),
                 wav_index,
             },
         ))
@@ -230,12 +230,15 @@ where
                 side,
                 key,
                 kind,
-                y,
+                y: y.into(),
                 wav_index,
             }
         } else {
             let wav_index = Some(obj.wav_id.as_u16() as usize);
-            ChartEvent::Bgm { y, wav_index }
+            ChartEvent::Bgm {
+                y: y.into(),
+                wav_index,
+            }
         }
     }
 }
@@ -396,7 +399,7 @@ where
                 let raw_distance = y - cur_y;
                 let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
                 if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
-                    view.distance_to_hit = scaled_distance;
+                    view.distance_to_hit = scaled_distance.into();
                     views.push((y, view));
                 }
             }
