@@ -69,6 +69,25 @@ fn test_speed_processor_events() {
     assert!(!speed_events.is_empty(), "应该有 Speed 变化事件");
     assert!(!scroll_events.is_empty(), "应该有 Scroll 变化事件");
 
+    // 检查Speed变化事件的具体值
+    if let Some(bms_rs::chart_process::ChartEvent::SpeedChange { y, factor }) = speed_events.first()
+    {
+        assert_eq!(*factor, 1.0, "Speed变化事件的因子应该是1.0");
+        assert!(*y > 0.0, "Speed变化事件的y坐标应该大于0");
+    } else {
+        panic!("第一个Speed事件应该是SpeedChange类型");
+    }
+
+    // 检查Scroll变化事件的具体值
+    if let Some(bms_rs::chart_process::ChartEvent::ScrollChange { y, factor }) =
+        scroll_events.first()
+    {
+        assert_eq!(*factor, 1.0, "Scroll变化事件的因子应该是1.0");
+        assert!(*y > 0.0, "Scroll变化事件的y坐标应该大于0");
+    } else {
+        panic!("第一个Scroll事件应该是ScrollChange类型");
+    }
+
     // 验证 Speed 和 Scroll 值已更新
     assert_eq!(processor.current_speed(), 1.0);
     assert_eq!(processor.current_scroll(), 1.0);

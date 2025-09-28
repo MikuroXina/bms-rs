@@ -62,10 +62,19 @@ fn test_bpm_processor_events() {
     let events = processor.update(after_first_change);
 
     // 应该触发 BPM 变化事件
-    let has_bpm_change = events
+    let bpm_events: Vec<_> = events
         .iter()
-        .any(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }));
-    assert!(has_bpm_change, "应该有 BPM 变化事件");
+        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .collect();
+    assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
+
+    // 检查BPM变化事件的具体值
+    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+        assert_eq!(*bpm, 75.5, "BPM变化事件的值应该是75.5");
+        assert!(*y > 0.0, "BPM变化事件的y坐标应该大于0");
+    } else {
+        panic!("第一个事件应该是BpmChange类型");
+    }
 
     // 验证 BPM 值已更新到 75.5
     assert_eq!(processor.current_bpm(), 75.5);
@@ -77,10 +86,19 @@ fn test_bpm_processor_events() {
     let events = processor.update(after_second_change);
 
     // 应该触发第二个 BPM 变化事件
-    let has_second_bpm_change = events
+    let bpm_events: Vec<_> = events
         .iter()
-        .any(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }));
-    assert!(has_second_bpm_change, "应该有第二个 BPM 变化事件");
+        .filter(|e| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .collect();
+    assert!(!bpm_events.is_empty(), "应该有第二个 BPM 变化事件");
+
+    // 检查第二个BPM变化事件的具体值
+    if let Some(bms_rs::chart_process::ChartEvent::BpmChange { y, bpm }) = bpm_events.first() {
+        assert_eq!(*bpm, 151.0, "第二个BPM变化事件的值应该是151.0");
+        assert!(*y > 0.0, "第二个BPM变化事件的y坐标应该大于0");
+    } else {
+        panic!("第一个事件应该是BpmChange类型");
+    }
 
     // 验证 BPM 值已更新回 151
     assert_eq!(processor.current_bpm(), 151.0);
