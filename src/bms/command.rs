@@ -25,6 +25,29 @@ pub enum BaseType {
     Base62,
 }
 
+impl std::fmt::Display for BaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Base16 => write!(f, "16"),
+            Self::Base36 => write!(f, "36"),
+            Self::Base62 => write!(f, "62"),
+        }
+    }
+}
+
+impl std::str::FromStr for BaseType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "16" => Ok(Self::Base16),
+            "36" => Ok(Self::Base36),
+            "62" => Ok(Self::Base62),
+            _ => Err(format!("Invalid base type: {}", s)),
+        }
+    }
+}
+
 /// A play style of the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

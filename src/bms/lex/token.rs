@@ -462,12 +462,9 @@ impl<'a> Token<'a> {
             }
             "#BASE" => {
                 let base_str = c.next_line_remaining();
-                let base_type = match base_str {
-                    "16" => BaseType::Base16,
-                    "36" => BaseType::Base36,
-                    "62" => BaseType::Base62,
-                    _ => return Err(LexWarning::OutOfBaseType.into_wrapper_range(command_range)),
-                };
+                let base_type = base_str.parse::<BaseType>().map_err(|_| {
+                    LexWarning::OutOfBaseType.into_wrapper_range(command_range.clone())
+                })?;
                 Self::Base(base_type)
             }
             "#COMMENT" => {
@@ -1319,12 +1316,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
             Token::Base(base_type) => {
-                let base_str = match base_type {
-                    BaseType::Base16 => "16",
-                    BaseType::Base36 => "36",
-                    BaseType::Base62 => "62",
-                };
-                write!(f, "#BASE {base_str}")
+                write!(f, "#BASE {}", base_type)
             }
             #[cfg(feature = "minor-command")]
             Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
