@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
+use crate::bmson::prelude::*;
 use crate::chart_process::{
     BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
 };
@@ -14,6 +14,12 @@ use num::ToPrimitive;
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
     bmson: Bmson<'a>,
+
+    // Resource ID mappings
+    /// 音频文件名到WavId的映射
+    audio_name_to_id: HashMap<String, WavId>,
+    /// 图像文件名到BmpId的映射
+    bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
     started_at: Option<SystemTime>,
@@ -36,8 +42,49 @@ impl<'a> BmsonProcessor<'a> {
     #[must_use]
     pub fn new(bmson: Bmson<'a>) -> Self {
         let init_bpm = bmson.info.init_bpm.as_f64();
+
+        // 预处理：为所有音频和图像资源分配ID
+        let mut audio_name_to_id = HashMap::new();
+        let mut bmp_name_to_id = HashMap::new();
+        let mut next_audio_id = 0usize;
+        let mut next_bmp_id = 0usize;
+
+        // 处理音频文件
+        for sound_channel in &bmson.sound_channels {
+            if !audio_name_to_id.contains_key(&sound_channel.name.to_string()) {
+                audio_name_to_id.insert(sound_channel.name.to_string(), WavId::new(next_audio_id));
+                next_audio_id += 1;
+            }
+        }
+
+        // 处理地雷音频文件
+        for mine_channel in &bmson.mine_channels {
+            if !audio_name_to_id.contains_key(&mine_channel.name.to_string()) {
+                audio_name_to_id.insert(mine_channel.name.to_string(), WavId::new(next_audio_id));
+                next_audio_id += 1;
+            }
+        }
+
+        // 处理隐藏键音频文件
+        for key_channel in &bmson.key_channels {
+            if !audio_name_to_id.contains_key(&key_channel.name.to_string()) {
+                audio_name_to_id.insert(key_channel.name.to_string(), WavId::new(next_audio_id));
+                next_audio_id += 1;
+            }
+        }
+
+        // 处理图像文件
+        for BgaHeader { name, .. } in &bmson.bga.bga_header {
+            if !bmp_name_to_id.contains_key(&name.to_string()) {
+                bmp_name_to_id.insert(name.to_string(), BmpId::new(next_bmp_id));
+                next_bmp_id += 1;
+            }
+        }
+
         Self {
             bmson,
+            audio_name_to_id,
+            bmp_name_to_id,
             started_at: None,
             last_poll_at: None,
             progressed_y: 0.0,
@@ -58,6 +105,16 @@ impl<'a> BmsonProcessor<'a> {
         } else {
             0.0
         }
+    }
+
+    /// 获取音频文件名的WavId
+    fn get_wav_id_for_name(&self, name: &str) -> Option<WavId> {
+        self.audio_name_to_id.get(name).copied()
+    }
+
+    /// 获取图像文件名的BmpId
+    fn get_bmp_id_for_name(&self, name: &str) -> Option<BmpId> {
+        self.bmp_name_to_id.get(name).copied()
     }
 
     /// 当前瞬时位移速度（y 单位每秒）。
@@ -169,12 +226,21 @@ impl<'a> BmsonProcessor<'a> {
 
 impl<'a> ChartProcessor for BmsonProcessor<'a> {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
-        // bmson 里资源在 channel.name 中，无法映射为索引表；这里返回空表。
-        HashMap::new()
+        // 注意：BMSON中的音频文件路径是相对于谱面文件的，这里返回虚拟路径
+        // 实际使用时需要根据谱面文件位置来解析这些路径
+        self.audio_name_to_id
+            .iter()
+            .map(|(name, id)| (*id, Path::new(name)))
+            .collect()
     }
 
     fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        HashMap::new()
+        // 注意：BMSON中的图像文件路径是相对于谱面文件的，这里返回虚拟路径
+        // 实际使用时需要根据谱面文件位置来解析这些路径
+        self.bmp_name_to_id
+            .iter()
+            .map(|(name, id)| (*id, Path::new(name)))
+            .collect()
     }
 
     fn default_reaction_time(&self) -> Duration {
@@ -229,22 +295,26 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let cur_y = self.progressed_y;
 
         let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
-        for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
+        for SoundChannel { name, notes } in &self.bmson.sound_channels {
             for Note { y, x, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
                     if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
+                        // 普通音符通道有声音，通过name映射到WavId
+                        let wav_id = self.get_wav_id_for_name(name);
                         events.push((
                             yy.into(),
                             ChartEvent::Note {
                                 side,
                                 key,
                                 kind: NoteKind::Visible,
-                                wav_id: None,
+                                wav_id,
                             },
                         ));
                     } else {
-                        events.push((yy.into(), ChartEvent::Bgm { wav_id: None }));
+                        // BGM音符也可能有声音
+                        let wav_id = self.get_wav_id_for_name(name);
+                        events.push((yy.into(), ChartEvent::Bgm { wav_id }));
                     }
                 }
             }
@@ -285,42 +355,72 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         }
 
         // BGA 基础层事件
-        for bga_event in &self.bmson.bga.bga_events {
-            let y = self.pulses_to_y(bga_event.y.0);
-            if y > prev_y && y <= cur_y {
+        for BgaEvent { y, id, .. } in &self.bmson.bga.bga_events {
+            let yy = self.pulses_to_y(y.0);
+            if yy > prev_y && yy <= cur_y {
+                // 通过BgaId查找对应的BgaHeader来获取文件名
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+
                 events.push((
-                    y.into(),
+                    yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Base,
-                        bmp_id: Some(BmpId::from(bga_event.id.0 as usize)),
+                        bmp_id,
                     },
                 ));
             }
         }
 
         // BGA 覆盖层事件
-        for layer_event in &self.bmson.bga.layer_events {
-            let y = self.pulses_to_y(layer_event.y.0);
-            if y > prev_y && y <= cur_y {
+        for BgaEvent { y, id, .. } in &self.bmson.bga.layer_events {
+            let yy = self.pulses_to_y(y.0);
+            if yy > prev_y && yy <= cur_y {
+                // 通过BgaId查找对应的BgaHeader来获取文件名
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+
                 events.push((
-                    y.into(),
+                    yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Overlay,
-                        bmp_id: Some(BmpId::from(layer_event.id.0 as usize)),
+                        bmp_id,
                     },
                 ));
             }
         }
 
         // BGA 失败层事件
-        for poor_event in &self.bmson.bga.poor_events {
-            let y = self.pulses_to_y(poor_event.y.0);
-            if y > prev_y && y <= cur_y {
+        for BgaEvent { y, id, .. } in &self.bmson.bga.poor_events {
+            let yy = self.pulses_to_y(y.0);
+            if yy > prev_y && yy <= cur_y {
+                // 通过BgaId查找对应的BgaHeader来获取文件名
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+
                 events.push((
-                    y.into(),
+                    yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Poor,
-                        bmp_id: Some(BmpId::from(poor_event.id.0 as usize)),
+                        bmp_id,
                     },
                 ));
             }
@@ -337,20 +437,22 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         }
 
         // 地雷通道事件
-        for mine_channel in &self.bmson.mine_channels {
-            for mine_event in &mine_channel.notes {
-                let y = self.pulses_to_y(mine_event.y.0);
-                if y > prev_y
-                    && y <= cur_y
-                    && let Some((side, key)) = Self::lane_from_x(mine_event.x)
+        for MineChannel { name, notes } in &self.bmson.mine_channels {
+            for MineEvent { x, y, .. } in notes {
+                let yy = self.pulses_to_y(y.0);
+                if yy > prev_y
+                    && yy <= cur_y
+                    && let Some((side, key)) = Self::lane_from_x(*x)
                 {
+                    // 地雷通道有声音，通过name映射到WavId
+                    let wav_id = self.get_wav_id_for_name(name);
                     events.push((
-                        y.into(),
+                        yy.into(),
                         ChartEvent::Note {
                             side,
                             key,
                             kind: NoteKind::Landmine,
-                            wav_id: None, // 地雷通常没有声音
+                            wav_id,
                         },
                     ));
                 }
@@ -358,20 +460,22 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         }
 
         // 隐藏键通道事件
-        for key_channel in &self.bmson.key_channels {
-            for key_event in &key_channel.notes {
-                let y = self.pulses_to_y(key_event.y.0);
-                if y > prev_y
-                    && y <= cur_y
-                    && let Some((side, key)) = Self::lane_from_x(key_event.x)
+        for KeyChannel { name, notes } in &self.bmson.key_channels {
+            for KeyEvent { x, y, .. } in notes {
+                let yy = self.pulses_to_y(y.0);
+                if yy > prev_y
+                    && yy <= cur_y
+                    && let Some((side, key)) = Self::lane_from_x(*x)
                 {
+                    // 隐藏键通道有声音，通过name映射到WavId
+                    let wav_id = self.get_wav_id_for_name(name);
                     events.push((
-                        y.into(),
+                        yy.into(),
                         ChartEvent::Note {
                             side,
                             key,
                             kind: NoteKind::Invisible,
-                            wav_id: None, // 隐藏键通常没有声音
+                            wav_id,
                         },
                     ));
                 }
