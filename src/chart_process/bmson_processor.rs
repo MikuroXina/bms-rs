@@ -51,32 +51,40 @@ impl<'a> BmsonProcessor<'a> {
 
         // 处理音频文件
         for sound_channel in &bmson.sound_channels {
-            if !audio_name_to_id.contains_key(&sound_channel.name.to_string()) {
-                audio_name_to_id.insert(sound_channel.name.to_string(), WavId::new(next_audio_id));
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                audio_name_to_id.entry(sound_channel.name.to_string())
+            {
+                e.insert(WavId::new(next_audio_id));
                 next_audio_id += 1;
             }
         }
 
         // 处理地雷音频文件
         for mine_channel in &bmson.mine_channels {
-            if !audio_name_to_id.contains_key(&mine_channel.name.to_string()) {
-                audio_name_to_id.insert(mine_channel.name.to_string(), WavId::new(next_audio_id));
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                audio_name_to_id.entry(mine_channel.name.to_string())
+            {
+                e.insert(WavId::new(next_audio_id));
                 next_audio_id += 1;
             }
         }
 
         // 处理隐藏键音频文件
         for key_channel in &bmson.key_channels {
-            if !audio_name_to_id.contains_key(&key_channel.name.to_string()) {
-                audio_name_to_id.insert(key_channel.name.to_string(), WavId::new(next_audio_id));
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                audio_name_to_id.entry(key_channel.name.to_string())
+            {
+                e.insert(WavId::new(next_audio_id));
                 next_audio_id += 1;
             }
         }
 
         // 处理图像文件
         for BgaHeader { name, .. } in &bmson.bga.bga_header {
-            if !bmp_name_to_id.contains_key(&name.to_string()) {
-                bmp_name_to_id.insert(name.to_string(), BmpId::new(next_bmp_id));
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                bmp_name_to_id.entry(name.to_string())
+            {
+                e.insert(BmpId::new(next_bmp_id));
                 next_bmp_id += 1;
             }
         }
