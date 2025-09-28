@@ -5,6 +5,7 @@
 
 pub mod check_playing;
 pub mod prompt;
+pub mod token_processor;
 pub mod validity;
 
 use std::{borrow::Cow, num::NonZeroU64, str::FromStr};
