@@ -260,6 +260,7 @@ where
                 distance_to_hit: distance.into(),
                 wav_id,
                 length,
+                continue_play: false, // BMS固定为false
             },
         ))
     }
@@ -287,6 +288,7 @@ where
                     kind,
                     wav_id,
                     length,
+                    continue_play: false, // BMS固定为false
                 },
             )
         } else {

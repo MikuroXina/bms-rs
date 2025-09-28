@@ -175,6 +175,8 @@ pub struct NoteView {
     pub wav_id: Option<WavId>,
     /// 音符长度（长条音符的结束位置，普通音符为 None）
     pub length: Option<YCoordinate>,
+    /// 音符继续播放标志（BMS固定为false，Bmson依据Note.c字段）
+    pub continue_play: bool,
 }
 
 /// 播放过程中产生的事件（Elm 风格）。
@@ -195,6 +197,8 @@ pub enum ChartEvent {
         wav_id: Option<WavId>,
         /// 音符长度（长条音符的结束位置，普通音符为 None）
         length: Option<YCoordinate>,
+        /// 音符继续播放标志（BMS固定为false，Bmson依据Note.c字段）
+        continue_play: bool,
     },
     /// BGM 等非按键类触发（无有效 side/key）
     Bgm {

@@ -304,7 +304,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
         for SoundChannel { name, notes } in &self.bmson.sound_channels {
-            for Note { y, x, l, .. } in notes {
+            for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
                     if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
@@ -330,6 +330,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                                 kind,
                                 wav_id,
                                 length,
+                                continue_play: *c, // 从Note.c字段获取
                             },
                         ));
                     } else {
@@ -474,7 +475,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             key,
                             kind: NoteKind::Landmine,
                             wav_id,
-                            length: None, // 地雷音符没有长度
+                            length: None,         // 地雷音符没有长度
+                            continue_play: false, // 地雷音符固定为false
                         },
                     ));
                 }
@@ -498,7 +500,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             key,
                             kind: NoteKind::Invisible,
                             wav_id,
-                            length: None, // 隐藏音符没有长度
+                            length: None,         // 隐藏音符没有长度
+                            continue_play: false, // 隐藏音符固定为false
                         },
                     ));
                 }
@@ -530,7 +533,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         let mut out: Vec<(f64, NoteView)> = Vec::new();
         for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
-            for Note { y, x, l, .. } in notes {
+            for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
                 let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
@@ -553,6 +556,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             distance_to_hit: scaled_distance.into(),
                             wav_id: None,
                             length,
+                            continue_play: *c, // 从Note.c字段获取
                         },
                     ));
                 }
