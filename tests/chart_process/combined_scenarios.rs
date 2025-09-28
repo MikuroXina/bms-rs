@@ -60,7 +60,6 @@ fn test_combined_changes_events() {
 
     // 应该有 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
@@ -90,7 +89,6 @@ fn test_combined_changes_events() {
 
     // 应该有第二个 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
@@ -143,14 +141,14 @@ fn test_combined_velocity_calculation() {
 
     // 前进到第一个 BPM 变化点
     let after_first_change = start_time + Duration::from_secs(1);
-    processor.update(after_first_change);
+    let _ = processor.update(after_first_change);
 
     // BPM 应该更新到 75.5
     assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // 前进到第二个 BPM 变化点
     let after_second_change = after_first_change + Duration::from_secs(8);
-    processor.update(after_second_change);
+    let _ = processor.update(after_second_change);
 
     // BPM 应该更新回 151
     assert_eq!(processor.current_bpm(), Decimal::from(151));
@@ -182,7 +180,7 @@ fn test_event_timing_with_bpm_changes() {
 
     // 前进 0.5 秒，应该还没有触发事件
     let half_second = start_time + Duration::from_millis(500);
-    let events = processor.update(half_second);
+    let events: Vec<_> = processor.update(half_second).collect();
     assert!(events.is_empty(), "0.5秒内不应该有事件");
 
     // 前进到 1 秒，应该触发第一个 BPM 变化点的事件
@@ -190,7 +188,6 @@ fn test_event_timing_with_bpm_changes() {
     let events = processor.update(one_second);
 
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 
@@ -218,7 +215,6 @@ fn test_event_timing_with_bpm_changes() {
     let events = processor.update(nine_seconds);
 
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
 

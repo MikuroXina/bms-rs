@@ -6,9 +6,7 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
-use crate::chart_process::{
-    BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
-};
+use crate::chart_process::{BmpId, ChartEvent, ChartProcessor, ControlEvent, WavId, YCoordinate};
 use num::ToPrimitive;
 use std::str::FromStr;
 
@@ -35,6 +33,9 @@ pub struct BmsonProcessor<'a> {
 
     /// 待消费的外部事件队列
     inbox: Vec<ControlEvent>,
+
+    /// 预加载的事件列表（当前可见区域内的所有事件）
+    preloaded_events: Vec<(YCoordinate, ChartEvent)>,
 }
 
 impl<'a> BmsonProcessor<'a> {
@@ -104,6 +105,7 @@ impl<'a> BmsonProcessor<'a> {
             last_poll_at: None,
             progressed_y: 0.0,
             inbox: Vec::new(),
+            preloaded_events: Vec::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
             current_speed: Decimal::from(1),
@@ -281,10 +283,11 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = 0.0;
+        self.preloaded_events.clear();
         self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
     }
 
-    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
@@ -298,16 +301,24 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.step_to(now);
         let cur_y = self.progressed_y;
 
-        let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        // 计算预加载范围：当前 y + 可视 y 范围
+        let visible_y_length = self.visible_window_y();
+        let preload_end_y = cur_y + visible_y_length;
+
+        // 收集当前时刻触发的事件
+        let mut triggered_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+
+        // 收集预加载范围内的事件
+        let mut new_preloaded_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+
         for SoundChannel { name, notes } in &self.bmson.sound_channels {
             for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
+                    // 当前时刻触发的事件
                     if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
-                        // 普通音符通道有声音，通过name映射到WavId
                         let wav_id = self.get_wav_id_for_name(name);
                         let length = if *l > 0 {
-                            // 长条音符：计算结束位置
                             let end_y = self.pulses_to_y(y.0 + l);
                             Some(YCoordinate::from(end_y - yy))
                         } else {
@@ -318,7 +329,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                         } else {
                             NoteKind::Visible
                         };
-                        events.push((
+                        triggered_events.push((
                             yy.into(),
                             ChartEvent::Note {
                                 side,
@@ -326,13 +337,43 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                                 kind,
                                 wav_id,
                                 length,
-                                continue_play: *c, // 从Note.c字段获取
+                                continue_play: *c,
                             },
                         ));
                     } else {
-                        // BGM音符也可能有声音
                         let wav_id = self.get_wav_id_for_name(name);
-                        events.push((yy.into(), ChartEvent::Bgm { wav_id }));
+                        triggered_events.push((yy.into(), ChartEvent::Bgm { wav_id }));
+                    }
+                }
+                if yy > cur_y && yy <= preload_end_y {
+                    // 预加载范围内的事件
+                    if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
+                        let wav_id = self.get_wav_id_for_name(name);
+                        let length = if *l > 0 {
+                            let end_y = self.pulses_to_y(y.0 + l);
+                            Some(YCoordinate::from(end_y - yy))
+                        } else {
+                            None
+                        };
+                        let kind = if *l > 0 {
+                            NoteKind::Long
+                        } else {
+                            NoteKind::Visible
+                        };
+                        new_preloaded_events.push((
+                            yy.into(),
+                            ChartEvent::Note {
+                                side,
+                                key,
+                                kind,
+                                wav_id,
+                                length,
+                                continue_play: *c,
+                            },
+                        ));
+                    } else {
+                        let wav_id = self.get_wav_id_for_name(name);
+                        new_preloaded_events.push((yy.into(), ChartEvent::Bgm { wav_id }));
                     }
                 }
             }
@@ -341,7 +382,15 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         for ev in &self.bmson.bpm_events {
             let y = self.pulses_to_y(ev.y.0);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::BpmChange {
+                        bpm: ev.bpm.as_f64().into(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::BpmChange {
                         bpm: ev.bpm.as_f64().into(),
@@ -349,10 +398,19 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 ));
             }
         }
+
         for ScrollEvent { y, rate } in &self.bmson.scroll_events {
             let y = self.pulses_to_y(y.0);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::ScrollChange {
+                        factor: rate.as_f64().into(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::ScrollChange {
                         factor: rate.as_f64().into(),
@@ -360,10 +418,19 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 ));
             }
         }
+
         for stop in &self.bmson.stop_events {
             let y = self.pulses_to_y(stop.y.0);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::Stop {
+                        duration: (stop.duration as f64).into(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::Stop {
                         duration: (stop.duration as f64).into(),
@@ -376,7 +443,6 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         for BgaEvent { y, id, .. } in &self.bmson.bga.bga_events {
             let yy = self.pulses_to_y(y.0);
             if yy > prev_y && yy <= cur_y {
-                // 通过BgaId查找对应的BgaHeader来获取文件名
                 let bmp_name = self
                     .bmson
                     .bga
@@ -385,8 +451,24 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     .find(|header| header.id.0 == id.0)
                     .map(|header| &*header.name);
                 let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
-
-                events.push((
+                triggered_events.push((
+                    yy.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Base,
+                        bmp_id,
+                    },
+                ));
+            }
+            if yy > cur_y && yy <= preload_end_y {
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+                new_preloaded_events.push((
                     yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Base,
@@ -400,7 +482,6 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         for BgaEvent { y, id, .. } in &self.bmson.bga.layer_events {
             let yy = self.pulses_to_y(y.0);
             if yy > prev_y && yy <= cur_y {
-                // 通过BgaId查找对应的BgaHeader来获取文件名
                 let bmp_name = self
                     .bmson
                     .bga
@@ -409,8 +490,24 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     .find(|header| header.id.0 == id.0)
                     .map(|header| &*header.name);
                 let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
-
-                events.push((
+                triggered_events.push((
+                    yy.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Overlay,
+                        bmp_id,
+                    },
+                ));
+            }
+            if yy > cur_y && yy <= preload_end_y {
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+                new_preloaded_events.push((
                     yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Overlay,
@@ -424,7 +521,6 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         for BgaEvent { y, id, .. } in &self.bmson.bga.poor_events {
             let yy = self.pulses_to_y(y.0);
             if yy > prev_y && yy <= cur_y {
-                // 通过BgaId查找对应的BgaHeader来获取文件名
                 let bmp_name = self
                     .bmson
                     .bga
@@ -433,8 +529,24 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     .find(|header| header.id.0 == id.0)
                     .map(|header| &*header.name);
                 let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
-
-                events.push((
+                triggered_events.push((
+                    yy.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Poor,
+                        bmp_id,
+                    },
+                ));
+            }
+            if yy > cur_y && yy <= preload_end_y {
+                let bmp_name = self
+                    .bmson
+                    .bga
+                    .bga_header
+                    .iter()
+                    .find(|header| header.id.0 == id.0)
+                    .map(|header| &*header.name);
+                let bmp_id = bmp_name.and_then(|name| self.get_bmp_id_for_name(name));
+                new_preloaded_events.push((
                     yy.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Poor,
@@ -449,7 +561,10 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             for bar_line in lines {
                 let y = self.pulses_to_y(bar_line.y.0);
                 if y > prev_y && y <= cur_y {
-                    events.push((y.into(), ChartEvent::BarLine));
+                    triggered_events.push((y.into(), ChartEvent::BarLine));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((y.into(), ChartEvent::BarLine));
                 }
             }
         }
@@ -462,17 +577,33 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     && yy <= cur_y
                     && let Some((side, key)) = Self::lane_from_x(*x)
                 {
-                    // 地雷通道有声音，通过name映射到WavId
                     let wav_id = self.get_wav_id_for_name(name);
-                    events.push((
+                    triggered_events.push((
                         yy.into(),
                         ChartEvent::Note {
                             side,
                             key,
                             kind: NoteKind::Landmine,
                             wav_id,
-                            length: None,         // 地雷音符没有长度
-                            continue_play: false, // 地雷音符固定为false
+                            length: None,
+                            continue_play: false,
+                        },
+                    ));
+                }
+                if yy > cur_y
+                    && yy <= preload_end_y
+                    && let Some((side, key)) = Self::lane_from_x(*x)
+                {
+                    let wav_id = self.get_wav_id_for_name(name);
+                    new_preloaded_events.push((
+                        yy.into(),
+                        ChartEvent::Note {
+                            side,
+                            key,
+                            kind: NoteKind::Landmine,
+                            wav_id,
+                            length: None,
+                            continue_play: false,
                         },
                     ));
                 }
@@ -487,83 +618,68 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     && yy <= cur_y
                     && let Some((side, key)) = Self::lane_from_x(*x)
                 {
-                    // 隐藏键通道有声音，通过name映射到WavId
                     let wav_id = self.get_wav_id_for_name(name);
-                    events.push((
+                    triggered_events.push((
                         yy.into(),
                         ChartEvent::Note {
                             side,
                             key,
                             kind: NoteKind::Invisible,
                             wav_id,
-                            length: None,         // 隐藏音符没有长度
-                            continue_play: false, // 隐藏音符固定为false
+                            length: None,
+                            continue_play: false,
+                        },
+                    ));
+                }
+                if yy > cur_y
+                    && yy <= preload_end_y
+                    && let Some((side, key)) = Self::lane_from_x(*x)
+                {
+                    let wav_id = self.get_wav_id_for_name(name);
+                    new_preloaded_events.push((
+                        yy.into(),
+                        ChartEvent::Note {
+                            side,
+                            key,
+                            kind: NoteKind::Invisible,
+                            wav_id,
+                            length: None,
+                            continue_play: false,
                         },
                     ));
                 }
             }
         }
 
-        events.sort_by(|a, b| {
+        // 排序事件
+        triggered_events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        events
+
+        new_preloaded_events.sort_by(|a, b| {
+            a.0.value()
+                .partial_cmp(b.0.value())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // 更新预加载事件列表
+        self.preloaded_events = new_preloaded_events;
+
+        triggered_events.into_iter()
     }
 
     fn post_events(&mut self, events: &[ControlEvent]) {
         self.inbox.extend_from_slice(events);
     }
 
-    fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView> {
+    fn visible_events(
+        &mut self,
+        now: SystemTime,
+    ) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
         self.step_to(now);
-        let win_y = self.visible_window_y();
-        let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll.to_f64().unwrap_or(1.0)
-            * self.current_speed.to_f64().unwrap_or(1.0)
-            * win_y;
-        let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
-            (0.0, scaled_upper)
-        } else {
-            (scaled_upper, 0.0)
-        };
-
-        let mut out: Vec<(f64, NoteView)> = Vec::new();
-        for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
-            for Note { y, x, l, c, .. } in notes {
-                let yy = self.pulses_to_y(y.0);
-                let raw_distance = yy - cur_y;
-                let scaled_distance = self.current_scroll.to_f64().unwrap_or(1.0)
-                    * self.current_speed.to_f64().unwrap_or(1.0)
-                    * raw_distance;
-                if scaled_distance >= min_scaled
-                    && scaled_distance <= max_scaled
-                    && let Some((side, key)) = Self::lane_from_x(x.as_ref().copied())
-                {
-                    let length = if *l > 0 {
-                        // 长条音符：计算结束位置
-                        let end_y = self.pulses_to_y(y.0 + l);
-                        Some(YCoordinate::from(end_y - yy))
-                    } else {
-                        None
-                    };
-                    out.push((
-                        yy,
-                        NoteView {
-                            side,
-                            key,
-                            distance_to_hit: scaled_distance.into(),
-                            wav_id: None,
-                            length,
-                            continue_play: *c, // 从Note.c字段获取
-                        },
-                    ));
-                }
-            }
-        }
-        out.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        out.into_iter().map(|(_, v)| v).collect()
+        self.preloaded_events.iter().cloned()
     }
 }
 

@@ -160,24 +160,6 @@ impl std::ops::Div for YCoordinate {
     }
 }
 
-/// 描述可见音符与已触发音符的最小视图。
-/// 音符可见查询的最小视图。
-#[derive(Debug, Clone)]
-pub struct NoteView {
-    /// 玩家侧（P1/P2）
-    pub side: PlayerSide,
-    /// 键位（含 1..=7、Scratch(1) 等）
-    pub key: Key,
-    /// 距离判定线的剩余位移（y 单位，>=0 表示尚未到达判定线）
-    pub distance_to_hit: YCoordinate,
-    /// 关联的声音资源ID（BMS 为 `#WAVxx` 映射的整数；BMSON 常为 None）
-    pub wav_id: Option<WavId>,
-    /// 音符长度（长条音符的结束位置，普通音符为 None）
-    pub length: Option<YCoordinate>,
-    /// 音符继续播放标志（BMS固定为false，Bmson依据Note.c字段）
-    pub continue_play: bool,
-}
-
 /// 播放过程中产生的事件（Elm 风格）。
 ///
 /// 这些事件代表图表播放过程中的实际事件，如音符触发、BGM播放、
@@ -349,7 +331,7 @@ pub trait ChartProcessor {
     fn start_play(&mut self, now: SystemTime);
 
     /// 更新：推进内部时间轴，返回自上次调用以来产生的时间轴事件（Elm 风格）。
-    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)>;
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)>;
 
     /// 投递外部控制事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
     ///
@@ -357,6 +339,9 @@ pub trait ChartProcessor {
     /// 由 [`update`] 方法返回，不通过此方法投递。
     fn post_events(&mut self, events: &[ControlEvent]);
 
-    /// 查询：当前可见区域中的所有音符（含其轨道与到判定线的剩余距离）。
-    fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView>;
+    /// 查询：当前可见区域中的所有事件（预先加载逻辑）。
+    fn visible_events(
+        &mut self,
+        now: SystemTime,
+    ) -> impl Iterator<Item = (YCoordinate, ChartEvent)>;
 }

@@ -5,9 +5,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{
-    BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
-};
+use crate::chart_process::{BmpId, ChartEvent, ChartProcessor, ControlEvent, WavId, YCoordinate};
 use num::ToPrimitive;
 use std::str::FromStr;
 
@@ -34,6 +32,9 @@ where
 
     /// 已生成小节线的Track集合
     generated_bar_lines: HashSet<Track>,
+
+    /// 预加载的事件列表（当前可见区域内的所有事件）
+    preloaded_events: Vec<(YCoordinate, ChartEvent)>,
 
     // Flow parameters
     default_visible_y_length: YCoordinate,
@@ -71,6 +72,7 @@ where
             progressed_y: 0.0,
             inbox: Vec::new(),
             generated_bar_lines: HashSet::new(),
+            preloaded_events: Vec::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
             current_speed: Decimal::from(1),
@@ -251,35 +253,6 @@ where
         }
     }
 
-    fn build_note_view(&self, obj: &WavObj) -> Option<(f64, NoteView)> {
-        let (side, key, kind) = Self::lane_of_channel_id(obj.channel_id)?;
-        let y = self.y_of_time(obj.offset);
-        let distance = y - self.progressed_y;
-        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-        let length = if kind == NoteKind::Long {
-            // 长条音符：查找下一个同通道的音符来计算长度
-            if let Some(next_obj) = self.bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
-                let next_y = self.y_of_time(next_obj.offset);
-                Some(YCoordinate::from(next_y - y))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        Some((
-            y,
-            NoteView {
-                side,
-                key,
-                distance_to_hit: distance.into(),
-                wav_id,
-                length,
-                continue_play: false, // BMS固定为false
-            },
-        ))
-    }
-
     fn event_for_note(&self, obj: &WavObj, y: f64) -> (YCoordinate, ChartEvent) {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
@@ -354,6 +327,7 @@ where
         self.last_poll_at = Some(now);
         self.progressed_y = 0.0;
         self.generated_bar_lines.clear();
+        self.preloaded_events.clear();
         // 初始化 current_bpm 为 header 或默认
         self.current_bpm = self
             .bms
@@ -364,7 +338,7 @@ where
             .unwrap_or(Decimal::from(120));
     }
 
-    fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
         // 处理通过 post_events 投递的外部事件
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
@@ -379,17 +353,31 @@ where
         self.step_to(now);
         let cur_y = self.progressed_y;
 
-        let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        // 计算预加载范围：当前 y + 可视 y 范围
+        let visible_y_length = self.visible_window_y();
+        let preload_end_y = cur_y + visible_y_length;
+
+        // 收集当前时刻触发的事件
+        let mut triggered_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+
+        // 收集预加载范围内的事件
+        let mut new_preloaded_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
 
         // 生成小节线事件
-        self.generate_bar_line_events(prev_y, cur_y, &mut events);
+        self.generate_bar_line_events(prev_y, preload_end_y, &mut new_preloaded_events);
 
         // Note / Wav 到达事件
         for obj in self.bms.notes().all_notes() {
             let y = self.y_of_time(obj.offset);
             if y > prev_y && y <= cur_y {
+                // 当前时刻触发的事件
                 let (y_coord, evt) = self.event_for_note(obj, y);
-                events.push((y_coord, evt));
+                triggered_events.push((y_coord, evt));
+            }
+            if y > cur_y && y <= preload_end_y {
+                // 预加载范围内的事件
+                let (y_coord, evt) = self.event_for_note(obj, y);
+                new_preloaded_events.push((y_coord, evt));
             }
         }
 
@@ -397,7 +385,15 @@ where
         for change in self.bms.arrangers.bpm_changes.values() {
             let y = self.y_of_time(change.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::BpmChange {
+                        bpm: change.bpm.clone(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::BpmChange {
                         bpm: change.bpm.clone(),
@@ -410,7 +406,15 @@ where
         for change in self.bms.arrangers.scrolling_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::ScrollChange {
+                        factor: change.factor.clone(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::ScrollChange {
                         factor: change.factor.clone(),
@@ -423,7 +427,15 @@ where
         for change in self.bms.arrangers.speed_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::SpeedChange {
+                        factor: change.factor.clone(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::SpeedChange {
                         factor: change.factor.clone(),
@@ -436,7 +448,15 @@ where
         for stop in self.bms.arrangers.stops.values() {
             let y = self.y_of_time(stop.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::Stop {
+                        duration: stop.duration.clone(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::Stop {
                         duration: stop.duration.clone(),
@@ -450,7 +470,17 @@ where
             let y = self.y_of_time(bga_obj.time);
             if y > prev_y && y <= cur_y {
                 let bmp_index = bga_obj.id.as_u16() as usize;
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::BgaChange {
+                        layer: bga_obj.layer,
+                        bmp_id: Some(BmpId::from(bmp_index)),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                let bmp_index = bga_obj.id.as_u16() as usize;
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: bga_obj.layer,
@@ -466,7 +496,16 @@ where
             for opacity_obj in opacity_changes.values() {
                 let y = self.y_of_time(opacity_obj.time);
                 if y > prev_y && y <= cur_y {
-                    events.push((
+                    triggered_events.push((
+                        y.into(),
+                        ChartEvent::BgaOpacityChange {
+                            layer: *layer,
+                            opacity: opacity_obj.opacity,
+                        },
+                    ));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((
                         y.into(),
                         ChartEvent::BgaOpacityChange {
                             layer: *layer,
@@ -483,7 +522,19 @@ where
             for argb_obj in argb_changes.values() {
                 let y = self.y_of_time(argb_obj.time);
                 if y > prev_y && y <= cur_y {
-                    events.push((
+                    triggered_events.push((
+                        y.into(),
+                        ChartEvent::BgaArgbChange {
+                            layer: *layer,
+                            argb: ((argb_obj.argb.alpha as u32) << 24)
+                                | ((argb_obj.argb.red as u32) << 16)
+                                | ((argb_obj.argb.green as u32) << 8)
+                                | (argb_obj.argb.blue as u32),
+                        },
+                    ));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((
                         y.into(),
                         ChartEvent::BgaArgbChange {
                             layer: *layer,
@@ -501,7 +552,15 @@ where
         for bgm_volume_obj in self.bms.notes.bgm_volume_changes.values() {
             let y = self.y_of_time(bgm_volume_obj.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::BgmVolumeChange {
+                        volume: bgm_volume_obj.volume,
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::BgmVolumeChange {
                         volume: bgm_volume_obj.volume,
@@ -514,7 +573,15 @@ where
         for key_volume_obj in self.bms.notes.key_volume_changes.values() {
             let y = self.y_of_time(key_volume_obj.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::KeyVolumeChange {
+                        volume: key_volume_obj.volume,
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::KeyVolumeChange {
                         volume: key_volume_obj.volume,
@@ -527,7 +594,15 @@ where
         for text_obj in self.bms.notes.text_events.values() {
             let y = self.y_of_time(text_obj.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::TextDisplay {
+                        text: text_obj.text.clone(),
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::TextDisplay {
                         text: text_obj.text.clone(),
@@ -540,7 +615,15 @@ where
         for judge_obj in self.bms.notes.judge_events.values() {
             let y = self.y_of_time(judge_obj.time);
             if y > prev_y && y <= cur_y {
-                events.push((
+                triggered_events.push((
+                    y.into(),
+                    ChartEvent::JudgeLevelChange {
+                        level: judge_obj.judge_level,
+                    },
+                ));
+            }
+            if y > cur_y && y <= preload_end_y {
+                new_preloaded_events.push((
                     y.into(),
                     ChartEvent::JudgeLevelChange {
                         level: judge_obj.judge_level,
@@ -556,7 +639,15 @@ where
             for seek_obj in self.bms.notes.seek_events.values() {
                 let y = self.y_of_time(seek_obj.time);
                 if y > prev_y && y <= cur_y {
-                    events.push((
+                    triggered_events.push((
+                        y.into(),
+                        ChartEvent::VideoSeek {
+                            seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
+                        },
+                    ));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((
                         y.into(),
                         ChartEvent::VideoSeek {
                             seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
@@ -569,7 +660,15 @@ where
             for bga_keybound_obj in self.bms.notes.bga_keybound_events.values() {
                 let y = self.y_of_time(bga_keybound_obj.time);
                 if y > prev_y && y <= cur_y {
-                    events.push((
+                    triggered_events.push((
+                        y.into(),
+                        ChartEvent::BgaKeybound {
+                            event: bga_keybound_obj.event.clone(),
+                        },
+                    ));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((
                         y.into(),
                         ChartEvent::BgaKeybound {
                             event: bga_keybound_obj.event.clone(),
@@ -582,7 +681,15 @@ where
             for option_obj in self.bms.notes.option_events.values() {
                 let y = self.y_of_time(option_obj.time);
                 if y > prev_y && y <= cur_y {
-                    events.push((
+                    triggered_events.push((
+                        y.into(),
+                        ChartEvent::OptionChange {
+                            option: option_obj.option.clone(),
+                        },
+                    ));
+                }
+                if y > cur_y && y <= preload_end_y {
+                    new_preloaded_events.push((
                         y.into(),
                         ChartEvent::OptionChange {
                             option: option_obj.option.clone(),
@@ -592,46 +699,35 @@ where
             }
         }
 
-        events.sort_by(|a, b| {
+        // 排序事件
+        triggered_events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(b.0.value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        events
+
+        new_preloaded_events.sort_by(|a, b| {
+            a.0.value()
+                .partial_cmp(b.0.value())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // 更新预加载事件列表
+        self.preloaded_events = new_preloaded_events;
+
+        triggered_events.into_iter()
     }
 
     fn post_events(&mut self, events: &[ControlEvent]) {
         self.inbox.extend_from_slice(events);
     }
 
-    fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView> {
+    fn visible_events(
+        &mut self,
+        now: SystemTime,
+    ) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
         self.step_to(now);
-        let win_y = self.visible_window_y();
-        let cur_y = self.progressed_y;
-        let scaled_upper = self.current_scroll.to_f64().unwrap_or(1.0)
-            * self.current_speed.to_f64().unwrap_or(1.0)
-            * win_y;
-        let (min_scaled, max_scaled) = if scaled_upper >= 0.0 {
-            (0.0, scaled_upper)
-        } else {
-            (scaled_upper, 0.0)
-        };
-
-        let mut views: Vec<(f64, NoteView)> = Vec::new();
-        for obj in self.bms.notes().all_notes() {
-            if let Some((y, mut view)) = self.build_note_view(obj) {
-                let raw_distance = y - cur_y;
-                let scaled_distance = self.current_scroll.to_f64().unwrap_or(1.0)
-                    * self.current_speed.to_f64().unwrap_or(1.0)
-                    * raw_distance;
-                if scaled_distance >= min_scaled && scaled_distance <= max_scaled {
-                    view.distance_to_hit = scaled_distance.into();
-                    views.push((y, view));
-                }
-            }
-        }
-        views.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-        views.into_iter().map(|(_, v)| v).collect()
+        self.preloaded_events.iter().cloned()
     }
 }
 

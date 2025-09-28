@@ -73,7 +73,6 @@ fn test_bpm_processor_events() {
 
     // 应该触发 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
@@ -104,7 +103,6 @@ fn test_bpm_processor_events() {
 
     // 应该触发第二个 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
         .collect();
     assert!(!bpm_events.is_empty(), "应该有第二个 BPM 变化事件");
@@ -161,14 +159,14 @@ fn test_bpm_affects_velocity() {
 
     // 前进到第一个 BPM 变化（第1小节）
     let after_first_change = start_time + Duration::from_secs(1);
-    processor.update(after_first_change);
+    let _ = processor.update(after_first_change);
 
     // BPM 应该更新到 75.5
     assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // 前进到第二个 BPM 变化（第5小节）
     let after_second_change = after_first_change + Duration::from_secs(8);
-    processor.update(after_second_change);
+    let _ = processor.update(after_second_change);
 
     // BPM 应该更新回 151
     assert_eq!(processor.current_bpm(), Decimal::from(151));

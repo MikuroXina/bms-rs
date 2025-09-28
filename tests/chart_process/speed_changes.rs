@@ -56,15 +56,20 @@ fn test_speed_processor_events() {
     let after_first_change = start_time + Duration::from_secs(1);
     let events = processor.update(after_first_change);
 
+    // 收集所有事件
+    let all_events: Vec<_> = events.collect();
+
     // 应该触发 Speed 和 Scroll 变化事件
-    let speed_events: Vec<_> = events
+    let speed_events: Vec<_> = all_events
         .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::SpeedChange { .. }))
+        .cloned()
         .collect();
 
-    let scroll_events: Vec<_> = events
+    let scroll_events: Vec<_> = all_events
         .iter()
         .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::ScrollChange { .. }))
+        .cloned()
         .collect();
 
     assert!(!speed_events.is_empty(), "应该有 Speed 变化事件");
@@ -135,7 +140,7 @@ fn test_speed_affects_visible_notes() {
 
     // 前进到第一个 Speed/Scroll 变化点
     let after_first_change = start_time + Duration::from_secs(1);
-    processor.update(after_first_change);
+    let _ = processor.update(after_first_change);
 
     // Speed 和 Scroll 应该更新
     assert_eq!(processor.current_speed(), Decimal::from(1));
