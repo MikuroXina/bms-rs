@@ -198,22 +198,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     self.graphics.bmp_files.insert(id, to_insert);
                 }
             }
-            Token::Bpm(bpm) => {
-                self.arrangers.bpm = Some(bpm.clone());
-            }
-            Token::BpmChange(id, bpm) => {
-                if let Some(older) = self.scope_defines.bpm_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::BpmChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: bpm.clone(),
-                        })
-                        .apply_def(older, bpm.clone(), *id)?;
-                } else {
-                    self.scope_defines.bpm_defs.insert(*id, bpm.clone());
-                }
-            }
             #[cfg(feature = "minor-command")]
             Token::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
@@ -319,19 +303,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
             Token::Rank(rank) => self.header.rank = Some(*rank),
-            Token::Scroll(id, factor) => {
-                if let Some(older) = self.scope_defines.scroll_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ScrollingFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply_def(older, factor.clone(), *id)?;
-                } else {
-                    self.scope_defines.scroll_defs.insert(*id, factor.clone());
-                }
-            }
             Token::Speed(id, factor) => {
                 if let Some(older) = self.scope_defines.speed_defs.get_mut(id) {
                     prompt_handler
@@ -346,19 +317,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 }
             }
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
-            Token::Stop(id, len) => {
-                if let Some(older) = self.scope_defines.stop_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Stop {
-                            id: *id,
-                            older: older.clone(),
-                            newer: len.clone(),
-                        })
-                        .apply_def(older, len.clone(), *id)?;
-                } else {
-                    self.scope_defines.stop_defs.insert(*id, len.clone());
-                }
-            }
             Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
             Token::Text(id, text) => {
@@ -381,35 +339,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Url(url) => self.header.url = Some(url.to_string()),
             Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             Token::VolWav(volume) => self.header.volume = *volume,
-            Token::Wav(id, path) => {
-                if let Some(older) = self.notes.wav_files.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Wav {
-                            id: *id,
-                            older,
-                            newer: path,
-                        })
-                        .apply_def(older, path.into(), *id)?;
-                } else {
-                    self.notes.wav_files.insert(*id, path.into());
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Stp(ev) => {
-                // Store by ObjTime as key, handle duplication with prompt handler
-                let key = ev.time;
-                if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
-                    prompt_handler
-                        .handle_channel_duplication(ChannelDuplication::StpEvent {
-                            time: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_channel(older, *ev, key, Channel::Stop)?;
-                } else {
-                    self.arrangers.stp_events.insert(key, *ev);
-                }
-            }
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 // Store by wav_index as key, handle duplication with prompt handler
@@ -482,65 +411,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             Token::Message {
                 track,
-                channel: Channel::BpmChange,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    // Record used BPM change id for validity checks
-                    self.arrangers.bpm_change_ids_used.insert(obj);
-                    let bpm = self
-                        .scope_defines
-                        .bpm_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_bpm_change(
-                        BpmChangeObj {
-                            time,
-                            bpm: bpm.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::BpmChangeU8,
-                message,
-            } => {
-                for (time, value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.arrangers.push_bpm_change(
-                        BpmChangeObj {
-                            time,
-                            bpm: Decimal::from(value),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Scroll,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let factor = self
-                        .scope_defines
-                        .scroll_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_scrolling_factor_change(
-                        ScrollingFactorObj {
-                            time,
-                            factor: factor.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
                 channel: Channel::Speed,
                 message,
             } => {
@@ -602,25 +472,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             Token::Message {
                 track,
-                channel: Channel::Stop,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    // Record used STOP id for validity checks
-                    self.arrangers.stop_ids_used.insert(obj);
-                    let duration = self
-                        .scope_defines
-                        .stop_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_stop(StopObj {
-                        time,
-                        duration: duration.clone(),
-                    });
-                }
-            }
-            Token::Message {
-                track,
                 channel:
                     channel @ (Channel::BgaBase
                     | Channel::BgaPoor
@@ -643,29 +494,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         *channel,
                         prompt_handler,
                     )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Bgm,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    self.notes.push_bgm(time, obj);
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Note { channel_id },
-                message,
-            } => {
-                // Parse the channel ID to get note components
-                for (offset, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    self.notes.push_note(WavObj {
-                        offset,
-                        channel_id: *channel_id,
-                        wav_id: obj,
-                    });
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -941,10 +769,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Preview(path) => self.header.preview_music = Some(path.into()),
             #[cfg(feature = "minor-command")]
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
-            #[cfg(feature = "minor-command")]
-            Token::BaseBpm(generic_decimal) => {
-                self.arrangers.base_bpm = Some(generic_decimal.clone());
-            }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
             Token::Base62 | Token::Charset(_) => {

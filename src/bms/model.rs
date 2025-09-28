@@ -125,6 +125,8 @@ pub struct Header {
     /// - No loop, stays on last frame after playback
     /// - Audio track in video is not played
     pub movie: Option<PathBuf>,
+    /// Whether the object ids are case-sensitive. It enables `#BASE 62` to output.
+    pub case_sensitive_obj_id: bool,
 }
 
 /// Stores the original scope-defines like `#WAVXX`. Using [`HashMap`].

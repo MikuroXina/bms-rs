@@ -74,7 +74,7 @@ impl Arrangers {
     pub fn push_scrolling_factor_change(
         &mut self,
         scrolling_factor_change: ScrollingFactorObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self
             .scrolling_factor_changes
@@ -107,7 +107,7 @@ impl Arrangers {
     pub fn push_speed_factor_change(
         &mut self,
         speed_factor_change: SpeedObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.speed_factor_changes.entry(speed_factor_change.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -137,7 +137,7 @@ impl Arrangers {
     pub fn push_section_len_change(
         &mut self,
         section_len_change: SectionLenChangeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.section_len_changes.entry(section_len_change.track) {
             std::collections::btree_map::Entry::Vacant(entry) => {

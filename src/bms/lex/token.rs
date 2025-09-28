@@ -2,9 +2,6 @@
 
 use std::{borrow::Cow, path::Path, str::FromStr};
 
-#[cfg(feature = "minor-command")]
-use std::time::Duration;
-
 use fraction::GenericFraction;
 use num::BigUint;
 
@@ -20,8 +17,7 @@ use crate::bms::{
 
 #[cfg(feature = "minor-command")]
 use crate::bms::command::minor_command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
-    WavCmdParam,
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, SwBgaEvent, WavCmdEvent, WavCmdParam,
 };
 
 use super::{Result, cursor::Cursor};
@@ -60,10 +56,6 @@ pub enum Token<'a> {
     BackBmp(&'a Path),
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
-    /// `#BASEBPM [f64]` is the base BPM.
-    /// It's not used in LunaticRave2, replaced by its Hi-Speed Settings.
-    #[cfg(feature = "minor-command")]
-    BaseBpm(Decimal),
     /// `#BGA[01-ZZ] [01-ZZ] [x1] [y1] [x2] [y2] [dx] [dy]`. Defines the image object from trimming the existing image object.
     #[cfg(feature = "minor-command")]
     Bga {
@@ -80,10 +72,6 @@ pub enum Token<'a> {
     },
     /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
     Bmp(Option<ObjId>, &'a Path),
-    /// `#BPM [f64]`. Defines the base Beats-Per-Minute of the score. Defaults to 130, but some players don't conform to it.
-    Bpm(Decimal),
-    /// `#BPM[01-ZZ] [f64]`. Defines the Beats-Per-Minute change object.
-    BpmChange(ObjId, Decimal),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
     /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
@@ -230,8 +218,6 @@ pub enum Token<'a> {
     Random(BigUint),
     /// `#RANK [0-3]`. Defines the judgement level.
     Rank(JudgeLevel),
-    /// `#SCROLL[01-ZZ] [f64]`. Defines the scroll speed change object. It changes relative falling speed of notes with keeping BPM. For example, if applying `2.0`, the scroll speed will become double.
-    Scroll(ObjId, Decimal),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
     /// Defines a video seek event that allows jumping to specific time positions in video files.
     /// This is a minor command extension for advanced video control.
@@ -247,11 +233,6 @@ pub enum Token<'a> {
     Speed(ObjId, Decimal),
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
-    /// `#STOP[01-ZZ] [0-4294967295]`. Defines the stop object. The scroll will stop the beats of the integer divided by 192. A beat length depends on the current BPM. If there are other objects on same time, the stop object must be evaluated at last.
-    Stop(ObjId, Decimal),
-    /// `#STP xxx.yyy zzzz` bemaniaDX STOP sequence.
-    #[cfg(feature = "minor-command")]
-    Stp(StpEvent),
     /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
@@ -290,8 +271,6 @@ pub enum Token<'a> {
     VideoFs(Decimal),
     /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
     VolWav(Volume),
-    /// `#WAV[01-ZZ] [filename]`. Defines the key sound object. When same id multiple objects ring at same time, it must be played only one. The file specified may be not only WAV format, and also OGG, MP3 and others.
-    Wav(ObjId, &'a Path),
     /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
@@ -351,16 +330,6 @@ impl<'a> Token<'a> {
                         .map_err(|_| c.make_err_expected_token("decimal"))?,
                 );
                 Self::Total(v)
-            }
-            "#BPM" => {
-                let s = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::Bpm(v)
             }
             "#PLAYLEVEL" => Self::PlayLevel(
                 c.next_token()
@@ -537,15 +506,6 @@ impl<'a> Token<'a> {
                     value,
                 })
             }
-            wav if wav.starts_with("#WAV") => {
-                let id = command.trim_start_matches("#WAV");
-                let str = c.next_line_remaining();
-                if str.is_empty() {
-                    return Err(c.make_err_expected_token("key audio filename"));
-                }
-                let filename = Path::new(str);
-                Self::Wav(ObjId::try_load(id, c)?, filename)
-            }
             bmp if bmp.starts_with("#BMP") => {
                 let id = command.trim_start_matches("#BMP");
                 let str = c.next_line_remaining();
@@ -558,39 +518,6 @@ impl<'a> Token<'a> {
                 } else {
                     Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
                 }
-            }
-            bpm if bpm.starts_with("#BPM") => {
-                let id = command.trim_start_matches("#BPM");
-                let s_bpm = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("bpm"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s_bpm)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::BpmChange(ObjId::try_load(id, c)?, v)
-            }
-            stop if stop.starts_with("#STOP") => {
-                let id = command.trim_start_matches("#STOP");
-                let s_stop = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("stop beats"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s_stop)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::Stop(ObjId::try_load(id, c)?, v)
-            }
-            scroll if scroll.starts_with("#SCROLL") => {
-                let id = command.trim_start_matches("#SCROLL");
-                let s_scroll = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("scroll"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s_scroll)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::Scroll(ObjId::try_load(id, c)?, v)
             }
             speed if speed.starts_with("#SPEED") => {
                 let id = command.trim_start_matches("#SPEED");
@@ -890,60 +817,6 @@ impl<'a> Token<'a> {
                 let content = c.next_line_remaining();
                 Self::Text(ObjId::try_load(id, c)?, content)
             }
-            exbpm if exbpm.starts_with("#EXBPM") => {
-                let id = exbpm.trim_start_matches("#EXBPM");
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("exbpm value"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(v).map_err(|_| c.make_err_expected_token("f64"))?,
-                );
-                Self::BpmChange(ObjId::try_load(id, c)?, v)
-            }
-            #[cfg(feature = "minor-command")]
-            "#BASEBPM" => {
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("basebpm value"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(v)
-                        .map_err(|_| c.make_err_expected_token("f64"))?,
-                );
-                Self::BaseBpm(v)
-            }
-            #[cfg(feature = "minor-command")]
-            stp if stp.starts_with("#STP") => {
-                // Parse xxx.yyy zzzz
-                let xy = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("stp format [xxx.yyy] zzzz"))?;
-                let ms = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("stp format xxx.yyy [zzzz]"))?;
-                let ms: u32 = ms
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("")
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("stp ms (u32)"))?;
-                let (measure, pos) = xy.split_once('.').unwrap_or((xy, "000"));
-                if measure.len() != 3 || pos.len() != 3 {
-                    return Err(c.make_err_expected_token("stp measure/pos must be 3 digits"));
-                }
-                let measure: u16 = measure
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("stp measure u16"))?;
-                let pos: u16 = pos
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("stp pos u16"))?;
-                let time = crate::bms::command::time::ObjTime::new(
-                    measure as u64,
-                    pos as u64,
-                    std::num::NonZeroU64::new(1000).expect("1000 should be a valid NonZeroU64"),
-                );
-                let duration = Duration::from_millis(ms as u64);
-                Self::Stp(StpEvent { time, duration })
-            }
             #[cfg(feature = "minor-command")]
             "#CDDA" => {
                 let v = c
@@ -1214,9 +1087,6 @@ impl<'a> Token<'a> {
             Bmp(Some(id), _) => {
                 id.make_uppercase();
             }
-            BpmChange(id, _) => {
-                id.make_uppercase();
-            }
             #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
                 id.make_uppercase();
@@ -1239,19 +1109,10 @@ impl<'a> Token<'a> {
                     message.to_mut().make_ascii_uppercase();
                 }
             }
-            Scroll(id, _) => {
-                id.make_uppercase();
-            }
             Speed(id, _) => {
                 id.make_uppercase();
             }
-            Stop(id, _) => {
-                id.make_uppercase();
-            }
             Text(id, _) => {
-                id.make_uppercase();
-            }
-            Wav(id, _) => {
                 id.make_uppercase();
             }
             _ => {}

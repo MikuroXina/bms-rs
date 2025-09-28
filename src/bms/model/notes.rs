@@ -515,7 +515,7 @@ impl<T> Notes<T> {
     pub fn push_bgm_volume_change(
         &mut self,
         volume_obj: BgmVolumeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bgm_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -545,7 +545,7 @@ impl<T> Notes<T> {
     pub fn push_key_volume_change(
         &mut self,
         volume_obj: KeyVolumeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.key_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -576,7 +576,7 @@ impl<T> Notes<T> {
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.seek_events.entry(seek_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -606,7 +606,7 @@ impl<T> Notes<T> {
     pub fn push_text_event(
         &mut self,
         text_obj: TextObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.text_events.entry(text_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -636,7 +636,7 @@ impl<T> Notes<T> {
     pub fn push_judge_event(
         &mut self,
         judge_obj: JudgeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.judge_events.entry(judge_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -667,7 +667,7 @@ impl<T> Notes<T> {
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bga_keybound_events.entry(keybound_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -698,7 +698,7 @@ impl<T> Notes<T> {
     pub fn push_option_event(
         &mut self,
         option_obj: OptionObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.option_events.entry(option_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
