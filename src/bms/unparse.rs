@@ -7,8 +7,6 @@ use fraction::{Integer, One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 
-use crate::bms::command::{ObjIdAllocResult, ObjIdManager};
-
 impl<T: KeyLayoutMapper> Bms<T> {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
@@ -1054,20 +1052,17 @@ where
         .map(|(&time, event)| {
             let id = id_allocation
                 .as_mut()
-                .map(|(token_creator, key_extractor, manager)| {
-                    // ID allocation mode: process events with token creator and key extractor
+                .and_then(|(token_creator, key_extractor, manager)| {
                     let key = key_extractor(event);
-                    match manager.get_or_new_id(key) {
-                        ObjIdAllocResult::Assigned(id) => Some(id),
-                        ObjIdAllocResult::New(id) => {
-                            let def_token = token_creator(id, key);
-                            late_def_tokens.push(def_token);
-                            Some(id)
-                        }
-                        ObjIdAllocResult::Full => None,
+                    if manager.is_assigned(key) {
+                        manager.get_or_new_id(key)
+                    } else if let Some(new) = manager.get_or_new_id(key) {
+                        late_def_tokens.push(token_creator(new, key));
+                        Some(new)
+                    } else {
+                        None
                     }
-                })
-                .flatten();
+                });
             EventUnit {
                 time,
                 event,
