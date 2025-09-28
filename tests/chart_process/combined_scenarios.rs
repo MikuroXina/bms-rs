@@ -67,7 +67,11 @@ fn test_combined_changes_events() {
 
     // 检查BPM变化事件的具体值
     if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
-        assert_eq!(*bpm, 75.5, "BPM变化事件的值应该是75.5");
+        assert_eq!(
+            bpm.to_f64().unwrap_or(0.0),
+            75.5,
+            "BPM变化事件的值应该是75.5"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "BPM变化事件的y坐标应该大于0"
@@ -93,7 +97,11 @@ fn test_combined_changes_events() {
 
     // 检查第二个BPM变化事件的具体值
     if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
-        assert_eq!(*bpm, 151.0, "第二个BPM变化事件的值应该是151.0");
+        assert_eq!(
+            bpm.to_f64().unwrap_or(0.0),
+            151.0,
+            "第二个BPM变化事件的值应该是151.0"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "第二个BPM变化事件的y坐标应该大于0"
@@ -189,7 +197,11 @@ fn test_event_timing_with_bpm_changes() {
 
     // 检查BPM变化事件的具体值
     if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
-        assert_eq!(*bpm, 75.5, "BPM变化事件的值应该是75.5");
+        assert_eq!(
+            bpm.to_f64().unwrap_or(0.0),
+            75.5,
+            "BPM变化事件的值应该是75.5"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "BPM变化事件的y坐标应该大于0"
@@ -213,7 +225,11 @@ fn test_event_timing_with_bpm_changes() {
 
     // 检查第二个BPM变化事件的具体值
     if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
-        assert_eq!(*bpm, 151.0, "第二个BPM变化事件的值应该是151.0");
+        assert_eq!(
+            bpm.to_f64().unwrap_or(0.0),
+            151.0,
+            "第二个BPM变化事件的值应该是151.0"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "第二个BPM变化事件的y坐标应该大于0"

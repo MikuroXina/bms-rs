@@ -200,22 +200,22 @@ pub enum ChartEvent {
     /// BPM 变更
     BpmChange {
         /// 新的 BPM 值（单位：每分钟拍数）
-        bpm: f64,
+        bpm: Decimal,
     },
     /// Scroll 因子变更
     ScrollChange {
         /// 滚动因子（相对值）
-        factor: f64,
+        factor: Decimal,
     },
     /// Speed 因子变更
     SpeedChange {
         /// 间距因子（相对值）
-        factor: f64,
+        factor: Decimal,
     },
     /// 停止滚动事件
     Stop {
         /// 停止时长（BMS：以谱面定义的时间单位折算；BMSON：脉冲数）
-        duration: f64,
+        duration: Decimal,
     },
     /// BGA（背景动画）变化事件
     ///
@@ -261,7 +261,7 @@ pub enum ControlEvent {
     /// 这个时间会影响可见窗口的大小计算。
     SetDefaultReactionTime {
         /// 反应时间（秒，>0）
-        seconds: f64,
+        seconds: Decimal,
     },
     /// 设置：默认绑定 BPM
     ///
@@ -269,7 +269,7 @@ pub enum ControlEvent {
     /// 实际播放速度 = 当前BPM / 默认BPM基准
     SetDefaultBpmBound {
         /// 作为默认速度基准的 BPM（>0）
-        bpm: f64,
+        bpm: Decimal,
     },
 }
 

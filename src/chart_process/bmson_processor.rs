@@ -9,6 +9,7 @@ use crate::bmson::{Bmson, Note, ScrollEvent, SoundChannel};
 use crate::chart_process::{
     BmpId, ChartEvent, ChartProcessor, ControlEvent, NoteView, WavId, YCoordinate,
 };
+use num::ToPrimitive;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -203,15 +204,21 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
     fn update(&mut self, now: SystemTime) -> Vec<(YCoordinate, ChartEvent)> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
-            match *evt {
+            match evt {
                 ControlEvent::SetDefaultReactionTime { seconds } => {
-                    if seconds.is_finite() && seconds > 0.0 {
-                        self.default_reaction_time = Duration::from_secs_f64(seconds);
+                    if let Some(seconds_f64) = seconds.to_f64()
+                        && seconds_f64.is_finite()
+                        && seconds_f64 > 0.0
+                    {
+                        self.default_reaction_time = Duration::from_secs_f64(seconds_f64);
                     }
                 }
                 ControlEvent::SetDefaultBpmBound { bpm } => {
-                    if bpm.is_finite() && bpm > 0.0 {
-                        self.default_bpm_bound = bpm;
+                    if let Some(bpm_f64) = bpm.to_f64()
+                        && bpm_f64.is_finite()
+                        && bpm_f64 > 0.0
+                    {
+                        self.default_bpm_bound = bpm_f64;
                     }
                 }
             }
@@ -249,7 +256,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 events.push((
                     y.into(),
                     ChartEvent::BpmChange {
-                        bpm: ev.bpm.as_f64(),
+                        bpm: ev.bpm.as_f64().into(),
                     },
                 ));
             }
@@ -260,7 +267,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 events.push((
                     y.into(),
                     ChartEvent::ScrollChange {
-                        factor: rate.as_f64(),
+                        factor: rate.as_f64().into(),
                     },
                 ));
             }
@@ -271,7 +278,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 events.push((
                     y.into(),
                     ChartEvent::Stop {
-                        duration: stop.duration as f64,
+                        duration: (stop.duration as f64).into(),
                     },
                 ));
             }

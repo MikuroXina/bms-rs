@@ -301,15 +301,21 @@ where
         // 处理通过 post_events 投递的外部事件
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
-            match *evt {
+            match evt {
                 ControlEvent::SetDefaultReactionTime { seconds } => {
-                    if seconds.is_finite() && seconds > 0.0 {
-                        self.default_reaction_time = Duration::from_secs_f64(seconds);
+                    if let Some(seconds_f64) = seconds.to_f64()
+                        && seconds_f64.is_finite()
+                        && seconds_f64 > 0.0
+                    {
+                        self.default_reaction_time = Duration::from_secs_f64(seconds_f64);
                     }
                 }
                 ControlEvent::SetDefaultBpmBound { bpm } => {
-                    if bpm.is_finite() && bpm > 0.0 {
-                        self.default_bpm_bound = bpm;
+                    if let Some(bpm_f64) = bpm.to_f64()
+                        && bpm_f64.is_finite()
+                        && bpm_f64 > 0.0
+                    {
+                        self.default_bpm_bound = bpm_f64;
                     }
                 }
             }
@@ -333,44 +339,52 @@ where
         // BPM 变更
         for change in self.bms.arrangers.bpm_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y
-                && y <= cur_y
-                && let Some(bpm) = dec_to_f64(&change.bpm)
-            {
-                events.push((y.into(), ChartEvent::BpmChange { bpm }));
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::BpmChange {
+                        bpm: change.bpm.clone(),
+                    },
+                ));
             }
         }
 
         // Scroll 变更
         for change in self.bms.arrangers.scrolling_factor_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y
-                && y <= cur_y
-                && let Some(factor) = dec_to_f64(&change.factor)
-            {
-                events.push((y.into(), ChartEvent::ScrollChange { factor }));
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::ScrollChange {
+                        factor: change.factor.clone(),
+                    },
+                ));
             }
         }
 
         // Speed 变更
         for change in self.bms.arrangers.speed_factor_changes.values() {
             let y = self.y_of_time(change.time);
-            if y > prev_y
-                && y <= cur_y
-                && let Some(factor) = dec_to_f64(&change.factor)
-            {
-                events.push((y.into(), ChartEvent::SpeedChange { factor }));
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::SpeedChange {
+                        factor: change.factor.clone(),
+                    },
+                ));
             }
         }
 
         // Stop 事件
         for stop in self.bms.arrangers.stops.values() {
             let y = self.y_of_time(stop.time);
-            if y > prev_y
-                && y <= cur_y
-                && let Some(d) = dec_to_f64(&stop.duration)
-            {
-                events.push((y.into(), ChartEvent::Stop { duration: d }));
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::Stop {
+                        duration: stop.duration.clone(),
+                    },
+                ));
             }
         }
 

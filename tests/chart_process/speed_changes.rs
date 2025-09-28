@@ -74,7 +74,11 @@ fn test_speed_processor_events() {
     if let Some((y, bms_rs::chart_process::ChartEvent::SpeedChange { factor })) =
         speed_events.first()
     {
-        assert_eq!(*factor, 1.0, "Speed变化事件的因子应该是1.0");
+        assert_eq!(
+            factor.to_f64().unwrap_or(0.0),
+            1.0,
+            "Speed变化事件的因子应该是1.0"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "Speed变化事件的y坐标应该大于0"
@@ -87,7 +91,11 @@ fn test_speed_processor_events() {
     if let Some((y, bms_rs::chart_process::ChartEvent::ScrollChange { factor })) =
         scroll_events.first()
     {
-        assert_eq!(*factor, 1.0, "Scroll变化事件的因子应该是1.0");
+        assert_eq!(
+            factor.to_f64().unwrap_or(0.0),
+            1.0,
+            "Scroll变化事件的因子应该是1.0"
+        );
         assert!(
             y.value().to_f64().unwrap_or(0.0) > 0.0,
             "Scroll变化事件的y坐标应该大于0"
