@@ -252,6 +252,38 @@ impl ObjId {
         self.0[0] = self.0[0].to_ascii_uppercase();
         self.0[1] = self.0[1].to_ascii_uppercase();
     }
+
+    /// Returns the base type used by this object ID based on its value range.
+    ///
+    /// This function determines the base type by checking the character ranges:
+    /// - If all characters are in 0-9A-F range: Base16
+    /// - If all characters are in 0-9A-Z range: Base36  
+    /// - Otherwise: Base62
+    #[must_use]
+    pub fn base_type(self) -> BaseType {
+        // Check if all characters are valid for Base16 (0-9A-F)
+        if self
+            .0
+            .iter()
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='F'))
+        {
+            return BaseType::Base16;
+        }
+
+        // Check if all characters are valid for Base36 (0-9A-Z)
+        if self
+            .0
+            .iter()
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='Z'))
+        {
+            return BaseType::Base36;
+        }
+
+        // Otherwise, it's Base62
+        BaseType::Base62
+    }
 }
 
 /// A play volume of the sound in the score. Defaults to 100.
