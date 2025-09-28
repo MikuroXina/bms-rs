@@ -8,7 +8,7 @@
 
 use crate::bms::{
     Decimal,
-    prelude::{Key, NoteKind, PlayerSide},
+    prelude::{BgaLayer, Key, NoteKind, PlayerSide},
 };
 
 pub mod bms_processor;
@@ -154,6 +154,36 @@ pub enum ChartEvent {
         /// 停止时长（BMS：以谱面定义的时间单位折算；BMSON：脉冲数）
         duration: f64,
     },
+    /// BGA（背景动画）变化事件
+    ///
+    /// 当播放位置到达BGA变化时间点时触发，表示需要切换到指定的背景图像。
+    /// 支持多个BGA层级：Base（基础层）、Overlay（覆盖层）、Overlay2（第二覆盖层）和Poor（失败时显示）。
+    BgaChange {
+        /// BGA 层级
+        layer: BgaLayer,
+        /// BGA/BMP 资源 ID，通过 `bmp_files()` 方法获取对应的文件路径
+        bmp_index: usize,
+    },
+    /// BGA 不透明度变化事件（需要启用 minor-command 特性）
+    ///
+    /// 动态调整指定BGA层级的不透明度，实现淡入淡出效果。
+    #[cfg(feature = "minor-command")]
+    BgaOpacityChange {
+        /// BGA 层级
+        layer: BgaLayer,
+        /// 不透明度值 (0x01-0xFF，0x01表示几乎透明，0xFF表示完全不透明)
+        opacity: u8,
+    },
+    /// BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
+    ///
+    /// 动态调整指定BGA层级的颜色，通过ARGB值实现颜色滤镜效果。
+    #[cfg(feature = "minor-command")]
+    BgaArgbChange {
+        /// BGA 层级
+        layer: BgaLayer,
+        /// ARGB 颜色值 (格式：0xAARRGGBB)
+        argb: u32,
+    },
 }
 
 /// 播放器控制和设置事件。
@@ -214,4 +244,77 @@ pub trait ChartProcessor {
 
     /// 查询：当前可见区域中的所有音符（含其轨道与到判定线的剩余距离）。
     fn visible_notes(&mut self, now: SystemTime) -> Vec<NoteView>;
+}
+
+/// 示例：处理BGA事件的辅助函数
+///
+/// ```rust,ignore
+/// use bms_rs::chart_process::{ChartProcessor, ChartEvent, BgaLayer};
+///
+/// fn handle_bga_events(processor: &mut impl ChartProcessor, now: std::time::SystemTime) {
+///     let events = processor.update(now);
+///
+///     for (y, event) in events {
+///         match event {
+///             ChartEvent::BgaChange { layer, bmp_index } => {
+///                 println!("BGA变化: 层级={:?}, 图片ID={}", layer, bmp_index);
+///                 // 这里可以加载并显示对应的BMP文件
+///                 let bmp_files = processor.bmp_files();
+///                 if let Some(bmp_path) = bmp_files.get(&bmp_index) {
+///                     println!("显示BGA图片: {}", bmp_path.display());
+///                 }
+///             }
+///             ChartEvent::BgaOpacityChange { layer, opacity } => {
+///                 println!("BGA不透明度变化: 层级={:?}, 不透明度={}", layer, opacity);
+///                 // 调整BGA层级的不透明度
+///             }
+///             ChartEvent::BgaArgbChange { layer, argb } => {
+///                 println!("BGA颜色变化: 层级={:?}, ARGB={:08X}", layer, argb);
+///                 // 应用颜色滤镜效果
+///             }
+///             _ => {} // 处理其他事件类型
+///         }
+///     }
+/// }
+/// ```
+impl ChartProcessor for () {
+    fn audio_files(&self) -> std::collections::HashMap<usize, &std::path::Path> {
+        std::collections::HashMap::new()
+    }
+
+    fn bmp_files(&self) -> std::collections::HashMap<usize, &std::path::Path> {
+        std::collections::HashMap::new()
+    }
+
+    fn default_reaction_time(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(500)
+    }
+
+    fn default_bpm_bound(&self) -> f64 {
+        120.0
+    }
+
+    fn current_bpm(&self) -> f64 {
+        120.0
+    }
+
+    fn current_speed(&self) -> f64 {
+        1.0
+    }
+
+    fn current_scroll(&self) -> f64 {
+        1.0
+    }
+
+    fn start_play(&mut self, _now: std::time::SystemTime) {}
+
+    fn update(&mut self, _now: std::time::SystemTime) -> Vec<(crate::chart_process::YCoordinate, ChartEvent)> {
+        Vec::new()
+    }
+
+    fn post_events(&mut self, _events: &[crate::chart_process::ControlEvent]) {}
+
+    fn visible_notes(&mut self, _now: std::time::SystemTime) -> Vec<crate::chart_process::NoteView> {
+        Vec::new()
+    }
 }

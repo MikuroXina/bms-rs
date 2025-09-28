@@ -275,6 +275,48 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             }
         }
 
+        // BGA 基础层事件
+        for bga_event in &self.bmson.bga.bga_events {
+            let y = self.pulses_to_y(bga_event.y.0);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Base,
+                        bmp_index: bga_event.id.0 as usize,
+                    },
+                ));
+            }
+        }
+
+        // BGA 覆盖层事件
+        for layer_event in &self.bmson.bga.layer_events {
+            let y = self.pulses_to_y(layer_event.y.0);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Overlay,
+                        bmp_index: layer_event.id.0 as usize,
+                    },
+                ));
+            }
+        }
+
+        // BGA 失败层事件
+        for poor_event in &self.bmson.bga.poor_events {
+            let y = self.pulses_to_y(poor_event.y.0);
+            if y > prev_y && y <= cur_y {
+                events.push((
+                    y.into(),
+                    ChartEvent::BgaChange {
+                        layer: BgaLayer::Poor,
+                        bmp_index: poor_event.id.0 as usize,
+                    },
+                ));
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(&b.0.value())

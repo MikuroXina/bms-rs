@@ -372,6 +372,58 @@ where
             }
         }
 
+        // BGA 变化事件
+        for bga_obj in self.bms.graphics.bga_changes.values() {
+            let y = self.y_of_time(bga_obj.time);
+            if y > prev_y && y <= cur_y {
+                let bmp_index = bga_obj.id.as_u16() as usize;
+                events.push((
+                    y.into(),
+                    ChartEvent::BgaChange {
+                        layer: bga_obj.layer,
+                        bmp_index,
+                    },
+                ));
+            }
+        }
+
+        // BGA 不透明度变化事件（需要启用 minor-command 特性）
+        #[cfg(feature = "minor-command")]
+        for (layer, opacity_changes) in &self.bms.graphics.bga_opacity_changes {
+            for opacity_obj in opacity_changes.values() {
+                let y = self.y_of_time(opacity_obj.time);
+                if y > prev_y && y <= cur_y {
+                    events.push((
+                        y.into(),
+                        ChartEvent::BgaOpacityChange {
+                            layer: *layer,
+                            opacity: opacity_obj.opacity,
+                        },
+                    ));
+                }
+            }
+        }
+
+        // BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
+        #[cfg(feature = "minor-command")]
+        for (layer, argb_changes) in &self.bms.graphics.bga_argb_changes {
+            for argb_obj in argb_changes.values() {
+                let y = self.y_of_time(argb_obj.time);
+                if y > prev_y && y <= cur_y {
+                    events.push((
+                        y.into(),
+                        ChartEvent::BgaArgbChange {
+                            layer: *layer,
+                            argb: ((argb_obj.argb.alpha as u32) << 24)
+                                | ((argb_obj.argb.red as u32) << 16)
+                                | ((argb_obj.argb.green as u32) << 8)
+                                | (argb_obj.argb.blue as u32),
+                        },
+                    ));
+                }
+            }
+        }
+
         events.sort_by(|a, b| {
             a.0.value()
                 .partial_cmp(&b.0.value())
