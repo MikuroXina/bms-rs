@@ -304,19 +304,32 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         let mut events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
         for SoundChannel { name, notes } in &self.bmson.sound_channels {
-            for Note { y, x, .. } in notes {
+            for Note { y, x, l, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 if yy > prev_y && yy <= cur_y {
                     if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
                         // 普通音符通道有声音，通过name映射到WavId
                         let wav_id = self.get_wav_id_for_name(name);
+                        let length = if *l > 0 {
+                            // 长条音符：计算结束位置
+                            let end_y = self.pulses_to_y(y.0 + l);
+                            Some(YCoordinate::from(end_y - yy))
+                        } else {
+                            None
+                        };
+                        let kind = if *l > 0 {
+                            NoteKind::Long
+                        } else {
+                            NoteKind::Visible
+                        };
                         events.push((
                             yy.into(),
                             ChartEvent::Note {
                                 side,
                                 key,
-                                kind: NoteKind::Visible,
+                                kind,
                                 wav_id,
+                                length,
                             },
                         ));
                     } else {
@@ -461,6 +474,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             key,
                             kind: NoteKind::Landmine,
                             wav_id,
+                            length: None, // 地雷音符没有长度
                         },
                     ));
                 }
@@ -484,6 +498,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             key,
                             kind: NoteKind::Invisible,
                             wav_id,
+                            length: None, // 隐藏音符没有长度
                         },
                     ));
                 }
@@ -515,7 +530,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         let mut out: Vec<(f64, NoteView)> = Vec::new();
         for SoundChannel { name: _, notes } in &self.bmson.sound_channels {
-            for Note { y, x, .. } in notes {
+            for Note { y, x, l, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let raw_distance = yy - cur_y;
                 let scaled_distance = self.current_scroll * self.current_speed * raw_distance;
@@ -523,6 +538,13 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     && scaled_distance <= max_scaled
                     && let Some((side, key)) = Self::lane_from_x(x.as_ref().copied())
                 {
+                    let length = if *l > 0 {
+                        // 长条音符：计算结束位置
+                        let end_y = self.pulses_to_y(y.0 + l);
+                        Some(YCoordinate::from(end_y - yy))
+                    } else {
+                        None
+                    };
                     out.push((
                         yy,
                         NoteView {
@@ -530,6 +552,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                             key,
                             distance_to_hit: scaled_distance.into(),
                             wav_id: None,
+                            length,
                         },
                     ));
                 }

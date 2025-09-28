@@ -237,10 +237,21 @@ where
     }
 
     fn build_note_view(&self, obj: &WavObj) -> Option<(f64, NoteView)> {
-        let (side, key, _kind) = Self::lane_of_channel_id(obj.channel_id)?;
+        let (side, key, kind) = Self::lane_of_channel_id(obj.channel_id)?;
         let y = self.y_of_time(obj.offset);
         let distance = y - self.progressed_y;
         let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+        let length = if kind == NoteKind::Long {
+            // 长条音符：查找下一个同通道的音符来计算长度
+            if let Some(next_obj) = self.bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
+                let next_y = self.y_of_time(next_obj.offset);
+                Some(YCoordinate::from(next_y - y))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         Some((
             y,
             NoteView {
@@ -248,6 +259,7 @@ where
                 key,
                 distance_to_hit: distance.into(),
                 wav_id,
+                length,
             },
         ))
     }
@@ -255,6 +267,18 @@ where
     fn event_for_note(&self, obj: &WavObj, y: f64) -> (YCoordinate, ChartEvent) {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+            let length = if kind == NoteKind::Long {
+                // 长条音符：查找下一个同通道的音符来计算长度
+                if let Some(next_obj) = self.bms.notes().next_obj_by_key(obj.channel_id, obj.offset)
+                {
+                    let next_y = self.y_of_time(next_obj.offset);
+                    Some(YCoordinate::from(next_y - y))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
             (
                 y.into(),
                 ChartEvent::Note {
@@ -262,6 +286,7 @@ where
                     key,
                     kind,
                     wav_id,
+                    length,
                 },
             )
         } else {

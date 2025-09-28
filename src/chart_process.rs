@@ -173,6 +173,8 @@ pub struct NoteView {
     pub distance_to_hit: YCoordinate,
     /// 关联的声音资源ID（BMS 为 `#WAVxx` 映射的整数；BMSON 常为 None）
     pub wav_id: Option<WavId>,
+    /// 音符长度（长条音符的结束位置，普通音符为 None）
+    pub length: Option<YCoordinate>,
 }
 
 /// 播放过程中产生的事件（Elm 风格）。
@@ -191,6 +193,8 @@ pub enum ChartEvent {
         kind: NoteKind,
         /// 对应的声音资源ID（若有）
         wav_id: Option<WavId>,
+        /// 音符长度（长条音符的结束位置，普通音符为 None）
+        length: Option<YCoordinate>,
     },
     /// BGM 等非按键类触发（无有效 side/key）
     Bgm {
