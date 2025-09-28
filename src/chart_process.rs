@@ -31,16 +31,19 @@ pub struct YCoordinate(pub Decimal);
 
 impl YCoordinate {
     /// 创建一个新的 YCoordinate
+    #[must_use]
     pub fn new(value: Decimal) -> Self {
         Self(value)
     }
 
     /// 获取内部的 Decimal 值
+    #[must_use]
     pub fn value(&self) -> &Decimal {
         &self.0
     }
 
     /// 转换为 f64（用于兼容性）
+    #[must_use]
     pub fn as_f64(&self) -> f64 {
         self.0.to_string().parse::<f64>().unwrap_or(0.0)
     }
@@ -308,13 +311,19 @@ impl ChartProcessor for () {
 
     fn start_play(&mut self, _now: std::time::SystemTime) {}
 
-    fn update(&mut self, _now: std::time::SystemTime) -> Vec<(crate::chart_process::YCoordinate, ChartEvent)> {
+    fn update(
+        &mut self,
+        _now: std::time::SystemTime,
+    ) -> Vec<(crate::chart_process::YCoordinate, ChartEvent)> {
         Vec::new()
     }
 
     fn post_events(&mut self, _events: &[crate::chart_process::ControlEvent]) {}
 
-    fn visible_notes(&mut self, _now: std::time::SystemTime) -> Vec<crate::chart_process::NoteView> {
+    fn visible_notes(
+        &mut self,
+        _now: std::time::SystemTime,
+    ) -> Vec<crate::chart_process::NoteView> {
         Vec::new()
     }
 }

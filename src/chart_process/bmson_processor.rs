@@ -319,7 +319,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         events.sort_by(|a, b| {
             a.0.value()
-                .partial_cmp(&b.0.value())
+                .partial_cmp(b.0.value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         events
