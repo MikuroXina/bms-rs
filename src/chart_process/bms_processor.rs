@@ -1,6 +1,6 @@
 //! Bms Processor Module.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
@@ -32,6 +32,9 @@ where
 
     /// 已生成小节线的Track集合
     generated_bar_lines: HashSet<Track>,
+
+    /// 所有事件的映射（按 Y 坐标排序）
+    all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
 
     /// 预加载的事件列表（当前可见区域内的所有事件）
     preloaded_events: Vec<(YCoordinate, ChartEvent)>,
@@ -65,6 +68,8 @@ where
         let base_bpm = Decimal::from(120);
         let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
 
+        let all_events = Self::precompute_all_events(&bms);
+
         Self {
             bms,
             started_at: None,
@@ -72,11 +77,240 @@ where
             progressed_y: 0.0,
             inbox: Vec::new(),
             generated_bar_lines: HashSet::new(),
+            all_events,
             preloaded_events: Vec::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
             current_speed: Decimal::from(1),
             current_scroll: Decimal::from(1),
+        }
+    }
+
+    /// 预先计算所有事件，按 Y 坐标分组存储
+    fn precompute_all_events(bms: &Bms<T>) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
+        let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
+
+        // Note / Wav 到达事件
+        for obj in bms.notes().all_notes() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, obj.offset));
+            let event = Self::event_for_note_static(bms, obj, y.value().to_f64().unwrap_or(0.0));
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // BPM 变更事件
+        for change in bms.arrangers.bpm_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, change.time));
+            let event = ChartEvent::BpmChange {
+                bpm: change.bpm.clone(),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // Scroll 变更事件
+        for change in bms.arrangers.scrolling_factor_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, change.time));
+            let event = ChartEvent::ScrollChange {
+                factor: change.factor.clone(),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // Speed 变更事件
+        for change in bms.arrangers.speed_factor_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, change.time));
+            let event = ChartEvent::SpeedChange {
+                factor: change.factor.clone(),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // Stop 事件
+        for stop in bms.arrangers.stops.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, stop.time));
+            let event = ChartEvent::Stop {
+                duration: stop.duration.clone(),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // BGA 变化事件
+        for bga_obj in bms.graphics.bga_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, bga_obj.time));
+            let bmp_index = bga_obj.id.as_u16() as usize;
+            let event = ChartEvent::BgaChange {
+                layer: bga_obj.layer,
+                bmp_id: Some(BmpId::from(bmp_index)),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // BGA 不透明度变化事件（需要启用 minor-command 特性）
+        #[cfg(feature = "minor-command")]
+        for (layer, opacity_changes) in &bms.graphics.bga_opacity_changes {
+            for opacity_obj in opacity_changes.values() {
+                let y = YCoordinate::from(Self::y_of_time_static(bms, opacity_obj.time));
+                let event = ChartEvent::BgaOpacityChange {
+                    layer: *layer,
+                    opacity: opacity_obj.opacity,
+                };
+
+                events_map.entry(y).or_default().push(event);
+            }
+        }
+
+        // BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
+        #[cfg(feature = "minor-command")]
+        for (layer, argb_changes) in &bms.graphics.bga_argb_changes {
+            for argb_obj in argb_changes.values() {
+                let y = YCoordinate::from(Self::y_of_time_static(bms, argb_obj.time));
+                let argb = ((argb_obj.argb.alpha as u32) << 24)
+                    | ((argb_obj.argb.red as u32) << 16)
+                    | ((argb_obj.argb.green as u32) << 8)
+                    | (argb_obj.argb.blue as u32);
+                let event = ChartEvent::BgaArgbChange {
+                    layer: *layer,
+                    argb,
+                };
+
+                events_map.entry(y).or_default().push(event);
+            }
+        }
+
+        // BGM 音量变化事件
+        for bgm_volume_obj in bms.notes.bgm_volume_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, bgm_volume_obj.time));
+            let event = ChartEvent::BgmVolumeChange {
+                volume: bgm_volume_obj.volume,
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // KEY 音量变化事件
+        for key_volume_obj in bms.notes.key_volume_changes.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, key_volume_obj.time));
+            let event = ChartEvent::KeyVolumeChange {
+                volume: key_volume_obj.volume,
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // 文本显示事件
+        for text_obj in bms.notes.text_events.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, text_obj.time));
+            let event = ChartEvent::TextDisplay {
+                text: text_obj.text.clone(),
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // 判定等级变化事件
+        for judge_obj in bms.notes.judge_events.values() {
+            let y = YCoordinate::from(Self::y_of_time_static(bms, judge_obj.time));
+            let event = ChartEvent::JudgeLevelChange {
+                level: judge_obj.judge_level,
+            };
+
+            events_map.entry(y).or_default().push(event);
+        }
+
+        // Minor-command 特性事件
+        #[cfg(feature = "minor-command")]
+        {
+            // 视频跳转事件
+            for seek_obj in bms.notes.seek_events.values() {
+                let y = YCoordinate::from(Self::y_of_time_static(bms, seek_obj.time));
+                let event = ChartEvent::VideoSeek {
+                    seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
+                };
+
+                events_map.entry(y).or_default().push(event);
+            }
+
+            // BGA 键绑定事件
+            for bga_keybound_obj in bms.notes.bga_keybound_events.values() {
+                let y = YCoordinate::from(Self::y_of_time_static(bms, bga_keybound_obj.time));
+                let event = ChartEvent::BgaKeybound {
+                    event: bga_keybound_obj.event.clone(),
+                };
+
+                events_map.entry(y).or_default().push(event);
+            }
+
+            // 选项变化事件
+            for option_obj in bms.notes.option_events.values() {
+                let y = YCoordinate::from(Self::y_of_time_static(bms, option_obj.time));
+                let event = ChartEvent::OptionChange {
+                    option: option_obj.option.clone(),
+                };
+
+                events_map.entry(y).or_default().push(event);
+            }
+        }
+
+        events_map
+    }
+
+    /// 静态版本的 y_of_time，用于预计算
+    fn y_of_time_static(bms: &Bms<T>, time: ObjTime) -> f64 {
+        let mut y = 0.0f64;
+        // 累加完整小节
+        for t in 0..time.track().0 {
+            let section_len = bms
+                .arrangers
+                .section_len_changes
+                .get(&Track(t))
+                .and_then(|s| dec_to_f64(&s.length))
+                .unwrap_or(1.0);
+            y += section_len;
+        }
+        // 当前小节内按比例累加
+        let current_len = bms
+            .arrangers
+            .section_len_changes
+            .get(&time.track())
+            .and_then(|s| dec_to_f64(&s.length))
+            .unwrap_or(1.0);
+        if time.denominator().get() > 0 {
+            y += current_len * (time.numerator() as f64) / (time.denominator().get() as f64);
+        }
+        y
+    }
+
+    /// 静态版本的 event_for_note，用于预计算
+    fn event_for_note_static(bms: &Bms<T>, obj: &WavObj, y: f64) -> ChartEvent {
+        if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
+            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+            let length = if kind == NoteKind::Long {
+                // 长条音符：查找下一个同通道的音符来计算长度
+                if let Some(next_obj) = bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
+                    let next_y = Self::y_of_time_static(bms, next_obj.offset);
+                    Some(YCoordinate::from(next_y - y))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            ChartEvent::Note {
+                side,
+                key,
+                kind,
+                wav_id,
+                length,
+                continue_play: false, // BMS固定为false
+            }
+        } else {
+            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+            ChartEvent::Bgm { wav_id }
         }
     }
 
@@ -88,29 +322,6 @@ where
             .get(&track)
             .and_then(|s| dec_to_f64(&s.length))
             .unwrap_or(1.0)
-    }
-
-    /// 生成小节线事件
-    fn generate_bar_line_events(
-        &mut self,
-        prev_y: f64,
-        cur_y: f64,
-        events: &mut Vec<(YCoordinate, ChartEvent)>,
-    ) {
-        // 获取所有存在的Track
-        for track in self.bms.arrangers.section_len_changes.keys() {
-            let track_y = self.y_of_time(ObjTime::new(
-                track.0,
-                0,
-                std::num::NonZeroU64::new(1).unwrap(),
-            ));
-
-            // 检查是否在当前时间范围内且尚未生成小节线
-            if track_y > prev_y && track_y <= cur_y && !self.generated_bar_lines.contains(track) {
-                events.push((track_y.into(), ChartEvent::BarLine));
-                self.generated_bar_lines.insert(*track);
-            }
-        }
     }
 
     /// 将 `ObjTime` 转换为累计位移 y（单位：小节，默认 4/4 下一小节为 1；按 `#SECLEN` 线性换算）。
@@ -252,38 +463,6 @@ where
             None
         }
     }
-
-    fn event_for_note(&self, obj: &WavObj, y: f64) -> (YCoordinate, ChartEvent) {
-        if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
-            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-            let length = if kind == NoteKind::Long {
-                // 长条音符：查找下一个同通道的音符来计算长度
-                if let Some(next_obj) = self.bms.notes().next_obj_by_key(obj.channel_id, obj.offset)
-                {
-                    let next_y = self.y_of_time(next_obj.offset);
-                    Some(YCoordinate::from(next_y - y))
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            (
-                y.into(),
-                ChartEvent::Note {
-                    side,
-                    key,
-                    kind,
-                    wav_id,
-                    length,
-                    continue_play: false, // BMS固定为false
-                },
-            )
-        } else {
-            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-            (y.into(), ChartEvent::Bgm { wav_id })
-        }
-    }
 }
 
 impl<T> ChartProcessor for BmsProcessor<T>
@@ -363,338 +542,21 @@ where
         // 收集预加载范围内的事件
         let mut new_preloaded_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
 
-        // 生成小节线事件
-        self.generate_bar_line_events(prev_y, preload_end_y, &mut new_preloaded_events);
+        // 从预先计算好的事件 Map 中获取事件
+        for (y_coord, events) in &self.all_events {
+            let y = y_coord.value().to_f64().unwrap_or(0.0);
 
-        // Note / Wav 到达事件
-        for obj in self.bms.notes().all_notes() {
-            let y = self.y_of_time(obj.offset);
+            // 如果事件在当前时刻触发
             if y > prev_y && y <= cur_y {
-                // 当前时刻触发的事件
-                let (y_coord, evt) = self.event_for_note(obj, y);
-                triggered_events.push((y_coord, evt));
-            }
-            if y > cur_y && y <= preload_end_y {
-                // 预加载范围内的事件
-                let (y_coord, evt) = self.event_for_note(obj, y);
-                new_preloaded_events.push((y_coord, evt));
-            }
-        }
-
-        // BPM 变更
-        for change in self.bms.arrangers.bpm_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::BpmChange {
-                        bpm: change.bpm.clone(),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::BpmChange {
-                        bpm: change.bpm.clone(),
-                    },
-                ));
-            }
-        }
-
-        // Scroll 变更
-        for change in self.bms.arrangers.scrolling_factor_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::ScrollChange {
-                        factor: change.factor.clone(),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::ScrollChange {
-                        factor: change.factor.clone(),
-                    },
-                ));
-            }
-        }
-
-        // Speed 变更
-        for change in self.bms.arrangers.speed_factor_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::SpeedChange {
-                        factor: change.factor.clone(),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::SpeedChange {
-                        factor: change.factor.clone(),
-                    },
-                ));
-            }
-        }
-
-        // Stop 事件
-        for stop in self.bms.arrangers.stops.values() {
-            let y = self.y_of_time(stop.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::Stop {
-                        duration: stop.duration.clone(),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::Stop {
-                        duration: stop.duration.clone(),
-                    },
-                ));
-            }
-        }
-
-        // BGA 变化事件
-        for bga_obj in self.bms.graphics.bga_changes.values() {
-            let y = self.y_of_time(bga_obj.time);
-            if y > prev_y && y <= cur_y {
-                let bmp_index = bga_obj.id.as_u16() as usize;
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::BgaChange {
-                        layer: bga_obj.layer,
-                        bmp_id: Some(BmpId::from(bmp_index)),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                let bmp_index = bga_obj.id.as_u16() as usize;
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::BgaChange {
-                        layer: bga_obj.layer,
-                        bmp_id: Some(BmpId::from(bmp_index)),
-                    },
-                ));
-            }
-        }
-
-        // BGA 不透明度变化事件（需要启用 minor-command 特性）
-        #[cfg(feature = "minor-command")]
-        for (layer, opacity_changes) in &self.bms.graphics.bga_opacity_changes {
-            for opacity_obj in opacity_changes.values() {
-                let y = self.y_of_time(opacity_obj.time);
-                if y > prev_y && y <= cur_y {
-                    triggered_events.push((
-                        y.into(),
-                        ChartEvent::BgaOpacityChange {
-                            layer: *layer,
-                            opacity: opacity_obj.opacity,
-                        },
-                    ));
-                }
-                if y > cur_y && y <= preload_end_y {
-                    new_preloaded_events.push((
-                        y.into(),
-                        ChartEvent::BgaOpacityChange {
-                            layer: *layer,
-                            opacity: opacity_obj.opacity,
-                        },
-                    ));
-                }
-            }
-        }
-
-        // BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
-        #[cfg(feature = "minor-command")]
-        for (layer, argb_changes) in &self.bms.graphics.bga_argb_changes {
-            for argb_obj in argb_changes.values() {
-                let y = self.y_of_time(argb_obj.time);
-                if y > prev_y && y <= cur_y {
-                    triggered_events.push((
-                        y.into(),
-                        ChartEvent::BgaArgbChange {
-                            layer: *layer,
-                            argb: ((argb_obj.argb.alpha as u32) << 24)
-                                | ((argb_obj.argb.red as u32) << 16)
-                                | ((argb_obj.argb.green as u32) << 8)
-                                | (argb_obj.argb.blue as u32),
-                        },
-                    ));
-                }
-                if y > cur_y && y <= preload_end_y {
-                    new_preloaded_events.push((
-                        y.into(),
-                        ChartEvent::BgaArgbChange {
-                            layer: *layer,
-                            argb: ((argb_obj.argb.alpha as u32) << 24)
-                                | ((argb_obj.argb.red as u32) << 16)
-                                | ((argb_obj.argb.green as u32) << 8)
-                                | (argb_obj.argb.blue as u32),
-                        },
-                    ));
-                }
-            }
-        }
-
-        // BGM 音量变化事件
-        for bgm_volume_obj in self.bms.notes.bgm_volume_changes.values() {
-            let y = self.y_of_time(bgm_volume_obj.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::BgmVolumeChange {
-                        volume: bgm_volume_obj.volume,
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::BgmVolumeChange {
-                        volume: bgm_volume_obj.volume,
-                    },
-                ));
-            }
-        }
-
-        // KEY 音量变化事件
-        for key_volume_obj in self.bms.notes.key_volume_changes.values() {
-            let y = self.y_of_time(key_volume_obj.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::KeyVolumeChange {
-                        volume: key_volume_obj.volume,
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::KeyVolumeChange {
-                        volume: key_volume_obj.volume,
-                    },
-                ));
-            }
-        }
-
-        // 文本显示事件
-        for text_obj in self.bms.notes.text_events.values() {
-            let y = self.y_of_time(text_obj.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::TextDisplay {
-                        text: text_obj.text.clone(),
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::TextDisplay {
-                        text: text_obj.text.clone(),
-                    },
-                ));
-            }
-        }
-
-        // 判定等级变化事件
-        for judge_obj in self.bms.notes.judge_events.values() {
-            let y = self.y_of_time(judge_obj.time);
-            if y > prev_y && y <= cur_y {
-                triggered_events.push((
-                    y.into(),
-                    ChartEvent::JudgeLevelChange {
-                        level: judge_obj.judge_level,
-                    },
-                ));
-            }
-            if y > cur_y && y <= preload_end_y {
-                new_preloaded_events.push((
-                    y.into(),
-                    ChartEvent::JudgeLevelChange {
-                        level: judge_obj.judge_level,
-                    },
-                ));
-            }
-        }
-
-        // Minor-command 特性事件
-        #[cfg(feature = "minor-command")]
-        {
-            // 视频跳转事件
-            for seek_obj in self.bms.notes.seek_events.values() {
-                let y = self.y_of_time(seek_obj.time);
-                if y > prev_y && y <= cur_y {
-                    triggered_events.push((
-                        y.into(),
-                        ChartEvent::VideoSeek {
-                            seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
-                        },
-                    ));
-                }
-                if y > cur_y && y <= preload_end_y {
-                    new_preloaded_events.push((
-                        y.into(),
-                        ChartEvent::VideoSeek {
-                            seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
-                        },
-                    ));
+                for event in events {
+                    triggered_events.push((y_coord.clone(), event.clone()));
                 }
             }
 
-            // BGA 键绑定事件
-            for bga_keybound_obj in self.bms.notes.bga_keybound_events.values() {
-                let y = self.y_of_time(bga_keybound_obj.time);
-                if y > prev_y && y <= cur_y {
-                    triggered_events.push((
-                        y.into(),
-                        ChartEvent::BgaKeybound {
-                            event: bga_keybound_obj.event.clone(),
-                        },
-                    ));
-                }
-                if y > cur_y && y <= preload_end_y {
-                    new_preloaded_events.push((
-                        y.into(),
-                        ChartEvent::BgaKeybound {
-                            event: bga_keybound_obj.event.clone(),
-                        },
-                    ));
-                }
-            }
-
-            // 选项变化事件
-            for option_obj in self.bms.notes.option_events.values() {
-                let y = self.y_of_time(option_obj.time);
-                if y > prev_y && y <= cur_y {
-                    triggered_events.push((
-                        y.into(),
-                        ChartEvent::OptionChange {
-                            option: option_obj.option.clone(),
-                        },
-                    ));
-                }
-                if y > cur_y && y <= preload_end_y {
-                    new_preloaded_events.push((
-                        y.into(),
-                        ChartEvent::OptionChange {
-                            option: option_obj.option.clone(),
-                        },
-                    ));
+            // 如果事件在预加载范围内
+            if y > cur_y && y <= preload_end_y {
+                for event in events {
+                    new_preloaded_events.push((y_coord.clone(), event.clone()));
                 }
             }
         }
