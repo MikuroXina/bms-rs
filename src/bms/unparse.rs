@@ -977,7 +977,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .iter()
             .any(|id| !id.is_base36() && id.is_base62());
         if needs_base62 {
-            tokens.push(Token::Base62);
+            tokens.push(Token::Base(BaseType::Base62));
         }
 
         tokens
