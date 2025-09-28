@@ -233,11 +233,11 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                                 side,
                                 key,
                                 kind: NoteKind::Visible,
-                                wav_index: None,
+                                wav_id: None,
                             },
                         ));
                     } else {
-                        events.push((yy.into(), ChartEvent::Bgm { wav_index: None }));
+                        events.push((yy.into(), ChartEvent::Bgm { wav_id: None }));
                     }
                 }
             }
@@ -285,7 +285,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Base,
-                        bmp_id: BmpId::from(bga_event.id.0 as usize),
+                        bmp_id: Some(BmpId::from(bga_event.id.0 as usize)),
                     },
                 ));
             }
@@ -299,7 +299,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Overlay,
-                        bmp_id: BmpId::from(layer_event.id.0 as usize),
+                        bmp_id: Some(BmpId::from(layer_event.id.0 as usize)),
                     },
                 ));
             }
@@ -313,7 +313,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: BgaLayer::Poor,
-                        bmp_id: BmpId::from(poor_event.id.0 as usize),
+                        bmp_id: Some(BmpId::from(poor_event.id.0 as usize)),
                     },
                 ));
             }

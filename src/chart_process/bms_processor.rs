@@ -213,33 +213,33 @@ where
         let (side, key, _kind) = Self::lane_of_channel_id(obj.channel_id)?;
         let y = self.y_of_time(obj.offset);
         let distance = y - self.progressed_y;
-        let wav_index = Some(obj.wav_id.as_u16() as usize);
+        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
         Some((
             y,
             NoteView {
                 side,
                 key,
                 distance_to_hit: distance.into(),
-                wav_index,
+                wav_index: wav_id.map(|id| id.value()),
             },
         ))
     }
 
     fn event_for_note(&self, obj: &WavObj, y: f64) -> (YCoordinate, ChartEvent) {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
-            let wav_index = Some(obj.wav_id.as_u16() as usize);
+            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
             (
                 y.into(),
                 ChartEvent::Note {
                     side,
                     key,
                     kind,
-                    wav_index,
+                    wav_id,
                 },
             )
         } else {
-            let wav_index = Some(obj.wav_id.as_u16() as usize);
-            (y.into(), ChartEvent::Bgm { wav_index })
+            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+            (y.into(), ChartEvent::Bgm { wav_id })
         }
     }
 }
@@ -383,7 +383,7 @@ where
                     y.into(),
                     ChartEvent::BgaChange {
                         layer: bga_obj.layer,
-                        bmp_id: BmpId::from(bmp_index),
+                        bmp_id: Some(BmpId::from(bmp_index)),
                     },
                 ));
             }
