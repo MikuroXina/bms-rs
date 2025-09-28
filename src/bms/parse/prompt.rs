@@ -35,16 +35,15 @@ use crate::bms::{
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
-pub trait PromptHandler {
+pub trait Prompter {
     /// Determines a [`DuplicationWorkaround`] for [`DefDuplication`].
-    fn handle_def_duplication(&mut self, duplication: DefDuplication) -> DuplicationWorkaround;
+    fn handle_def_duplication(&self, duplication: DefDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`TrackDuplication`].
-    fn handle_track_duplication(&mut self, duplication: TrackDuplication) -> DuplicationWorkaround;
+    fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
-    fn handle_channel_duplication(
-        &mut self,
-        duplication: ChannelDuplication,
-    ) -> DuplicationWorkaround;
+    fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
+    /// Shows the user a [`ParseWarning`].
+    fn warn(&self, warning: ParseWarning);
 }
 
 /// It represents that there is a duplicated definition on the BMS file.

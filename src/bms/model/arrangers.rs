@@ -4,7 +4,7 @@ use crate::{
     bms::prelude::*,
     parse::{
         Result,
-        prompt::{ChannelDuplication, TrackDuplication},
+        prompt::{ChannelDuplication, Prompter, TrackDuplication},
     },
 };
 
@@ -44,7 +44,7 @@ impl Arrangers {
     pub fn push_bpm_change(
         &mut self,
         bpm_change: BpmChangeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bpm_changes.entry(bpm_change.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
