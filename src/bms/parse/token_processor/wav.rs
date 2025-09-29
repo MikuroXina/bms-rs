@@ -35,6 +35,90 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 bms.notes.wav_files.insert(wav_obj_id, path.into());
             }
         }
+        #[cfg(feature = "minor-command")]
+        if name.starts_with("EXWAV") {
+            let id = name.trim_start_matches("EXWAV");
+            let mut args = args.split_whitespace();
+            let Some(pvf_params) = args.next() else {
+                return Err(ParseWarning::SyntaxError(
+                    "expected parameters specified [pvf]".into(),
+                ));
+            };
+            let mut pan = None;
+            let mut volume = None;
+            let mut frequency = None;
+            for param in pvf_params.bytes() {
+                match param {
+                    b'p' => {
+                        let pan_value: i64 = args
+                            .next()
+                            .ok_or_else(|| ParseWarning::SyntaxError("expected pan".into()))?
+                            .parse()
+                            .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
+                        pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
+                            ParseWarning::SyntaxError(
+                                "expected pan value out of range [-10000, 10000]".into(),
+                            )
+                        })?);
+                    }
+                    b'v' => {
+                        let volume_value: i64 = args
+                            .next()
+                            .ok_or_else(|| ParseWarning::SyntaxError("expected volume".into()))?
+                            .parse()
+                            .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
+                        volume = Some(ExWavVolume::try_from(volume_value).map_err(|_| {
+                            ParseWarning::SyntaxError(
+                                "expected volume value out of range [-10000, 0]".into(),
+                            )
+                        })?);
+                    }
+                    b'f' => {
+                        let frequency_value: u64 = args
+                            .next()
+                            .ok_or_else(|| ParseWarning::SyntaxError("expected frequency".into()))?
+                            .parse()
+                            .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
+                        frequency =
+                            Some(ExWavFrequency::try_from(frequency_value).map_err(|_| {
+                                ParseWarning::SyntaxError(
+                                    "expected frequency value out of range [100, 100000]".into(),
+                                )
+                            })?);
+                    }
+                    _ => return Err(ParseWarning::SyntaxError("expected p, v or f".into())),
+                }
+            }
+            let Some(file_name) = args.next() else {
+                return Err(ParseWarning::SyntaxError("expected filename".into()));
+            };
+            let id = ObjId::try_from(id).map_err(|id| {
+                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
+            })?;
+            let path = Path::new(file_name);
+            let to_insert = ExWavDef {
+                id,
+                pan: pan.unwrap_or_default(),
+                volume: volume.unwrap_or_default(),
+                frequency,
+                path: path.into(),
+            };
+            if let Some(older) = self.0.borrow_mut().scope_defines.exwav_defs.get_mut(&id) {
+                self.1
+                    .handle_def_duplication(DefDuplication::ExWav {
+                        id,
+                        older,
+                        newer: &to_insert,
+                    })
+                    .apply_def(older, to_insert, id)?;
+            } else {
+                self.0
+                    .borrow_mut()
+                    .scope_defines
+                    .exwav_defs
+                    .insert(id, to_insert);
+            }
+        }
         if name == "LNOBJ" {
             let end_id = ObjId::try_from(args).map_err(|id| {
                 ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
