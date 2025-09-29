@@ -46,7 +46,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
         // 显示比例应该在合理范围内
         assert!(
-            display_ratio_value >= 0.0 && display_ratio_value <= 2.0,
+            (0.0..=2.0).contains(&display_ratio_value),
             "显示比例应该在合理范围内，当前值: {:.3}, 事件Y: {:.3}",
             display_ratio_value,
             y_value
