@@ -117,20 +117,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
             Token::Banner(file) => self.header.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
-            #[cfg(feature = "minor-command")]
-            Token::ChangeOption(id, option) => {
-                if let Some(older) = self.others.change_options.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ChangeOption {
-                            id: *id,
-                            older,
-                            newer: option,
-                        })
-                        .apply_def(older, option.to_string(), *id)?;
-                } else {
-                    self.others.change_options.insert(*id, option.to_string());
-                }
-            }
             Token::Comment(comment) => self
                 .header
                 .comment
@@ -194,12 +180,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
-            #[cfg(feature = "minor-command")]
-            Token::Option(option) => self
-                .others
-                .options
-                .get_or_insert_with(Vec::new)
-                .push(option.to_string()),
             Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
@@ -282,22 +262,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::MaterialsBmp(path) => {
                 self.graphics.materials_bmp.push(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::ChangeOption,
-                message,
-            } => {
-                for (_time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let _option = self
-                        .others
-                        .change_options
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    // Here we can add logic to handle ChangeOption
-                    // Currently just ignored because change_options are already stored in notes
-                }
             }
             Token::Message {
                 track,
@@ -393,29 +357,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         JudgeObj {
                             time,
                             judge_level: exrank_def.judge_level,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::Option,
-                message,
-            } => {
-                for (time, option_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let option = self
-                        .others
-                        .change_options
-                        .get(&option_id)
-                        .ok_or(ParseWarning::UndefinedObject(option_id))?;
-                    self.notes.push_option_event(
-                        OptionObj {
-                            time,
-                            option: option.clone(),
                         },
                         prompt_handler,
                     )?;

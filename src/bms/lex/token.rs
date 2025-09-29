@@ -50,9 +50,6 @@ pub enum Token<'a> {
     /// This allows the game to play audio directly from a CD drive.
     #[cfg(feature = "minor-command")]
     Cdda(BigUint),
-    /// `#CHANGEOPTION[01-ZZ] [string]`. Defines the play option change object. Some players interpret and apply the preferences.
-    #[cfg(feature = "minor-command")]
-    ChangeOption(ObjId, &'a str),
     /// `#CHARFILE [filename]`.
     /// The character file similar to pop'n music. It's filextension is `.chp`.
     /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
@@ -167,9 +164,6 @@ pub enum Token<'a> {
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     OctFp,
-    /// `#OPTION [string]`. Defines the play option of the score. Some players interpret and apply the preferences.
-    #[cfg(feature = "minor-command")]
-    Option(&'a str),
     /// `#PATH_WAV [string]`. Defines the root path of [`Token::Wav`] paths. This should be used only for tests.
     PathWav(&'a Path),
     /// `#PLAYER [1-4]`. Defines the play style of the score.
@@ -401,8 +395,6 @@ impl<'a> Token<'a> {
             "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
             #[cfg(feature = "minor-command")]
             "#OCT/FP" => Self::OctFp,
-            #[cfg(feature = "minor-command")]
-            "#OPTION" => Self::Option(c.next_line_remaining()),
             "#PATH_WAV" => {
                 let file_name = c.next_line_remaining();
                 if file_name.is_empty() {
@@ -532,12 +524,6 @@ impl<'a> Token<'a> {
                 let id = text.trim_start_matches("#TEXT");
                 let content = c.next_line_remaining();
                 Self::Text(ObjId::try_load(id, c)?, content)
-            }
-            #[cfg(feature = "minor-command")]
-            changeoption if changeoption.starts_with("#CHANGEOPTION") => {
-                let id = changeoption.trim_start_matches("#CHANGEOPTION");
-                let option = c.next_line_remaining();
-                Self::ChangeOption(ObjId::try_load(id, c)?, option)
             }
             // New command parsing
             #[cfg(feature = "minor-command")]
@@ -803,10 +789,6 @@ impl<'a> Token<'a> {
     pub(crate) fn make_id_uppercase(&mut self) {
         use Token::*;
         match self {
-            #[cfg(feature = "minor-command")]
-            ChangeOption(id, _) => {
-                id.make_uppercase();
-            }
             ExRank(id, _) => {
                 id.make_uppercase();
             }
@@ -864,8 +846,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Case(value) => write!(f, "#CASE {value}"),
             #[cfg(feature = "minor-command")]
             Token::Cdda(value) => write!(f, "#CDDA {value}"),
-            #[cfg(feature = "minor-command")]
-            Token::ChangeOption(id, option) => write!(f, "#CHANGEOPTION{id} {option}"),
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
             Token::Charset(charset) => write!(f, "#CHARSET {charset}"),
@@ -962,8 +942,6 @@ impl std::fmt::Display for Token<'_> {
             Token::NotACommand(content) => write!(f, "{content}"),
             #[cfg(feature = "minor-command")]
             Token::OctFp => write!(f, "#OCT/FP"),
-            #[cfg(feature = "minor-command")]
-            Token::Option(option) => write!(f, "#OPTION {option}"),
             Token::PathWav(path) => write!(f, "#PATH_WAV {}", path.display()),
             Token::Player(mode) => write!(
                 f,
