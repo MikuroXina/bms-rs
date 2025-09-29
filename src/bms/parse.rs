@@ -137,33 +137,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     self.scope_defines.exrank_defs.insert(*id, to_insert);
                 }
             }
-            #[cfg(feature = "minor-command")]
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path,
-            } => {
-                let to_insert = ExWavDef {
-                    id: *id,
-                    pan: *pan,
-                    volume: *volume,
-                    frequency: *frequency,
-                    path: path.into(),
-                };
-                if let Some(older) = self.scope_defines.exwav_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ExWav {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.exwav_defs.insert(*id, to_insert);
-                }
-            }
             Token::Genre(genre) => self.header.genre = Some(genre.to_string()),
             Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
@@ -202,7 +175,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             Token::Url(url) => self.header.url = Some(url.to_string()),
             Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
-            Token::VolWav(volume) => self.header.volume = *volume,
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 // Store by wav_index as key, handle duplication with prompt handler
@@ -258,40 +230,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::MaterialsBmp(path) => {
                 self.graphics.materials_bmp.push(path.to_path_buf());
-            }
-            Token::Message {
-                track,
-                channel: Channel::BgmVolume,
-                message,
-            } => {
-                for (time, volume_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.notes.push_bgm_volume_change(
-                        BgmVolumeObj {
-                            time,
-                            volume: volume_value,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::KeyVolume,
-                message,
-            } => {
-                for (time, volume_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.notes.push_key_volume_change(
-                        KeyVolumeObj {
-                            time,
-                            volume: volume_value,
-                        },
-                        prompt_handler,
-                    )?;
-                }
             }
             #[cfg(feature = "minor-command")]
             Token::Message {

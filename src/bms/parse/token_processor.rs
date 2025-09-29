@@ -12,6 +12,7 @@ mod scroll;
 mod section_len;
 mod speed;
 mod stop;
+mod volume;
 mod wav;
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.

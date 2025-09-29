@@ -9,16 +9,14 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, PoorMode, Volume, channel::Channel, graphics::Argb,
+        JudgeLevel, LnMode, ObjId, PlayerMode, Volume, channel::Channel, graphics::Argb,
         mixin::SourceRangeMixin, time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, WavCmdEvent, WavCmdParam,
-};
+use crate::bms::command::minor_command::{ExtChrEvent, WavCmdEvent, WavCmdParam};
 
 use super::{Result, cursor::Cursor};
 
@@ -96,20 +94,6 @@ pub enum Token<'a> {
     ExtChr(ExtChrEvent),
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
     ExRank(ObjId, JudgeLevel),
-    /// `#EXWAV[01-ZZ] [parameter order] [pan or volume or frequency; 1-3] [filename]`. Defines the key sound object with the effect of pan, volume and frequency.
-    #[cfg(feature = "minor-command")]
-    ExWav {
-        /// The id of the object to define.
-        id: ObjId,
-        /// The pan decay of the sound. Also called volume balance.
-        pan: ExWavPan,
-        /// The volume decay of the sound.
-        volume: ExWavVolume,
-        /// The pitch frequency of the sound.
-        frequency: Option<ExWavFrequency>,
-        /// The relative file path of the sound.
-        path: &'a Path,
-    },
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
@@ -222,8 +206,6 @@ pub enum Token<'a> {
     /// This affects the smoothness and timing of video playback.
     #[cfg(feature = "minor-command")]
     VideoFs(Decimal),
-    /// `#VOLWAV [0-255]`. Defines the relative volume percentage of the sound in the score.
-    VolWav(Volume),
     /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
@@ -370,16 +352,6 @@ impl<'a> Token<'a> {
                 }
                 Self::StageFile(Path::new(file_name))
             }
-            "#VOLWAV" => {
-                let volume = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("volume"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::VolWav(Volume {
-                    relative_percent: volume,
-                })
-            }
             "#BASE" => {
                 let base = c.next_line_remaining();
                 if base != "62" {
@@ -460,65 +432,6 @@ impl<'a> Token<'a> {
                 let id = exrank.trim_start_matches("#EXRANK");
                 let judge_level = JudgeLevel::try_read(c)?;
                 Self::ExRank(ObjId::try_load(id, c)?, judge_level)
-            }
-            #[cfg(feature = "minor-command")]
-            exwav if exwav.starts_with("#EXWAV") => {
-                let id = exwav.trim_start_matches("#EXWAV");
-                let pvf_params = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("param1"))?;
-                let mut pan = None;
-                let mut volume = None;
-                let mut frequency = None;
-                for param in pvf_params.bytes() {
-                    match param {
-                        b'p' => {
-                            let pan_value: i64 = c
-                                .next_token()
-                                .ok_or_else(|| c.make_err_expected_token("pan"))?
-                                .parse()
-                                .map_err(|_| c.make_err_expected_token("integer"))?;
-                            pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
-                                c.make_err_expected_token("pan value out of range [-10000, 10000]")
-                            })?);
-                        }
-                        b'v' => {
-                            let volume_value: i64 = c
-                                .next_token()
-                                .ok_or_else(|| c.make_err_expected_token("volume"))?
-                                .parse()
-                                .map_err(|_| c.make_err_expected_token("integer"))?;
-                            volume = Some(ExWavVolume::try_from(volume_value).map_err(|_| {
-                                c.make_err_expected_token("volume value out of range [-10000, 0]")
-                            })?);
-                        }
-                        b'f' => {
-                            let frequency_value: u64 = c
-                                .next_token()
-                                .ok_or_else(|| c.make_err_expected_token("frequency"))?
-                                .parse()
-                                .map_err(|_| c.make_err_expected_token("integer"))?;
-                            frequency =
-                                Some(ExWavFrequency::try_from(frequency_value).map_err(|_| {
-                                    c.make_err_expected_token(
-                                        "frequency value out of range [100, 100000]",
-                                    )
-                                })?);
-                        }
-                        _ => return Err(c.make_err_expected_token("expected p, v or f")),
-                    }
-                }
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("filename"));
-                }
-                Self::ExWav {
-                    id: ObjId::try_load(id, c)?,
-                    pan: pan.unwrap_or_default(),
-                    volume: volume.unwrap_or_default(),
-                    frequency,
-                    path: Path::new(file_name),
-                }
             }
             text if text.starts_with("#TEXT") => {
                 let id = text.trim_start_matches("#TEXT");
@@ -792,10 +705,6 @@ impl<'a> Token<'a> {
             ExRank(id, _) => {
                 id.make_uppercase();
             }
-            #[cfg(feature = "minor-command")]
-            ExWav { id, .. } => {
-                id.make_uppercase();
-            }
             Message { message, .. } => {
                 if message.chars().any(|ch| ch.is_ascii_lowercase()) {
                     message.to_mut().make_ascii_uppercase();
@@ -877,40 +786,6 @@ impl std::fmt::Display for Token<'_> {
                 Ok(())
             }
             Token::ExRank(id, level) => write!(f, "#EXRANK{id} {level}"),
-            #[cfg(feature = "minor-command")]
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path,
-            } => {
-                write!(f, "#EXWAV{id}")?;
-                let mut params = String::new();
-                if *pan != ExWavPan::default() {
-                    params.push('p');
-                }
-                if *volume != ExWavVolume::default() {
-                    params.push('v');
-                }
-                if frequency.is_some() {
-                    params.push('f');
-                }
-                if params.is_empty() {
-                    params.push('p');
-                }
-                write!(f, " {params}")?;
-                if *pan != ExWavPan::default() {
-                    write!(f, " {}", pan.value())?;
-                }
-                if *volume != ExWavVolume::default() {
-                    write!(f, " {}", volume.value())?;
-                }
-                if let Some(freq) = frequency {
-                    write!(f, " {}", freq.value())?;
-                }
-                write!(f, " {}", path.display())
-            }
             Token::Genre(genre) => write!(f, "#GENRE {genre}"),
             Token::If(value) => write!(f, "#IF {value}"),
             Token::LnMode(mode) => write!(
