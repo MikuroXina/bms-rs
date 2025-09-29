@@ -1,8 +1,10 @@
-use bms_rs::bms::prelude::*;
-use bms_rs::chart_process::{ChartProcessor, bms_processor::BmsProcessor};
-use num::ToPrimitive;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
+
+use num::ToPrimitive;
+
+use bms_rs::bms::prelude::*;
+use bms_rs::chart_process::prelude::*;
 
 #[test]
 fn test_bpm_processor_events() {
@@ -44,12 +46,12 @@ fn test_bpm_processor_events() {
 
     // 应该触发 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
 
     // 检查BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             75.5,
@@ -74,12 +76,12 @@ fn test_bpm_processor_events() {
 
     // 应该触发第二个 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
     assert!(!bpm_events.is_empty(), "应该有第二个 BPM 变化事件");
 
     // 检查第二个BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             151.0,
@@ -178,13 +180,13 @@ fn test_scroll_processor_events() {
     // 应该触发 Scroll 和 Speed 变化事件
     let scroll_events: Vec<_> = all_events
         .iter()
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::ScrollChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::ScrollChange { .. }))
         .cloned()
         .collect();
 
     let speed_events: Vec<_> = all_events
         .iter()
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::SpeedChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::SpeedChange { .. }))
         .cloned()
         .collect();
 
@@ -192,9 +194,7 @@ fn test_scroll_processor_events() {
     assert!(!speed_events.is_empty(), "应该有 Speed 变化事件");
 
     // 检查Scroll变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::ScrollChange { factor })) =
-        scroll_events.first()
-    {
+    if let Some((y, ChartEvent::ScrollChange { factor })) = scroll_events.first() {
         assert_eq!(
             factor.to_f64().unwrap_or(0.0),
             1.0,
@@ -209,9 +209,7 @@ fn test_scroll_processor_events() {
     }
 
     // 检查Speed变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::SpeedChange { factor })) =
-        speed_events.first()
-    {
+    if let Some((y, ChartEvent::SpeedChange { factor })) = speed_events.first() {
         assert_eq!(
             factor.to_f64().unwrap_or(0.0),
             1.0,
@@ -298,13 +296,13 @@ fn test_speed_processor_events() {
     // 应该触发 Speed 和 Scroll 变化事件
     let speed_events: Vec<_> = all_events
         .iter()
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::SpeedChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::SpeedChange { .. }))
         .cloned()
         .collect();
 
     let scroll_events: Vec<_> = all_events
         .iter()
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::ScrollChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::ScrollChange { .. }))
         .cloned()
         .collect();
 
@@ -312,9 +310,7 @@ fn test_speed_processor_events() {
     assert!(!scroll_events.is_empty(), "应该有 Scroll 变化事件");
 
     // 检查Speed变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::SpeedChange { factor })) =
-        speed_events.first()
-    {
+    if let Some((y, ChartEvent::SpeedChange { factor })) = speed_events.first() {
         assert_eq!(
             factor.to_f64().unwrap_or(0.0),
             1.0,
@@ -329,9 +325,7 @@ fn test_speed_processor_events() {
     }
 
     // 检查Scroll变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::ScrollChange { factor })) =
-        scroll_events.first()
-    {
+    if let Some((y, ChartEvent::ScrollChange { factor })) = scroll_events.first() {
         assert_eq!(
             factor.to_f64().unwrap_or(0.0),
             1.0,
@@ -416,13 +410,13 @@ fn test_combined_changes_events() {
 
     // 应该有 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
 
     // 检查BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             75.5,
@@ -445,13 +439,13 @@ fn test_combined_changes_events() {
 
     // 应该有第二个 BPM 变化事件
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "应该有 BPM 变化事件");
 
     // 检查第二个BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             151.0,
@@ -544,13 +538,13 @@ fn test_event_timing_with_bpm_changes() {
     let events = processor.update(one_second);
 
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "1秒时应该有 BPM 变化事件");
 
     // 检查BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             75.5,
@@ -571,13 +565,13 @@ fn test_event_timing_with_bpm_changes() {
     let events = processor.update(nine_seconds);
 
     let bpm_events: Vec<_> = events
-        .filter(|(_, e)| matches!(e, bms_rs::chart_process::ChartEvent::BpmChange { .. }))
+        .filter(|(_, e)| matches!(e, ChartEvent::BpmChange { .. }))
         .collect();
 
     assert!(!bpm_events.is_empty(), "9秒时应该有 BPM 变化事件");
 
     // 检查第二个BPM变化事件的具体值
-    if let Some((y, bms_rs::chart_process::ChartEvent::BpmChange { bpm })) = bpm_events.first() {
+    if let Some((y, ChartEvent::BpmChange { bpm })) = bpm_events.first() {
         assert_eq!(
             bpm.to_f64().unwrap_or(0.0),
             151.0,
