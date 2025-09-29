@@ -182,6 +182,70 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
             self.0.borrow_mut().notes.push_note(end_note);
         }
+        #[cfg(feature = "minor-command")]
+        if name == "WAVCMD" {
+            let args: Vec<_> = args.split_whitespace().collect();
+            if args.len() != 3 {
+                return Err(ParseWarning::SyntaxError(
+                    "expected 3 arguments for #WAVCMD".into(),
+                ));
+            }
+            let param = match args[0] {
+                "00" => WavCmdParam::Pitch,
+                "01" => WavCmdParam::Volume,
+                "02" => WavCmdParam::Time,
+                _ => {
+                    return Err(ParseWarning::SyntaxError(
+                        "expected one of 00, 01, 02".into(),
+                    ));
+                }
+            };
+            let wav_index = ObjId::try_from(args[1]).map_err(|id| {
+                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
+            })?;
+            let value: u32 = args[2]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;
+            // Validity check
+            match param {
+                WavCmdParam::Pitch if !(0..=127).contains(&value) => {
+                    return Err(ParseWarning::SyntaxError(
+                        "pitch must be in between 0 and 127".into(),
+                    ));
+                }
+                WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */ }
+                _ => {}
+            }
+            let ev = WavCmdEvent {
+                param,
+                wav_index,
+                value,
+            };
+
+            // Store by wav_index as key, handle duplication with prompt handler
+            let key = ev.wav_index;
+            if let Some(older) = self
+                .0
+                .borrow_mut()
+                .scope_defines
+                .wavcmd_events
+                .get_mut(&key)
+            {
+                self.1
+                    .handle_def_duplication(DefDuplication::WavCmdEvent {
+                        wav_index: key,
+                        older,
+                        newer: &ev,
+                    })
+                    .apply_def(older, ev, key)?;
+            } else {
+                self.0
+                    .borrow_mut()
+                    .scope_defines
+                    .wavcmd_events
+                    .insert(key, ev);
+            }
+        }
         Ok(())
     }
 

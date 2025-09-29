@@ -111,22 +111,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
-            #[cfg(feature = "minor-command")]
-            Token::WavCmd(ev) => {
-                // Store by wav_index as key, handle duplication with prompt handler
-                let key = ev.wav_index;
-                if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::WavCmdEvent {
-                            wav_index: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_def(older, *ev, key)?;
-                } else {
-                    self.scope_defines.wavcmd_events.insert(key, *ev);
-                }
-            }
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;
             }

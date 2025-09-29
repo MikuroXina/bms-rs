@@ -71,9 +71,6 @@ pub enum Token<'a> {
     Switch(BigUint),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
-    /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
-    #[cfg(feature = "minor-command")]
-    WavCmd(WavCmdEvent),
 }
 
 /// A token with position information.
@@ -169,44 +166,6 @@ impl<'a> Token<'a> {
             }
             #[cfg(feature = "minor-command")]
             "#OCT/FP" => Self::OctFp,
-            // Part: Command with lane and arg
-            // Place ahead of WAV to avoid being parsed as WAV.
-            #[cfg(feature = "minor-command")]
-            wavcmd if wavcmd.starts_with("#WAVCMD") => {
-                let param = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("wavcmd param (00/01/02)"))?;
-                let param = match param {
-                    "00" => WavCmdParam::Pitch,
-                    "01" => WavCmdParam::Volume,
-                    "02" => WavCmdParam::Time,
-                    _ => return Err(c.make_err_expected_token("wavcmd param 00/01/02")),
-                };
-                let wav_index = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("wavcmd wav-index"))?;
-                let wav_index = ObjId::try_load(wav_index, c)?;
-                let value = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("wavcmd value"))?;
-                let value: u32 = value
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("wavcmd value u32"))?;
-                // Validity check
-                match param {
-                    WavCmdParam::Pitch if !(0..=127).contains(&value) => {
-                        return Err(c.make_err_expected_token("pitch 0-127"));
-                    }
-                    WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */
-                    }
-                    _ => {}
-                }
-                Self::WavCmd(WavCmdEvent {
-                    param,
-                    wav_index,
-                    value,
-                })
-            }
             lnmode if lnmode.starts_with("#LNMODE") => {
                 let mode = c
                     .next_token()
