@@ -13,11 +13,11 @@ mod music_info;
 mod option;
 mod scroll;
 mod section_len;
-mod seek;
 mod speed;
 mod sprite;
 mod stop;
 mod text;
+mod video;
 mod volume;
 mod wav;
 

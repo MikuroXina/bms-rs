@@ -113,7 +113,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
-            Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 // Store by wav_index as key, handle duplication with prompt handler
@@ -155,7 +154,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;
             }
-            Token::Movie(path) => self.header.movie = Some(path.into()),
             #[cfg(feature = "minor-command")]
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
@@ -181,18 +179,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::Materials(path) => {
                 self.others.materials_path = Some(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoColors(colors) => {
-                self.graphics.video_colors = Some(*colors);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoDly(delay) => {
-                self.graphics.video_dly = Some(delay.clone());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoFs(frame_rate) => {
-                self.graphics.video_fs = Some(frame_rate.clone());
             }
         }
         Ok(())

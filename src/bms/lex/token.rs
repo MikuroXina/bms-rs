@@ -1,13 +1,11 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path, str::FromStr};
+use std::{borrow::Cow, path::Path};
 
-use fraction::GenericFraction;
 use num::BigUint;
 
 use super::LexWarning;
 use crate::bms::{
-    Decimal,
     command::{
         LnMode, ObjId, channel::Channel, graphics::Argb, mixin::SourceRangeMixin, time::Track,
     },
@@ -87,14 +85,6 @@ pub enum Token<'a> {
     /// *Deprecated* - Some players may not support this feature.
     #[cfg(feature = "minor-command")]
     MidiFile(&'a Path),
-    /// `#MOVIE [filename]` DXEmu extension, defines global video file.
-    /// - Video starts from #000.
-    /// - Priority rules:
-    ///   - If #xxx04 is an image file (BMP, PNG, etc.), #MOVIE has priority.
-    ///   - If both #xxx04 and #MOVIE are video files, #xxx04 has priority.
-    /// - No loop, stays on last frame after playback.
-    /// - Audio track in video is not played.
-    Movie(&'a Path),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
@@ -114,23 +104,6 @@ pub enum Token<'a> {
     Switch(BigUint),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
-    /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
-    /// Defines the color depth for video playback. Common values are 16, 24, or 32 bits.
-    /// This affects the quality and performance of video rendering.
-    #[cfg(feature = "minor-command")]
-    VideoColors(u8),
-    /// `#VIDEODLY [f64]` Video delay extension.
-    /// Defines a delay in seconds before video playback starts.
-    /// This is useful for synchronizing video with audio or other game elements.
-    #[cfg(feature = "minor-command")]
-    VideoDly(Decimal),
-    /// `#VIDEOFILE [filename]` / `#MOVIE [filename]`. Defines the background movie file. The audio track in the movie file should not be played. The play should start from the track `000`.
-    VideoFile(&'a Path),
-    /// `#VIDEOF/S [f64]` Video file frame rate.
-    /// Defines the frame rate for video playback in frames per second (FPS).
-    /// This affects the smoothness and timing of video playback.
-    #[cfg(feature = "minor-command")]
-    VideoFs(Decimal),
     /// `#WAVCMD [param] [wav-index] [value]` MacBeat extension, pseudo-MOD effect.
     #[cfg(feature = "minor-command")]
     WavCmd(WavCmdEvent),
@@ -237,13 +210,6 @@ impl<'a> Token<'a> {
                 }
                 Self::MidiFile(Path::new(file_name))
             }
-            "#VIDEOFILE" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("video filename"));
-                }
-                Self::VideoFile(Path::new(file_name))
-            }
             // Part: Command with lane and arg
             // Place ahead of WAV to avoid being parsed as WAV.
             #[cfg(feature = "minor-command")]
@@ -324,38 +290,6 @@ impl<'a> Token<'a> {
                 )
             }
             #[cfg(feature = "minor-command")]
-            videofs if videofs.starts_with("#VIDEOF/S") => {
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("videofs value"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(v)
-                        .map_err(|_| c.make_err_expected_token("f64"))?,
-                );
-                Self::VideoFs(v)
-            }
-            #[cfg(feature = "minor-command")]
-            videocolors if videocolors.starts_with("#VIDEOCOLORS") => {
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("videocolors value"))?;
-                let v = v
-                    .parse::<u8>()
-                    .map_err(|_| c.make_err_expected_token("u8"))?;
-                Self::VideoColors(v)
-            }
-            #[cfg(feature = "minor-command")]
-            videodly if videodly.starts_with("#VIDEODLY") => {
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("videodly value"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(v)
-                        .map_err(|_| c.make_err_expected_token("f64"))?,
-                );
-                Self::VideoDly(v)
-            }
-            #[cfg(feature = "minor-command")]
             materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                 let path = c
                     .next_token()
@@ -390,13 +324,6 @@ impl<'a> Token<'a> {
                     _ => return Err(c.make_err_expected_token("lnmode 1-3")),
                 };
                 Self::LnMode(mode)
-            }
-            movie if movie.starts_with("#MOVIE") => {
-                let path = c
-                    .next_token()
-                    .map(Path::new)
-                    .ok_or_else(|| c.make_err_expected_token("movie filename"))?;
-                Self::Movie(path)
             }
             message
                 if message.starts_with('#')
@@ -489,7 +416,6 @@ impl std::fmt::Display for Token<'_> {
             Token::MaterialsWav(path) => write!(f, "#MATERIALSWAV {}", path.display()),
             #[cfg(feature = "minor-command")]
             Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
-            Token::Movie(path) => write!(f, "#MOVIE {}", path.display()),
             Token::NotACommand(content) => write!(f, "{content}"),
             #[cfg(feature = "minor-command")]
             Token::OctFp => write!(f, "#OCT/FP"),
@@ -499,13 +425,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Skip => write!(f, "#SKIP"),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
             Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
-            #[cfg(feature = "minor-command")]
-            Token::VideoColors(colors) => write!(f, "#VIDEOCOLORS {colors}"),
-            #[cfg(feature = "minor-command")]
-            Token::VideoDly(delay) => write!(f, "#VIDEODLY {delay}"),
-            Token::VideoFile(path) => write!(f, "#VIDEOFILE {}", path.display()),
-            #[cfg(feature = "minor-command")]
-            Token::VideoFs(fps) => write!(f, "#VIDEOF/S {fps}"),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 use crate::bms::command::minor_command::WavCmdParam;

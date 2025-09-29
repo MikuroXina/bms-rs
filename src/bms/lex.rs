@@ -199,7 +199,7 @@ mod tests {
 
     use crate::bms::{
         command::{JudgeLevel, PlayerMode, channel::Channel, time::Track},
-        lex::{LexOutput, TokenStream, token::Token::*},
+        lex::{LexOutput, TokenStream},
     };
 
     #[test]
