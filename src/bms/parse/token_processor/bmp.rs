@@ -102,6 +102,49 @@ impl<P: Prompter, T> TokenProcessor for BmpProcessor<'_, P, T> {
                         .insert(bmp_obj_id, to_insert);
                 }
             }
+            #[cfg(feature = "minor-command")]
+            argb if argb.starts_with("ARGB") => {
+                let id = argb.trim_start_matches("ARGB");
+                let parts: Vec<_> = args.split(',').collect();
+                if parts.len() != 4 {
+                    return Err(ParseWarning::SyntaxError(
+                        "expected 4 comma-separated values".into(),
+                    ));
+                }
+                let alpha = parts[0]
+                    .parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected u8 alpha value".into()))?;
+                let red = parts[1]
+                    .parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected u8 red value".into()))?;
+                let green = parts[2]
+                    .parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected u8 green value".into()))?;
+                let blue = parts[3]
+                    .parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
+                let id = ObjId::try_from(id).map_err(|id| {
+                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
+                })?;
+                let argb = Argb {
+                    alpha,
+                    red,
+                    green,
+                    blue,
+                };
+
+                if let Some(older) = self.0.borrow_mut().scope_defines.argb_defs.get_mut(&id) {
+                    self.1
+                        .handle_def_duplication(DefDuplication::BgaArgb {
+                            id,
+                            older,
+                            newer: &argb,
+                        })
+                        .apply_def(older, argb, id)?;
+                } else {
+                    self.0.borrow_mut().scope_defines.argb_defs.insert(id, argb);
+                }
+            }
             "POORBGA" => {
                 self.0.borrow_mut().graphics.poor_bga_mode = PoorMode::from_str(args)?;
             }

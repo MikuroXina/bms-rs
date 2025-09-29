@@ -6,9 +6,7 @@ use num::BigUint;
 
 use super::LexWarning;
 use crate::bms::{
-    command::{
-        LnMode, ObjId, channel::Channel, graphics::Argb, mixin::SourceRangeMixin, time::Track,
-    },
+    command::{LnMode, ObjId, channel::Channel, mixin::SourceRangeMixin, time::Track},
     prelude::{SourceRangeMixinExt, read_channel},
 };
 
@@ -22,13 +20,6 @@ use super::{Result, cursor::Cursor};
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
-    /// `#ARGB[A1-A4] [A],[R],[G],[B]` Extended transparent color definition.
-    /// - A1: BGA BASE
-    /// - A2: BGA LAYER
-    /// - A3: BGA LAYER 2
-    /// - A4: BGA POOR
-    #[cfg(feature = "minor-command")]
-    Argb(ObjId, Argb),
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
@@ -258,38 +249,6 @@ impl<'a> Token<'a> {
                 Self::Cdda(v)
             }
             #[cfg(feature = "minor-command")]
-            argb if argb.starts_with("#ARGB") => {
-                let id = argb.trim_start_matches("#ARGB");
-                let argb_str = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("argb value"))?;
-                let parts: Vec<&str> = argb_str.split(',').collect();
-                if parts.len() != 4 {
-                    return Err(c.make_err_expected_token("expected 4 comma-separated values"));
-                }
-                let alpha = parts[0]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
-                let red = parts[1]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid red value"))?;
-                let green = parts[2]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid green value"))?;
-                let blue = parts[3]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
-                Self::Argb(
-                    ObjId::try_load(id, c)?,
-                    Argb {
-                        alpha,
-                        red,
-                        green,
-                        blue,
-                    },
-                )
-            }
-            #[cfg(feature = "minor-command")]
             materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                 let path = c
                     .next_token()
@@ -380,12 +339,6 @@ impl<'a> Token<'a> {
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            #[cfg(feature = "minor-command")]
-            Token::Argb(id, argb) => write!(
-                f,
-                "#ARGB{id} {},{},{},{}",
-                argb.alpha, argb.red, argb.green, argb.blue
-            ),
             Token::Base62 => write!(f, "#BASE 62"),
             Token::Case(value) => write!(f, "#CASE {value}"),
             #[cfg(feature = "minor-command")]

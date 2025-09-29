@@ -130,20 +130,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 }
             }
             #[cfg(feature = "minor-command")]
-            Token::Argb(id, argb) => {
-                if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::BgaArgb {
-                            id: *id,
-                            older,
-                            newer: argb,
-                        })
-                        .apply_def(older, *argb, *id)?;
-                } else {
-                    self.scope_defines.argb_defs.insert(*id, *argb);
-                }
-            }
-            #[cfg(feature = "minor-command")]
             Token::MaterialsWav(path) => {
                 self.notes.materials_wav.push(path.to_path_buf());
             }
