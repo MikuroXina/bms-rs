@@ -6,7 +6,8 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    BmpId, ChartEvent, ChartProcessor, ControlEvent, DisplayRatio, WavId, YCoordinate,
+    ChartEvent, ChartProcessor, ControlEvent,
+    types::{BmpId, DisplayRatio, WavId, YCoordinate},
 };
 use num::ToPrimitive;
 use std::str::FromStr;
