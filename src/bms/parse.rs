@@ -83,13 +83,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let mut bms = Self::default();
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for token in token_iter {
-            let mut parse_warnings_buf: Vec<ParseWarning> = vec![];
-            let parse_result = bms.parse(token, &prompt_handler, &mut parse_warnings_buf);
-            parse_warnings.extend(
-                parse_warnings_buf
-                    .into_iter()
-                    .map(|error| error.into_wrapper(token)),
-            );
+            let parse_result = bms.parse(token, &prompt_handler);
             if let Err(error) = parse_result {
                 parse_warnings.push(error.into_wrapper(token));
             }
@@ -107,7 +101,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         &mut self,
         token: &TokenWithRange,
         prompt_handler: &impl Prompter,
-        parse_warnings: &mut Vec<ParseWarning>,
     ) -> Result<()> {
         match token.content() {
             Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
@@ -175,20 +168,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 }
             }
             #[cfg(feature = "minor-command")]
-            Token::Seek(id, v) => {
-                if let Some(older) = self.others.seek_events.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SeekEvent {
-                            id: *id,
-                            older,
-                            newer: v,
-                        })
-                        .apply_def(older, v.clone(), *id)?;
-                } else {
-                    self.others.seek_events.insert(*id, v.clone());
-                }
-            }
-            #[cfg(feature = "minor-command")]
             Token::ExtChr(ev) => {
                 self.others.extchr_events.push(*ev);
             }
@@ -199,28 +178,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::MaterialsBmp(path) => {
                 self.graphics.materials_bmp.push(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::Seek,
-                message,
-            } => {
-                for (time, seek_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let position = self
-                        .others
-                        .seek_events
-                        .get(&seek_id)
-                        .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                    self.notes.push_seek_event(
-                        SeekObj {
-                            time,
-                            position: position.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
             }
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;

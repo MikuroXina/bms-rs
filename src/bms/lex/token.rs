@@ -9,8 +9,8 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, channel::Channel, graphics::Argb,
-        mixin::SourceRangeMixin, time::Track,
+        LnMode, ObjId, PlayerMode, channel::Channel, graphics::Argb, mixin::SourceRangeMixin,
+        time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
 };
@@ -113,15 +113,6 @@ pub enum Token<'a> {
     /// Deprecated.
     #[cfg(feature = "minor-command")]
     MaterialsWav(&'a Path),
-    /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
-    Message {
-        /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
-        track: Track,
-        /// The channel commonly expresses what the lane be arranged the note to.
-        channel: Channel,
-        /// The message to the channel.
-        message: Cow<'a, str>,
-    },
     /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM.
     /// This is a minor command extension that allows MIDI files to be used as background music.
     /// *Deprecated* - Some players may not support this feature.
@@ -152,11 +143,6 @@ pub enum Token<'a> {
     Preview(&'a Path),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
-    /// `#SEEK[01-ZZ] [f64]` Video seek extension.
-    /// Defines a video seek event that allows jumping to specific time positions in video files.
-    /// This is a minor command extension for advanced video control.
-    #[cfg(feature = "minor-command")]
-    Seek(ObjId, Decimal),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
     SetRandom(BigUint),
     /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -566,18 +552,6 @@ impl<'a> Token<'a> {
                 Self::VideoDly(v)
             }
             #[cfg(feature = "minor-command")]
-            seek if seek.starts_with("#SEEK") => {
-                let id = seek.trim_start_matches("#SEEK");
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("seek value"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(v)
-                        .map_err(|_| c.make_err_expected_token("f64"))?,
-                );
-                Self::Seek(ObjId::try_load(id, c)?, v)
-            }
-            #[cfg(feature = "minor-command")]
             materialswav if materialswav.starts_with("#MATERIALSWAV") => {
                 let path = c
                     .next_token()
@@ -787,8 +761,6 @@ impl std::fmt::Display for Token<'_> {
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
-            #[cfg(feature = "minor-command")]
-            Token::Seek(id, position) => write!(f, "#SEEK{id} {position}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),

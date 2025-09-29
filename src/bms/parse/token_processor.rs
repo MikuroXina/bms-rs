@@ -11,6 +11,7 @@ mod judge;
 mod option;
 mod scroll;
 mod section_len;
+mod seek;
 mod speed;
 mod stop;
 mod text;
