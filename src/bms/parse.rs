@@ -121,9 +121,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
-            Token::Total(total) => {
-                self.header.total = Some(total.clone());
-            }
             Token::Url(url) => self.header.url = Some(url.to_string()),
             Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             #[cfg(feature = "minor-command")]

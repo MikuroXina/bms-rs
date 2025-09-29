@@ -143,8 +143,6 @@ pub enum Token<'a> {
     StageFile(&'a Path),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
-    /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
-    Total(Decimal),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
     /// `%URL [string]`. The url of this score file.
@@ -210,16 +208,6 @@ impl<'a> Token<'a> {
                     return Err(c.make_err_expected_token("backbmp filename"));
                 }
                 Self::BackBmp(Path::new(file_name))
-            }
-            "#TOTAL" => {
-                let s = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("gauge increase rate"))?;
-                let v = Decimal::from_fraction(
-                    GenericFraction::from_str(s)
-                        .map_err(|_| c.make_err_expected_token("decimal"))?,
-                );
-                Self::Total(v)
             }
             "#PLAYLEVEL" => Self::PlayLevel(
                 c.next_token()

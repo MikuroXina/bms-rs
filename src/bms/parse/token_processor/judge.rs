@@ -1,4 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, str::FromStr};
+
+use fraction::GenericFraction;
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
 use crate::bms::{model::Bms, prelude::*};
@@ -55,6 +57,13 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for JudgeProcessor<'_, P, T
                     judge_level,
                 },
             );
+        }
+        if name == "TOTAL" {
+            let total = Decimal::from_fraction(
+                GenericFraction::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
+            );
+            self.0.borrow_mut().header.total = Some(total);
         }
         Ok(())
     }
