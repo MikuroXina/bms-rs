@@ -17,7 +17,7 @@ use crate::bms::{
 
 #[cfg(feature = "minor-command")]
 use crate::bms::command::minor_command::{
-    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, SwBgaEvent, WavCmdEvent, WavCmdParam,
+    ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, WavCmdEvent, WavCmdParam,
 };
 
 use super::{Result, cursor::Cursor};
@@ -36,42 +36,12 @@ pub enum Token<'a> {
     Argb(ObjId, Argb),
     /// `#ARTIST [string]`. Defines the artist name of the music.
     Artist(&'a str),
-    /// `#@BGA[01-ZZ] [01-ZZ] [sx] [sy] [w] [h] [dx] [dy]`. Defines the image object from trimming the existing image object.
-    #[cfg(feature = "minor-command")]
-    AtBga {
-        /// The id of the object to define.
-        id: ObjId,
-        /// The id of the object to be trimmed.
-        source_bmp: ObjId,
-        /// The top left point of the trim area in pixels.
-        trim_top_left: (i16, i16),
-        /// The size of the trim area in pixels.
-        trim_size: (u16, u16),
-        /// The top left point to be rendered in pixels.
-        draw_point: (i16, i16),
-    },
     /// `#BANNER [filename]`. Defines the banner image. This can be used on music select or result view. It should be 300x80.
     Banner(&'a Path),
     /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
     BackBmp(&'a Path),
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
-    /// `#BGA[01-ZZ] [01-ZZ] [x1] [y1] [x2] [y2] [dx] [dy]`. Defines the image object from trimming the existing image object.
-    #[cfg(feature = "minor-command")]
-    Bga {
-        /// The id of the object to define.
-        id: ObjId,
-        /// The id of the object to be trimmed.
-        source_bmp: ObjId,
-        /// The top left point of the trim area in pixels.
-        trim_top_left: (i16, i16),
-        /// The bottom right point of the trim area in pixels.
-        trim_bottom_right: (i16, i16),
-        /// The top left point to be rendered in pixels.
-        draw_point: (i16, i16),
-    },
-    /// `#BMP[01-ZZ] [filename]`. Defines the background image/movie object. The file specified may be not only BMP format, and also PNG, AVI, MP4, MKV and others. Its size should be less than or equal to 256x256. The black (`#000000`) pixel in the image will be treated as transparent. When the id `00` is specified, this first field will be `None` and the image will be shown when the player get mistaken.
-    Bmp(Option<ObjId>, &'a Path),
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
     /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
@@ -127,8 +97,6 @@ pub enum Token<'a> {
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
-    /// `#BMP[01-ZZ] [0-255],[0-255],[0-255],[0-255] [filename]`. Defines the background image/movie object with the color (alpha, red, green and blue) which will be treated as transparent.
-    ExBmp(ObjId, Argb, &'a Path),
     /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
     ExRank(ObjId, JudgeLevel),
     /// `#EXWAV[01-ZZ] [parameter order] [pan or volume or frequency; 1-3] [filename]`. Defines the key sound object with the effect of pan, volume and frequency.
@@ -210,8 +178,6 @@ pub enum Token<'a> {
     Player(PlayerMode),
     /// `#PLAYLEVEL [integer]`. Defines the difficulty level of the score. This can be used on music select view.
     PlayLevel(u8),
-    /// `#POORBGA [0-2]`. Defines the display mode of the POOR BGA.
-    PoorBga(PoorMode),
     /// `#PREVIEW [filename]` Preview audio file for music selection.
     Preview(&'a Path),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
@@ -235,9 +201,6 @@ pub enum Token<'a> {
     SubArtist(&'a str),
     /// `#SUBTITLE [string]`. Defines the subtitle of the music.
     SubTitle(&'a str),
-    /// `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` Key Bind Layer Animation.
-    #[cfg(feature = "minor-command")]
-    SwBga(ObjId, SwBgaEvent),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
     /// `#TEXT[01-ZZ] string`. Defines the text object.
@@ -458,7 +421,6 @@ impl<'a> Token<'a> {
                 }
                 Self::MidiFile(Path::new(file_name))
             }
-            "#POORBGA" => Self::PoorBga(PoorMode::from(c)?),
             "#VIDEOFILE" => {
                 let file_name = c.next_line_remaining();
                 if file_name.is_empty() {
@@ -503,56 +465,6 @@ impl<'a> Token<'a> {
                     wav_index,
                     value,
                 })
-            }
-            bmp if bmp.starts_with("#BMP") => {
-                let id = command.trim_start_matches("#BMP");
-                let str = c.next_line_remaining();
-                if str.is_empty() {
-                    return Err(c.make_err_expected_token("key audio filename"));
-                }
-                let filename = Path::new(str);
-                if id == "00" {
-                    Self::Bmp(None, filename)
-                } else {
-                    Self::Bmp(Some(ObjId::try_load(id, c)?), filename)
-                }
-            }
-            exbmp if exbmp.starts_with("#EXBMP") => {
-                let id = exbmp.trim_start_matches("#EXBMP");
-                let argb = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("argb"))?;
-                let filename = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("filename"))?;
-
-                let parts: Vec<&str> = argb.split(',').collect();
-                if parts.len() != 4 {
-                    return Err(c.make_err_expected_token("expected 4 comma-separated values"));
-                }
-                let alpha = parts[0]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid alpha value"))?;
-                let red = parts[1]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid red value"))?;
-                let green = parts[2]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid green value"))?;
-                let blue = parts[3]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("invalid blue value"))?;
-
-                Self::ExBmp(
-                    ObjId::try_load(id, c)?,
-                    Argb {
-                        alpha,
-                        red,
-                        green,
-                        blue,
-                    },
-                    Path::new(filename),
-                )
             }
             exrank if exrank.starts_with("#EXRANK") => {
                 let id = exrank.trim_start_matches("#EXRANK");
@@ -622,95 +534,6 @@ impl<'a> Token<'a> {
                 let id = text.trim_start_matches("#TEXT");
                 let content = c.next_line_remaining();
                 Self::Text(ObjId::try_load(id, c)?, content)
-            }
-            #[cfg(feature = "minor-command")]
-            atbga if atbga.starts_with("#@BGA") => {
-                let id = atbga.trim_start_matches("#@BGA");
-                let source_bmp = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
-                let sx = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("sx"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let sy = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("sy"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let w = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("w"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let h = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("h"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let dx = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("dx"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let dy = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("dy"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::AtBga {
-                    id: ObjId::try_load(id, c)?,
-                    source_bmp: ObjId::try_load(source_bmp, c)?,
-                    trim_top_left: (sx, sy),
-                    trim_size: (w, h),
-                    draw_point: (dx, dy),
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            bga if bga.starts_with("#BGA") && !bga.starts_with("#BGAPOOR") => {
-                let id = bga.trim_start_matches("#BGA");
-                // Cannot use next_line_remaining here because the remaining args
-                let source_bmp = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("source bmp"))?;
-                let x1 = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("x1"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let y1 = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("y1"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let x2 = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("x2"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let y2 = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("y2"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let dx = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("dx"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                let dy = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("dy"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Bga {
-                    id: ObjId::try_load(id, c)?,
-                    source_bmp: ObjId::try_load(source_bmp, c)?,
-                    trim_top_left: (x1, y1),
-                    trim_bottom_right: (x2, y2),
-                    draw_point: (dx, dy),
-                }
             }
             #[cfg(feature = "minor-command")]
             changeoption if changeoption.starts_with("#CHANGEOPTION") => {
@@ -812,79 +635,6 @@ impl<'a> Token<'a> {
                 let v = BigUint::parse_bytes(v.as_bytes(), 10)
                     .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
                 Self::Cdda(v)
-            }
-            #[cfg(feature = "minor-command")]
-            swbga if swbga.starts_with("#SWBGA") => {
-                let id = swbga.trim_start_matches("#SWBGA");
-                // Parse fr:time:line:loop:a,r,g,b pattern
-                let params = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("swbga params"))?;
-                let mut parts = params.split(':');
-                let frame_rate = parts
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("swbga frame_rate"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga frame_rate u32"))?;
-                let total_time = parts
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("swbga total_time"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga total_time u32"))?;
-                let line = parts
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("swbga line"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga line u8"))?;
-                let loop_mode = parts
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("swbga loop"))?
-                    .parse::<u8>()
-                    .map_err(|_| c.make_err_expected_token("swbga loop 0/1"))?;
-                let loop_mode = match loop_mode {
-                    0 => false,
-                    1 => true,
-                    _ => return Err(c.make_err_expected_token("swbga loop 0/1")),
-                };
-                let argb_str = parts
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("swbga argb"))?;
-                let argb_parts: Vec<&str> = argb_str.split(',').collect();
-                if argb_parts.len() != 4 {
-                    return Err(c.make_err_expected_token("swbga argb 4 values"));
-                }
-                let alpha = argb_parts[0]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga argb alpha"))?;
-                let red = argb_parts[1]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga argb red"))?;
-                let green = argb_parts[2]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga argb green"))?;
-                let blue = argb_parts[3]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("swbga argb blue"))?;
-                let pattern = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("swbga pattern"))?
-                    .to_string();
-                Self::SwBga(
-                    ObjId::try_load(id, c)?,
-                    SwBgaEvent {
-                        frame_rate,
-                        total_time,
-                        line,
-                        loop_mode,
-                        argb: Argb {
-                            alpha,
-                            red,
-                            green,
-                            blue,
-                        },
-                        pattern,
-                    },
-                )
             }
             #[cfg(feature = "minor-command")]
             argb if argb.starts_with("#ARGB") => {
@@ -1062,23 +812,7 @@ impl<'a> Token<'a> {
         use Token::*;
         match self {
             #[cfg(feature = "minor-command")]
-            AtBga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
-            }
-            #[cfg(feature = "minor-command")]
-            Bga { id, source_bmp, .. } => {
-                id.make_uppercase();
-                source_bmp.make_uppercase();
-            }
-            Bmp(Some(id), _) => {
-                id.make_uppercase();
-            }
-            #[cfg(feature = "minor-command")]
             ChangeOption(id, _) => {
-                id.make_uppercase();
-            }
-            ExBmp(id, _, _) => {
                 id.make_uppercase();
             }
             ExRank(id, _) => {
@@ -1135,57 +869,9 @@ impl std::fmt::Display for Token<'_> {
                 argb.alpha, argb.red, argb.green, argb.blue
             ),
             Token::Artist(artist) => write!(f, "#ARTIST {artist}"),
-            #[cfg(feature = "minor-command")]
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => {
-                write!(
-                    f,
-                    "#@BGA{} {} {} {} {} {} {} {}",
-                    id,
-                    source_bmp,
-                    trim_top_left.0,
-                    trim_top_left.1,
-                    trim_size.0,
-                    trim_size.1,
-                    draw_point.0,
-                    draw_point.1
-                )
-            }
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
             Token::Base62 => write!(f, "#BASE 62"),
-            #[cfg(feature = "minor-command")]
-            Token::BaseBpm(bpm) => write!(f, "#BASEBPM {bpm}"),
-            #[cfg(feature = "minor-command")]
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => {
-                write!(
-                    f,
-                    "#BGA{} {} {} {} {} {} {} {}",
-                    id,
-                    source_bmp,
-                    trim_top_left.0,
-                    trim_top_left.1,
-                    trim_bottom_right.0,
-                    trim_bottom_right.1,
-                    draw_point.0,
-                    draw_point.1
-                )
-            }
-            Token::Bmp(Some(id), path) => write!(f, "#BMP{} {}", id, path.display()),
-            Token::Bmp(None, path) => write!(f, "#BMP00 {}", path.display()),
-            Token::Bpm(bpm) => write!(f, "#BPM {bpm}"),
-            Token::BpmChange(id, bpm) => write!(f, "#BPM{id} {bpm}"),
             Token::Case(value) => write!(f, "#CASE {value}"),
             #[cfg(feature = "minor-command")]
             Token::Cdda(value) => write!(f, "#CDDA {value}"),
@@ -1221,16 +907,6 @@ impl std::fmt::Display for Token<'_> {
                 }
                 Ok(())
             }
-            Token::ExBmp(id, argb, path) => write!(
-                f,
-                "#EXBMP{} {},{},{},{} {}",
-                id,
-                argb.alpha,
-                argb.red,
-                argb.green,
-                argb.blue,
-                path.display()
-            ),
             Token::ExRank(id, level) => write!(f, "#EXRANK{id} {level}"),
             #[cfg(feature = "minor-command")]
             Token::ExWav {
@@ -1311,53 +987,17 @@ impl std::fmt::Display for Token<'_> {
                 }
             ),
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
-            Token::PoorBga(mode) => write!(
-                f,
-                "#POORBGA {}",
-                match mode {
-                    PoorMode::Interrupt => 0,
-                    PoorMode::Overlay => 1,
-                    PoorMode::Hidden => 2,
-                }
-            ),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
             Token::Rank(level) => write!(f, "#RANK {level}"),
-            Token::Scroll(id, factor) => write!(f, "#SCROLL{id} {factor}"),
             #[cfg(feature = "minor-command")]
             Token::Seek(id, position) => write!(f, "#SEEK{id} {position}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
-            Token::Speed(id, factor) => write!(f, "#SPEED{id} {factor}"),
             Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
-            Token::Stop(id, beats) => write!(f, "#STOP{id} {beats}"),
-            #[cfg(feature = "minor-command")]
-            Token::Stp(ev) => {
-                let measure = ev.time.track().0;
-                let pos = (ev.time.numerator() * 1000 / ev.time.denominator().get()) as u16;
-                let ms = ev.duration.as_millis() as u32;
-                write!(f, "#STP {measure:03}.{pos:03} {ms}")
-            }
             Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {sub_artist}"),
             Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {subtitle}"),
-            #[cfg(feature = "minor-command")]
-            Token::SwBga(id, ev) => {
-                write!(
-                    f,
-                    "#SWBGA{} {}:{}:{}:{}:{},{},{},{} {}",
-                    id,
-                    ev.frame_rate,
-                    ev.total_time,
-                    ev.line,
-                    if ev.loop_mode { 1 } else { 0 },
-                    ev.argb.alpha,
-                    ev.argb.red,
-                    ev.argb.green,
-                    ev.argb.blue,
-                    ev.pattern
-                )
-            }
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
             Token::Text(id, text) => write!(f, "#TEXT{id} {text}"),
             Token::Title(title) => write!(f, "#TITLE {title}"),
@@ -1372,7 +1012,6 @@ impl std::fmt::Display for Token<'_> {
             #[cfg(feature = "minor-command")]
             Token::VideoFs(fps) => write!(f, "#VIDEOF/S {fps}"),
             Token::VolWav(volume) => write!(f, "#VOLWAV {}", volume.relative_percent),
-            Token::Wav(id, path) => write!(f, "#WAV{} {}", id, path.display()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 use crate::bms::command::minor_command::WavCmdParam;

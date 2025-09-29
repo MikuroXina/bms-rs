@@ -8,9 +8,8 @@ pub mod prompt;
 pub mod token_processor;
 pub mod validity;
 
-use std::{borrow::Cow, num::NonZeroU64, str::FromStr};
+use std::{borrow::Cow, num::NonZeroU64};
 
-use fraction::GenericFraction;
 use itertools::Itertools;
 use thiserror::Error;
 
@@ -116,86 +115,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
     ) -> Result<()> {
         match token.content() {
             Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
-            #[cfg(feature = "minor-command")]
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => {
-                let to_insert = AtBgaDef {
-                    id: *id,
-                    source_bmp: *source_bmp,
-                    trim_top_left: trim_top_left.to_owned().into(),
-                    trim_size: trim_size.to_owned().into(),
-                    draw_point: draw_point.to_owned().into(),
-                };
-                if let Some(older) = self.scope_defines.atbga_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::AtBga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.atbga_defs.insert(*id, to_insert);
-                }
-            }
             Token::Banner(file) => self.header.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
-            #[cfg(feature = "minor-command")]
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => {
-                let to_insert = BgaDef {
-                    id: *id,
-                    source_bmp: *source_bmp,
-                    trim_top_left: trim_top_left.to_owned().into(),
-                    trim_bottom_right: trim_bottom_right.to_owned().into(),
-                    draw_point: draw_point.to_owned().into(),
-                };
-                if let Some(older) = self.scope_defines.bga_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.bga_defs.insert(*id, to_insert);
-                }
-            }
-            Token::Bmp(id, path) => {
-                if id.is_none() {
-                    self.graphics.poor_bmp = Some(path.into());
-                    return Ok(());
-                }
-                let id = id.ok_or(ParseWarning::SyntaxError(
-                    "BMP id should not be None".to_string(),
-                ))?;
-                let to_insert = Bmp {
-                    file: path.into(),
-                    transparent_color: Argb::default(),
-                };
-                if let Some(older) = self.graphics.bmp_files.get_mut(&id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
-                            id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, id)?;
-                } else {
-                    self.graphics.bmp_files.insert(id, to_insert);
-                }
-            }
             #[cfg(feature = "minor-command")]
             Token::ChangeOption(id, option) => {
                 if let Some(older) = self.others.change_options.get_mut(id) {
@@ -217,23 +138,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .push(comment.to_string()),
             Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
             Token::Email(email) => self.header.email = Some(email.to_string()),
-            Token::ExBmp(id, transparent_color, path) => {
-                let to_insert = Bmp {
-                    file: path.into(),
-                    transparent_color: *transparent_color,
-                };
-                if let Some(older) = self.graphics.bmp_files.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.graphics.bmp_files.insert(*id, to_insert);
-                }
-            }
             Token::ExRank(id, judge_level) => {
                 let to_insert = ExRankDef {
                     id: *id,
@@ -299,7 +203,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
-            Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
             Token::Rank(rank) => self.header.rank = Some(*rank),
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
@@ -338,20 +241,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         .apply_def(older, *ev, key)?;
                 } else {
                     self.scope_defines.wavcmd_events.insert(key, *ev);
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::SwBga(id, ev) => {
-                if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SwBgaEvent {
-                            id: *id,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_def(older, ev.clone(), *id)?;
-                } else {
-                    self.scope_defines.swbga_events.insert(*id, ev.clone());
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -412,58 +301,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             }
             Token::Message {
                 track,
-                channel:
-                    channel @ (Channel::BgaBase
-                    | Channel::BgaPoor
-                    | Channel::BgaLayer
-                    | Channel::BgaLayer2),
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    if !self.graphics.bmp_files.contains_key(&obj) {
-                        return Err(ParseWarning::UndefinedObject(obj));
-                    }
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.graphics.push_bga_change(
-                        BgaObj {
-                            time,
-                            id: obj,
-                            layer,
-                        },
-                        *channel,
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel:
-                    channel @ (Channel::BgaBaseOpacity
-                    | Channel::BgaLayerOpacity
-                    | Channel::BgaLayer2Opacity
-                    | Channel::BgaPoorOpacity),
-                message,
-            } => {
-                for (time, opacity_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.graphics.push_bga_opacity_change(
-                        BgaOpacityObj {
-                            time,
-                            layer,
-                            opacity: opacity_value,
-                        },
-                        *channel,
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
                 channel: Channel::BgmVolume,
                 message,
             } => {
@@ -492,36 +329,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                             time,
                             volume: volume_value,
                         },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel:
-                    channel @ (Channel::BgaBaseArgb
-                    | Channel::BgaLayerArgb
-                    | Channel::BgaLayer2Argb
-                    | Channel::BgaPoorArgb),
-                message,
-            } => {
-                for (time, argb_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    let argb = self
-                        .scope_defines
-                        .argb_defs
-                        .get(&argb_id)
-                        .ok_or(ParseWarning::UndefinedObject(argb_id))?;
-                    self.graphics.push_bga_argb_change(
-                        BgaArgbObj {
-                            time,
-                            layer,
-                            argb: *argb,
-                        },
-                        *channel,
                         prompt_handler,
                     )?;
                 }
@@ -586,29 +393,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         JudgeObj {
                             time,
                             judge_level: exrank_def.judge_level,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::BgaKeybound,
-                message,
-            } => {
-                for (time, keybound_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let event = self
-                        .scope_defines
-                        .swbga_events
-                        .get(&keybound_id)
-                        .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
-                    self.notes.push_bga_keybound_event(
-                        BgaKeyboundObj {
-                            time,
-                            event: event.clone(),
                         },
                         prompt_handler,
                     )?;
@@ -933,7 +717,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
     pub fn from_token_stream_with_ast<'a>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         rng: impl Rng,
-        prompt_handler: impl PromptHandler,
+        prompt_handler: impl Prompter,
     ) -> ParseOutputWithAst<T> {
         let AstBuildOutput {
             root,

@@ -1,6 +1,9 @@
 //! Some impl with [Cursor] usage for Structures in [command] module, for lex part.
 
-use crate::bms::command::{JudgeLevel, ObjId, PlayerMode, PoorMode};
+use crate::{
+    bms::command::{JudgeLevel, ObjId, PlayerMode, PoorMode},
+    parse::ParseWarning,
+};
 
 use super::{Result, cursor::Cursor};
 
@@ -37,6 +40,23 @@ impl PoorMode {
             Some("1") => Self::Overlay,
             Some("2") => Self::Hidden,
             _ => return Err(c.make_err_expected_token("one of 0, 1 or 2")),
+        })
+    }
+}
+
+impl std::str::FromStr for PoorMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "0" => Self::Interrupt,
+            "1" => Self::Overlay,
+            "2" => Self::Hidden,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
         })
     }
 }
