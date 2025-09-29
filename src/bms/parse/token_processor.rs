@@ -15,6 +15,7 @@ mod scroll;
 mod section_len;
 mod seek;
 mod speed;
+mod sprite;
 mod stop;
 mod text;
 mod volume;

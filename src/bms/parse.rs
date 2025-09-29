@@ -103,8 +103,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match token.content() {
-            Token::Banner(file) => self.header.banner = Some(file.into()),
-            Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
             Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
             }
@@ -115,7 +113,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
-            Token::StageFile(file) => self.header.stage_file = Some(file.into()),
             Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
@@ -146,10 +143,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 } else {
                     self.scope_defines.argb_defs.insert(*id, *argb);
                 }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::ExtChr(ev) => {
-                self.others.extchr_events.push(*ev);
             }
             #[cfg(feature = "minor-command")]
             Token::MaterialsWav(path) => {
@@ -184,10 +177,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             | Token::Skip
             | Token::EndSwitch => {
                 return Err(ParseWarning::UnexpectedControlFlow);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::CharFile(path) => {
-                self.graphics.char_file = Some(path.into());
             }
             #[cfg(feature = "minor-command")]
             Token::Materials(path) => {

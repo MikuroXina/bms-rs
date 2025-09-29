@@ -15,7 +15,7 @@ use crate::bms::{
 };
 
 #[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::{ExtChrEvent, WavCmdEvent, WavCmdParam};
+use crate::bms::command::minor_command::{WavCmdEvent, WavCmdParam};
 
 use super::{Result, cursor::Cursor};
 
@@ -31,10 +31,6 @@ pub enum Token<'a> {
     /// - A4: BGA POOR
     #[cfg(feature = "minor-command")]
     Argb(ObjId, Argb),
-    /// `#BANNER [filename]`. Defines the banner image. This can be used on music select or result view. It should be 300x80.
-    Banner(&'a Path),
-    /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
-    BackBmp(&'a Path),
     /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
     Base62,
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
@@ -45,11 +41,6 @@ pub enum Token<'a> {
     /// This allows the game to play audio directly from a CD drive.
     #[cfg(feature = "minor-command")]
     Cdda(BigUint),
-    /// `#CHARFILE [filename]`.
-    /// The character file similar to pop'n music. It's filextension is `.chp`.
-    /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
-    #[cfg(feature = "minor-command")]
-    CharFile(&'a Path),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
@@ -70,9 +61,6 @@ pub enum Token<'a> {
     EndRandom,
     /// `#ENDSW`. Closes the random scope. See [`Token::Switch`].
     EndSwitch,
-    /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
-    #[cfg(feature = "minor-command")]
-    ExtChr(ExtChrEvent),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
@@ -122,8 +110,6 @@ pub enum Token<'a> {
     SetSwitch(BigUint),
     /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
     Skip,
-    /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
-    StageFile(&'a Path),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
     /// Unknown Part. Includes all the line that not be parsed.
@@ -162,27 +148,6 @@ impl<'a> Token<'a> {
 
         let token = match command.to_uppercase().as_str() {
             // Part: Normal
-            "#STAEGFILE" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("stage filename"));
-                }
-                Self::StageFile(Path::new(file_name))
-            }
-            "#BANNER" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("banner filename"));
-                }
-                Self::Banner(Path::new(file_name))
-            }
-            "#BACKBMP" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("backbmp filename"));
-                }
-                Self::BackBmp(Path::new(file_name))
-            }
             "#LNTYPE" => {
                 if c.next_token() == Some("2") {
                     Self::LnTypeMgq
@@ -255,13 +220,6 @@ impl<'a> Token<'a> {
             "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
             "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
             // Part: Normal 2
-            "#STAGEFILE" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("splashscreen image filename"));
-                }
-                Self::StageFile(Path::new(file_name))
-            }
             "#BASE" => {
                 let base = c.next_line_remaining();
                 if base != "62" {
@@ -323,81 +281,6 @@ impl<'a> Token<'a> {
                     wav_index,
                     value,
                 })
-            }
-            // New command parsing
-            #[cfg(feature = "minor-command")]
-            extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
-                // Allow multiple spaces between parameters
-                let mut params = c.next_line_remaining().split_whitespace();
-                let sprite_num = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("sprite_num"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("sprite_num i32"))?;
-                let bmp_num = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("bmp_num"))?;
-                // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
-                let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
-                    -stripped
-                        .parse::<i32>()
-                        .map_err(|_| c.make_err_expected_token("bmp_num i32"))?
-                } else if bmp_num.starts_with("0x")
-                    || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
-                {
-                    i32::from_str_radix(bmp_num, 16)
-                        .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
-                } else {
-                    bmp_num
-                        .parse()
-                        .map_err(|_| c.make_err_expected_token("bmp_num i32/hex"))?
-                };
-                let start_x = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("start_x"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("start_x i32"))?;
-                let start_y = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("start_y"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("start_y i32"))?;
-                let end_x = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("end_x"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("end_x i32"))?;
-                let end_y = params
-                    .next()
-                    .ok_or_else(|| c.make_err_expected_token("end_y"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("end_y i32"))?;
-                // offsetX/offsetY are optional
-                let offset_x = params.next().and_then(|v| v.parse().ok());
-                let offset_y = params.next().and_then(|v| v.parse().ok());
-                // x/y are optional, only present if offset exists
-                let abs_x = params.next().and_then(|v| v.parse().ok());
-                let abs_y = params.next().and_then(|v| v.parse().ok());
-                Self::ExtChr(ExtChrEvent {
-                    sprite_num,
-                    bmp_num,
-                    start_x,
-                    start_y,
-                    end_x,
-                    end_y,
-                    offset_x,
-                    offset_y,
-                    abs_x,
-                    abs_y,
-                })
-            }
-            #[cfg(feature = "minor-command")]
-            charfile if charfile.starts_with("#CHARFILE") => {
-                let path = c
-                    .next_token()
-                    .map(Path::new)
-                    .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
-                Self::CharFile(path)
             }
             #[cfg(feature = "minor-command")]
             "#CDDA" => {
@@ -576,35 +459,16 @@ impl std::fmt::Display for Token<'_> {
                 "#ARGB{id} {},{},{},{}",
                 argb.alpha, argb.red, argb.green, argb.blue
             ),
-            Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
-            Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
             Token::Base62 => write!(f, "#BASE 62"),
             Token::Case(value) => write!(f, "#CASE {value}"),
             #[cfg(feature = "minor-command")]
             Token::Cdda(value) => write!(f, "#CDDA {value}"),
-            #[cfg(feature = "minor-command")]
-            Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),
             Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
             Token::EndIf => write!(f, "#ENDIF"),
             Token::EndRandom => write!(f, "#ENDRANDOM"),
             Token::EndSwitch => write!(f, "#ENDSW"),
-            #[cfg(feature = "minor-command")]
-            Token::ExtChr(ev) => {
-                write!(
-                    f,
-                    "#ExtChr {} {} {} {} {} {}",
-                    ev.sprite_num, ev.bmp_num, ev.start_x, ev.start_y, ev.end_x, ev.end_y
-                )?;
-                if let (Some(offset_x), Some(offset_y)) = (ev.offset_x, ev.offset_y) {
-                    write!(f, " {offset_x} {offset_y}")?;
-                    if let (Some(abs_x), Some(abs_y)) = (ev.abs_x, ev.abs_y) {
-                        write!(f, " {abs_x} {abs_y}")?;
-                    }
-                }
-                Ok(())
-            }
             Token::If(value) => write!(f, "#IF {value}"),
             Token::LnMode(mode) => write!(
                 f,
@@ -633,7 +497,6 @@ impl std::fmt::Display for Token<'_> {
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
-            Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
             Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
             #[cfg(feature = "minor-command")]
