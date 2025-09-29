@@ -110,8 +110,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.header.ln_type = LnType::Mgq;
             }
             #[cfg(feature = "minor-command")]
-            Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
-            #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
@@ -129,19 +127,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     self.scope_defines.wavcmd_events.insert(key, *ev);
                 }
             }
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsWav(path) => {
-                self.notes.materials_wav.push(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsBmp(path) => {
-                self.graphics.materials_bmp.push(path.to_path_buf());
-            }
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;
             }
-            #[cfg(feature = "minor-command")]
-            Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
             Token::Base62 => {
@@ -161,10 +149,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             | Token::Skip
             | Token::EndSwitch => {
                 return Err(ParseWarning::UnexpectedControlFlow);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Materials(path) => {
-                self.others.materials_path = Some(path.to_path_buf());
             }
         }
         Ok(())

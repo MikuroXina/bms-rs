@@ -24,12 +24,6 @@ pub enum Token<'a> {
     Base62,
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
-    /// `#CDDA [u64]`. CD-DA (Compact Disc Digital Audio) extension.
-    /// CD-DA can be used as BGM (Background Music).
-    /// In DDR (Dance Dance Revolution), a config of `CD-Syncro` in `SYSTEM OPTION` is also applied.
-    /// This allows the game to play audio directly from a CD drive.
-    #[cfg(feature = "minor-command")]
-    Cdda(BigUint),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
@@ -58,24 +52,6 @@ pub enum Token<'a> {
     LnTypeRdm,
     /// `#LNTYPE 2`. Declares the LN notation as the MGQ type.
     LnTypeMgq,
-    /// `#MATERIALS [string]` Material path definition.
-    /// Defines the relative path which makes an executable file a starting point.
-    /// This allows BMS files to reference files in Materials subdirectories using `<foldername>filename` syntax.
-    #[cfg(feature = "minor-command")]
-    Materials(&'a Path),
-    /// `#MATERIALSBMP [filename]` Material BMP extension.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    MaterialsBmp(&'a Path),
-    /// `#MATERIALSWAV [filename]` Material WAV extension.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    MaterialsWav(&'a Path),
-    /// `#MIDIFILE [filename]`. Defines the MIDI file as the BGM.
-    /// This is a minor command extension that allows MIDI files to be used as background music.
-    /// *Deprecated* - Some players may not support this feature.
-    #[cfg(feature = "minor-command")]
-    MidiFile(&'a Path),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#OCT/FP`. Declares the score as the octave mode.
@@ -193,14 +169,6 @@ impl<'a> Token<'a> {
             }
             #[cfg(feature = "minor-command")]
             "#OCT/FP" => Self::OctFp,
-            #[cfg(feature = "minor-command")]
-            "#MIDIFILE" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("midi filename"));
-                }
-                Self::MidiFile(Path::new(file_name))
-            }
             // Part: Command with lane and arg
             // Place ahead of WAV to avoid being parsed as WAV.
             #[cfg(feature = "minor-command")]
@@ -238,36 +206,6 @@ impl<'a> Token<'a> {
                     wav_index,
                     value,
                 })
-            }
-            #[cfg(feature = "minor-command")]
-            "#CDDA" => {
-                let v = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("cdda value"))?;
-                let v = BigUint::parse_bytes(v.as_bytes(), 10)
-                    .ok_or_else(|| c.make_err_expected_token("BigUint"))?;
-                Self::Cdda(v)
-            }
-            #[cfg(feature = "minor-command")]
-            materialswav if materialswav.starts_with("#MATERIALSWAV") => {
-                let path = c
-                    .next_token()
-                    .map(Path::new)
-                    .ok_or_else(|| c.make_err_expected_token("materialswav filename"))?;
-                Self::MaterialsWav(path)
-            }
-            #[cfg(feature = "minor-command")]
-            materialsbmp if materialsbmp.starts_with("#MATERIALSBMP") => {
-                let path = c
-                    .next_token()
-                    .map(Path::new)
-                    .ok_or_else(|| c.make_err_expected_token("materialsbmp filename"))?;
-                Self::MaterialsBmp(path)
-            }
-            #[cfg(feature = "minor-command")]
-            materials if materials.starts_with("#MATERIALS") => {
-                let s = c.next_line_remaining();
-                Self::Materials(Path::new(s))
             }
             lnmode if lnmode.starts_with("#LNMODE") => {
                 let mode = c
