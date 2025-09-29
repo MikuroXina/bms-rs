@@ -136,9 +136,9 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
 }
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
-pub struct BpmProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct BpmProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for BpmProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name == "BPM" {
             let bpm = Decimal::from_fraction(
@@ -222,9 +222,9 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
 }
 
 /// It processes `#SCROLLxx` definitions and objects on `Scroll` channel.
-pub struct ScrollProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct ScrollProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for ScrollProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.starts_with("SCROLL") {
             let id = name.trim_start_matches("SCROLL");
@@ -282,9 +282,9 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
 }
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
-pub struct StopProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct StopProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for StopProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.starts_with("STOP") {
             let id = name.trim_start_matches("STOP");
@@ -390,9 +390,9 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
 }
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
-pub struct SpeedProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct SpeedProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for SpeedProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.starts_with("SPEED") {
             let id = name.trim_start_matches("SPEED");
@@ -453,9 +453,9 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
 }
 
 /// It processes objects on `SectionLen` channel.
-pub struct SectionLenProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct SectionLenProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for SectionLenProcessor<'_, P, T> {
     fn on_header(&self, _: &str, _: &str) -> Result<()> {
         Ok(())
     }
@@ -484,9 +484,9 @@ impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
 }
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
-pub struct BmpProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct BmpProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for BmpProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             bmp if bmp.starts_with("BMP") => {
@@ -893,9 +893,9 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
 }
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
-pub struct OptionProcessor<'a, P>(Rc<RefCell<Bms>>, &'a P);
+pub struct OptionProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
+impl<P: Prompter, T> TokenProcessor for OptionProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         #[cfg(feature = "minor-command")]
         if name == "OPTION" {
