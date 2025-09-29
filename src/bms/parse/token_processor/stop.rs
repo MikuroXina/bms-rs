@@ -106,10 +106,10 @@ impl<P: Prompter, T> TokenProcessor for StopProcessor<'_, P, T> {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0.borrow_mut().arrangers.push_stop(StopObj {
-                    time,
-                    duration: duration.clone(),
-                });
+                self.0
+                    .borrow_mut()
+                    .arrangers
+                    .push_stop(StopObj { time, duration });
             }
         }
         Ok(())

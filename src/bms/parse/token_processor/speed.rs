@@ -35,13 +35,13 @@ impl<P: Prompter, T> TokenProcessor for SpeedProcessor<'_, P, T> {
                         older: older.clone(),
                         newer: factor.clone(),
                     })
-                    .apply_def(older, factor.clone(), speed_obj_id)?;
+                    .apply_def(older, factor, speed_obj_id)?;
             } else {
                 self.0
                     .borrow_mut()
                     .scope_defines
                     .speed_defs
-                    .insert(speed_obj_id, factor.clone());
+                    .insert(speed_obj_id, factor);
             }
         }
         Ok(())
@@ -58,13 +58,10 @@ impl<P: Prompter, T> TokenProcessor for SpeedProcessor<'_, P, T> {
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0.borrow_mut().arrangers.push_speed_factor_change(
-                    SpeedObj {
-                        time,
-                        factor: factor.clone(),
-                    },
-                    self.1,
-                )?;
+                self.0
+                    .borrow_mut()
+                    .arrangers
+                    .push_speed_factor_change(SpeedObj { time, factor }, self.1)?;
             }
         }
         Ok(())

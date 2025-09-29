@@ -40,9 +40,9 @@ impl<P: Prompter, T> TokenProcessor for BpmProcessor<'_, P, T> {
                         older: older.clone(),
                         newer: bpm.clone(),
                     })
-                    .apply_def(older, bpm.clone(), bpm_obj_id)?;
+                    .apply_def(older, bpm, bpm_obj_id)?;
             } else {
-                scope_defines.bpm_defs.insert(bpm_obj_id, bpm.clone());
+                scope_defines.bpm_defs.insert(bpm_obj_id, bpm);
             }
         }
         #[cfg(feature = "minor-command")]

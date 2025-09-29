@@ -49,13 +49,10 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for TextProcessor<'_, P, T>
                         .get(&text_id)
                         .cloned()
                         .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                    self.0.borrow_mut().notes.push_text_event(
-                        TextObj {
-                            time,
-                            text: text.clone(),
-                        },
-                        self.1,
-                    )?;
+                    self.0
+                        .borrow_mut()
+                        .notes
+                        .push_text_event(TextObj { time, text }, self.1)?;
                 }
             }
             _ => {}
