@@ -11,6 +11,7 @@ mod judge;
 mod metadata;
 mod music_info;
 mod option;
+mod repr;
 mod resources;
 mod scroll;
 mod section_len;

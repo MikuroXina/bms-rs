@@ -55,6 +55,9 @@ pub enum ParseWarning {
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
+    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
+    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
+    OutOfBase62,
 }
 
 /// Type alias of `core::result::Result<T, ParseWarning>`
@@ -103,20 +106,8 @@ impl<T: KeyLayoutMapper> Bms<T> {
         prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match token.content() {
-            Token::LnTypeRdm => {
-                self.header.ln_type = LnType::Rdm;
-            }
-            Token::LnTypeMgq => {
-                self.header.ln_type = LnType::Mgq;
-            }
-            Token::LnMode(ln_mode_type) => {
-                self.header.ln_mode = *ln_mode_type;
-            }
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
-            Token::Base62 => {
-                // Pass.
-            }
             Token::Random(_)
             | Token::SetRandom(_)
             | Token::If(_)

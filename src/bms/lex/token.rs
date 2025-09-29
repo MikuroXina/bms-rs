@@ -17,8 +17,6 @@ use super::{Result, cursor::Cursor};
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
-    /// `#BASE 62`. Declares that the score is using base-62 object id format. If this exists, the score is treated as case-sensitive.
-    Base62,
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
@@ -43,12 +41,6 @@ pub enum Token<'a> {
     EndSwitch,
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
-    /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
-    LnMode(LnMode),
-    /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
-    LnTypeRdm,
-    /// `#LNTYPE 2`. Declares the LN notation as the MGQ type.
-    LnTypeMgq,
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
@@ -76,14 +68,6 @@ impl<'a> Token<'a> {
             .ok_or_else(|| c.make_err_expected_token("command"))?;
 
         let token = match command.to_uppercase().as_str() {
-            // Part: Normal
-            "#LNTYPE" => {
-                if c.next_token() == Some("2") {
-                    Self::LnTypeMgq
-                } else {
-                    Self::LnTypeRdm
-                }
-            }
             // Part: ControlFlow/Random
             "#RANDOM" => {
                 let rand_max = c
@@ -149,28 +133,6 @@ impl<'a> Token<'a> {
             "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
             "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
             // Part: Normal 2
-            "#BASE" => {
-                let base = c.next_line_remaining();
-                if base != "62" {
-                    return Err(LexWarning::OutOfBase62.into_wrapper_range(command_range));
-                }
-                Self::Base62
-            }
-            lnmode if lnmode.starts_with("#LNMODE") => {
-                let mode = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("lnmode value"))?;
-                let mode: u8 = mode
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer 1-3"))?;
-                let mode = match mode {
-                    1 => LnMode::Ln,
-                    2 => LnMode::Cn,
-                    3 => LnMode::Hcn,
-                    _ => return Err(c.make_err_expected_token("lnmode 1-3")),
-                };
-                Self::LnMode(mode)
-            }
             message
                 if message.starts_with('#')
                     && message.chars().nth(6) == Some(':')
