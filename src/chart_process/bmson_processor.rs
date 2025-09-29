@@ -30,7 +30,6 @@ pub struct BmsonProcessor<'a> {
     // Flow parameters
     default_visible_y_length: YCoordinate,
     current_bpm: Decimal,
-    current_speed: Decimal,
     current_scroll: Decimal,
 
     /// 待消费的外部事件队列
@@ -114,7 +113,6 @@ impl<'a> BmsonProcessor<'a> {
             all_events: BTreeMap::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
             current_bpm: init_bpm,
-            current_speed: Decimal::from(1),
             current_scroll: Decimal::from(1),
         };
 
@@ -351,17 +349,15 @@ impl<'a> BmsonProcessor<'a> {
 
     /// 当前瞬时位移速度（y 单位每秒）。
     /// y 为归一化后的小节单位：`y = pulses / (4*resolution)`，默认 4/4 下一小节为 1。
-    /// 模型：v = (current_bpm / 120.0) * speed_factor（使用固定基准BPM 120）
-    /// 注：Speed 影响y前进速度，但不改变实际时间推进；Scroll 仅影响显示位置。
+    /// 模型：v = (current_bpm / 120.0)（使用固定基准BPM 120）
+    /// 注：BPM 只影响y前进速度，不改变事件位置；Scroll 仅影响显示位置。
     fn current_velocity(&self) -> Decimal {
         let base_bpm = Decimal::from(120);
         if self.current_bpm <= Decimal::from(0) {
             return Decimal::from(0);
         }
         let velocity = self.current_bpm.clone() / base_bpm;
-        let speed_factor = self.current_speed.clone();
-        let result = velocity * speed_factor;
-        result.max(Decimal::from(0)) // speed必须为正值
+        velocity.max(Decimal::from(0)) // speed必须为正值
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
@@ -442,8 +438,7 @@ impl<'a> BmsonProcessor<'a> {
         // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
-        let visible_y = (self.current_bpm.clone() / base_bpm) * reaction_time_seconds;
-        visible_y
+        (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -495,7 +490,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.current_bpm.clone()
     }
     fn current_speed(&self) -> Decimal {
-        self.current_speed.clone()
+        Decimal::from(1)
     }
     fn current_scroll(&self) -> Decimal {
         self.current_scroll.clone()

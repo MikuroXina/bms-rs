@@ -81,12 +81,13 @@ where
     }
 
     /// 预先计算所有事件，按 Y 坐标分组存储
+    /// 注意：Speed影响在初始化时就计算到事件位置中，确保事件触发时间不变
     fn precompute_all_events(bms: &Bms<T>) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
 
         // Note / Wav 到达事件
         for obj in bms.notes().all_notes() {
-            let y = Self::y_of_time_static(bms, obj.offset);
+            let y = Self::y_of_time_static(bms, obj.offset, &bms.arrangers.speed_factor_changes);
             let event = Self::event_for_note_static(bms, obj, y.clone());
 
             events_map
@@ -97,7 +98,7 @@ where
 
         // BPM 变更事件
         for change in bms.arrangers.bpm_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time);
+            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
@@ -110,7 +111,7 @@ where
 
         // Scroll 变更事件
         for change in bms.arrangers.scrolling_factor_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time);
+            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
@@ -123,7 +124,7 @@ where
 
         // Speed 变更事件
         for change in bms.arrangers.speed_factor_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time);
+            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
@@ -136,7 +137,7 @@ where
 
         // Stop 事件
         for stop in bms.arrangers.stops.values() {
-            let y = Self::y_of_time_static(bms, stop.time);
+            let y = Self::y_of_time_static(bms, stop.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::Stop {
                 duration: stop.duration.clone(),
             };
@@ -149,7 +150,7 @@ where
 
         // BGA 变化事件
         for bga_obj in bms.graphics.bga_changes.values() {
-            let y = Self::y_of_time_static(bms, bga_obj.time);
+            let y = Self::y_of_time_static(bms, bga_obj.time, &bms.arrangers.speed_factor_changes);
             let bmp_index = bga_obj.id.as_u16() as usize;
             let event = ChartEvent::BgaChange {
                 layer: bga_obj.layer,
@@ -166,7 +167,11 @@ where
         #[cfg(feature = "minor-command")]
         for (layer, opacity_changes) in &bms.graphics.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
-                let y = Self::y_of_time_static(bms, opacity_obj.time);
+                let y = Self::y_of_time_static(
+                    bms,
+                    opacity_obj.time,
+                    &bms.arrangers.speed_factor_changes,
+                );
                 let event = ChartEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
@@ -183,7 +188,8 @@ where
         #[cfg(feature = "minor-command")]
         for (layer, argb_changes) in &bms.graphics.bga_argb_changes {
             for argb_obj in argb_changes.values() {
-                let y = Self::y_of_time_static(bms, argb_obj.time);
+                let y =
+                    Self::y_of_time_static(bms, argb_obj.time, &bms.arrangers.speed_factor_changes);
                 let argb = ((argb_obj.argb.alpha as u32) << 24)
                     | ((argb_obj.argb.red as u32) << 16)
                     | ((argb_obj.argb.green as u32) << 8)
@@ -202,7 +208,11 @@ where
 
         // BGM 音量变化事件
         for bgm_volume_obj in bms.notes.bgm_volume_changes.values() {
-            let y = Self::y_of_time_static(bms, bgm_volume_obj.time);
+            let y = Self::y_of_time_static(
+                bms,
+                bgm_volume_obj.time,
+                &bms.arrangers.speed_factor_changes,
+            );
             let event = ChartEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
             };
@@ -215,7 +225,11 @@ where
 
         // KEY 音量变化事件
         for key_volume_obj in bms.notes.key_volume_changes.values() {
-            let y = Self::y_of_time_static(bms, key_volume_obj.time);
+            let y = Self::y_of_time_static(
+                bms,
+                key_volume_obj.time,
+                &bms.arrangers.speed_factor_changes,
+            );
             let event = ChartEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
             };
@@ -228,7 +242,7 @@ where
 
         // 文本显示事件
         for text_obj in bms.notes.text_events.values() {
-            let y = Self::y_of_time_static(bms, text_obj.time);
+            let y = Self::y_of_time_static(bms, text_obj.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::TextDisplay {
                 text: text_obj.text.clone(),
             };
@@ -241,7 +255,8 @@ where
 
         // 判定等级变化事件
         for judge_obj in bms.notes.judge_events.values() {
-            let y = Self::y_of_time_static(bms, judge_obj.time);
+            let y =
+                Self::y_of_time_static(bms, judge_obj.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
             };
@@ -257,7 +272,8 @@ where
         {
             // 视频跳转事件
             for seek_obj in bms.notes.seek_events.values() {
-                let y = Self::y_of_time_static(bms, seek_obj.time);
+                let y =
+                    Self::y_of_time_static(bms, seek_obj.time, &bms.arrangers.speed_factor_changes);
                 let event = ChartEvent::VideoSeek {
                     seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
                 };
@@ -270,7 +286,11 @@ where
 
             // BGA 键绑定事件
             for bga_keybound_obj in bms.notes.bga_keybound_events.values() {
-                let y = Self::y_of_time_static(bms, bga_keybound_obj.time);
+                let y = Self::y_of_time_static(
+                    bms,
+                    bga_keybound_obj.time,
+                    &bms.arrangers.speed_factor_changes,
+                );
                 let event = ChartEvent::BgaKeybound {
                     event: bga_keybound_obj.event.clone(),
                 };
@@ -283,7 +303,11 @@ where
 
             // 选项变化事件
             for option_obj in bms.notes.option_events.values() {
-                let y = Self::y_of_time_static(bms, option_obj.time);
+                let y = Self::y_of_time_static(
+                    bms,
+                    option_obj.time,
+                    &bms.arrangers.speed_factor_changes,
+                );
                 let event = ChartEvent::OptionChange {
                     option: option_obj.option.clone(),
                 };
@@ -336,6 +360,7 @@ where
                     0,
                     NonZeroU64::new(1).expect("1 should be a valid NonZeroU64"),
                 ),
+                &bms.arrangers.speed_factor_changes,
             );
 
             if track_y <= max_y {
@@ -346,8 +371,13 @@ where
         }
     }
 
-    /// 静态版本的 y_of_time，用于预计算
-    fn y_of_time_static(bms: &Bms<T>, time: ObjTime) -> Decimal {
+    /// 静态版本的 y_of_time，考虑Speed影响（用于事件位置预计算）
+    /// Speed影响在初始化时就计算到事件位置中，确保事件触发时间不变
+    fn y_of_time_static(
+        bms: &Bms<T>,
+        time: ObjTime,
+        speed_changes: &std::collections::BTreeMap<ObjTime, crate::bms::model::obj::SpeedObj>,
+    ) -> Decimal {
         let mut y = Decimal::from(0);
         // 累加完整小节
         for t in 0..time.track().0 {
@@ -373,7 +403,18 @@ where
                 Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
             y += current_len * fraction;
         }
-        y
+
+        // 找到当前时间点之前最后一个Speed变化，作为当前生效的Speed因子
+        let mut current_speed_factor = Decimal::from(1);
+        for (change_time, change) in speed_changes {
+            if *change_time <= time {
+                current_speed_factor = change.factor.clone();
+            }
+        }
+
+        // Speed既影响y距离又影响前进速度，但要保持触发时间不变
+        // y_new = y_base * current_speed_factor
+        y * current_speed_factor
     }
 
     /// 静态版本的 event_for_note，用于预计算
@@ -383,7 +424,11 @@ where
             let length = if kind == NoteKind::Long {
                 // 长条音符：查找下一个同通道的音符来计算长度
                 if let Some(next_obj) = bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
-                    let next_y = Self::y_of_time_static(bms, next_obj.offset);
+                    let next_y = Self::y_of_time_static(
+                        bms,
+                        next_obj.offset,
+                        &bms.arrangers.speed_factor_changes,
+                    );
                     Some(YCoordinate::from(next_y - y.clone()))
                 } else {
                     None
@@ -444,7 +489,7 @@ where
         let velocity = self.current_bpm.clone() / base_bpm;
         let speed_factor = self.current_speed.clone();
         let result = velocity * speed_factor;
-        result.max(Decimal::from(std::f64::EPSILON)) // speed必须为正值
+        result.max(Decimal::from(f64::EPSILON)) // speed必须为正值
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL/SPEED 变更。
@@ -546,8 +591,7 @@ where
         // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
-        let visible_y = (self.current_bpm.clone() / base_bpm) * reaction_time_seconds;
-        visible_y
+        (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
     }
 
     fn lane_of_channel_id(channel_id: NoteChannelId) -> Option<(PlayerSide, Key, NoteKind)> {
