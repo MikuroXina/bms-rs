@@ -1,6 +1,7 @@
 //! Bms Processor Module.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
+use std::num::NonZeroU64;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
@@ -32,9 +33,6 @@ where
 
     /// 待消费的外部事件队列
     inbox: Vec<ControlEvent>,
-
-    /// 已生成小节线的Track集合
-    generated_bar_lines: HashSet<Track>,
 
     /// 所有事件的映射（按 Y 坐标排序）
     all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
@@ -79,7 +77,6 @@ where
             last_poll_at: None,
             progressed_y: 0.0,
             inbox: Vec::new(),
-            generated_bar_lines: HashSet::new(),
             all_events,
             preloaded_events: Vec::new(),
             default_visible_y_length: YCoordinate::from(visible_y_length),
@@ -259,7 +256,53 @@ where
             }
         }
 
+        // 生成小节线 - 最后生成但不超过其他对象
+        Self::generate_barlines_for_bms(bms, &mut events_map);
+
         events_map
+    }
+
+    /// 为BMS生成小节线（每个track都生成，但不超过其他对象的Y值）
+    fn generate_barlines_for_bms(
+        bms: &Bms<T>,
+        events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>,
+    ) {
+        // 找到所有事件的最大Y值
+        let max_y = events_map
+            .keys()
+            .map(|y_coord| y_coord.value().to_f64().unwrap_or(0.0))
+            .fold(0.0, f64::max);
+
+        if max_y <= 0.0 {
+            return;
+        }
+
+        // 获取最后一个对象的track数
+        let last_obj_time = bms.last_obj_time().unwrap_or_else(|| {
+            ObjTime::new(
+                0,
+                0,
+                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
+            )
+        });
+
+        // 为每个track生成小节线，但不超过最大Y值
+        for track in 0..=last_obj_time.track().0 {
+            let track_y = Self::y_of_time_static(
+                bms,
+                ObjTime::new(
+                    track,
+                    0,
+                    NonZeroU64::new(1).expect("1 should be a valid NonZeroU64"),
+                ),
+            );
+
+            if track_y <= max_y {
+                let y_coord = YCoordinate::from(track_y);
+                let event = ChartEvent::BarLine;
+                events_map.entry(y_coord).or_default().push(event);
+            }
+        }
     }
 
     /// 静态版本的 y_of_time，用于预计算
@@ -509,7 +552,6 @@ where
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = 0.0;
-        self.generated_bar_lines.clear();
         self.preloaded_events.clear();
         // 初始化 current_bpm 为 header 或默认
         self.current_bpm = self

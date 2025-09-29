@@ -250,7 +250,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理小节线事件
+        // 处理小节线事件 - 最后生成但不超过其他对象
         if let Some(lines) = &self.bmson.lines {
             for bar_line in lines {
                 let y = self.pulses_to_y(bar_line.y.0);
@@ -258,6 +258,9 @@ impl<'a> BmsonProcessor<'a> {
                 let event = ChartEvent::BarLine;
                 events_map.entry(y_coord).or_default().push(event);
             }
+        } else {
+            // 如果没有定义barline，则在每单位Y值处生成小节线，但不超过其他对象的Y值
+            self.generate_auto_barlines(&mut events_map);
         }
 
         // 处理地雷通道事件
@@ -310,6 +313,28 @@ impl<'a> BmsonProcessor<'a> {
             (pulses as f64) / denom
         } else {
             0.0
+        }
+    }
+
+    /// 为未定义barline的BMSON自动生成小节线（每单位Y值处，但不超过其他对象的Y值）
+    fn generate_auto_barlines(&self, events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>) {
+        // 找到所有事件的最大Y值
+        let max_y = events_map
+            .keys()
+            .map(|y_coord| y_coord.value().to_f64().unwrap_or(0.0))
+            .fold(0.0, f64::max);
+
+        if max_y <= 0.0 {
+            return;
+        }
+
+        // 在每单位Y值处生成小节线，但不超过最大Y值
+        let mut current_y = 0.0;
+        while current_y <= max_y {
+            let y_coord = YCoordinate::from(current_y);
+            let event = ChartEvent::BarLine;
+            events_map.entry(y_coord).or_default().push(event);
+            current_y += 1.0;
         }
     }
 
