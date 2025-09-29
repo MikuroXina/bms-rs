@@ -59,10 +59,6 @@ pub enum Token<'a> {
     Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
-    /// `#DEFEXRANK [u64]` Extended judge rank definition, defined as n% of the original.
-    /// 100 means NORMAL judge.
-    /// Overrides `#RANK` definition.
-    DefExRank(u64),
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
     Difficulty(u8),
     /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
@@ -92,8 +88,6 @@ pub enum Token<'a> {
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
-    /// `#EXRANK[01-ZZ] [0-3]`. Defines the judgement level change object.
-    ExRank(ObjId, JudgeLevel),
     /// `#GENRE [string]`. Defines the genre of the music.
     Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
@@ -158,8 +152,6 @@ pub enum Token<'a> {
     Preview(&'a Path),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
-    /// `#RANK [0-3]`. Defines the judgement level.
-    Rank(JudgeLevel),
     /// `#SEEK[01-ZZ] [f64]` Video seek extension.
     /// Defines a video seek event that allows jumping to specific time positions in video files.
     /// This is a minor command extension for advanced video control.
@@ -270,7 +262,6 @@ impl<'a> Token<'a> {
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?,
             ),
-            "#RANK" => Self::Rank(JudgeLevel::try_read(c)?),
             "#LNTYPE" => {
                 if c.next_token() == Some("2") {
                     Self::LnTypeMgq
@@ -425,11 +416,6 @@ impl<'a> Token<'a> {
                     wav_index,
                     value,
                 })
-            }
-            exrank if exrank.starts_with("#EXRANK") => {
-                let id = exrank.trim_start_matches("#EXRANK");
-                let judge_level = JudgeLevel::try_read(c)?;
-                Self::ExRank(ObjId::try_load(id, c)?, judge_level)
             }
             // New command parsing
             #[cfg(feature = "minor-command")]
@@ -621,15 +607,6 @@ impl<'a> Token<'a> {
                 let s = c.next_line_remaining();
                 Self::Charset(s)
             }
-            defexrank if defexrank.starts_with("#DEFEXRANK") => {
-                let value = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("defexrank value"))?;
-                let value = value
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("u64"))?;
-                Self::DefExRank(value)
-            }
             preview if preview.starts_with("#PREVIEW") => {
                 let path = c
                     .next_token()
@@ -690,9 +667,6 @@ impl<'a> Token<'a> {
     pub(crate) fn make_id_uppercase(&mut self) {
         use Token::*;
         match self {
-            ExRank(id, _) => {
-                id.make_uppercase();
-            }
             Message { message, .. } => {
                 if message.chars().any(|ch| ch.is_ascii_lowercase()) {
                     message.to_mut().make_ascii_uppercase();
@@ -745,7 +719,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Charset(charset) => write!(f, "#CHARSET {charset}"),
             Token::Comment(comment) => write!(f, "#COMMENT {comment}"),
             Token::Def => write!(f, "#DEF"),
-            Token::DefExRank(value) => write!(f, "#DEFEXRANK {value}"),
             Token::Difficulty(diff) => write!(f, "#DIFFICULTY {diff}"),
             #[cfg(feature = "minor-command")]
             Token::DivideProp(prop) => write!(f, "#DIVIDEPROP {prop}"),
@@ -770,7 +743,6 @@ impl std::fmt::Display for Token<'_> {
                 }
                 Ok(())
             }
-            Token::ExRank(id, level) => write!(f, "#EXRANK{id} {level}"),
             Token::Genre(genre) => write!(f, "#GENRE {genre}"),
             Token::If(value) => write!(f, "#IF {value}"),
             Token::LnMode(mode) => write!(
@@ -815,7 +787,6 @@ impl std::fmt::Display for Token<'_> {
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
             Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
-            Token::Rank(level) => write!(f, "#RANK {level}"),
             #[cfg(feature = "minor-command")]
             Token::Seek(id, position) => write!(f, "#SEEK{id} {position}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),

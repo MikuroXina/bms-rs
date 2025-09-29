@@ -120,23 +120,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 .push(comment.to_string()),
             Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
             Token::Email(email) => self.header.email = Some(email.to_string()),
-            Token::ExRank(id, judge_level) => {
-                let to_insert = ExRankDef {
-                    id: *id,
-                    judge_level: *judge_level,
-                };
-                if let Some(older) = self.scope_defines.exrank_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ExRank {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.exrank_defs.insert(*id, to_insert);
-                }
-            }
             Token::Genre(genre) => self.header.genre = Some(genre.to_string()),
             Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
@@ -152,7 +135,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
-            Token::Rank(rank) => self.header.rank = Some(*rank),
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
@@ -239,42 +221,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         prompt_handler,
                     )?;
                 }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Judge,
-                message,
-            } => {
-                for (time, judge_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let exrank_def = self
-                        .scope_defines
-                        .exrank_defs
-                        .get(&judge_id)
-                        .ok_or(ParseWarning::UndefinedObject(judge_id))?;
-                    self.notes.push_judge_event(
-                        JudgeObj {
-                            time,
-                            judge_level: exrank_def.judge_level,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::DefExRank(judge_level) => {
-                let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
-                self.scope_defines.exrank_defs.insert(
-                    ObjId::try_from([b'0', b'0']).map_err(|_| {
-                        ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
-                    })?,
-                    ExRankDef {
-                        id: ObjId::try_from([b'0', b'0']).map_err(|_| {
-                            ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
-                        })?,
-                        judge_level,
-                    },
-                );
             }
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;

@@ -7,6 +7,7 @@ use crate::bms::prelude::*;
 
 mod bmp;
 mod bpm;
+mod judge;
 mod option;
 mod scroll;
 mod section_len;
