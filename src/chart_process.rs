@@ -88,6 +88,65 @@ use std::{collections::HashMap, path::Path, time::SystemTime};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct YCoordinate(pub Decimal);
 
+/// 显示比例的包装类型，表示 note 实际在显示区域中的位置。
+///
+/// 0 为判定线，1 为一般情况下 note 刚开始出现的位置。
+/// 这个类型的值只会受到：当前Y、Y可见范围和当前Speed、Scroll值这些因素的影响。
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct DisplayRatio(pub Decimal);
+
+impl DisplayRatio {
+    /// 创建一个新的 DisplayRatio
+    #[must_use]
+    pub fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// 获取内部的 Decimal 值
+    #[must_use]
+    pub fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// 转换为 f64（用于兼容性）
+    #[must_use]
+    pub fn as_f64(&self) -> f64 {
+        self.0.to_string().parse::<f64>().unwrap_or(0.0)
+    }
+
+    /// 创建表示判定线的 DisplayRatio（值为 0）
+    #[must_use]
+    pub fn at_judgment_line() -> Self {
+        Self(Decimal::from(0))
+    }
+
+    /// 创建表示 note 刚开始出现位置的 DisplayRatio（值为 1）
+    #[must_use]
+    pub fn at_appearance() -> Self {
+        Self(Decimal::from(1))
+    }
+}
+
+impl From<Decimal> for DisplayRatio {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<f64> for DisplayRatio {
+    fn from(value: f64) -> Self {
+        use fraction::{BigUint, GenericDecimal};
+        use std::str::FromStr;
+        // 将 f64 转换为字符串然后解析为 Decimal
+        let decimal_str = value.to_string();
+        let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
+            // 如果解析失败，使用 0
+            GenericDecimal::from(BigUint::from(0u32))
+        });
+        Self(decimal)
+    }
+}
+
 impl YCoordinate {
     /// 创建一个新的 YCoordinate
     #[must_use]
@@ -343,5 +402,5 @@ pub trait ChartProcessor {
     fn visible_events(
         &mut self,
         now: SystemTime,
-    ) -> impl Iterator<Item = (YCoordinate, ChartEvent)>;
+    ) -> impl Iterator<Item = (YCoordinate, ChartEvent, DisplayRatio)>;
 }

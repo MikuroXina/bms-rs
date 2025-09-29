@@ -5,7 +5,9 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{BmpId, ChartEvent, ChartProcessor, ControlEvent, WavId, YCoordinate};
+use crate::chart_process::{
+    BmpId, ChartEvent, ChartProcessor, ControlEvent, DisplayRatio, WavId, YCoordinate,
+};
 use num::ToPrimitive;
 use std::str::FromStr;
 
@@ -340,15 +342,16 @@ where
     }
 
     /// 当前瞬时位移速度（y 单位每秒）。
-    /// 模型：v = current_bpm / 120.0（使用固定基准BPM 120）
-    /// 注：Speed 仅影响显示位置（y 缩放），不改变时间轴推进；Scroll 同理仅影响显示。
+    /// 模型：v = (current_bpm / 120.0) * speed_factor（使用固定基准BPM 120）
+    /// 注：Speed 影响y前进速度，但不改变实际时间推进；Scroll 仅影响显示位置。
     fn current_velocity(&self) -> f64 {
         let base_bpm = Decimal::from(120);
         if self.current_bpm <= Decimal::from(0) {
             return 0.0;
         }
         let velocity = self.current_bpm.clone() / base_bpm;
-        velocity.to_f64().unwrap_or(0.0)
+        let speed_factor = self.current_speed.to_f64().unwrap_or(1.0);
+        (velocity.to_f64().unwrap_or(0.0) * speed_factor).max(std::f64::EPSILON) // speed必须为正值
     }
 
     /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL/SPEED 变更。
@@ -587,9 +590,24 @@ where
     fn visible_events(
         &mut self,
         now: SystemTime,
-    ) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
+    ) -> impl Iterator<Item = (YCoordinate, ChartEvent, DisplayRatio)> {
         self.step_to(now);
-        self.preloaded_events.iter().cloned()
+        let current_y = self.progressed_y;
+        let visible_window_y = self.visible_window_y();
+        let scroll_factor = self.current_scroll.to_f64().unwrap_or(1.0);
+
+        self.preloaded_events.iter().map(move |(y_coord, event)| {
+            let event_y = y_coord.value().to_f64().unwrap_or(std::f64::EPSILON);
+            // 计算显示比例：(event_y - current_y) / visible_window_y * scroll_factor
+            // 注意：scroll可以为非零的正负值
+            let display_ratio_value = if visible_window_y > 0.0 {
+                ((event_y - current_y) / visible_window_y) * scroll_factor
+            } else {
+                0.0
+            };
+            let display_ratio = DisplayRatio::from(display_ratio_value);
+            (y_coord.clone(), event.clone(), display_ratio)
+        })
     }
 }
 
