@@ -9,7 +9,7 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        JudgeLevel, LnMode, ObjId, PlayerMode, Volume, channel::Channel, graphics::Argb,
+        JudgeLevel, LnMode, ObjId, PlayerMode, channel::Channel, graphics::Argb,
         mixin::SourceRangeMixin, time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
@@ -179,8 +179,6 @@ pub enum Token<'a> {
     SubTitle(&'a str),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
-    /// `#TEXT[01-ZZ] string`. Defines the text object.
-    Text(ObjId, &'a str),
     /// `#TITLE [string]`. Defines the title of the music.
     Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
@@ -433,11 +431,6 @@ impl<'a> Token<'a> {
                 let judge_level = JudgeLevel::try_read(c)?;
                 Self::ExRank(ObjId::try_load(id, c)?, judge_level)
             }
-            text if text.starts_with("#TEXT") => {
-                let id = text.trim_start_matches("#TEXT");
-                let content = c.next_line_remaining();
-                Self::Text(ObjId::try_load(id, c)?, content)
-            }
             // New command parsing
             #[cfg(feature = "minor-command")]
             extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
@@ -512,11 +505,6 @@ impl<'a> Token<'a> {
                     .map(Path::new)
                     .ok_or_else(|| c.make_err_expected_token("charfile filename"))?;
                 Self::CharFile(path)
-            }
-            song if song.starts_with("#SONG") => {
-                let id = song.trim_start_matches("#SONG");
-                let content = c.next_line_remaining();
-                Self::Text(ObjId::try_load(id, c)?, content)
             }
             #[cfg(feature = "minor-command")]
             "#CDDA" => {
@@ -710,9 +698,6 @@ impl<'a> Token<'a> {
                     message.to_mut().make_ascii_uppercase();
                 }
             }
-            Text(id, _) => {
-                id.make_uppercase();
-            }
             _ => {}
         }
     }
@@ -840,7 +825,6 @@ impl std::fmt::Display for Token<'_> {
             Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {sub_artist}"),
             Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {subtitle}"),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
-            Token::Text(id, text) => write!(f, "#TEXT{id} {text}"),
             Token::Title(title) => write!(f, "#TITLE {title}"),
             Token::Total(total) => write!(f, "#TOTAL {total}"),
             Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
@@ -941,9 +925,6 @@ fn fmt_message(
         }
         Channel::KeyVolume => {
             write!(f, "#{:03}98:{}", track.0, message)
-        }
-        Channel::Text => {
-            write!(f, "#{:03}99:{}", track.0, message)
         }
         Channel::Judge => {
             write!(f, "#{:03}A0:{}", track.0, message)

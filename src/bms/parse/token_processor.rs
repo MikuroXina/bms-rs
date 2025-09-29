@@ -12,6 +12,7 @@ mod scroll;
 mod section_len;
 mod speed;
 mod stop;
+mod text;
 mod volume;
 mod wav;
 

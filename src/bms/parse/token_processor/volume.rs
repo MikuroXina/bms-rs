@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use super::{super::prompt::Prompter, Result, TokenProcessor, hex_values_from_message};
 use crate::bms::{model::Bms, prelude::*};
 
-/// It processes `#VOLWAV`` definitions and objects on `BgmVolume` and `KeyVolume` channels.
+/// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 pub struct VolumeProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for VolumeProcessor<'_, P, T> {

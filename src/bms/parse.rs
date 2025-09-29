@@ -156,19 +156,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
             Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
             Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
-            Token::Text(id, text) => {
-                if let Some(older) = self.others.texts.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Text {
-                            id: *id,
-                            older,
-                            newer: text,
-                        })
-                        .apply_def(older, text.to_string(), *id)?;
-                } else {
-                    self.others.texts.insert(*id, text.to_string());
-                }
-            }
             Token::Title(title) => self.header.title = Some(title.to_string()),
             Token::Total(total) => {
                 self.header.total = Some(total.clone());
@@ -248,27 +235,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                         SeekObj {
                             time,
                             position: position.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Text,
-                message,
-            } => {
-                for (time, text_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let text = self
-                        .others
-                        .texts
-                        .get(&text_id)
-                        .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                    self.notes.push_text_event(
-                        TextObj {
-                            time,
-                            text: text.clone(),
                         },
                         prompt_handler,
                     )?;
