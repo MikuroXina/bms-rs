@@ -9,8 +9,7 @@ use super::LexWarning;
 use crate::bms::{
     Decimal,
     command::{
-        LnMode, ObjId, PlayerMode, channel::Channel, graphics::Argb, mixin::SourceRangeMixin,
-        time::Track,
+        LnMode, ObjId, channel::Channel, graphics::Argb, mixin::SourceRangeMixin, time::Track,
     },
     prelude::{SourceRangeMixinExt, read_channel},
 };
@@ -51,16 +50,8 @@ pub enum Token<'a> {
     /// For now, `#CHARFILE` is a pomu2 proprietary extension. However, the next-generation version LunaticRave may support `#CHARFILE`.
     #[cfg(feature = "minor-command")]
     CharFile(&'a Path),
-    /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
-    Charset(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
-    /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
-    Difficulty(u8),
-    /// `#DIVIDEPROP [string]` The resolution of Measure of BMS is specified.
-    /// Deprecated.
-    #[cfg(feature = "minor-command")]
-    DivideProp(&'a str),
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
     Else,
     /// `#ELSEIF [u32]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
@@ -73,8 +64,6 @@ pub enum Token<'a> {
     /// #ENDIF
     /// ```
     ElseIf(BigUint),
-    /// `%EMAIL [string]`. The email address of this score file author.
-    Email(&'a str),
     /// `#ENDIF`. Closes the if scope. See [`Token::If`].
     EndIf,
     /// `#ENDRANDOM`. Closes the random scope. See [`Token::Random`].
@@ -125,12 +114,6 @@ pub enum Token<'a> {
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
     #[cfg(feature = "minor-command")]
     OctFp,
-    /// `#PATH_WAV [string]`. Defines the root path of [`Token::Wav`] paths. This should be used only for tests.
-    PathWav(&'a Path),
-    /// `#PLAYER [1-4]`. Defines the play style of the score.
-    Player(PlayerMode),
-    /// `#PLAYLEVEL [integer]`. Defines the difficulty level of the score. This can be used on music select view.
-    PlayLevel(u8),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -145,8 +128,6 @@ pub enum Token<'a> {
     Switch(BigUint),
     /// Unknown Part. Includes all the line that not be parsed.
     UnknownCommand(&'a str),
-    /// `%URL [string]`. The url of this score file.
-    Url(&'a str),
     /// `#VIDEOCOLORS [u8]` Video color depth, default 16Bit.
     /// Defines the color depth for video playback. Common values are 16, 24, or 32 bits.
     /// This affects the quality and performance of video rendering.
@@ -181,13 +162,6 @@ impl<'a> Token<'a> {
 
         let token = match command.to_uppercase().as_str() {
             // Part: Normal
-            "#PLAYER" => Self::Player(PlayerMode::from(c)?),
-            "#DIFFICULTY" => Self::Difficulty(
-                c.next_token()
-                    .ok_or_else(|| c.make_err_expected_token("difficulty"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?,
-            ),
             "#STAEGFILE" => {
                 let file_name = c.next_line_remaining();
                 if file_name.is_empty() {
@@ -209,12 +183,6 @@ impl<'a> Token<'a> {
                 }
                 Self::BackBmp(Path::new(file_name))
             }
-            "#PLAYLEVEL" => Self::PlayLevel(
-                c.next_token()
-                    .ok_or_else(|| c.make_err_expected_token("play level"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?,
-            ),
             "#LNTYPE" => {
                 if c.next_token() == Some("2") {
                     Self::LnTypeMgq
@@ -301,17 +269,8 @@ impl<'a> Token<'a> {
                 }
                 Self::Base62
             }
-            "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
-            "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
             #[cfg(feature = "minor-command")]
             "#OCT/FP" => Self::OctFp,
-            "#PATH_WAV" => {
-                let file_name = c.next_line_remaining();
-                if file_name.is_empty() {
-                    return Err(c.make_err_expected_token("wav root path"));
-                }
-                Self::PathWav(Path::new(file_name))
-            }
             #[cfg(feature = "minor-command")]
             "#MIDIFILE" => {
                 let file_name = c.next_line_remaining();
@@ -530,18 +489,9 @@ impl<'a> Token<'a> {
                 Self::MaterialsBmp(path)
             }
             #[cfg(feature = "minor-command")]
-            divideprop if divideprop.starts_with("#DIVIDEPROP") => {
-                let s = c.next_line_remaining();
-                Self::DivideProp(s)
-            }
-            #[cfg(feature = "minor-command")]
             materials if materials.starts_with("#MATERIALS") => {
                 let s = c.next_line_remaining();
                 Self::Materials(Path::new(s))
-            }
-            charset if charset.starts_with("#CHARSET") => {
-                let s = c.next_line_remaining();
-                Self::Charset(s)
             }
             lnmode if lnmode.starts_with("#LNMODE") => {
                 let mode = c
@@ -634,14 +584,9 @@ impl std::fmt::Display for Token<'_> {
             Token::Cdda(value) => write!(f, "#CDDA {value}"),
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
-            Token::Charset(charset) => write!(f, "#CHARSET {charset}"),
             Token::Def => write!(f, "#DEF"),
-            Token::Difficulty(diff) => write!(f, "#DIFFICULTY {diff}"),
-            #[cfg(feature = "minor-command")]
-            Token::DivideProp(prop) => write!(f, "#DIVIDEPROP {prop}"),
             Token::Else => write!(f, "#ELSE"),
             Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
-            Token::Email(email) => write!(f, "%EMAIL {email}"),
             Token::EndIf => write!(f, "#ENDIF"),
             Token::EndRandom => write!(f, "#ENDRANDOM"),
             Token::EndSwitch => write!(f, "#ENDSW"),
@@ -684,26 +629,13 @@ impl std::fmt::Display for Token<'_> {
             Token::NotACommand(content) => write!(f, "{content}"),
             #[cfg(feature = "minor-command")]
             Token::OctFp => write!(f, "#OCT/FP"),
-            Token::PathWav(path) => write!(f, "#PATH_WAV {}", path.display()),
-            Token::Player(mode) => write!(
-                f,
-                "#PLAYER {}",
-                match mode {
-                    PlayerMode::Single => 1,
-                    PlayerMode::Two => 2,
-                    PlayerMode::Double => 3,
-                }
-            ),
-            Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
             Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
-            Token::Total(total) => write!(f, "#TOTAL {total}"),
             Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
-            Token::Url(url) => write!(f, "%URL {url}"),
             #[cfg(feature = "minor-command")]
             Token::VideoColors(colors) => write!(f, "#VIDEOCOLORS {colors}"),
             #[cfg(feature = "minor-command")]

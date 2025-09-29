@@ -18,6 +18,23 @@ impl PlayerMode {
     }
 }
 
+impl std::str::FromStr for PlayerMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "1" => Self::Single,
+            "2" => Self::Two,
+            "3" => Self::Double,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
+        })
+    }
+}
+
 impl JudgeLevel {
     pub(crate) fn try_read(c: &mut Cursor) -> Result<Self> {
         c.next_token()

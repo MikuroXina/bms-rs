@@ -8,6 +8,7 @@ use crate::bms::prelude::*;
 mod bmp;
 mod bpm;
 mod judge;
+mod metadata;
 mod music_info;
 mod option;
 mod scroll;

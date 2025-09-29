@@ -105,8 +105,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
         match token.content() {
             Token::Banner(file) => self.header.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
-            Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
-            Token::Email(email) => self.header.email = Some(email.to_string()),
             Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
             }
@@ -117,11 +115,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
             Token::OctFp => self.others.is_octave = true,
-            Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
-            Token::Player(player) => self.header.player = Some(*player),
-            Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
-            Token::Url(url) => self.header.url = Some(url.to_string()),
             Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
@@ -173,7 +167,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
             Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
-            Token::Base62 | Token::Charset(_) => {
+            Token::Base62 => {
                 // Pass.
             }
             Token::Random(_)
@@ -194,10 +188,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => {
                 self.graphics.char_file = Some(path.into());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::DivideProp(prop) => {
-                self.others.divide_prop = Some(prop.to_string());
             }
             #[cfg(feature = "minor-command")]
             Token::Materials(path) => {
