@@ -22,8 +22,8 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MetadataProcessor<'_, P
                         .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?,
                 );
             }
-            "EMAIL" | "%EMAIL" => self.0.borrow_mut().header.email = Some(args.to_string()),
-            "URL" | "%URL" => self.0.borrow_mut().header.url = Some(args.to_string()),
+            "EMAIL" => self.0.borrow_mut().header.email = Some(args.to_string()),
+            "URL" => self.0.borrow_mut().header.url = Some(args.to_string()),
             "PATH_WAV" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected wav root path".into()));
@@ -33,7 +33,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MetadataProcessor<'_, P
             #[cfg(feature = "minor-command")]
             "DIVIDEPROP" => self.0.borrow_mut().others.divide_prop = Some(args.to_string()),
             #[cfg(feature = "minor-command")]
-            "#OCT/FP" => self.0.borrow_mut().others.is_octave = true,
+            "OCT/FP" => self.0.borrow_mut().others.is_octave = true,
             _ => {}
         }
         Ok(())
