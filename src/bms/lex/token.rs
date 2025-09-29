@@ -1,17 +1,14 @@
 //! Definitions of the token in BMS format.
 
-use std::{borrow::Cow, path::Path};
+use std::borrow::Cow;
 
 use num::BigUint;
 
 use super::LexWarning;
 use crate::bms::{
-    command::{LnMode, ObjId, channel::Channel, mixin::SourceRangeMixin, time::Track},
+    command::{LnMode, channel::Channel, mixin::SourceRangeMixin, time::Track},
     prelude::{SourceRangeMixinExt, read_channel},
 };
-
-#[cfg(feature = "minor-command")]
-use crate::bms::command::minor_command::{WavCmdEvent, WavCmdParam};
 
 use super::{Result, cursor::Cursor};
 
@@ -54,11 +51,6 @@ pub enum Token<'a> {
     LnTypeMgq,
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
-    /// `#OCT/FP`. Declares the score as the octave mode.
-    /// This is a minor command extension that enables octave mode for the chart.
-    /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
-    #[cfg(feature = "minor-command")]
-    OctFp,
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -164,8 +156,6 @@ impl<'a> Token<'a> {
                 }
                 Self::Base62
             }
-            #[cfg(feature = "minor-command")]
-            "#OCT/FP" => Self::OctFp,
             lnmode if lnmode.starts_with("#LNMODE") => {
                 let mode = c
                     .next_token()

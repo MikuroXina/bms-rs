@@ -109,8 +109,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::LnTypeMgq => {
                 self.header.ln_type = LnType::Mgq;
             }
-            #[cfg(feature = "minor-command")]
-            Token::OctFp => self.others.is_octave = true,
             Token::LnMode(ln_mode_type) => {
                 self.header.ln_mode = *ln_mode_type;
             }

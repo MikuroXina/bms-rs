@@ -31,12 +31,12 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MetadataProcessor<'_, P
                 self.0.borrow_mut().notes.wav_path_root = Some(Path::new(args).into());
             }
             #[cfg(feature = "minor-command")]
-            "DIVIDEPROP" => {
-                self.0.borrow_mut().others.divide_prop = Some(args.to_string());
-            }
+            "DIVIDEPROP" => self.0.borrow_mut().others.divide_prop = Some(args.to_string()),
             "CHARSET" => {
                 // `#CHARSET` doesn't have a meaning because this library accepts only UTF-8.
             }
+            #[cfg(feature = "minor-command")]
+            "#OCT/FP" => self.0.borrow_mut().others.is_octave = true,
             _ => {}
         }
         Ok(())
