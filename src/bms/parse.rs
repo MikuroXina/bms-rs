@@ -103,24 +103,16 @@ impl<T: KeyLayoutMapper> Bms<T> {
         prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match token.content() {
-            Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
             Token::Banner(file) => self.header.banner = Some(file.into()),
             Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
-            Token::Comment(comment) => self
-                .header
-                .comment
-                .get_or_insert_with(Vec::new)
-                .push(comment.to_string()),
             Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
             Token::Email(email) => self.header.email = Some(email.to_string()),
-            Token::Genre(genre) => self.header.genre = Some(genre.to_string()),
             Token::LnTypeRdm => {
                 self.header.ln_type = LnType::Rdm;
             }
             Token::LnTypeMgq => {
                 self.header.ln_type = LnType::Mgq;
             }
-            Token::Maker(maker) => self.header.maker = Some(maker.to_string()),
             #[cfg(feature = "minor-command")]
             Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
             #[cfg(feature = "minor-command")]
@@ -129,9 +121,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
             Token::Player(player) => self.header.player = Some(*player),
             Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
             Token::StageFile(file) => self.header.stage_file = Some(file.into()),
-            Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
-            Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
-            Token::Title(title) => self.header.title = Some(title.to_string()),
             Token::Total(total) => {
                 self.header.total = Some(total.clone());
             }
@@ -183,7 +172,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.header.ln_mode = *ln_mode_type;
             }
             Token::Movie(path) => self.header.movie = Some(path.into()),
-            Token::Preview(path) => self.header.preview_music = Some(path.into()),
             #[cfg(feature = "minor-command")]
             Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
             Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),

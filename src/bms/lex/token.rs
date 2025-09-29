@@ -32,8 +32,6 @@ pub enum Token<'a> {
     /// - A4: BGA POOR
     #[cfg(feature = "minor-command")]
     Argb(ObjId, Argb),
-    /// `#ARTIST [string]`. Defines the artist name of the music.
-    Artist(&'a str),
     /// `#BANNER [filename]`. Defines the banner image. This can be used on music select or result view. It should be 300x80.
     Banner(&'a Path),
     /// `#BACKBMP [filename]`. Defines the background image file of the play view. It should be 640x480. The effect will depend on the skin of the player.
@@ -55,8 +53,6 @@ pub enum Token<'a> {
     CharFile(&'a Path),
     /// `#CHARSET [string]` Charset declaration. Default is SHIFT-JIS.
     Charset(&'a str),
-    /// `#COMMENT [string]`. Defines the text which is shown in the music select view. This may or may not be surrounded by double-quotes.
-    Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#DIFFICULTY [1-5]`. Defines the difficulty of the score. It can be used to sort the score having the same title.
@@ -88,8 +84,6 @@ pub enum Token<'a> {
     /// `#ExtChr SpriteNum BMPNum startX startY endX endY [offsetX offsetY [x y]]` BM98 extended character customization.
     #[cfg(feature = "minor-command")]
     ExtChr(ExtChrEvent),
-    /// `#GENRE [string]`. Defines the genre of the music.
-    Genre(&'a str),
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
@@ -98,8 +92,6 @@ pub enum Token<'a> {
     LnTypeRdm,
     /// `#LNTYPE 2`. Declares the LN notation as the MGQ type.
     LnTypeMgq,
-    /// `#MAKER [string]`. Defines the author name of the score.
-    Maker(&'a str),
     /// `#MATERIALS [string]` Material path definition.
     /// Defines the relative path which makes an executable file a starting point.
     /// This allows BMS files to reference files in Materials subdirectories using `<foldername>filename` syntax.
@@ -139,8 +131,6 @@ pub enum Token<'a> {
     Player(PlayerMode),
     /// `#PLAYLEVEL [integer]`. Defines the difficulty level of the score. This can be used on music select view.
     PlayLevel(u8),
-    /// `#PREVIEW [filename]` Preview audio file for music selection.
-    Preview(&'a Path),
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -151,14 +141,8 @@ pub enum Token<'a> {
     Skip,
     /// `#STAGEFILE [filename]`. Defines the splashscreen image. It should be 640x480.
     StageFile(&'a Path),
-    /// `#SUBARTIST [string]`. Defines the sub-artist name of the music.
-    SubArtist(&'a str),
-    /// `#SUBTITLE [string]`. Defines the subtitle of the music.
-    SubTitle(&'a str),
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
-    /// `#TITLE [string]`. Defines the title of the music.
-    Title(&'a str),
     /// `#TOTAL [f64]`. Defines the total gauge percentage when all notes is got as PERFECT.
     Total(Decimal),
     /// Unknown Part. Includes all the line that not be parsed.
@@ -200,11 +184,6 @@ impl<'a> Token<'a> {
         let token = match command.to_uppercase().as_str() {
             // Part: Normal
             "#PLAYER" => Self::Player(PlayerMode::from(c)?),
-            "#GENRE" => Self::Genre(c.next_line_remaining()),
-            "#TITLE" => Self::Title(c.next_line_remaining()),
-            "#SUBTITLE" => Self::SubTitle(c.next_line_remaining()),
-            "#ARTIST" => Self::Artist(c.next_line_remaining()),
-            "#SUBARTIST" => Self::SubArtist(c.next_line_remaining()),
             "#DIFFICULTY" => Self::Difficulty(
                 c.next_token()
                     .ok_or_else(|| c.make_err_expected_token("difficulty"))?
@@ -334,10 +313,6 @@ impl<'a> Token<'a> {
                 }
                 Self::Base62
             }
-            "#COMMENT" => {
-                let comment = c.next_line_remaining();
-                Self::Comment(comment)
-            }
             "#EMAIL" | "%EMAIL" => Self::Email(c.next_line_remaining()),
             "#URL" | "%URL" => Self::Url(c.next_line_remaining()),
             #[cfg(feature = "minor-command")]
@@ -349,7 +324,6 @@ impl<'a> Token<'a> {
                 }
                 Self::PathWav(Path::new(file_name))
             }
-            "#MAKER" => Self::Maker(c.next_line_remaining()),
             #[cfg(feature = "minor-command")]
             "#MIDIFILE" => {
                 let file_name = c.next_line_remaining();
@@ -581,13 +555,6 @@ impl<'a> Token<'a> {
                 let s = c.next_line_remaining();
                 Self::Charset(s)
             }
-            preview if preview.starts_with("#PREVIEW") => {
-                let path = c
-                    .next_token()
-                    .map(Path::new)
-                    .ok_or_else(|| c.make_err_expected_token("preview filename"))?;
-                Self::Preview(path)
-            }
             lnmode if lnmode.starts_with("#LNMODE") => {
                 let mode = c
                     .next_token()
@@ -638,17 +605,7 @@ impl<'a> Token<'a> {
         Ok(SourceRangeMixin::new(token, token_range))
     }
 
-    pub(crate) fn make_id_uppercase(&mut self) {
-        use Token::*;
-        match self {
-            Message { message, .. } => {
-                if message.chars().any(|ch| ch.is_ascii_lowercase()) {
-                    message.to_mut().make_ascii_uppercase();
-                }
-            }
-            _ => {}
-        }
-    }
+    pub(crate) fn make_id_uppercase(&mut self) {}
 
     /// Checks if a token is a control flow token.
     #[must_use]
@@ -681,7 +638,6 @@ impl std::fmt::Display for Token<'_> {
                 "#ARGB{id} {},{},{},{}",
                 argb.alpha, argb.red, argb.green, argb.blue
             ),
-            Token::Artist(artist) => write!(f, "#ARTIST {artist}"),
             Token::Banner(path) => write!(f, "#BANNER {}", path.display()),
             Token::BackBmp(path) => write!(f, "#BACKBMP {}", path.display()),
             Token::Base62 => write!(f, "#BASE 62"),
@@ -691,7 +647,6 @@ impl std::fmt::Display for Token<'_> {
             #[cfg(feature = "minor-command")]
             Token::CharFile(path) => write!(f, "#CHARFILE {}", path.display()),
             Token::Charset(charset) => write!(f, "#CHARSET {charset}"),
-            Token::Comment(comment) => write!(f, "#COMMENT {comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Difficulty(diff) => write!(f, "#DIFFICULTY {diff}"),
             #[cfg(feature = "minor-command")]
@@ -717,7 +672,6 @@ impl std::fmt::Display for Token<'_> {
                 }
                 Ok(())
             }
-            Token::Genre(genre) => write!(f, "#GENRE {genre}"),
             Token::If(value) => write!(f, "#IF {value}"),
             Token::LnMode(mode) => write!(
                 f,
@@ -730,18 +684,12 @@ impl std::fmt::Display for Token<'_> {
             ),
             Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
             Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
-            Token::Maker(maker) => write!(f, "#MAKER {maker}"),
             #[cfg(feature = "minor-command")]
             Token::Materials(path) => write!(f, "#MATERIALS {}", path.display()),
             #[cfg(feature = "minor-command")]
             Token::MaterialsBmp(path) => write!(f, "#MATERIALSBMP {}", path.display()),
             #[cfg(feature = "minor-command")]
             Token::MaterialsWav(path) => write!(f, "#MATERIALSWAV {}", path.display()),
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => fmt_message(f, *track, *channel, message),
             #[cfg(feature = "minor-command")]
             Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
             Token::Movie(path) => write!(f, "#MOVIE {}", path.display()),
@@ -759,16 +707,12 @@ impl std::fmt::Display for Token<'_> {
                 }
             ),
             Token::PlayLevel(level) => write!(f, "#PLAYLEVEL {level}"),
-            Token::Preview(path) => write!(f, "#PREVIEW {}", path.display()),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
             Token::StageFile(path) => write!(f, "#STAGEFILE {}", path.display()),
-            Token::SubArtist(sub_artist) => write!(f, "#SUBARTIST {sub_artist}"),
-            Token::SubTitle(subtitle) => write!(f, "#SUBTITLE {subtitle}"),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
-            Token::Title(title) => write!(f, "#TITLE {title}"),
             Token::Total(total) => write!(f, "#TOTAL {total}"),
             Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
             Token::Url(url) => write!(f, "%URL {url}"),
@@ -779,7 +723,6 @@ impl std::fmt::Display for Token<'_> {
             Token::VideoFile(path) => write!(f, "#VIDEOFILE {}", path.display()),
             #[cfg(feature = "minor-command")]
             Token::VideoFs(fps) => write!(f, "#VIDEOF/S {fps}"),
-            Token::VolWav(volume) => write!(f, "#VOLWAV {}", volume.relative_percent),
             #[cfg(feature = "minor-command")]
             Token::WavCmd(ev) => {
                 use crate::bms::command::minor_command::WavCmdParam;
