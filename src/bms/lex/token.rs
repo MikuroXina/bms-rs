@@ -119,8 +119,6 @@ pub enum Token<'a> {
     If(BigUint),
     /// `#LNMODE [1:LN, 2:CN, 3:HCN]` Explicitly specify LN type for this chart.
     LnMode(LnMode),
-    /// `#LNOBJ [01-ZZ]`. Declares the object as the end of an LN. The preceding object of the declared will be treated as the beginning of an LN.
-    LnObj(ObjId),
     /// `#LNTYPE 1`. Declares the LN notation as the RDM type.
     LnTypeRdm,
     /// `#LNTYPE 2`. Declares the LN notation as the MGQ type.
@@ -541,12 +539,6 @@ impl<'a> Token<'a> {
                 let option = c.next_line_remaining();
                 Self::ChangeOption(ObjId::try_load(id, c)?, option)
             }
-            "#LNOBJ" => {
-                let id = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("ObjId"))?;
-                Self::LnObj(ObjId::try_load(id, c)?)
-            }
             // New command parsing
             #[cfg(feature = "minor-command")]
             extchr if extchr.to_uppercase().starts_with("#EXTCHR") => {
@@ -822,9 +814,6 @@ impl<'a> Token<'a> {
             ExWav { id, .. } => {
                 id.make_uppercase();
             }
-            LnObj(id) => {
-                id.make_uppercase();
-            }
             Message { message, .. } => {
                 if message.chars().any(|ch| ch.is_ascii_lowercase()) {
                     message.to_mut().make_ascii_uppercase();
@@ -953,7 +942,6 @@ impl std::fmt::Display for Token<'_> {
                     LnMode::Hcn => 3,
                 }
             ),
-            Token::LnObj(id) => write!(f, "#LNOBJ {id}"),
             Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
             Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
             Token::Maker(maker) => write!(f, "#MAKER {maker}"),

@@ -21,10 +21,10 @@ pub trait TokenProcessor {
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()>;
 }
 
-/// It processes `#WAVxx` definitions and objects on `Bgm` and `Note` channels.
-pub struct WavProducer<'a, P>(Rc<RefCell<Bms>>, &'a P);
+/// It processes `#WAVxx` and `#LNOBJ` definitions and objects on `Bgm` and `Note` channels.
+pub struct WavProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
 
-impl<P: Prompter> TokenProcessor for WavProducer<'_, P> {
+impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.to_uppercase().starts_with("WAV") {
             let id = name.trim_start_matches("WAV");
@@ -49,6 +49,69 @@ impl<P: Prompter> TokenProcessor for WavProducer<'_, P> {
             } else {
                 bms.notes.wav_files.insert(wav_obj_id, path.into());
             }
+        }
+        if name == "LNOBJ" {
+            let end_id = ObjId::try_from(args).map_err(|id| {
+                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
+            })?;
+            let mut end_note = self
+                .0
+                .borrow_mut()
+                .notes
+                .pop_latest_of(end_id)
+                .ok_or(ParseWarning::UndefinedObject(end_id))?;
+            let WavObj {
+                offset, channel_id, ..
+            } = &end_note;
+            let begin_idx = self
+                .0
+                .borrow()
+                .notes
+                .notes_in(..offset)
+                .rev()
+                .find(|(_, obj)| obj.channel_id == *channel_id)
+                .ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "expected preceding object for #LNOBJ {end_id:?}",
+                    ))
+                })
+                .map(|(index, _)| index)?;
+            let mut begin_note =
+                self.0
+                    .borrow_mut()
+                    .notes
+                    .pop_by_idx(begin_idx)
+                    .ok_or_else(|| {
+                        ParseWarning::SyntaxError(format!(
+                            "Cannot find begin note for LNOBJ {end_id:?}"
+                        ))
+                    })?;
+
+            let mut begin_note_tuple = begin_note
+                .channel_id
+                .try_into_map::<T>()
+                .ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                    ))
+                })?
+                .as_tuple();
+            begin_note_tuple.1 = NoteKind::Long;
+            begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
+            self.0.borrow_mut().notes.push_note(begin_note);
+
+            let mut end_note_tuple = end_note
+                .channel_id
+                .try_into_map::<T>()
+                .ok_or_else(|| {
+                    ParseWarning::SyntaxError(format!(
+                        "channel of specified note for LNOBJ cannot become LN {end_id:?}"
+                    ))
+                })?
+                .as_tuple();
+            end_note_tuple.1 = NoteKind::Long;
+            end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
+            self.0.borrow_mut().notes.push_note(end_note);
         }
         Ok(())
     }

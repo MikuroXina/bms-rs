@@ -421,57 +421,6 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     )?;
                 }
             }
-            Token::LnObj(end_id) => {
-                let mut end_note = self
-                    .notes
-                    .pop_latest_of(*end_id)
-                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let WavObj {
-                    offset, channel_id, ..
-                } = &end_note;
-                let begin_idx = self
-                    .notes
-                    .notes_in(..offset)
-                    .rev()
-                    .find(|(_, obj)| obj.channel_id == *channel_id)
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "expected preceding object for #LNOBJ {end_id:?}",
-                        ))
-                    })
-                    .map(|(index, _)| index)?;
-                let mut begin_note = self.notes.pop_by_idx(begin_idx).ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!(
-                        "Cannot find begin note for LNOBJ {end_id:?}"
-                    ))
-                })?;
-
-                let mut begin_note_tuple = begin_note
-                    .channel_id
-                    .try_into_map::<T>()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                        ))
-                    })?
-                    .as_tuple();
-                begin_note_tuple.1 = NoteKind::Long;
-                begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
-                self.notes.push_note(begin_note);
-
-                let mut end_note_tuple = end_note
-                    .channel_id
-                    .try_into_map::<T>()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                        ))
-                    })?
-                    .as_tuple();
-                end_note_tuple.1 = NoteKind::Long;
-                end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
-                self.notes.push_note(end_note);
-            }
             Token::DefExRank(judge_level) => {
                 let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
                 self.scope_defines.exrank_defs.insert(
