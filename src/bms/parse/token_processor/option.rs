@@ -43,49 +43,26 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        match channel {
-            Channel::Option => {
-                for (time, option_id) in ids_from_message(
-                    track,
-                    message,
-                    self.0.borrow().header.case_sensitive_obj_id,
-                    |w| self.1.warn(w),
-                ) {
-                    let option = self
-                        .0
-                        .borrow()
-                        .others
-                        .change_options
-                        .get(&option_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(option_id))?;
-                    self.0
-                        .borrow_mut()
-                        .notes
-                        .push_option_event(OptionObj { time, option }, self.1)?;
-                }
+        if let Channel::OptionChange = channel {
+            for (time, option_id) in ids_from_message(
+                track,
+                message,
+                self.0.borrow().header.case_sensitive_obj_id,
+                |w| self.1.warn(w),
+            ) {
+                let option = self
+                    .0
+                    .borrow()
+                    .others
+                    .change_options
+                    .get(&option_id)
+                    .cloned()
+                    .ok_or(ParseWarning::UndefinedObject(option_id))?;
+                self.0
+                    .borrow_mut()
+                    .notes
+                    .push_option_event(OptionObj { time, option }, self.1)?;
             }
-
-            Channel::ChangeOption => {
-                for (_time, obj) in ids_from_message(
-                    track,
-                    message,
-                    self.0.borrow().header.case_sensitive_obj_id,
-                    |w| self.1.warn(w),
-                ) {
-                    let _option = self
-                        .0
-                        .borrow()
-                        .others
-                        .change_options
-                        .get(&obj)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    // Here we can add logic to handle ChangeOption
-                    // Currently just ignored because change_options are already stored in notes
-                }
-            }
-            _ => {}
         }
         Ok(())
     }

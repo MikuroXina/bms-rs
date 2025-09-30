@@ -31,9 +31,6 @@ pub enum Channel {
     BpmChangeU8,
     /// For the bpm change object.
     BpmChange,
-    /// For the change option object.
-    #[cfg(feature = "minor-command")]
-    ChangeOption,
     /// For the note which the user can interact.
     Note {
         /// The channel ID from the BMS file.
@@ -89,7 +86,7 @@ pub enum Channel {
     BgaKeybound,
     /// For the OPTION. `#CHANGEOPTIONxx` (multiline)
     #[cfg(feature = "minor-command")]
-    Option,
+    OptionChange,
 }
 
 impl std::fmt::Display for Channel {
@@ -102,8 +99,6 @@ impl std::fmt::Display for Channel {
             Self::Bgm => write!(f, "BGM"),
             Self::BpmChangeU8 => write!(f, "BPM_CHANGE_U8"),
             Self::BpmChange => write!(f, "BPM_CHANGE"),
-            #[cfg(feature = "minor-command")]
-            Self::ChangeOption => write!(f, "CHANGE_OPTION"),
             Self::Note { .. } => write!(f, "NOTE"),
             Self::SectionLen => write!(f, "SECTION_LEN"),
             Self::Stop => write!(f, "STOP"),
@@ -135,7 +130,7 @@ impl std::fmt::Display for Channel {
             #[cfg(feature = "minor-command")]
             Self::BgaKeybound => write!(f, "BGA_KEYBOUND"),
             #[cfg(feature = "minor-command")]
-            Self::Option => write!(f, "OPTION"),
+            Self::OptionChange => write!(f, "CHANGE_OPTION"),
         }
     }
 }
@@ -395,7 +390,7 @@ fn read_channel_general(channel: &str) -> Option<Channel> {
         #[cfg(feature = "minor-command")]
         "A5" => BgaKeybound,
         #[cfg(feature = "minor-command")]
-        "A6" => Option,
+        "A6" => OptionChange,
         "SC" => Scroll,
         "SP" => Speed,
         _ => return None,

@@ -270,7 +270,7 @@ fn fmt_message(
             write!(f, "#{:03}08:{}", track.0, message)
         }
         #[cfg(feature = "minor-command")]
-        Channel::ChangeOption => {
+        Channel::OptionChange => {
             write!(f, "#{:03}A6:{}", track.0, message)
         }
         Channel::Note { channel_id } => {
@@ -342,10 +342,6 @@ fn fmt_message(
         #[cfg(feature = "minor-command")]
         Channel::BgaKeybound => {
             write!(f, "#{:03}A5:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::Option => {
-            write!(f, "#{:03}A6:{}", track.0, message)
         }
     }
 }
