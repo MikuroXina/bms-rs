@@ -1,12 +1,12 @@
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
-use super::{super::prompt::Prompter, Result, TokenProcessor};
+use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
-pub struct MetadataProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct MetadataProcessor(pub Rc<RefCell<Bms>>);
 
-impl<P: Prompter> TokenProcessor for MetadataProcessor<'_, P> {
+impl TokenProcessor for MetadataProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "PLAYER" => self.0.borrow_mut().header.player = Some(PlayerMode::from_str(args)?),

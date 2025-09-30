@@ -20,9 +20,7 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 
-            let stop_obj_id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let stop_obj_id = ObjId::try_from(id)?;
 
             if let Some(older) = self
                 .0

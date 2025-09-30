@@ -1,7 +1,6 @@
 use bms_rs::bms::command::channel::NoteChannelId;
 use bms_rs::bms::prelude::*;
 use std::borrow::Cow;
-use std::path::Path;
 
 /// Test scenario 1: Mixed merge behavior (some messages can be merged, others cannot)
 /// This test verifies that messages with same track/channel combinations are merged,
@@ -10,10 +9,10 @@ use std::path::Path;
 fn test_scenario_1_no_merge() {
     // Create tokens with mixed track/channel combinations - some can be merged, others cannot
     let tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         // Mixed track and channel combinations - some will merge, others will not
         Token::Message {
             track: Track(1),
@@ -42,7 +41,7 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
         &tokens
             .clone()
             .into_iter()
@@ -52,15 +51,15 @@ fn test_scenario_1_no_merge() {
     );
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse();
+    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages with same track/channel are merged, others remain separate (based on actual unparse behavior)
     let expected_tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::LnTypeRdm,
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("LNTYPE", "1"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
@@ -94,10 +93,10 @@ fn test_scenario_1_no_merge() {
 fn test_scenario_2_can_merge() {
     // Create tokens where messages can be merged - same track and channel
     let tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         // Same track and channel - should be merged: "00002300" + "00000044" = "00002344"
         Token::Message {
             track: Track(1),
@@ -118,7 +117,7 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
         &tokens
             .clone()
             .into_iter()
@@ -128,15 +127,15 @@ fn test_scenario_2_can_merge() {
     );
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse();
+    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages are merged as per actual unparse behavior
     let expected_tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::LnTypeRdm,
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("LNTYPE", "1"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
@@ -162,10 +161,10 @@ fn test_scenario_2_can_merge() {
 fn test_scenario_3_cross_track_no_merge() {
     // Create tokens with same channel (Bgm) but different tracks - demonstrating cross-track isolation
     let tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         // Track 1 messages - should be merged within same track
         Token::Message {
             track: Track(1),
@@ -191,7 +190,7 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
         &tokens
             .clone()
             .into_iter()
@@ -201,15 +200,15 @@ fn test_scenario_3_cross_track_no_merge() {
     );
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse();
+    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages are merged as per actual unparse behavior
     let expected_tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::LnTypeRdm,
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("LNTYPE", "1"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,
@@ -234,10 +233,10 @@ fn test_scenario_3_cross_track_no_merge() {
 fn test_scenario_4_input_order_preservation() {
     // Create tokens where input order differs from potential ObjTime order
     let tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         // Input order: FF, AA, BB (all at same track/channel)
         // FF appears first in input and should remain first in output
         // AA and BB should be merged together while preserving FF's position
@@ -259,7 +258,7 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
         &tokens
             .clone()
             .into_iter()
@@ -269,15 +268,15 @@ fn test_scenario_4_input_order_preservation() {
     );
 
     // Unparse back to tokens
-    let unparsed_tokens = bms.unparse();
+    let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - FF remains first, AA and BB are merged together (based on actual unparse behavior)
     let expected_tokens = vec![
-        Token::Title("Test Song"),
-        Token::Artist("Test Artist"),
-        Token::LnTypeRdm,
-        Token::Bpm(Decimal::from(120)),
-        Token::Wav(ObjId::try_from("01").unwrap(), Path::new("test.wav")),
+        Token::header("TITLE", "Test Song"),
+        Token::header("ARTIST", "Test Artist"),
+        Token::header("LNTYPE", "1"),
+        Token::header("BPM", "120"),
+        Token::header("WAV01", "test.wav"),
         Token::Message {
             track: Track(1),
             channel: Channel::Bgm,

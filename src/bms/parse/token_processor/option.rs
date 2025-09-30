@@ -23,9 +23,7 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
         #[cfg(feature = "minor-command")]
         if name.starts_with("CHANGEOPTION") {
             let id = name.trim_start_matches("CHANGEOPTION");
-            let id = ObjId::try_from(id).map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected object id but found {id:?}"))
-            })?;
+            let id = ObjId::try_from(id)?;
             if let Some(older) = self.0.borrow_mut().others.change_options.get_mut(&id) {
                 self.1
                     .handle_def_duplication(DefDuplication::ChangeOption {

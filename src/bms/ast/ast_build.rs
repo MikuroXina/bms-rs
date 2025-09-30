@@ -524,14 +524,14 @@ mod tests {
         let tokens = vec![
             SetSwitch(BigUint::from(2u64)),
             Def,
-            Title("Out"),
+            Token::header("TITLE", "Out"),
             Case(BigUint::from(2u64)),
-            Title("In 1"),
+            Token::header("TITLE", "In 1"),
             Case(BigUint::from(1u64)),
-            Title("In 2"),
+            Token::header("TITLE", "In 2"),
             Skip,
             Case(BigUint::from(3u64)),
-            Title("In 3"),
+            Token::header("TITLE", "In 3"),
             Skip,
             EndSwitch,
         ]
@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn test_unmatched_endrandom_error() {
         use Token::*;
-        let tokens = [Title("A"), EndRandom]
+        let tokens = [Token::header("TITLE", "A"), EndRandom]
             .into_iter()
             .enumerate()
             .map(|(i, t)| t.into_wrapper_range(i..i))
@@ -581,7 +581,7 @@ mod tests {
     #[test]
     fn test_unmatched_endif_error() {
         use Token::*;
-        let tokens = [Title("A"), EndIf]
+        let tokens = [Token::header("TITLE", "A"), EndIf]
             .into_iter()
             .enumerate()
             .map(|(i, t)| t.into_wrapper_range(i..i))
@@ -597,10 +597,10 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
-            Title("A"),
+            Token::header("TITLE", "A"),
             EndIf,
             If(BigUint::from(2u64)),
-            Title("B"),
+            Token::header("TITLE", "B"),
             EndIf,
             EndRandom,
         ]
@@ -629,7 +629,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("A"))
+            token.content() == &Token::header("TITLE", "A")
         }) else {
             panic!("A missing, all_titles: {all_titles:?}");
         };
@@ -637,7 +637,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("B"))
+            token.content() == &Token::header("TITLE", "B")
         }) else {
             panic!("B missing, all_titles: {all_titles:?}");
         };
@@ -649,10 +649,10 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
-            Title("A"),
+            Token::header("TITLE", "A"),
             Random(BigUint::from(2u64)),
             If(BigUint::from(2u64)),
-            Title("B"),
+            Token::header("TITLE", "B"),
             EndIf,
             EndRandom,
             EndIf,
@@ -697,18 +697,18 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(3u64)),
             If(BigUint::from(1u64)),
-            Title("A1"),
+            Token::header("TITLE", "A1"),
             ElseIf(BigUint::from(2u64)),
-            Title("A2"),
+            Token::header("TITLE", "A2"),
             Else,
-            Title("Aelse"),
+            Token::header("TITLE", "Aelse"),
             EndIf,
             If(BigUint::from(1u64)),
-            Title("B1"),
+            Token::header("TITLE", "B1"),
             ElseIf(BigUint::from(2u64)),
-            Title("B2"),
+            Token::header("TITLE", "B2"),
             Else,
-            Title("Belse"),
+            Token::header("TITLE", "Belse"),
             EndIf,
             EndRandom,
         ]
@@ -736,7 +736,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("A1"))
+            token.content() == &Token::header("TITLE", "A1")
         }) else {
             panic!("A1 missing");
         };
@@ -747,7 +747,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("A2"))
+            token.content() == &Token::header("TITLE", "A2")
         }) else {
             panic!("A2 missing");
         };
@@ -758,7 +758,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("Aelse"))
+            token.content() == &Token::header("TITLE", "Aelse")
         }) else {
             panic!("Aelse missing");
         };
@@ -770,7 +770,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("B1"))
+            token.content() == &Token::header("TITLE", "B1")
         }) else {
             panic!("B1 missing");
         };
@@ -781,7 +781,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("B2"))
+            token.content() == &Token::header("TITLE", "B2")
         }) else {
             panic!("B2 missing");
         };
@@ -792,7 +792,7 @@ mod tests {
             let Unit::TokenWithRange(token) = u else {
                 panic!("Unit::TokenWithRange expected, got: {u:?}");
             };
-            matches!(token.content(), Title("Belse"))
+            token.content() == &Token::header("TITLE", "Belse")
         }) else {
             panic!("Belse missing");
         };
@@ -804,9 +804,9 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
-            Title("A"),
+            Token::header("TITLE", "A"),
             ElseIf(BigUint::from(1u64)), // duplicate
-            Title("B"),
+            Token::header("TITLE", "B"),
             EndIf,
             EndRandom,
         ]
@@ -828,7 +828,7 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(3u64)), // out of range
-            Title("A"),
+            Token::header("TITLE", "A"),
             EndIf,
             EndRandom,
         ]
@@ -850,9 +850,9 @@ mod tests {
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(1u64)),
-            Title("A"),
+            Token::header("TITLE", "A"),
             Case(BigUint::from(1u64)), // duplicate
-            Title("B"),
+            Token::header("TITLE", "B"),
             EndSwitch,
         ]
         .into_iter()
@@ -873,7 +873,7 @@ mod tests {
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Case(BigUint::from(3u64)), // out of range
-            Title("A"),
+            Token::header("TITLE", "A"),
             EndSwitch,
         ]
         .into_iter()
@@ -894,11 +894,11 @@ mod tests {
         let tokens = vec![
             Switch(BigUint::from(2u64)),
             Def,
-            Title("A"),
+            Token::header("TITLE", "A"),
             Def, // redundant
-            Title("B"),
+            Token::header("TITLE", "B"),
             Def, // redundant
-            Title("C"),
+            Token::header("TITLE", "C"),
             EndSwitch,
         ]
         .into_iter()
@@ -921,8 +921,8 @@ mod tests {
         use Token::*;
         let tokens = vec![
             Random(BigUint::from(2u64)),
-            Title("A"), // Not in any IfBlock, should auto-close Random block
-            Title("B"), // This should be outside the Random block
+            Token::header("TITLE", "A"), // Not in any IfBlock, should auto-close Random block
+            Token::header("TITLE", "B"), // This should be outside the Random block
         ]
         .into_iter()
         .enumerate()
@@ -944,12 +944,12 @@ mod tests {
         let Unit::TokenWithRange(token) = &ast[1] else {
             panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
-        assert!(matches!(token.content(), Title("A")));
+        assert!(token.content() == &Token::header("TITLE", "A"));
         // Third unit should be the second Title token
         let Unit::TokenWithRange(token) = &ast[2] else {
             panic!("Third unit should be TokenWithRange, got: {:?}", ast[2]);
         };
-        assert!(matches!(token.content(), Title("B")));
+        assert!(token.content() == &Token::header("TITLE", "B"));
     }
 
     #[test]
@@ -967,12 +967,12 @@ mod tests {
         let tokens = vec![
             Random(BigUint::from(2u64)),
             If(BigUint::from(1u64)),
-            Title("00112:00220000"),
+            Token::header("TITLE", "00112:00220000"),
             EndIf,
             If(BigUint::from(2u64)),
-            Title("00113:00003300"),
+            Token::header("TITLE", "00113:00003300"),
             EndIf,
-            Title("00114:00000044"), // This should auto-close the Random block
+            Token::header("TITLE", "00114:00000044"), // This should auto-close the Random block
         ]
         .into_iter()
         .enumerate()
@@ -993,6 +993,6 @@ mod tests {
         let Unit::TokenWithRange(token) = &ast[1] else {
             panic!("Second unit should be TokenWithRange, got: {:?}", ast[1]);
         };
-        assert!(matches!(token.content(), Title("00114:00000044")));
+        assert!(token.content() == &Token::header("TITLE", "00114:00000044"));
     }
 }

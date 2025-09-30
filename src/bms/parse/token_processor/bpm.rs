@@ -25,9 +25,7 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
             } else {
                 name.trim_start_matches("EXBPM")
             };
-            let bpm_obj_id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let bpm_obj_id = ObjId::try_from(id)?;
             let bpm = Decimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,

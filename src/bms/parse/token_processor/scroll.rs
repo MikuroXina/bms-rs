@@ -19,9 +19,7 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
-            let scroll_obj_id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let scroll_obj_id = ObjId::try_from(id)?;
             if let Some(older) = self
                 .0
                 .borrow_mut()

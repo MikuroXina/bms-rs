@@ -215,6 +215,8 @@ pub enum WavCmdParam {
 }
 
 impl WavCmdParam {
+    /// Converts an operation type of `#WAVCMD` into the corresponding string literal.
+    #[must_use]
     pub fn to_str(self) -> &'static str {
         match self {
             Self::Pitch => "00",

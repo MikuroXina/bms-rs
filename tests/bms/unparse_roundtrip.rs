@@ -76,12 +76,12 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms1,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings;
 
     // Bms -> tokens (unparse)
-    let tokens2 = bms1.unparse();
+    let tokens2 = bms1.unparse::<KeyLayoutBeat>();
     let tokens2_wrapped: Vec<TokenWithRange<'_>> = tokens2
         .into_iter()
         .map(|t| SourceRangeMixin::new(t, 0..0))
@@ -92,7 +92,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms2,
         parse_warnings: parse_warnings2,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens2_wrapped, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens2_wrapped, AlwaysWarnAndUseOlder);
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings2;
 
@@ -327,8 +327,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         "Non-command lines"
     );
     assert_eq!(
-        bms2.others.unknown_command_lines, bms1.others.unknown_command_lines,
-        "Unknown command lines"
+        bms2.others.raw_command_lines, bms1.others.raw_command_lines,
+        "Raw command lines"
     );
 
     // Compare minor-command others if enabled

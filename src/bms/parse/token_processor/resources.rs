@@ -5,13 +5,13 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 #[cfg(feature = "minor-command")]
 use num::BigUint;
 
-use super::{super::prompt::Prompter, Result, TokenProcessor};
+use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
-pub struct ResourcesProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
 
-impl<P: Prompter> TokenProcessor for ResourcesProcessor<'_, P> {
+impl TokenProcessor for ResourcesProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             #[cfg(feature = "minor-command")]

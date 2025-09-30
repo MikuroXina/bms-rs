@@ -1,3 +1,11 @@
+//! This module provides [`TokenProcessor`] and its implementations, which reads [`Token`] and applies data to [`Bms`].
+//!
+//! Also it provides preset functions that returns a set of [`TokenProcessor`] trait objects:
+//!
+//! - [`pedantic_preset`] - All processors without obsolete/deprecated.
+//! - [`common_preset`] - Commonly used processors.
+//! - [`minor_preset`] - All of processors this crate provided.
+
 use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
@@ -41,6 +49,7 @@ pub trait TokenProcessor {
     }
 }
 
+/// Returns all processors without obsolete/deprecated.
 pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
@@ -49,14 +58,14 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
         Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
         Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
         Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
@@ -68,6 +77,7 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     ]
 }
 
+/// Returns commonly used processors.
 pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
@@ -76,14 +86,14 @@ pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
         Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
         Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
         Box::new(wav::WavProcessor::<P, T>(
@@ -94,6 +104,7 @@ pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     ]
 }
 
+/// Returns all of processors this crate provided.
 pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
@@ -102,15 +113,15 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
-        Box::new(resources::ResourcesProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
+        Box::new(resources::ResourcesProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
         Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
         Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
         Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),

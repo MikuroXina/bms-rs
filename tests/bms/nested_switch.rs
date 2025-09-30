@@ -37,7 +37,7 @@ fn switch() {
         bms: _,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -80,7 +80,7 @@ fn nested_switch_simpler() {
         bms: _,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -140,7 +140,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -199,7 +199,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -262,7 +262,7 @@ fn nested_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -355,7 +355,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -414,7 +414,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -477,7 +477,7 @@ fn nested_random_in_switch() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -570,7 +570,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -629,7 +629,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -692,7 +692,7 @@ fn nested_switch_in_random() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -782,7 +782,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -823,7 +823,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -864,7 +864,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -895,7 +895,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -954,7 +954,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -1013,7 +1013,7 @@ fn test_switch_insane() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),

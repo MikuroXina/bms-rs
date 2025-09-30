@@ -18,9 +18,7 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);
-            let speed_obj_id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let speed_obj_id = ObjId::try_from(id)?;
 
             if let Some(older) = self
                 .0

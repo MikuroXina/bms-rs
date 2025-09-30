@@ -4,6 +4,8 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::parse::ParseWarning;
+
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
@@ -25,6 +27,33 @@ pub enum PlayerMode {
     Two,
     /// For double play, a player uses 10 or 14 keys.
     Double,
+}
+
+impl std::fmt::Display for PlayerMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlayerMode::Single => write!(f, "1"),
+            PlayerMode::Two => write!(f, "2"),
+            PlayerMode::Double => write!(f, "3"),
+        }
+    }
+}
+
+impl std::str::FromStr for PlayerMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "1" => Self::Single,
+            "2" => Self::Two,
+            "3" => Self::Double,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
+        })
+    }
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
@@ -137,16 +166,24 @@ impl TryFrom<[u8; 2]> for ObjId {
 }
 
 impl<'a> TryFrom<&'a str> for ObjId {
-    type Error = &'a str;
+    type Error = ParseWarning;
     fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
         if value.len() != 2 {
-            return Err(value);
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
         }
         let mut chars = value.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(value);
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
         };
-        Self::try_from([ch1, ch2]).map_err(|_| value)
+        Self::try_from([ch1, ch2]).map_err(|_| {
+            ParseWarning::SyntaxError(format!(
+                "expected alphanumeric characters as object id but found: {value}"
+            ))
+        })
     }
 }
 
@@ -282,7 +319,26 @@ pub enum PoorMode {
     Hidden,
 }
 
+impl std::str::FromStr for PoorMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "0" => Self::Interrupt,
+            "1" => Self::Overlay,
+            "2" => Self::Hidden,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
+        })
+    }
+}
+
 impl PoorMode {
+    /// Converts an display type of Poor BGA into the corresponding string literal.
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Interrupt => "0",

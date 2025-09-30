@@ -1,12 +1,12 @@
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-use super::{super::prompt::Prompter, Result, TokenProcessor};
+use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
-pub struct SpriteProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 
-impl<P: Prompter> TokenProcessor for SpriteProcessor<'_, P> {
+impl TokenProcessor for SpriteProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "STAEGFILE" => {

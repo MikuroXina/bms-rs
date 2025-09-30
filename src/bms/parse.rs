@@ -89,7 +89,7 @@ impl Bms {
         let mut messages = vec![];
         for token in token_iter {
             match token.content() {
-                Token::NonCommand(line) => comments.push((token.range(), line)),
+                Token::NotACommand(line) => comments.push((token.range(), line)),
                 Token::Header { name, args } => {
                     headers.push((token.range(), name, args));
                 }

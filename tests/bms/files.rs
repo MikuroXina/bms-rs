@@ -12,7 +12,7 @@ fn test_lal() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -46,7 +46,7 @@ fn test_nc() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -86,7 +86,7 @@ fn test_j219() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -143,7 +143,7 @@ fn test_bemuse_ext() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info

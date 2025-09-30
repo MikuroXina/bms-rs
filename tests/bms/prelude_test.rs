@@ -32,11 +32,11 @@ fn test_prelude_imports() {
     let _obj_time = ObjTime::new(1, 0, std::num::NonZeroU64::new(1).unwrap());
 
     // Test model types
-    let _bms: Bms<KeyLayoutBeat> = Bms::default();
+    let _bms = Bms::default();
     let _header = Header::default();
     let _scope_defines = ScopeDefines::default();
     let _arrangers = Arrangers::default();
-    let _notes = Notes::<KeyLayoutBeat>::default();
+    let _notes = Notes::default();
     let _graphics = Graphics::default();
     let _others = Others::default();
 

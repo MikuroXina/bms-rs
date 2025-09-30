@@ -83,7 +83,7 @@ fn test_unknown_command_warning() {
         .tokens
         .tokens
         .iter()
-        .any(|t| matches!(t.content(), Token::UnknownCommand(_)));
+        .any(|t| matches!(t.content(), Token::Header { .. }));
     assert!(
         has_unknown_command_token,
         "Should have UnknownCommand token"

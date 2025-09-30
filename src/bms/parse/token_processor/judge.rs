@@ -20,9 +20,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
             let judge_level = JudgeLevel::try_from(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
             })?;
-            let id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let id = ObjId::try_from(id)?;
 
             let to_insert = ExRankDef { id, judge_level };
             if let Some(older) = self.0.borrow_mut().scope_defines.exrank_defs.get_mut(&id) {
@@ -69,27 +67,24 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        match channel {
-            Channel::Judge => {
-                for (time, judge_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
-                    let exrank_def = self
-                        .0
-                        .borrow()
-                        .scope_defines
-                        .exrank_defs
-                        .get(&judge_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(judge_id))?;
-                    self.0.borrow_mut().notes.push_judge_event(
-                        JudgeObj {
-                            time,
-                            judge_level: exrank_def.judge_level,
-                        },
-                        self.1,
-                    )?;
-                }
+        if let Channel::Judge = channel {
+            for (time, judge_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                let exrank_def = self
+                    .0
+                    .borrow()
+                    .scope_defines
+                    .exrank_defs
+                    .get(&judge_id)
+                    .cloned()
+                    .ok_or(ParseWarning::UndefinedObject(judge_id))?;
+                self.0.borrow_mut().notes.push_judge_event(
+                    JudgeObj {
+                        time,
+                        judge_level: exrank_def.judge_level,
+                    },
+                    self.1,
+                )?;
             }
-            _ => {}
         }
         Ok(())
     }

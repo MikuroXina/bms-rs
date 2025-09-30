@@ -20,9 +20,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     return Ok(());
                 }
 
-                let bmp_obj_id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let bmp_obj_id = ObjId::try_from(id)?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: Argb::default(),
@@ -79,9 +77,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 };
 
                 let path = args[1];
-                let bmp_obj_id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let bmp_obj_id = ObjId::try_from(id)?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color,
@@ -123,9 +119,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let blue = parts[3]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
-                let id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let id = ObjId::try_from(id)?;
                 let argb = Argb {
                     alpha,
                     red,
@@ -176,12 +170,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
-                let source_bmp = ObjId::try_from(args[0]).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let id = ObjId::try_from(id)?;
+                let source_bmp = ObjId::try_from(args[0])?;
                 let trim_top_left = (sx, sy);
                 let trim_size = (w, h);
                 let draw_point = (dx, dy);
@@ -236,12 +226,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
-                let source_bmp = ObjId::try_from(args[0]).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let id = ObjId::try_from(id)?;
+                let source_bmp = ObjId::try_from(args[0])?;
                 let to_insert = BgaDef {
                     id,
                     source_bmp,
@@ -324,9 +310,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
                 let pattern = args[1].to_owned();
-                let sw_obj_id = ObjId::try_from(id).map_err(|id| {
-                    ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-                })?;
+                let sw_obj_id = ObjId::try_from(id)?;
                 let ev = SwBgaEvent {
                     frame_rate,
                     total_time,

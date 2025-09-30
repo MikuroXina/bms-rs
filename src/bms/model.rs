@@ -31,7 +31,7 @@ pub use graphics::Graphics;
 pub use notes::Notes;
 
 /// A score data aggregate of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
     /// The header data in the score.
@@ -46,19 +46,6 @@ pub struct Bms {
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
-}
-
-impl Default for Bms {
-    fn default() -> Self {
-        Self {
-            header: Default::default(),
-            scope_defines: Default::default(),
-            arrangers: Default::default(),
-            notes: Default::default(),
-            graphics: Default::default(),
-            others: Default::default(),
-        }
-    }
 }
 
 /// A header of the score, including the information that is usually used in music selection.

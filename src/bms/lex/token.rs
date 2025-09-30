@@ -40,14 +40,15 @@ pub enum Token<'a> {
     EndSwitch,
     /// `#[name] [args]` Other command line starts from `#`.
     Header {
-        /// It is always uppercase.
+        /// String after `#` and until the first whitespace. It is always uppercase.
         name: Cow<'a, str>,
+        /// String after `#name` and whitespaces.
         args: Cow<'a, str>,
     },
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// Non-empty lines that not starts in `'#'` in bms file.
-    NonCommand(&'a str),
+    NotACommand(&'a str),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
     Message {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
@@ -71,6 +72,17 @@ pub enum Token<'a> {
 
 /// A token with position information.
 pub type TokenWithRange<'a> = SourceRangeMixin<Token<'a>>;
+
+impl Token<'static> {
+    /// Creates a [`Token::Header`] token with string literals.
+    #[must_use]
+    pub fn header(name: &'static str, args: &'static str) -> Self {
+        Self::Header {
+            name: name.into(),
+            args: args.into(),
+        }
+    }
+}
 
 impl<'a> Token<'a> {
     pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
@@ -168,7 +180,7 @@ impl<'a> Token<'a> {
                 name: command.trim_start_matches('#').to_uppercase().into(),
                 args: c.next_line_entire().into(),
             },
-            _not_command => Self::NonCommand(c.next_line_entire()),
+            _not_command => Self::NotACommand(c.next_line_entire()),
         };
 
         // Calculate the full range of this token (from command start to current cursor position)
@@ -205,7 +217,7 @@ impl std::fmt::Display for Token<'_> {
         match self {
             Token::Case(value) => write!(f, "#CASE {value}"),
             Token::Header { name, args } => write!(f, "#{name} {args}"),
-            Token::NonCommand(comment) => write!(f, "{comment}"),
+            Token::NotACommand(comment) => write!(f, "{comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),
             Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),

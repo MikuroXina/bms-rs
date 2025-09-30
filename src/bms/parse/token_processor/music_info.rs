@@ -1,12 +1,12 @@
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-use super::{super::prompt::Prompter, Result, TokenProcessor};
+use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
-pub struct MusicInfoProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
-impl<P: Prompter> TokenProcessor for MusicInfoProcessor<'_, P> {
+impl TokenProcessor for MusicInfoProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),

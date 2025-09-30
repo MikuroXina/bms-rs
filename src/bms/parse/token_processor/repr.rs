@@ -1,12 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
 
-use super::{super::prompt::Prompter, ParseWarning, Result, TokenProcessor};
+use super::{ParseWarning, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
-pub struct RepresentationProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
-impl<P: Prompter> TokenProcessor for RepresentationProcessor<'_, P> {
+impl TokenProcessor for RepresentationProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "BASE" => {

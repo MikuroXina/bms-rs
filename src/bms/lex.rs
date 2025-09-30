@@ -3,14 +3,13 @@
 //! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
 //! [`BmsParseOutput`])
 
-mod command_impl;
 mod cursor;
 pub mod token;
 
 use thiserror::Error;
 
 use crate::{
-    bms::command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
+    bms::command::mixin::SourceRangeMixin,
     diagnostics::{SimpleSource, ToAriadne},
 };
 use ariadne::{Color, Label, Report, ReportKind};
@@ -132,16 +131,6 @@ impl<'a> TokenStream<'a> {
         while !cursor.is_end() {
             match Token::parse(&mut cursor) {
                 Ok(token_with_range) => {
-                    // If the token is UnknownCommand, also add a warning
-                    if let Token::UnknownCommand(cmd) = token_with_range.content() {
-                        warnings.push(
-                            LexWarning::UnknownCommand {
-                                command: cmd.to_string(),
-                            }
-                            .into_wrapper(&token_with_range),
-                        );
-                    }
-
                     tokens.push(token_with_range);
                 }
                 Err(warning) => {
@@ -150,9 +139,13 @@ impl<'a> TokenStream<'a> {
             }
         }
 
-        let case_sensitive = tokens
-            .iter()
-            .any(|token| matches!(token.content(), Token::Base62));
+        let case_sensitive = tokens.iter().any(|token| {
+            token.content()
+                == &Token::Header {
+                    name: "BASE".into(),
+                    args: "62".into(),
+                }
+        });
         if !case_sensitive {
             for token in &mut tokens {
                 token.content_mut().make_id_uppercase();
@@ -193,13 +186,12 @@ impl ToAriadne for LexWarningWithRange {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::Path, str::FromStr};
-
-    use fraction::{GenericDecimal, GenericFraction};
-
-    use crate::bms::{
-        command::{JudgeLevel, PlayerMode, channel::Channel, time::Track},
-        lex::{LexOutput, TokenStream},
+    use crate::{
+        bms::{
+            command::{channel::Channel, time::Track},
+            lex::{LexOutput, TokenStream},
+        },
+        lex::token::Token,
     };
 
     #[test]
@@ -240,41 +232,39 @@ mod tests {
                 .map(|t| t.content().clone())
                 .collect::<Vec<_>>(),
             vec![
-                Player(PlayerMode::Single),
-                Genre("FUGA"),
-                Title("BAR(^^)"),
-                Artist("MikuroXina"),
-                Bpm(GenericDecimal::from_fraction(
-                    GenericFraction::from_str("120").unwrap()
-                )),
-                PlayLevel(6),
-                Rank(JudgeLevel::Normal),
-                BackBmp(Path::new("boon.jpg")),
-                Wav("01".try_into().unwrap(), Path::new("hoge.WAV")),
-                Wav("02".try_into().unwrap(), Path::new("foo.WAV")),
-                Wav("03".try_into().unwrap(), Path::new("bar.WAV")),
-                Message {
+                Token::header("PLAYER", "1"),
+                Token::header("GENRE", "FUGA"),
+                Token::header("TITLE", "BAR(^^)"),
+                Token::header("ARTIST", "MikuroXina"),
+                Token::header("BPM", "120"),
+                Token::header("PLAYLEVEL", "6"),
+                Token::header("RANK", "2"),
+                Token::header("BACKBMP", "boon.jpg"),
+                Token::header("WAV01", "hoge.WAV"),
+                Token::header("WAV02", "foo.WAV"),
+                Token::header("WAV03", "bar.WAV"),
+                Token::Message {
                     track: Track(2),
                     channel: Channel::Note {
                         channel_id: "11".parse().unwrap(),
                     },
                     message: "0303030303".into(),
                 },
-                Message {
+                Token::Message {
                     track: Track(2),
                     channel: Channel::Note {
                         channel_id: "11".parse().unwrap(),
                     },
                     message: "0303000303".into(),
                 },
-                Message {
+                Token::Message {
                     track: Track(2),
                     channel: Channel::Note {
                         channel_id: "11".parse().unwrap(),
                     },
                     message: "010101".into(),
                 },
-                Message {
+                Token::Message {
                     track: Track(2),
                     channel: Channel::Note {
                         channel_id: "11".parse().unwrap(),

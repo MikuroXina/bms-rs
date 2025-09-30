@@ -62,18 +62,12 @@ impl Bms {
                     .copied()
                     .chain(
                         offset_x
-                            .zip(offset_y.clone())
+                            .zip(*offset_y)
                             .map(|(x, y)| [x, y])
                             .into_iter()
                             .flatten(),
                     )
-                    .chain(
-                        abs_x
-                            .zip(abs_y.clone())
-                            .map(|(x, y)| [x, y])
-                            .into_iter()
-                            .flatten(),
-                    )
+                    .chain(abs_x.zip(*abs_y).map(|(x, y)| [x, y]).into_iter().flatten())
                     .join(" ");
                 tokens.push(Token::Header {
                     name: "EXTCHR".into(),
@@ -105,7 +99,7 @@ impl Bms {
             }
         }
         for line in &self.others.non_command_lines {
-            tokens.push(Token::NonCommand(line.as_str()));
+            tokens.push(Token::NotACommand(line.as_str()));
         }
 
         // Header
@@ -217,7 +211,7 @@ impl Bms {
         }
         if let Some(comment_lines) = self.header.comment.as_ref() {
             for line in comment_lines {
-                tokens.push(Token::NonCommand(line.as_str()));
+                tokens.push(Token::NotACommand(line.as_str()));
             }
         }
         if let Some(email) = self.header.email.as_deref() {

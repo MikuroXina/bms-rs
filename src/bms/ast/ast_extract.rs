@@ -142,12 +142,15 @@ mod tests {
 
     #[test]
     fn test_extract_simple_tokens() {
-        use Token::*;
-        let tokens = vec![Title("11000000"), Title("00220000"), Title("00000044")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let tokens = vec![
+            Token::header("TITLE", "11000000"),
+            Token::header("TITLE", "00220000"),
+            Token::header("TITLE", "00000044"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let units = tokens.iter().map(Unit::TokenWithRange).collect::<Vec<_>>();
 
@@ -161,18 +164,25 @@ mod tests {
                 .map(|t| t.content())
                 .cloned()
                 .collect::<Vec<_>>(),
-            vec![Title("11000000"), Title("00220000"), Title("00000044"),]
+            vec![
+                Token::header("TITLE", "11000000"),
+                Token::header("TITLE", "00220000"),
+                Token::header("TITLE", "00000044"),
+            ]
         );
     }
 
     #[test]
     fn test_extract_random_block() {
         use Token::*;
-        let if_tokens = vec![Title("00550000"), Title("00006600")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let if_tokens = vec![
+            Token::header("TITLE", "00550000"),
+            Token::header("TITLE", "00006600"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let if_branch = if_tokens
             .iter()
@@ -210,8 +220,8 @@ mod tests {
             vec![
                 Random(BigUint::from(1u32)),
                 If(BigUint::from(1u32)),
-                Title("00550000"),
-                Title("00006600"),
+                Token::header("TITLE", "00550000"),
+                Token::header("TITLE", "00006600"),
                 EndIf,
                 EndRandom,
             ]
@@ -221,11 +231,14 @@ mod tests {
     #[test]
     fn test_extract_switch_block() {
         use Token::*;
-        let case_tokens = vec![Title("11111111"), Title("22222222")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens = vec![
+            Token::header("TITLE", "11111111"),
+            Token::header("TITLE", "22222222"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let case_branch = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_range(14..23),
@@ -258,8 +271,8 @@ mod tests {
             vec![
                 Switch(BigUint::from(1u32)),
                 Case(BigUint::from(1u32)),
-                Title("11111111"),
-                Title("22222222"),
+                Token::header("TITLE", "11111111"),
+                Token::header("TITLE", "22222222"),
                 Skip,
                 EndSwitch,
             ]
@@ -269,11 +282,14 @@ mod tests {
     #[test]
     fn test_extract_switch_block_with_def() {
         use Token::*;
-        let def_tokens = vec![Title("33333333"), Title("44444444")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let def_tokens = vec![
+            Token::header("TITLE", "33333333"),
+            Token::header("TITLE", "44444444"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let def_branch = CaseBranch {
             value: CaseBranchValue::Def.into_wrapper_range(14..23),
@@ -306,8 +322,8 @@ mod tests {
             vec![
                 Switch(BigUint::from(2u32)),
                 Def,
-                Title("33333333"),
-                Title("44444444"),
+                Token::header("TITLE", "33333333"),
+                Token::header("TITLE", "44444444"),
                 Skip,
                 EndSwitch,
             ]
@@ -372,17 +388,23 @@ mod tests {
         use Token::*;
 
         // Create two different If branches
-        let if_tokens_1 = vec![Title("Branch1_Token1"), Title("Branch1_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let if_tokens_1 = vec![
+            Token::header("TITLE", "Branch1_Token1"),
+            Token::header("TITLE", "Branch1_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let if_tokens_2 = vec![Title("Branch2_Token1"), Title("Branch2_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let if_tokens_2 = vec![
+            Token::header("TITLE", "Branch2_Token1"),
+            Token::header("TITLE", "Branch2_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let if_branch_1 = if_tokens_1
             .iter()
@@ -426,12 +448,12 @@ mod tests {
             vec![
                 Random(BigUint::from(2u32)),
                 If(BigUint::from(1u32)),
-                Title("Branch1_Token1"),
-                Title("Branch1_Token2"),
+                Token::header("TITLE", "Branch1_Token1"),
+                Token::header("TITLE", "Branch1_Token2"),
                 EndIf,
                 If(BigUint::from(2u32)),
-                Title("Branch2_Token1"),
-                Title("Branch2_Token2"),
+                Token::header("TITLE", "Branch2_Token1"),
+                Token::header("TITLE", "Branch2_Token2"),
                 EndIf,
                 EndRandom,
             ]
@@ -443,25 +465,34 @@ mod tests {
         use Token::*;
 
         // Create Case branch 1
-        let case_tokens_1 = vec![Title("Case1_Token1"), Title("Case1_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens_1 = vec![
+            Token::header("TITLE", "Case1_Token1"),
+            Token::header("TITLE", "Case1_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         // Create Case branch 2
-        let case_tokens_2 = vec![Title("Case2_Token1"), Title("Case2_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens_2 = vec![
+            Token::header("TITLE", "Case2_Token1"),
+            Token::header("TITLE", "Case2_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         // Create Def branch
-        let def_tokens = vec![Title("Def_Token1"), Title("Def_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let def_tokens = vec![
+            Token::header("TITLE", "Def_Token1"),
+            Token::header("TITLE", "Def_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let case_branch_1 = CaseBranch {
             value: CaseBranchValue::Case(BigUint::from(1u32)).into_wrapper_range(14..23),
@@ -511,16 +542,16 @@ mod tests {
             vec![
                 Switch(BigUint::from(3u32)),
                 Case(BigUint::from(1u32)),
-                Title("Case1_Token1"),
-                Title("Case1_Token2"),
+                Token::header("TITLE", "Case1_Token1"),
+                Token::header("TITLE", "Case1_Token2"),
                 Skip,
                 Case(BigUint::from(2u32)),
-                Title("Case2_Token1"),
-                Title("Case2_Token2"),
+                Token::header("TITLE", "Case2_Token1"),
+                Token::header("TITLE", "Case2_Token2"),
                 Skip,
                 Def,
-                Title("Def_Token1"),
-                Title("Def_Token2"),
+                Token::header("TITLE", "Def_Token1"),
+                Token::header("TITLE", "Def_Token2"),
                 Skip,
                 EndSwitch,
             ]
@@ -532,23 +563,32 @@ mod tests {
         use Token::*;
 
         // Create Def branch first, then Case branches
-        let def_tokens = vec![Title("DefFirst_Token1"), Title("DefFirst_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let def_tokens = vec![
+            Token::header("TITLE", "DefFirst_Token1"),
+            Token::header("TITLE", "DefFirst_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let case_tokens_1 = vec![Title("Case1_Token1"), Title("Case1_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens_1 = vec![
+            Token::header("TITLE", "Case1_Token1"),
+            Token::header("TITLE", "Case1_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let case_tokens_2 = vec![Title("Case2_Token1"), Title("Case2_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens_2 = vec![
+            Token::header("TITLE", "Case2_Token1"),
+            Token::header("TITLE", "Case2_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let def_branch = CaseBranch {
             value: CaseBranchValue::Def.into_wrapper_range(14..23),
@@ -599,16 +639,16 @@ mod tests {
             vec![
                 Switch(BigUint::from(2u32)),
                 Def,
-                Title("DefFirst_Token1"),
-                Title("DefFirst_Token2"),
+                Token::header("TITLE", "DefFirst_Token1"),
+                Token::header("TITLE", "DefFirst_Token2"),
                 Skip,
                 Case(BigUint::from(1u32)),
-                Title("Case1_Token1"),
-                Title("Case1_Token2"),
+                Token::header("TITLE", "Case1_Token1"),
+                Token::header("TITLE", "Case1_Token2"),
                 Skip,
                 Case(BigUint::from(2u32)),
-                Title("Case2_Token1"),
-                Title("Case2_Token2"),
+                Token::header("TITLE", "Case2_Token1"),
+                Token::header("TITLE", "Case2_Token2"),
                 Skip,
                 EndSwitch,
             ]
@@ -620,17 +660,23 @@ mod tests {
         use Token::*;
 
         // Create a Switch block with nested Random block
-        let nested_random_tokens = vec![Title("NestedRandom_Token1"), Title("NestedRandom_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let nested_random_tokens = vec![
+            Token::header("TITLE", "NestedRandom_Token1"),
+            Token::header("TITLE", "NestedRandom_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let _case_tokens = vec![Title("Case_Token1"), Title("Case_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let _case_tokens = vec![
+            Token::header("TITLE", "Case_Token1"),
+            Token::header("TITLE", "Case_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         // Create nested Random block
         let nested_if_branch = nested_random_tokens
@@ -687,8 +733,8 @@ mod tests {
                 Case(BigUint::from(1u32)),
                 Random(BigUint::from(1u32)),
                 If(BigUint::from(1u32)),
-                Title("NestedRandom_Token1"),
-                Title("NestedRandom_Token2"),
+                Token::header("TITLE", "NestedRandom_Token1"),
+                Token::header("TITLE", "NestedRandom_Token2"),
                 EndIf,
                 EndRandom,
                 Skip,
@@ -702,17 +748,23 @@ mod tests {
         use Token::*;
 
         // Create a Random block with nested Switch block
-        let nested_switch_tokens = vec![Title("NestedSwitch_Token1"), Title("NestedSwitch_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let nested_switch_tokens = vec![
+            Token::header("TITLE", "NestedSwitch_Token1"),
+            Token::header("TITLE", "NestedSwitch_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let _if_tokens = vec![Title("If_Token1"), Title("If_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let _if_tokens = vec![
+            Token::header("TITLE", "If_Token1"),
+            Token::header("TITLE", "If_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         // Create nested Switch block
         let nested_case_branch = CaseBranch {
@@ -766,8 +818,8 @@ mod tests {
                 If(BigUint::from(1u32)),
                 Switch(BigUint::from(1u32)),
                 Case(BigUint::from(1u32)),
-                Title("NestedSwitch_Token1"),
-                Title("NestedSwitch_Token2"),
+                Token::header("TITLE", "NestedSwitch_Token1"),
+                Token::header("TITLE", "NestedSwitch_Token2"),
                 Skip,
                 EndSwitch,
                 EndIf,
@@ -781,23 +833,32 @@ mod tests {
         use Token::*;
 
         // Create a complex nested structure: Switch -> Case -> Random -> If -> Switch -> Case
-        let innermost_tokens = vec![Title("Innermost_Token1"), Title("Innermost_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let innermost_tokens = vec![
+            Token::header("TITLE", "Innermost_Token1"),
+            Token::header("TITLE", "Innermost_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let _middle_tokens = vec![Title("Middle_Token1"), Title("Middle_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let _middle_tokens = vec![
+            Token::header("TITLE", "Middle_Token1"),
+            Token::header("TITLE", "Middle_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let _outer_tokens = vec![Title("Outer_Token1"), Title("Outer_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let _outer_tokens = vec![
+            Token::header("TITLE", "Outer_Token1"),
+            Token::header("TITLE", "Outer_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         // Innermost Switch block
         let innermost_case = CaseBranch {
@@ -872,8 +933,8 @@ mod tests {
                 If(BigUint::from(1u32)),
                 Switch(BigUint::from(1u32)),
                 Case(BigUint::from(1u32)),
-                Title("Innermost_Token1"),
-                Title("Innermost_Token2"),
+                Token::header("TITLE", "Innermost_Token1"),
+                Token::header("TITLE", "Innermost_Token2"),
                 Skip,
                 EndSwitch,
                 EndIf,
@@ -889,23 +950,32 @@ mod tests {
         use Token::*;
 
         // Create a Switch block with multiple Def branches (this should be handled gracefully)
-        let def_tokens_1 = vec![Title("Def1_Token1"), Title("Def1_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let def_tokens_1 = vec![
+            Token::header("TITLE", "Def1_Token1"),
+            Token::header("TITLE", "Def1_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let def_tokens_2 = vec![Title("Def2_Token1"), Title("Def2_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let def_tokens_2 = vec![
+            Token::header("TITLE", "Def2_Token1"),
+            Token::header("TITLE", "Def2_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
-        let case_tokens = vec![Title("Case_Token1"), Title("Case_Token2")]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let case_tokens = vec![
+            Token::header("TITLE", "Case_Token1"),
+            Token::header("TITLE", "Case_Token2"),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
 
         let def_branch_1 = CaseBranch {
             value: CaseBranchValue::Def.into_wrapper_range(14..23),
@@ -956,16 +1026,16 @@ mod tests {
             vec![
                 Switch(BigUint::from(1u32)),
                 Def,
-                Title("Def1_Token1"),
-                Title("Def1_Token2"),
+                Token::header("TITLE", "Def1_Token1"),
+                Token::header("TITLE", "Def1_Token2"),
                 Skip,
                 Def,
-                Title("Def2_Token1"),
-                Title("Def2_Token2"),
+                Token::header("TITLE", "Def2_Token1"),
+                Token::header("TITLE", "Def2_Token2"),
                 Skip,
                 Case(BigUint::from(1u32)),
-                Title("Case_Token1"),
-                Title("Case_Token2"),
+                Token::header("TITLE", "Case_Token1"),
+                Token::header("TITLE", "Case_Token2"),
                 Skip,
                 EndSwitch,
             ]

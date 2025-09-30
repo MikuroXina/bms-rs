@@ -19,9 +19,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 ));
             }
             let path = Path::new(args);
-            let wav_obj_id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let wav_obj_id = ObjId::try_from(id)?;
             let mut bms = self.0.borrow_mut();
             if let Some(older) = bms.notes.wav_files.get_mut(&wav_obj_id) {
                 self.1
@@ -92,9 +90,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             let Some(file_name) = args.next() else {
                 return Err(ParseWarning::SyntaxError("expected filename".into()));
             };
-            let id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let id = ObjId::try_from(id)?;
             let path = Path::new(file_name);
             let to_insert = ExWavDef {
                 id,
@@ -120,9 +116,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             }
         }
         if name == "LNOBJ" {
-            let end_id = ObjId::try_from(args).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let end_id = ObjId::try_from(args)?;
             let mut end_note = self
                 .0
                 .borrow_mut()
@@ -200,9 +194,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                     ));
                 }
             };
-            let wav_index = ObjId::try_from(args[1]).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let wav_index = ObjId::try_from(args[1])?;
             let value: u32 = args[2]
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;

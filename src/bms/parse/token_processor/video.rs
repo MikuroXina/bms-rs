@@ -60,9 +60,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                 GenericFraction::<BigUint>::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
             );
-            let id = ObjId::try_from(id).map_err(|id| {
-                ParseWarning::SyntaxError(format!("expected object id but found: {id}"))
-            })?;
+            let id = ObjId::try_from(id)?;
 
             if let Some(older) = self.0.borrow_mut().others.seek_events.get_mut(&id) {
                 self.1
