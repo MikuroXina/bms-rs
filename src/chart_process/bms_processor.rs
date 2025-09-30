@@ -7,7 +7,7 @@ use std::time::SystemTime;
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent,
+    ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BmpId, DisplayRatio, WavId, YCoordinate},
 };
 use std::str::FromStr;
@@ -32,7 +32,7 @@ where
     all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
 
     /// 预加载的事件列表（当前可见区域内的所有事件）
-    preloaded_events: Vec<(YCoordinate, ChartEvent)>,
+    preloaded_events: Vec<ChartEventWithPosition>,
 
     // Flow parameters
     default_visible_y_length: YCoordinate,
@@ -657,7 +657,7 @@ where
             .unwrap_or(Decimal::from(120));
     }
 
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition> {
         // 处理通过 post_events 投递的外部事件
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
@@ -677,10 +677,10 @@ where
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // 收集当前时刻触发的事件
-        let mut triggered_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        let mut triggered_events: Vec<ChartEventWithPosition> = Vec::new();
 
         // 收集预加载范围内的事件
-        let mut new_preloaded_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
         // 从预先计算好的事件 Map 中获取事件
         for (y_coord, events) in &self.all_events {
@@ -689,28 +689,32 @@ where
             // 如果事件在当前时刻触发
             if *y > prev_y && *y <= cur_y {
                 for event in events {
-                    triggered_events.push((y_coord.clone(), event.clone()));
+                    triggered_events
+                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
                 }
             }
 
             // 如果事件在预加载范围内
             if *y > cur_y && *y <= preload_end_y {
                 for event in events {
-                    new_preloaded_events.push((y_coord.clone(), event.clone()));
+                    new_preloaded_events
+                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
                 }
             }
         }
 
         // 排序事件
         triggered_events.sort_by(|a, b| {
-            a.0.value()
-                .partial_cmp(b.0.value())
+            a.position()
+                .value()
+                .partial_cmp(b.position().value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         new_preloaded_events.sort_by(|a, b| {
-            a.0.value()
-                .partial_cmp(b.0.value())
+            a.position()
+                .value()
+                .partial_cmp(b.position().value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -724,17 +728,14 @@ where
         self.inbox.extend_from_slice(events);
     }
 
-    fn visible_events(
-        &mut self,
-        now: SystemTime,
-    ) -> impl Iterator<Item = (YCoordinate, ChartEvent, DisplayRatio)> {
+    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
         let scroll_factor = self.current_scroll.clone();
 
-        self.preloaded_events.iter().map(move |(y_coord, event)| {
-            let event_y = y_coord.value();
+        self.preloaded_events.iter().map(move |event_with_pos| {
+            let event_y = event_with_pos.position().value();
             // 计算显示比例：(event_y - current_y) / visible_window_y * scroll_factor
             // 注意：scroll可以为非零的正负值
             let display_ratio_value = if visible_window_y > Decimal::from(0) {
@@ -744,7 +745,11 @@ where
                 Decimal::from(0)
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-            (y_coord.clone(), event.clone(), display_ratio)
+            VisibleEvent::new(
+                event_with_pos.position().clone(),
+                event_with_pos.event().clone(),
+                display_ratio,
+            )
         })
     }
 }

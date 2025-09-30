@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent,
+    ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BmpId, DisplayRatio, WavId, YCoordinate},
 };
 use std::str::FromStr;
@@ -36,7 +36,7 @@ pub struct BmsonProcessor<'a> {
     inbox: Vec<ControlEvent>,
 
     /// 预加载的事件列表（当前可见区域内的所有事件）
-    preloaded_events: Vec<(YCoordinate, ChartEvent)>,
+    preloaded_events: Vec<ChartEventWithPosition>,
 
     /// 预处理的所有事件映射，按 y 坐标排序
     all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
@@ -504,7 +504,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
     }
 
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
@@ -523,10 +523,10 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // 收集当前时刻触发的事件
-        let mut triggered_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        let mut triggered_events: Vec<ChartEventWithPosition> = Vec::new();
 
         // 收集预加载范围内的事件
-        let mut new_preloaded_events: Vec<(YCoordinate, ChartEvent)> = Vec::new();
+        let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
         // 从预处理的事件映射中获取事件
         for (y_coord, events) in &self.all_events {
@@ -535,14 +535,16 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             // 检查是否为当前时刻触发的事件
             if *y_value > prev_y && *y_value <= cur_y {
                 for event in events {
-                    triggered_events.push((y_coord.clone(), event.clone()));
+                    triggered_events
+                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
                 }
             }
 
             // 检查是否为预加载范围内的事件
             if *y_value > cur_y && *y_value <= preload_end_y {
                 for event in events {
-                    new_preloaded_events.push((y_coord.clone(), event.clone()));
+                    new_preloaded_events
+                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
                 }
             }
         }
@@ -557,17 +559,14 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.inbox.extend_from_slice(events);
     }
 
-    fn visible_events(
-        &mut self,
-        now: SystemTime,
-    ) -> impl Iterator<Item = (YCoordinate, ChartEvent, DisplayRatio)> {
+    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
         let scroll_factor = self.current_scroll.clone();
 
-        self.preloaded_events.iter().map(move |(y_coord, event)| {
-            let event_y = y_coord.value();
+        self.preloaded_events.iter().map(move |event_with_pos| {
+            let event_y = event_with_pos.position().value();
             // 计算显示比例：(event_y - current_y) / visible_window_y * scroll_factor
             // 注意：scroll可以为非零的正负值
             let display_ratio_value = if visible_window_y > Decimal::from(0) {
@@ -577,7 +576,11 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 Decimal::from(0)
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-            (y_coord.clone(), event.clone(), display_ratio)
+            VisibleEvent::new(
+                event_with_pos.position().clone(),
+                event_with_pos.event().clone(),
+                display_ratio,
+            )
         })
     }
 }

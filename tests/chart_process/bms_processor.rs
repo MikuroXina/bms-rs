@@ -40,9 +40,13 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert!(!after_change_events.is_empty(), "应该有可见事件");
 
     // 验证显示比例的计算
-    for (y_coord, event, display_ratio) in &after_change_events {
-        let y_value = y_coord.value().to_f64().unwrap_or(0.0);
-        let display_ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
+    for visible_event in &after_change_events {
+        let y_value = visible_event.position().value().to_f64().unwrap_or(0.0);
+        let display_ratio_value = visible_event
+            .display_ratio()
+            .value()
+            .to_f64()
+            .unwrap_or(0.0);
 
         // 显示比例应该在合理范围内
         assert!(
@@ -53,7 +57,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
         );
 
         // 验证事件类型
-        match event {
+        match visible_event.event() {
             ChartEvent::Note { .. } | ChartEvent::Bgm { .. } => {
                 assert!(
                     display_ratio_value.is_finite(),
@@ -106,8 +110,12 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert!(!after_bpm_events.is_empty(), "BPM变化后应该仍有可见事件");
 
     // 验证显示比例仍然有效
-    for (_, _, display_ratio) in &after_bpm_events {
-        let ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
+    for visible_event in &after_bpm_events {
+        let ratio_value = visible_event
+            .display_ratio()
+            .value()
+            .to_f64()
+            .unwrap_or(0.0);
         assert!(ratio_value.is_finite() && ratio_value >= 0.0);
     }
 }
@@ -139,7 +147,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let initial_events: Vec<_> = processor.visible_events(start_time).collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
-        .map(|(_, _, ratio)| ratio.value().to_f64().unwrap_or(0.0))
+        .map(|visible_event| {
+            visible_event
+                .display_ratio()
+                .value()
+                .to_f64()
+                .unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
@@ -155,7 +169,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events(after_first_scroll)
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, _, ratio)| ratio.value().to_f64().unwrap_or(0.0))
+        .map(|visible_event| {
+            visible_event
+                .display_ratio()
+                .value()
+                .to_f64()
+                .unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if after_first_ratios.is_empty() {
@@ -185,7 +205,13 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events(after_scroll_half)
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, _, ratio)| ratio.value().to_f64().unwrap_or(0.0))
+        .map(|visible_event| {
+            visible_event
+                .display_ratio()
+                .value()
+                .to_f64()
+                .unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if after_scroll_half_ratios.is_empty() {

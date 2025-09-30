@@ -1,6 +1,7 @@
 //! 类型定义模块
 
 use crate::bms::Decimal;
+use crate::chart_process::ChartEvent;
 use fraction::{BigUint, GenericDecimal};
 use std::str::FromStr;
 
@@ -194,5 +195,115 @@ impl From<usize> for BmpId {
 impl From<BmpId> for usize {
     fn from(id: BmpId) -> Self {
         id.0
+    }
+}
+
+/// 时间轴事件及其位置的包装类型。
+///
+/// 表示图表播放过程中的一个事件及其在时间轴上的位置。
+#[derive(Debug, Clone)]
+pub struct ChartEventWithPosition {
+    /// 事件在时间轴上的位置（y坐标）
+    pub position: YCoordinate,
+    /// 图表事件
+    pub event: ChartEvent,
+}
+
+impl ChartEventWithPosition {
+    /// 创建一个新的 ChartEventWithPosition
+    #[must_use]
+    pub fn new(position: YCoordinate, event: ChartEvent) -> Self {
+        Self { position, event }
+    }
+
+    /// 获取事件位置
+    #[must_use]
+    pub fn position(&self) -> &YCoordinate {
+        &self.position
+    }
+
+    /// 获取图表事件
+    #[must_use]
+    pub fn event(&self) -> &ChartEvent {
+        &self.event
+    }
+
+    /// 解构为元组
+    #[must_use]
+    pub fn into_tuple(self) -> (YCoordinate, ChartEvent) {
+        (self.position, self.event)
+    }
+}
+
+impl From<(YCoordinate, ChartEvent)> for ChartEventWithPosition {
+    fn from((position, event): (YCoordinate, ChartEvent)) -> Self {
+        Self::new(position, event)
+    }
+}
+
+impl From<ChartEventWithPosition> for (YCoordinate, ChartEvent) {
+    fn from(wrapper: ChartEventWithPosition) -> Self {
+        wrapper.into_tuple()
+    }
+}
+
+/// 可见区域事件及其位置和显示比例的包装类型。
+///
+/// 表示在可见区域中的一个事件，包括其位置、事件内容和显示比例。
+#[derive(Debug, Clone)]
+pub struct VisibleEvent {
+    /// 事件在时间轴上的位置（y坐标）
+    pub position: YCoordinate,
+    /// 图表事件
+    pub event: ChartEvent,
+    /// 显示比例
+    pub display_ratio: DisplayRatio,
+}
+
+impl VisibleEvent {
+    /// 创建一个新的 VisibleEvent
+    #[must_use]
+    pub fn new(position: YCoordinate, event: ChartEvent, display_ratio: DisplayRatio) -> Self {
+        Self {
+            position,
+            event,
+            display_ratio,
+        }
+    }
+
+    /// 获取事件位置
+    #[must_use]
+    pub fn position(&self) -> &YCoordinate {
+        &self.position
+    }
+
+    /// 获取图表事件
+    #[must_use]
+    pub fn event(&self) -> &ChartEvent {
+        &self.event
+    }
+
+    /// 获取显示比例
+    #[must_use]
+    pub fn display_ratio(&self) -> &DisplayRatio {
+        &self.display_ratio
+    }
+
+    /// 解构为元组
+    #[must_use]
+    pub fn into_tuple(self) -> (YCoordinate, ChartEvent, DisplayRatio) {
+        (self.position, self.event, self.display_ratio)
+    }
+}
+
+impl From<(YCoordinate, ChartEvent, DisplayRatio)> for VisibleEvent {
+    fn from((position, event, display_ratio): (YCoordinate, ChartEvent, DisplayRatio)) -> Self {
+        Self::new(position, event, display_ratio)
+    }
+}
+
+impl From<VisibleEvent> for (YCoordinate, ChartEvent, DisplayRatio) {
+    fn from(wrapper: VisibleEvent) -> Self {
+        wrapper.into_tuple()
     }
 }

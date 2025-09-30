@@ -31,6 +31,9 @@ pub mod prelude;
 // 使用 prelude 中的类型
 pub use prelude::{BmpId, DisplayRatio, WavId, YCoordinate};
 
+// 使用自定义的wrapper类型
+pub use types::{ChartEventWithPosition, VisibleEvent};
+
 /// 播放过程中产生的事件（Elm 风格）。
 ///
 /// 这些事件代表图表播放过程中的实际事件，如音符触发、BGM播放、
@@ -202,7 +205,7 @@ pub trait ChartProcessor {
     fn start_play(&mut self, now: SystemTime);
 
     /// 更新：推进内部时间轴，返回自上次调用以来产生的时间轴事件（Elm 风格）。
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = (YCoordinate, ChartEvent)>;
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition>;
 
     /// 投递外部控制事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
     ///
@@ -211,8 +214,5 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: &[ControlEvent]);
 
     /// 查询：当前可见区域中的所有事件（预先加载逻辑）。
-    fn visible_events(
-        &mut self,
-        now: SystemTime,
-    ) -> impl Iterator<Item = (YCoordinate, ChartEvent, DisplayRatio)>;
+    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent>;
 }
