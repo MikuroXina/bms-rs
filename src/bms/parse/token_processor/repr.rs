@@ -8,11 +8,19 @@ pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for RepresentationProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        self.0
-            .borrow_mut()
-            .others
-            .raw_command_lines
-            .push(format!("#{name} {args}"));
+        if args.is_empty() {
+            self.0
+                .borrow_mut()
+                .others
+                .raw_command_lines
+                .push(format!("#{name}"));
+        } else {
+            self.0
+                .borrow_mut()
+                .others
+                .raw_command_lines
+                .push(format!("#{name} {args}"));
+        }
         match name {
             "BASE" => {
                 if args != "62" {
