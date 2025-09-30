@@ -178,7 +178,7 @@ impl<'a> Token<'a> {
             // Unknown command & Comment
             command if command.starts_with('#') => Self::Header {
                 name: command.trim_start_matches('#').to_uppercase().into(),
-                args: c.next_line_entire().into(),
+                args: c.next_line_remaining().into(),
             },
             _not_command => Self::NotACommand(c.next_line_entire()),
         };
