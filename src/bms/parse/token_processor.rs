@@ -34,6 +34,11 @@ pub trait TokenProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()>;
     /// Processes a message command consists of `#{track}{channel}:{message}`.
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()>;
+
+    /// Processes a comment line, which doesn't starts from `#`.
+    fn on_comment(&self, _line: &str) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// Parses message values with warnings.

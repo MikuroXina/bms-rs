@@ -42,4 +42,17 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MetadataProcessor<'_, P
     fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
         Ok(())
     }
+
+    fn on_comment(&self, line: &str) -> Result<()> {
+        let line = line.trim();
+        if line.starts_with("%EMAIL") {
+            self.0.borrow_mut().header.email =
+                Some(line.trim_start_matches("%EMAIL").trim().to_string());
+        }
+        if line.starts_with("%URL") {
+            self.0.borrow_mut().header.url =
+                Some(line.trim_start_matches("%URL").trim().to_string());
+        }
+        Ok(())
+    }
 }
