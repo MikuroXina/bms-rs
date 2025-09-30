@@ -4,7 +4,7 @@ use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
-pub struct MusicInfoProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct MusicInfoProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MusicInfoProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

@@ -9,7 +9,7 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
-pub struct SpeedProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct SpeedProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T> TokenProcessor for SpeedProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

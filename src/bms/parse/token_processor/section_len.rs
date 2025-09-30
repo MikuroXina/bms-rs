@@ -6,7 +6,7 @@ use super::{super::prompt::Prompter, ParseWarning, Result, TokenProcessor, filte
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes objects on `SectionLen` channel.
-pub struct SectionLenProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct SectionLenProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T> TokenProcessor for SectionLenProcessor<'_, P, T> {
     fn on_header(&self, _: &str, _: &str) -> Result<()> {

@@ -11,7 +11,7 @@ use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#VIDEOFILE`, `#MOVIE` and so on definitions and objects on `Seek` channel.
-pub struct VideoProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct VideoProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for VideoProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, num::NonZeroU64};
+use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
@@ -39,6 +39,76 @@ pub trait TokenProcessor {
     fn on_comment(&self, _line: &str) -> Result<()> {
         Ok(())
     }
+}
+
+pub fn pedantic_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
+    bms: Rc<RefCell<Bms<T>>>,
+    prompter: &'a P,
+) -> Vec<Box<dyn TokenProcessor + 'a>> {
+    vec![
+        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
+        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
+        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
+        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
+        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
+        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
+        Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
+        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+    ]
+}
+
+pub fn common_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
+    bms: Rc<RefCell<Bms<T>>>,
+    prompter: &'a P,
+) -> Vec<Box<dyn TokenProcessor + 'a>> {
+    vec![
+        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
+        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
+        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
+        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
+        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
+        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
+        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+    ]
+}
+
+pub fn minor_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
+    bms: Rc<RefCell<Bms<T>>>,
+    prompter: &'a P,
+) -> Vec<Box<dyn TokenProcessor + 'a>> {
+    vec![
+        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
+        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
+        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
+        Box::new(metadata::MetadataProcessor(Rc::clone(&bms), prompter)),
+        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms), prompter)),
+        Box::new(resources::ResourcesProcessor(Rc::clone(&bms), prompter)),
+        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
+        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
+        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
+        Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
+        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
+        Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
+        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
+        Box::new(volume::VolumeProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+    ]
 }
 
 /// Parses message values with warnings.

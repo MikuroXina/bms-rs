@@ -7,7 +7,7 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#WAVxx` and `#LNOBJ` definitions and objects on `Bgm` and `Note` channels.
-pub struct WavProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

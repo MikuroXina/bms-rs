@@ -7,7 +7,7 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
-pub struct OptionProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct OptionProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T> TokenProcessor for OptionProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

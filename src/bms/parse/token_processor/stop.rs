@@ -9,7 +9,7 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
-pub struct StopProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+pub struct StopProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T> TokenProcessor for StopProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {

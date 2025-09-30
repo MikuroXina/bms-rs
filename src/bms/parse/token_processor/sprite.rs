@@ -3,8 +3,8 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
-/// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
-pub struct SpriteProcessor<'a, P, T>(Rc<RefCell<Bms<T>>>, &'a P);
+/// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
+pub struct SpriteProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for SpriteProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
