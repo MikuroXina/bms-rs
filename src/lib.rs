@@ -21,9 +21,9 @@
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings }: BmsOutput<KeyLayoutBeat> = parse_bms(&source);
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source);
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings }: BmsOutput<KeyLayoutBeat> = parse_bms_with_rng(&source, RngMock([BigUint::from(1u64)]));
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)]));
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
@@ -39,6 +39,7 @@
 //! #[cfg(feature = "rand")]
 //! use rand::{rngs::StdRng, SeedableRng};
 //! use bms_rs::bms::prelude::*;
+//! use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
@@ -51,12 +52,12 @@
 //! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
 //! #[cfg(not(feature = "rand"))]
 //! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
-//! let ParseOutput { bms, parse_warnings }:  ParseOutput<bms_rs::bms::command::channel::mapper::KeyLayoutBeat> = Bms::from_token_stream(
+//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
 //!     token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
-//! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing();
+//! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
