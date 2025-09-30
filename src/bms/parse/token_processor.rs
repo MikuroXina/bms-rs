@@ -60,6 +60,7 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
         Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
+        #[cfg(feature = "minor-command")]
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
         Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
@@ -88,7 +89,6 @@ pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
         Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
-        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
         Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
@@ -115,8 +115,10 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
         Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
+        #[cfg(feature = "minor-command")]
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
         Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
+        #[cfg(feature = "minor-command")]
         Box::new(resources::ResourcesProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),

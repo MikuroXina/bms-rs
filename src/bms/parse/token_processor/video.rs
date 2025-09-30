@@ -7,11 +7,16 @@ use fraction::GenericFraction;
 #[cfg(feature = "minor-command")]
 use num::BigUint;
 
-use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
+#[cfg(feature = "minor-command")]
+use super::ids_from_message;
+use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#VIDEOFILE`, `#MOVIE` and so on definitions and objects on `Seek` channel.
-pub struct VideoProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+pub struct VideoProcessor<'a, P>(
+    pub Rc<RefCell<Bms>>,
+    #[cfg_attr(not(feature = "minor-command"), allow(dead_code))] pub &'a P,
+);
 
 impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
@@ -77,11 +82,11 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
         todo!()
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, _track: Track, channel: Channel, _message: &str) -> Result<()> {
         match channel {
             #[cfg(feature = "minor-command")]
             Channel::Seek => {
-                for (time, seek_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (time, seek_id) in ids_from_message(_track, _message, |w| self.1.warn(w)) {
                     let position = self
                         .0
                         .borrow()

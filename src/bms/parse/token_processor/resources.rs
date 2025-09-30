@@ -1,8 +1,7 @@
-#[cfg(feature = "minor-command")]
-use std::str::FromStr;
-use std::{cell::RefCell, path::Path, rc::Rc};
+#![cfg(feature = "minor-command")]
 
-#[cfg(feature = "minor-command")]
+use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
+
 use num::BigUint;
 
 use super::{Result, TokenProcessor};
@@ -14,20 +13,17 @@ pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
 impl TokenProcessor for ResourcesProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
-            #[cfg(feature = "minor-command")]
             "MIDIFILE" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected midi filename".into()));
                 }
                 self.0.borrow_mut().notes.midi_file = Some(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
             "CDDA" => {
                 let big_uint = BigUint::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
                 self.0.borrow_mut().others.cdda.push(big_uint)
             }
-            #[cfg(feature = "minor-command")]
             "MATERIALSWAV" => {
                 self.0
                     .borrow_mut()
@@ -35,7 +31,6 @@ impl TokenProcessor for ResourcesProcessor {
                     .materials_wav
                     .push(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
             "MATERIALSBMP" => {
                 self.0
                     .borrow_mut()
@@ -43,7 +38,6 @@ impl TokenProcessor for ResourcesProcessor {
                     .materials_bmp
                     .push(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
             "MATERIALS" => {
                 self.0.borrow_mut().others.materials_path = Some(Path::new(args).into());
             }

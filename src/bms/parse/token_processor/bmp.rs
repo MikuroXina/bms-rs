@@ -1,8 +1,10 @@
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
+#[cfg(feature = "minor-command")]
+use super::hex_values_from_message;
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    ParseWarning, Result, TokenProcessor, hex_values_from_message, ids_from_message,
+    ParseWarning, Result, TokenProcessor, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
 

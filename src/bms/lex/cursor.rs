@@ -108,6 +108,18 @@ impl<'a> Cursor<'a> {
         (remaining_end, line_end_index)
     }
 
+    /// Move cursor, through and return the remaining part of this line.
+    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+        // Compute the current line bounds without consuming the trailing newline.
+        let (remaining_end, ret_line_end_index) = self.current_line_bounds();
+        let ret_remaining = &self.source[self.index..ret_line_end_index];
+        // Update cursor column and index based on the consumed content.
+        self.col += ret_remaining.chars().count();
+        self.index += remaining_end;
+        // Return the remaining content of the current line, trimmed.
+        ret_remaining.trim()
+    }
+
     /// Move cursor, through and return the entire line.
     pub(crate) fn next_line_entire(&mut self) -> &'a str {
         // Compute the current line bounds without consuming the trailing newline.
@@ -189,11 +201,11 @@ fn test2() {
     let mut cursor = Cursor::new(SOURCE);
 
     assert_eq!(cursor.next_token(), Some("#TITLE"));
-    assert_eq!(cursor.next_line_entire(), "花たちに希望を [SP ANOTHER]");
+    assert_eq!(cursor.next_line_remaining(), "花たちに希望を [SP ANOTHER]");
     assert_eq!(cursor.next_token(), Some("#ARTIST"));
-    assert_eq!(cursor.next_line_entire(), "Sound piercer feat.DAZBEE");
+    assert_eq!(cursor.next_line_remaining(), "Sound piercer feat.DAZBEE");
     assert_eq!(cursor.next_token(), Some("#BPM"));
-    assert_eq!(cursor.next_line_entire(), "187");
+    assert_eq!(cursor.next_line_remaining(), "187");
 }
 
 #[test]
@@ -204,13 +216,13 @@ fn test_next_line_crlf() {
 
     // remaining variant
     assert_eq!(cursor.next_token(), Some("#TITLE"));
-    assert_eq!(cursor.next_line_entire(), "Hello");
+    assert_eq!(cursor.next_line_remaining(), "Hello");
 
     assert_eq!(cursor.next_token(), Some("#ARTIST"));
-    assert_eq!(cursor.next_line_entire(), "Foo");
+    assert_eq!(cursor.next_line_remaining(), "Foo");
 
     assert_eq!(cursor.next_token(), Some("LAST"));
-    assert_eq!(cursor.next_line_entire(), "");
+    assert_eq!(cursor.next_line_remaining(), "");
 
     // reset for entire variant
     let mut cursor = Cursor::new(SOURCE);
@@ -232,13 +244,13 @@ fn test_next_line_no_trailing_newline() {
 
     // remaining variant
     assert_eq!(cursor.next_token(), Some("#A"));
-    assert_eq!(cursor.next_line_entire(), "Alpha");
+    assert_eq!(cursor.next_line_remaining(), "Alpha");
 
     assert_eq!(cursor.next_token(), Some("#B"));
-    assert_eq!(cursor.next_line_entire(), "Beta");
+    assert_eq!(cursor.next_line_remaining(), "Beta");
 
     assert_eq!(cursor.next_token(), Some("END"));
-    assert_eq!(cursor.next_line_entire(), "");
+    assert_eq!(cursor.next_line_remaining(), "");
 
     // reset for entire variant
     let mut cursor = Cursor::new(SOURCE);

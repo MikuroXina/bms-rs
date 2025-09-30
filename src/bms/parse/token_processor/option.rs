@@ -1,17 +1,17 @@
-use std::{cell::RefCell, rc::Rc};
+#![cfg(feature = "minor-command")]
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
+use std::{cell::RefCell, rc::Rc};
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
 pub struct OptionProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        #[cfg(feature = "minor-command")]
         if name == "OPTION" {
             self.0
                 .borrow_mut()
@@ -20,7 +20,6 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                 .get_or_insert_with(Vec::new)
                 .push(args.to_string());
         }
-        #[cfg(feature = "minor-command")]
         if name.starts_with("CHANGEOPTION") {
             let id = name.trim_start_matches("CHANGEOPTION");
             let id = ObjId::try_from(id)?;
@@ -45,7 +44,6 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         match channel {
-            #[cfg(feature = "minor-command")]
             Channel::Option => {
                 for (time, option_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
                     let option = self
@@ -62,7 +60,7 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                         .push_option_event(OptionObj { time, option }, self.1)?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             Channel::ChangeOption => {
                 for (_time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
                     let _option = self
