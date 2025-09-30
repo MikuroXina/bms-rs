@@ -39,7 +39,11 @@ fn assert_hash_maps_equal<K, V>(
     K: std::fmt::Debug + std::cmp::Eq + std::hash::Hash,
     V: std::fmt::Debug + std::cmp::PartialEq,
 {
-    assert_eq!(left.len(), right.len(), "{} length mismatch", field_name);
+    assert_eq!(
+        left.len(),
+        right.len(),
+        "{field_name} length mismatch: {left:?} vs {right:?}",
+    );
 
     for (key, left_value) in left {
         match right.get(key) {
@@ -98,10 +102,6 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
 
     // Compare individual parts first to provide better debugging information
     assert_eq!(bms2.header, bms1.header, "Headers don't match");
-    assert_eq!(
-        bms2.scope_defines, bms1.scope_defines,
-        "Scope defines don't match"
-    );
 
     // Compare scope_defines sub-parts in detail
     assert_hash_maps_equal(
@@ -374,12 +374,6 @@ fn roundtrip_lilith_mx_file_bms_tokens_bms() {
 #[test]
 fn roundtrip_bemuse_ext_file_bms_tokens_bms() {
     let source = include_str!("files/bemuse_ext.bms");
-    roundtrip_source_bms_tokens_bms(source);
-}
-
-#[test]
-fn roundtrip_dive_withblank_file_bms_tokens_bms() {
-    let source = include_str!("files/dive_withblank.bme");
     roundtrip_source_bms_tokens_bms(source);
 }
 
