@@ -56,42 +56,46 @@ impl<'a> BmsonProcessor<'a> {
 
         // Process audio files
         for sound_channel in &bmson.sound_channels {
-            if let std::collections::hash_map::Entry::Vacant(e) =
+            let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(sound_channel.name.to_string())
-            {
-                e.insert(WavId::new(next_audio_id));
-                next_audio_id += 1;
-            }
+            else {
+                continue;
+            };
+            e.insert(WavId::new(next_audio_id));
+            next_audio_id += 1;
         }
 
         // Process mine audio files
         for mine_channel in &bmson.mine_channels {
-            if let std::collections::hash_map::Entry::Vacant(e) =
+            let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(mine_channel.name.to_string())
-            {
-                e.insert(WavId::new(next_audio_id));
-                next_audio_id += 1;
-            }
+            else {
+                continue;
+            };
+            e.insert(WavId::new(next_audio_id));
+            next_audio_id += 1;
         }
 
         // Process hidden key audio files
         for key_channel in &bmson.key_channels {
-            if let std::collections::hash_map::Entry::Vacant(e) =
+            let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(key_channel.name.to_string())
-            {
-                e.insert(WavId::new(next_audio_id));
-                next_audio_id += 1;
-            }
+            else {
+                continue;
+            };
+            e.insert(WavId::new(next_audio_id));
+            next_audio_id += 1;
         }
 
         // Process image files
         for BgaHeader { name, .. } in &bmson.bga.bga_header {
-            if let std::collections::hash_map::Entry::Vacant(e) =
+            let std::collections::hash_map::Entry::Vacant(e) =
                 bmp_name_to_id.entry(name.to_string())
-            {
-                e.insert(BmpId::new(next_bmp_id));
-                next_bmp_id += 1;
-            }
+            else {
+                continue;
+            };
+            e.insert(BmpId::new(next_bmp_id));
+            next_bmp_id += 1;
         }
 
         // Calculate visible Y length based on starting BPM and 600ms reaction time
@@ -130,33 +134,31 @@ impl<'a> BmsonProcessor<'a> {
                 let yy = self.pulses_to_y(y.0);
                 let y_coord = YCoordinate::from(yy.clone());
 
-                if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
-                    let wav_id = self.get_wav_id_for_name(name);
-                    let length = if *l > 0 {
-                        let end_y = self.pulses_to_y(y.0 + l);
-                        Some(YCoordinate::from(end_y - yy.clone()))
-                    } else {
-                        None
-                    };
-                    let kind = if *l > 0 {
-                        NoteKind::Long
-                    } else {
-                        NoteKind::Visible
-                    };
-                    let event = ChartEvent::Note {
-                        side,
-                        key,
-                        kind,
-                        wav_id,
-                        length,
-                        continue_play: *c,
-                    };
-                    events_map.entry(y_coord).or_default().push(event);
-                } else {
+                let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) else {
                     let wav_id = self.get_wav_id_for_name(name);
                     let event = ChartEvent::Bgm { wav_id };
                     events_map.entry(y_coord).or_default().push(event);
-                }
+                    continue;
+                };
+                let wav_id = self.get_wav_id_for_name(name);
+                let length = (*l > 0).then(|| {
+                    let end_y = self.pulses_to_y(y.0 + l);
+                    YCoordinate::from(end_y - yy.clone())
+                });
+                let kind = if *l > 0 {
+                    NoteKind::Long
+                } else {
+                    NoteKind::Visible
+                };
+                let event = ChartEvent::Note {
+                    side,
+                    key,
+                    kind,
+                    wav_id,
+                    length,
+                    continue_play: *c,
+                };
+                events_map.entry(y_coord).or_default().push(event);
             }
         }
 
@@ -265,18 +267,19 @@ impl<'a> BmsonProcessor<'a> {
             for MineEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let y_coord = YCoordinate::from(yy);
-                if let Some((side, key)) = Self::lane_from_x(*x) {
-                    let wav_id = self.get_wav_id_for_name(name);
-                    let event = ChartEvent::Note {
-                        side,
-                        key,
-                        kind: NoteKind::Landmine,
-                        wav_id,
-                        length: None,
-                        continue_play: false,
-                    };
-                    events_map.entry(y_coord).or_default().push(event);
-                }
+                let Some((side, key)) = Self::lane_from_x(*x) else {
+                    continue;
+                };
+                let wav_id = self.get_wav_id_for_name(name);
+                let event = ChartEvent::Note {
+                    side,
+                    key,
+                    kind: NoteKind::Landmine,
+                    wav_id,
+                    length: None,
+                    continue_play: false,
+                };
+                events_map.entry(y_coord).or_default().push(event);
             }
         }
 
@@ -285,18 +288,19 @@ impl<'a> BmsonProcessor<'a> {
             for KeyEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let y_coord = YCoordinate::from(yy);
-                if let Some((side, key)) = Self::lane_from_x(*x) {
-                    let wav_id = self.get_wav_id_for_name(name);
-                    let event = ChartEvent::Note {
-                        side,
-                        key,
-                        kind: NoteKind::Invisible,
-                        wav_id,
-                        length: None,
-                        continue_play: false,
-                    };
-                    events_map.entry(y_coord).or_default().push(event);
-                }
+                let Some((side, key)) = Self::lane_from_x(*x) else {
+                    continue;
+                };
+                let wav_id = self.get_wav_id_for_name(name);
+                let event = ChartEvent::Note {
+                    side,
+                    key,
+                    kind: NoteKind::Invisible,
+                    wav_id,
+                    length: None,
+                    continue_play: false,
+                };
+                events_map.entry(y_coord).or_default().push(event);
             }
         }
 
@@ -306,10 +310,10 @@ impl<'a> BmsonProcessor<'a> {
     /// Convert pulse count to unified y coordinate (unit: measure). One measure = 4*resolution pulses.
     fn pulses_to_y(&self, pulses: u64) -> Decimal {
         let denom = Decimal::from(4 * self.bmson.info.resolution.get());
-        if denom > Decimal::from(0) {
-            Decimal::from(pulses) / denom
-        } else {
+        if denom == Decimal::from(0) {
             Decimal::from(0)
+        } else {
+            Decimal::from(pulses) / denom
         }
     }
 
@@ -353,11 +357,11 @@ impl<'a> BmsonProcessor<'a> {
     /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let base_bpm = Decimal::from(120);
-        if self.current_bpm <= Decimal::from(0) {
-            return Decimal::from(0);
+        if self.current_bpm.is_sign_negative() {
+            Decimal::from(0)
+        } else {
+            (self.current_bpm.clone() / base_bpm).max(Decimal::from(0))
         }
-        let velocity = self.current_bpm.clone() / base_bpm;
-        velocity.max(Decimal::from(0)) // speed must be positive
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL.
@@ -384,7 +388,7 @@ impl<'a> BmsonProcessor<'a> {
             return;
         };
         let last = self.last_poll_at.unwrap_or(started);
-        if now <= last {
+        if now.duration_since(last).unwrap_or_default().is_zero() {
             return;
         }
 
@@ -395,8 +399,8 @@ impl<'a> BmsonProcessor<'a> {
         loop {
             let next_event = self.next_flow_event_after(cur_y.clone());
             if next_event.is_none()
-                || cur_vel <= Decimal::from(0)
-                || remaining_secs <= Decimal::from(0)
+                || cur_vel == Decimal::from(0)
+                || remaining_secs == Decimal::from(0)
             {
                 cur_y += cur_vel * remaining_secs;
                 break;
@@ -449,13 +453,7 @@ impl<'a> BmsonProcessor<'a> {
             (lane_value, PlayerSide::Player1)
         };
         let key = match adjusted_lane {
-            1 => Key::Key(1),
-            2 => Key::Key(2),
-            3 => Key::Key(3),
-            4 => Key::Key(4),
-            5 => Key::Key(5),
-            6 => Key::Key(6),
-            7 => Key::Key(7),
+            1..=7 => Key::Key(adjusted_lane),
             8 => Key::Scratch(1),
             _ => return None,
         };

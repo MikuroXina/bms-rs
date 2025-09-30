@@ -419,34 +419,33 @@ where
 
     /// Static version of event_for_note, used for precomputation
     fn event_for_note_static(bms: &Bms<T>, obj: &WavObj, y: Decimal) -> ChartEvent {
-        if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
+        let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) else {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-            let length = if kind == NoteKind::Long {
+            return ChartEvent::Bgm { wav_id };
+        };
+        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+        let length = (kind == NoteKind::Long)
+            .then(|| {
                 // Long note: find the next note in the same channel to calculate length
-                if let Some(next_obj) = bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
-                    let next_y = Self::y_of_time_static(
-                        bms,
-                        next_obj.offset,
-                        &bms.arrangers.speed_factor_changes,
-                    );
-                    Some(YCoordinate::from(next_y - y.clone()))
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            ChartEvent::Note {
-                side,
-                key,
-                kind,
-                wav_id,
-                length,
-                continue_play: false, // Fixed as false for BMS
-            }
-        } else {
-            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-            ChartEvent::Bgm { wav_id }
+                bms.notes()
+                    .next_obj_by_key(obj.channel_id, obj.offset)
+                    .map(|next_obj| {
+                        let next_y = Self::y_of_time_static(
+                            bms,
+                            next_obj.offset,
+                            &bms.arrangers.speed_factor_changes,
+                        );
+                        YCoordinate::from(next_y - y.clone())
+                    })
+            })
+            .flatten();
+        ChartEvent::Note {
+            side,
+            key,
+            kind,
+            wav_id,
+            length,
+            continue_play: false, // Fixed as false for BMS
         }
     }
 
@@ -456,9 +455,8 @@ where
             .arrangers
             .section_len_changes
             .get(&track)
-            .map(|s| &s.length)
-            .cloned()
-            .unwrap_or(Decimal::from(1))
+            .map(|s| s.length.clone())
+            .unwrap_or_else(|| Decimal::from(1))
     }
 
     /// Convert `ObjTime` to cumulative displacement y (unit: measure, default 4/4 one measure equals 1; linearly converted by `#SECLEN`).
@@ -470,11 +468,12 @@ where
         }
         // Accumulate proportionally within current measure
         let current_len = self.section_length_of(time.track());
-        if time.denominator().get() > 0 {
-            let fraction =
-                Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
-            y += current_len * fraction;
-        }
+        let fraction = if time.denominator().get() > 0 {
+            Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
+        } else {
+            Default::default()
+        };
+        y += current_len * fraction;
         y
     }
 
@@ -483,13 +482,14 @@ where
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let base_bpm = Decimal::from(120);
-        if self.current_bpm <= Decimal::from(0) {
-            return Decimal::from(0);
-        }
-        let velocity = self.current_bpm.clone() / base_bpm;
-        let speed_factor = self.current_speed.clone();
-        let result = velocity * speed_factor;
-        result.max(Decimal::from(f64::EPSILON)) // speed must be positive
+        let velocity = if self.current_bpm > Decimal::from(0) {
+            let velocity = self.current_bpm.clone() / base_bpm;
+            let speed_factor = self.current_speed.clone();
+            velocity * speed_factor
+        } else {
+            Default::default()
+        };
+        velocity.max(Decimal::from(f64::EPSILON)) // speed must be positive
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
@@ -595,14 +595,11 @@ where
     }
 
     fn lane_of_channel_id(channel_id: NoteChannelId) -> Option<(PlayerSide, Key, NoteKind)> {
-        if let Some(map) = channel_id.try_into_map::<T>() {
-            let side = map.side();
-            let key = map.key();
-            let kind = map.kind();
-            Some((side, key, kind))
-        } else {
-            None
-        }
+        let map = channel_id.try_into_map::<T>()?;
+        let side = map.side();
+        let key = map.key();
+        let kind = map.kind();
+        Some((side, key, kind))
     }
 }
 
@@ -742,7 +739,7 @@ where
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()
             } else {
-                Decimal::from(0)
+                Default::default()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
             VisibleEvent::new(
