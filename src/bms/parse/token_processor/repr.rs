@@ -43,7 +43,7 @@ impl TokenProcessor for RepresentationProcessor {
             }
             _ => {}
         }
-        todo!()
+        Ok(())
     }
 
     fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {

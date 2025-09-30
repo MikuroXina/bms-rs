@@ -79,7 +79,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                 self.0.borrow_mut().others.seek_events.insert(id, ms);
             }
         }
-        todo!()
+        Ok(())
     }
 
     fn on_message(&self, _track: Track, channel: Channel, _message: &str) -> Result<()> {
