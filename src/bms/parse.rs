@@ -155,6 +155,7 @@ impl Bms {
                 }
             }
         }
+        std::mem::drop(preset);
 
         ParseOutput {
             bms: Rc::into_inner(share)

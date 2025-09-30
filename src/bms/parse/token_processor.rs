@@ -5,6 +5,8 @@
 //! - [`pedantic_preset`] - All processors without obsolete/deprecated.
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
+//!
+//! For consistency of its priority, you need to invoke [`TokenProcessor`]s from the first item.
 
 use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::Rc};
 
@@ -55,6 +57,8 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
+        // RepresentationProcessor must have the highest priority.
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
@@ -62,7 +66,6 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
         #[cfg(feature = "minor-command")]
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
         Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
@@ -84,12 +87,13 @@ pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
+        // RepresentationProcessor must have the highest priority.
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
         Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
         Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
         Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
@@ -110,6 +114,8 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
+        // RepresentationProcessor must have the highest priority.
+        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
         Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
         Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
@@ -117,7 +123,6 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
         Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
         #[cfg(feature = "minor-command")]
         Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
         #[cfg(feature = "minor-command")]
         Box::new(resources::ResourcesProcessor(Rc::clone(&bms))),
         Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
@@ -168,7 +173,7 @@ fn parse_message_values_with_warnings<'a, T, F>(
     mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, T)> + 'a
 where
-    F: FnMut(char, char) -> Option<Result<T>> + 'a,
+    F: FnMut(&str) -> Option<Result<T>> + 'a,
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.
@@ -199,16 +204,20 @@ where
             return None;
         };
 
+        let mut buf = String::with_capacity(2);
         loop {
             // Get the next character pair, or end iteration if none remain
             let (c1, c2) = pairs_iter.next()?;
+            buf.clear();
+            buf.push(c1);
+            buf.push(c2);
 
             // Store current pair index before incrementing
             let current_index = pair_index;
             pair_index += 1;
 
             // Try to parse the character pair using the provided parse_value function
-            match parse_value(c1, c2) {
+            match parse_value(&buf) {
                 Some(Ok(value)) => {
                     // Successfully parsed a value, calculate its timing position
                     let time = ObjTime::new(track.0, current_index, denominator);
@@ -230,22 +239,13 @@ where
 fn ids_from_message<'a>(
     track: Track,
     message: &'a str,
+    case_sensitive_obj_id: bool,
     push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> + 'a {
     parse_message_values_with_warnings(
         track,
         message,
-        |c1, c2| {
-            if c1 == '0' && c2 == '0' {
-                return None;
-            }
-            Some(match ObjId::try_from([c1, c2]) {
-                Ok(obj) => Ok(obj),
-                Err(_) => Err(ParseWarning::SyntaxError(format!(
-                    "Invalid object id digits: {c1}{c2}"
-                ))),
-            })
-        },
+        move |id| Some(ObjId::try_from(id, case_sensitive_obj_id)),
         push_parse_warning,
     )
 }
@@ -259,16 +259,12 @@ fn hex_values_from_message<'a>(
     parse_message_values_with_warnings(
         track,
         message,
-        |c1, c2| {
-            if c1 == '0' && c2 == '0' {
-                return None;
-            }
-            Some(match u8::from_str_radix(&format!("{c1}{c2}"), 16) {
-                Ok(v) => Ok(v),
-                Err(_) => Err(ParseWarning::SyntaxError(format!(
-                    "Invalid hex digits: {c1}{c2}"
-                ))),
-            })
+        |digits| {
+            Some(
+                u8::from_str_radix(digits, 16).map_err(|_| {
+                    ParseWarning::SyntaxError(format!("Invalid hex digits: {digits}"))
+                }),
+            )
         },
         push_parse_warning,
     )

@@ -23,10 +23,10 @@ fn test_atbga_parsing() {
     assert!(
         bms.scope_defines
             .atbga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(atbga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
+    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from("01", false).unwrap()];
+    assert_eq!(atbga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
     assert_eq!(atbga_def.draw_point, PixelPoint::new(30, 40));
@@ -55,10 +55,10 @@ fn test_bga_parsing() {
     assert!(
         bms.scope_defines
             .bga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(bga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
+    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from("01", false).unwrap()];
+    assert_eq!(bga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
     assert_eq!(bga_def.draw_point, PixelPoint::new(30, 40));
@@ -87,9 +87,9 @@ fn test_exrank_parsing() {
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
@@ -116,9 +116,9 @@ fn test_exwav_parsing() {
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exwav_def.pan.value(), 10000);
     assert_eq!(exwav_def.volume.value(), 0);
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
@@ -148,9 +148,9 @@ fn test_changeoption_parsing() {
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let option = &bms.others.change_options[&ObjId::try_from(['0', '1']).unwrap()];
+    let option = &bms.others.change_options[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -177,9 +177,9 @@ fn test_text_parsing() {
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let text = &bms.others.texts[&ObjId::try_from(['0', '1']).unwrap()];
+    let text = &bms.others.texts[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(text, "test_text");
 }
 
@@ -210,27 +210,27 @@ fn test_notes_parse_extended_tokens() {
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from("01").unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
 }
 
@@ -291,32 +291,32 @@ fn test_token_parsing_comprehensive() {
     assert!(
         bms.scope_defines
             .atbga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .bga_defs
-            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
 }
 

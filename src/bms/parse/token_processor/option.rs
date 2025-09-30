@@ -22,7 +22,7 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
         }
         if name.starts_with("CHANGEOPTION") {
             let id = name.trim_start_matches("CHANGEOPTION");
-            let id = ObjId::try_from(id)?;
+            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
             if let Some(older) = self.0.borrow_mut().others.change_options.get_mut(&id) {
                 self.1
                     .handle_def_duplication(DefDuplication::ChangeOption {
@@ -45,7 +45,12 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         match channel {
             Channel::Option => {
-                for (time, option_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (time, option_id) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     let option = self
                         .0
                         .borrow()
@@ -62,7 +67,12 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
             }
 
             Channel::ChangeOption => {
-                for (_time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (_time, obj) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     let _option = self
                         .0
                         .borrow()

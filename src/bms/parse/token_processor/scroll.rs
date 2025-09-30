@@ -19,7 +19,7 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
-            let scroll_obj_id = ObjId::try_from(id)?;
+            let scroll_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
             if let Some(older) = self
                 .0
                 .borrow_mut()
@@ -47,7 +47,12 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Scroll = channel {
-            for (time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
+            for (time, obj) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                 let factor = self
                     .0
                     .borrow()

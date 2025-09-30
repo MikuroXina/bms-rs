@@ -766,7 +766,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -788,7 +788,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -810,7 +810,7 @@ mod tests {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
-                wav_id: "01".try_into().unwrap(),
+                wav_id: ObjId::try_from("01", false).unwrap(),
             })
         );
     }
@@ -825,7 +825,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -850,7 +850,7 @@ mod tests {
                     NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
                 ),
                 channel_id: NoteChannelId::bgm(),
-                wav_id: "01".try_into().unwrap(),
+                wav_id: ObjId::try_from("01", false).unwrap(),
             })
         );
     }

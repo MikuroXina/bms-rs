@@ -20,7 +20,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
             let judge_level = JudgeLevel::try_from(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
             })?;
-            let id = ObjId::try_from(id)?;
+            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
             let to_insert = ExRankDef { id, judge_level };
             if let Some(older) = self.0.borrow_mut().scope_defines.exrank_defs.get_mut(&id) {
@@ -46,12 +46,9 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
 
             let judge_level = JudgeLevel::OtherInt(value);
             self.0.borrow_mut().scope_defines.exrank_defs.insert(
-                ObjId::try_from([b'0', b'0'])
-                    .map_err(|_| ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string()))?,
+                ObjId::try_from("00", false).expect("00 must be valid ObjId"),
                 ExRankDef {
-                    id: ObjId::try_from([b'0', b'0']).map_err(|_| {
-                        ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
-                    })?,
+                    id: ObjId::try_from("00", false).expect("00 must be valid ObjId"),
                     judge_level,
                 },
             );
@@ -68,7 +65,12 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Judge = channel {
-            for (time, judge_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+            for (time, judge_id) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                 let exrank_def = self
                     .0
                     .borrow()

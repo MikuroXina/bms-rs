@@ -36,21 +36,6 @@ pub enum LexWarning {
         /// The channel that was not recognized.
         channel: String,
     },
-    /// The object id was not recognized.
-    #[error("object `{object}` not recognized")]
-    UnknownObject {
-        /// The object id that was not recognized.
-        object: String,
-    },
-    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
-    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
-    OutOfBase62,
-    /// An unknown command was encountered.
-    #[error("unknown command `{command}`")]
-    UnknownCommand {
-        /// The unknown command that was encountered.
-        command: String,
-    },
 }
 
 /// A [`LexWarning`] type with position information.

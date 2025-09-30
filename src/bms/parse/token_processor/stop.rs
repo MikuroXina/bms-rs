@@ -20,7 +20,7 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 
-            let stop_obj_id = ObjId::try_from(id)?;
+            let stop_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
             if let Some(older) = self
                 .0
@@ -93,7 +93,12 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Stop = channel {
-            for (time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
+            for (time, obj) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                 // Record used STOP id for validity checks
                 self.0.borrow_mut().arrangers.stop_ids_used.insert(obj);
                 let duration = self

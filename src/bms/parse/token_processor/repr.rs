@@ -13,7 +13,7 @@ impl TokenProcessor for RepresentationProcessor {
                 if args != "62" {
                     return Err(ParseWarning::OutOfBase62);
                 }
-                // TODO: mark object ids case-sensitive
+                self.0.borrow_mut().header.case_sensitive_obj_id = true;
             }
             "LNMODE" => {
                 let mode: u8 = args.parse().map_err(|_| {

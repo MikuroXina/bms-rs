@@ -14,7 +14,7 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
             } else {
                 name.trim_start_matches("#SONG")
             };
-            let id = ObjId::try_from(id)?;
+            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
             if let Some(older) = self.0.borrow_mut().others.texts.get_mut(&id) {
                 self.1
@@ -37,7 +37,12 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Text = channel {
-            for (time, text_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+            for (time, text_id) in ids_from_message(
+                track,
+                message,
+                self.0.borrow().header.case_sensitive_obj_id,
+                |w| self.1.warn(w),
+            ) {
                 let text = self
                     .0
                     .borrow()

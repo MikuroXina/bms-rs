@@ -22,7 +22,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     return Ok(());
                 }
 
-                let bmp_obj_id = ObjId::try_from(id)?;
+                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: Argb::default(),
@@ -79,7 +79,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 };
 
                 let path = args[1];
-                let bmp_obj_id = ObjId::try_from(id)?;
+                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color,
@@ -121,7 +121,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let blue = parts[3]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
-                let id = ObjId::try_from(id)?;
+                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
                 let argb = Argb {
                     alpha,
                     red,
@@ -172,8 +172,9 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id)?;
-                let source_bmp = ObjId::try_from(args[0])?;
+                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let source_bmp =
+                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
                 let trim_top_left = (sx, sy);
                 let trim_size = (w, h);
                 let draw_point = (dx, dy);
@@ -228,8 +229,9 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id)?;
-                let source_bmp = ObjId::try_from(args[0])?;
+                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let source_bmp =
+                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
                 let to_insert = BgaDef {
                     id,
                     source_bmp,
@@ -312,7 +314,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
                 let pattern = args[1].to_owned();
-                let sw_obj_id = ObjId::try_from(id)?;
+                let sw_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
                 let ev = SwBgaEvent {
                     frame_rate,
                     total_time,
@@ -360,7 +362,12 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
-                for (time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (time, obj) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     if !self.0.borrow().graphics.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
@@ -403,7 +410,12 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             | Channel::BgaLayerArgb
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
-                for (time, argb_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (time, argb_id) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = self
@@ -423,7 +435,12 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             #[cfg(feature = "minor-command")]
             Channel::BgaKeybound => {
-                for (time, keybound_id) in ids_from_message(track, message, |w| self.1.warn(w)) {
+                for (time, keybound_id) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     let event = self
                         .0
                         .borrow()

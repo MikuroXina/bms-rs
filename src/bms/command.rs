@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::parse::ParseWarning;
+use super::parse::{ParseWarning, Result};
 
 pub mod channel;
 pub mod graphics;
@@ -146,47 +146,6 @@ impl std::fmt::Display for ObjId {
     }
 }
 
-impl TryFrom<[char; 2]> for ObjId {
-    type Error = [char; 2];
-    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
-        Ok(Self([
-            char_to_base62(value[0]).ok_or(value)?,
-            char_to_base62(value[1]).ok_or(value)?,
-        ]))
-    }
-}
-
-impl TryFrom<[u8; 2]> for ObjId {
-    type Error = [u8; 2];
-
-    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
-        <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
-            .map_err(|_| value)
-    }
-}
-
-impl<'a> TryFrom<&'a str> for ObjId {
-    type Error = ParseWarning;
-    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
-        if value.len() != 2 {
-            return Err(ParseWarning::SyntaxError(format!(
-                "expected 2 digits as object id but found: {value}"
-            )));
-        }
-        let mut chars = value.bytes();
-        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(ParseWarning::SyntaxError(format!(
-                "expected 2 digits as object id but found: {value}"
-            )));
-        };
-        Self::try_from([ch1, ch2]).map_err(|_| {
-            ParseWarning::SyntaxError(format!(
-                "expected alphanumeric characters as object id but found: {value}"
-            ))
-        })
-    }
-}
-
 impl From<ObjId> for u16 {
     fn from(value: ObjId) -> Self {
         base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
@@ -209,13 +168,40 @@ impl ObjId {
     /// Instances a special null id, which means the rest object.
     #[must_use]
     pub const fn null() -> Self {
-        Self([0, 0])
+        Self([b'0', b'0'])
     }
 
     /// Returns whether the id is `00`.
     #[must_use]
     pub fn is_null(self) -> bool {
-        self.0 == [0, 0]
+        self.0 == [b'0', b'0']
+    }
+
+    /// Parses the object id from the string `value`.
+    ///
+    /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
+    pub fn try_from(value: &str, case_sensitive_obj_id: bool) -> Result<Self> {
+        if value.len() != 2 {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
+        }
+        let mut chars = value.bytes();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
+        };
+        if !(ch1.is_ascii_alphanumeric() && ch2.is_ascii_alphanumeric()) {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected alphanumeric characters as object id but found: {value}"
+            )));
+        }
+        if case_sensitive_obj_id {
+            Ok(Self([ch1, ch2]))
+        } else {
+            Ok(Self([ch1.to_ascii_uppercase(), ch2.to_ascii_uppercase()]))
+        }
     }
 
     /// Converts the object id into an `u16` value.
@@ -525,8 +511,8 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base36 value
-        assert_eq!(all_values[1294], ObjId::try_from(['Z', 'Z']).unwrap()); // Last Base36 value
+        assert_eq!(all_values[0], ObjId::try_from("01", false).unwrap()); // First Base36 value
+        assert_eq!(all_values[1294], ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

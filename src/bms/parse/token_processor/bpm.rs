@@ -25,7 +25,7 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
             } else {
                 name.trim_start_matches("EXBPM")
             };
-            let bpm_obj_id = ObjId::try_from(id)?;
+            let bpm_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
             let bpm = Decimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
@@ -56,7 +56,12 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::BpmChange = channel {
-            for (time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
+            for (time, obj) in ids_from_message(
+                    track,
+                    message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                 // Record used BPM change id for validity checks
                 self.0
                     .borrow_mut()

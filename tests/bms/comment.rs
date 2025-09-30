@@ -17,7 +17,7 @@ fn test_comment() {
     let mut ts_iter = tokens.tokens.into_iter();
     assert_eq!(
         ts_iter.next().unwrap().content(),
-        &Token::NotACommand("This is a comment")
+        &Token::header("COMMENT", "This is a comment")
     );
     assert_eq!(
         ts_iter.next().unwrap().content(),

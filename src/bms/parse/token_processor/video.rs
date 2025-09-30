@@ -65,7 +65,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                 GenericFraction::<BigUint>::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
             );
-            let id = ObjId::try_from(id)?;
+            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
             if let Some(older) = self.0.borrow_mut().others.seek_events.get_mut(&id) {
                 self.1
@@ -86,7 +86,12 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
         match channel {
             #[cfg(feature = "minor-command")]
             Channel::Seek => {
-                for (time, seek_id) in ids_from_message(_track, _message, |w| self.1.warn(w)) {
+                for (time, seek_id) in ids_from_message(
+                    _track,
+                    _message,
+                    self.0.borrow().header.case_sensitive_obj_id,
+                    |w| self.1.warn(w),
+                ) {
                     let position = self
                         .0
                         .borrow()
