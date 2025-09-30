@@ -181,7 +181,6 @@
 
 
 *---------------------- EXPANSION FIELD
-#VOLWAV 100
 #BMP00 miss.bmp
 #BMP01 beat00.bmp
 #BMP02 beat01.bmp
