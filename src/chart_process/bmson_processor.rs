@@ -17,9 +17,9 @@ pub struct BmsonProcessor<'a> {
     bmson: Bmson<'a>,
 
     // Resource ID mappings
-    /// 音频文件名到WavId的映射
+    /// Audio filename to WavId mapping
     audio_name_to_id: HashMap<String, WavId>,
-    /// 图像文件名到BmpId的映射
+    /// Image filename to BmpId mapping
     bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
@@ -32,29 +32,29 @@ pub struct BmsonProcessor<'a> {
     current_bpm: Decimal,
     current_scroll: Decimal,
 
-    /// 待消费的外部事件队列
+    /// Pending external events queue
     inbox: Vec<ControlEvent>,
 
-    /// 预加载的事件列表（当前可见区域内的所有事件）
+    /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<ChartEventWithPosition>,
 
-    /// 预处理的所有事件映射，按 y 坐标排序
+    /// Preprocessed all events mapping, sorted by y coordinate
     all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
 }
 
 impl<'a> BmsonProcessor<'a> {
-    /// 创建 BMSON 处理器并初始化播放状态与默认参数。
+    /// Create BMSON processor and initialize playback state with default parameters.
     #[must_use]
     pub fn new(bmson: Bmson<'a>) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
-        // 预处理：为所有音频和图像资源分配ID
+        // Preprocessing: assign IDs to all audio and image resources
         let mut audio_name_to_id = HashMap::new();
         let mut bmp_name_to_id = HashMap::new();
         let mut next_audio_id = 0usize;
         let mut next_bmp_id = 0usize;
 
-        // 处理音频文件
+        // Process audio files
         for sound_channel in &bmson.sound_channels {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(sound_channel.name.to_string())
@@ -64,7 +64,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 处理地雷音频文件
+        // Process mine audio files
         for mine_channel in &bmson.mine_channels {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(mine_channel.name.to_string())
@@ -74,7 +74,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 处理隐藏键音频文件
+        // Process hidden key audio files
         for key_channel in &bmson.key_channels {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 audio_name_to_id.entry(key_channel.name.to_string())
@@ -84,7 +84,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 处理图像文件
+        // Process image files
         for BgaHeader { name, .. } in &bmson.bga.bga_header {
             if let std::collections::hash_map::Entry::Vacant(e) =
                 bmp_name_to_id.entry(name.to_string())
@@ -94,9 +94,9 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 基于开始BPM和600ms反应时间计算可见Y长度
-        // 公式：可见Y长度 = (BPM / 120.0) * 0.6秒
-        // 其中 0.6秒 = 600ms，120.0是基准BPM
+        // Calculate visible Y length based on starting BPM and 600ms reaction time
+        // Formula: visible Y length = (BPM / 120.0) * 0.6 seconds
+        // Where 0.6 seconds = 600ms, 120.0 is the base BPM
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
         let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
@@ -120,11 +120,11 @@ impl<'a> BmsonProcessor<'a> {
         processor
     }
 
-    /// 预处理所有事件，创建按 y 坐标排序的事件映射
+    /// Preprocess all events, create event mapping sorted by y coordinate
     fn preprocess_events(&mut self) {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
 
-        // 处理音效通道事件
+        // Process sound channel events
         for SoundChannel { name, notes } in &self.bmson.sound_channels {
             for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
@@ -160,7 +160,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 处理 BPM 事件
+        // Process BPM events
         for ev in &self.bmson.bpm_events {
             let y = self.pulses_to_y(ev.y.0);
             let y_coord = YCoordinate::from(y);
@@ -170,7 +170,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理 Scroll 事件
+        // Process Scroll events
         for ScrollEvent { y, rate } in &self.bmson.scroll_events {
             let y = self.pulses_to_y(y.0);
             let y_coord = YCoordinate::from(y);
@@ -180,7 +180,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理 Stop 事件
+        // Process Stop events
         for stop in &self.bmson.stop_events {
             let y = self.pulses_to_y(stop.y.0);
             let y_coord = YCoordinate::from(y);
@@ -190,7 +190,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理 BGA 基础层事件
+        // Process BGA base layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.bga_events {
             let yy = self.pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
@@ -209,7 +209,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理 BGA 覆盖层事件
+        // Process BGA overlay layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.layer_events {
             let yy = self.pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
@@ -228,7 +228,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理 BGA 失败层事件
+        // Process BGA poor layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.poor_events {
             let yy = self.pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
@@ -247,7 +247,7 @@ impl<'a> BmsonProcessor<'a> {
             events_map.entry(y_coord).or_default().push(event);
         }
 
-        // 处理小节线事件 - 最后生成但不超过其他对象
+        // Process bar line events - generated last but not exceeding other objects
         if let Some(lines) = &self.bmson.lines {
             for bar_line in lines {
                 let y = self.pulses_to_y(bar_line.y.0);
@@ -256,11 +256,11 @@ impl<'a> BmsonProcessor<'a> {
                 events_map.entry(y_coord).or_default().push(event);
             }
         } else {
-            // 如果没有定义barline，则在每单位Y值处生成小节线，但不超过其他对象的Y值
+            // If barline is not defined, generate measure lines at each unit Y value, but not exceeding other objects' Y values
             self.generate_auto_barlines(&mut events_map);
         }
 
-        // 处理地雷通道事件
+        // Process mine channel events
         for MineChannel { name, notes } in &self.bmson.mine_channels {
             for MineEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
@@ -280,7 +280,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        // 处理隐藏键通道事件
+        // Process hidden key channel events
         for KeyChannel { name, notes } in &self.bmson.key_channels {
             for KeyEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
@@ -303,7 +303,7 @@ impl<'a> BmsonProcessor<'a> {
         self.all_events = events_map;
     }
 
-    /// 将脉冲数转换为统一的 y 坐标（单位：小节）。一小节 = 4*resolution 脉冲。
+    /// Convert pulse count to unified y coordinate (unit: measure). One measure = 4*resolution pulses.
     fn pulses_to_y(&self, pulses: u64) -> Decimal {
         let denom = Decimal::from(4 * self.bmson.info.resolution.get());
         if denom > Decimal::from(0) {
@@ -313,9 +313,9 @@ impl<'a> BmsonProcessor<'a> {
         }
     }
 
-    /// 为未定义barline的BMSON自动生成小节线（每单位Y值处，但不超过其他对象的Y值）
+    /// Automatically generate measure lines for BMSON without defined barline (at each unit Y value, but not exceeding other objects' Y values)
     fn generate_auto_barlines(&self, events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>) {
-        // 找到所有事件的最大Y值
+        // Find the maximum Y value of all events
         let max_y = events_map
             .keys()
             .map(|y_coord| y_coord.value())
@@ -327,7 +327,7 @@ impl<'a> BmsonProcessor<'a> {
             return;
         }
 
-        // 在每单位Y值处生成小节线，但不超过最大Y值
+        // Generate measure lines at each unit Y value, but not exceeding maximum Y value
         let mut current_y = Decimal::from(0);
         while current_y <= max_y {
             let y_coord = YCoordinate::from(current_y.clone());
@@ -337,30 +337,30 @@ impl<'a> BmsonProcessor<'a> {
         }
     }
 
-    /// 获取音频文件名的WavId
+    /// Get WavId for audio filename
     fn get_wav_id_for_name(&self, name: &str) -> Option<WavId> {
         self.audio_name_to_id.get(name).copied()
     }
 
-    /// 获取图像文件名的BmpId
+    /// Get BmpId for image filename
     fn get_bmp_id_for_name(&self, name: &str) -> Option<BmpId> {
         self.bmp_name_to_id.get(name).copied()
     }
 
-    /// 当前瞬时位移速度（y 单位每秒）。
-    /// y 为归一化后的小节单位：`y = pulses / (4*resolution)`，默认 4/4 下一小节为 1。
-    /// 模型：v = (current_bpm / 120.0)（使用固定基准BPM 120）
-    /// 注：BPM 只影响y前进速度，不改变事件位置；Scroll 仅影响显示位置。
+    /// Current instantaneous displacement velocity (y units per second).
+    /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
+    /// Model: v = (current_bpm / 120.0) (using fixed base BPM 120)
+    /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let base_bpm = Decimal::from(120);
         if self.current_bpm <= Decimal::from(0) {
             return Decimal::from(0);
         }
         let velocity = self.current_bpm.clone() / base_bpm;
-        velocity.max(Decimal::from(0)) // speed必须为正值
+        velocity.max(Decimal::from(0)) // speed must be positive
     }
 
-    /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL。
+    /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL.
     fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
         let mut best: Option<(Decimal, FlowEvent)> = None;
 
@@ -434,8 +434,8 @@ impl<'a> BmsonProcessor<'a> {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        // 基于当前BPM和600ms反应时间动态计算可见窗口长度
-        // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
+        // Dynamically calculate visible window length based on current BPM and 600ms reaction time
+        // Formula: visible Y length = (current BPM / 120.0) * 0.6 seconds
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
         (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
@@ -465,8 +465,8 @@ impl<'a> BmsonProcessor<'a> {
 
 impl<'a> ChartProcessor for BmsonProcessor<'a> {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
-        // 注意：BMSON中的音频文件路径是相对于谱面文件的，这里返回虚拟路径
-        // 实际使用时需要根据谱面文件位置来解析这些路径
+        // Note: Audio file paths in BMSON are relative to the chart file, here returning virtual paths
+        // When actually used, these paths need to be resolved based on the chart file location
         self.audio_name_to_id
             .iter()
             .map(|(name, id)| (*id, Path::new(name)))
@@ -474,8 +474,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
     }
 
     fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        // 注意：BMSON中的图像文件路径是相对于谱面文件的，这里返回虚拟路径
-        // 实际使用时需要根据谱面文件位置来解析这些路径
+        // Note: Image file paths in BMSON are relative to the chart file, here returning virtual paths
+        // When actually used, these paths need to be resolved based on the chart file location
         self.bmp_name_to_id
             .iter()
             .map(|(name, id)| (*id, Path::new(name)))
@@ -518,21 +518,21 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
 
-        // 计算预加载范围：当前 y + 可视 y 范围
+        // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y();
         let preload_end_y = cur_y.clone() + visible_y_length;
 
-        // 收集当前时刻触发的事件
+        // Collect events triggered at current moment
         let mut triggered_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // 收集预加载范围内的事件
+        // Collect events within preload range
         let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // 从预处理的事件映射中获取事件
+        // Get events from preprocessed event mapping
         for (y_coord, events) in &self.all_events {
             let y_value = y_coord.value();
 
-            // 检查是否为当前时刻触发的事件
+            // Check if it's an event triggered at current moment
             if *y_value > prev_y && *y_value <= cur_y {
                 for event in events {
                     triggered_events
@@ -540,7 +540,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 }
             }
 
-            // 检查是否为预加载范围内的事件
+            // Check if it's an event within preload range
             if *y_value > cur_y && *y_value <= preload_end_y {
                 for event in events {
                     new_preloaded_events
@@ -549,7 +549,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             }
         }
 
-        // 更新预加载事件列表
+        // Update preloaded events list
         self.preloaded_events = new_preloaded_events;
 
         triggered_events.into_iter()
@@ -567,8 +567,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         self.preloaded_events.iter().map(move |event_with_pos| {
             let event_y = event_with_pos.position().value();
-            // 计算显示比例：(event_y - current_y) / visible_window_y * scroll_factor
-            // 注意：scroll可以为非零的正负值
+            // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
+            // Note: scroll can be non-zero positive or negative values
             let display_ratio_value = if visible_window_y > Decimal::from(0) {
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()

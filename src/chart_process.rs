@@ -1,10 +1,10 @@
 //! Chart Processor
 //!
-//! y 坐标统一定义：
-//! - 在默认 4/4 拍的情况下，“一小节”的长度为 1。
-//! - BMS：当节长为默认值时，每个 `Track` 的长度为 1。节长来自每小节的 `#XXX02:V` 消息，其中 `V` 表示默认长度的倍数（例如 `#00302:0.5` 表示第 3 小节长度为默认的一半）。累计 y 以该倍数线性换算。
-//! - BMSON：`info.resolution` 是四分音符（1/4）对应的脉冲数，因而一小节长度为 `4 * resolution` 脉冲；所有位置 y 通过 `pulses / (4 * resolution)` 归一化为小节单位。
-//! - Speed（默认 1.0）：仅影响显示坐标（例如 `visible_notes` 的 `distance_to_hit`），即对 y 差值做比例缩放；不改变时间推进与 BPM 值，也不改变该小节的实际持续时间。
+//! Unified Y coordinate definition:
+//! - In the default 4/4 time signature, the length of "one measure" is 1.
+//! - BMS: When the section length is the default value, each `Track` has a length of 1. The section length comes from the `#XXX02:V` message per measure, where `V` represents the multiple of the default length (e.g., `#00302:0.5` means the 3rd measure has half the default length). Cumulative y is linearly converted with this multiple.
+//! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
+//! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
 use crate::bms::{
     Decimal,
@@ -22,197 +22,197 @@ pub mod bmson_processor {}
 
 use std::{collections::HashMap, path::Path, time::SystemTime};
 
-// 类型定义模块
+// Type definition module
 pub mod types;
 
-// Prelude 模块
+// Prelude module
 pub mod prelude;
 
-// 使用 prelude 中的类型
+// Use types from prelude
 pub use prelude::{BmpId, DisplayRatio, WavId, YCoordinate};
 
-// 使用自定义的wrapper类型
+// Use custom wrapper types
 pub use types::{ChartEventWithPosition, VisibleEvent};
 
-/// 播放过程中产生的事件（Elm 风格）。
+/// Events generated during playback (Elm style).
 ///
-/// 这些事件代表图表播放过程中的实际事件，如音符触发、BGM播放、
-/// BPM变化等。设置和控制相关的事件已分离到 [`ControlEvent`]。
+/// These events represent actual events during chart playback, such as note triggers, BGM playback,
+/// BPM changes, etc. Setting and control related events have been separated into [`ControlEvent`].
 #[derive(Debug, Clone)]
 pub enum ChartEvent {
-    /// 按键音符到达判定线（包含可见、长条、地雷、不可见等，通过 `kind` 区分）
+    /// Key note reaches judgment line (includes visible, long, mine, invisible notes, distinguished by `kind`)
     Note {
-        /// 玩家侧
+        /// Player side
         side: PlayerSide,
-        /// 键位
+        /// Key position
         key: Key,
-        /// 音符类型（`NoteKind`）
+        /// Note type (`NoteKind`)
         kind: NoteKind,
-        /// 对应的声音资源ID（若有）
+        /// Corresponding sound resource ID (if any)
         wav_id: Option<WavId>,
-        /// 音符长度（长条音符的结束位置，普通音符为 None）
+        /// Note length (end position for long notes, None for regular notes)
         length: Option<YCoordinate>,
-        /// 音符继续播放标志（BMS固定为false，Bmson依据Note.c字段）
+        /// Note continue play flag (fixed as false for BMS, based on Note.c field for BMSON)
         continue_play: bool,
     },
-    /// BGM 等非按键类触发（无有效 side/key）
+    /// BGM and other non-key triggers (no valid side/key)
     Bgm {
-        /// 对应的声音资源ID（若有）
+        /// Corresponding sound resource ID (if any)
         wav_id: Option<WavId>,
     },
-    /// BPM 变更
+    /// BPM change
     BpmChange {
-        /// 新的 BPM 值（单位：每分钟拍数）
+        /// New BPM value (beats per minute)
         bpm: Decimal,
     },
-    /// Scroll 因子变更
+    /// Scroll factor change
     ScrollChange {
-        /// 滚动因子（相对值）
+        /// Scroll factor (relative value)
         factor: Decimal,
     },
-    /// Speed 因子变更
+    /// Speed factor change
     SpeedChange {
-        /// 间距因子（相对值）
+        /// Spacing factor (relative value)
         factor: Decimal,
     },
-    /// 停止滚动事件
+    /// Stop scroll event
     Stop {
-        /// 停止时长（BMS：以谱面定义的时间单位折算；BMSON：脉冲数）
+        /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
         duration: Decimal,
     },
-    /// BGA（背景动画）变化事件
+    /// BGA (background animation) change event
     ///
-    /// 当播放位置到达BGA变化时间点时触发，表示需要切换到指定的背景图像。
-    /// 支持多个BGA层级：Base（基础层）、Overlay（覆盖层）、Overlay2（第二覆盖层）和Poor（失败时显示）。
+    /// Triggered when playback position reaches BGA change time point, indicating the need to switch to the specified background image.
+    /// Supports multiple BGA layers: Base (base layer), Overlay (overlay layer), Overlay2 (second overlay layer), and Poor (displayed on failure).
     BgaChange {
-        /// BGA 层级
+        /// BGA layer
         layer: BgaLayer,
-        /// BGA/BMP 资源 ID，通过 `bmp_files()` 方法获取对应的文件路径（若有）
+        /// BGA/BMP resource ID, get the corresponding file path through the `bmp_files()` method (if any)
         bmp_id: Option<BmpId>,
     },
-    /// BGA 不透明度变化事件（需要启用 minor-command 特性）
+    /// BGA opacity change event (requires minor-command feature)
     ///
-    /// 动态调整指定BGA层级的不透明度，实现淡入淡出效果。
+    /// Dynamically adjust the opacity of the specified BGA layer to achieve fade-in/fade-out effects.
     #[cfg(feature = "minor-command")]
     BgaOpacityChange {
-        /// BGA 层级
+        /// BGA layer
         layer: BgaLayer,
-        /// 不透明度值 (0x01-0xFF，0x01表示几乎透明，0xFF表示完全不透明)
+        /// Opacity value (0x01-0xFF, 0x01 means almost transparent, 0xFF means completely opaque)
         opacity: u8,
     },
-    /// BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
+    /// BGA ARGB color change event (requires minor-command feature)
     ///
-    /// 动态调整指定BGA层级的颜色，通过ARGB值实现颜色滤镜效果。
+    /// Dynamically adjust the color of the specified BGA layer through ARGB values to achieve color filter effects.
     #[cfg(feature = "minor-command")]
     BgaArgbChange {
-        /// BGA 层级
+        /// BGA layer
         layer: BgaLayer,
-        /// ARGB 颜色值 (格式：0xAARRGGBB)
+        /// ARGB color value (format: 0xAARRGGBB)
         argb: u32,
     },
-    /// BGM 音量变化事件
+    /// BGM volume change event
     ///
-    /// 当播放位置到达BGM音量变化时间点时触发，用于调整背景音乐的音量。
+    /// Triggered when playback position reaches BGM volume change time point, used to adjust background music volume.
     BgmVolumeChange {
-        /// 音量值 (0x01-0xFF，0x01表示最小音量，0xFF表示最大音量)
+        /// Volume value (0x01-0xFF, 0x01 means minimum volume, 0xFF means maximum volume)
         volume: u8,
     },
-    /// KEY 音量变化事件
+    /// KEY volume change event
     ///
-    /// 当播放位置到达KEY音量变化时间点时触发，用于调整按键音效的音量。
+    /// Triggered when playback position reaches KEY volume change time point, used to adjust key sound effect volume.
     KeyVolumeChange {
-        /// 音量值 (0x01-0xFF，0x01表示最小音量，0xFF表示最大音量)
+        /// Volume value (0x01-0xFF, 0x01 means minimum volume, 0xFF means maximum volume)
         volume: u8,
     },
-    /// 文本显示事件
+    /// Text display event
     ///
-    /// 当播放位置到达文本显示时间点时触发，用于在谱面中显示文本信息。
+    /// Triggered when playback position reaches text display time point, used to display text information in the chart.
     TextDisplay {
-        /// 要显示的文本内容
+        /// Text content to display
         text: String,
     },
-    /// 判定等级变化事件
+    /// Judge level change event
     ///
-    /// 当播放位置到达判定等级变化时间点时触发，用于调整判定窗口的严格程度。
+    /// Triggered when playback position reaches judge level change time point, used to adjust the strictness of the judgment window.
     JudgeLevelChange {
-        /// 判定等级 (VeryHard, Hard, Normal, Easy, OtherInt)
+        /// Judge level (VeryHard, Hard, Normal, Easy, OtherInt)
         level: crate::bms::command::JudgeLevel,
     },
-    /// 视频跳转事件（需要启用 minor-command 特性）
+    /// Video seek event (requires minor-command feature)
     ///
-    /// 当播放位置到达视频跳转时间点时触发，用于视频播放控制。
+    /// Triggered when playback position reaches video seek time point, used for video playback control.
     #[cfg(feature = "minor-command")]
     VideoSeek {
-        /// 跳转到的时间点（秒）
+        /// Seek time point (seconds)
         seek_time: f64,
     },
-    /// BGA 键绑定事件（需要启用 minor-command 特性）
+    /// BGA key binding event (requires minor-command feature)
     ///
-    /// 当播放位置到达BGA键绑定时间点时触发，用于BGA与按键的绑定控制。
+    /// Triggered when playback position reaches BGA key binding time point, used for BGA and key binding control.
     #[cfg(feature = "minor-command")]
     BgaKeybound {
-        /// BGA 键绑定事件类型
+        /// BGA key binding event type
         event: SwBgaEvent,
     },
-    /// 选项变化事件（需要启用 minor-command 特性）
+    /// Option change event (requires minor-command feature)
     ///
-    /// 当播放位置到达选项变化时间点时触发，用于动态调整游戏选项。
+    /// Triggered when playback position reaches option change time point, used for dynamic game option adjustment.
     #[cfg(feature = "minor-command")]
     OptionChange {
-        /// 选项内容
+        /// Option content
         option: String,
     },
-    /// 小节线事件
+    /// Measure line event
     ///
-    /// 当播放位置到达小节线位置时触发，用于谱面结构的显示。
+    /// Triggered when playback position reaches measure line position, used for chart structure display.
     BarLine,
 }
 
-/// 播放器控制和设置事件。
+/// Player control and setting events.
 ///
-/// 这些事件用于控制播放器的配置参数，如可见Y范围。
-/// 与图表播放相关的事件（如音符、BGM、BPM变化等）分离，以提供更清晰的API。
+/// These events are used to control the player's configuration parameters, such as visible Y range.
+/// Separated from chart playback related events (such as notes, BGM, BPM changes, etc.) to provide a clearer API.
 #[derive(Debug, Clone)]
 pub enum ControlEvent {
-    /// 设置：默认可见Y范围长度
+    /// Set: default visible Y range length
     ///
-    /// 可见Y范围长度是从音符出现在可见区域到到达判定线的距离。
-    /// 这个长度会影响可见窗口的大小计算。
+    /// The visible Y range length is the distance from when a note appears in the visible area to when it reaches the judgment line.
+    /// This length affects the visible window size calculation.
     SetDefaultVisibleYLength {
-        /// 可见Y范围长度（y坐标单位，>0）
+        /// Visible Y range length (y coordinate units, >0)
         length: YCoordinate,
     },
 }
 
-/// 统一的 y 单位说明：默认 4/4 拍下一小节为 1；BMS 以 `#SECLEN` 线性换算，BMSON 以 `pulses / (4*resolution)` 归一化。
+/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)`.
 pub trait ChartProcessor {
-    /// 读取：音频文件资源（id 到路径映射）。
+    /// Read: audio file resources (id to path mapping).
     fn audio_files(&self) -> HashMap<WavId, &Path>;
-    /// 读取：BGA/BMP 图像资源（id 到路径映射）。
+    /// Read: BGA/BMP image resources (id to path mapping).
     fn bmp_files(&self) -> HashMap<BmpId, &Path>;
 
-    /// 读取：默认可见Y范围长度（从音符出现在可见区域到到达判定线的距离，单位：y坐标）。
+    /// Read: default visible Y range length (distance from when note appears in visible area to judgment line, unit: y coordinate).
     fn default_visible_y_length(&self) -> YCoordinate;
 
-    /// 读取：当前 BPM（随事件改变）。
+    /// Read: current BPM (changes with events).
     fn current_bpm(&self) -> Decimal;
-    /// 读取：当前 Speed 因子（随事件改变）。
+    /// Read: current Speed factor (changes with events).
     fn current_speed(&self) -> Decimal;
-    /// 读取：当前 Scroll 因子（随事件改变）。
+    /// Read: current Scroll factor (changes with events).
     fn current_scroll(&self) -> Decimal;
 
-    /// 通知：开始播放，记录起始绝对时间。
+    /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: SystemTime);
 
-    /// 更新：推进内部时间轴，返回自上次调用以来产生的时间轴事件（Elm 风格）。
+    /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition>;
 
-    /// 投递外部控制事件（例如设置默认反应时间/默认 BPM），将在下一次 `update` 前被消费。
+    /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
     ///
-    /// 这些事件用于动态调整播放器的配置参数。图表播放相关的事件（如音符、BGM等）
-    /// 由 [`update`] 方法返回，不通过此方法投递。
+    /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)
+    /// are returned by the [`update`] method, not posted through this method.
     fn post_events(&mut self, events: &[ControlEvent]);
 
-    /// 查询：当前可见区域中的所有事件（预先加载逻辑）。
+    /// Query: all events in current visible area (preload logic).
     fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent>;
 }

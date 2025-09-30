@@ -1,30 +1,30 @@
-//! 类型定义模块
+//! Type definition module
 
 use crate::bms::Decimal;
 use crate::chart_process::ChartEvent;
 use fraction::{BigUint, GenericDecimal};
 use std::str::FromStr;
 
-/// Y 坐标的包装类型，使用任意精度十进制数。
+/// Y coordinate wrapper type, using arbitrary precision decimal numbers.
 ///
-/// 统一的 y 单位说明：默认 4/4 拍下一小节为 1；BMS 以 `#SECLEN` 线性换算，BMSON 以 `pulses / (4*resolution)` 归一化为小节单位。
+/// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct YCoordinate(pub Decimal);
 
 impl YCoordinate {
-    /// 创建一个新的 YCoordinate
+    /// Create a new YCoordinate
     #[must_use]
     pub fn new(value: Decimal) -> Self {
         Self(value)
     }
 
-    /// 获取内部的 Decimal 值
+    /// Get the internal Decimal value
     #[must_use]
     pub fn value(&self) -> &Decimal {
         &self.0
     }
 
-    /// 转换为 f64（用于兼容性）
+    /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
         self.0.to_string().parse::<f64>().unwrap_or(0.0)
@@ -39,10 +39,10 @@ impl From<Decimal> for YCoordinate {
 
 impl From<f64> for YCoordinate {
     fn from(value: f64) -> Self {
-        // 将 f64 转换为字符串然后解析为 Decimal
+        // Convert f64 to string then parse as Decimal
         let decimal_str = value.to_string();
         let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
-            // 如果解析失败，使用 0
+            // If parsing fails, use 0
             GenericDecimal::from(BigUint::from(0u32))
         });
         Self(decimal)
@@ -81,39 +81,39 @@ impl std::ops::Div for YCoordinate {
     }
 }
 
-/// 显示比例的包装类型，表示 note 实际在显示区域中的位置。
+/// Display ratio wrapper type, representing the actual position of a note in the display area.
 ///
-/// 0 为判定线，1 为一般情况下 note 刚开始出现的位置。
-/// 这个类型的值只会受到：当前Y、Y可见范围和当前Speed、Scroll值这些因素的影响。
+/// 0 is the judgment line, 1 is the position where the note generally starts to appear.
+/// The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct DisplayRatio(pub Decimal);
 
 impl DisplayRatio {
-    /// 创建一个新的 DisplayRatio
+    /// Create a new DisplayRatio
     #[must_use]
     pub fn new(value: Decimal) -> Self {
         Self(value)
     }
 
-    /// 获取内部的 Decimal 值
+    /// Get the internal Decimal value
     #[must_use]
     pub fn value(&self) -> &Decimal {
         &self.0
     }
 
-    /// 转换为 f64（用于兼容性）
+    /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
         self.0.to_string().parse::<f64>().unwrap_or(0.0)
     }
 
-    /// 创建表示判定线的 DisplayRatio（值为 0）
+    /// Create a DisplayRatio representing the judgment line (value 0)
     #[must_use]
     pub fn at_judgment_line() -> Self {
         Self(Decimal::from(0))
     }
 
-    /// 创建表示 note 刚开始出现位置的 DisplayRatio（值为 1）
+    /// Create a DisplayRatio representing the position where note starts to appear (value 1)
     #[must_use]
     pub fn at_appearance() -> Self {
         Self(Decimal::from(1))
@@ -128,28 +128,28 @@ impl From<Decimal> for DisplayRatio {
 
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
-        // 将 f64 转换为字符串然后解析为 Decimal
+        // Convert f64 to string then parse as Decimal
         let decimal_str = value.to_string();
         let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
-            // 如果解析失败，使用 0
+            // If parsing fails, use 0
             GenericDecimal::from(BigUint::from(0u32))
         });
         Self(decimal)
     }
 }
 
-/// WAV音频文件ID的包装类型
+/// WAV audio file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
 
 impl WavId {
-    /// 创建一个新的WavId
+    /// Create a new WavId
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
     }
 
-    /// 获取内部的usize值
+    /// Get the internal usize value
     #[must_use]
     pub const fn value(self) -> usize {
         self.0
@@ -168,18 +168,18 @@ impl From<WavId> for usize {
     }
 }
 
-/// BMP/BGA图像文件ID的包装类型
+/// BMP/BGA image file ID wrapper type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BmpId(pub usize);
 
 impl BmpId {
-    /// 创建一个新的BmpId
+    /// Create a new BmpId
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
     }
 
-    /// 获取内部的usize值
+    /// Get the internal usize value
     #[must_use]
     pub const fn value(self) -> usize {
         self.0
@@ -198,37 +198,37 @@ impl From<BmpId> for usize {
     }
 }
 
-/// 时间轴事件及其位置的包装类型。
+/// Timeline event and position wrapper type.
 ///
-/// 表示图表播放过程中的一个事件及其在时间轴上的位置。
+/// Represents an event in chart playback and its position on the timeline.
 #[derive(Debug, Clone)]
 pub struct ChartEventWithPosition {
-    /// 事件在时间轴上的位置（y坐标）
+    /// Event position on timeline (y coordinate)
     pub position: YCoordinate,
-    /// 图表事件
+    /// Chart event
     pub event: ChartEvent,
 }
 
 impl ChartEventWithPosition {
-    /// 创建一个新的 ChartEventWithPosition
+    /// Create a new ChartEventWithPosition
     #[must_use]
     pub fn new(position: YCoordinate, event: ChartEvent) -> Self {
         Self { position, event }
     }
 
-    /// 获取事件位置
+    /// Get event position
     #[must_use]
     pub fn position(&self) -> &YCoordinate {
         &self.position
     }
 
-    /// 获取图表事件
+    /// Get chart event
     #[must_use]
     pub fn event(&self) -> &ChartEvent {
         &self.event
     }
 
-    /// 解构为元组
+    /// Destructure into tuple
     #[must_use]
     pub fn into_tuple(self) -> (YCoordinate, ChartEvent) {
         (self.position, self.event)
@@ -247,21 +247,21 @@ impl From<ChartEventWithPosition> for (YCoordinate, ChartEvent) {
     }
 }
 
-/// 可见区域事件及其位置和显示比例的包装类型。
+/// Visible area event and position and display ratio wrapper type.
 ///
-/// 表示在可见区域中的一个事件，包括其位置、事件内容和显示比例。
+/// Represents an event in the visible area, including its position, event content, and display ratio.
 #[derive(Debug, Clone)]
 pub struct VisibleEvent {
-    /// 事件在时间轴上的位置（y坐标）
+    /// Event position on timeline (y coordinate)
     pub position: YCoordinate,
-    /// 图表事件
+    /// Chart event
     pub event: ChartEvent,
-    /// 显示比例
+    /// Display ratio
     pub display_ratio: DisplayRatio,
 }
 
 impl VisibleEvent {
-    /// 创建一个新的 VisibleEvent
+    /// Create a new VisibleEvent
     #[must_use]
     pub fn new(position: YCoordinate, event: ChartEvent, display_ratio: DisplayRatio) -> Self {
         Self {
@@ -271,25 +271,25 @@ impl VisibleEvent {
         }
     }
 
-    /// 获取事件位置
+    /// Get event position
     #[must_use]
     pub fn position(&self) -> &YCoordinate {
         &self.position
     }
 
-    /// 获取图表事件
+    /// Get chart event
     #[must_use]
     pub fn event(&self) -> &ChartEvent {
         &self.event
     }
 
-    /// 获取显示比例
+    /// Get display ratio
     #[must_use]
     pub fn display_ratio(&self) -> &DisplayRatio {
         &self.display_ratio
     }
 
-    /// 解构为元组
+    /// Destructure into tuple
     #[must_use]
     pub fn into_tuple(self) -> (YCoordinate, ChartEvent, DisplayRatio) {
         (self.position, self.event, self.display_ratio)

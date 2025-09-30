@@ -1,25 +1,25 @@
-//! Chart Process 模块的 Prelude
+//! Chart Process module prelude
 //!
-//! 这个模块提供了 chart_process 模块中常用的类型和 trait 的重新导出，
-//! 方便用户一次性导入所有需要的项目。
+//! This module provides re-exports of commonly used types and traits from the chart_process module,
+//! allowing users to import all needed items in one go.
 
-// 重新导出类型
+// Re-export types
 pub use super::types::{BmpId, DisplayRatio, WavId, YCoordinate};
 
-// 重新导出事件类型
+// Re-export event types
 pub use super::{ChartEvent, ControlEvent};
 
-// 重新导出 trait
+// Re-export trait
 pub use super::ChartProcessor;
 
-// 重新导出来自 bms 模块的常用类型
+// Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 
 #[cfg(feature = "minor-command")]
 pub use crate::bms::prelude::SwBgaEvent;
 
-// 重新导出来自 bms_processor 模块的 BmsProcessor
+// Re-export BmsProcessor from bms_processor module
 pub use super::bms_processor::BmsProcessor;
 
-// 重新导出来自 bmson_processor 模块的 BmsonProcessor
+// Re-export BmsonProcessor from bmson_processor module
 pub use super::bmson_processor::BmsonProcessor;

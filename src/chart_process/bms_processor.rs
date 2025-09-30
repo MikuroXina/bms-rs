@@ -22,16 +22,16 @@ where
     // Playback state
     started_at: Option<SystemTime>,
     last_poll_at: Option<SystemTime>,
-    /// 已经推进的累计位移（y，实际移动距离单位）
+    /// Accumulated displacement progressed (y, actual movement distance unit)
     progressed_y: Decimal,
 
-    /// 待消费的外部事件队列
+    /// Pending external events queue
     inbox: Vec<ControlEvent>,
 
-    /// 所有事件的映射（按 Y 坐标排序）
+    /// All events mapping (sorted by Y coordinate)
     all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
 
-    /// 预加载的事件列表（当前可见区域内的所有事件）
+    /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<ChartEventWithPosition>,
 
     // Flow parameters
@@ -45,10 +45,10 @@ impl<T> BmsProcessor<T>
 where
     T: KeyLayoutMapper,
 {
-    /// 创建处理器，初始化默认参数
+    /// Create processor, initialize default parameters
     #[must_use]
     pub fn new(bms: Bms<T>) -> Self {
-        // 初始化 BPM：优先使用谱面初始 BPM，否则 120
+        // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .arrangers
             .bpm
@@ -56,9 +56,9 @@ where
             .cloned()
             .unwrap_or(Decimal::from(120));
 
-        // 基于开始BPM和600ms反应时间计算可见Y长度
-        // 公式：可见Y长度 = (BPM / 120.0) * 0.6秒
-        // 其中 0.6秒 = 600ms，120.0是基准BPM
+        // Calculate visible Y length based on starting BPM and 600ms reaction time
+        // Formula: visible Y length = (BPM / 120.0) * 0.6 seconds
+        // Where 0.6 seconds = 600ms, 120.0 is the base BPM
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
         let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
@@ -80,12 +80,12 @@ where
         }
     }
 
-    /// 预先计算所有事件，按 Y 坐标分组存储
-    /// 注意：Speed影响在初始化时就计算到事件位置中，确保事件触发时间不变
+    /// Precompute all events, store grouped by Y coordinate
+    /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn precompute_all_events(bms: &Bms<T>) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
 
-        // Note / Wav 到达事件
+        // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
             let y = Self::y_of_time_static(bms, obj.offset, &bms.arrangers.speed_factor_changes);
             let event = Self::event_for_note_static(bms, obj, y.clone());
@@ -96,7 +96,7 @@ where
                 .push(event);
         }
 
-        // BPM 变更事件
+        // BPM change events
         for change in bms.arrangers.bpm_changes.values() {
             let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::BpmChange {
@@ -109,7 +109,7 @@ where
                 .push(event);
         }
 
-        // Scroll 变更事件
+        // Scroll change events
         for change in bms.arrangers.scrolling_factor_changes.values() {
             let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::ScrollChange {
@@ -122,7 +122,7 @@ where
                 .push(event);
         }
 
-        // Speed 变更事件
+        // Speed change events
         for change in bms.arrangers.speed_factor_changes.values() {
             let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::SpeedChange {
@@ -135,7 +135,7 @@ where
                 .push(event);
         }
 
-        // Stop 事件
+        // Stop events
         for stop in bms.arrangers.stops.values() {
             let y = Self::y_of_time_static(bms, stop.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::Stop {
@@ -148,7 +148,7 @@ where
                 .push(event);
         }
 
-        // BGA 变化事件
+        // BGA change events
         for bga_obj in bms.graphics.bga_changes.values() {
             let y = Self::y_of_time_static(bms, bga_obj.time, &bms.arrangers.speed_factor_changes);
             let bmp_index = bga_obj.id.as_u16() as usize;
@@ -163,7 +163,7 @@ where
                 .push(event);
         }
 
-        // BGA 不透明度变化事件（需要启用 minor-command 特性）
+        // BGA opacity change events (requires minor-command feature)
         #[cfg(feature = "minor-command")]
         for (layer, opacity_changes) in &bms.graphics.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
@@ -184,7 +184,7 @@ where
             }
         }
 
-        // BGA ARGB 颜色变化事件（需要启用 minor-command 特性）
+        // BGA ARGB color change events (requires minor-command feature)
         #[cfg(feature = "minor-command")]
         for (layer, argb_changes) in &bms.graphics.bga_argb_changes {
             for argb_obj in argb_changes.values() {
@@ -206,7 +206,7 @@ where
             }
         }
 
-        // BGM 音量变化事件
+        // BGM volume change events
         for bgm_volume_obj in bms.notes.bgm_volume_changes.values() {
             let y = Self::y_of_time_static(
                 bms,
@@ -223,7 +223,7 @@ where
                 .push(event);
         }
 
-        // KEY 音量变化事件
+        // KEY volume change events
         for key_volume_obj in bms.notes.key_volume_changes.values() {
             let y = Self::y_of_time_static(
                 bms,
@@ -240,7 +240,7 @@ where
                 .push(event);
         }
 
-        // 文本显示事件
+        // Text display events
         for text_obj in bms.notes.text_events.values() {
             let y = Self::y_of_time_static(bms, text_obj.time, &bms.arrangers.speed_factor_changes);
             let event = ChartEvent::TextDisplay {
@@ -253,7 +253,7 @@ where
                 .push(event);
         }
 
-        // 判定等级变化事件
+        // Judge level change events
         for judge_obj in bms.notes.judge_events.values() {
             let y =
                 Self::y_of_time_static(bms, judge_obj.time, &bms.arrangers.speed_factor_changes);
@@ -267,10 +267,10 @@ where
                 .push(event);
         }
 
-        // Minor-command 特性事件
+        // Minor-command feature events
         #[cfg(feature = "minor-command")]
         {
-            // 视频跳转事件
+            // Video seek events
             for seek_obj in bms.notes.seek_events.values() {
                 let y =
                     Self::y_of_time_static(bms, seek_obj.time, &bms.arrangers.speed_factor_changes);
@@ -284,7 +284,7 @@ where
                     .push(event);
             }
 
-            // BGA 键绑定事件
+            // BGA key binding events
             for bga_keybound_obj in bms.notes.bga_keybound_events.values() {
                 let y = Self::y_of_time_static(
                     bms,
@@ -301,7 +301,7 @@ where
                     .push(event);
             }
 
-            // 选项变化事件
+            // Option change events
             for option_obj in bms.notes.option_events.values() {
                 let y = Self::y_of_time_static(
                     bms,
@@ -319,18 +319,18 @@ where
             }
         }
 
-        // 生成小节线 - 最后生成但不超过其他对象
+        // Generate measure lines - generated last but not exceeding other objects
         Self::generate_barlines_for_bms(bms, &mut events_map);
 
         events_map
     }
 
-    /// 为BMS生成小节线（每个track都生成，但不超过其他对象的Y值）
+    /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     fn generate_barlines_for_bms(
         bms: &Bms<T>,
         events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>,
     ) {
-        // 找到所有事件的最大Y值
+        // Find the maximum Y value of all events
         let max_y = events_map
             .keys()
             .map(|y_coord| y_coord.value())
@@ -342,7 +342,7 @@ where
             return;
         }
 
-        // 获取最后一个对象的track数
+        // Get the track number of the last object
         let last_obj_time = bms.last_obj_time().unwrap_or_else(|| {
             ObjTime::new(
                 0,
@@ -351,7 +351,7 @@ where
             )
         });
 
-        // 为每个track生成小节线，但不超过最大Y值
+        // Generate measure lines for each track, but not exceeding maximum Y value
         for track in 0..=last_obj_time.track().0 {
             let track_y = Self::y_of_time_static(
                 bms,
@@ -371,15 +371,15 @@ where
         }
     }
 
-    /// 静态版本的 y_of_time，考虑Speed影响（用于事件位置预计算）
-    /// Speed影响在初始化时就计算到事件位置中，确保事件触发时间不变
+    /// Static version of y_of_time, considers Speed effects (used for event position precomputation)
+    /// Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn y_of_time_static(
         bms: &Bms<T>,
         time: ObjTime,
         speed_changes: &std::collections::BTreeMap<ObjTime, crate::bms::model::obj::SpeedObj>,
     ) -> Decimal {
         let mut y = Decimal::from(0);
-        // 累加完整小节
+        // Accumulate complete measures
         for t in 0..time.track().0 {
             let section_len = bms
                 .arrangers
@@ -390,7 +390,7 @@ where
                 .unwrap_or(Decimal::from(1));
             y += section_len;
         }
-        // 当前小节内按比例累加
+        // Accumulate proportionally within current measure
         let current_len = bms
             .arrangers
             .section_len_changes
@@ -404,7 +404,7 @@ where
             y += current_len * fraction;
         }
 
-        // 找到当前时间点之前最后一个Speed变化，作为当前生效的Speed因子
+        // Find the last Speed change before current time point as the currently effective Speed factor
         let mut current_speed_factor = Decimal::from(1);
         for (change_time, change) in speed_changes {
             if *change_time <= time {
@@ -412,17 +412,17 @@ where
             }
         }
 
-        // Speed既影响y距离又影响前进速度，但要保持触发时间不变
+        // Speed affects both y distance and progression speed, but must keep trigger time unchanged
         // y_new = y_base * current_speed_factor
         y * current_speed_factor
     }
 
-    /// 静态版本的 event_for_note，用于预计算
+    /// Static version of event_for_note, used for precomputation
     fn event_for_note_static(bms: &Bms<T>, obj: &WavObj, y: Decimal) -> ChartEvent {
         if let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
             let length = if kind == NoteKind::Long {
-                // 长条音符：查找下一个同通道的音符来计算长度
+                // Long note: find the next note in the same channel to calculate length
                 if let Some(next_obj) = bms.notes().next_obj_by_key(obj.channel_id, obj.offset) {
                     let next_y = Self::y_of_time_static(
                         bms,
@@ -442,7 +442,7 @@ where
                 kind,
                 wav_id,
                 length,
-                continue_play: false, // BMS固定为false
+                continue_play: false, // Fixed as false for BMS
             }
         } else {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
@@ -450,7 +450,7 @@ where
         }
     }
 
-    /// 获取指定 Track 的长度（SectionLength），默认 1.0
+    /// Get the length of specified Track (SectionLength), default 1.0
     fn section_length_of(&self, track: Track) -> Decimal {
         self.bms
             .arrangers
@@ -461,14 +461,14 @@ where
             .unwrap_or(Decimal::from(1))
     }
 
-    /// 将 `ObjTime` 转换为累计位移 y（单位：小节，默认 4/4 下一小节为 1；按 `#SECLEN` 线性换算）。
+    /// Convert `ObjTime` to cumulative displacement y (unit: measure, default 4/4 one measure equals 1; linearly converted by `#SECLEN`).
     fn y_of_time(&self, time: ObjTime) -> Decimal {
         let mut y = Decimal::from(0);
-        // 累加完整小节
+        // Accumulate complete measures
         for t in 0..time.track().0 {
             y += self.section_length_of(Track(t));
         }
-        // 当前小节内按比例累加
+        // Accumulate proportionally within current measure
         let current_len = self.section_length_of(time.track());
         if time.denominator().get() > 0 {
             let fraction =
@@ -478,9 +478,9 @@ where
         y
     }
 
-    /// 当前瞬时位移速度（y 单位每秒）。
-    /// 模型：v = (current_bpm / 120.0) * speed_factor（使用固定基准BPM 120）
-    /// 注：Speed 影响y前进速度，但不改变实际时间推进；Scroll 仅影响显示位置。
+    /// Current instantaneous displacement velocity (y units per second).
+    /// Model: v = (current_bpm / 120.0) * speed_factor (using fixed base BPM 120)
+    /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let base_bpm = Decimal::from(120);
         if self.current_bpm <= Decimal::from(0) {
@@ -489,12 +489,12 @@ where
         let velocity = self.current_bpm.clone() / base_bpm;
         let speed_factor = self.current_speed.clone();
         let result = velocity * speed_factor;
-        result.max(Decimal::from(f64::EPSILON)) // speed必须为正值
+        result.max(Decimal::from(f64::EPSILON)) // speed must be positive
     }
 
-    /// 取下一条会影响速度的事件（按 y 升序）：BPM/SCROLL/SPEED 变更。
+    /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
     fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
-        // 收集三个事件源，找 y 大于阈值的最小项
+        // Collect three event sources, find the minimum item with y greater than threshold
         let mut best: Option<(Decimal, FlowEvent)> = None;
 
         for change in self.bms.arrangers.bpm_changes.values() {
@@ -522,7 +522,7 @@ where
         best
     }
 
-    /// 将时间推进到 `now`，对进度与速度进行按事件分段积分。
+    /// Advance time to `now`, perform segmented integration of progress and speed by events.
     fn step_to(&mut self, now: SystemTime) {
         let Some(started) = self.started_at else {
             return;
@@ -536,31 +536,31 @@ where
             Decimal::from(now.duration_since(last).unwrap_or_default().as_secs_f64());
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
-        // 分段推进，直到用完时间片
+        // Advance in segments until time slice is used up
         loop {
-            // 下一个会影响速度的事件
+            // The next event that affects speed
             let next_event = self.next_flow_event_after(cur_y.clone());
             if next_event.is_none()
                 || cur_vel <= Decimal::from(0)
                 || remaining_secs <= Decimal::from(0)
             {
-                // 直接前进到结尾
+                // Advance directly to the end
                 cur_y += cur_vel * remaining_secs;
                 break;
             }
             let (event_y, evt) = next_event.unwrap();
             if event_y.clone() <= cur_y.clone() {
-                // 防御：若事件位置不前进则避免死循环
+                // Defense: avoid infinite loop if event position doesn't advance
                 self.apply_flow_event(evt);
                 cur_vel = self.current_velocity();
                 continue;
             }
-            // 到达事件所需时间
+            // Time required to reach event
             let distance = event_y.clone() - cur_y.clone();
             if cur_vel > Decimal::from(0) {
                 let time_to_event_secs = distance / cur_vel.clone();
                 if time_to_event_secs <= remaining_secs {
-                    // 先推进到事件点
+                    // First advance to event point
                     cur_y = event_y;
                     remaining_secs -= time_to_event_secs;
                     self.apply_flow_event(evt);
@@ -568,7 +568,7 @@ where
                     continue;
                 }
             }
-            // 时间不够到事件，推进后结束
+            // Time not enough to reach event, advance and end
             cur_y += cur_vel * remaining_secs;
             break;
         }
@@ -585,10 +585,10 @@ where
         }
     }
 
-    /// 计算可见窗口长度（y 单位）：基于当前BPM和600ms反应时间
+    /// Calculate visible window length (y units): based on current BPM and 600ms reaction time
     fn visible_window_y(&self) -> Decimal {
-        // 基于当前BPM和600ms反应时间动态计算可见窗口长度
-        // 公式：可见Y长度 = (当前BPM / 120.0) * 0.6秒
+        // Dynamically calculate visible window length based on current BPM and 600ms reaction time
+        // Formula: visible Y length = (current BPM / 120.0) * 0.6 seconds
         let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
         let base_bpm = Decimal::from(120);
         (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
@@ -647,7 +647,7 @@ where
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::from(0);
         self.preloaded_events.clear();
-        // 初始化 current_bpm 为 header 或默认
+        // Initialize current_bpm to header or default
         self.current_bpm = self
             .bms
             .arrangers
@@ -658,7 +658,7 @@ where
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition> {
-        // 处理通过 post_events 投递的外部事件
+        // Process external events delivered through post_events
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
@@ -672,21 +672,21 @@ where
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
 
-        // 计算预加载范围：当前 y + 可视 y 范围
+        // Calculate preload range: current y + visible y range
         let visible_y_length = self.visible_window_y();
         let preload_end_y = cur_y.clone() + visible_y_length;
 
-        // 收集当前时刻触发的事件
+        // Collect events triggered at current moment
         let mut triggered_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // 收集预加载范围内的事件
+        // Collect events within preload range
         let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // 从预先计算好的事件 Map 中获取事件
+        // Get events from precomputed event Map
         for (y_coord, events) in &self.all_events {
             let y = y_coord.value();
 
-            // 如果事件在当前时刻触发
+            // If event is triggered at current moment
             if *y > prev_y && *y <= cur_y {
                 for event in events {
                     triggered_events
@@ -694,7 +694,7 @@ where
                 }
             }
 
-            // 如果事件在预加载范围内
+            // If event is within preload range
             if *y > cur_y && *y <= preload_end_y {
                 for event in events {
                     new_preloaded_events
@@ -703,7 +703,7 @@ where
             }
         }
 
-        // 排序事件
+        // Sort events
         triggered_events.sort_by(|a, b| {
             a.position()
                 .value()
@@ -718,7 +718,7 @@ where
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        // 更新预加载事件列表
+        // Update preloaded events list
         self.preloaded_events = new_preloaded_events;
 
         triggered_events.into_iter()
@@ -736,8 +736,8 @@ where
 
         self.preloaded_events.iter().map(move |event_with_pos| {
             let event_y = event_with_pos.position().value();
-            // 计算显示比例：(event_y - current_y) / visible_window_y * scroll_factor
-            // 注意：scroll可以为非零的正负值
+            // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
+            // Note: scroll can be non-zero positive or negative values
             let display_ratio_value = if visible_window_y > Decimal::from(0) {
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()

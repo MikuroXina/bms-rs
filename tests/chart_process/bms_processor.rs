@@ -8,7 +8,7 @@ use bms_rs::chart_process::prelude::*;
 
 #[test]
 fn test_bemuse_ext_basic_visible_events_functionality() {
-    // 使用 bemuse_ext.bms 文件测试 visible_events 的基本功能
+    // Test basic visible_events functionality using bemuse_ext.bms file
     let source = include_str!("../bms/files/bemuse_ext.bms");
     let LexOutput {
         tokens,
@@ -26,20 +26,23 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
-    // 验证初始状态
+    // Verify initial state
     assert_eq!(processor.current_bpm(), Decimal::from(120));
     assert_eq!(processor.current_speed(), Decimal::from(1));
     assert_eq!(processor.current_scroll(), Decimal::from(1));
 
-    // 前进到第一个变化点
+    // Advance to first change point
     let after_first_change = start_time + Duration::from_secs(1);
     let _ = processor.update(after_first_change);
 
-    // 检查visible_events方法正常工作
+    // Check that visible_events method works normally
     let after_change_events: Vec<_> = processor.visible_events(after_first_change).collect();
-    assert!(!after_change_events.is_empty(), "应该有可见事件");
+    assert!(
+        !after_change_events.is_empty(),
+        "Should have visible events"
+    );
 
-    // 验证显示比例的计算
+    // Verify display ratio calculation
     for visible_event in &after_change_events {
         let y_value = visible_event.position().value().to_f64().unwrap_or(0.0);
         let display_ratio_value = visible_event
@@ -48,20 +51,20 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
             .to_f64()
             .unwrap_or(0.0);
 
-        // 显示比例应该在合理范围内
+        // Display ratio should be in reasonable range
         assert!(
             (0.0..=2.0).contains(&display_ratio_value),
-            "显示比例应该在合理范围内，当前值: {:.3}, 事件Y: {:.3}",
+            "Display ratio should be in reasonable range, current value: {:.3}, event Y: {:.3}",
             display_ratio_value,
             y_value
         );
 
-        // 验证事件类型
+        // Verify event type
         match visible_event.event() {
             ChartEvent::Note { .. } | ChartEvent::Bgm { .. } => {
                 assert!(
                     display_ratio_value.is_finite(),
-                    "音符/BGM事件的显示比例应该是有限值"
+                    "Display ratio for note/BGM events should be finite"
                 );
             }
             ChartEvent::BpmChange { .. }
@@ -69,7 +72,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
             | ChartEvent::ScrollChange { .. } => {
                 assert!(
                     display_ratio_value.is_finite(),
-                    "控制事件的显示比例应该是有限值"
+                    "Display ratio for control events should be finite"
                 );
             }
             _ => {}
@@ -79,7 +82,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
 #[test]
 fn test_lilith_mx_bpm_changes_affect_visible_window() {
-    // 使用 lilith_mx.bms 文件测试 BPM 变化对可见窗口的影响
+    // Test BPM changes' effect on visible window using lilith_mx.bms file
     let source = include_str!("../bms/files/lilith_mx.bms");
     let LexOutput {
         tokens,
@@ -97,19 +100,22 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
-    // 初始状态：BPM = 151
+    // Initial state: BPM = 151
     assert_eq!(processor.current_bpm(), Decimal::from(151));
 
-    // 前进到第一个 BPM 变化点
+    // Advance to first BPM change point
     let after_first_change = start_time + Duration::from_secs(1);
     let _ = processor.update(after_first_change);
     assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
-    // 获取BPM变化后的可见事件
+    // Get visible events after BPM change
     let after_bpm_events: Vec<_> = processor.visible_events(after_first_change).collect();
-    assert!(!after_bpm_events.is_empty(), "BPM变化后应该仍有可见事件");
+    assert!(
+        !after_bpm_events.is_empty(),
+        "Should still have visible events after BPM change"
+    );
 
-    // 验证显示比例仍然有效
+    // Verify display ratio is still valid
     for visible_event in &after_bpm_events {
         let ratio_value = visible_event
             .display_ratio()
@@ -122,7 +128,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
 #[test]
 fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
-    // 使用 bemuse_ext.bms 文件测试 scroll 值为 0.5 时 DisplayRatio 的缩放
+    // Test DisplayRatio scaling when scroll value is 0.5 using bemuse_ext.bms file
     let source = include_str!("../bms/files/bemuse_ext.bms");
     let LexOutput {
         tokens,
@@ -140,10 +146,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
-    // 验证初始状态：Scroll = 1.0
+    // Verify initial state：Scroll = 1.0
     assert_eq!(processor.current_scroll(), Decimal::from(1));
 
-    // 获取初始可见事件及其显示比例
+    // Get initial visible events and their display ratios
     let initial_events: Vec<_> = processor.visible_events(start_time).collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
@@ -157,10 +163,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
-        return; // 如果没有可见事件，跳过测试
+        return; // If no visible events, skip test
     }
 
-    // 前进到第一个Scroll变化点（仍然是1.0）
+    // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + Duration::from_secs(1);
     let _ = processor.update(after_first_scroll);
     assert_eq!(processor.current_scroll(), Decimal::from(1));
@@ -182,18 +188,18 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         return;
     }
 
-    // 由于scroll仍然是1.0，显示比例应该基本相同
+    // Since scroll is still 1.0, display ratio should be basically the same
     for (initial_ratio, after_first_ratio) in initial_ratios.iter().zip(after_first_ratios.iter()) {
         let diff = (after_first_ratio - initial_ratio).abs();
         assert!(
             diff < 0.1,
-            "Scroll为1.0时显示比例应该基本不变，初始: {:.6}, 变化后: {:.6}",
+            "Display ratio should be basically unchanged when scroll is 1.0, initial: {:.6}, after change: {:.6}",
             initial_ratio,
             after_first_ratio
         );
     }
 
-    // 前进到第二个Scroll变化点（scroll 0.5）
+    // Advance to second Scroll change point (scroll 0.5)
     let after_scroll_half = after_first_scroll + Duration::from_secs(2);
     let _ = processor.update(after_scroll_half);
     assert_eq!(
@@ -218,36 +224,39 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         return;
     }
 
-    // 验证显示比例的范围和符号
+    // Verify display ratio range and sign
     for ratio in after_scroll_half_ratios.iter() {
-        assert!(ratio.is_finite(), "Scroll为0.5时显示比例应该是有限值");
+        assert!(
+            ratio.is_finite(),
+            "Display ratio should be finite when scroll is 0.5"
+        );
         assert!(
             *ratio >= -5.0 && *ratio <= 5.0,
-            "Scroll为0.5时显示比例应该在合理范围内: {:.6}",
+            "Display ratio should be in reasonable range when scroll is 0.5: {:.6}",
             ratio
         );
     }
 
-    // 验证scroll为0.5时显示比例的缩放效果
+    // Verify display ratio scaling effect when scroll is 0.5
     if after_first_ratios.len() == after_scroll_half_ratios.len() {
         for (first_ratio, half_ratio) in after_first_ratios
             .iter()
             .zip(after_scroll_half_ratios.iter())
         {
-            // 当scroll从1.0变为0.5时，显示比例应该大约变为原来的0.5倍
+            // When scroll changes from 1.0 to 0.5, display ratio should become approximately 0.5 times the original
             let expected_half_ratio = first_ratio * 0.5;
             let actual_diff = (half_ratio - expected_half_ratio).abs();
 
             assert!(
                 actual_diff < 0.1,
-                "Scroll为0.5时显示比例应该约为原来的0.5倍，期望: {:.6}, 实际: {:.6}",
+                "Display ratio should be approximately 0.5 times original when scroll is 0.5, expected: {:.6}, actual: {:.6}",
                 expected_half_ratio,
                 half_ratio
             );
         }
     }
 
-    // 额外验证：确保scroll为0.5时的显示比例确实小于scroll为1.0时的显示比例
+    // Additional verification: ensure display ratio when scroll is 0.5 is indeed less than when scroll is 1.0
     if after_first_ratios.len() == after_scroll_half_ratios.len() {
         for (first_ratio, half_ratio) in after_first_ratios
             .iter()
@@ -256,7 +265,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
             if *first_ratio > 0.0 {
                 assert!(
                     *half_ratio < *first_ratio,
-                    "Scroll为0.5时显示比例应该小于Scroll为1.0时的显示比例，1.0时: {:.6}, 0.5时: {:.6}",
+                    "Display ratio should be less when scroll is 0.5 than when scroll is 1.0, 1.0: {:.6}, 0.5: {:.6}",
                     first_ratio,
                     half_ratio
                 );
@@ -264,6 +273,3 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         }
     }
 }
-
-// 注意：BmsonProcessor对比测试已被移除，因为BMSON格式与BMS格式差异较大，
-// 直接对比事件生成可能会导致混淆。主要目标是验证BmsProcessor本身的功能。
