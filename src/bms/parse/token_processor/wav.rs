@@ -58,7 +58,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                             .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
                         pan = Some(ExWavPan::try_from(pan_value).map_err(|_| {
                             ParseWarning::SyntaxError(
-                                "expected pan value out of range [-10000, 10000]".into(),
+                                "expected pan value but out of range [-10000, 10000]".into(),
                             )
                         })?);
                     }
@@ -70,7 +70,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                             .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
                         volume = Some(ExWavVolume::try_from(volume_value).map_err(|_| {
                             ParseWarning::SyntaxError(
-                                "expected volume value out of range [-10000, 0]".into(),
+                                "expected volume value but out of range [-10000, 0]".into(),
                             )
                         })?);
                     }
@@ -83,7 +83,8 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                         frequency =
                             Some(ExWavFrequency::try_from(frequency_value).map_err(|_| {
                                 ParseWarning::SyntaxError(
-                                    "expected frequency value out of range [100, 100000]".into(),
+                                    "expected frequency value but out of range [100, 100000]"
+                                        .into(),
                                 )
                             })?);
                     }

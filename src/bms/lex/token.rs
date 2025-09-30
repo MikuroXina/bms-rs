@@ -214,7 +214,13 @@ impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Case(value) => write!(f, "#CASE {value}"),
-            Token::Header { name, args } => write!(f, "#{name} {args}"),
+            Token::Header { name, args } => {
+                if args.is_empty() {
+                    write!(f, "#{name}")
+                } else {
+                    write!(f, "#{name} {args}")
+                }
+            }
             Token::NotACommand(comment) => write!(f, "{comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),

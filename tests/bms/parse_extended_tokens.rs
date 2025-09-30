@@ -330,22 +330,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("pan value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError("expected pan value but out of range [-10000, 10000]".into())
+    );
 
     // Test volume value out of range
     let source = r#"
@@ -354,22 +354,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("volume value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError("expected volume value but out of range [-10000, 0]".into())
+    );
 
     // Test frequency value out of range
     let source = r#"
@@ -378,20 +378,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("frequency value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError(
+            "expected frequency value but out of range [100, 100000]".into()
+        )
+    );
 }
