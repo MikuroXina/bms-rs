@@ -30,7 +30,7 @@ use crate::bms::{
     model::Bms,
 };
 
-use self::{prompt::Prompter, token_processor::common_preset};
+use self::{prompt::Prompter, token_processor::minor_preset};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -117,7 +117,7 @@ impl Bms {
                 }
             }
         }
-        let preset = common_preset::<P, T>(Rc::clone(&share), &prompt_handler);
+        let preset = minor_preset::<P, T>(Rc::clone(&share), &prompt_handler);
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for (range, comment) in comments {
             share
