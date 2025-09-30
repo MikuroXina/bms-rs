@@ -89,7 +89,7 @@ impl Bms {
         let mut messages = vec![];
         for token in token_iter {
             match token.content() {
-                Token::Comment(line) => comments.push((token.range(), line)),
+                Token::NonCommand(line) => comments.push((token.range(), line)),
                 Token::Header { name, args } => {
                     headers.push((token.range(), name, args));
                 }
@@ -120,6 +120,11 @@ impl Bms {
         let preset = common_preset::<P, T>(Rc::clone(&share), &prompt_handler);
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for (range, comment) in comments {
+            share
+                .borrow_mut()
+                .others
+                .raw_command_lines
+                .push(comment.to_string());
             for proc in &preset {
                 if let Err(err) = proc.on_comment(comment) {
                     parse_warnings.push(err.into_wrapper_range(range.clone()));
@@ -127,6 +132,11 @@ impl Bms {
             }
         }
         for (range, name, args) in headers {
+            share
+                .borrow_mut()
+                .others
+                .raw_command_lines
+                .push(format!("#{name} {args}"));
             for proc in &preset {
                 if let Err(err) = proc.on_header(name, args.as_ref()) {
                     parse_warnings.push(err.into_wrapper_range(range.clone()));
@@ -134,6 +144,11 @@ impl Bms {
             }
         }
         for (range, track, channel, message) in messages {
+            share
+                .borrow_mut()
+                .others
+                .raw_command_lines
+                .push(format!("#{track}{channel}:{message}"));
             for proc in &preset {
                 if let Err(err) = proc.on_message(*track, *channel, message.as_ref()) {
                     parse_warnings.push(err.into_wrapper_range(range.clone()));

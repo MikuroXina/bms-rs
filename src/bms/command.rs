@@ -282,6 +282,16 @@ pub enum PoorMode {
     Hidden,
 }
 
+impl PoorMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Interrupt => "0",
+            Self::Overlay => "1",
+            Self::Hidden => "2",
+        }
+    }
+}
+
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

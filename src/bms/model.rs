@@ -189,8 +189,8 @@ pub struct Others {
     pub change_options: HashMap<ObjId, String>,
     /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
-    /// Lines that starts with `'#'`, but not recognized as vaild command.
-    pub unknown_command_lines: Vec<String>,
+    /// Raw lines that starts with `'#'`.
+    pub raw_command_lines: Vec<String>,
     /// Divide property. #DIVIDEPROP
     #[cfg(feature = "minor-command")]
     pub divide_prop: Option<String>,

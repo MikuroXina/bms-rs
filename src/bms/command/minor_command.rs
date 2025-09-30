@@ -214,6 +214,16 @@ pub enum WavCmdParam {
     Time,
 }
 
+impl WavCmdParam {
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Self::Pitch => "00",
+            Self::Volume => "01",
+            Self::Time => "02",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

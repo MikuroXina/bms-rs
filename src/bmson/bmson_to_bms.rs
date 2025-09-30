@@ -300,7 +300,7 @@ impl Bms {
         let PlayingCheckOutput {
             playing_warnings,
             playing_errors,
-        } = bms.check_playing();
+        } = bms.check_playing::<KeyLayoutBeat>();
 
         BmsonToBmsOutput {
             bms,

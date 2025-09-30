@@ -18,6 +18,16 @@ impl PlayerMode {
     }
 }
 
+impl std::fmt::Display for PlayerMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlayerMode::Single => write!(f, "1"),
+            PlayerMode::Two => write!(f, "2"),
+            PlayerMode::Double => write!(f, "3"),
+        }
+    }
+}
+
 impl std::str::FromStr for PlayerMode {
     type Err = ParseWarning;
 

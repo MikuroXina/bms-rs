@@ -39,13 +39,14 @@ use self::{
         AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
         AstRoot, rng::Rng,
     },
-    command::channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
+    command::channel::mapper::KeyLayoutMapper,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
         ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
     },
+    prelude::AlwaysWarnAndUseNewer,
 };
 
 /// Decimal type used throughout the BMS module.
@@ -83,7 +84,7 @@ pub enum BmsWarning {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use]
-pub struct BmsOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct BmsOutput {
     /// The parsed BMS data.
     pub bms: Bms,
     /// Warnings that occurred during parsing.
@@ -108,19 +109,19 @@ pub struct BmsOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
 /// println!("Warnings: {:?}", warnings);
 /// ```
 #[cfg(feature = "rand")]
-pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> BmsOutput<T> {
+pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> BmsOutput {
     use rand::{SeedableRng, rngs::StdRng};
 
     // Parse BMS using default RNG and prompt handler
     let rng = RandRng(StdRng::from_os_rng());
-    parse_bms_with_rng(source, rng)
+    parse_bms_with_rng::<T, _>(source, rng)
 }
 
 /// Parse a BMS file from source text using a custom random number generator.
 ///
 /// This function provides a convenient way to parse a BMS file in one step.
 /// It uses the default channel parser and a custom random number generator.
-pub fn parse_bms_with_rng<T: KeyLayoutMapper>(source: &str, rng: impl Rng) -> BmsOutput<T> {
+pub fn parse_bms_with_rng<T: KeyLayoutMapper, R: Rng>(source: &str, rng: R) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -142,7 +143,7 @@ pub fn parse_bms_with_rng<T: KeyLayoutMapper>(source: &str, rng: impl Rng) -> Bm
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::<T>::from_token_stream(token_refs, parse::prompt::AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream::<'_, T, AlwaysWarnAndUseNewer>(token_refs, AlwaysWarnAndUseNewer);
 
     // Convert ast-parse and parse warnings to BmsWarning
     warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));
@@ -151,7 +152,7 @@ pub fn parse_bms_with_rng<T: KeyLayoutMapper>(source: &str, rng: impl Rng) -> Bm
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing();
+    } = bms.check_playing::<T>();
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

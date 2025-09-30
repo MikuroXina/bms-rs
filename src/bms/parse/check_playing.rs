@@ -52,9 +52,9 @@ pub struct PlayingCheckOutput {
     pub playing_errors: Vec<PlayingError>,
 }
 
-impl<T: KeyLayoutMapper> Bms {
+impl Bms {
     /// Check for playing warnings and errors based on the parsed BMS data.
-    pub fn check_playing(&self) -> PlayingCheckOutput {
+    pub fn check_playing<T: KeyLayoutMapper>(&self) -> PlayingCheckOutput {
         let mut playing_warnings = Vec::new();
         let mut playing_errors = Vec::new();
 
@@ -77,13 +77,13 @@ impl<T: KeyLayoutMapper> Bms {
             playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.notes.displayables().next().is_some();
+            let has_displayable = self.notes.displayables::<T>().next().is_some();
             if !has_displayable {
                 playing_warnings.push(PlayingWarning::NoDisplayableNotes);
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.notes.playables().next().is_some();
+            let has_playable = self.notes.playables::<T>().next().is_some();
             if !has_playable {
                 playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }

@@ -18,8 +18,6 @@ use super::{Result, cursor::Cursor};
 pub enum Token<'a> {
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
-    /// Non-empty lines that not starts in `'#'` in bms file.
-    Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
@@ -48,6 +46,8 @@ pub enum Token<'a> {
     },
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
+    /// Non-empty lines that not starts in `'#'` in bms file.
+    NonCommand(&'a str),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
     Message {
         /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
@@ -168,7 +168,7 @@ impl<'a> Token<'a> {
                 name: command.trim_start_matches('#').to_uppercase().into(),
                 args: c.next_line_entire().into(),
             },
-            _not_command => Self::Comment(c.next_line_entire()),
+            _not_command => Self::NonCommand(c.next_line_entire()),
         };
 
         // Calculate the full range of this token (from command start to current cursor position)
@@ -205,7 +205,7 @@ impl std::fmt::Display for Token<'_> {
         match self {
             Token::Case(value) => write!(f, "#CASE {value}"),
             Token::Header { name, args } => write!(f, "#{name} {args}"),
-            Token::Comment(comment) => write!(f, "{comment}"),
+            Token::NonCommand(comment) => write!(f, "{comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),
             Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
