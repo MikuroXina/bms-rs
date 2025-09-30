@@ -4,10 +4,9 @@ use std::borrow::Cow;
 
 use num::BigUint;
 
-use super::LexWarning;
 use crate::bms::{
-    command::{LnMode, channel::Channel, mixin::SourceRangeMixin, time::Track},
-    prelude::{SourceRangeMixinExt, read_channel},
+    command::{channel::Channel, mixin::SourceRangeMixin, time::Track},
+    prelude::read_channel,
 };
 
 use super::{Result, cursor::Cursor};
@@ -19,6 +18,14 @@ use super::{Result, cursor::Cursor};
 pub enum Token<'a> {
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
+    /// `#[name] [args]` Other command line starts from `#`.
+    Command {
+        /// It is always uppercase.
+        name: Cow<'a, str>,
+        args: Cow<'a, str>,
+    },
+    /// Non-empty lines that not starts in `'#'` in bms file.
+    Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
     Def,
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
@@ -41,8 +48,15 @@ pub enum Token<'a> {
     EndSwitch,
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
-    /// Non-empty lines that not starts in `'#'` in bms file.
-    NotACommand(&'a str),
+    /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
+    Message {
+        /// The track, or measure, must start from 1. But some player may allow the 0 measure (i.e. Lunatic Rave 2).
+        track: Track,
+        /// The channel commonly expresses what the lane be arranged the note to.
+        channel: Channel,
+        /// The message to the channel.
+        message: Cow<'a, str>,
+    },
     /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
     Random(BigUint),
     /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
@@ -53,8 +67,6 @@ pub enum Token<'a> {
     Skip,
     /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
     Switch(BigUint),
-    /// Unknown Part. Includes all the line that not be parsed.
-    UnknownCommand(&'a str),
 }
 
 /// A token with position information.
@@ -151,9 +163,12 @@ impl<'a> Token<'a> {
                     message: Cow::Borrowed(message),
                 }
             }
-            // Unknown command & Not a command
-            command if command.starts_with('#') => Self::UnknownCommand(c.next_line_entire()),
-            _not_command => Self::NotACommand(c.next_line_entire()),
+            // Unknown command & Comment
+            command if command.starts_with('#') => Self::Command {
+                name: command.trim_start_matches('#').to_uppercase().into(),
+                args: c.next_line_entire().into(),
+            },
+            _not_command => Self::Comment(c.next_line_entire()),
         };
 
         // Calculate the full range of this token (from command start to current cursor position)
@@ -188,10 +203,9 @@ impl<'a> Token<'a> {
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Base62 => write!(f, "#BASE 62"),
             Token::Case(value) => write!(f, "#CASE {value}"),
-            #[cfg(feature = "minor-command")]
-            Token::Cdda(value) => write!(f, "#CDDA {value}"),
+            Token::Command { name, args } => write!(f, "#{name} {args}"),
+            Token::Comment(comment) => write!(f, "{comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),
             Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
@@ -199,45 +213,16 @@ impl std::fmt::Display for Token<'_> {
             Token::EndRandom => write!(f, "#ENDRANDOM"),
             Token::EndSwitch => write!(f, "#ENDSW"),
             Token::If(value) => write!(f, "#IF {value}"),
-            Token::LnMode(mode) => write!(
-                f,
-                "#LNMODE {}",
-                match mode {
-                    LnMode::Ln => 1,
-                    LnMode::Cn => 2,
-                    LnMode::Hcn => 3,
-                }
-            ),
-            Token::LnTypeRdm => write!(f, "#LNTYPE 1"),
-            Token::LnTypeMgq => write!(f, "#LNTYPE 2"),
-            #[cfg(feature = "minor-command")]
-            Token::Materials(path) => write!(f, "#MATERIALS {}", path.display()),
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsBmp(path) => write!(f, "#MATERIALSBMP {}", path.display()),
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsWav(path) => write!(f, "#MATERIALSWAV {}", path.display()),
-            #[cfg(feature = "minor-command")]
-            Token::MidiFile(path) => write!(f, "#MIDIFILE {}", path.display()),
-            Token::NotACommand(content) => write!(f, "{content}"),
-            #[cfg(feature = "minor-command")]
-            Token::OctFp => write!(f, "#OCT/FP"),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => fmt_message(f, *track, *channel, message.as_ref()),
             Token::Random(value) => write!(f, "#RANDOM {value}"),
             Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
             Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
             Token::Skip => write!(f, "#SKIP"),
             Token::Switch(value) => write!(f, "#SWITCH {value}"),
-            Token::UnknownCommand(cmd) => write!(f, "{cmd}"),
-            #[cfg(feature = "minor-command")]
-            Token::WavCmd(ev) => {
-                use crate::bms::command::minor_command::WavCmdParam;
-
-                let param = match ev.param {
-                    WavCmdParam::Pitch => "00",
-                    WavCmdParam::Volume => "01",
-                    WavCmdParam::Time => "02",
-                };
-                write!(f, "#WAVCMD {} {} {}", param, ev.wav_index, ev.value)
-            }
         }
     }
 }
@@ -315,6 +300,9 @@ fn fmt_message(
         }
         Channel::KeyVolume => {
             write!(f, "#{:03}98:{}", track.0, message)
+        }
+        Channel::Text => {
+            write!(f, "#{:03}99:{}", track.0, message)
         }
         Channel::Judge => {
             write!(f, "#{:03}A0:{}", track.0, message)
