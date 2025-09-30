@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use fraction::{Integer, One, ToPrimitive, Zero};
+use fraction::Integer;
 
 use crate::bms::prelude::*;
 
@@ -755,44 +755,20 @@ impl Bms {
             ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let mut bpm_message_tokens = Vec::new();
 
-        // Split BPM changes into two types: U8 (not in value list and is u8) and others
-        let mut u8_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
-        let mut other_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
-
-        for (time, ev) in &self.arrangers.bpm_changes {
-            // Check if already defined
-            if bpm_id_manager.is_assigned(&ev.bpm) {
-                // Already defined, treat as other type
-                other_bpm_events.push((time, ev));
-            } else
-            // Not in value list, check if it's U8 type
-            if ev.bpm.fract() == Decimal::zero()
-                && ev.bpm >= Decimal::one()
-                && ev.bpm <= Decimal::from(0xFF)
-            {
-                // U8 type: not in value list and is u8
-                u8_bpm_events.push((time, ev));
-            } else {
-                // Other type: needs ID allocation
-                other_bpm_events.push((time, ev));
-            }
-        }
-
         // Process U8 type BPM changes
         let EventProcessingResult {
             message_tokens: bpm_u8_message_tokens,
             ..
         } = build_event_messages(
-            u8_bpm_events.into_iter(),
+            self.arrangers.bpm_changes_u8.iter(),
             None::<(
                 fn(ObjId, &()) -> Token,
                 fn(&_) -> &(),
                 &mut ObjIdManager<()>,
             )>,
             |_ev| Channel::BpmChangeU8,
-            |ev, _id| {
-                let u8_value = ev.bpm.to_u64().unwrap_or(1) as u8;
-                let s = format!("{:02X}", u8_value);
+            |bpm, _id| {
+                let s = format!("{:02X}", bpm);
                 let mut chars = s.chars();
                 [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
             },
@@ -806,7 +782,7 @@ impl Bms {
             message_tokens: other_message_tokens,
             ..
         } = build_event_messages(
-            other_bpm_events.into_iter(),
+            self.arrangers.bpm_changes.iter(),
             Some((
                 |id, bpm: &Decimal| Token::Header {
                     name: format!("BPM{id}").into(),

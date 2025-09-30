@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 
 use crate::{
     bms::prelude::*,
@@ -21,6 +21,8 @@ pub struct Arrangers {
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// BPM change events on its channel [`Channel::BpmChangeU8`], indexed by time.
+    pub bpm_changes_u8: BTreeMap<ObjTime, u8>,
     /// Record of used BPM change ids from `#BPMxx` messages, for validity checks.
     pub bpm_change_ids_used: HashSet<ObjId>,
     /// Stop lengths by stop object id.
@@ -47,11 +49,11 @@ impl Arrangers {
         prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bpm_changes.entry(bpm_change.time) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(bpm_change);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 let existing = entry.get();
 
                 prompt_handler
@@ -66,6 +68,39 @@ impl Arrangers {
                         bpm_change.time,
                         Channel::BpmChange,
                     )
+            }
+        }
+    }
+
+    /// Adds a new BPM change (on [`Channel::BpmChangeU8`] channel) object to the notes.
+    pub fn push_bpm_change_u8(
+        &mut self,
+        time: ObjTime,
+        bpm_change: u8,
+        prompt_handler: &impl Prompter,
+    ) -> Result<()> {
+        match self.bpm_changes_u8.entry(time) {
+            Entry::Vacant(entry) => {
+                entry.insert(bpm_change);
+                Ok(())
+            }
+            Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+                let older = BpmChangeObj {
+                    time,
+                    bpm: Decimal::from(*existing),
+                };
+                let newer = BpmChangeObj {
+                    time,
+                    bpm: Decimal::from(bpm_change),
+                };
+                prompt_handler
+                    .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {
+                        time,
+                        older: &older,
+                        newer: &newer,
+                    })
+                    .apply_channel(entry.get_mut(), bpm_change, time, Channel::BpmChangeU8)
             }
         }
     }

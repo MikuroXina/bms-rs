@@ -80,13 +80,10 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
         }
         if let Channel::BpmChangeU8 = channel {
             for (time, value) in hex_values_from_message(track, message, |w| self.1.warn(w)) {
-                self.0.borrow_mut().arrangers.push_bpm_change(
-                    BpmChangeObj {
-                        time,
-                        bpm: Decimal::from(value),
-                    },
-                    self.1,
-                )?;
+                self.0
+                    .borrow_mut()
+                    .arrangers
+                    .push_bpm_change_u8(time, value, self.1)?;
             }
         }
         Ok(())
