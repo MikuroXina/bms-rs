@@ -222,6 +222,12 @@ impl ObjId {
         self.into()
     }
 
+    /// Converts the object id into 2 `char`s.
+    #[must_use]
+    pub fn into_chars(self) -> [char; 2] {
+        self.0.map(|c| c as char)
+    }
+
     /// Makes the object id uppercase.
     pub const fn make_uppercase(&mut self) {
         self.0[0] = self.0[0].to_ascii_uppercase();
