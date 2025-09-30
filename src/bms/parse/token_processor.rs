@@ -245,7 +245,7 @@ fn ids_from_message<'a>(
     parse_message_values_with_warnings(
         track,
         message,
-        move |id| Some(ObjId::try_from(id, case_sensitive_obj_id)),
+        move |id| (id != "00").then(|| ObjId::try_from(id, case_sensitive_obj_id)),
         push_parse_warning,
     )
 }
