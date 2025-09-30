@@ -145,6 +145,12 @@ impl Bms {
                 args: sub_artist.into(),
             });
         }
+        if let Some(bpm) = self.arrangers.bpm.as_ref() {
+            tokens.push(Token::Header {
+                name: "BPM".into(),
+                args: bpm.to_string().into(),
+            });
+        }
         if let Some(play_level) = self.header.play_level {
             tokens.push(Token::Header {
                 name: "PLAYLEVEL".into(),
@@ -161,12 +167,6 @@ impl Bms {
             tokens.push(Token::Header {
                 name: "DIFFICULTY".into(),
                 args: difficulty.to_string().into(),
-            });
-        }
-        if let Some(total) = self.header.total.as_ref() {
-            tokens.push(Token::Header {
-                name: "TOTAL".into(),
-                args: total.to_string().into(),
             });
         }
         if let Some(stage_file) = self.header.stage_file.as_ref()
@@ -214,6 +214,12 @@ impl Bms {
                 tokens.push(Token::NotACommand(line.as_str()));
             }
         }
+        if let Some(total) = self.header.total.as_ref() {
+            tokens.push(Token::Header {
+                name: "TOTAL".into(),
+                args: total.to_string().into(),
+            });
+        }
         if let Some(email) = self.header.email.as_deref() {
             tokens.push(Token::Header {
                 name: "EMAIL".into(),
@@ -241,13 +247,24 @@ impl Bms {
                 args: (self.header.ln_mode as u8).to_string().into(),
             });
         }
-        // VolWav
-        if self.header.volume != Volume::default() {
-            tokens.push(Token::Header {
-                name: "VOLWAV".into(),
-                args: self.header.volume.relative_percent.to_string().into(),
-            });
-        }
+
+        tokens.extend(
+            self.notes
+                .wav_files
+                .iter()
+                .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
+                .map(|(id, path)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("WAV{id}").into(),
+                            args: path.display().to_string().into(),
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
 
         // PoorBga mode
         #[cfg(feature = "minor-command")]
@@ -261,24 +278,16 @@ impl Bms {
         // Definitions in scope (existing ones first)
         // Use iterator chains to efficiently collect all definition tokens
         let mut def_tokens: Vec<Token> = Vec::new();
-
         // Add basic definitions
-        if let Some(bpm) = self.arrangers.bpm.as_ref() {
-            def_tokens.push(Token::Header {
-                name: "BPM".into(),
-                args: bpm.to_string().into(),
-            });
-        }
         #[cfg(feature = "minor-command")]
         if let Some(base_bpm) = self.arrangers.base_bpm.as_ref() {
-            def_tokens.push(Token::Header {
+            tokens.push(Token::Header {
                 name: "BASEBPM".into(),
                 args: base_bpm.to_string().into(),
             });
         }
 
-        // Collect definition tokens using iterator chains (sorted by ID for consistent output)
-        def_tokens.extend(
+        tokens.extend(
             self.scope_defines
                 .bpm_defs
                 .iter()
@@ -288,6 +297,48 @@ impl Bms {
                         Token::Header {
                             name: format!("BPM{id}").into(),
                             args: v.to_string().into(),
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
+
+        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
+            && !poor_bmp.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "BMP00".into(),
+                args: poor_bmp.display().to_string().into(),
+            });
+        }
+
+        tokens.extend(
+            self.graphics
+                .bmp_files
+                .iter()
+                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
+                .map(|(id, bmp)| {
+                    (
+                        *id,
+                        if bmp.transparent_color == Argb::default() {
+                            Token::Header {
+                                name: format!("BMP{id}").into(),
+                                args: bmp.file.display().to_string().into(),
+                            }
+                        } else {
+                            Token::Header {
+                                name: format!("EXBMP{id}").into(),
+                                args: format!(
+                                    "{},{},{},{} {}",
+                                    bmp.transparent_color.alpha,
+                                    bmp.transparent_color.red,
+                                    bmp.transparent_color.green,
+                                    bmp.transparent_color.blue,
+                                    bmp.file.display()
+                                )
+                                .into(),
+                            }
                         },
                     )
                 })
@@ -575,15 +626,6 @@ impl Bms {
             }
         }
 
-        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
-            && !poor_bmp.as_path().as_os_str().is_empty()
-        {
-            resource_tokens.push(Token::Header {
-                name: "BMP00".into(),
-                args: poor_bmp.display().to_string().into(),
-            });
-        }
-
         if let Some(video_file) = self.graphics.video_file.as_ref()
             && !video_file.as_path().as_os_str().is_empty()
         {
@@ -631,57 +673,13 @@ impl Bms {
             }
         }
 
-        // Collect WAV and BMP file tokens using iterator chains (sorted by ID for consistent output)
-        resource_tokens.extend(
-            self.notes
-                .wav_files
-                .iter()
-                .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
-                .map(|(id, path)| {
-                    (
-                        *id,
-                        Token::Header {
-                            name: format!("WAV{id}").into(),
-                            args: path.display().to_string().into(),
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
-
-        resource_tokens.extend(
-            self.graphics
-                .bmp_files
-                .iter()
-                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
-                .map(|(id, bmp)| {
-                    (
-                        *id,
-                        if bmp.transparent_color == Argb::default() {
-                            Token::Header {
-                                name: format!("BMP{id}").into(),
-                                args: bmp.file.display().to_string().into(),
-                            }
-                        } else {
-                            Token::Header {
-                                name: format!("EXBMP{id}").into(),
-                                args: format!(
-                                    "{},{},{},{} {}",
-                                    bmp.transparent_color.alpha,
-                                    bmp.transparent_color.red,
-                                    bmp.transparent_color.green,
-                                    bmp.transparent_color.blue,
-                                    bmp.file.display()
-                                )
-                                .into(),
-                            }
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
+        // VolWav as an expansion command
+        if self.header.volume != Volume::default() {
+            resource_tokens.push(Token::Header {
+                name: "VOLWAV".into(),
+                args: self.header.volume.relative_percent.to_string().into(),
+            });
+        }
 
         tokens.extend(resource_tokens);
 
@@ -820,9 +818,7 @@ impl Bms {
             |_ev| Channel::BpmChange,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
 
@@ -852,9 +848,7 @@ impl Bms {
             |_ev| Channel::Stop,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(stop_late_def_tokens);
@@ -880,9 +874,7 @@ impl Bms {
             |_ev| Channel::Scroll,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(scroll_late_def_tokens);
@@ -908,9 +900,7 @@ impl Bms {
             |_ev| Channel::Speed,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(speed_late_def_tokens);
@@ -1106,9 +1096,7 @@ impl Bms {
             |_ev| Channel::Text,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(text_late_def_tokens);
@@ -1133,9 +1121,7 @@ impl Bms {
             |_ev| Channel::Judge,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(judge_late_def_tokens);
