@@ -1,4 +1,4 @@
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -7,7 +7,7 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#WAVxx` and `#LNOBJ` definitions and objects on `Bgm` and `Note` channels.
-pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
@@ -127,7 +127,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 .0
                 .borrow_mut()
                 .notes
-                .pop_latest_of(end_id)
+                .pop_latest_of::<T>(end_id)
                 .ok_or(ParseWarning::UndefinedObject(end_id))?;
             let WavObj {
                 offset, channel_id, ..
@@ -252,7 +252,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Bgm = channel {
             for (time, obj) in ids_from_message(track, message, |w| self.1.warn(w)) {
-                self.0.borrow_mut().notes.push_bgm(time, obj);
+                self.0.borrow_mut().notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {

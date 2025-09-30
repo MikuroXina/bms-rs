@@ -6,9 +6,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#RANK`` and `#EXRANKxx` definitions and objects on `Judge` channel.
-pub struct JudgeProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct JudgeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for JudgeProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name == "RANK" {
             self.0.borrow_mut().header.rank = Some(JudgeLevel::try_from(args).map_err(|_| {

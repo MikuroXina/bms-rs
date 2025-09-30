@@ -4,9 +4,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
-pub struct SpriteProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct SpriteProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for SpriteProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for SpriteProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "STAEGFILE" => {

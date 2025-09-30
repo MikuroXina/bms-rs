@@ -19,11 +19,7 @@ use crate::bms::command::{
 };
 use crate::bms::{
     Decimal,
-    command::{
-        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, Volume,
-        channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        time::ObjTime,
-    },
+    command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, Volume, time::ObjTime},
 };
 
 use self::def::ExRankDef;
@@ -37,7 +33,7 @@ pub use notes::Notes;
 /// A score data aggregate of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms<T = KeyLayoutBeat> {
+pub struct Bms {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -45,14 +41,14 @@ pub struct Bms<T = KeyLayoutBeat> {
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub notes: Notes<T>,
+    pub notes: Notes,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
 }
 
-impl<T: KeyLayoutMapper> Default for Bms<T> {
+impl Default for Bms {
     fn default() -> Self {
         Self {
             header: Default::default(),
@@ -203,10 +199,10 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl<T> Bms<T> {
+impl Bms {
     /// Returns the sound note objects information.
     #[must_use]
-    pub fn notes(&self) -> &Notes<T> {
+    pub fn notes(&self) -> &Notes {
         &self.notes
     }
 

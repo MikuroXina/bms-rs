@@ -4,9 +4,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#TEXTxx` definition and objects on `Text` channel.
-pub struct TextProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for TextProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.starts_with("TEXT") || name.starts_with("SONG") {
             let id = if name.starts_with("TEXT") {

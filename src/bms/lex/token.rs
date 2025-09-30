@@ -18,12 +18,6 @@ use super::{Result, cursor::Cursor};
 pub enum Token<'a> {
     /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
     Case(BigUint),
-    /// `#[name] [args]` Other command line starts from `#`.
-    Command {
-        /// It is always uppercase.
-        name: Cow<'a, str>,
-        args: Cow<'a, str>,
-    },
     /// Non-empty lines that not starts in `'#'` in bms file.
     Comment(&'a str),
     /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
@@ -46,6 +40,12 @@ pub enum Token<'a> {
     EndRandom,
     /// `#ENDSW`. Closes the random scope. See [`Token::Switch`].
     EndSwitch,
+    /// `#[name] [args]` Other command line starts from `#`.
+    Header {
+        /// It is always uppercase.
+        name: Cow<'a, str>,
+        args: Cow<'a, str>,
+    },
     /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
     If(BigUint),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
@@ -164,7 +164,7 @@ impl<'a> Token<'a> {
                 }
             }
             // Unknown command & Comment
-            command if command.starts_with('#') => Self::Command {
+            command if command.starts_with('#') => Self::Header {
                 name: command.trim_start_matches('#').to_uppercase().into(),
                 args: c.next_line_entire().into(),
             },
@@ -204,7 +204,7 @@ impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Case(value) => write!(f, "#CASE {value}"),
-            Token::Command { name, args } => write!(f, "#{name} {args}"),
+            Token::Header { name, args } => write!(f, "#{name} {args}"),
             Token::Comment(comment) => write!(f, "{comment}"),
             Token::Def => write!(f, "#DEF"),
             Token::Else => write!(f, "#ELSE"),

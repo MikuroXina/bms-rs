@@ -9,9 +9,9 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
-pub struct BpmProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct BpmProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T> TokenProcessor for BpmProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name == "BPM" {
             let bpm = Decimal::from_fraction(

@@ -7,6 +7,8 @@ pub mod check_playing;
 pub mod prompt;
 pub mod token_processor;
 pub mod validity;
+use std::{cell::RefCell, rc::Rc};
+
 use thiserror::Error;
 
 use crate::diagnostics::{SimpleSource, ToAriadne};
@@ -20,10 +22,7 @@ use crate::bms::{
     },
     command::{
         ObjId,
-        channel::{
-            Channel,
-            mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        },
+        channel::{Channel, mapper::KeyLayoutMapper},
         mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
@@ -31,7 +30,7 @@ use crate::bms::{
     model::Bms,
 };
 
-use self::prompt::Prompter;
+use self::{prompt::Prompter, token_processor::common_preset};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -70,61 +69,84 @@ pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use]
-pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct ParseOutput {
     /// The output Bms.
-    pub bms: Bms<T>,
+    pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream<'a>(
+    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        prompt_handler: impl Prompter,
-    ) -> ParseOutput<T> {
-        let mut bms = Self::default();
-        let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
+        prompt_handler: P,
+    ) -> ParseOutput {
+        let bms = Self::default();
+        let share = Rc::new(RefCell::new(bms));
+        let mut comments = vec![];
+        let mut headers = vec![];
+        let mut messages = vec![];
         for token in token_iter {
-            let parse_result = bms.parse(token, &prompt_handler);
-            if let Err(error) = parse_result {
-                parse_warnings.push(error.into_wrapper(token));
+            match token.content() {
+                Token::Comment(line) => comments.push((token.range(), line)),
+                Token::Header { name, args } => {
+                    headers.push((token.range(), name, args));
+                }
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => {
+                    messages.push((token.range(), track, channel, message));
+                }
+                Token::Random(_)
+                | Token::SetRandom(_)
+                | Token::If(_)
+                | Token::ElseIf(_)
+                | Token::Else
+                | Token::EndIf
+                | Token::EndRandom
+                | Token::Switch(_)
+                | Token::SetSwitch(_)
+                | Token::Case(_)
+                | Token::Def
+                | Token::Skip
+                | Token::EndSwitch => {
+                    // control tokens skipped
+                }
+            }
+        }
+        let preset = common_preset::<P, T>(Rc::clone(&share), &prompt_handler);
+        let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
+        for (range, comment) in comments {
+            for proc in &preset {
+                if let Err(err) = proc.on_comment(comment) {
+                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+                }
+            }
+        }
+        for (range, name, args) in headers {
+            for proc in &preset {
+                if let Err(err) = proc.on_header(name, args.as_ref()) {
+                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+                }
+            }
+        }
+        for (range, track, channel, message) in messages {
+            for proc in &preset {
+                if let Err(err) = proc.on_message(*track, *channel, message.as_ref()) {
+                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+                }
             }
         }
 
         ParseOutput {
-            bms,
+            bms: Rc::into_inner(share)
+                .expect("processors must be dropped")
+                .into_inner(),
             parse_warnings,
         }
-    }
-}
-
-impl<T: KeyLayoutMapper> Bms<T> {
-    pub(crate) fn parse(
-        &mut self,
-        token: &TokenWithRange,
-        prompt_handler: &impl Prompter,
-    ) -> Result<()> {
-        match token.content() {
-            Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
-            Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
-            Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::If(_)
-            | Token::ElseIf(_)
-            | Token::Else
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::Switch(_)
-            | Token::SetSwitch(_)
-            | Token::Case(_)
-            | Token::Def
-            | Token::Skip
-            | Token::EndSwitch => {
-                return Err(ParseWarning::UnexpectedControlFlow);
-            }
-        }
-        Ok(())
     }
 }
 
@@ -132,9 +154,9 @@ impl<T: KeyLayoutMapper> Bms<T> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use]
-pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct ParseOutputWithAst {
     /// The output Bms.
-    pub bms: Bms<T>,
+    pub bms: Bms,
     /// Warnings that occurred during AST building.
     pub ast_build_warnings: Vec<AstBuildWarningWithRange>,
     /// Warnings that occurred during AST parsing (RNG execution stage).
@@ -143,13 +165,13 @@ pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl Bms {
     /// Parses a token stream into [`Bms`] with AST.
-    pub fn from_token_stream_with_ast<'a>(
+    pub fn from_token_stream_with_ast<'a, T: KeyLayoutMapper, P: Prompter>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         rng: impl Rng,
-        prompt_handler: impl Prompter,
-    ) -> ParseOutputWithAst<T> {
+        prompt_handler: P,
+    ) -> ParseOutputWithAst {
         let AstBuildOutput {
             root,
             ast_build_warnings,
@@ -158,7 +180,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let ParseOutput {
             bms,
             parse_warnings,
-        } = Self::from_token_stream(token_refs, prompt_handler);
+        } = Self::from_token_stream::<'a, T, P>(token_refs, prompt_handler);
         ParseOutputWithAst {
             bms,
             ast_build_warnings,

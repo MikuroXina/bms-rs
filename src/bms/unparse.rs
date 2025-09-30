@@ -7,7 +7,7 @@ use fraction::{Integer, One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl<T: KeyLayoutMapper> Bms {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).

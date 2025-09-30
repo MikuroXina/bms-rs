@@ -9,9 +9,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
-pub struct ResourcesProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct ResourcesProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for ResourcesProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for ResourcesProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             #[cfg(feature = "minor-command")]

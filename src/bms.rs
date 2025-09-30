@@ -85,7 +85,7 @@ pub enum BmsWarning {
 #[must_use]
 pub struct BmsOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
     /// The parsed BMS data.
-    pub bms: Bms<T>,
+    pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
 }

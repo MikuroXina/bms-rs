@@ -4,9 +4,9 @@ use super::{super::prompt::Prompter, ParseWarning, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
-pub struct RepresentationProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct RepresentationProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for RepresentationProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for RepresentationProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "BASE" => {

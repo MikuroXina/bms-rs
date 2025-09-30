@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
@@ -41,8 +41,8 @@ pub trait TokenProcessor {
     }
 }
 
-pub fn pedantic_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
-    bms: Rc<RefCell<Bms<T>>>,
+pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+    bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
@@ -60,12 +60,16 @@ pub fn pedantic_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
         Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
         Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor::<P, T>(
+            Rc::clone(&bms),
+            prompter,
+            PhantomData,
+        )),
     ]
 }
 
-pub fn common_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
-    bms: Rc<RefCell<Bms<T>>>,
+pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+    bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
@@ -82,12 +86,16 @@ pub fn common_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
         Box::new(sprite::SpriteProcessor(Rc::clone(&bms), prompter)),
         Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor::<P, T>(
+            Rc::clone(&bms),
+            prompter,
+            PhantomData,
+        )),
     ]
 }
 
-pub fn minor_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
-    bms: Rc<RefCell<Bms<T>>>,
+pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+    bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
 ) -> Vec<Box<dyn TokenProcessor + 'a>> {
     vec![
@@ -107,7 +115,11 @@ pub fn minor_preset<'a, T: KeyLayoutMapper + 'static, P: Prompter>(
         Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
         Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
         Box::new(volume::VolumeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor(Rc::clone(&bms), prompter)),
+        Box::new(wav::WavProcessor::<P, T>(
+            Rc::clone(&bms),
+            prompter,
+            PhantomData,
+        )),
     ]
 }
 

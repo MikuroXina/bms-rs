@@ -4,9 +4,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
-pub struct MetadataProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct MetadataProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for MetadataProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for MetadataProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             "PLAYER" => self.0.borrow_mut().header.player = Some(PlayerMode::from_str(args)?),

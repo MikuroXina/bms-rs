@@ -7,9 +7,9 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
-pub struct BmpProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T> TokenProcessor for BmpProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
             bmp if bmp.starts_with("BMP") => {

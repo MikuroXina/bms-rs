@@ -4,9 +4,9 @@ use super::{super::prompt::Prompter, Result, TokenProcessor, hex_values_from_mes
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
-pub struct VolumeProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for VolumeProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name == "VOLWAV" {
             let volume = args

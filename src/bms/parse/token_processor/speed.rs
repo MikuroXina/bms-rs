@@ -9,9 +9,9 @@ use super::{
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
-pub struct SpeedProcessor<'a, P, T>(pub Rc<RefCell<Bms<T>>>, pub &'a P);
+pub struct SpeedProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
-impl<P: Prompter, T> TokenProcessor for SpeedProcessor<'_, P, T> {
+impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.starts_with("SPEED") {
             let id = name.trim_start_matches("SPEED");
