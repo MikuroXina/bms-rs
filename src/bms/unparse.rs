@@ -228,15 +228,11 @@ impl Bms {
         }
 
         // LnType
-        match self.header.ln_type {
-            LnType::Rdm => tokens.push(Token::Header {
-                name: "LNTYPE".into(),
-                args: "1".into(),
-            }),
-            LnType::Mgq => tokens.push(Token::Header {
+        if let LnType::Mgq = self.header.ln_type {
+            tokens.push(Token::Header {
                 name: "LNTYPE".into(),
                 args: "2".into(),
-            }),
+            });
         }
         // LnMode
         if self.header.ln_mode != LnMode::default() {

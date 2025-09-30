@@ -57,7 +57,6 @@ fn test_scenario_1_no_merge() {
     let expected_tokens = vec![
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
-        Token::header("LNTYPE", "1"),
         Token::header("BPM", "120"),
         Token::header("WAV01", "test.wav"),
         Token::Message {
@@ -133,7 +132,6 @@ fn test_scenario_2_can_merge() {
     let expected_tokens = vec![
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
-        Token::header("LNTYPE", "1"),
         Token::header("BPM", "120"),
         Token::header("WAV01", "test.wav"),
         Token::Message {
@@ -206,7 +204,6 @@ fn test_scenario_3_cross_track_no_merge() {
     let expected_tokens = vec![
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
-        Token::header("LNTYPE", "1"),
         Token::header("BPM", "120"),
         Token::header("WAV01", "test.wav"),
         Token::Message {
@@ -274,7 +271,6 @@ fn test_scenario_4_input_order_preservation() {
     let expected_tokens = vec![
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
-        Token::header("LNTYPE", "1"),
         Token::header("BPM", "120"),
         Token::header("WAV01", "test.wav"),
         Token::Message {
