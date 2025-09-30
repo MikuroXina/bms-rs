@@ -123,19 +123,6 @@ impl<'a> TokenStream<'a> {
                 }
             }
         }
-
-        let case_sensitive = tokens.iter().any(|token| {
-            token.content()
-                == &Token::Header {
-                    name: "BASE".into(),
-                    args: "62".into(),
-                }
-        });
-        if !case_sensitive {
-            for token in &mut tokens {
-                token.content_mut().make_id_uppercase();
-            }
-        }
         LexOutput {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,

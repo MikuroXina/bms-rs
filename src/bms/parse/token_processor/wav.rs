@@ -11,7 +11,7 @@ pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomDa
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name.to_uppercase().starts_with("WAV") {
+        if name.starts_with("WAV") {
             let id = name.trim_start_matches("WAV");
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError(
@@ -20,8 +20,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             }
             let path = Path::new(args);
             let wav_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-            let mut bms = self.0.borrow_mut();
-            if let Some(older) = bms.notes.wav_files.get_mut(&wav_obj_id) {
+            if let Some(older) = self.0.borrow_mut().notes.wav_files.get_mut(&wav_obj_id) {
                 self.1
                     .handle_def_duplication(DefDuplication::Wav {
                         id: wav_obj_id,
@@ -30,7 +29,11 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                     })
                     .apply_def(older, path.into(), wav_obj_id)?;
             } else {
-                bms.notes.wav_files.insert(wav_obj_id, path.into());
+                self.0
+                    .borrow_mut()
+                    .notes
+                    .wav_files
+                    .insert(wav_obj_id, path.into());
             }
         }
         #[cfg(feature = "minor-command")]
@@ -244,21 +247,21 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Bgm = channel {
             for (time, obj) in ids_from_message(
-                    track,
-                    message,
-                    self.0.borrow().header.case_sensitive_obj_id,
-                    |w| self.1.warn(w),
-                ) {
+                track,
+                message,
+                self.0.borrow().header.case_sensitive_obj_id,
+                |w| self.1.warn(w),
+            ) {
                 self.0.borrow_mut().notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {
             for (offset, obj) in ids_from_message(
-                    track,
-                    message,
-                    self.0.borrow().header.case_sensitive_obj_id,
-                    |w| self.1.warn(w),
-                ) {
+                track,
+                message,
+                self.0.borrow().header.case_sensitive_obj_id,
+                |w| self.1.warn(w),
+            ) {
                 self.0.borrow_mut().notes.push_note(WavObj {
                     offset,
                     channel_id,

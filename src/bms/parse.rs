@@ -119,39 +119,24 @@ impl Bms {
         }
         let preset = minor_preset::<P, T>(Rc::clone(&share), &prompt_handler);
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
-        for (range, comment) in comments {
-            share
-                .borrow_mut()
-                .others
-                .raw_command_lines
-                .push(comment.to_string());
-            for proc in &preset {
+        for proc in &preset {
+            for (range, comment) in &comments {
                 if let Err(err) = proc.on_comment(comment) {
-                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
                 }
             }
         }
-        for (range, name, args) in headers {
-            share
-                .borrow_mut()
-                .others
-                .raw_command_lines
-                .push(format!("#{name} {args}"));
-            for proc in &preset {
+        for proc in &preset {
+            for (range, name, args) in &headers {
                 if let Err(err) = proc.on_header(name, args.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
                 }
             }
         }
-        for (range, track, channel, message) in messages {
-            share
-                .borrow_mut()
-                .others
-                .raw_command_lines
-                .push(format!("#{track}{channel}:{message}"));
-            for proc in &preset {
-                if let Err(err) = proc.on_message(*track, *channel, message.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range(range.clone()));
+        for proc in &preset {
+            for (range, track, channel, message) in &messages {
+                if let Err(err) = proc.on_message(**track, **channel, message.as_ref()) {
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
                 }
             }
         }

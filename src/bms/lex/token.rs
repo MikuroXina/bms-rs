@@ -175,9 +175,9 @@ impl<'a> Token<'a> {
                     message: Cow::Borrowed(message),
                 }
             }
-            // Unknown command & Comment
-            command if command.starts_with('#') => Self::Header {
-                name: command.trim_start_matches('#').to_uppercase().into(),
+            // Other commands & Comment
+            others if others.starts_with('#') => Self::Header {
+                name: command.trim_start_matches('#').to_owned().into(),
                 args: c.next_line_remaining().into(),
             },
             _not_command => Self::NotACommand(c.next_line_entire()),
@@ -187,8 +187,6 @@ impl<'a> Token<'a> {
         let token_range = command_range.start..c.index();
         Ok(SourceRangeMixin::new(token, token_range))
     }
-
-    pub(crate) fn make_id_uppercase(&mut self) {}
 
     /// Checks if a token is a control flow token.
     #[must_use]
