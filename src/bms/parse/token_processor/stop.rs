@@ -93,12 +93,8 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Stop = channel {
-            for (time, obj) in ids_from_message(
-                    track,
-                    message,
-                    self.0.borrow().header.case_sensitive_obj_id,
-                    |w| self.1.warn(w),
-                ) {
+            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
+            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
                 // Record used STOP id for validity checks
                 self.0.borrow_mut().arrangers.stop_ids_used.insert(obj);
                 let duration = self

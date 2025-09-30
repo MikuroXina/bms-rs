@@ -112,7 +112,7 @@ fn test_j219() {
 fn test_blank() {
     let source = include_str!("files/dive_withblank.bme");
     let LexOutput {
-        tokens: _,
+        tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(
@@ -120,13 +120,21 @@ fn test_blank() {
             .into_iter()
             .map(|w| w.content().clone())
             .collect::<Vec<_>>(),
+        vec![]
+    );
+
+    let ParseOutput {
+        bms: _,
+        parse_warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysUseNewer);
+    assert_eq!(
+        parse_warnings
+            .into_iter()
+            .map(|w| w.content().clone())
+            .collect::<Vec<_>>(),
         vec![
-            LexWarning::ExpectedToken {
-                message: "key audio filename".to_string()
-            },
-            LexWarning::ExpectedToken {
-                message: "key audio filename".to_string()
-            }
+            ParseWarning::SyntaxError("".into()),
+            ParseWarning::SyntaxError("".into()),
         ]
     );
 }

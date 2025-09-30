@@ -246,22 +246,15 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if let Channel::Bgm = channel {
-            for (time, obj) in ids_from_message(
-                track,
-                message,
-                self.0.borrow().header.case_sensitive_obj_id,
-                |w| self.1.warn(w),
-            ) {
+            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
+            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
                 self.0.borrow_mut().notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {
-            for (offset, obj) in ids_from_message(
-                track,
-                message,
-                self.0.borrow().header.case_sensitive_obj_id,
-                |w| self.1.warn(w),
-            ) {
+            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
+            for (offset, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))
+            {
                 self.0.borrow_mut().notes.push_note(WavObj {
                     offset,
                     channel_id,
