@@ -133,8 +133,8 @@ fn test_blank() {
             .map(|w| w.content().clone())
             .collect::<Vec<_>>(),
         vec![
-            ParseWarning::SyntaxError("".into()),
-            ParseWarning::SyntaxError("".into()),
+            ParseWarning::SyntaxError("expected image filename".into()),
+            ParseWarning::SyntaxError("expected key audio filename".into()),
         ]
     );
 }

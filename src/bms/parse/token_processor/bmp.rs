@@ -16,6 +16,9 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
         match name {
             bmp if bmp.starts_with("BMP") => {
                 let id = bmp.trim_start_matches("BMP");
+                if args.is_empty() {
+                    return Err(ParseWarning::SyntaxError("expected image filename".into()));
+                }
                 let path = Path::new(args);
                 if id == "00" {
                     self.0.borrow_mut().graphics.poor_bmp = Some(path.into());
