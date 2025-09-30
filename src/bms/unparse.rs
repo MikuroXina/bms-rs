@@ -127,12 +127,6 @@ impl Bms {
                 args: title.into(),
             });
         }
-        if let Some(subtitle) = self.header.subtitle.as_deref() {
-            tokens.push(Token::Header {
-                name: "SUBTITLE".into(),
-                args: subtitle.into(),
-            });
-        }
         if let Some(artist) = self.header.artist.as_deref() {
             tokens.push(Token::Header {
                 name: "ARTIST".into(),
@@ -163,10 +157,10 @@ impl Bms {
                 args: rank.to_string().into(),
             });
         }
-        if let Some(difficulty) = self.header.difficulty {
+        if let Some(subtitle) = self.header.subtitle.as_deref() {
             tokens.push(Token::Header {
-                name: "DIFFICULTY".into(),
-                args: difficulty.to_string().into(),
+                name: "SUBTITLE".into(),
+                args: subtitle.into(),
             });
         }
         if let Some(stage_file) = self.header.stage_file.as_ref()
@@ -191,6 +185,12 @@ impl Bms {
             tokens.push(Token::Header {
                 name: "BANNER".into(),
                 args: banner.display().to_string().into(),
+            });
+        }
+        if let Some(difficulty) = self.header.difficulty {
+            tokens.push(Token::Header {
+                name: "DIFFICULTY".into(),
+                args: difficulty.to_string().into(),
             });
         }
         if let Some(preview) = self.header.preview_music.as_ref()
@@ -297,48 +297,6 @@ impl Bms {
                         Token::Header {
                             name: format!("BPM{id}").into(),
                             args: v.to_string().into(),
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
-
-        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
-            && !poor_bmp.as_path().as_os_str().is_empty()
-        {
-            tokens.push(Token::Header {
-                name: "BMP00".into(),
-                args: poor_bmp.display().to_string().into(),
-            });
-        }
-
-        tokens.extend(
-            self.graphics
-                .bmp_files
-                .iter()
-                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
-                .map(|(id, bmp)| {
-                    (
-                        *id,
-                        if bmp.transparent_color == Argb::default() {
-                            Token::Header {
-                                name: format!("BMP{id}").into(),
-                                args: bmp.file.display().to_string().into(),
-                            }
-                        } else {
-                            Token::Header {
-                                name: format!("EXBMP{id}").into(),
-                                args: format!(
-                                    "{},{},{},{} {}",
-                                    bmp.transparent_color.alpha,
-                                    bmp.transparent_color.red,
-                                    bmp.transparent_color.green,
-                                    bmp.transparent_color.blue,
-                                    bmp.file.display()
-                                )
-                                .into(),
-                            }
                         },
                     )
                 })
@@ -1102,6 +1060,48 @@ impl Bms {
         );
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
+
+        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
+            && !poor_bmp.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "BMP00".into(),
+                args: poor_bmp.display().to_string().into(),
+            });
+        }
+
+        tokens.extend(
+            self.graphics
+                .bmp_files
+                .iter()
+                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
+                .map(|(id, bmp)| {
+                    (
+                        *id,
+                        if bmp.transparent_color == Argb::default() {
+                            Token::Header {
+                                name: format!("BMP{id}").into(),
+                                args: bmp.file.display().to_string().into(),
+                            }
+                        } else {
+                            Token::Header {
+                                name: format!("EXBMP{id}").into(),
+                                args: format!(
+                                    "{},{},{},{} {}",
+                                    bmp.transparent_color.alpha,
+                                    bmp.transparent_color.red,
+                                    bmp.transparent_color.green,
+                                    bmp.transparent_color.blue,
+                                    bmp.file.display()
+                                )
+                                .into(),
+                            }
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
 
         #[cfg(feature = "minor-command")]
         let seek_manager = {
