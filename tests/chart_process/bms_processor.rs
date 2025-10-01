@@ -19,10 +19,10 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
-    let mut processor = BmsProcessor::new(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -93,10 +93,10 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
-    let mut processor = BmsProcessor::new(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -139,10 +139,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
-    let mut processor = BmsProcessor::new(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
