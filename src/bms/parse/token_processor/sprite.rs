@@ -9,12 +9,6 @@ pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 impl TokenProcessor for SpriteProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name {
-            "STAEGFILE" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected stage filename".into()));
-                }
-                self.0.borrow_mut().header.stage_file = Some(Path::new(args).into());
-            }
             "BANNER" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected banner filename".into()));
