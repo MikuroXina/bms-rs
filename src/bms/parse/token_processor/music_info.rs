@@ -19,7 +19,7 @@ pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MusicInfoProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),
             "TITLE" => self.0.borrow_mut().header.title = Some(args.to_string()),
             "SUBTITLE" => self.0.borrow_mut().header.subtitle = Some(args.to_string()),

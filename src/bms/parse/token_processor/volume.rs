@@ -13,7 +13,7 @@ pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name == "VOLWAV" {
+        if name.to_ascii_uppercase().as_str() == "VOLWAV" {
             let volume = args
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;

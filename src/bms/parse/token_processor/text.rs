@@ -13,12 +13,9 @@ pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name.starts_with("TEXT") || name.starts_with("SONG") {
-            let id = if name.starts_with("TEXT") {
-                name.trim_start_matches("TEXT")
-            } else {
-                name.trim_start_matches("#SONG")
-            };
+        let upper = name.to_ascii_uppercase();
+        if upper.starts_with("TEXT") || upper.starts_with("SONG") {
+            let id = &name["TEXT".len()..];
             let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
             if let Some(older) = self.0.borrow_mut().others.texts.get_mut(&id) {

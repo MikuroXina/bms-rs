@@ -20,43 +20,47 @@ pub struct BpmProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name == "BPM" {
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
-            self.0.borrow_mut().arrangers.bpm = Some(bpm);
-        } else if name.starts_with("BPM") || name.starts_with("EXBPM") {
-            let id = if name.starts_with("BPM") {
-                name.trim_start_matches("BPM")
-            } else {
-                name.trim_start_matches("EXBPM")
-            };
-            let bpm_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
-            let scope_defines = &mut self.0.borrow_mut().scope_defines;
-            if let Some(older) = scope_defines.bpm_defs.get_mut(&bpm_obj_id) {
-                self.1
-                    .handle_def_duplication(DefDuplication::BpmChange {
-                        id: bpm_obj_id,
-                        older: older.clone(),
-                        newer: bpm.clone(),
-                    })
-                    .apply_def(older, bpm, bpm_obj_id)?;
-            } else {
-                scope_defines.bpm_defs.insert(bpm_obj_id, bpm);
+        match name.to_ascii_uppercase().as_str() {
+            "BPM" => {
+                let bpm = Decimal::from_fraction(
+                    GenericFraction::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+                );
+                self.0.borrow_mut().arrangers.bpm = Some(bpm);
             }
-        }
-        #[cfg(feature = "minor-command")]
-        if name == "BASEBPM" {
-            let bpm = Decimal::from_fraction(
-                GenericFraction::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-            );
-            self.0.borrow_mut().arrangers.base_bpm = Some(bpm);
+            bpm if bpm.starts_with("BPM") || bpm.starts_with("EXBPM") => {
+                let id = if bpm.starts_with("BPM") {
+                    &name["BPM".len()..]
+                } else {
+                    &name["EXBPM".len()..]
+                };
+                let bpm_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let bpm = Decimal::from_fraction(
+                    GenericFraction::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+                );
+                let scope_defines = &mut self.0.borrow_mut().scope_defines;
+                if let Some(older) = scope_defines.bpm_defs.get_mut(&bpm_obj_id) {
+                    self.1
+                        .handle_def_duplication(DefDuplication::BpmChange {
+                            id: bpm_obj_id,
+                            older: older.clone(),
+                            newer: bpm.clone(),
+                        })
+                        .apply_def(older, bpm, bpm_obj_id)?;
+                } else {
+                    scope_defines.bpm_defs.insert(bpm_obj_id, bpm);
+                }
+            }
+            #[cfg(feature = "minor-command")]
+            "BASEBPM" => {
+                let bpm = Decimal::from_fraction(
+                    GenericFraction::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+                );
+                self.0.borrow_mut().arrangers.base_bpm = Some(bpm);
+            }
+            _ => {}
         }
         Ok(())
     }

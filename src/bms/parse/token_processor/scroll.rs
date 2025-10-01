@@ -17,8 +17,8 @@ pub struct ScrollProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name.starts_with("SCROLL") {
-            let id = name.trim_start_matches("SCROLL");
+        if name.to_ascii_uppercase().starts_with("SCROLL") {
+            let id = &name["SCROLL".len()..];
             let factor =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())

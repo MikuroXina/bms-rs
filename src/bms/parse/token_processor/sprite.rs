@@ -15,7 +15,7 @@ pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for SpriteProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             "BANNER" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected banner filename".into()));

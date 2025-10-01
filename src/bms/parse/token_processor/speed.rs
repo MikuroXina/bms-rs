@@ -17,8 +17,8 @@ pub struct SpeedProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name.starts_with("SPEED") {
-            let id = name.trim_start_matches("SPEED");
+        if name.to_ascii_uppercase().starts_with("SPEED") {
+            let id = &name["SPEED".len()..];
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);

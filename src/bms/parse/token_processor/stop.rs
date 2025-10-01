@@ -2,6 +2,7 @@
 //!
 //! - `#STOP[01-ZZ] n` - Stop definition. It stops the scroll as `n` of 192nd note.
 //! - `#xxx09:` - Stop channel.
+//! - `#STP xxx.yyy time` - It stops `time` milliseconds at section `xxx` and its position (`yyy` / 1000).
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
@@ -17,8 +18,8 @@ pub struct StopProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name.starts_with("STOP") {
-            let id = name.trim_start_matches("STOP");
+        if name.to_ascii_uppercase().starts_with("STOP") {
+            let id = &name["STOP".len()..];
             let len =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
@@ -49,7 +50,7 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
             }
         }
         #[cfg(feature = "minor-command")]
-        if name.starts_with("STP") {
+        if name.to_ascii_uppercase().starts_with("STP") {
             // Parse xxx.yyy zzzz
             use std::{num::NonZeroU64, time::Duration};
             let args: Vec<_> = args.split_whitespace().collect();

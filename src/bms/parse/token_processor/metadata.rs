@@ -23,7 +23,7 @@ pub struct MetadataProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MetadataProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             "PLAYER" => self.0.borrow_mut().header.player = Some(PlayerMode::from_str(args)?),
             "DIFFICULTY" => {
                 self.0.borrow_mut().header.difficulty = Some(

@@ -36,9 +36,9 @@ pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             bmp if bmp.starts_with("BMP") => {
-                let id = bmp.trim_start_matches("BMP");
+                let id = &name["BMP".len()..];
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected image filename".into()));
                 }
@@ -70,7 +70,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 }
             }
             exbmp if exbmp.starts_with("EXBMP") => {
-                let id = exbmp.trim_start_matches("EXBMP");
+                let id = &name["EXBMP".len()..];
 
                 let args: Vec<_> = args.split_whitespace().collect();
                 if args.len() != 2 {
@@ -128,7 +128,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             #[cfg(feature = "minor-command")]
             argb if argb.starts_with("ARGB") => {
-                let id = argb.trim_start_matches("ARGB");
+                let id = &name["ARGB".len()..];
                 let parts: Vec<_> = args.split(',').collect();
                 if parts.len() != 4 {
                     return Err(ParseWarning::SyntaxError(
@@ -172,7 +172,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             #[cfg(feature = "minor-command")]
             atbga if atbga.starts_with("@BGA") => {
-                let id = atbga.trim_start_matches("@BGA");
+                let id = &name["@BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
                 if args.len() != 7 {
                     return Err(ParseWarning::SyntaxError(format!(
@@ -229,7 +229,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             #[cfg(feature = "minor-command")]
             bga if bga.starts_with("BGA") && !bga.starts_with("BGAPOOR") => {
-                let id = bga.trim_start_matches("BGA");
+                let id = &name["BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
                 if args.len() != 7 {
                     return Err(ParseWarning::SyntaxError(format!(
@@ -284,7 +284,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
 
             #[cfg(feature = "minor-command")]
             swbga if swbga.starts_with("SWBGA") => {
-                let id = swbga.trim_start_matches("SWBGA");
+                let id = &name[5..];
                 let args: Vec<_> = args.split_whitespace().collect();
                 if args.len() != 2 {
                     return Err(ParseWarning::SyntaxError(format!(

@@ -28,64 +28,67 @@ pub struct VideoProcessor<'a, P>(
 
 impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        if name == "VIDEOFILE" {
-            if args.is_empty() {
-                return Err(ParseWarning::SyntaxError("expected video filename".into()));
+        match name.to_ascii_uppercase().as_str() {
+            "VIDEOFILE" => {
+                if args.is_empty() {
+                    return Err(ParseWarning::SyntaxError("expected video filename".into()));
+                }
+                self.0.borrow_mut().graphics.video_file = Some(Path::new(args).into());
             }
-            self.0.borrow_mut().graphics.video_file = Some(Path::new(args).into());
-        }
-        if name == "MOVIE" {
-            if args.is_empty() {
-                return Err(ParseWarning::SyntaxError("expected movie filename".into()));
+            "MOVIE" => {
+                if args.is_empty() {
+                    return Err(ParseWarning::SyntaxError("expected movie filename".into()));
+                }
+                self.0.borrow_mut().header.movie = Some(Path::new(args).into());
             }
-            self.0.borrow_mut().header.movie = Some(Path::new(args).into());
-        }
-        #[cfg(feature = "minor-command")]
-        if name == "VIDEOF/S" {
-            let frame_rate = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-            );
-            self.0.borrow_mut().graphics.video_fs = Some(frame_rate);
-        }
-        #[cfg(feature = "minor-command")]
-        if name == "VIDEOCOLORS" {
-            let colors = args
-                .parse()
-                .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
-            self.0.borrow_mut().graphics.video_colors = Some(colors);
-        }
-        #[cfg(feature = "minor-command")]
-        if name == "VIDEODLY" {
-            let delay = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-            );
-            self.0.borrow_mut().graphics.video_dly = Some(delay);
-        }
-        #[cfg(feature = "minor-command")]
-        if name.starts_with("SEEK") {
-            use fraction::GenericFraction;
-            use num::BigUint;
+            #[cfg(feature = "minor-command")]
+            "VIDEOF/S" => {
+                let frame_rate = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
+                );
+                self.0.borrow_mut().graphics.video_fs = Some(frame_rate);
+            }
+            #[cfg(feature = "minor-command")]
+            "VIDEOCOLORS" => {
+                let colors = args
+                    .parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
+                self.0.borrow_mut().graphics.video_colors = Some(colors);
+            }
+            #[cfg(feature = "minor-command")]
+            "VIDEODLY" => {
+                let delay = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
+                );
+                self.0.borrow_mut().graphics.video_dly = Some(delay);
+            }
+            #[cfg(feature = "minor-command")]
+            seek if seek.starts_with("SEEK") => {
+                use fraction::GenericFraction;
+                use num::BigUint;
 
-            let id = name.trim_start_matches("SEEK");
-            let ms = Decimal::from_fraction(
-                GenericFraction::<BigUint>::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-            );
-            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let id = &name["SEEK".len()..];
+                let ms = Decimal::from_fraction(
+                    GenericFraction::<BigUint>::from_str(args)
+                        .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
+                );
+                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
 
-            if let Some(older) = self.0.borrow_mut().others.seek_events.get_mut(&id) {
-                self.1
-                    .handle_def_duplication(DefDuplication::SeekEvent {
-                        id,
-                        older,
-                        newer: &ms,
-                    })
-                    .apply_def(older, ms, id)?;
-            } else {
-                self.0.borrow_mut().others.seek_events.insert(id, ms);
+                if let Some(older) = self.0.borrow_mut().others.seek_events.get_mut(&id) {
+                    self.1
+                        .handle_def_duplication(DefDuplication::SeekEvent {
+                            id,
+                            older,
+                            newer: &ms,
+                        })
+                        .apply_def(older, ms, id)?;
+                } else {
+                    self.0.borrow_mut().others.seek_events.insert(id, ms);
+                }
             }
+            _ => {}
         }
         Ok(())
     }

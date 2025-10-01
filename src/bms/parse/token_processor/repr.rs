@@ -30,7 +30,7 @@ impl TokenProcessor for RepresentationProcessor {
                 .raw_command_lines
                 .push(format!("#{name} {args}"));
         }
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             "BASE" => {
                 if args != "62" {
                     return Err(ParseWarning::OutOfBase62);

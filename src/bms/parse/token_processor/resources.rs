@@ -19,7 +19,7 @@ pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for ResourcesProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        match name {
+        match name.to_ascii_uppercase().as_str() {
             "MIDIFILE" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected midi filename".into()));
