@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    marker::PhantomData,
     ops::Bound,
     path::PathBuf,
 };
@@ -21,9 +20,9 @@ struct WavObjArena(Vec<WavObj>);
 pub struct WavObjArenaIndex(usize);
 
 /// The playable objects set for querying by lane or time.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Notes<T> {
+pub struct Notes {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
@@ -60,39 +59,10 @@ pub struct Notes<T> {
     /// Option events, indexed by time. #A6
     #[cfg(feature = "minor-command")]
     pub option_events: BTreeMap<ObjTime, OptionObj>,
-    _marker: PhantomData<fn() -> T>,
-}
-
-impl<T> Default for Notes<T> {
-    fn default() -> Self {
-        Self {
-            wav_path_root: Default::default(),
-            wav_files: Default::default(),
-            arena: Default::default(),
-            idx_by_wav_id: Default::default(),
-            idx_by_channel: Default::default(),
-            idx_by_time: Default::default(),
-            #[cfg(feature = "minor-command")]
-            midi_file: Default::default(),
-            #[cfg(feature = "minor-command")]
-            materials_wav: Default::default(),
-            bgm_volume_changes: Default::default(),
-            key_volume_changes: Default::default(),
-            #[cfg(feature = "minor-command")]
-            seek_events: Default::default(),
-            text_events: Default::default(),
-            judge_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            bga_keybound_events: Default::default(),
-            #[cfg(feature = "minor-command")]
-            option_events: Default::default(),
-            _marker: PhantomData,
-        }
-    }
 }
 
 // query methods
-impl<T> Notes<T> {
+impl Notes {
     /// Checks whether there is no valid notes.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -181,7 +151,7 @@ impl<T> Notes<T> {
     /// ```rust,ignore
     /// notes.playables().filter(|obj| !obj.wav_id.is_null())
     /// ```
-    pub fn playables(&self) -> impl Iterator<Item = &WavObj>
+    pub fn playables<T>(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
     {
@@ -205,7 +175,7 @@ impl<T> Notes<T> {
     /// ```rust,ignore
     /// notes.displayables().filter(|obj| !obj.wav_id.is_null())
     /// ```
-    pub fn displayables(&self) -> impl Iterator<Item = &WavObj>
+    pub fn displayables<T>(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
     {
@@ -229,7 +199,7 @@ impl<T> Notes<T> {
     /// ```rust,ignore
     /// notes.bgms().filter(|obj| !obj.wav_id.is_null())
     /// ```
-    pub fn bgms(&self) -> impl Iterator<Item = &WavObj>
+    pub fn bgms<T>(&self) -> impl Iterator<Item = &WavObj>
     where
         T: KeyLayoutMapper,
     {
@@ -253,7 +223,7 @@ impl<T> Notes<T> {
     /// ```rust,ignore
     /// notes.notes_on(channel_id).filter(|(_, obj)| !obj.wav_id.is_null())
     /// ```
-    pub fn notes_on(
+    pub fn notes_on<T>(
         &self,
         channel_id: NoteChannelId,
     ) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)>
@@ -307,7 +277,7 @@ impl<T> Notes<T> {
 
     /// Gets the time of last playable object.
     #[must_use]
-    pub fn last_playable_time(&self) -> Option<ObjTime>
+    pub fn last_playable_time<T>(&self) -> Option<ObjTime>
     where
         T: KeyLayoutMapper,
     {
@@ -326,7 +296,7 @@ impl<T> Notes<T> {
     ///
     /// You can't use this to find the length of music. Because this doesn't consider that the length of sound. And visible notes may ring after all BGMs.
     #[must_use]
-    pub fn last_bgm_time(&self) -> Option<ObjTime>
+    pub fn last_bgm_time<T>(&self) -> Option<ObjTime>
     where
         T: KeyLayoutMapper,
     {
@@ -343,7 +313,7 @@ impl<T> Notes<T> {
 }
 
 // push and remove methods
-impl<T> Notes<T> {
+impl Notes {
     /// Adds the new note object to the notes.
     pub fn push_note(&mut self, note: WavObj) {
         let new_index = WavObjArenaIndex(self.arena.0.len());
@@ -417,7 +387,7 @@ impl<T> Notes<T> {
     }
 
     /// Removes notes belonging to the wav id.
-    pub fn remove_note(&mut self, wav_id: ObjId) -> Vec<WavObj>
+    pub fn remove_note<T>(&mut self, wav_id: ObjId) -> Vec<WavObj>
     where
         T: KeyLayoutMapper,
     {
@@ -441,7 +411,7 @@ impl<T> Notes<T> {
     }
 
     /// Removes the latest note using the wav of `wav_id`.
-    pub fn pop_latest_of(&mut self, wav_id: ObjId) -> Option<WavObj>
+    pub fn pop_latest_of<T>(&mut self, wav_id: ObjId) -> Option<WavObj>
     where
         T: KeyLayoutMapper,
     {
@@ -452,7 +422,7 @@ impl<T> Notes<T> {
     }
 
     /// Adds the BGM (auto-played) note of `wav_id` at `time`.
-    pub fn push_bgm(&mut self, time: ObjTime, wav_id: ObjId)
+    pub fn push_bgm<T>(&mut self, time: ObjTime, wav_id: ObjId)
     where
         T: KeyLayoutMapper,
     {
@@ -474,7 +444,7 @@ impl<T> Notes<T> {
     }
 
     /// Retains note objects with the condition `cond`. It keeps only the [`WavObj`]s which `cond` returned `true`.
-    pub fn retain_notes<F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F)
+    pub fn retain_notes<T, F: FnMut(&WavObj) -> bool>(&mut self, mut cond: F)
     where
         T: KeyLayoutMapper,
     {
@@ -515,7 +485,7 @@ impl<T> Notes<T> {
     pub fn push_bgm_volume_change(
         &mut self,
         volume_obj: BgmVolumeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bgm_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -545,7 +515,7 @@ impl<T> Notes<T> {
     pub fn push_key_volume_change(
         &mut self,
         volume_obj: KeyVolumeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.key_volume_changes.entry(volume_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -576,7 +546,7 @@ impl<T> Notes<T> {
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.seek_events.entry(seek_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -606,7 +576,7 @@ impl<T> Notes<T> {
     pub fn push_text_event(
         &mut self,
         text_obj: TextObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.text_events.entry(text_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -636,7 +606,7 @@ impl<T> Notes<T> {
     pub fn push_judge_event(
         &mut self,
         judge_obj: JudgeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.judge_events.entry(judge_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -667,7 +637,7 @@ impl<T> Notes<T> {
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bga_keybound_events.entry(keybound_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -698,7 +668,7 @@ impl<T> Notes<T> {
     pub fn push_option_event(
         &mut self,
         option_obj: OptionObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.option_events.entry(option_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -718,7 +688,7 @@ impl<T> Notes<T> {
                         entry.get_mut(),
                         option_obj.clone(),
                         option_obj.time,
-                        Channel::Option,
+                        Channel::OptionChange,
                     )
             }
         }
@@ -726,11 +696,10 @@ impl<T> Notes<T> {
 }
 
 // modify methods
-impl<T> Notes<T> {
+impl Notes {
     /// Changes the channel of notes `target` in `time_span` into another channel `dst`.
     pub fn change_note_channel<I>(&mut self, targets: I, dst: NoteChannelId)
     where
-        T: KeyLayoutMapper,
         I: IntoIterator<Item = WavObjArenaIndex>,
     {
         for target in targets {
@@ -789,7 +758,7 @@ mod tests {
 
     #[test]
     fn push_and_pop() {
-        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let mut notes = Notes::default();
         let note = WavObj {
             offset: ObjTime::new(
                 1,
@@ -797,7 +766,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -811,7 +780,7 @@ mod tests {
 
     #[test]
     fn change_note_channel() {
-        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let mut notes = Notes::default();
         let note = WavObj {
             offset: ObjTime::new(
                 1,
@@ -819,7 +788,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -841,14 +810,14 @@ mod tests {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
-                wav_id: "01".try_into().unwrap(),
+                wav_id: ObjId::try_from("01", false).unwrap(),
             })
         );
     }
 
     #[test]
     fn change_note_time() {
-        let mut notes = Notes::<KeyLayoutBeat>::default();
+        let mut notes = Notes::default();
         let note = WavObj {
             offset: ObjTime::new(
                 1,
@@ -856,7 +825,7 @@ mod tests {
                 NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
             ),
             channel_id: NoteChannelId::bgm(),
-            wav_id: "01".try_into().unwrap(),
+            wav_id: ObjId::try_from("01", false).unwrap(),
         };
 
         assert!(notes.pop_note().is_none());
@@ -881,7 +850,7 @@ mod tests {
                     NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
                 ),
                 channel_id: NoteChannelId::bgm(),
-                wav_id: "01".try_into().unwrap(),
+                wav_id: ObjId::try_from("01", false).unwrap(),
             })
         );
     }

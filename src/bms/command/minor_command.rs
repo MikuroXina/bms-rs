@@ -214,6 +214,18 @@ pub enum WavCmdParam {
     Time,
 }
 
+impl WavCmdParam {
+    /// Converts an operation type of `#WAVCMD` into the corresponding string literal.
+    #[must_use]
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Self::Pitch => "00",
+            Self::Volume => "01",
+            Self::Time => "02",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

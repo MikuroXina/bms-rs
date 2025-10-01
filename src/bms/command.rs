@@ -4,6 +4,8 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use super::parse::{ParseWarning, Result};
+
 pub mod channel;
 pub mod graphics;
 pub mod mixin;
@@ -25,6 +27,33 @@ pub enum PlayerMode {
     Two,
     /// For double play, a player uses 10 or 14 keys.
     Double,
+}
+
+impl std::fmt::Display for PlayerMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlayerMode::Single => write!(f, "1"),
+            PlayerMode::Two => write!(f, "2"),
+            PlayerMode::Double => write!(f, "3"),
+        }
+    }
+}
+
+impl std::str::FromStr for PlayerMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "1" => Self::Single,
+            "2" => Self::Two,
+            "3" => Self::Double,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
+        })
+    }
 }
 
 /// A rank to determine judge level, but treatment differs among the BMS players.
@@ -117,39 +146,6 @@ impl std::fmt::Display for ObjId {
     }
 }
 
-impl TryFrom<[char; 2]> for ObjId {
-    type Error = [char; 2];
-    fn try_from(value: [char; 2]) -> core::result::Result<Self, Self::Error> {
-        Ok(Self([
-            char_to_base62(value[0]).ok_or(value)?,
-            char_to_base62(value[1]).ok_or(value)?,
-        ]))
-    }
-}
-
-impl TryFrom<[u8; 2]> for ObjId {
-    type Error = [u8; 2];
-
-    fn try_from(value: [u8; 2]) -> core::result::Result<Self, Self::Error> {
-        <Self as TryFrom<[char; 2]>>::try_from([value[0] as char, value[1] as char])
-            .map_err(|_| value)
-    }
-}
-
-impl<'a> TryFrom<&'a str> for ObjId {
-    type Error = &'a str;
-    fn try_from(value: &'a str) -> core::result::Result<Self, Self::Error> {
-        if value.len() != 2 {
-            return Err(value);
-        }
-        let mut chars = value.bytes();
-        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(value);
-        };
-        Self::try_from([ch1, ch2]).map_err(|_| value)
-    }
-}
-
 impl From<ObjId> for u16 {
     fn from(value: ObjId) -> Self {
         base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
@@ -172,13 +168,40 @@ impl ObjId {
     /// Instances a special null id, which means the rest object.
     #[must_use]
     pub const fn null() -> Self {
-        Self([0, 0])
+        Self([b'0', b'0'])
     }
 
     /// Returns whether the id is `00`.
     #[must_use]
     pub fn is_null(self) -> bool {
-        self.0 == [0, 0]
+        self.0 == [b'0', b'0']
+    }
+
+    /// Parses the object id from the string `value`.
+    ///
+    /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
+    pub fn try_from(value: &str, case_sensitive_obj_id: bool) -> Result<Self> {
+        if value.len() != 2 {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
+        }
+        let mut chars = value.bytes();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
+        };
+        if !(ch1.is_ascii_alphanumeric() && ch2.is_ascii_alphanumeric()) {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected alphanumeric characters as object id but found: {value}"
+            )));
+        }
+        if case_sensitive_obj_id {
+            Ok(Self([ch1, ch2]))
+        } else {
+            Ok(Self([ch1.to_ascii_uppercase(), ch2.to_ascii_uppercase()]))
+        }
     }
 
     /// Converts the object id into an `u16` value.
@@ -197,6 +220,12 @@ impl ObjId {
     #[must_use]
     pub fn as_u64(self) -> u64 {
         self.into()
+    }
+
+    /// Converts the object id into 2 `char`s.
+    #[must_use]
+    pub fn into_chars(self) -> [char; 2] {
+        self.0.map(|c| c as char)
     }
 
     /// Makes the object id uppercase.
@@ -280,6 +309,35 @@ pub enum PoorMode {
     Overlay,
     /// Not to display the POOR BGA.
     Hidden,
+}
+
+impl std::str::FromStr for PoorMode {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "0" => Self::Interrupt,
+            "1" => Self::Overlay,
+            "2" => Self::Hidden,
+            _ => {
+                return Err(ParseWarning::SyntaxError(
+                    "expected one of 0, 1 or 2".into(),
+                ));
+            }
+        })
+    }
+}
+
+impl PoorMode {
+    /// Converts an display type of Poor BGA into the corresponding string literal.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Interrupt => "0",
+            Self::Overlay => "1",
+            Self::Hidden => "2",
+        }
+    }
 }
 
 /// A notation type about LN in the score. But you don't have to take care of how the notes are actually placed in.
@@ -459,8 +517,8 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base36 value
-        assert_eq!(all_values[1294], ObjId::try_from(['Z', 'Z']).unwrap()); // Last Base36 value
+        assert_eq!(all_values[0], ObjId::try_from("01", false).unwrap()); // First Base36 value
+        assert_eq!(all_values[1294], ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

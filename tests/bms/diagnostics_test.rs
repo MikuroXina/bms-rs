@@ -55,7 +55,7 @@ fn test_empty_warnings() {
 
 #[test]
 fn test_unknown_command_warning() {
-    use bms_rs::bms::lex::{LexWarning, token::Token};
+    use bms_rs::bms::lex::token::Token;
 
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";
@@ -65,25 +65,19 @@ fn test_unknown_command_warning() {
     // Should have tokens including UnknownCommand
     assert!(!output.tokens.tokens.is_empty());
 
-    // Should have warnings including UnknownCommand warning
-    assert!(!output.lex_warnings.is_empty());
-
-    // Check if there's an UnknownCommand warning
-    let has_unknown_command_warning = output
-        .lex_warnings
-        .iter()
-        .any(|w| matches!(w.content(), LexWarning::UnknownCommand { .. }));
-    assert!(
-        has_unknown_command_warning,
-        "Should have UnknownCommand warning"
-    );
+    // Should not have warnings
+    assert!(output.lex_warnings.is_empty());
 
     // Check if there's an UnknownCommand token
-    let has_unknown_command_token = output
-        .tokens
-        .tokens
-        .iter()
-        .any(|t| matches!(t.content(), Token::UnknownCommand(_)));
+    let has_unknown_command_token = output.tokens.tokens.iter().any(|t| {
+        matches!(
+            t.content(),
+            Token::Header {
+                name,
+                ..
+            } if name == "UNKNOWN_COMMAND"
+        )
+    });
     assert!(
         has_unknown_command_token,
         "Should have UnknownCommand token"

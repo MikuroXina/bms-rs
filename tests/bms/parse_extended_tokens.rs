@@ -17,16 +17,16 @@ fn test_atbga_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
         bms.scope_defines
             .atbga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(atbga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
+    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from("01", false).unwrap()];
+    assert_eq!(atbga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
     assert_eq!(atbga_def.draw_point, PixelPoint::new(30, 40));
@@ -48,17 +48,17 @@ fn test_bga_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #BGA is parsed correctly
     assert!(
         bms.scope_defines
             .bga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from(['0', '1']).unwrap()];
-    assert_eq!(bga_def.source_bmp, ObjId::try_from(['0', '2']).unwrap());
+    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from("01", false).unwrap()];
+    assert_eq!(bga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
     assert_eq!(bga_def.draw_point, PixelPoint::new(30, 40));
@@ -80,16 +80,16 @@ fn test_exrank_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXRANK is parsed correctly
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
@@ -109,16 +109,16 @@ fn test_exwav_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXWAV is parsed correctly
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from(['0', '1']).unwrap()];
+    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exwav_def.pan.value(), 10000);
     assert_eq!(exwav_def.volume.value(), 0);
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
@@ -141,16 +141,16 @@ fn test_changeoption_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let option = &bms.others.change_options[&ObjId::try_from(['0', '1']).unwrap()];
+    let option = &bms.others.change_options[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -170,16 +170,16 @@ fn test_text_parsing() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #TEXT is parsed correctly
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let text = &bms.others.texts[&ObjId::try_from(['0', '1']).unwrap()];
+    let text = &bms.others.texts[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(text, "test_text");
 }
 
@@ -203,34 +203,34 @@ fn test_notes_parse_extended_tokens() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from("01").unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
 }
 
@@ -264,7 +264,7 @@ fn test_token_parsing_comprehensive() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that all new tokens are parsed correctly
@@ -291,32 +291,32 @@ fn test_token_parsing_comprehensive() {
     assert!(
         bms.scope_defines
             .atbga_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .bga_defs
-            .contains_key(&ObjId::try_from(['0', '2']).unwrap())
+            .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exrank_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from(['0', '1']).unwrap())
+            .contains_key(&ObjId::try_from("01", false).unwrap())
     );
 }
 
@@ -330,22 +330,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("pan value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError("expected pan value but out of range [-10000, 10000]".into())
+    );
 
     // Test volume value out of range
     let source = r#"
@@ -354,22 +354,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("volume value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError("expected volume value but out of range [-10000, 0]".into())
+    );
 
     // Test frequency value out of range
     let source = r#"
@@ -378,20 +378,22 @@ fn test_exwav_out_of_range_values() {
 "#;
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    let [warn] = &warnings[..] else {
-        panic!("expected 1 warning, got: {warnings:?}");
-    };
-    match &warn.content() {
-        LexWarning::ExpectedToken { message, .. }
-            if message.starts_with("frequency value out of range") => {}
-        other => panic!("unexpected warning type: {other:?}"),
-    }
+    assert_eq!(lex_warnings, vec![]);
+
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    let [warn] = &parse_warnings[..] else {
+        panic!("expected 1 warning, got: {parse_warnings:?}");
+    };
+    assert_eq!(
+        warn.content(),
+        &ParseWarning::SyntaxError(
+            "expected frequency value but out of range [100, 100000]".into()
+        )
+    );
 }

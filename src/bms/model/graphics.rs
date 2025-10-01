@@ -60,7 +60,7 @@ impl Graphics {
         &mut self,
         bga: BgaObj,
         channel: Channel,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bga_changes.entry(bga.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -87,7 +87,7 @@ impl Graphics {
         &mut self,
         opacity_obj: BgaOpacityObj,
         channel: Channel,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         let this_layer_map = self
             .bga_opacity_changes
@@ -123,7 +123,7 @@ impl Graphics {
         &mut self,
         argb_obj: BgaArgbObj,
         channel: Channel,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
         match this_layer_map.entry(argb_obj.time) {

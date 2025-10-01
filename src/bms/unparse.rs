@@ -3,16 +3,16 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use fraction::{Integer, One, ToPrimitive, Zero};
+use fraction::Integer;
 
 use crate::bms::prelude::*;
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl Bms {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
     /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
     #[must_use]
-    pub fn unparse<'a>(&'a self) -> Vec<Token<'a>> {
+    pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
@@ -21,153 +21,285 @@ impl<T: KeyLayoutMapper> Bms<T> {
             // Options
             if let Some(options) = self.others.options.as_ref() {
                 for option in options {
-                    tokens.push(Token::Option(option.as_str()));
+                    tokens.push(Token::Header {
+                        name: "OPTION".into(),
+                        args: option.into(),
+                    });
                 }
             }
             // Octave mode
             if self.others.is_octave {
-                tokens.push(Token::OctFp);
+                tokens.push(Token::Header {
+                    name: "OCT/FP".into(),
+                    args: "".into(),
+                });
             }
             // CDDA events
             for cdda in &self.others.cdda {
-                tokens.push(Token::Cdda(cdda.clone()));
+                tokens.push(Token::Header {
+                    name: "CDDA".into(),
+                    args: cdda.to_string().into(),
+                });
             }
             // Extended character events
-            for extchr in &self.others.extchr_events {
-                tokens.push(Token::ExtChr(*extchr));
+            for ExtChrEvent {
+                sprite_num,
+                bmp_num,
+                start_x,
+                start_y,
+                end_x,
+                end_y,
+                offset_x,
+                offset_y,
+                abs_x,
+                abs_y,
+            } in &self.others.extchr_events
+            {
+                use itertools::Itertools;
+
+                let buf = [sprite_num, bmp_num, start_x, start_y, end_x, end_y]
+                    .into_iter()
+                    .copied()
+                    .chain(
+                        offset_x
+                            .zip(*offset_y)
+                            .map(|(x, y)| [x, y])
+                            .into_iter()
+                            .flatten(),
+                    )
+                    .chain(abs_x.zip(*abs_y).map(|(x, y)| [x, y]).into_iter().flatten())
+                    .join(" ");
+                tokens.push(Token::Header {
+                    name: "EXTCHR".into(),
+                    args: buf.into(),
+                });
             }
             // Change options
             for (id, option) in &self.others.change_options {
-                tokens.push(Token::ChangeOption(*id, option.as_str()));
+                tokens.push(Token::Header {
+                    name: format!("CHANGEOPTION{id}").into(),
+                    args: option.as_str().into(),
+                });
             }
             // Divide property
             if let Some(divide_prop) = self.others.divide_prop.as_ref() {
-                tokens.push(Token::DivideProp(divide_prop.as_str()));
+                tokens.push(Token::Header {
+                    name: "DIVIDEPROP".into(),
+                    args: divide_prop.as_str().into(),
+                });
             }
             // Materials path
             if let Some(materials_path) = self.others.materials_path.as_ref()
                 && !materials_path.as_path().as_os_str().is_empty()
             {
-                tokens.push(Token::Materials(materials_path.as_ref()));
+                tokens.push(Token::Header {
+                    name: "MATERIALS".into(),
+                    args: materials_path.display().to_string().into(),
+                });
             }
         }
         for line in &self.others.non_command_lines {
             tokens.push(Token::NotACommand(line.as_str()));
         }
-        for line in &self.others.unknown_command_lines {
-            tokens.push(Token::UnknownCommand(line.as_str()));
-        }
 
         // Header
         if let Some(player) = self.header.player {
-            tokens.push(Token::Player(player));
+            tokens.push(Token::Header {
+                name: "PLAYER".into(),
+                args: player.to_string().into(),
+            });
         }
         if let Some(maker) = self.header.maker.as_deref() {
-            tokens.push(Token::Maker(maker));
+            tokens.push(Token::Header {
+                name: "MAKER".into(),
+                args: maker.into(),
+            });
         }
         if let Some(genre) = self.header.genre.as_deref() {
-            tokens.push(Token::Genre(genre));
+            tokens.push(Token::Header {
+                name: "GENRE".into(),
+                args: genre.into(),
+            });
         }
         if let Some(title) = self.header.title.as_deref() {
-            tokens.push(Token::Title(title));
-        }
-        if let Some(subtitle) = self.header.subtitle.as_deref() {
-            tokens.push(Token::SubTitle(subtitle));
+            tokens.push(Token::Header {
+                name: "TITLE".into(),
+                args: title.into(),
+            });
         }
         if let Some(artist) = self.header.artist.as_deref() {
-            tokens.push(Token::Artist(artist));
+            tokens.push(Token::Header {
+                name: "ARTIST".into(),
+                args: artist.into(),
+            });
         }
         if let Some(sub_artist) = self.header.sub_artist.as_deref() {
-            tokens.push(Token::SubArtist(sub_artist));
+            tokens.push(Token::Header {
+                name: "SUBARTIST".into(),
+                args: sub_artist.into(),
+            });
+        }
+        if let Some(bpm) = self.arrangers.bpm.as_ref() {
+            tokens.push(Token::Header {
+                name: "BPM".into(),
+                args: bpm.to_string().into(),
+            });
         }
         if let Some(play_level) = self.header.play_level {
-            tokens.push(Token::PlayLevel(play_level));
+            tokens.push(Token::Header {
+                name: "PLAYLEVEL".into(),
+                args: play_level.to_string().into(),
+            });
         }
         if let Some(rank) = self.header.rank {
-            tokens.push(Token::Rank(rank));
+            tokens.push(Token::Header {
+                name: "RANK".into(),
+                args: rank.to_string().into(),
+            });
         }
-        if let Some(difficulty) = self.header.difficulty {
-            tokens.push(Token::Difficulty(difficulty));
-        }
-        if let Some(total) = self.header.total.as_ref() {
-            tokens.push(Token::Total(total.clone()));
+        if let Some(subtitle) = self.header.subtitle.as_deref() {
+            tokens.push(Token::Header {
+                name: "SUBTITLE".into(),
+                args: subtitle.into(),
+            });
         }
         if let Some(stage_file) = self.header.stage_file.as_ref()
             && !stage_file.as_path().as_os_str().is_empty()
         {
-            tokens.push(Token::StageFile(stage_file.as_ref()));
+            tokens.push(Token::Header {
+                name: "STAGEFILE".into(),
+                args: stage_file.display().to_string().into(),
+            });
         }
         if let Some(back_bmp) = self.header.back_bmp.as_ref()
             && !back_bmp.as_path().as_os_str().is_empty()
         {
-            tokens.push(Token::BackBmp(back_bmp.as_ref()));
+            tokens.push(Token::Header {
+                name: "BACKBMP".into(),
+                args: back_bmp.display().to_string().into(),
+            });
         }
         if let Some(banner) = self.header.banner.as_ref()
             && !banner.as_path().as_os_str().is_empty()
         {
-            tokens.push(Token::Banner(banner.as_ref()));
+            tokens.push(Token::Header {
+                name: "BANNER".into(),
+                args: banner.display().to_string().into(),
+            });
+        }
+        if let Some(difficulty) = self.header.difficulty {
+            tokens.push(Token::Header {
+                name: "DIFFICULTY".into(),
+                args: difficulty.to_string().into(),
+            });
         }
         if let Some(preview) = self.header.preview_music.as_ref()
             && !preview.as_path().as_os_str().is_empty()
         {
-            tokens.push(Token::Preview(preview.as_ref()));
+            tokens.push(Token::Header {
+                name: "PREVIEW".into(),
+                args: preview.display().to_string().into(),
+            });
         }
         if let Some(movie) = self.header.movie.as_ref()
             && !movie.as_path().as_os_str().is_empty()
         {
-            tokens.push(Token::Movie(movie.as_ref()));
+            tokens.push(Token::Header {
+                name: "MOVIE".into(),
+                args: movie.display().to_string().into(),
+            });
         }
         if let Some(comment_lines) = self.header.comment.as_ref() {
             for line in comment_lines {
-                tokens.push(Token::Comment(line.as_str()));
+                tokens.push(Token::NotACommand(line.as_str()));
             }
         }
+        if let Some(total) = self.header.total.as_ref() {
+            tokens.push(Token::Header {
+                name: "TOTAL".into(),
+                args: total.to_string().into(),
+            });
+        }
         if let Some(email) = self.header.email.as_deref() {
-            tokens.push(Token::Email(email));
+            tokens.push(Token::Header {
+                name: "EMAIL".into(),
+                args: email.into(),
+            });
         }
         if let Some(url) = self.header.url.as_deref() {
-            tokens.push(Token::Url(url));
+            tokens.push(Token::Header {
+                name: "URL".into(),
+                args: url.into(),
+            });
         }
 
         // LnType
-        match self.header.ln_type {
-            LnType::Rdm => tokens.push(Token::LnTypeRdm),
-            LnType::Mgq => tokens.push(Token::LnTypeMgq),
+        if let LnType::Mgq = self.header.ln_type {
+            tokens.push(Token::Header {
+                name: "LNTYPE".into(),
+                args: "2".into(),
+            });
         }
         // LnMode
         if self.header.ln_mode != LnMode::default() {
-            tokens.push(Token::LnMode(self.header.ln_mode));
+            tokens.push(Token::Header {
+                name: "LNMODE".into(),
+                args: (self.header.ln_mode as u8).to_string().into(),
+            });
         }
-        // VolWav
-        if self.header.volume != Volume::default() {
-            tokens.push(Token::VolWav(self.header.volume));
-        }
+
+        tokens.extend(
+            self.notes
+                .wav_files
+                .iter()
+                .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
+                .map(|(id, path)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("WAV{id}").into(),
+                            args: path.display().to_string().into(),
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
 
         // PoorBga mode
         #[cfg(feature = "minor-command")]
         if self.graphics.poor_bga_mode != PoorMode::default() {
-            tokens.push(Token::PoorBga(self.graphics.poor_bga_mode));
+            tokens.push(Token::Header {
+                name: "POORBGA".into(),
+                args: self.graphics.poor_bga_mode.as_str().into(),
+            });
         }
 
         // Definitions in scope (existing ones first)
         // Use iterator chains to efficiently collect all definition tokens
         let mut def_tokens: Vec<Token> = Vec::new();
-
         // Add basic definitions
-        if let Some(bpm) = self.arrangers.bpm.as_ref() {
-            def_tokens.push(Token::Bpm(bpm.clone()));
-        }
         #[cfg(feature = "minor-command")]
         if let Some(base_bpm) = self.arrangers.base_bpm.as_ref() {
-            def_tokens.push(Token::BaseBpm(base_bpm.clone()));
+            tokens.push(Token::Header {
+                name: "BASEBPM".into(),
+                args: base_bpm.to_string().into(),
+            });
         }
 
-        // Collect definition tokens using iterator chains (sorted by ID for consistent output)
-        def_tokens.extend(
+        tokens.extend(
             self.scope_defines
                 .bpm_defs
                 .iter()
-                .map(|(id, v)| (*id, Token::BpmChange(*id, v.clone())))
+                .map(|(id, v)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("BPM{id}").into(),
+                            args: v.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -176,7 +308,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.scope_defines
                 .stop_defs
                 .iter()
-                .map(|(id, v)| (*id, Token::Stop(*id, v.clone())))
+                .map(|(id, v)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("STOP{id}").into(),
+                            args: v.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -186,7 +326,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.others
                 .seek_events
                 .iter()
-                .map(|(id, v)| (*id, Token::Seek(*id, v.clone())))
+                .map(|(id, v)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("SEEK{id}").into(),
+                            args: v.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -195,7 +343,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.scope_defines
                 .scroll_defs
                 .iter()
-                .map(|(id, v)| (*id, Token::Scroll(*id, v.clone())))
+                .map(|(id, v)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("SCROLL{id}").into(),
+                            args: v.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -204,7 +360,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.scope_defines
                 .speed_defs
                 .iter()
-                .map(|(id, v)| (*id, Token::Speed(*id, v.clone())))
+                .map(|(id, v)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("SPEED{id}").into(),
+                            args: v.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -213,7 +377,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.others
                 .texts
                 .iter()
-                .map(|(id, text)| (*id, Token::Text(*id, text.as_str())))
+                .map(|(id, text)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("TEXT{id}").into(),
+                            args: text.as_str().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -222,7 +394,15 @@ impl<T: KeyLayoutMapper> Bms<T> {
             self.scope_defines
                 .exrank_defs
                 .iter()
-                .map(|(id, exrank)| (*id, Token::ExRank(*id, exrank.judge_level)))
+                .map(|(id, exrank)| {
+                    (
+                        *id,
+                        Token::Header {
+                            name: format!("EXRANK{id}").into(),
+                            args: exrank.judge_level.to_string().into(),
+                        },
+                    )
+                })
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
@@ -236,12 +416,29 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .map(|(id, def)| {
                         (
                             *id,
-                            Token::ExWav {
-                                id: *id,
-                                pan: def.pan,
-                                volume: def.volume,
-                                frequency: def.frequency,
-                                path: def.path.as_ref(),
+                            if let Some(freq) = def.frequency {
+                                Token::Header {
+                                    name: format!("EXWAV{id}").into(),
+                                    args: format!(
+                                        "pvf {} {} {} {}",
+                                        def.pan.value(),
+                                        def.volume.value(),
+                                        freq.value(),
+                                        def.path.display()
+                                    )
+                                    .into(),
+                                }
+                            } else {
+                                Token::Header {
+                                    name: format!("EXWAV{id}").into(),
+                                    args: format!(
+                                        "pv {} {} {}",
+                                        def.pan.value(),
+                                        def.volume.value(),
+                                        def.path.display()
+                                    )
+                                    .into(),
+                                }
                             },
                         )
                     })
@@ -252,7 +449,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
             // wavcmd_events should be sorted by wav_index for consistent output
             let mut wavcmd_events: Vec<_> = self.scope_defines.wavcmd_events.values().collect();
             wavcmd_events.sort_by_key(|ev| ev.wav_index);
-            def_tokens.extend(wavcmd_events.into_iter().map(|ev| Token::WavCmd(*ev)));
+            def_tokens.extend(wavcmd_events.into_iter().map(|ev| Token::Header {
+                name: "WAVCMD".into(),
+                args: format!("{} {} {}", ev.param.to_str(), ev.wav_index, ev.value).into(),
+            }));
 
             def_tokens.extend(
                 self.scope_defines
@@ -261,12 +461,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .map(|(id, def)| {
                         (
                             *id,
-                            Token::AtBga {
-                                id: *id,
-                                source_bmp: def.source_bmp,
-                                trim_top_left: def.trim_top_left.into(),
-                                trim_size: def.trim_size.into(),
-                                draw_point: def.draw_point.into(),
+                            Token::Header {
+                                name: format!("@BGA{id}").into(),
+                                args: format!(
+                                    "{} {} {} {} {} {} {}",
+                                    def.source_bmp,
+                                    def.trim_top_left.x,
+                                    def.trim_top_left.y,
+                                    def.trim_size.width,
+                                    def.trim_size.height,
+                                    def.draw_point.x,
+                                    def.draw_point.y,
+                                )
+                                .into(),
                             },
                         )
                     })
@@ -281,12 +488,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     .map(|(id, def)| {
                         (
                             *id,
-                            Token::Bga {
-                                id: *id,
-                                source_bmp: def.source_bmp,
-                                trim_top_left: def.trim_top_left.into(),
-                                trim_bottom_right: def.trim_bottom_right.into(),
-                                draw_point: def.draw_point.into(),
+                            Token::Header {
+                                name: format!("BGA{id}").into(),
+                                args: format!(
+                                    "{} {} {} {} {} {} {}",
+                                    def.source_bmp,
+                                    def.trim_top_left.x,
+                                    def.trim_top_left.y,
+                                    def.trim_bottom_right.x,
+                                    def.trim_bottom_right.y,
+                                    def.draw_point.x,
+                                    def.draw_point.y,
+                                )
+                                .into(),
                             },
                         )
                     })
@@ -298,7 +512,25 @@ impl<T: KeyLayoutMapper> Bms<T> {
                 self.scope_defines
                     .argb_defs
                     .iter()
-                    .map(|(id, argb)| (*id, Token::Argb(*id, *argb)))
+                    .map(
+                        |(
+                            id,
+                            Argb {
+                                alpha,
+                                red,
+                                green,
+                                blue,
+                            },
+                        )| {
+                            (
+                                *id,
+                                Token::Header {
+                                    name: format!("ARGB{id}").into(),
+                                    args: format!("{alpha},{red},{green},{blue}").into(),
+                                },
+                            )
+                        },
+                    )
                     .collect::<BTreeMap<_, _>>()
                     .into_values(),
             );
@@ -309,7 +541,13 @@ impl<T: KeyLayoutMapper> Bms<T> {
             def_tokens.extend(
                 swbga_events
                     .into_iter()
-                    .map(|(id, ev)| Token::SwBga(*id, ev.clone())),
+                    .map(|(id, SwBgaEvent { frame_rate, total_time, line, loop_mode, argb: Argb { alpha, red, green, blue }, pattern })| Token::Header {
+                        name: format!("SWBGA{id}").into(),
+                        args: format!(
+                            "{frame_rate}:{total_time}:{line}:{}:{alpha},{red},{green},{blue} {pattern}",
+                            if *loop_mode { 1 } else { 0 }
+                        ).into(),
+                    }),
             );
         }
 
@@ -320,7 +558,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
 
         // Add basic resource tokens
         if let Some(path_root) = self.notes.wav_path_root.as_ref() {
-            resource_tokens.push(Token::PathWav(path_root.as_ref()));
+            resource_tokens.push(Token::Header {
+                name: "PATH_WAV".into(),
+                args: path_root.display().to_string().into(),
+            });
         }
 
         #[cfg(feature = "minor-command")]
@@ -328,79 +569,75 @@ impl<T: KeyLayoutMapper> Bms<T> {
             if let Some(midi_file) = self.notes.midi_file.as_ref()
                 && !midi_file.as_path().as_os_str().is_empty()
             {
-                resource_tokens.push(Token::MidiFile(midi_file.as_ref()));
+                resource_tokens.push(Token::Header {
+                    name: "MIDIFILE".into(),
+                    args: midi_file.display().to_string().into(),
+                });
             }
             if let Some(materials_wav) = self.notes.materials_wav.first()
                 && !materials_wav.as_path().as_os_str().is_empty()
             {
-                resource_tokens.push(Token::MaterialsWav(materials_wav.as_ref()));
+                resource_tokens.push(Token::Header {
+                    name: "MATERIALSWAV".into(),
+                    args: materials_wav.display().to_string().into(),
+                });
             }
-        }
-
-        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
-            && !poor_bmp.as_path().as_os_str().is_empty()
-        {
-            resource_tokens.push(Token::Bmp(None, poor_bmp.as_ref()));
         }
 
         if let Some(video_file) = self.graphics.video_file.as_ref()
             && !video_file.as_path().as_os_str().is_empty()
         {
-            resource_tokens.push(Token::VideoFile(video_file.as_ref()));
+            resource_tokens.push(Token::Header {
+                name: "VIDEOFILE".into(),
+                args: video_file.display().to_string().into(),
+            });
         }
 
         #[cfg(feature = "minor-command")]
         {
             if let Some(colors) = self.graphics.video_colors {
-                resource_tokens.push(Token::VideoColors(colors));
+                resource_tokens.push(Token::Header {
+                    name: "VIDEOCOLORS".into(),
+                    args: colors.to_string().into(),
+                });
             }
             if let Some(delay) = self.graphics.video_dly.as_ref() {
-                resource_tokens.push(Token::VideoDly(delay.clone()));
+                resource_tokens.push(Token::Header {
+                    name: "VIDEODLY".into(),
+                    args: delay.to_string().into(),
+                });
             }
             if let Some(fps) = self.graphics.video_fs.as_ref() {
-                resource_tokens.push(Token::VideoFs(fps.clone()));
+                resource_tokens.push(Token::Header {
+                    name: "VIDEOF/S".into(),
+                    args: fps.to_string().into(),
+                });
             }
             if let Some(char_file) = self.graphics.char_file.as_ref()
                 && !char_file.as_path().as_os_str().is_empty()
             {
-                resource_tokens.push(Token::CharFile(char_file.as_ref()));
+                resource_tokens.push(Token::Header {
+                    name: "CHARFILE".into(),
+                    args: char_file.display().to_string().into(),
+                });
             }
             if let Some(materials_bmp) = self.graphics.materials_bmp.first()
                 && !materials_bmp.as_path().as_os_str().is_empty()
             {
-                resource_tokens.push(Token::MaterialsBmp(materials_bmp.as_ref()));
+                resource_tokens.push(Token::Header {
+                    name: "MATERIALSBMP".into(),
+                    args: materials_bmp.display().to_string().into(),
+                });
             }
         }
 
-        // Collect WAV and BMP file tokens using iterator chains (sorted by ID for consistent output)
-        resource_tokens.extend(
-            self.notes
-                .wav_files
-                .iter()
-                .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
-                .map(|(id, path)| (*id, Token::Wav(*id, path.as_ref())))
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
-
-        resource_tokens.extend(
-            self.graphics
-                .bmp_files
-                .iter()
-                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
-                .map(|(id, bmp)| {
-                    (
-                        *id,
-                        if bmp.transparent_color == Argb::default() {
-                            Token::Bmp(Some(*id), bmp.file.as_ref())
-                        } else {
-                            Token::ExBmp(*id, bmp.transparent_color, bmp.file.as_ref())
-                        },
-                    )
-                })
-                .collect::<BTreeMap<_, _>>()
-                .into_values(),
-        );
+        // VolWav as an expansion command
+        if self.header.volume != Volume::default() {
+            resource_tokens.push(Token::Header {
+                name: "VOLWAV".into(),
+                args: self.header.volume.relative_percent.to_string().into(),
+            });
+        }
 
         tokens.extend(resource_tokens);
 
@@ -476,44 +713,20 @@ impl<T: KeyLayoutMapper> Bms<T> {
             ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let mut bpm_message_tokens = Vec::new();
 
-        // Split BPM changes into two types: U8 (not in value list and is u8) and others
-        let mut u8_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
-        let mut other_bpm_events: Vec<(&ObjTime, &BpmChangeObj)> = Vec::new();
-
-        for (time, ev) in &self.arrangers.bpm_changes {
-            // Check if already defined
-            if bpm_id_manager.is_assigned(&ev.bpm) {
-                // Already defined, treat as other type
-                other_bpm_events.push((time, ev));
-            } else
-            // Not in value list, check if it's U8 type
-            if ev.bpm.fract() == Decimal::zero()
-                && ev.bpm >= Decimal::one()
-                && ev.bpm <= Decimal::from(0xFF)
-            {
-                // U8 type: not in value list and is u8
-                u8_bpm_events.push((time, ev));
-            } else {
-                // Other type: needs ID allocation
-                other_bpm_events.push((time, ev));
-            }
-        }
-
         // Process U8 type BPM changes
         let EventProcessingResult {
             message_tokens: bpm_u8_message_tokens,
             ..
         } = build_event_messages(
-            u8_bpm_events.into_iter(),
+            self.arrangers.bpm_changes_u8.iter(),
             None::<(
                 fn(ObjId, &()) -> Token,
                 fn(&_) -> &(),
                 &mut ObjIdManager<()>,
             )>,
             |_ev| Channel::BpmChangeU8,
-            |ev, _id| {
-                let u8_value = ev.bpm.to_u64().unwrap_or(1) as u8;
-                let s = format!("{:02X}", u8_value);
+            |bpm, _id| {
+                let s = format!("{:02X}", bpm);
                 let mut chars = s.chars();
                 [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
             },
@@ -527,18 +740,19 @@ impl<T: KeyLayoutMapper> Bms<T> {
             message_tokens: other_message_tokens,
             ..
         } = build_event_messages(
-            other_bpm_events.into_iter(),
+            self.arrangers.bpm_changes.iter(),
             Some((
-                |id, bpm: &Decimal| Token::BpmChange(id, (*bpm).clone()),
+                |id, bpm: &Decimal| Token::Header {
+                    name: format!("BPM{id}").into(),
+                    args: bpm.to_string().into(),
+                },
                 |ev: &'a BpmChangeObj| &ev.bpm,
                 &mut bpm_manager,
             )),
             |_ev| Channel::BpmChange,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
 
@@ -558,16 +772,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
         } = build_event_messages(
             self.arrangers.stops.iter(),
             Some((
-                |id, duration: &Decimal| Token::Stop(id, (*duration).clone()),
+                |id, duration: &Decimal| Token::Header {
+                    name: format!("STOP{id}").into(),
+                    args: duration.to_string().into(),
+                },
                 |ev: &'a StopObj| &ev.duration,
                 &mut stop_manager,
             )),
             |_ev| Channel::Stop,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(stop_late_def_tokens);
@@ -583,16 +798,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
         } = build_event_messages(
             self.arrangers.scrolling_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Scroll(id, factor.clone()),
+                |id, factor: &Decimal| Token::Header {
+                    name: format!("SCROLL{id}").into(),
+                    args: factor.to_string().into(),
+                },
                 |ev: &'a ScrollingFactorObj| &ev.factor,
                 &mut scroll_manager,
             )),
             |_ev| Channel::Scroll,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(scroll_late_def_tokens);
@@ -608,16 +824,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
         } = build_event_messages(
             self.arrangers.speed_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Speed(id, factor.clone()),
+                |id, factor: &Decimal| Token::Header {
+                    name: format!("SPEED{id}").into(),
+                    args: factor.to_string().into(),
+                },
                 |ev: &'a SpeedObj| &ev.factor,
                 &mut speed_manager,
             )),
             |_ev| Channel::Speed,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(speed_late_def_tokens);
@@ -628,7 +845,18 @@ impl<T: KeyLayoutMapper> Bms<T> {
             // STP events, sorted by time for consistent output
             let mut stp_events: Vec<_> = self.arrangers.stp_events.values().collect();
             stp_events.sort_by_key(|ev| ev.time);
-            tokens.extend(stp_events.into_iter().map(|ev| Token::Stp(*ev)));
+            tokens.extend(stp_events.into_iter().map(|ev| {
+                Token::Header {
+                    name: "STP".into(),
+                    args: format!(
+                        "{:03}.{:03} {}",
+                        ev.time.track(),
+                        ev.time.numerator() * ev.time.denominator_u64() / 1000,
+                        ev.duration.as_millis()
+                    )
+                    .into(),
+                }
+            }));
         }
 
         // Messages: BGA changes (#xxx04/#xxx07/#xxx06/#xxx0A)
@@ -792,16 +1020,17 @@ impl<T: KeyLayoutMapper> Bms<T> {
         } = build_event_messages(
             self.notes.text_events.iter(),
             Some((
-                |id, text| Token::Text(id, text),
+                |id, text: &'a str| Token::Header {
+                    name: format!("TEXT{id}").into(),
+                    args: text.into(),
+                },
                 |ev: &'a TextObj| ev.text.as_str(),
                 &mut text_manager,
             )),
             |_ev| Channel::Text,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(text_late_def_tokens);
@@ -816,20 +1045,63 @@ impl<T: KeyLayoutMapper> Bms<T> {
         } = build_event_messages(
             self.notes.judge_events.iter(),
             Some((
-                |id, judge_level: &JudgeLevel| Token::ExRank(id, *judge_level),
+                |id, judge_level: &JudgeLevel| Token::Header {
+                    name: format!("EXRANK{id}").into(),
+                    args: judge_level.to_string().into(),
+                },
                 |ev: &'a JudgeObj| &ev.judge_level,
                 &mut exrank_manager,
             )),
             |_ev| Channel::Judge,
             |_ev, id| {
                 let id = id.unwrap_or(ObjId::null());
-                let s = id.to_string();
-                let mut chars = s.chars();
-                [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
+                id.into_chars()
             },
         );
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
+
+        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
+            && !poor_bmp.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "BMP00".into(),
+                args: poor_bmp.display().to_string().into(),
+            });
+        }
+
+        tokens.extend(
+            self.graphics
+                .bmp_files
+                .iter()
+                .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
+                .map(|(id, bmp)| {
+                    (
+                        *id,
+                        if bmp.transparent_color == Argb::default() {
+                            Token::Header {
+                                name: format!("BMP{id}").into(),
+                                args: bmp.file.display().to_string().into(),
+                            }
+                        } else {
+                            Token::Header {
+                                name: format!("EXBMP{id}").into(),
+                                args: format!(
+                                    "{},{},{},{} {}",
+                                    bmp.transparent_color.alpha,
+                                    bmp.transparent_color.red,
+                                    bmp.transparent_color.green,
+                                    bmp.transparent_color.blue,
+                                    bmp.file.display()
+                                )
+                                .into(),
+                            }
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>()
+                .into_values(),
+        );
 
         #[cfg(feature = "minor-command")]
         let seek_manager = {
@@ -843,7 +1115,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
             } = build_event_messages(
                 self.notes.seek_events.iter(),
                 Some((
-                    |id, position: &Decimal| Token::Seek(id, (*position).clone()),
+                    |id, position: &Decimal| Token::Header {
+                        name: format!("SEEK{id}").into(),
+                        args: position.to_string().into(),
+                    },
                     |ev: &'a SeekObj| &ev.position,
                     &mut seek_manager,
                 )),
@@ -889,7 +1164,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
                     fn(&_) -> &'a (),
                     &mut ObjIdManager<()>,
                 )>,
-                |_ev| Channel::Option,
+                |_ev| Channel::OptionChange,
                 |_ev, _id| {
                     let s = format!("{:02X}", 0);
                     let mut chars = s.chars();
@@ -977,7 +1252,10 @@ impl<T: KeyLayoutMapper> Bms<T> {
             .iter()
             .any(|id| !id.is_base36() && id.is_base62());
         if needs_base62 {
-            tokens.push(Token::Base62);
+            tokens.push(Token::Header {
+                name: "BASE".into(),
+                args: "62".into(),
+            });
         }
 
         tokens

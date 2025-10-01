@@ -5,12 +5,10 @@
 
 pub mod check_playing;
 pub mod prompt;
+pub mod token_processor;
 pub mod validity;
+use std::{cell::RefCell, rc::Rc};
 
-use std::{borrow::Cow, num::NonZeroU64, str::FromStr};
-
-use fraction::GenericFraction;
-use itertools::Itertools;
 use thiserror::Error;
 
 use crate::diagnostics::{SimpleSource, ToAriadne};
@@ -24,10 +22,7 @@ use crate::bms::{
     },
     command::{
         ObjId,
-        channel::{
-            Channel,
-            mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        },
+        channel::{Channel, mapper::KeyLayoutMapper},
         mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
@@ -35,9 +30,7 @@ use crate::bms::{
     model::Bms,
 };
 
-#[cfg(feature = "minor-command")]
-use self::prompt::ChannelDuplication;
-use self::prompt::PromptHandler;
+use self::{prompt::Prompter, token_processor::minor_preset};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -61,6 +54,9 @@ pub enum ParseWarning {
     /// Unexpected control flow.
     #[error("unexpected control flow")]
     UnexpectedControlFlow,
+    /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
+    #[error("expected id format is base 62 (`0-9A-Za-z`)")]
+    OutOfBase62,
 }
 
 /// Type alias of `core::result::Result<T, ParseWarning>`
@@ -73,1078 +69,85 @@ pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use]
-pub struct ParseOutput<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct ParseOutput {
     /// The output Bms.
-    pub bms: Bms<T>,
+    pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream<'a>(
+    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        mut prompt_handler: impl PromptHandler,
-    ) -> ParseOutput<T> {
-        let mut bms = Self::default();
-        let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
+        prompt_handler: P,
+    ) -> ParseOutput {
+        let bms = Self::default();
+        let share = Rc::new(RefCell::new(bms));
+        let mut comments = vec![];
+        let mut headers = vec![];
+        let mut messages = vec![];
         for token in token_iter {
-            let mut parse_warnings_buf: Vec<ParseWarning> = vec![];
-            let parse_result = bms.parse(token, &mut prompt_handler, &mut parse_warnings_buf);
-            parse_warnings.extend(
-                parse_warnings_buf
-                    .into_iter()
-                    .map(|error| error.into_wrapper(token)),
-            );
-            if let Err(error) = parse_result {
-                parse_warnings.push(error.into_wrapper(token));
+            match token.content() {
+                Token::NotACommand(line) => comments.push((token.range(), line)),
+                Token::Header { name, args } => {
+                    headers.push((token.range(), name, args));
+                }
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => {
+                    messages.push((token.range(), track, channel, message));
+                }
+                Token::Random(_)
+                | Token::SetRandom(_)
+                | Token::If(_)
+                | Token::ElseIf(_)
+                | Token::Else
+                | Token::EndIf
+                | Token::EndRandom
+                | Token::Switch(_)
+                | Token::SetSwitch(_)
+                | Token::Case(_)
+                | Token::Def
+                | Token::Skip
+                | Token::EndSwitch => {
+                    // control tokens skipped
+                }
             }
         }
+        let preset = minor_preset::<P, T>(Rc::clone(&share), &prompt_handler);
+        let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
+        for proc in &preset {
+            for (range, comment) in &comments {
+                if let Err(err) = proc.on_comment(comment) {
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                }
+            }
+        }
+        for proc in &preset {
+            for (range, name, args) in &headers {
+                if let Err(err) = proc.on_header(name, args.as_ref()) {
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                }
+            }
+        }
+        for proc in &preset {
+            for (range, track, channel, message) in &messages {
+                if let Err(err) = proc.on_message(**track, **channel, message.as_ref()) {
+                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                }
+            }
+        }
+        std::mem::drop(preset);
 
         ParseOutput {
-            bms,
+            bms: Rc::into_inner(share)
+                .expect("processors must be dropped")
+                .into_inner(),
             parse_warnings,
         }
-    }
-}
-
-impl<T: KeyLayoutMapper> Bms<T> {
-    pub(crate) fn parse(
-        &mut self,
-        token: &TokenWithRange,
-        prompt_handler: &mut impl PromptHandler,
-        parse_warnings: &mut Vec<ParseWarning>,
-    ) -> Result<()> {
-        match token.content() {
-            Token::Artist(artist) => self.header.artist = Some(artist.to_string()),
-            #[cfg(feature = "minor-command")]
-            Token::AtBga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_size,
-                draw_point,
-            } => {
-                let to_insert = AtBgaDef {
-                    id: *id,
-                    source_bmp: *source_bmp,
-                    trim_top_left: trim_top_left.to_owned().into(),
-                    trim_size: trim_size.to_owned().into(),
-                    draw_point: draw_point.to_owned().into(),
-                };
-                if let Some(older) = self.scope_defines.atbga_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::AtBga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.atbga_defs.insert(*id, to_insert);
-                }
-            }
-            Token::Banner(file) => self.header.banner = Some(file.into()),
-            Token::BackBmp(bmp) => self.header.back_bmp = Some(bmp.into()),
-            #[cfg(feature = "minor-command")]
-            Token::Bga {
-                id,
-                source_bmp,
-                trim_top_left,
-                trim_bottom_right,
-                draw_point,
-            } => {
-                let to_insert = BgaDef {
-                    id: *id,
-                    source_bmp: *source_bmp,
-                    trim_top_left: trim_top_left.to_owned().into(),
-                    trim_bottom_right: trim_bottom_right.to_owned().into(),
-                    draw_point: draw_point.to_owned().into(),
-                };
-                if let Some(older) = self.scope_defines.bga_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bga {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.bga_defs.insert(*id, to_insert);
-                }
-            }
-            Token::Bmp(id, path) => {
-                if id.is_none() {
-                    self.graphics.poor_bmp = Some(path.into());
-                    return Ok(());
-                }
-                let id = id.ok_or(ParseWarning::SyntaxError(
-                    "BMP id should not be None".to_string(),
-                ))?;
-                let to_insert = Bmp {
-                    file: path.into(),
-                    transparent_color: Argb::default(),
-                };
-                if let Some(older) = self.graphics.bmp_files.get_mut(&id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
-                            id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, id)?;
-                } else {
-                    self.graphics.bmp_files.insert(id, to_insert);
-                }
-            }
-            Token::Bpm(bpm) => {
-                self.arrangers.bpm = Some(bpm.clone());
-            }
-            Token::BpmChange(id, bpm) => {
-                if let Some(older) = self.scope_defines.bpm_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::BpmChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: bpm.clone(),
-                        })
-                        .apply_def(older, bpm.clone(), *id)?;
-                } else {
-                    self.scope_defines.bpm_defs.insert(*id, bpm.clone());
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::ChangeOption(id, option) => {
-                if let Some(older) = self.others.change_options.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ChangeOption {
-                            id: *id,
-                            older,
-                            newer: option,
-                        })
-                        .apply_def(older, option.to_string(), *id)?;
-                } else {
-                    self.others.change_options.insert(*id, option.to_string());
-                }
-            }
-            Token::Comment(comment) => self
-                .header
-                .comment
-                .get_or_insert_with(Vec::new)
-                .push(comment.to_string()),
-            Token::Difficulty(diff) => self.header.difficulty = Some(*diff),
-            Token::Email(email) => self.header.email = Some(email.to_string()),
-            Token::ExBmp(id, transparent_color, path) => {
-                let to_insert = Bmp {
-                    file: path.into(),
-                    transparent_color: *transparent_color,
-                };
-                if let Some(older) = self.graphics.bmp_files.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Bmp {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.graphics.bmp_files.insert(*id, to_insert);
-                }
-            }
-            Token::ExRank(id, judge_level) => {
-                let to_insert = ExRankDef {
-                    id: *id,
-                    judge_level: *judge_level,
-                };
-                if let Some(older) = self.scope_defines.exrank_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ExRank {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.exrank_defs.insert(*id, to_insert);
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::ExWav {
-                id,
-                pan,
-                volume,
-                frequency,
-                path,
-            } => {
-                let to_insert = ExWavDef {
-                    id: *id,
-                    pan: *pan,
-                    volume: *volume,
-                    frequency: *frequency,
-                    path: path.into(),
-                };
-                if let Some(older) = self.scope_defines.exwav_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ExWav {
-                            id: *id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, *id)?;
-                } else {
-                    self.scope_defines.exwav_defs.insert(*id, to_insert);
-                }
-            }
-            Token::Genre(genre) => self.header.genre = Some(genre.to_string()),
-            Token::LnTypeRdm => {
-                self.header.ln_type = LnType::Rdm;
-            }
-            Token::LnTypeMgq => {
-                self.header.ln_type = LnType::Mgq;
-            }
-            Token::Maker(maker) => self.header.maker = Some(maker.to_string()),
-            #[cfg(feature = "minor-command")]
-            Token::MidiFile(midi_file) => self.notes.midi_file = Some(midi_file.into()),
-            #[cfg(feature = "minor-command")]
-            Token::OctFp => self.others.is_octave = true,
-            #[cfg(feature = "minor-command")]
-            Token::Option(option) => self
-                .others
-                .options
-                .get_or_insert_with(Vec::new)
-                .push(option.to_string()),
-            Token::PathWav(wav_path_root) => self.notes.wav_path_root = Some(wav_path_root.into()),
-            Token::Player(player) => self.header.player = Some(*player),
-            Token::PlayLevel(play_level) => self.header.play_level = Some(*play_level),
-            Token::PoorBga(poor_bga_mode) => self.graphics.poor_bga_mode = *poor_bga_mode,
-            Token::Rank(rank) => self.header.rank = Some(*rank),
-            Token::Scroll(id, factor) => {
-                if let Some(older) = self.scope_defines.scroll_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::ScrollingFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply_def(older, factor.clone(), *id)?;
-                } else {
-                    self.scope_defines.scroll_defs.insert(*id, factor.clone());
-                }
-            }
-            Token::Speed(id, factor) => {
-                if let Some(older) = self.scope_defines.speed_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SpeedFactorChange {
-                            id: *id,
-                            older: older.clone(),
-                            newer: factor.clone(),
-                        })
-                        .apply_def(older, factor.clone(), *id)?;
-                } else {
-                    self.scope_defines.speed_defs.insert(*id, factor.clone());
-                }
-            }
-            Token::StageFile(file) => self.header.stage_file = Some(file.into()),
-            Token::Stop(id, len) => {
-                if let Some(older) = self.scope_defines.stop_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Stop {
-                            id: *id,
-                            older: older.clone(),
-                            newer: len.clone(),
-                        })
-                        .apply_def(older, len.clone(), *id)?;
-                } else {
-                    self.scope_defines.stop_defs.insert(*id, len.clone());
-                }
-            }
-            Token::SubArtist(sub_artist) => self.header.sub_artist = Some(sub_artist.to_string()),
-            Token::SubTitle(subtitle) => self.header.subtitle = Some(subtitle.to_string()),
-            Token::Text(id, text) => {
-                if let Some(older) = self.others.texts.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Text {
-                            id: *id,
-                            older,
-                            newer: text,
-                        })
-                        .apply_def(older, text.to_string(), *id)?;
-                } else {
-                    self.others.texts.insert(*id, text.to_string());
-                }
-            }
-            Token::Title(title) => self.header.title = Some(title.to_string()),
-            Token::Total(total) => {
-                self.header.total = Some(total.clone());
-            }
-            Token::Url(url) => self.header.url = Some(url.to_string()),
-            Token::VideoFile(video_file) => self.graphics.video_file = Some(video_file.into()),
-            Token::VolWav(volume) => self.header.volume = *volume,
-            Token::Wav(id, path) => {
-                if let Some(older) = self.notes.wav_files.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::Wav {
-                            id: *id,
-                            older,
-                            newer: path,
-                        })
-                        .apply_def(older, path.into(), *id)?;
-                } else {
-                    self.notes.wav_files.insert(*id, path.into());
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Stp(ev) => {
-                // Store by ObjTime as key, handle duplication with prompt handler
-                let key = ev.time;
-                if let Some(older) = self.arrangers.stp_events.get_mut(&key) {
-                    prompt_handler
-                        .handle_channel_duplication(ChannelDuplication::StpEvent {
-                            time: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_channel(older, *ev, key, Channel::Stop)?;
-                } else {
-                    self.arrangers.stp_events.insert(key, *ev);
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::WavCmd(ev) => {
-                // Store by wav_index as key, handle duplication with prompt handler
-                let key = ev.wav_index;
-                if let Some(older) = self.scope_defines.wavcmd_events.get_mut(&key) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::WavCmdEvent {
-                            wav_index: key,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_def(older, *ev, key)?;
-                } else {
-                    self.scope_defines.wavcmd_events.insert(key, *ev);
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::SwBga(id, ev) => {
-                if let Some(older) = self.scope_defines.swbga_events.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SwBgaEvent {
-                            id: *id,
-                            older,
-                            newer: ev,
-                        })
-                        .apply_def(older, ev.clone(), *id)?;
-                } else {
-                    self.scope_defines.swbga_events.insert(*id, ev.clone());
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Argb(id, argb) => {
-                if let Some(older) = self.scope_defines.argb_defs.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::BgaArgb {
-                            id: *id,
-                            older,
-                            newer: argb,
-                        })
-                        .apply_def(older, *argb, *id)?;
-                } else {
-                    self.scope_defines.argb_defs.insert(*id, *argb);
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Seek(id, v) => {
-                if let Some(older) = self.others.seek_events.get_mut(id) {
-                    prompt_handler
-                        .handle_def_duplication(DefDuplication::SeekEvent {
-                            id: *id,
-                            older,
-                            newer: v,
-                        })
-                        .apply_def(older, v.clone(), *id)?;
-                } else {
-                    self.others.seek_events.insert(*id, v.clone());
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::ExtChr(ev) => {
-                self.others.extchr_events.push(*ev);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsWav(path) => {
-                self.notes.materials_wav.push(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::MaterialsBmp(path) => {
-                self.graphics.materials_bmp.push(path.to_path_buf());
-            }
-            Token::Message {
-                track,
-                channel: Channel::BpmChange,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    // Record used BPM change id for validity checks
-                    self.arrangers.bpm_change_ids_used.insert(obj);
-                    let bpm = self
-                        .scope_defines
-                        .bpm_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_bpm_change(
-                        BpmChangeObj {
-                            time,
-                            bpm: bpm.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::BpmChangeU8,
-                message,
-            } => {
-                for (time, value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.arrangers.push_bpm_change(
-                        BpmChangeObj {
-                            time,
-                            bpm: Decimal::from(value),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Scroll,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let factor = self
-                        .scope_defines
-                        .scroll_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_scrolling_factor_change(
-                        ScrollingFactorObj {
-                            time,
-                            factor: factor.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Speed,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let factor = self
-                        .scope_defines
-                        .speed_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_speed_factor_change(
-                        SpeedObj {
-                            time,
-                            factor: factor.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::ChangeOption,
-                message,
-            } => {
-                for (_time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    let _option = self
-                        .others
-                        .change_options
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    // Here we can add logic to handle ChangeOption
-                    // Currently just ignored because change_options are already stored in notes
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::SectionLen,
-                message,
-            } => {
-                let message = filter_message(message);
-                let message = message.as_ref();
-                let length = Decimal::from(Decimal::from_fraction(
-                    GenericFraction::from_str(message).map_err(|_| {
-                        ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
-                    })?,
-                ));
-                if length <= Decimal::from(0u64) {
-                    return Err(ParseWarning::SyntaxError(
-                        "section length must be greater than zero".to_string(),
-                    ));
-                }
-                self.arrangers.push_section_len_change(
-                    SectionLenChangeObj {
-                        track: *track,
-                        length,
-                    },
-                    prompt_handler,
-                )?;
-            }
-            Token::Message {
-                track,
-                channel: Channel::Stop,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    // Record used STOP id for validity checks
-                    self.arrangers.stop_ids_used.insert(obj);
-                    let duration = self
-                        .scope_defines
-                        .stop_defs
-                        .get(&obj)
-                        .ok_or(ParseWarning::UndefinedObject(obj))?;
-                    self.arrangers.push_stop(StopObj {
-                        time,
-                        duration: duration.clone(),
-                    });
-                }
-            }
-            Token::Message {
-                track,
-                channel:
-                    channel @ (Channel::BgaBase
-                    | Channel::BgaPoor
-                    | Channel::BgaLayer
-                    | Channel::BgaLayer2),
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    if !self.graphics.bmp_files.contains_key(&obj) {
-                        return Err(ParseWarning::UndefinedObject(obj));
-                    }
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.graphics.push_bga_change(
-                        BgaObj {
-                            time,
-                            id: obj,
-                            layer,
-                        },
-                        *channel,
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Bgm,
-                message,
-            } => {
-                for (time, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    self.notes.push_bgm(time, obj);
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Note { channel_id },
-                message,
-            } => {
-                // Parse the channel ID to get note components
-                for (offset, obj) in ids_from_message(*track, message, |w| parse_warnings.push(w)) {
-                    self.notes.push_note(WavObj {
-                        offset,
-                        channel_id: *channel_id,
-                        wav_id: obj,
-                    });
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel:
-                    channel @ (Channel::BgaBaseOpacity
-                    | Channel::BgaLayerOpacity
-                    | Channel::BgaLayer2Opacity
-                    | Channel::BgaPoorOpacity),
-                message,
-            } => {
-                for (time, opacity_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.graphics.push_bga_opacity_change(
-                        BgaOpacityObj {
-                            time,
-                            layer,
-                            opacity: opacity_value,
-                        },
-                        *channel,
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::BgmVolume,
-                message,
-            } => {
-                for (time, volume_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.notes.push_bgm_volume_change(
-                        BgmVolumeObj {
-                            time,
-                            volume: volume_value,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::KeyVolume,
-                message,
-            } => {
-                for (time, volume_value) in
-                    hex_values_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    self.notes.push_key_volume_change(
-                        KeyVolumeObj {
-                            time,
-                            volume: volume_value,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel:
-                    channel @ (Channel::BgaBaseArgb
-                    | Channel::BgaLayerArgb
-                    | Channel::BgaLayer2Argb
-                    | Channel::BgaPoorArgb),
-                message,
-            } => {
-                for (time, argb_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let layer = BgaLayer::from_channel(*channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    let argb = self
-                        .scope_defines
-                        .argb_defs
-                        .get(&argb_id)
-                        .ok_or(ParseWarning::UndefinedObject(argb_id))?;
-                    self.graphics.push_bga_argb_change(
-                        BgaArgbObj {
-                            time,
-                            layer,
-                            argb: *argb,
-                        },
-                        *channel,
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::Seek,
-                message,
-            } => {
-                for (time, seek_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let position = self
-                        .others
-                        .seek_events
-                        .get(&seek_id)
-                        .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                    self.notes.push_seek_event(
-                        SeekObj {
-                            time,
-                            position: position.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Text,
-                message,
-            } => {
-                for (time, text_id) in ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let text = self
-                        .others
-                        .texts
-                        .get(&text_id)
-                        .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                    self.notes.push_text_event(
-                        TextObj {
-                            time,
-                            text: text.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::Message {
-                track,
-                channel: Channel::Judge,
-                message,
-            } => {
-                for (time, judge_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let exrank_def = self
-                        .scope_defines
-                        .exrank_defs
-                        .get(&judge_id)
-                        .ok_or(ParseWarning::UndefinedObject(judge_id))?;
-                    self.notes.push_judge_event(
-                        JudgeObj {
-                            time,
-                            judge_level: exrank_def.judge_level,
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::BgaKeybound,
-                message,
-            } => {
-                for (time, keybound_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let event = self
-                        .scope_defines
-                        .swbga_events
-                        .get(&keybound_id)
-                        .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
-                    self.notes.push_bga_keybound_event(
-                        BgaKeyboundObj {
-                            time,
-                            event: event.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Message {
-                track,
-                channel: Channel::Option,
-                message,
-            } => {
-                for (time, option_id) in
-                    ids_from_message(*track, message, |w| parse_warnings.push(w))
-                {
-                    let option = self
-                        .others
-                        .change_options
-                        .get(&option_id)
-                        .ok_or(ParseWarning::UndefinedObject(option_id))?;
-                    self.notes.push_option_event(
-                        OptionObj {
-                            time,
-                            option: option.clone(),
-                        },
-                        prompt_handler,
-                    )?;
-                }
-            }
-            Token::LnObj(end_id) => {
-                let mut end_note = self
-                    .notes
-                    .pop_latest_of(*end_id)
-                    .ok_or(ParseWarning::UndefinedObject(*end_id))?;
-                let WavObj {
-                    offset, channel_id, ..
-                } = &end_note;
-                let begin_idx = self
-                    .notes
-                    .notes_in(..offset)
-                    .rev()
-                    .find(|(_, obj)| obj.channel_id == *channel_id)
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "expected preceding object for #LNOBJ {end_id:?}",
-                        ))
-                    })
-                    .map(|(index, _)| index)?;
-                let mut begin_note = self.notes.pop_by_idx(begin_idx).ok_or_else(|| {
-                    ParseWarning::SyntaxError(format!(
-                        "Cannot find begin note for LNOBJ {end_id:?}"
-                    ))
-                })?;
-
-                let mut begin_note_tuple = begin_note
-                    .channel_id
-                    .try_into_map::<T>()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                        ))
-                    })?
-                    .as_tuple();
-                begin_note_tuple.1 = NoteKind::Long;
-                begin_note.channel_id = T::from_tuple(begin_note_tuple).to_channel_id();
-                self.notes.push_note(begin_note);
-
-                let mut end_note_tuple = end_note
-                    .channel_id
-                    .try_into_map::<T>()
-                    .ok_or_else(|| {
-                        ParseWarning::SyntaxError(format!(
-                            "channel of specified note for LNOBJ cannot become LN {end_id:?}"
-                        ))
-                    })?
-                    .as_tuple();
-                end_note_tuple.1 = NoteKind::Long;
-                end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
-                self.notes.push_note(end_note);
-            }
-            Token::DefExRank(judge_level) => {
-                let judge_level = JudgeLevel::OtherInt(*judge_level as i64);
-                self.scope_defines.exrank_defs.insert(
-                    ObjId::try_from([b'0', b'0']).map_err(|_| {
-                        ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
-                    })?,
-                    ExRankDef {
-                        id: ObjId::try_from([b'0', b'0']).map_err(|_| {
-                            ParseWarning::SyntaxError("Invalid ObjId [0, 0]".to_string())
-                        })?,
-                        judge_level,
-                    },
-                );
-            }
-            Token::LnMode(ln_mode_type) => {
-                self.header.ln_mode = *ln_mode_type;
-            }
-            Token::Movie(path) => self.header.movie = Some(path.into()),
-            Token::Preview(path) => self.header.preview_music = Some(path.into()),
-            #[cfg(feature = "minor-command")]
-            Token::Cdda(big_uint) => self.others.cdda.push(big_uint.clone()),
-            #[cfg(feature = "minor-command")]
-            Token::BaseBpm(generic_decimal) => {
-                self.arrangers.base_bpm = Some(generic_decimal.clone());
-            }
-            Token::NotACommand(line) => self.others.non_command_lines.push(line.to_string()),
-            Token::UnknownCommand(line) => self.others.unknown_command_lines.push(line.to_string()),
-            Token::Base62 | Token::Charset(_) => {
-                // Pass.
-            }
-            Token::Random(_)
-            | Token::SetRandom(_)
-            | Token::If(_)
-            | Token::ElseIf(_)
-            | Token::Else
-            | Token::EndIf
-            | Token::EndRandom
-            | Token::Switch(_)
-            | Token::SetSwitch(_)
-            | Token::Case(_)
-            | Token::Def
-            | Token::Skip
-            | Token::EndSwitch => {
-                return Err(ParseWarning::UnexpectedControlFlow);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::CharFile(path) => {
-                self.graphics.char_file = Some(path.into());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::DivideProp(prop) => {
-                self.others.divide_prop = Some(prop.to_string());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::Materials(path) => {
-                self.others.materials_path = Some(path.to_path_buf());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoColors(colors) => {
-                self.graphics.video_colors = Some(*colors);
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoDly(delay) => {
-                self.graphics.video_dly = Some(delay.clone());
-            }
-            #[cfg(feature = "minor-command")]
-            Token::VideoFs(frame_rate) => {
-                self.graphics.video_fs = Some(frame_rate.clone());
-            }
-        }
-        Ok(())
-    }
-}
-
-/// Parses message values with warnings.
-///
-/// This function processes BMS message strings by filtering out invalid characters,
-/// then parsing character pairs into values using the provided `parse_value` function.
-/// It returns an iterator that yields `(ObjTime, T)` pairs for each successfully parsed value.
-///
-/// # Arguments
-/// * `track` - The track number for time calculation
-/// * `message` - The raw message string to parse
-/// * `parse_value` - A closure that takes two characters and a mutable warnings vector,
-///   returning `Option<T>` if parsing succeeds or `None` if the pair should be skipped
-/// * `parse_warnings` - A mutable vector to collect parsing warnings
-///
-/// # Returns
-/// An iterator yielding `(ObjTime, T)` pairs where:
-/// - `ObjTime` represents the timing position within the track
-/// - `T` is the parsed value from character pairs
-///
-/// # Behavior
-/// - Messages are first filtered to remove invalid characters
-/// - Character pairs are processed sequentially
-/// - Empty pairs ('00') are typically skipped by the parse_value function
-/// - Time calculation uses the track number and pair index as numerator,
-///   with total pair count as denominator
-/// - Length validation ensures message length is at least 2 characters
-fn parse_message_values_with_warnings<'a, T, F>(
-    track: Track,
-    message: &'a str,
-    mut parse_value: F,
-    mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, T)> + 'a
-where
-    F: FnMut(char, char) -> Option<Result<T>> + 'a,
-{
-    // Centralize message filtering here so callers don't need to call `filter_message`.
-    // Use a simple pair-wise char reader without storing self-referential iterators.
-
-    // Filter the message to remove invalid characters
-    let filtered = filter_message(message);
-
-    // Convert the filtered string to a vector of characters for pair-wise processing
-    let chars: Vec<char> = filtered.chars().collect();
-
-    // Calculate the denominator for time calculation (total number of character pairs)
-    // This will be None if the message length is less than 2
-    let denominator_opt = NonZeroU64::new((chars.len() / 2) as u64);
-
-    // Create an iterator that yields character pairs from the filtered message
-    let mut pairs_iter = chars.into_iter().tuples::<(char, char)>();
-
-    // Track the current pair index for time calculation
-    let mut pair_index: u64 = 0;
-
-    std::iter::from_fn(move || {
-        // Ensure we have a valid denominator (at least 2 characters in original message)
-        let Some(denominator) = denominator_opt else {
-            // Emit a warning for invalid message length
-            push_parse_warning(ParseWarning::SyntaxError(
-                "message length must be greater than or equals to 2".to_string(),
-            ));
-            return None;
-        };
-
-        loop {
-            // Get the next character pair, or end iteration if none remain
-            let (c1, c2) = pairs_iter.next()?;
-
-            // Store current pair index before incrementing
-            let current_index = pair_index;
-            pair_index += 1;
-
-            // Try to parse the character pair using the provided parse_value function
-            match parse_value(c1, c2) {
-                Some(Ok(value)) => {
-                    // Successfully parsed a value, calculate its timing position
-                    let time = ObjTime::new(track.0, current_index, denominator);
-                    return Some((time, value));
-                }
-                Some(Err(warning)) => {
-                    // Push the warning and continue to the next pair
-                    push_parse_warning(warning);
-                }
-                None => {
-                    // Skip this value, don't report a warning
-                    continue;
-                }
-            }
-        }
-    })
-}
-
-fn ids_from_message<'a>(
-    track: Track,
-    message: &'a str,
-    push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, ObjId)> + 'a {
-    parse_message_values_with_warnings(
-        track,
-        message,
-        |c1, c2| {
-            if c1 == '0' && c2 == '0' {
-                return None;
-            }
-            Some(match ObjId::try_from([c1, c2]) {
-                Ok(obj) => Ok(obj),
-                Err(_) => Err(ParseWarning::SyntaxError(format!(
-                    "Invalid object id digits: {c1}{c2}"
-                ))),
-            })
-        },
-        push_parse_warning,
-    )
-}
-
-// Unified hex pair parser for message channels emitting u8 values
-fn hex_values_from_message<'a>(
-    track: Track,
-    message: &'a str,
-    push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, u8)> + 'a {
-    parse_message_values_with_warnings(
-        track,
-        message,
-        |c1, c2| {
-            if c1 == '0' && c2 == '0' {
-                return None;
-            }
-            Some(match u8::from_str_radix(&format!("{c1}{c2}"), 16) {
-                Ok(v) => Ok(v),
-                Err(_) => Err(ParseWarning::SyntaxError(format!(
-                    "Invalid hex digits: {c1}{c2}"
-                ))),
-            })
-        },
-        push_parse_warning,
-    )
-}
-
-fn filter_message(message: &str) -> Cow<'_, str> {
-    let result = message
-        .chars()
-        .try_fold(String::with_capacity(message.len()), |mut acc, ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '.' {
-                acc.push(ch);
-                Ok(acc)
-            } else {
-                Err(acc)
-            }
-        });
-    match result {
-        Ok(_) => Cow::Borrowed(message),
-        Err(filtered) => Cow::Owned(filtered),
     }
 }
 
@@ -1152,9 +155,9 @@ fn filter_message(message: &str) -> Cow<'_, str> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[must_use]
-pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
+pub struct ParseOutputWithAst {
     /// The output Bms.
-    pub bms: Bms<T>,
+    pub bms: Bms,
     /// Warnings that occurred during AST building.
     pub ast_build_warnings: Vec<AstBuildWarningWithRange>,
     /// Warnings that occurred during AST parsing (RNG execution stage).
@@ -1163,13 +166,13 @@ pub struct ParseOutputWithAst<T: KeyLayoutMapper = KeyLayoutBeat> {
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
 
-impl<T: KeyLayoutMapper> Bms<T> {
+impl Bms {
     /// Parses a token stream into [`Bms`] with AST.
-    pub fn from_token_stream_with_ast<'a>(
+    pub fn from_token_stream_with_ast<'a, T: KeyLayoutMapper, P: Prompter>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         rng: impl Rng,
-        prompt_handler: impl PromptHandler,
-    ) -> ParseOutputWithAst<T> {
+        prompt_handler: P,
+    ) -> ParseOutputWithAst {
         let AstBuildOutput {
             root,
             ast_build_warnings,
@@ -1178,7 +181,7 @@ impl<T: KeyLayoutMapper> Bms<T> {
         let ParseOutput {
             bms,
             parse_warnings,
-        } = Self::from_token_stream(token_refs, prompt_handler);
+        } = Self::from_token_stream::<'a, T, P>(token_refs, prompt_handler);
         ParseOutputWithAst {
             bms,
             ast_build_warnings,

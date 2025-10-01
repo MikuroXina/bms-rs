@@ -1,10 +1,10 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, btree_map::Entry};
 
 use crate::{
     bms::prelude::*,
     parse::{
         Result,
-        prompt::{ChannelDuplication, TrackDuplication},
+        prompt::{ChannelDuplication, Prompter, TrackDuplication},
     },
 };
 
@@ -21,6 +21,8 @@ pub struct Arrangers {
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
+    /// BPM change events on its channel [`Channel::BpmChangeU8`], indexed by time.
+    pub bpm_changes_u8: BTreeMap<ObjTime, u8>,
     /// Record of used BPM change ids from `#BPMxx` messages, for validity checks.
     pub bpm_change_ids_used: HashSet<ObjId>,
     /// Stop lengths by stop object id.
@@ -44,14 +46,14 @@ impl Arrangers {
     pub fn push_bpm_change(
         &mut self,
         bpm_change: BpmChangeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.bpm_changes.entry(bpm_change.time) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(bpm_change);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 let existing = entry.get();
 
                 prompt_handler
@@ -70,11 +72,44 @@ impl Arrangers {
         }
     }
 
+    /// Adds a new BPM change (on [`Channel::BpmChangeU8`] channel) object to the notes.
+    pub fn push_bpm_change_u8(
+        &mut self,
+        time: ObjTime,
+        bpm_change: u8,
+        prompt_handler: &impl Prompter,
+    ) -> Result<()> {
+        match self.bpm_changes_u8.entry(time) {
+            Entry::Vacant(entry) => {
+                entry.insert(bpm_change);
+                Ok(())
+            }
+            Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+                let older = BpmChangeObj {
+                    time,
+                    bpm: Decimal::from(*existing),
+                };
+                let newer = BpmChangeObj {
+                    time,
+                    bpm: Decimal::from(bpm_change),
+                };
+                prompt_handler
+                    .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {
+                        time,
+                        older: &older,
+                        newer: &newer,
+                    })
+                    .apply_channel(entry.get_mut(), bpm_change, time, Channel::BpmChangeU8)
+            }
+        }
+    }
+
     /// Adds a new scrolling factor change object to the notes.
     pub fn push_scrolling_factor_change(
         &mut self,
         scrolling_factor_change: ScrollingFactorObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self
             .scrolling_factor_changes
@@ -107,7 +142,7 @@ impl Arrangers {
     pub fn push_speed_factor_change(
         &mut self,
         speed_factor_change: SpeedObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.speed_factor_changes.entry(speed_factor_change.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -137,7 +172,7 @@ impl Arrangers {
     pub fn push_section_len_change(
         &mut self,
         section_len_change: SectionLenChangeObj,
-        prompt_handler: &mut impl PromptHandler,
+        prompt_handler: &impl Prompter,
     ) -> Result<()> {
         match self.section_len_changes.entry(section_len_change.track) {
             std::collections::btree_map::Entry::Vacant(entry) => {

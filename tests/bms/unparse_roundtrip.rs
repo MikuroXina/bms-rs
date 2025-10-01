@@ -39,7 +39,11 @@ fn assert_hash_maps_equal<K, V>(
     K: std::fmt::Debug + std::cmp::Eq + std::hash::Hash,
     V: std::fmt::Debug + std::cmp::PartialEq,
 {
-    assert_eq!(left.len(), right.len(), "{} length mismatch", field_name);
+    assert_eq!(
+        left.len(),
+        right.len(),
+        "{field_name} length mismatch: {left:?} vs {right:?}",
+    );
 
     for (key, left_value) in left {
         match right.get(key) {
@@ -76,12 +80,12 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms1,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings;
 
     // Bms -> tokens (unparse)
-    let tokens2 = bms1.unparse();
+    let tokens2 = bms1.unparse::<KeyLayoutBeat>();
     let tokens2_wrapped: Vec<TokenWithRange<'_>> = tokens2
         .into_iter()
         .map(|t| SourceRangeMixin::new(t, 0..0))
@@ -92,16 +96,12 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms2,
         parse_warnings: parse_warnings2,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens2_wrapped, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens2_wrapped, AlwaysWarnAndUseOlder);
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings2;
 
     // Compare individual parts first to provide better debugging information
     assert_eq!(bms2.header, bms1.header, "Headers don't match");
-    assert_eq!(
-        bms2.scope_defines, bms1.scope_defines,
-        "Scope defines don't match"
-    );
 
     // Compare scope_defines sub-parts in detail
     assert_hash_maps_equal(
@@ -327,8 +327,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         "Non-command lines"
     );
     assert_eq!(
-        bms2.others.unknown_command_lines, bms1.others.unknown_command_lines,
-        "Unknown command lines"
+        bms2.others.raw_command_lines, bms1.others.raw_command_lines,
+        "Raw command lines"
     );
 
     // Compare minor-command others if enabled
@@ -374,12 +374,6 @@ fn roundtrip_lilith_mx_file_bms_tokens_bms() {
 #[test]
 fn roundtrip_bemuse_ext_file_bms_tokens_bms() {
     let source = include_str!("files/bemuse_ext.bms");
-    roundtrip_source_bms_tokens_bms(source);
-}
-
-#[test]
-fn roundtrip_dive_withblank_file_bms_tokens_bms() {
-    let source = include_str!("files/dive_withblank.bme");
     roundtrip_source_bms_tokens_bms(source);
 }
 

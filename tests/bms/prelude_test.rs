@@ -4,7 +4,7 @@ use num::BigUint;
 #[test]
 fn test_prelude_imports() {
     // Test that we can use types from prelude
-    let _obj_id = ObjId::try_from([b'A', b'1']).unwrap();
+    let _obj_id = ObjId::try_from("A1", false).unwrap();
     let _player_mode = PlayerMode::Single;
     let _judge_level = JudgeLevel::Normal;
     let _volume = Volume::default();
@@ -32,11 +32,11 @@ fn test_prelude_imports() {
     let _obj_time = ObjTime::new(1, 0, std::num::NonZeroU64::new(1).unwrap());
 
     // Test model types
-    let _bms: Bms<KeyLayoutBeat> = Bms::default();
+    let _bms = Bms::default();
     let _header = Header::default();
     let _scope_defines = ScopeDefines::default();
     let _arrangers = Arrangers::default();
-    let _notes = Notes::<KeyLayoutBeat>::default();
+    let _notes = Notes::default();
     let _graphics = Graphics::default();
     let _others = Others::default();
 
@@ -149,7 +149,7 @@ fn test_prelude_minor_command_imports() {
     };
     let _wav_cmd_event = WavCmdEvent {
         param: WavCmdParam::Pitch,
-        wav_index: ObjId::try_from([b'A', b'1']).unwrap(),
+        wav_index: ObjId::try_from("A1", false).unwrap(),
         value: 60,
     };
     let _sw_bga_event = SwBgaEvent {
@@ -163,7 +163,7 @@ fn test_prelude_minor_command_imports() {
 
     // Test ExWavDef
     let _ex_wav_def = ExWavDef {
-        id: ObjId::try_from([b'A', b'1']).unwrap(),
+        id: ObjId::try_from("A1", false).unwrap(),
         pan: _ex_wav_pan,
         volume: _ex_wav_volume,
         frequency: Some(_ex_wav_frequency),

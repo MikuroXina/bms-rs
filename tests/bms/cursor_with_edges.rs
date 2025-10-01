@@ -13,7 +13,7 @@ fn test_cursor_with_no_ending_return_and_newline() {
     let mut tokens_iter = tokens.tokens.into_iter();
     assert_eq!(
         tokens_iter.next().unwrap().content(),
-        &Token::Title("Sample")
+        &Token::header("TITLE", "Sample")
     );
     assert_eq!(tokens_iter.next(), None);
 }

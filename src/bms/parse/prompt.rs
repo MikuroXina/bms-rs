@@ -1,6 +1,6 @@
 //! Prompting interface and utilities.
 //!
-//! An object implementing [`PromptHandler`] is required by [`super::Bms::from_token_stream`]. It is used to handle conflicts and prompt workarounds on parsing the BMS file.
+//! An object implementing [`Prompter`] is required by [`super::Bms::from_token_stream`]. It is used to handle conflicts and prompt workarounds on parsing the BMS file.
 
 use std::path::Path;
 
@@ -35,16 +35,17 @@ use crate::bms::{
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
-pub trait PromptHandler {
+pub trait Prompter {
     /// Determines a [`DuplicationWorkaround`] for [`DefDuplication`].
-    fn handle_def_duplication(&mut self, duplication: DefDuplication) -> DuplicationWorkaround;
+    fn handle_def_duplication(&self, duplication: DefDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`TrackDuplication`].
-    fn handle_track_duplication(&mut self, duplication: TrackDuplication) -> DuplicationWorkaround;
+    fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
-    fn handle_channel_duplication(
-        &mut self,
-        duplication: ChannelDuplication,
-    ) -> DuplicationWorkaround;
+    fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
+    /// Shows the user a [`ParseWarning`].
+    fn warn(&self, warning: ParseWarning) {
+        eprintln!("{warning:?}");
+    }
 }
 
 /// It represents that there is a duplicated definition on the BMS file.
@@ -428,16 +429,16 @@ impl DuplicationWorkaround {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysUseOlder;
 
-impl PromptHandler for AlwaysUseOlder {
-    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+impl Prompter for AlwaysUseOlder {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 
-    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 
-    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
 }
@@ -446,16 +447,16 @@ impl PromptHandler for AlwaysUseOlder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysUseNewer;
 
-impl PromptHandler for AlwaysUseNewer {
-    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+impl Prompter for AlwaysUseNewer {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 
-    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 
-    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
 }
@@ -464,16 +465,16 @@ impl PromptHandler for AlwaysUseNewer {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysWarnAndUseOlder;
 
-impl PromptHandler for AlwaysWarnAndUseOlder {
-    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+impl Prompter for AlwaysWarnAndUseOlder {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
 
-    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
 
-    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
 }
@@ -482,16 +483,16 @@ impl PromptHandler for AlwaysWarnAndUseOlder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlwaysWarnAndUseNewer;
 
-impl PromptHandler for AlwaysWarnAndUseNewer {
-    fn handle_def_duplication(&mut self, _: DefDuplication) -> DuplicationWorkaround {
+impl Prompter for AlwaysWarnAndUseNewer {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
 
-    fn handle_track_duplication(&mut self, _: TrackDuplication) -> DuplicationWorkaround {
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
 
-    fn handle_channel_duplication(&mut self, _: ChannelDuplication) -> DuplicationWorkaround {
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
 }

@@ -12,7 +12,7 @@ fn test_lal() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -46,7 +46,7 @@ fn test_nc() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -86,7 +86,7 @@ fn test_j219() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content
@@ -112,7 +112,7 @@ fn test_j219() {
 fn test_blank() {
     let source = include_str!("files/dive_withblank.bme");
     let LexOutput {
-        tokens: _,
+        tokens,
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(
@@ -120,13 +120,21 @@ fn test_blank() {
             .into_iter()
             .map(|w| w.content().clone())
             .collect::<Vec<_>>(),
+        vec![]
+    );
+
+    let ParseOutput {
+        bms: _,
+        parse_warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysUseNewer);
+    assert_eq!(
+        parse_warnings
+            .into_iter()
+            .map(|w| w.content().clone())
+            .collect::<Vec<_>>(),
         vec![
-            LexWarning::ExpectedToken {
-                message: "key audio filename".to_string()
-            },
-            LexWarning::ExpectedToken {
-                message: "key audio filename".to_string()
-            }
+            ParseWarning::SyntaxError("expected image filename".into()),
+            ParseWarning::SyntaxError("expected key audio filename".into()),
         ]
     );
 }
@@ -143,7 +151,7 @@ fn test_bemuse_ext() {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
     assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info
@@ -158,25 +166,25 @@ fn test_bemuse_ext() {
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01").unwrap()),
+            .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("02").unwrap()),
+            .get(&ObjId::try_from("02", false).unwrap()),
         Some(&Decimal::from(0.5))
     );
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01").unwrap()),
+            .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("02").unwrap()),
+            .get(&ObjId::try_from("02", false).unwrap()),
         Some(&Decimal::from(0.5))
     );
 

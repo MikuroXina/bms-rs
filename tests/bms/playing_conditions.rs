@@ -13,12 +13,12 @@ fn test_playing_conditions_empty_bms() {
     let ParseOutput {
         bms,
         parse_warnings,
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing();
+    } = bms.check_playing::<KeyLayoutBeat>();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -43,12 +43,12 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let ParseOutput {
         bms,
         parse_warnings,
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing();
+    } = bms.check_playing::<KeyLayoutBeat>();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -71,22 +71,24 @@ fn test_playing_conditions_with_bpm_change_only() {
         !tokens
             .tokens
             .iter()
-            .any(|t| matches!(&t.content(), Token::Bpm(bpm) if bpm == &Decimal::from(120)))
+            .any(|t| t.content() == &Token::header("BPM", "120"))
     );
-    let obj_id = ObjId::try_from("08").unwrap();
-    assert!(tokens.tokens.iter().any(
-        |t| matches!(&t.content(), Token::BpmChange(id, bpm) if id == &obj_id && bpm == &Decimal::from(120))
-    ));
+    assert!(
+        tokens
+            .tokens
+            .iter()
+            .any(|t| t.content() == &Token::header("BPM08", "120"))
+    );
 
     let ParseOutput {
         bms,
         parse_warnings,
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing();
+    } = bms.check_playing::<KeyLayoutBeat>();
 
     assert_eq!(parse_warnings, vec![]);
 
@@ -112,14 +114,14 @@ fn test_playing_conditions_invisible_notes_only() {
     let ParseOutput {
         bms,
         parse_warnings,
-    }: ParseOutput<KeyLayoutBeat> = Bms::from_token_stream(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
 
     assert_eq!(parse_warnings, vec![]);
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
-    } = bms.check_playing();
+    } = bms.check_playing::<KeyLayoutBeat>();
 
     // Should have both NoDisplayableNotes and NoPlayableNotes warnings
     assert!(playing_warnings.contains(&PlayingWarning::NoDisplayableNotes));

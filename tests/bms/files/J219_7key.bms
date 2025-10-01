@@ -12,7 +12,6 @@
 #STAGEFILE J219title.bmp
 
 #TOTAL 218
-#LNTYPE 1
 
 #WAV01 bd01.wav
 #WAV02 crash01.wav
@@ -182,7 +181,6 @@
 
 
 *---------------------- EXPANSION FIELD
-#VOLWAV 100
 #BMP00 miss.bmp
 #BMP01 beat00.bmp
 #BMP02 beat01.bmp

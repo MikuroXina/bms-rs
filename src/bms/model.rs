@@ -19,11 +19,7 @@ use crate::bms::command::{
 };
 use crate::bms::{
     Decimal,
-    command::{
-        JudgeLevel, LnMode, LnType, ObjId, PlayerMode, Volume,
-        channel::mapper::{KeyLayoutBeat, KeyLayoutMapper},
-        time::ObjTime,
-    },
+    command::{JudgeLevel, LnMode, LnType, ObjId, PlayerMode, Volume, time::ObjTime},
 };
 
 use self::def::ExRankDef;
@@ -35,9 +31,9 @@ pub use graphics::Graphics;
 pub use notes::Notes;
 
 /// A score data aggregate of BMS format.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Bms<T = KeyLayoutBeat> {
+pub struct Bms {
     /// The header data in the score.
     pub header: Header,
     /// The scope-defines in the score.
@@ -45,24 +41,11 @@ pub struct Bms<T = KeyLayoutBeat> {
     /// The arranges in the score. Contains timing and arrangement data like BPM changes, stops, and scrolling factors.
     pub arrangers: Arrangers,
     /// The objects in the score. Contains all note objects, BGM events, and audio file definitions.
-    pub notes: Notes<T>,
+    pub notes: Notes,
     /// The graphics part in the score. Contains background images, videos, BGA events, and visual elements.
     pub graphics: Graphics,
     /// The other part in the score. Contains miscellaneous data like text objects, options, and non-standard commands.
     pub others: Others,
-}
-
-impl<T: KeyLayoutMapper> Default for Bms<T> {
-    fn default() -> Self {
-        Self {
-            header: Default::default(),
-            scope_defines: Default::default(),
-            arrangers: Default::default(),
-            notes: Default::default(),
-            graphics: Default::default(),
-            others: Default::default(),
-        }
-    }
 }
 
 /// A header of the score, including the information that is usually used in music selection.
@@ -125,6 +108,8 @@ pub struct Header {
     /// - No loop, stays on last frame after playback
     /// - Audio track in video is not played
     pub movie: Option<PathBuf>,
+    /// Whether the object ids are case-sensitive. It enables `#BASE 62` to output.
+    pub case_sensitive_obj_id: bool,
 }
 
 /// Stores the original scope-defines like `#WAVXX`. Using [`HashMap`].
@@ -191,8 +176,8 @@ pub struct Others {
     pub change_options: HashMap<ObjId, String>,
     /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
-    /// Lines that starts with `'#'`, but not recognized as vaild command.
-    pub unknown_command_lines: Vec<String>,
+    /// Raw lines that starts with `'#'`.
+    pub raw_command_lines: Vec<String>,
     /// Divide property. #DIVIDEPROP
     #[cfg(feature = "minor-command")]
     pub divide_prop: Option<String>,
@@ -201,10 +186,10 @@ pub struct Others {
     pub materials_path: Option<PathBuf>,
 }
 
-impl<T> Bms<T> {
+impl Bms {
     /// Returns the sound note objects information.
     #[must_use]
-    pub fn notes(&self) -> &Notes<T> {
+    pub fn notes(&self) -> &Notes {
         &self.notes
     }
 

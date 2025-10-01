@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn test_missing_wav_for_note() {
         let mut bms = Bms::default();
-        let id = ObjId::try_from("0A").unwrap();
+        let id = ObjId::try_from("0A", false).unwrap();
         let time = t(1, 0, 4);
         // Insert note via push_note to keep ids_by_key consistent
         let mut notes = Notes::default();
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn test_missing_bmp_for_bga() {
         let mut bms = Bms::default();
-        let id = ObjId::try_from("0B").unwrap();
+        let id = ObjId::try_from("0B", false).unwrap();
         let time = t(1, 0, 4);
         bms.graphics.bga_changes.insert(
             time,
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_visible_note_in_track_zero() {
         let mut bms = Bms::default();
-        let id = ObjId::try_from("10").unwrap();
+        let id = ObjId::try_from("10", false).unwrap();
         let time = t(0, 0, 4);
         let mut notes = Notes::default();
         notes.push_note(WavObj {
@@ -420,8 +420,8 @@ mod tests {
     #[test]
     fn test_overlap_visible_single_with_single() {
         let mut bms = Bms::default();
-        let id1 = ObjId::try_from("01").unwrap();
-        let id2 = ObjId::try_from("02").unwrap();
+        let id1 = ObjId::try_from("01", false).unwrap();
+        let id2 = ObjId::try_from("02", false).unwrap();
         let time = t(1, 0, 4);
         let mut notes = Notes::default();
         notes.push_note(WavObj {
@@ -448,9 +448,9 @@ mod tests {
     #[test]
     fn test_overlap_visible_single_with_long() {
         let mut bms = Bms::default();
-        let id_ln_s = ObjId::try_from("0E").unwrap();
-        let id_ln_e = ObjId::try_from("0F").unwrap();
-        let id_vis = ObjId::try_from("03").unwrap();
+        let id_ln_s = ObjId::try_from("0E", false).unwrap();
+        let id_ln_e = ObjId::try_from("0F", false).unwrap();
+        let id_vis = ObjId::try_from("03", false).unwrap();
         let ln_start = t(2, 0, 4);
         let ln_end = t(2, 2, 4);
         let vis_time = t(2, 1, 4);
@@ -488,9 +488,9 @@ mod tests {
     #[test]
     fn test_landmine_overlap_long_warn_at_start() {
         let mut bms = Bms::default();
-        let id_ln_s = ObjId::try_from("1A").unwrap();
-        let id_ln_e = ObjId::try_from("1B").unwrap();
-        let id_mine = ObjId::try_from("1C").unwrap();
+        let id_ln_s = ObjId::try_from("1A", false).unwrap();
+        let id_ln_e = ObjId::try_from("1B", false).unwrap();
+        let id_mine = ObjId::try_from("1C", false).unwrap();
         let ln_start = t(3, 0, 4);
         let ln_end = t(3, 2, 4);
         let mine_time = t(3, 0, 4);
@@ -527,8 +527,8 @@ mod tests {
     #[test]
     fn test_overlap_landmine_with_single() {
         let mut bms = Bms::default();
-        let id_vis = ObjId::try_from("04").unwrap();
-        let id_mine = ObjId::try_from("05").unwrap();
+        let id_vis = ObjId::try_from("04", false).unwrap();
+        let id_mine = ObjId::try_from("05", false).unwrap();
         let time = t(1, 0, 4);
         let mut notes = Notes::default();
         notes.push_note(WavObj {
@@ -555,9 +555,9 @@ mod tests {
     #[test]
     fn test_zero_length_long_note_overlap() {
         let mut bms = Bms::default();
-        let id_ln_start = ObjId::try_from("20").unwrap();
-        let id_ln_end = ObjId::try_from("21").unwrap();
-        let id_vis = ObjId::try_from("22").unwrap();
+        let id_ln_start = ObjId::try_from("20", false).unwrap();
+        let id_ln_end = ObjId::try_from("21", false).unwrap();
+        let id_vis = ObjId::try_from("22", false).unwrap();
         let zero_length_time = t(2, 0, 4);
         let vis_time = t(2, 0, 4); // Same time as zero-length LN
         let mut notes = Notes::default();

@@ -149,13 +149,6 @@ impl<'a> Cursor<'a> {
         .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_object_id(&self, object: impl Into<String>) -> LexWarningWithRange {
-        LexWarning::UnknownObject {
-            object: object.into(),
-        }
-        .into_wrapper_range(self.index()..self.index())
-    }
-
     pub(crate) fn make_err_unknown_channel(
         &self,
         channel: impl Into<String>,

@@ -99,14 +99,14 @@ fn pulse_conversion() {
     // ```
     let notes = {
         let mut notes = Arrangers::default();
-        let mut prompt_handler = crate::bms::parse::prompt::AlwaysUseNewer;
+        let prompt_handler = crate::bms::parse::prompt::AlwaysUseNewer;
         notes
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(1),
                     length: Decimal::from(0.75),
                 },
-                &mut prompt_handler,
+                &prompt_handler,
             )
             .expect("NonZeroU64::new should succeed for non-zero values");
         notes
@@ -115,7 +115,7 @@ fn pulse_conversion() {
                     track: Track(2),
                     length: Decimal::from(1.25),
                 },
-                &mut prompt_handler,
+                &prompt_handler,
             )
             .expect("NonZeroU64::new should succeed for non-zero values");
         notes
