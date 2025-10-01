@@ -13,11 +13,8 @@ use crate::chart_process::{
 use std::str::FromStr;
 
 /// ChartProcessor of Bms files.
-pub struct BmsProcessor<T = KeyLayoutBeat>
-where
-    T: KeyLayoutMapper,
-{
-    bms: Bms<T>,
+pub struct BmsProcessor {
+    bms: Bms,
 
     // Playback state
     started_at: Option<SystemTime>,
@@ -41,13 +38,10 @@ where
     current_scroll: Decimal,
 }
 
-impl<T> BmsProcessor<T>
-where
-    T: KeyLayoutMapper,
-{
+impl BmsProcessor {
     /// Create processor, initialize default parameters
     #[must_use]
-    pub fn new(bms: Bms<T>) -> Self {
+    pub fn new<T: KeyLayoutMapper>(bms: Bms) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .arrangers
@@ -63,7 +57,7 @@ where
         let base_bpm = Decimal::from(120);
         let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
 
-        let all_events = Self::precompute_all_events(&bms);
+        let all_events = Self::precompute_all_events::<T>(&bms);
 
         Self {
             bms,
@@ -82,13 +76,15 @@ where
 
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    fn precompute_all_events(bms: &Bms<T>) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
+    fn precompute_all_events<T: KeyLayoutMapper>(
+        bms: &Bms,
+    ) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
 
         // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
             let y = Self::y_of_time_static(bms, obj.offset, &bms.arrangers.speed_factor_changes);
-            let event = Self::event_for_note_static(bms, obj, y.clone());
+            let event = Self::event_for_note_static::<T>(bms, obj, y.clone());
 
             events_map
                 .entry(YCoordinate::from(y))
@@ -327,7 +323,7 @@ where
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     fn generate_barlines_for_bms(
-        bms: &Bms<T>,
+        bms: &Bms,
         events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>,
     ) {
         // Find the maximum Y value of all events
@@ -374,7 +370,7 @@ where
     /// Static version of y_of_time, considers Speed effects (used for event position precomputation)
     /// Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn y_of_time_static(
-        bms: &Bms<T>,
+        bms: &Bms,
         time: ObjTime,
         speed_changes: &std::collections::BTreeMap<ObjTime, crate::bms::model::obj::SpeedObj>,
     ) -> Decimal {
@@ -418,8 +414,12 @@ where
     }
 
     /// Static version of event_for_note, used for precomputation
-    fn event_for_note_static(bms: &Bms<T>, obj: &WavObj, y: Decimal) -> ChartEvent {
-        let Some((side, key, kind)) = Self::lane_of_channel_id(obj.channel_id) else {
+    fn event_for_note_static<T: KeyLayoutMapper>(
+        bms: &Bms,
+        obj: &WavObj,
+        y: Decimal,
+    ) -> ChartEvent {
+        let Some((side, key, kind)) = Self::lane_of_channel_id::<T>(obj.channel_id) else {
             let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
             return ChartEvent::Bgm { wav_id };
         };
@@ -594,7 +594,9 @@ where
         (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
     }
 
-    fn lane_of_channel_id(channel_id: NoteChannelId) -> Option<(PlayerSide, Key, NoteKind)> {
+    fn lane_of_channel_id<T: KeyLayoutMapper>(
+        channel_id: NoteChannelId,
+    ) -> Option<(PlayerSide, Key, NoteKind)> {
         let map = channel_id.try_into_map::<T>()?;
         let side = map.side();
         let key = map.key();
@@ -603,10 +605,7 @@ where
     }
 }
 
-impl<T> ChartProcessor for BmsProcessor<T>
-where
-    T: KeyLayoutMapper,
-{
+impl ChartProcessor for BmsProcessor {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
         self.bms
             .notes
