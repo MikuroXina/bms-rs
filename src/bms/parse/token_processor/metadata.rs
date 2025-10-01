@@ -1,3 +1,18 @@
+//! This module handles the tokens:
+//!
+//! - `#PLAYER [1-4]` - Play mode option, but supporting is unreliable.
+//!   - 1: Single play.
+//!   - 2: Couple play. Almost unsupported.
+//!   - 3: Double play.
+//!   - 4: Battle play. Deprecated.
+//! - `#DIFFICULTY [1-5]` - Difficulty stage to sort scores of the same music.
+//! - `#PLAYLEVEL n` - Difficulty number to show to the user.
+//! - `#EMAIL email` / `%EMAIL email` - Email address of the author of the score.
+//! - `#URL url` / `%URL url` - Distribution URL of the score.
+//! - `#PATH_WAV path` - Base path of `#WAV`'s filenames for debug.
+//! - `#DIVIDEPROP n` - Dividing resolution of playing. Obsolete.
+//! - `#OCT/FP` - Octave mode option.
+
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
 use super::{Result, TokenProcessor};

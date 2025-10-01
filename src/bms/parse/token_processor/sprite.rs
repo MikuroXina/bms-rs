@@ -1,3 +1,10 @@
+//! This module handles the tokens:
+//!
+//! - `#BANNER image` - The banner image path. 300x80 resolution is expected.
+//! - `#BACKBMP image` - The background image path shown on playing.
+//! - `#STAGEFILE image` - The splashscreen image path shown on loading the score.
+//! - `#EXTCHR sprite_no bmp_no start_x start_y end_x end_y [offset_x offset_y [x y]]` - Extended character definition. It modifies a BMS player's sprite. Almost unsupported.
+//! - `#CHARFILE character` - The character CHP path shown at the side on playing.
 use std::{cell::RefCell, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};

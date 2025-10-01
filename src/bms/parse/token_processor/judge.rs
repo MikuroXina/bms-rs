@@ -1,3 +1,11 @@
+//! This module handles the tokens:
+//!
+//! - `#RANK mode` - Judgement level option.
+//! - `#EXRANK[01-ZZ] mode` - Judgement level change definition.
+//! - `#xxxA0:` - Judgement level change channel.
+//! - `#DEFEXRANK mode` - Custom judgement level option.
+//! - `#TOTAL n` - Gauge increasing rate option. When the player played perfect, the gauge will increase the amount of `n`%.
+
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

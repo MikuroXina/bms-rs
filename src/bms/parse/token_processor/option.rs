@@ -1,3 +1,8 @@
+//! This module handles the tokens:
+//!
+//! - `#OPTION option_id` - Option for a BMS player software. In most cases, it has also the vendor-prefix.
+//! - `#CHANGEOPTION[01-ZZ] option_id` - Option change definition for a BMS player software. In most cases, it has also the vendor-prefix.
+//! - `#xxxA6:` - Option change channel.
 #![cfg(feature = "minor-command")]
 
 use super::{

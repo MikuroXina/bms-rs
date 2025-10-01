@@ -1,3 +1,26 @@
+//! This module handles the tokens:
+//!
+//! - `#BMP[00-ZZ] filename` - Image file definition. The black will be transparent.
+//! - `#BGA[00-ZZ] bmp_index crop_top_left_x crop_top_left_y crop_bottom_right_x crop_bottom_right_y draw_top_left_x draw_top_left_y` - Cropped image definition.
+//! - `#@BGA[00-ZZ] bmp_index crop_top_left_x crop_top_;eft_y crop_width crop_height draw_top_left_x draw_top_left_y` - Cropped image definition.
+//! - `#EXBMP[00-ZZ] a,r,g,b filename` - Image file definition with the color to be transparent.
+//! - `#POORBGA mode` / `#BGAPOOR mode` - Display option for POOR (MISS) image.
+//! - `#xxx04:` - Base layer channel of BGA.
+//! - `#xxx06:` - Poor layer channel of BGA.
+//! - `#xxx07:` - Overlay layer channel of BGA.
+//! - `#xxx0A:` - Secondary overlay layer channel of BGA.
+//! - `#xxx0B:` - Opacity [01-FF] of base layer channel of BGA.
+//! - `#xxx0C:` - Opacity [01-FF] of overlay layer channel of BGA.
+//! - `#xxx0D:` - Opacity [01-FF] of secondary overlay layer channel of BGA.
+//! - `#xxx0E:` - Opacity [01-FF] of poor channel of BGA.
+//! - `#ARGB[01-ZZ] a,r,g,b` - Transparent color definition.
+//! - `#xxxA1:` - Transparent color object channel for base layer of BGA.
+//! - `#xxxA2:` - Transparent color object channel for overlay layer of BGA.
+//! - `#xxxA3:` - Transparent color object channel for secondary overlay layer of BGA.
+//! - `#xxxA4:` - Transparent color object channel for poor layer of BGA.
+//! - `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` - Key bound animated images.
+//! - `#xxxA5:` - Key bound BGA animation trigger channel.
+
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
 #[cfg(feature = "minor-command")]

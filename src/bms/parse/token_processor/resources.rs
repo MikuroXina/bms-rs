@@ -1,3 +1,10 @@
+//! This module handles the tokens:
+//!
+//! - `#MIDIFILE path` - MIDI file path for the BGM. Deprecated.
+//! - `#CDDA track_no` - Track number of a CD-DA for the BGM, for Delight Delight Republication.
+//! - `#MATERIALSWAV path` - Specifies the shared audio path. Obsolete.
+//! - `#MATERIALSBMP path` - Specifies the shared image path. Obsolete.
+//! - `#MATERIALS path` - Unknown. Obsolete.
 #![cfg(feature = "minor-command")]
 
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};

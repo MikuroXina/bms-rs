@@ -1,3 +1,6 @@
+//! This module handles the tokens:
+//!
+//! - `#xxx02:`: Section length ratio channel. `1.0` makes `xxx` section to be 4/4 beat.
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

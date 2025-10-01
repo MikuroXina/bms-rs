@@ -1,3 +1,7 @@
+//! This module handles the tokens:
+//!
+//! - `#SPEED[01-ZZ] n` - Spacing factor definition. It changes spacing among notes while keeps scrolling speed.
+//! - `#xxxSP:` - Spacing factor channel.
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

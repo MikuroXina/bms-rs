@@ -1,3 +1,11 @@
+//! This module handles the tokens:
+//!
+//! - `#VIDEOFILE filename` / `#MOVIE filename` - The video file path played as BGA.
+//! - `#VIDEOf/s n` - Specifies playing frame rate of the video BGA.
+//! - `#VIDEOCOLORS n` - Definies color palette (sample size) of the video BGA.
+//! - `#VIDEODLY n` - Defines the start frame of playing the video BGA.
+//! - `#SEEK[00-ZZ] n` - It controls playing time of the video BGA. Obsolete.
+//! - `#xxx:05` - Video seek channel. Obsolete.
 #[cfg(feature = "minor-command")]
 use std::str::FromStr;
 use std::{cell::RefCell, path::Path, rc::Rc};

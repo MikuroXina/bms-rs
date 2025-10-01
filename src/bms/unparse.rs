@@ -1164,7 +1164,7 @@ impl Bms {
                     fn(&_) -> &'a (),
                     &mut ObjIdManager<()>,
                 )>,
-                |_ev| Channel::Option,
+                |_ev| Channel::OptionChange,
                 |_ev, _id| {
                     let s = format!("{:02X}", 0);
                     let mut chars = s.chars();

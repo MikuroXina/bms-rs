@@ -1,3 +1,8 @@
+//! This module handles the tokens:
+//!
+//! - `#TEXT[01-ZZ] text` - Text definition shown on playing. It can be double-quoted.
+//! - `#SONG[01-ZZ] text` - Text definition. Obsolete.
+//! - `#xxx99:` - Text channel.
 use std::{cell::RefCell, rc::Rc};
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};

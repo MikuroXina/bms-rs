@@ -688,7 +688,7 @@ impl Notes {
                         entry.get_mut(),
                         option_obj.clone(),
                         option_obj.time,
-                        Channel::Option,
+                        Channel::OptionChange,
                     )
             }
         }

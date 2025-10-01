@@ -1,3 +1,7 @@
+//! This module handles the tokens:
+//!
+//! - `#STOP[01-ZZ] n` - Stop definition. It stops the scroll as `n` of 192nd note.
+//! - `#xxx09:` - Stop channel.
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

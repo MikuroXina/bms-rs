@@ -1,3 +1,10 @@
+//! This module handles the tokens:
+//!
+//! - `#BPM n` - Initial BPM definition.
+//! - `#BPM[01-ZZ] n` / `#EXBPM[01-ZZ] n` - BPM change definition.
+//! - `#BASEBPM` - Reference speed for scroll speed. Obsolete.
+//! - `#xxx08:` - BPM change channel.
+
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

@@ -1,3 +1,12 @@
+//! This module handles the tokens:
+//!
+//! - `#BASE 62` - Marks the BMS source as object ids must be treated as case-sensitive.
+//! - `#LNTYPE 1` - Declares the long-notes are pair-wise placements. Deprecated.
+//! - `#LNTYPE 2` - Declares the long-notes are continuous placements. Obsolete.
+//! - `#LNMODE mode` - Long note judgement option for beatoraja.
+//! - `#CHARSET charset` - Declares charset used in the BMS source. It doesn't have any meaning to this library.
+//!
+//! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
 use std::{cell::RefCell, rc::Rc};
 
 use super::{ParseWarning, Result, TokenProcessor};

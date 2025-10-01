@@ -1,3 +1,14 @@
+//! This module handles the tokens:
+//!
+//! - `#GENRE genre` - Genre of the music.
+//! - `#TITLE title` - Title of the music.
+//! - `#SUBTITLE subtitle` - Subtitle of the music.
+//! - `#ARTIST artist` - Song author of the music,
+//! - `#SUBARTIST sub_artist` - Song co-authors of the music,
+//! - `#COMMENT comment` - Creation comment of the music.
+//! - `#MAKER author` - Author of the score.
+//! - `#PREVIEW path` - Path of the preview music file.
+
 use std::{cell::RefCell, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};

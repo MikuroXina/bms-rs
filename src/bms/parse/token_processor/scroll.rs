@@ -1,3 +1,7 @@
+//! This module handles the tokens:
+//!
+//! - `#SCROLL[01-ZZ] n` - Scrolling speed factor definition. It changes scrolling speed while keeps BPM.
+//! - `#xxxSC:` - Scrolling speed factor channel.
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;

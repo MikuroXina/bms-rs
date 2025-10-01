@@ -1,3 +1,8 @@
+//! This module handles the tokens:
+//!
+//! - `#VOLWAV n` - Changes the score's volume at `n`%.
+//! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
+//! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 use std::{cell::RefCell, rc::Rc};
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, hex_values_from_message};

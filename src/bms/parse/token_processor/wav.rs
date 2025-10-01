@@ -1,3 +1,21 @@
+//! This module handles the tokens:
+//!
+//! - `#WAV[01-ZZ] path` - Sound file definition. Each one has own playback channel, so the sound of the same ID won't be played overlapping. ID range may be narrower by some BMS players.
+//! - `#EXWAV[01-ZZ] [p/v/f pan volume frequency] path` - Sound file definition with effect. It defines a sound with applied some effects.
+//! - `#LNOBJ wav_id` - It specifies the sound object `wav_id` as the end of a long note. Deprecated.
+//! - `#WAVCMD command wav_id value` - It applies the effect to the sound object, for MacBeat.
+//!   - `command` is `00`: Relative tone modification. Defaults to 60.
+//!   - `command` is `01`: Relative volume percentage modification.
+//!   - `command` is `02`: Changes playback time will be `value` of 0.5 milliseconds. 0 will do nothing.
+//! - `#xxx01:` - BGM channel.
+//! - `#xxx[11-1Z]:` - Player 1 visible channel.
+//! - `#xxx[21-2Z]:` - Player 2 visible channel.
+//! - `#xxx[31-3Z]:` - Player 1 invisible channel.
+//! - `#xxx[41-4Z]:` - Player 2 invisible channel.
+//! - `#xxx[51-5Z]:` - Player 1 long-note channel.
+//! - `#xxx[61-6Z]:` - Player 2 long-note channel.
+//! - `#xxx[D1-DZ]:` - Player 1 landmine channel with damage amount.
+//! - `#xxx[E1-EZ]:` - Player 2 landmine channel with damage amount.
 use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
 use super::{
