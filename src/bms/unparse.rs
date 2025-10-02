@@ -13,7 +13,6 @@ impl Bms {
     /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
     #[must_use]
     pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
-        // TODO: split into subroutines to refactor
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
