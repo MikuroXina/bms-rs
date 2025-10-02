@@ -34,7 +34,12 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
                 } else {
                     &name["EXBPM".len()..]
                 };
-                let bpm_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut bpm_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                if self.0.borrow().header.case_sensitive_obj_id {
+                    bpm_obj_id = bpm_obj_id.fit_into_type(crate::bms::command::BaseType::Base62);
+                } else {
+                    bpm_obj_id = bpm_obj_id.fit_into_type(crate::bms::command::BaseType::Base36);
+                }
                 let bpm = Decimal::from_fraction(
                     GenericFraction::from_str(args)
                         .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,

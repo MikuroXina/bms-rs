@@ -117,12 +117,12 @@ fn nested_switch() {
         #00114:00000044
     ";
 
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-    let id55 = ObjId::try_from("55", false).unwrap();
-    let id66 = ObjId::try_from("66", false).unwrap();
+    let id11 = ObjId::try_from("11").unwrap();
+    let id22 = ObjId::try_from("22").unwrap();
+    let id33 = ObjId::try_from("33").unwrap();
+    let id44 = ObjId::try_from("44").unwrap();
+    let id55 = ObjId::try_from("55").unwrap();
+    let id66 = ObjId::try_from("66").unwrap();
 
     let LexOutput {
         tokens,
@@ -332,12 +332,12 @@ fn nested_random_in_switch() {
         #00114:00000044
     ";
 
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-    let id55 = ObjId::try_from("55", false).unwrap();
-    let id66 = ObjId::try_from("66", false).unwrap();
+    let id11 = ObjId::try_from("11").unwrap();
+    let id22 = ObjId::try_from("22").unwrap();
+    let id33 = ObjId::try_from("33").unwrap();
+    let id44 = ObjId::try_from("44").unwrap();
+    let id55 = ObjId::try_from("55").unwrap();
+    let id66 = ObjId::try_from("66").unwrap();
 
     let LexOutput {
         tokens,
@@ -547,12 +547,12 @@ fn nested_switch_in_random() {
         #00114:00000044
     ";
 
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-    let id55 = ObjId::try_from("55", false).unwrap();
-    let id66 = ObjId::try_from("66", false).unwrap();
+    let id22 = ObjId::try_from("22").unwrap();
+    let id11 = ObjId::try_from("11").unwrap();
+    let id33 = ObjId::try_from("33").unwrap();
+    let id44 = ObjId::try_from("44").unwrap();
+    let id55 = ObjId::try_from("55").unwrap();
+    let id66 = ObjId::try_from("66").unwrap();
 
     let LexOutput {
         tokens,
@@ -796,7 +796,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("01", false).unwrap(),
+                wav_id: ObjId::try_from("01").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -806,7 +806,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("04", false).unwrap(),
+                wav_id: ObjId::try_from("04").unwrap(),
             },
         ]
     );
@@ -837,7 +837,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("01", false).unwrap(),
+                wav_id: ObjId::try_from("01").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -847,7 +847,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("05", false).unwrap(),
+                wav_id: ObjId::try_from("05").unwrap(),
             },
         ]
     );
@@ -878,7 +878,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("02", false).unwrap(),
+                wav_id: ObjId::try_from("02").unwrap(),
             },
         ]
     );
@@ -909,7 +909,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("03", false).unwrap(),
+                wav_id: ObjId::try_from("03").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -923,7 +923,7 @@ fn test_switch_insane() {
                     Key::Scratch(1)
                 )
                 .to_channel_id(),
-                wav_id: ObjId::try_from("11", false).unwrap(),
+                wav_id: ObjId::try_from("11").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -937,7 +937,7 @@ fn test_switch_insane() {
                     Key::Scratch(1)
                 )
                 .to_channel_id(),
-                wav_id: ObjId::try_from("11", false).unwrap(),
+                wav_id: ObjId::try_from("11").unwrap(),
             },
         ]
     );
@@ -968,7 +968,7 @@ fn test_switch_insane() {
                 ),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
-                wav_id: ObjId::try_from("03", false).unwrap(),
+                wav_id: ObjId::try_from("03").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -982,7 +982,7 @@ fn test_switch_insane() {
                     Key::Scratch(1)
                 )
                 .to_channel_id(),
-                wav_id: ObjId::try_from("22", false).unwrap(),
+                wav_id: ObjId::try_from("22").unwrap(),
             },
             WavObj {
                 offset: ObjTime::new(
@@ -996,7 +996,7 @@ fn test_switch_insane() {
                     Key::Scratch(1)
                 )
                 .to_channel_id(),
-                wav_id: ObjId::try_from("22", false).unwrap(),
+                wav_id: ObjId::try_from("22").unwrap(),
             },
         ]
     );
@@ -1025,7 +1025,7 @@ fn test_switch_insane() {
             ),
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                 .to_channel_id(),
-            wav_id: ObjId::try_from("55", false).unwrap(),
+            wav_id: ObjId::try_from("55").unwrap(),
         },]
     );
 }

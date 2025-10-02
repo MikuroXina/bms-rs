@@ -28,7 +28,12 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
             }
             change_option if change_option.starts_with("CHANGEOPTION") => {
                 let id = &name["CHANGEOPTION".len()..];
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                id = if self.0.borrow().header.case_sensitive_obj_id {
+                    id.fit_into_type(crate::bms::command::BaseType::Base62)
+                } else {
+                    id.fit_into_type(crate::bms::command::BaseType::Base36)
+                };
                 if let Some(older) = self.0.borrow_mut().others.change_options.get_mut(&id) {
                     self.1
                         .handle_def_duplication(DefDuplication::ChangeOption {

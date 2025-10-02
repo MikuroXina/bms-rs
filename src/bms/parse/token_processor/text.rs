@@ -16,7 +16,12 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {
             let id = &name["TEXT".len()..];
-            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+            id = if self.0.borrow().header.case_sensitive_obj_id {
+                id.fit_into_type(crate::bms::command::BaseType::Base62)
+            } else {
+                id.fit_into_type(crate::bms::command::BaseType::Base36)
+            };
 
             if let Some(older) = self.0.borrow_mut().others.texts.get_mut(&id) {
                 self.1

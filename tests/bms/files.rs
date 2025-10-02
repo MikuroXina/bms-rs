@@ -166,25 +166,25 @@ fn test_bemuse_ext() {
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("02", false).unwrap()),
+            .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("02", false).unwrap()),
+            .get(&ObjId::try_from("02").unwrap()),
         Some(&Decimal::from(0.5))
     );
 

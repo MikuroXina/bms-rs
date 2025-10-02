@@ -245,7 +245,18 @@ fn ids_from_message<'a>(
     parse_message_values_with_warnings(
         track,
         message,
-        move |id| (id != "00").then(|| ObjId::try_from(id, case_sensitive_obj_id)),
+        move |id| {
+            (id != "00").then(|| {
+                let obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id);
+                obj_id.map(|id| {
+                    if case_sensitive_obj_id {
+                        id.fit_into_type(crate::bms::command::BaseType::Base62)
+                    } else {
+                        id.fit_into_type(crate::bms::command::BaseType::Base36)
+                    }
+                })
+            })
+        },
         push_parse_warning,
     )
 }

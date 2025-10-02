@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::parse::{ParseWarning, Result};
+use super::parse::ParseWarning;
 
 pub mod channel;
 pub mod graphics;
@@ -212,33 +212,6 @@ impl ObjId {
         self.0 == [b'0', b'0']
     }
 
-    /// Parses the object id from the string `value`.
-    ///
-    /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
-    pub fn try_from(value: &str, case_sensitive_obj_id: bool) -> Result<Self> {
-        if value.len() != 2 {
-            return Err(ParseWarning::SyntaxError(format!(
-                "expected 2 digits as object id but found: {value}"
-            )));
-        }
-        let mut chars = value.bytes();
-        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(ParseWarning::SyntaxError(format!(
-                "expected 2 digits as object id but found: {value}"
-            )));
-        };
-        if !(ch1.is_ascii_alphanumeric() && ch2.is_ascii_alphanumeric()) {
-            return Err(ParseWarning::SyntaxError(format!(
-                "expected alphanumeric characters as object id but found: {value}"
-            )));
-        }
-        if case_sensitive_obj_id {
-            Ok(Self([ch1, ch2]))
-        } else {
-            Ok(Self([ch1.to_ascii_uppercase(), ch2.to_ascii_uppercase()]))
-        }
-    }
-
     /// Converts the object id into an `u16` value.
     #[must_use]
     pub fn as_u16(self) -> u16 {
@@ -383,6 +356,25 @@ impl TryFrom<[char; 2]> for ObjId {
             return Err(ParseWarning::SyntaxError(format!(
                 "expected alphanumeric characters as object id but found: {}{}",
                 ch1, ch2
+            )));
+        }
+        Ok(Self([ch1 as u8, ch2 as u8]))
+    }
+}
+
+impl TryFrom<&str> for ObjId {
+    type Error = ParseWarning;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        let mut chars = value.chars();
+        let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected 2 digits as object id but found: {value}"
+            )));
+        };
+        if !(ch1.is_ascii_alphanumeric() && ch2.is_ascii_alphanumeric()) {
+            return Err(ParseWarning::SyntaxError(format!(
+                "expected alphanumeric characters as object id but found: {value}"
             )));
         }
         Ok(Self([ch1 as u8, ch2 as u8]))

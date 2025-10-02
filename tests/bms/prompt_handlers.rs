@@ -71,43 +71,39 @@ fn test_always_use_older() {
     assert_eq!(
         bms.scope_defines
             .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
         bms.scope_defines
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(0.5))
     );
 
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes()
-            .wav_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
-            .bmp_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.graphics.bmp_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Bmp {
             file: Path::new("old.bmp").to_path_buf(),
             transparent_color: Argb::default(),
@@ -115,7 +111,7 @@ fn test_always_use_older() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.others.texts.get(&ObjId::try_from("01").unwrap()),
         Some(&"old text".to_string())
     );
 
@@ -201,43 +197,39 @@ fn test_always_use_newer() {
     assert_eq!(
         bms.scope_defines
             .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
         bms.scope_defines
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(2.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.5))
     );
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes()
-            .wav_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
-            .bmp_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.graphics.bmp_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Bmp {
             file: Path::new("new.bmp").to_path_buf(),
             transparent_color: Argb::default(),
@@ -245,7 +237,7 @@ fn test_always_use_newer() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.others.texts.get(&ObjId::try_from("01").unwrap()),
         Some(&"new text".to_string())
     );
 
@@ -335,43 +327,39 @@ fn test_always_warn_and_use_older() {
     assert_eq!(
         bms.scope_defines
             .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
         bms.scope_defines
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(0.5))
     );
 
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes()
-            .wav_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
-            .bmp_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.graphics.bmp_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Bmp {
             file: Path::new("old.bmp").to_path_buf(),
             transparent_color: Argb::default(),
@@ -379,7 +367,7 @@ fn test_always_warn_and_use_older() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.others.texts.get(&ObjId::try_from("01").unwrap()),
         Some(&"old text".to_string())
     );
 
@@ -468,43 +456,39 @@ fn test_always_warn_and_use_newer() {
     assert_eq!(
         bms.scope_defines
             .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
         bms.scope_defines
             .stop_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .scroll_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(2.0))
     );
 
     assert_eq!(
         bms.scope_defines
             .speed_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+            .get(&ObjId::try_from("01").unwrap()),
         Some(&Decimal::from(1.5))
     );
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes()
-            .wav_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.notes().wav_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
-            .bmp_files
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.graphics.bmp_files.get(&ObjId::try_from("01").unwrap()),
         Some(&Bmp {
             file: Path::new("new.bmp").to_path_buf(),
             transparent_color: Argb::default(),
@@ -512,7 +496,7 @@ fn test_always_warn_and_use_newer() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.others.texts.get(&ObjId::try_from("01").unwrap()),
         Some(&"new text".to_string())
     );
 
