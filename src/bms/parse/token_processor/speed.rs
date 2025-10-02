@@ -10,7 +10,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
 pub struct SpeedProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -22,7 +22,10 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);
-            let speed_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let mut speed_obj_id = ObjId::try_from(id)?;
+            if !self.0.borrow().header.case_sensitive_obj_id {
+                speed_obj_id = speed_obj_id.fit_into_type(BaseType::Base36);
+            }
 
             if let Some(older) = self
                 .0

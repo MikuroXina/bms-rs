@@ -244,19 +244,19 @@ impl FromStr for NoteChannelId {
 
 impl From<NoteChannelId> for u16 {
     fn from(value: NoteChannelId) -> Self {
-        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+        base62_to_byte(value.0[0]) as Self * 62 + base62_to_byte(value.0[1]) as Self
     }
 }
 
 impl From<NoteChannelId> for u32 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u32
+        Into::<u16>::into(value) as Self
     }
 }
 
 impl From<NoteChannelId> for u64 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u64
+        Into::<u16>::into(value) as Self
     }
 }
 

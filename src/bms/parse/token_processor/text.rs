@@ -6,7 +6,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#TEXTxx` definition and objects on `Text` channel.
 pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -16,7 +16,10 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {
             let id = &name["TEXT".len()..];
-            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let mut id = ObjId::try_from(id)?;
+            if !self.0.borrow().header.case_sensitive_obj_id {
+                id = id.fit_into_type(BaseType::Base36);
+            }
 
             if let Some(older) = self.0.borrow_mut().others.texts.get_mut(&id) {
                 self.1

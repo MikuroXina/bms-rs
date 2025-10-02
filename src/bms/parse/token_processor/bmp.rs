@@ -29,7 +29,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -48,7 +48,10 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     return Ok(());
                 }
 
-                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut bmp_obj_id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
+                };
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: Argb::default(),
@@ -105,7 +108,10 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 };
 
                 let path = args[1];
-                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut bmp_obj_id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
+                };
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color,
@@ -147,7 +153,10 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let blue = parts[3]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                };
                 let argb = Argb {
                     alpha,
                     red,
@@ -198,9 +207,14 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-                let source_bmp =
-                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                };
+                let mut source_bmp = ObjId::try_from(args[0])?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    source_bmp = source_bmp.fit_into_type(BaseType::Base36);
+                };
                 let trim_top_left = (sx, sy);
                 let trim_size = (w, h);
                 let draw_point = (dx, dy);
@@ -255,9 +269,14 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-                let source_bmp =
-                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                };
+                let mut source_bmp = ObjId::try_from(args[0])?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    source_bmp = source_bmp.fit_into_type(BaseType::Base36);
+                };
                 let to_insert = BgaDef {
                     id,
                     source_bmp,
@@ -340,7 +359,10 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
                 let pattern = args[1].to_owned();
-                let sw_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut sw_obj_id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    sw_obj_id = sw_obj_id.fit_into_type(BaseType::Base36);
+                };
                 let ev = SwBgaEvent {
                     frame_rate,
                     total_time,

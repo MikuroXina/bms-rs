@@ -86,6 +86,7 @@ impl Bms {
         tokens
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         #[cfg(feature = "minor-command")]
         {
@@ -1277,19 +1278,24 @@ struct Base62Checker {
 }
 
 impl Base62Checker {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             using_base62: false,
         }
     }
 
     fn check(&mut self, iter: impl IntoIterator<Item = ObjId>) {
-        if !self.using_base62 && iter.into_iter().any(|id| !id.is_base36() && id.is_base62()) {
+        use crate::bms::prelude::BaseType;
+        if !self.using_base62
+            && iter
+                .into_iter()
+                .any(|id| id.base_type() == BaseType::Base62)
+        {
             self.using_base62 = true;
         }
     }
 
-    fn into_using_base62(self) -> bool {
+    const fn into_using_base62(self) -> bool {
         self.using_base62
     }
 }

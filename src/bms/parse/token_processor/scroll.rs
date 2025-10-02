@@ -10,7 +10,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#SCROLLxx` definitions and objects on `Scroll` channel.
 pub struct ScrollProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -23,7 +23,10 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
-            let scroll_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let mut scroll_obj_id = ObjId::try_from(id)?;
+            if !self.0.borrow().header.case_sensitive_obj_id {
+                scroll_obj_id = scroll_obj_id.fit_into_type(BaseType::Base36);
+            }
             if let Some(older) = self
                 .0
                 .borrow_mut()

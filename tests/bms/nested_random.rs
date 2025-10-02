@@ -35,12 +35,12 @@ fn nested_random() {
         #00114:00000044
     ";
 
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-    let id55 = ObjId::try_from("55", false).unwrap();
-    let id66 = ObjId::try_from("66", false).unwrap();
+    let id11 = ObjId::try_from("11").unwrap();
+    let id22 = ObjId::try_from("22").unwrap();
+    let id33 = ObjId::try_from("33").unwrap();
+    let id44 = ObjId::try_from("44").unwrap();
+    let id55 = ObjId::try_from("55").unwrap();
+    let id66 = ObjId::try_from("66").unwrap();
 
     let LexOutput {
         tokens,

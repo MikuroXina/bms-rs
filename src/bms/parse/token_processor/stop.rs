@@ -11,7 +11,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
 pub struct StopProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -25,7 +25,10 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 
-            let stop_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let mut stop_obj_id = ObjId::try_from(id)?;
+            if !self.0.borrow().header.case_sensitive_obj_id {
+                stop_obj_id = stop_obj_id.fit_into_type(BaseType::Base36);
+            }
 
             if let Some(older) = self
                 .0
