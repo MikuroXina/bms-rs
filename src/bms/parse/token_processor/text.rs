@@ -16,7 +16,7 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {
             let id = &name["TEXT".len()..];
-            let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+            let mut id = ObjId::try_from(id)?;
             if !self.0.borrow().header.case_sensitive_obj_id {
                 id = id.fit_into_type(BaseType::Base36);
             }

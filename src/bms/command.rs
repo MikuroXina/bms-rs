@@ -622,26 +622,11 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(
-            all_values[0],
-            <ObjId as std::convert::TryFrom<[char; 2]>>::try_from(['0', '1']).unwrap()
-        ); // First Base16 value
-        assert_eq!(
-            all_values[254],
-            <ObjId as std::convert::TryFrom<[char; 2]>>::try_from(['F', 'F']).unwrap()
-        ); // Last Base16 value
-        assert_eq!(
-            all_values[255],
-            <ObjId as std::convert::TryFrom<[char; 2]>>::try_from(['0', 'G']).unwrap()
-        ); // First Base36 value
-        assert_eq!(
-            all_values[1294],
-            <ObjId as std::convert::TryFrom<[char; 2]>>::try_from(['Z', 'Z']).unwrap()
-        ); // Last Base36 value
-        assert_eq!(
-            all_values[1295],
-            <ObjId as std::convert::TryFrom<[char; 2]>>::try_from(['0', 'a']).unwrap()
-        ); // First Base62 value
+        assert_eq!(all_values[0], ObjId::try_from(['0', '1']).unwrap()); // First Base16 value
+        assert_eq!(all_values[254], ObjId::try_from(['F', 'F']).unwrap()); // Last Base16 value
+        assert_eq!(all_values[255], ObjId::try_from(['0', 'G']).unwrap()); // First Base36 value
+        assert_eq!(all_values[1294], ObjId::try_from(['Z', 'Z']).unwrap()); // Last Base36 value
+        assert_eq!(all_values[1295], ObjId::try_from(['0', 'a']).unwrap()); // First Base62 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

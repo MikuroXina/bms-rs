@@ -38,7 +38,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                     ));
                 }
                 let path = Path::new(args);
-                let mut wav_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut wav_obj_id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     wav_obj_id = wav_obj_id.fit_into_type(BaseType::Base36);
                 }
@@ -124,7 +124,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 let Some(file_name) = args.next() else {
                     return Err(ParseWarning::SyntaxError("expected filename".into()));
                 };
-                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 }
@@ -153,7 +153,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 }
             }
             "LNOBJ" => {
-                let mut end_id = <ObjId as std::convert::TryFrom<&str>>::try_from(args)?;
+                let mut end_id = ObjId::try_from(args)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     end_id = end_id.fit_into_type(BaseType::Base36);
                 }
@@ -234,7 +234,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                         ));
                     }
                 };
-                let mut wav_index = <ObjId as std::convert::TryFrom<&str>>::try_from(args[1])?;
+                let mut wav_index = ObjId::try_from(args[1])?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     wav_index = wav_index.fit_into_type(BaseType::Base36);
                 }

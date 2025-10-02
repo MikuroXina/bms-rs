@@ -28,7 +28,7 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
             }
             change_option if change_option.starts_with("CHANGEOPTION") => {
                 let id = &name["CHANGEOPTION".len()..];
-                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 }

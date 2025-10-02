@@ -48,7 +48,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     return Ok(());
                 }
 
-                let mut bmp_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut bmp_obj_id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
                 };
@@ -108,7 +108,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 };
 
                 let path = args[1];
-                let mut bmp_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut bmp_obj_id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
                 };
@@ -153,7 +153,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let blue = parts[3]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
-                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 };
@@ -211,7 +211,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 };
-                let mut source_bmp = <ObjId as std::convert::TryFrom<&str>>::try_from(args[0])?;
+                let mut source_bmp = ObjId::try_from(args[0])?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     source_bmp = source_bmp.fit_into_type(BaseType::Base36);
                 };
@@ -269,11 +269,11 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 };
-                let mut source_bmp = <ObjId as std::convert::TryFrom<&str>>::try_from(args[0])?;
+                let mut source_bmp = ObjId::try_from(args[0])?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     source_bmp = source_bmp.fit_into_type(BaseType::Base36);
                 };
@@ -359,7 +359,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
                 let pattern = args[1].to_owned();
-                let mut sw_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut sw_obj_id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     sw_obj_id = sw_obj_id.fit_into_type(BaseType::Base36);
                 };

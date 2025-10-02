@@ -30,7 +30,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                 let judge_level = JudgeLevel::try_from(args).map_err(|_| {
                     ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
                 })?;
-                let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     id = id.fit_into_type(BaseType::Base36);
                 }
@@ -58,7 +58,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("expected u64".into()))?;
 
                 let judge_level = JudgeLevel::OtherInt(value);
-                let id00 = <ObjId as std::convert::TryFrom<&str>>::try_from("00")
+                let id00 = ObjId::try_from("00")
                     .expect("00 must be valid ObjId")
                     .fit_into_type(BaseType::Base36);
                 self.0.borrow_mut().scope_defines.exrank_defs.insert(

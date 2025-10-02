@@ -34,7 +34,7 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
                 } else {
                     &name["EXBPM".len()..]
                 };
-                let mut bpm_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+                let mut bpm_obj_id = ObjId::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
                     bpm_obj_id = bpm_obj_id.fit_into_type(BaseType::Base36);
                 }

@@ -25,7 +25,7 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 
-            let mut stop_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+            let mut stop_obj_id = ObjId::try_from(id)?;
             if !self.0.borrow().header.case_sensitive_obj_id {
                 stop_obj_id = stop_obj_id.fit_into_type(BaseType::Base36);
             }

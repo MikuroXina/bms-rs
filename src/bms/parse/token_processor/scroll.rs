@@ -23,7 +23,7 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
-            let mut scroll_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+            let mut scroll_obj_id = ObjId::try_from(id)?;
             if !self.0.borrow().header.case_sensitive_obj_id {
                 scroll_obj_id = scroll_obj_id.fit_into_type(BaseType::Base36);
             }

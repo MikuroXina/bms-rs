@@ -22,7 +22,7 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);
-            let mut speed_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
+            let mut speed_obj_id = ObjId::try_from(id)?;
             if !self.0.borrow().header.case_sensitive_obj_id {
                 speed_obj_id = speed_obj_id.fit_into_type(BaseType::Base36);
             }

@@ -247,7 +247,7 @@ fn ids_from_message<'a>(
         message,
         move |id| {
             (id != "00").then(|| {
-                let obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id);
+                let obj_id = ObjId::try_from(id);
                 obj_id.map(|id| {
                     if !case_sensitive_obj_id {
                         id.fit_into_type(BaseType::Base36)
