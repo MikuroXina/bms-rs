@@ -1,7 +1,7 @@
 //! Unparse Bms model into Vec<Token> without duplicate parsing logic.
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use fraction::Integer;
 
@@ -19,20 +19,19 @@ impl Bms {
         // Others section lines FIRST to preserve order equality on roundtrip
         self.unparse_headers(&mut tokens);
 
-        let all_used_ids = self.unparse_messages::<T>(&mut tokens);
-
-        // Add Base62 token if needed
         // Check if any of the used IDs require base62 (not base36 but valid base62)
-        let mut all_used_ids: HashSet<ObjId> = HashSet::from_iter(all_used_ids);
+        let mut base62_checker = Base62Checker::new();
+
+        self.unparse_messages::<T>(&mut tokens, &mut base62_checker);
 
         // Add ObjIds from definition tokens that are not covered by managers
         // ExWav definitions
         #[cfg(feature = "minor-command")]
-        all_used_ids.extend(self.scope_defines.exwav_defs.keys());
+        base62_checker.check(self.scope_defines.exwav_defs.keys().copied());
 
         // WavCmd events (use wav_index ObjId)
         #[cfg(feature = "minor-command")]
-        all_used_ids.extend(
+        base62_checker.check(
             self.scope_defines
                 .wavcmd_events
                 .values()
@@ -42,8 +41,8 @@ impl Bms {
         // AtBga definitions (use both id and source_bmp ObjIds)
         #[cfg(feature = "minor-command")]
         {
-            all_used_ids.extend(self.scope_defines.atbga_defs.keys());
-            all_used_ids.extend(
+            base62_checker.check(self.scope_defines.atbga_defs.keys().copied());
+            base62_checker.check(
                 self.scope_defines
                     .atbga_defs
                     .values()
@@ -54,8 +53,8 @@ impl Bms {
         // Bga definitions (use both id and source_bmp ObjIds)
         #[cfg(feature = "minor-command")]
         {
-            all_used_ids.extend(self.scope_defines.bga_defs.keys());
-            all_used_ids.extend(
+            base62_checker.check(self.scope_defines.bga_defs.keys().copied());
+            base62_checker.check(
                 self.scope_defines
                     .bga_defs
                     .values()
@@ -65,22 +64,20 @@ impl Bms {
 
         // Argb definitions
         #[cfg(feature = "minor-command")]
-        all_used_ids.extend(self.scope_defines.argb_defs.keys());
+        base62_checker.check(self.scope_defines.argb_defs.keys().copied());
 
         // SwBga events
         #[cfg(feature = "minor-command")]
-        all_used_ids.extend(self.scope_defines.swbga_events.keys());
+        base62_checker.check(self.scope_defines.swbga_events.keys().copied());
 
         // Wav resource files
-        all_used_ids.extend(self.notes.wav_files.keys());
+        base62_checker.check(self.notes.wav_files.keys().copied());
 
         // Bmp/ExBmp resource files
-        all_used_ids.extend(self.graphics.bmp_files.keys());
+        base62_checker.check(self.graphics.bmp_files.keys().copied());
 
-        let needs_base62 = all_used_ids
-            .iter()
-            .any(|id| !id.is_base36() && id.is_base62());
-        if needs_base62 {
+        // Add Base62 token if needed
+        if base62_checker.into_using_base62() {
             tokens.push(Token::Header {
                 name: "BASE".into(),
                 args: "62".into(),
@@ -726,7 +723,8 @@ impl Bms {
     fn unparse_messages<'a, T: KeyLayoutMapper>(
         &'a self,
         tokens: &mut Vec<Token<'a>>,
-    ) -> impl Iterator<Item = ObjId> {
+        checker: &mut Base62Checker,
+    ) {
         // Collect late definition tokens and message tokens
         let mut late_def_tokens: Vec<Token<'a>> = Vec::new();
         let mut message_tokens: Vec<Token<'a>> = Vec::new();
@@ -795,8 +793,6 @@ impl Bms {
             .collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
-        let bpm_id_manager =
-            ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let mut bpm_message_tokens = Vec::new();
 
         // Process U8 type BPM changes
@@ -820,7 +816,8 @@ impl Bms {
         bpm_message_tokens.extend(bpm_u8_message_tokens);
 
         // Process other type BPM changes using build_event_messages
-        let mut bpm_manager = bpm_id_manager;
+        let mut bpm_manager =
+            ObjIdManager::from_entries(bpm_value_to_id.iter().map(|(k, v)| (*k, *v)));
         let EventProcessingResult {
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
@@ -841,6 +838,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(bpm_manager.into_assigned_ids());
 
         // Update id_manager with the results
         late_def_tokens.extend(other_late_def_tokens);
@@ -871,6 +869,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(stop_manager.into_assigned_ids());
         late_def_tokens.extend(stop_late_def_tokens);
         message_tokens.extend(stop_message_tokens);
 
@@ -897,6 +896,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(scroll_manager.into_assigned_ids());
         late_def_tokens.extend(scroll_late_def_tokens);
         message_tokens.extend(scroll_message_tokens);
 
@@ -923,6 +923,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(speed_manager.into_assigned_ids());
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
@@ -1117,6 +1118,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(text_manager.into_assigned_ids());
         late_def_tokens.extend(text_late_def_tokens);
         message_tokens.extend(text_message_tokens);
 
@@ -1142,6 +1144,7 @@ impl Bms {
                 id.into_chars()
             },
         );
+        checker.check(exrank_manager.into_assigned_ids());
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
 
@@ -1188,7 +1191,7 @@ impl Bms {
         );
 
         #[cfg(feature = "minor-command")]
-        let seek_manager = {
+        {
             // Messages: SEEK (#xxx05)
             let mut seek_manager =
                 ObjIdManager::from_entries(seek_value_to_id.iter().map(|(k, v)| (*k, *v)));
@@ -1255,9 +1258,8 @@ impl Bms {
                     [chars.next().unwrap_or('0'), chars.next().unwrap_or('0')]
                 }, // Option events don't use values
             );
+            checker.check(seek_manager.into_assigned_ids());
             message_tokens.extend(option_message_tokens);
-
-            seek_manager
         };
 
         // Assembly: header/definitions/resources/others -> late definitions -> messages
@@ -1267,19 +1269,29 @@ impl Bms {
         if !message_tokens.is_empty() {
             tokens.extend(message_tokens);
         }
+    }
+}
 
-        let mut used_ids = HashSet::<ObjId>::from_iter(
-            bpm_manager
-                .assigned_ids()
-                .chain(stop_manager.assigned_ids())
-                .chain(scroll_manager.assigned_ids())
-                .chain(speed_manager.assigned_ids())
-                .chain(text_manager.assigned_ids())
-                .chain(exrank_manager.assigned_ids()),
-        );
-        #[cfg(feature = "minor-command")]
-        used_ids.extend(seek_manager.assigned_ids());
-        used_ids.into_iter()
+#[derive(Debug, Default)]
+struct Base62Checker {
+    using_base62: bool,
+}
+
+impl Base62Checker {
+    fn new() -> Self {
+        Self {
+            using_base62: false,
+        }
+    }
+
+    fn check(&mut self, iter: impl IntoIterator<Item = ObjId>) {
+        if !self.using_base62 && iter.into_iter().any(|id| !id.is_base36() && id.is_base62()) {
+            self.using_base62 = true;
+        }
+    }
+
+    fn into_using_base62(self) -> bool {
+        self.using_base62
     }
 }
 

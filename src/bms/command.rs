@@ -464,8 +464,8 @@ where
     }
 
     /// Get assigned ids as an iterator.
-    pub fn assigned_ids(&self) -> impl Iterator<Item = ObjId> {
-        self.used_ids.iter().copied()
+    pub fn into_assigned_ids(self) -> impl Iterator<Item = ObjId> {
+        self.used_ids.into_iter()
     }
 }
 
