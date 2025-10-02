@@ -12,7 +12,7 @@ use crate::{
             structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
         },
         command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
-        lex::token::{Token, TokenWithRange},
+        lex::token::{ControlFlow as CF, Token, TokenWithRange},
     },
     diagnostics::{SimpleSource, ToAriadne},
 };
@@ -37,14 +37,14 @@ pub(super) fn build_control_flow_ast<'a, T: Iterator<Item = &'a TokenWithRange<'
             break;
         };
         let rule = match token.content() {
-            Token::EndIf => Some(AstBuildWarning::UnmatchedEndIf),
-            Token::EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
-            Token::EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
-            Token::ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
-            Token::Else => Some(AstBuildWarning::UnmatchedElse),
-            Token::Skip => Some(AstBuildWarning::UnmatchedSkip),
-            Token::Case(_) => Some(AstBuildWarning::UnmatchedCase),
-            Token::Def => Some(AstBuildWarning::UnmatchedDef),
+            Token::ControlFlow(CF::EndIf) => Some(AstBuildWarning::UnmatchedEndIf),
+            Token::ControlFlow(CF::EndRandom) => Some(AstBuildWarning::UnmatchedEndRandom),
+            Token::ControlFlow(CF::EndSwitch) => Some(AstBuildWarning::UnmatchedEndSwitch),
+            Token::ControlFlow(CF::ElseIf(_)) => Some(AstBuildWarning::UnmatchedElseIf),
+            Token::ControlFlow(CF::Else) => Some(AstBuildWarning::UnmatchedElse),
+            Token::ControlFlow(CF::Skip) => Some(AstBuildWarning::UnmatchedSkip),
+            Token::ControlFlow(CF::Case(_)) => Some(AstBuildWarning::UnmatchedCase),
+            Token::ControlFlow(CF::Def) => Some(AstBuildWarning::UnmatchedDef),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -62,11 +62,11 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
 ) -> Option<(Unit<'a>, Vec<AstBuildWarningWithRange>)> {
     let token = iter.peek()?;
     match token.content() {
-        Token::SetSwitch(_) | Token::Switch(_) => {
+        Token::ControlFlow(CF::SetSwitch(_)) | Token::ControlFlow(CF::Switch(_)) => {
             let (unit, errs) = parse_switch_block(iter);
             Some((unit, errs))
         }
-        Token::Random(_) | Token::SetRandom(_) => {
+        Token::ControlFlow(CF::Random(_)) | Token::ControlFlow(CF::SetRandom(_)) => {
             let (unit, errs) = parse_random_block(iter);
             Some((unit, errs))
         }
@@ -79,16 +79,15 @@ fn parse_unit_or_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     }
 }
 
-/// Parse a [`Token::Switch`]/[`Token::SetSwitch`] block until [`Token::EndSwitch`] or auto-completion termination.
-/// Supports [`Token::Case`]/[`Token::Def`] branches, error detection, and nested structures.
+/// Parse a [`Token::ControlFlow(ControlFlow::Switch)`]/[`Token::ControlFlow(ControlFlow::SetSwitch)`] block until [`Token::ControlFlow(ControlFlow::EndSwitch)`] or auto-completion termination.
+/// Supports [`Token::ControlFlow(ControlFlow::Case)`]/[`Token::ControlFlow(ControlFlow::Def)`] branches, error detection, and nested structures.
 fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
-    use Token::*;
     let token = iter.next().unwrap();
     let block_value = match token.content() {
-        SetSwitch(val) => BlockValue::Set { value: val.clone() },
-        Switch(val) => BlockValue::Random { max: val.clone() },
+        Token::ControlFlow(CF::SetSwitch(val)) => BlockValue::Set { value: val.clone() },
+        Token::ControlFlow(CF::Switch(val)) => BlockValue::Random { max: val.clone() },
         _ => unreachable!(),
     };
     let mut cases = Vec::new();
@@ -103,7 +102,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     let mut end_sw = ().into_wrapper(token);
     while let Some(&next) = iter.peek() {
         match next.content() {
-            Case(case_val) => {
+            Token::ControlFlow(CF::Case(case_val)) => {
                 // Check for duplicates
                 if seen_case_values.contains(case_val) {
                     errors.push(AstBuildWarning::SwitchDuplicateCaseValue.into_wrapper(next));
@@ -112,7 +111,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     errors.append(&mut errs);
                     if iter
                         .peek()
-                        .filter(|t| matches!(t.content(), Skip))
+                        .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Skip)))
                         .is_some()
                     {
                         iter.next();
@@ -129,7 +128,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     errors.append(&mut errs);
                     if iter
                         .peek()
-                        .filter(|t| matches!(t.content(), Skip))
+                        .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Skip)))
                         .is_some()
                     {
                         iter.next();
@@ -146,13 +145,13 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                 });
                 if iter
                     .peek()
-                    .filter(|t| matches!(t.content(), Skip))
+                    .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Skip)))
                     .is_some()
                 {
                     iter.next();
                 }
             }
-            Def => {
+            Token::ControlFlow(CF::Def) => {
                 if seen_def {
                     errors.push(AstBuildWarning::SwitchDuplicateDef.into_wrapper(next));
                     iter.next();
@@ -160,7 +159,7 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     errors.append(&mut errs);
                     if iter
                         .peek()
-                        .filter(|t| matches!(t.content(), Skip))
+                        .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Skip)))
                         .is_some()
                     {
                         iter.next();
@@ -177,27 +176,29 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                 });
                 if iter
                     .peek()
-                    .filter(|t| matches!(t.content(), Skip))
+                    .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Skip)))
                     .is_some()
                 {
                     iter.next();
                 }
             }
-            EndSwitch => {
+            Token::ControlFlow(CF::EndSwitch) => {
                 end_sw = ().into_wrapper(next);
                 iter.next();
                 break;
             }
-            EndIf => {
+            Token::ControlFlow(CF::EndIf) => {
                 errors.push(AstBuildWarning::UnmatchedEndIf.into_wrapper(next));
                 iter.next();
             }
-            EndRandom => {
+            Token::ControlFlow(CF::EndRandom) => {
                 errors.push(AstBuildWarning::UnmatchedEndRandom.into_wrapper(next));
                 iter.next();
             }
             // Automatically complete EndSwitch: break when encountering Random/SetRandom/If
-            Random(_) | SetRandom(_) | If(_) => {
+            Token::ControlFlow(CF::Random(_))
+            | Token::ControlFlow(CF::SetRandom(_))
+            | Token::ControlFlow(CF::If(_)) => {
                 // Treat the current token as the ENDSW position
                 end_sw = ().into_wrapper(next);
                 break;
@@ -218,16 +219,21 @@ fn parse_switch_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of a [`Token::Case`]/[`Token::Def`] branch until a branch-terminating [`TokenWithRange`] is encountered.
+/// Parse the body of a [`Token::ControlFlow(ControlFlow::Case)`]/[`Token::ControlFlow(ControlFlow::Def)`] branch until a branch-terminating [`TokenWithRange`] is encountered.
 /// Supports nested blocks, prioritizing [`parse_unit_or_block`].
 fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Vec<Unit<'a>>, Vec<AstBuildWarningWithRange>) {
-    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
     while let Some(&token) = iter.peek() {
-        if matches!(token.content(), Skip | EndSwitch | Case(_) | Def) {
+        if matches!(
+            token.content(),
+            Token::ControlFlow(CF::Skip)
+                | Token::ControlFlow(CF::EndSwitch)
+                | Token::ControlFlow(CF::Case(_))
+                | Token::ControlFlow(CF::Def)
+        ) {
             break;
         }
         if let Some((unit, mut errs)) = parse_unit_or_block(iter) {
@@ -236,12 +242,12 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
             continue;
         }
         let rule = match token.content() {
-            EndIf => Some(AstBuildWarning::UnmatchedEndIf),
-            EndRandom => Some(AstBuildWarning::UnmatchedEndRandom),
-            EndSwitch => Some(AstBuildWarning::UnmatchedEndSwitch),
-            ElseIf(_) => Some(AstBuildWarning::UnmatchedElseIf),
-            Else => Some(AstBuildWarning::UnmatchedElse),
-            Skip => Some(AstBuildWarning::UnmatchedSkip),
+            Token::ControlFlow(CF::EndIf) => Some(AstBuildWarning::UnmatchedEndIf),
+            Token::ControlFlow(CF::EndRandom) => Some(AstBuildWarning::UnmatchedEndRandom),
+            Token::ControlFlow(CF::EndSwitch) => Some(AstBuildWarning::UnmatchedEndSwitch),
+            Token::ControlFlow(CF::ElseIf(_)) => Some(AstBuildWarning::UnmatchedElseIf),
+            Token::ControlFlow(CF::Else) => Some(AstBuildWarning::UnmatchedElse),
+            Token::ControlFlow(CF::Skip) => Some(AstBuildWarning::UnmatchedSkip),
             _ => None,
         };
         if let Some(rule) = rule {
@@ -253,22 +259,21 @@ fn parse_case_or_def_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     (result, errors)
 }
 
-/// Parse a [`Token::Random`]/[`Token::SetRandom`] block until [`Token::EndRandom`] or auto-completion termination.
+/// Parse a [`Token::ControlFlow(ControlFlow::Random)`]/[`Token::ControlFlow(ControlFlow::SetRandom)`] block until [`Token::ControlFlow(ControlFlow::EndRandom)`] or auto-completion termination.
 /// Supports nesting, error detection, and auto-closes when encountering non-control-flow Tokens outside [`IfBlock`].
 /// Design:
-/// - After entering [`Token::Random`]/[`Token::SetRandom`], loop through Tokens.
-/// - If encountering [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`], collect branches and check for duplicates/out-of-range.
+/// - After entering [`Token::ControlFlow(ControlFlow::Random)`]/[`Token::ControlFlow(ControlFlow::SetRandom)`], loop through Tokens.
+/// - If encountering [`Token::ControlFlow(ControlFlow::If)`]/[`Token::ControlFlow(ControlFlow::ElseIf)`]/[`Token::ControlFlow(ControlFlow::Else)`], collect branches and check for duplicates/out-of-range.
 /// - If encountering a non-control-flow [`TokenWithRange`], prioritize [`parse_unit_or_block`]; if not in any [`IfBlock`], auto-close the block.
 /// - Supports nested structures; recursively handle other block types.
 fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
 ) -> (Unit<'a>, Vec<AstBuildWarningWithRange>) {
-    use Token::*;
     // 1. Read the Random/SetRandom header to determine the max branch value
     let token = iter.next().unwrap();
     let block_value = match token.content() {
-        Random(val) => BlockValue::Random { max: val.clone() },
-        SetRandom(val) => BlockValue::Set { value: val.clone() },
+        Token::ControlFlow(CF::Random(val)) => BlockValue::Random { max: val.clone() },
+        Token::ControlFlow(CF::SetRandom(val)) => BlockValue::Set { value: val.clone() },
         _ => unreachable!(),
     };
     let mut if_blocks = Vec::new();
@@ -281,7 +286,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     while let Some(&token) = iter.peek() {
         match token.content() {
             // 2.1 Handle If branch
-            If(if_val) => {
+            Token::ControlFlow(CF::If(if_val)) => {
                 iter.next();
                 // Track the ENDIF position for this IfBlock (non-optional)
                 let mut current_if_end = None::<SourceRangeMixin<()>>;
@@ -327,7 +332,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     .map(|t| (t, t.content()))
                     .into_iter()
                     .find_map(|(t, c)| match c {
-                        ElseIf(val) => Some((t, val)),
+                        Token::ControlFlow(CF::ElseIf(val)) => Some((t, val)),
                         _ => None,
                     })
                 {
@@ -364,12 +369,18 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.3 Check for redundant ElseIf
-                if let Some(token) = iter.peek().filter(|t| matches!(t.content(), ElseIf(_))) {
+                if let Some(token) = iter
+                    .peek()
+                    .filter(|t| matches!(t.content(), Token::ControlFlow(CF::ElseIf(_))))
+                {
                     errors.push(AstBuildWarning::UnmatchedElseIf.into_wrapper(token));
                     iter.next();
                 }
                 // 2.4 Handle Else branch, branch value is 0
-                if let Some(_token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
+                if let Some(_token) = iter
+                    .peek()
+                    .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Else)))
+                {
                     iter.next();
                     let (etokens, mut errs, end_if) =
                         parse_if_block_body(iter, ().into_wrapper(token));
@@ -378,7 +389,10 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                     current_if_end = current_if_end.or(Some(end_if));
                 }
                 // 2.5 Check for redundant Else
-                if let Some(token) = iter.peek().filter(|t| matches!(t.content(), Else)) {
+                if let Some(token) = iter
+                    .peek()
+                    .filter(|t| matches!(t.content(), Token::ControlFlow(CF::Else)))
+                {
                     errors.push(AstBuildWarning::UnmatchedElse.into_wrapper(token));
                     iter.next();
                 }
@@ -391,7 +405,7 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                 if_blocks.push(IfBlock { branches, end_if });
             }
             // 3.1 Termination: EndRandom encountered, block ends
-            EndRandom => {
+            Token::ControlFlow(CF::EndRandom) => {
                 // Record ENDRANDOM and close block
                 let end_random = ().into_wrapper(token);
                 iter.next();
@@ -405,16 +419,20 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
                 );
             }
             // 3.2 Error: EndIf/EndSwitch encountered, record error and skip
-            EndIf => {
+            Token::ControlFlow(CF::EndIf) => {
                 errors.push(AstBuildWarning::UnmatchedEndIf.into_wrapper(token));
                 iter.next();
             }
-            EndSwitch => {
+            Token::ControlFlow(CF::EndSwitch) => {
                 errors.push(AstBuildWarning::UnmatchedEndSwitch.into_wrapper(token));
                 iter.next();
             }
             // 3.3 Auto-completion termination: break early when encountering other block headers or Case/Def/Skip
-            SetSwitch(_) | Switch(_) | Case(_) | Def | Skip => {
+            Token::ControlFlow(CF::SetSwitch(_))
+            | Token::ControlFlow(CF::Switch(_))
+            | Token::ControlFlow(CF::Case(_))
+            | Token::ControlFlow(CF::Def)
+            | Token::ControlFlow(CF::Skip) => {
                 break;
             }
             // 4. Handle non-control-flow TokenWithRange: auto-close Random block when encountering non-control-flow commands
@@ -438,11 +456,11 @@ fn parse_random_block<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     )
 }
 
-/// Parse the body of an [`Token::If`]/[`Token::ElseIf`]/[`Token::Else`] branch until a branch-terminating [`TokenWithRange`] is encountered.
+/// Parse the body of a [`Token::ControlFlow(ControlFlow::If)`]/[`Token::ControlFlow(ControlFlow::ElseIf)`]/[`Token::ControlFlow(ControlFlow::Else)`] branch until a branch-terminating [`TokenWithRange`] is encountered.
 /// Design:
 /// - Supports nested blocks, prioritizing [`parse_unit_or_block`].
-/// - Break when encountering branch-terminating Tokens ([`Token::ElseIf`]/[`Token::Else`]/[`Token::EndIf`]/[`Token::EndRandom`]/[`Token::EndSwitch`]).
-/// - If [`Token::EndIf`] is encountered, consume it automatically.
+/// - Break when encountering branch-terminating Tokens ([`Token::ControlFlow(ControlFlow::ElseIf)`]/[`Token::ControlFlow(ControlFlow::Else)`]/[`Token::ControlFlow(ControlFlow::EndIf)`]/[`Token::ControlFlow(ControlFlow::EndRandom)`]/[`Token::ControlFlow(ControlFlow::EndSwitch)`]).
+/// - If [`Token::ControlFlow(ControlFlow::EndIf)`] is encountered, consume it automatically.
 fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     iter: &mut Peekable<T>,
     default_end_pos: SourceRangeMixin<()>,
@@ -451,7 +469,6 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
     Vec<AstBuildWarningWithRange>,
     SourceRangeMixin<()>,
 ) {
-    use Token::*;
     let mut result = Vec::new();
     let mut errors = Vec::new();
     // Default fallback: if no #ENDIF is found, use the position of the last processed token,
@@ -465,13 +482,17 @@ fn parse_if_block_body<'a, T: Iterator<Item = &'a TokenWithRange<'a>>>(
             };
             matches!(
                 token.content(),
-                ElseIf(_) | Else | EndIf | EndRandom | EndSwitch
+                Token::ControlFlow(CF::ElseIf(_))
+                    | Token::ControlFlow(CF::Else)
+                    | Token::ControlFlow(CF::EndIf)
+                    | Token::ControlFlow(CF::EndRandom)
+                    | Token::ControlFlow(CF::EndSwitch)
             )
         };
         if is_terminator {
             // If it is EndIf, consume and record the position
             if let Some(token) = iter.peek()
-                && matches!(token.content(), EndIf)
+                && matches!(token.content(), Token::ControlFlow(CF::EndIf))
             {
                 let pos = ().into_wrapper(token);
                 fallback_pos = Some(pos);
@@ -520,20 +541,19 @@ mod tests {
 
     #[test]
     fn test_switch_ast() {
-        use Token::*;
         let tokens = vec![
-            SetSwitch(BigUint::from(2u64)),
-            Def,
+            Token::ControlFlow(CF::SetSwitch(BigUint::from(2u64))),
+            Token::ControlFlow(CF::Def),
             Token::header("TITLE", "Out"),
-            Case(BigUint::from(2u64)),
+            Token::ControlFlow(CF::Case(BigUint::from(2u64))),
             Token::header("TITLE", "In 1"),
-            Case(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Case(BigUint::from(1u64))),
             Token::header("TITLE", "In 2"),
-            Skip,
-            Case(BigUint::from(3u64)),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::Case(BigUint::from(3u64))),
             Token::header("TITLE", "In 3"),
-            Skip,
-            EndSwitch,
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::EndSwitch),
         ]
         .into_iter()
         .enumerate()
@@ -567,12 +587,14 @@ mod tests {
 
     #[test]
     fn test_unmatched_endrandom_error() {
-        use Token::*;
-        let tokens = [Token::header("TITLE", "A"), EndRandom]
-            .into_iter()
-            .enumerate()
-            .map(|(i, t)| t.into_wrapper_range(i..i))
-            .collect::<Vec<_>>();
+        let tokens = [
+            Token::header("TITLE", "A"),
+            Token::ControlFlow(CF::EndRandom),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, t)| t.into_wrapper_range(i..i))
+        .collect::<Vec<_>>();
         let token_refs = tokens.iter().collect::<Vec<_>>();
         let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
         assert!(errors.contains(&AstBuildWarning::UnmatchedEndRandom.into_wrapper(&tokens[1])));
@@ -580,8 +602,7 @@ mod tests {
 
     #[test]
     fn test_unmatched_endif_error() {
-        use Token::*;
-        let tokens = [Token::header("TITLE", "A"), EndIf]
+        let tokens = [Token::header("TITLE", "A"), Token::ControlFlow(CF::EndIf)]
             .into_iter()
             .enumerate()
             .map(|(i, t)| t.into_wrapper_range(i..i))
@@ -593,16 +614,15 @@ mod tests {
 
     #[test]
     fn test_random_ast() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "A"),
-            EndIf,
-            If(BigUint::from(2u64)),
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::If(BigUint::from(2u64))),
             Token::header("TITLE", "B"),
-            EndIf,
-            EndRandom,
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
         ]
         .into_iter()
         .enumerate()
@@ -645,18 +665,17 @@ mod tests {
 
     #[test]
     fn test_random_nested_ast() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "A"),
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(2u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(2u64))),
             Token::header("TITLE", "B"),
-            EndIf,
-            EndRandom,
-            EndIf,
-            EndRandom,
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
         ]
         .into_iter()
         .enumerate()
@@ -693,24 +712,23 @@ mod tests {
 
     #[test]
     fn test_random_multiple_if_elseif_else() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(3u64)),
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(3u64))),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "A1"),
-            ElseIf(BigUint::from(2u64)),
+            Token::ControlFlow(CF::ElseIf(BigUint::from(2u64))),
             Token::header("TITLE", "A2"),
-            Else,
+            Token::ControlFlow(CF::Else),
             Token::header("TITLE", "Aelse"),
-            EndIf,
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "B1"),
-            ElseIf(BigUint::from(2u64)),
+            Token::ControlFlow(CF::ElseIf(BigUint::from(2u64))),
             Token::header("TITLE", "B2"),
-            Else,
+            Token::ControlFlow(CF::Else),
             Token::header("TITLE", "Belse"),
-            EndIf,
-            EndRandom,
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
         ]
         .into_iter()
         .enumerate()
@@ -800,15 +818,14 @@ mod tests {
 
     #[test]
     fn test_random_duplicate_ifbranch() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "A"),
-            ElseIf(BigUint::from(1u64)), // duplicate
+            Token::ControlFlow(CF::ElseIf(BigUint::from(1u64))), // duplicate
             Token::header("TITLE", "B"),
-            EndIf,
-            EndRandom,
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
         ]
         .into_iter()
         .enumerate()
@@ -824,13 +841,12 @@ mod tests {
 
     #[test]
     fn test_random_ifbranch_value_out_of_range() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(3u64)), // out of range
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(3u64))), // out of range
             Token::header("TITLE", "A"),
-            EndIf,
-            EndRandom,
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
         ]
         .into_iter()
         .enumerate()
@@ -846,14 +862,13 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_case() {
-        use Token::*;
         let tokens = vec![
-            Switch(BigUint::from(2u64)),
-            Case(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Switch(BigUint::from(2u64))),
+            Token::ControlFlow(CF::Case(BigUint::from(1u64))),
             Token::header("TITLE", "A"),
-            Case(BigUint::from(1u64)), // duplicate
+            Token::ControlFlow(CF::Case(BigUint::from(1u64))), // duplicate
             Token::header("TITLE", "B"),
-            EndSwitch,
+            Token::ControlFlow(CF::EndSwitch),
         ]
         .into_iter()
         .enumerate()
@@ -869,12 +884,11 @@ mod tests {
 
     #[test]
     fn test_switch_case_value_out_of_range() {
-        use Token::*;
         let tokens = vec![
-            Switch(BigUint::from(2u64)),
-            Case(BigUint::from(3u64)), // out of range
+            Token::ControlFlow(CF::Switch(BigUint::from(2u64))),
+            Token::ControlFlow(CF::Case(BigUint::from(3u64))), // out of range
             Token::header("TITLE", "A"),
-            EndSwitch,
+            Token::ControlFlow(CF::EndSwitch),
         ]
         .into_iter()
         .enumerate()
@@ -890,16 +904,15 @@ mod tests {
 
     #[test]
     fn test_switch_duplicate_def() {
-        use Token::*;
         let tokens = vec![
-            Switch(BigUint::from(2u64)),
-            Def,
+            Token::ControlFlow(CF::Switch(BigUint::from(2u64))),
+            Token::ControlFlow(CF::Def),
             Token::header("TITLE", "A"),
-            Def, // redundant
+            Token::ControlFlow(CF::Def), // redundant
             Token::header("TITLE", "B"),
-            Def, // redundant
+            Token::ControlFlow(CF::Def), // redundant
             Token::header("TITLE", "C"),
-            EndSwitch,
+            Token::ControlFlow(CF::EndSwitch),
         ]
         .into_iter()
         .enumerate()
@@ -918,9 +931,8 @@ mod tests {
 
     #[test]
     fn test_auto_close_random_block_on_non_control_flow() {
-        use Token::*;
         let tokens = vec![
-            Random(BigUint::from(2u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
             Token::header("TITLE", "A"), // Not in any IfBlock, should auto-close Random block
             Token::header("TITLE", "B"), // This should be outside the Random block
         ]
@@ -954,7 +966,6 @@ mod tests {
 
     #[test]
     fn test_auto_close_random_block_with_multiple_if_blocks() {
-        use Token::*;
         // This simulates the scenario from the reference:
         // #RANDOM 2
         // #IF 1
@@ -965,13 +976,13 @@ mod tests {
         // #ENDIF
         // #00114:00000044  <- This should auto-close the Random block
         let tokens = vec![
-            Random(BigUint::from(2u64)),
-            If(BigUint::from(1u64)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u64))),
+            Token::ControlFlow(CF::If(BigUint::from(1u64))),
             Token::header("TITLE", "00112:00220000"),
-            EndIf,
-            If(BigUint::from(2u64)),
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::If(BigUint::from(2u64))),
             Token::header("TITLE", "00113:00003300"),
-            EndIf,
+            Token::ControlFlow(CF::EndIf),
             Token::header("TITLE", "00114:00000044"), // This should auto-close the Random block
         ]
         .into_iter()

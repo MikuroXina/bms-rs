@@ -211,24 +211,24 @@ mod tests {
 
     #[test]
     fn test_switch_nested_switch_case() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
         let tokens = vec![
             Token::header("TITLE", "11000000"),
-            Switch(BigUint::from(2u32)),
-            Case(BigUint::from(1u32)),
+            Token::ControlFlow(CF::Switch(BigUint::from(2u32))),
+            Token::ControlFlow(CF::Case(BigUint::from(1u32))),
             Token::header("TITLE", "00220000"),
-            Random(BigUint::from(2u32)),
-            If(BigUint::from(1u32)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u32))),
+            Token::ControlFlow(CF::If(BigUint::from(1u32))),
             Token::header("TITLE", "00550000"),
-            ElseIf(BigUint::from(2u32)),
+            Token::ControlFlow(CF::ElseIf(BigUint::from(2u32))),
             Token::header("TITLE", "00006600"),
-            EndIf,
-            EndRandom,
-            Skip,
-            Case(BigUint::from(2u32)),
+            Token::ControlFlow(CF::EndIf),
+            Token::ControlFlow(CF::EndRandom),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::Case(BigUint::from(2u32))),
             Token::header("TITLE", "00003300"),
-            Skip,
-            EndSwitch,
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::EndSwitch),
             Token::header("TITLE", "00000044"),
         ]
         .into_iter()
@@ -319,36 +319,36 @@ mod tests {
 
     #[test]
     fn test_switch_insane_tokenized() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
         let tokens = vec![
-            Switch(BigUint::from(5u32)),
-            Def,
+            Token::ControlFlow(CF::Switch(BigUint::from(5u32))),
+            Token::ControlFlow(CF::Def),
             Token::header("TITLE", "0055"),
-            Skip,
-            Case(BigUint::from(1u32)),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::Case(BigUint::from(1u32))),
             Token::header("TITLE", "0100000000000000"),
-            Random(BigUint::from(2u32)),
-            If(BigUint::from(1u32)),
+            Token::ControlFlow(CF::Random(BigUint::from(2u32))),
+            Token::ControlFlow(CF::If(BigUint::from(1u32))),
             Token::header("TITLE", "04"),
-            Else,
+            Token::ControlFlow(CF::Else),
             Token::header("TITLE", "05"),
-            EndIf,
+            Token::ControlFlow(CF::EndIf),
             // Missing EndRandom!!!
-            Case(BigUint::from(2u32)),
+            Token::ControlFlow(CF::Case(BigUint::from(2u32))),
             Token::header("TITLE", "0200000000000000"),
-            Skip,
-            Case(BigUint::from(3u32)),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::Case(BigUint::from(3u32))),
             Token::header("TITLE", "0300000000000000"),
-            Switch(BigUint::from(2u32)),
-            Case(BigUint::from(1u32)),
+            Token::ControlFlow(CF::Switch(BigUint::from(2u32))),
+            Token::ControlFlow(CF::Case(BigUint::from(1u32))),
             Token::header("TITLE", "1111"),
-            Skip,
-            Case(BigUint::from(2u32)),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::Case(BigUint::from(2u32))),
             Token::header("TITLE", "2222"),
-            Skip,
-            EndSwitch,
-            Skip,
-            EndSwitch,
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::EndSwitch),
+            Token::ControlFlow(CF::Skip),
+            Token::ControlFlow(CF::EndSwitch),
         ]
         .into_iter()
         .enumerate()

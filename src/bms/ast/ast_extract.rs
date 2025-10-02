@@ -1,7 +1,7 @@
 use crate::bms::{
     ast::structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
     command::mixin::{SourceRangeMixin, SourceRangeMixinExt},
-    lex::token::{Token, TokenWithRange},
+    lex::token::{ControlFlow, Token, TokenWithRange},
 };
 
 /// Recursively extracts tokens from AST units.
@@ -48,13 +48,13 @@ fn extract_random_block<'a>(
     };
 
     // Add the Random token at the original header position
-    tokens.push(Token::Random(random_value).into_wrapper(value));
+    tokens.push(Token::ControlFlow(ControlFlow::Random(random_value)).into_wrapper(value));
 
     // Extract all If blocks and their branches
     for IfBlock { branches, end_if } in if_blocks {
         for (branch_key, units) in branches {
             // Add the If token using the branch wrapper position
-            let if_token = Token::If(branch_key).into_wrapper(&units);
+            let if_token = Token::ControlFlow(ControlFlow::If(branch_key)).into_wrapper(&units);
             tokens.push(if_token);
 
             // Extract all tokens in this branch
@@ -62,12 +62,12 @@ fn extract_random_block<'a>(
             tokens.extend(extract_units(units_vec));
 
             // Add the EndIf token at recorded position
-            tokens.push(Token::EndIf.into_wrapper(&end_if));
+            tokens.push(Token::ControlFlow(ControlFlow::EndIf).into_wrapper(&end_if));
         }
     }
 
     // Add the EndRandom token at recorded position
-    tokens.push(Token::EndRandom.into_wrapper(end_random));
+    tokens.push(Token::ControlFlow(ControlFlow::EndRandom).into_wrapper(end_random));
 
     tokens
 }
@@ -87,14 +87,16 @@ fn extract_switch_block<'a>(
         BlockValue::Set { value } => value,
     };
 
-    tokens.push(Token::Switch(switch_value).into_wrapper(value));
+    tokens.push(Token::ControlFlow(ControlFlow::Switch(switch_value)).into_wrapper(value));
 
     // Extract all case branches
     for CaseBranch { value, units } in cases {
         match value.content().clone() {
             CaseBranchValue::Case(case_value) => {
                 // Add the Case token
-                tokens.push(Token::Case(case_value.clone()).into_wrapper(&value));
+                tokens.push(
+                    Token::ControlFlow(ControlFlow::Case(case_value.clone())).into_wrapper(&value),
+                );
 
                 // Extract all tokens in this case
                 tokens.extend(extract_units(units));
@@ -102,12 +104,13 @@ fn extract_switch_block<'a>(
                 // Add the Skip token
                 let (_skip_start, skip_end) =
                     tokens.last().map_or(value.as_span(), |t| t.as_span());
-                let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
+                let skip_token =
+                    Token::ControlFlow(ControlFlow::Skip).into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
             CaseBranchValue::Def => {
                 // Add the Def token
-                tokens.push(Token::Def.into_wrapper(&value));
+                tokens.push(Token::ControlFlow(ControlFlow::Def).into_wrapper(&value));
 
                 // Extract all tokens in this def branch
                 tokens.extend(extract_units(units));
@@ -115,14 +118,15 @@ fn extract_switch_block<'a>(
                 // Add the Skip token
                 let (_skip_start, skip_end) =
                     tokens.last().map_or(value.as_span(), |t| t.as_span());
-                let skip_token = Token::Skip.into_wrapper_range(skip_end..skip_end);
+                let skip_token =
+                    Token::ControlFlow(ControlFlow::Skip).into_wrapper_range(skip_end..skip_end);
                 tokens.push(skip_token);
             }
         }
     }
 
     // Add the EndSwitch token at recorded ENDSW position
-    tokens.push(Token::EndSwitch.into_wrapper(end_sw));
+    tokens.push(Token::ControlFlow(ControlFlow::EndSwitch).into_wrapper(end_sw));
 
     tokens
 }
@@ -174,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_extract_random_block() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
         let if_tokens = vec![
             Token::header("TITLE", "00550000"),
             Token::header("TITLE", "00006600"),
@@ -218,19 +222,19 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Random(BigUint::from(1u32)),
-                If(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Random(BigUint::from(1u32))),
+                Token::ControlFlow(CF::If(BigUint::from(1u32))),
                 Token::header("TITLE", "00550000"),
                 Token::header("TITLE", "00006600"),
-                EndIf,
-                EndRandom,
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::EndRandom),
             ]
         );
     }
 
     #[test]
     fn test_extract_switch_block() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
         let case_tokens = vec![
             Token::header("TITLE", "11111111"),
             Token::header("TITLE", "22222222"),
@@ -269,19 +273,19 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(1u32)),
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "11111111"),
                 Token::header("TITLE", "22222222"),
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
 
     #[test]
     fn test_extract_switch_block_with_def() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
         let def_tokens = vec![
             Token::header("TITLE", "33333333"),
             Token::header("TITLE", "44444444"),
@@ -320,12 +324,12 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(2u32)),
-                Def,
+                Token::ControlFlow(CF::Switch(BigUint::from(2u32))),
+                Token::ControlFlow(CF::Def),
                 Token::header("TITLE", "33333333"),
                 Token::header("TITLE", "44444444"),
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
@@ -353,7 +357,10 @@ mod tests {
                 .map(|t| t.content())
                 .cloned()
                 .collect::<Vec<_>>(),
-            vec![Token::Random(BigUint::from(1u32)), Token::EndRandom,]
+            vec![
+                Token::ControlFlow(ControlFlow::Random(BigUint::from(1u32))),
+                Token::ControlFlow(ControlFlow::EndRandom),
+            ]
         );
     }
 
@@ -379,13 +386,16 @@ mod tests {
                 .map(|t| t.content())
                 .cloned()
                 .collect::<Vec<_>>(),
-            vec![Token::Switch(BigUint::from(1u32)), Token::EndSwitch,]
+            vec![
+                Token::ControlFlow(ControlFlow::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(ControlFlow::EndSwitch),
+            ]
         );
     }
 
     #[test]
     fn test_extract_multiple_random_branches() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create two different If branches
         let if_tokens_1 = vec![
@@ -446,23 +456,23 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Random(BigUint::from(2u32)),
-                If(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Random(BigUint::from(2u32))),
+                Token::ControlFlow(CF::If(BigUint::from(1u32))),
                 Token::header("TITLE", "Branch1_Token1"),
                 Token::header("TITLE", "Branch1_Token2"),
-                EndIf,
-                If(BigUint::from(2u32)),
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::If(BigUint::from(2u32))),
                 Token::header("TITLE", "Branch2_Token1"),
                 Token::header("TITLE", "Branch2_Token2"),
-                EndIf,
-                EndRandom,
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::EndRandom),
             ]
         );
     }
 
     #[test]
     fn test_extract_multiple_switch_cases() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create Case branch 1
         let case_tokens_1 = vec![
@@ -540,27 +550,27 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(3u32)),
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Switch(BigUint::from(3u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "Case1_Token1"),
                 Token::header("TITLE", "Case1_Token2"),
-                Skip,
-                Case(BigUint::from(2u32)),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Case(BigUint::from(2u32))),
                 Token::header("TITLE", "Case2_Token1"),
                 Token::header("TITLE", "Case2_Token2"),
-                Skip,
-                Def,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Def),
                 Token::header("TITLE", "Def_Token1"),
                 Token::header("TITLE", "Def_Token2"),
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
 
     #[test]
     fn test_extract_def_first_in_switch() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create Def branch first, then Case branches
         let def_tokens = vec![
@@ -637,27 +647,27 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(2u32)),
-                Def,
+                Token::ControlFlow(CF::Switch(BigUint::from(2u32))),
+                Token::ControlFlow(CF::Def),
                 Token::header("TITLE", "DefFirst_Token1"),
                 Token::header("TITLE", "DefFirst_Token2"),
-                Skip,
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "Case1_Token1"),
                 Token::header("TITLE", "Case1_Token2"),
-                Skip,
-                Case(BigUint::from(2u32)),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Case(BigUint::from(2u32))),
                 Token::header("TITLE", "Case2_Token1"),
                 Token::header("TITLE", "Case2_Token2"),
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
 
     #[test]
     fn test_extract_nested_random_in_switch() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create a Switch block with nested Random block
         let nested_random_tokens = vec![
@@ -729,23 +739,23 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(1u32)),
-                Case(BigUint::from(1u32)),
-                Random(BigUint::from(1u32)),
-                If(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Random(BigUint::from(1u32))),
+                Token::ControlFlow(CF::If(BigUint::from(1u32))),
                 Token::header("TITLE", "NestedRandom_Token1"),
                 Token::header("TITLE", "NestedRandom_Token2"),
-                EndIf,
-                EndRandom,
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::EndRandom),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
 
     #[test]
     fn test_extract_nested_switch_in_random() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create a Random block with nested Switch block
         let nested_switch_tokens = vec![
@@ -814,23 +824,23 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Random(BigUint::from(1u32)),
-                If(BigUint::from(1u32)),
-                Switch(BigUint::from(1u32)),
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Random(BigUint::from(1u32))),
+                Token::ControlFlow(CF::If(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "NestedSwitch_Token1"),
                 Token::header("TITLE", "NestedSwitch_Token2"),
-                Skip,
-                EndSwitch,
-                EndIf,
-                EndRandom,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::EndRandom),
             ]
         );
     }
 
     #[test]
     fn test_extract_complex_nested_structure() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create a complex nested structure: Switch -> Case -> Random -> If -> Switch -> Case
         let innermost_tokens = vec![
@@ -927,27 +937,27 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(1u32)),
-                Case(BigUint::from(1u32)),
-                Random(BigUint::from(1u32)),
-                If(BigUint::from(1u32)),
-                Switch(BigUint::from(1u32)),
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Random(BigUint::from(1u32))),
+                Token::ControlFlow(CF::If(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "Innermost_Token1"),
                 Token::header("TITLE", "Innermost_Token2"),
-                Skip,
-                EndSwitch,
-                EndIf,
-                EndRandom,
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
+                Token::ControlFlow(CF::EndIf),
+                Token::ControlFlow(CF::EndRandom),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }
 
     #[test]
     fn test_extract_multiple_def_branches() {
-        use Token::*;
+        use crate::bms::lex::token::ControlFlow as CF;
 
         // Create a Switch block with multiple Def branches (this should be handled gracefully)
         let def_tokens_1 = vec![
@@ -1024,20 +1034,20 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>(),
             vec![
-                Switch(BigUint::from(1u32)),
-                Def,
+                Token::ControlFlow(CF::Switch(BigUint::from(1u32))),
+                Token::ControlFlow(CF::Def),
                 Token::header("TITLE", "Def1_Token1"),
                 Token::header("TITLE", "Def1_Token2"),
-                Skip,
-                Def,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Def),
                 Token::header("TITLE", "Def2_Token1"),
                 Token::header("TITLE", "Def2_Token2"),
-                Skip,
-                Case(BigUint::from(1u32)),
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::Case(BigUint::from(1u32))),
                 Token::header("TITLE", "Case_Token1"),
                 Token::header("TITLE", "Case_Token2"),
-                Skip,
-                EndSwitch,
+                Token::ControlFlow(CF::Skip),
+                Token::ControlFlow(CF::EndSwitch),
             ]
         );
     }

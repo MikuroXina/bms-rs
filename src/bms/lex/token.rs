@@ -11,14 +11,14 @@ use crate::bms::{
 
 use super::{Result, cursor::Cursor};
 
-/// A token content of BMS format.
+/// Control flow tokens in BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
-pub enum Token<'a> {
-    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
+pub enum ControlFlow {
+    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`ControlFlow::Switch`].
     Case(BigUint),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
+    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`ControlFlow::Switch`].
     Def,
     /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
     Else,
@@ -32,12 +32,33 @@ pub enum Token<'a> {
     /// #ENDIF
     /// ```
     ElseIf(BigUint),
-    /// `#ENDIF`. Closes the if scope. See [`Token::If`].
+    /// `#ENDIF`. Closes the if scope. See [`ControlFlow::If`].
     EndIf,
-    /// `#ENDRANDOM`. Closes the random scope. See [`Token::Random`].
+    /// `#ENDRANDOM`. Closes the random scope. See [`ControlFlow::Random`].
     EndRandom,
-    /// `#ENDSW`. Closes the random scope. See [`Token::Switch`].
+    /// `#ENDSW`. Closes the random scope. See [`ControlFlow::Switch`].
     EndSwitch,
+    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`ControlFlow::Random`].
+    If(BigUint),
+    /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
+    Random(BigUint),
+    /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetRandom(BigUint),
+    /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
+    SetSwitch(BigUint),
+    /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
+    Skip,
+    /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
+    Switch(BigUint),
+}
+
+/// A token content of BMS format.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[non_exhaustive]
+pub enum Token<'a> {
+    /// Control flow tokens (random, switch, if/else statements)
+    ControlFlow(ControlFlow),
     /// `#[name] [args]` Other command line starts from `#`.
     Header {
         /// String after `#` and until the first whitespace. It is always uppercase.
@@ -45,8 +66,6 @@ pub enum Token<'a> {
         /// String after `#name` and whitespaces.
         args: Cow<'a, str>,
     },
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(BigUint),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
@@ -58,16 +77,6 @@ pub enum Token<'a> {
         /// The message to the channel.
         message: Cow<'a, str>,
     },
-    /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(BigUint),
-    /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(BigUint),
-    /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(BigUint),
-    /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
-    Skip,
-    /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(BigUint),
 }
 
 /// A token with position information.
@@ -99,7 +108,7 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("random max"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Random(rand_max)
+                Self::ControlFlow(ControlFlow::Random(rand_max))
             }
             "#SETRANDOM" => {
                 let rand_value = c
@@ -107,7 +116,7 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("random value"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::SetRandom(rand_value)
+                Self::ControlFlow(ControlFlow::SetRandom(rand_value))
             }
             "#IF" => {
                 let rand_target = c
@@ -115,7 +124,7 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("random target"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::If(rand_target)
+                Self::ControlFlow(ControlFlow::If(rand_target))
             }
             "#ELSEIF" => {
                 let rand_target = c
@@ -123,11 +132,11 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("random target"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::ElseIf(rand_target)
+                Self::ControlFlow(ControlFlow::ElseIf(rand_target))
             }
-            "#ELSE" => Self::Else,
-            "#ENDIF" => Self::EndIf,
-            "#ENDRANDOM" => Self::EndRandom,
+            "#ELSE" => Self::ControlFlow(ControlFlow::Else),
+            "#ENDIF" => Self::ControlFlow(ControlFlow::EndIf),
+            "#ENDRANDOM" => Self::ControlFlow(ControlFlow::EndRandom),
             // Part: ControlFlow/Switch
             "#SWITCH" => {
                 let switch_max = c
@@ -135,7 +144,7 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("switch max"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Switch(switch_max)
+                Self::ControlFlow(ControlFlow::Switch(switch_max))
             }
             "#SETSWITCH" => {
                 let switch_value = c
@@ -143,7 +152,7 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("switch value"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::SetSwitch(switch_value)
+                Self::ControlFlow(ControlFlow::SetSwitch(switch_value))
             }
             "#CASE" => {
                 let case_value = c
@@ -151,11 +160,11 @@ impl<'a> Token<'a> {
                     .ok_or_else(|| c.make_err_expected_token("switch case value"))?
                     .parse()
                     .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Case(case_value)
+                Self::ControlFlow(ControlFlow::Case(case_value))
             }
-            "#SKIP" => Self::Skip,
-            "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
-            "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
+            "#SKIP" => Self::ControlFlow(ControlFlow::Skip),
+            "#DEF" => Self::ControlFlow(ControlFlow::Def), // See https://hitkey.bms.ms/cmds.htm#DEF
+            "#ENDSW" => Self::ControlFlow(ControlFlow::EndSwitch), // See https://hitkey.bms.ms/cmds.htm#ENDSW
             // Part: Normal 2
             message
                 if message.starts_with('#')
@@ -191,29 +200,34 @@ impl<'a> Token<'a> {
     /// Checks if a token is a control flow token.
     #[must_use]
     pub const fn is_control_flow_token(&self) -> bool {
-        matches!(
-            self,
-            Token::Random(_)
-                | Token::SetRandom(_)
-                | Token::If(_)
-                | Token::ElseIf(_)
-                | Token::Else
-                | Token::EndIf
-                | Token::EndRandom
-                | Token::Switch(_)
-                | Token::SetSwitch(_)
-                | Token::Case(_)
-                | Token::Def
-                | Token::Skip
-                | Token::EndSwitch
-        )
+        matches!(self, Token::ControlFlow(_))
+    }
+}
+
+impl std::fmt::Display for ControlFlow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ControlFlow::Case(value) => write!(f, "#CASE {value}"),
+            ControlFlow::Def => write!(f, "#DEF"),
+            ControlFlow::Else => write!(f, "#ELSE"),
+            ControlFlow::ElseIf(value) => write!(f, "#ELSEIF {value}"),
+            ControlFlow::EndIf => write!(f, "#ENDIF"),
+            ControlFlow::EndRandom => write!(f, "#ENDRANDOM"),
+            ControlFlow::EndSwitch => write!(f, "#ENDSW"),
+            ControlFlow::If(value) => write!(f, "#IF {value}"),
+            ControlFlow::Random(value) => write!(f, "#RANDOM {value}"),
+            ControlFlow::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
+            ControlFlow::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
+            ControlFlow::Skip => write!(f, "#SKIP"),
+            ControlFlow::Switch(value) => write!(f, "#SWITCH {value}"),
+        }
     }
 }
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Case(value) => write!(f, "#CASE {value}"),
+            Token::ControlFlow(control_flow) => control_flow.fmt(f),
             Token::Header { name, args } => {
                 if args.is_empty() {
                     write!(f, "#{name}")
@@ -222,23 +236,11 @@ impl std::fmt::Display for Token<'_> {
                 }
             }
             Token::NotACommand(comment) => write!(f, "{comment}"),
-            Token::Def => write!(f, "#DEF"),
-            Token::Else => write!(f, "#ELSE"),
-            Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
-            Token::EndIf => write!(f, "#ENDIF"),
-            Token::EndRandom => write!(f, "#ENDRANDOM"),
-            Token::EndSwitch => write!(f, "#ENDSW"),
-            Token::If(value) => write!(f, "#IF {value}"),
             Token::Message {
                 track,
                 channel,
                 message,
             } => fmt_message(f, *track, *channel, message.as_ref()),
-            Token::Random(value) => write!(f, "#RANDOM {value}"),
-            Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
-            Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
-            Token::Skip => write!(f, "#SKIP"),
-            Token::Switch(value) => write!(f, "#SWITCH {value}"),
         }
     }
 }
@@ -441,6 +443,12 @@ mod tests {
             let token = parse_token(input);
             let output = format!("{}", token);
             assert_eq!(input, output, "Failed roundtrip for: {}", input);
+            // Also verify it's recognized as a control flow token
+            assert!(
+                token.is_control_flow_token(),
+                "Token should be control flow: {}",
+                input
+            );
         }
     }
 
