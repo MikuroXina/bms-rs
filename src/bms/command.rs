@@ -183,19 +183,19 @@ impl std::fmt::Display for ObjId {
 
 impl From<ObjId> for u16 {
     fn from(value: ObjId) -> Self {
-        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+        base62_to_byte(value.0[0]) as Self * 62 + base62_to_byte(value.0[1]) as Self
     }
 }
 
 impl From<ObjId> for u32 {
     fn from(value: ObjId) -> Self {
-        Into::<u16>::into(value) as u32
+        Into::<u16>::into(value) as Self
     }
 }
 
 impl From<ObjId> for u64 {
     fn from(value: ObjId) -> Self {
-        Into::<u16>::into(value) as u64
+        Into::<u16>::into(value) as Self
     }
 }
 
@@ -465,7 +465,7 @@ pub enum LnMode {
 }
 
 impl From<LnMode> for u8 {
-    fn from(mode: LnMode) -> u8 {
+    fn from(mode: LnMode) -> Self {
         match mode {
             LnMode::Ln => 1,
             LnMode::Cn => 2,
