@@ -1,7 +1,7 @@
 use super::{LexWarning, LexWarningWithRange};
 use crate::bms::command::mixin::SourceRangeMixinExt;
 
-pub(crate) struct Cursor<'a> {
+pub struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
     /// The column position of char count, starts with 1. It is NOT byte count.

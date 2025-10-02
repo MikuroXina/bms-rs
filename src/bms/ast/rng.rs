@@ -209,7 +209,6 @@ impl Rng for JavaRandom {
         // For larger ranges, we need to generate multiple random values and combine them
         // This is a simplified approach for larger BigUint ranges
         let width_bits = width.bits() as usize;
-        let width_clone = width.clone();
         let mut result = BigUint::ZERO;
 
         // Generate random bits until we have enough to cover the range
@@ -224,15 +223,15 @@ impl Rng for JavaRandom {
             bits_generated += 32;
 
             // If we've exceeded the range, we need to reduce it
-            if result >= width_clone {
-                result %= width_clone.clone();
+            if result >= width {
+                result %= width.clone();
                 break;
             }
         }
 
         // Ensure result is within width
-        if result >= width_clone {
-            result %= width_clone;
+        if result >= width {
+            result %= width;
         }
 
         start + result
@@ -255,7 +254,7 @@ mod tests {
         let range = start.clone()..=end.clone();
         let n1 = rng.generate(range.clone());
         let n2 = rng.generate(range.clone());
-        let n3 = rng.generate(range.clone());
+        let n3 = rng.generate(range);
         assert!(n1 >= start && n1 <= end, "n1 out of range");
         assert!(n2 >= start && n2 <= end, "n2 out of range");
         assert!(n3 >= start && n3 <= end, "n3 out of range");

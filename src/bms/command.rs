@@ -32,9 +32,9 @@ pub enum PlayerMode {
 impl std::fmt::Display for PlayerMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PlayerMode::Single => write!(f, "1"),
-            PlayerMode::Two => write!(f, "2"),
-            PlayerMode::Double => write!(f, "3"),
+            Self::Single => write!(f, "1"),
+            Self::Two => write!(f, "2"),
+            Self::Double => write!(f, "3"),
         }
     }
 }
@@ -331,7 +331,7 @@ impl std::str::FromStr for PoorMode {
 impl PoorMode {
     /// Converts an display type of Poor BGA into the corresponding string literal.
     #[must_use]
-    pub fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Interrupt => "0",
             Self::Overlay => "1",
@@ -395,18 +395,18 @@ pub struct ObjIdManager<'a, K: ?Sized> {
     unused_ids: VecDeque<ObjId>,
 }
 
-impl<'a, K: ?Sized> Default for ObjIdManager<'a, K>
+impl<'a, K> Default for ObjIdManager<'a, K>
 where
-    K: std::hash::Hash + Eq,
+    K: std::hash::Hash + Eq + ?Sized,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, K: ?Sized> ObjIdManager<'a, K>
+impl<'a, K> ObjIdManager<'a, K>
 where
-    K: std::hash::Hash + Eq,
+    K: std::hash::Hash + Eq + ?Sized,
 {
     /// Create a new empty ObjIdManager
     #[must_use]
@@ -465,7 +465,7 @@ where
 
     /// Get used ids
     #[must_use]
-    pub fn get_used_ids(&self) -> &HashSet<ObjId> {
+    pub const fn get_used_ids(&self) -> &HashSet<ObjId> {
         &self.used_ids
     }
 }

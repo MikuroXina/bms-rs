@@ -76,7 +76,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        if let Channel::Judge = channel {
+        if channel == Channel::Judge {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, judge_id) in
                 ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))

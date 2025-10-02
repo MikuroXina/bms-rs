@@ -31,15 +31,17 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
             .to_slice()
             .map(|s: &str| {
                 // Try to parse as integer first, then as float
-                if let Ok(i) = s.parse::<i64>() {
-                    Value::Number(serde_json::Number::from(i))
-                } else if let Ok(f) = s.parse::<f64>() {
-                    Value::Number(
-                        serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
-                    )
-                } else {
-                    Value::Number(serde_json::Number::from(0))
-                }
+                s.parse::<i64>()
+                    .map(|i| Value::Number(serde_json::Number::from(i)))
+                    .or_else(|_| {
+                        s.parse::<f64>().map(|f| {
+                            Value::Number(
+                                serde_json::Number::from_f64(f)
+                                    .unwrap_or_else(|| serde_json::Number::from(0)),
+                            )
+                        })
+                    })
+                    .unwrap_or_else(|_| Value::Number(serde_json::Number::from(0)))
             })
             .boxed();
 

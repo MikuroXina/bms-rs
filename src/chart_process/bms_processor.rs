@@ -48,7 +48,7 @@ impl BmsProcessor {
             .bpm
             .as_ref()
             .cloned()
-            .unwrap_or(Decimal::from(120));
+            .unwrap_or_else(|| Decimal::from(120));
 
         // Calculate visible Y length based on starting BPM and 600ms reaction time
         // Formula: visible Y length = (BPM / 120.0) * 0.6 seconds
@@ -332,7 +332,7 @@ impl BmsProcessor {
             .map(|y_coord| y_coord.value())
             .max()
             .cloned()
-            .unwrap_or(Decimal::from(0));
+            .unwrap_or_else(|| Decimal::from(0));
 
         if max_y <= Decimal::from(0) {
             return;
@@ -383,7 +383,7 @@ impl BmsProcessor {
                 .get(&Track(t))
                 .map(|s| &s.length)
                 .cloned()
-                .unwrap_or(Decimal::from(1));
+                .unwrap_or_else(|| Decimal::from(1));
             y += section_len;
         }
         // Accumulate proportionally within current measure
@@ -393,7 +393,7 @@ impl BmsProcessor {
             .get(&time.track())
             .map(|s| &s.length)
             .cloned()
-            .unwrap_or(Decimal::from(1));
+            .unwrap_or_else(|| Decimal::from(1));
         if time.denominator().get() > 0 {
             let fraction =
                 Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
@@ -650,7 +650,7 @@ impl ChartProcessor for BmsProcessor {
             .bpm
             .as_ref()
             .cloned()
-            .unwrap_or(Decimal::from(120));
+            .unwrap_or_else(|| Decimal::from(120));
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition> {

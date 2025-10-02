@@ -50,7 +50,7 @@ impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        if let Channel::Scroll = channel {
+        if channel == Channel::Scroll {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
                 let factor = self

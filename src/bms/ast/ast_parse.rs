@@ -48,24 +48,20 @@ pub(super) fn parse_control_flow_ast<'a>(
                     }
                     BlockValue::Set { value } => value,
                 };
-                // Find the branch in the first if_block that contains this branch value
-                let mut found = false;
                 if let Some(branch) = if_blocks
                     .iter()
                     .find_map(|if_block| if_block.branches.get(&branch_val))
                 {
+                    // Find the branch in the first if_block that contains this branch value
                     let mut branch_iter = branch.content().clone().into_iter().peekable();
                     let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
                     result.extend(tokens);
                     warnings.extend(inner_warnings);
-                    found = true;
-                }
-                // If not found, try to find the 0 (else) branch
-                if !found
-                    && let Some(else_branch) = if_blocks
-                        .iter()
-                        .find_map(|if_block| if_block.branches.get(&BigUint::from(0u64)))
+                } else if let Some(else_branch) = if_blocks
+                    .iter()
+                    .find_map(|if_block| if_block.branches.get(&BigUint::from(0u64)))
                 {
+                    // If not found, try to find the 0 (else) branch
                     let mut branch_iter = else_branch.content().clone().into_iter().peekable();
                     let (tokens, inner_warnings) = parse_control_flow_ast(&mut branch_iter, rng);
                     result.extend(tokens);

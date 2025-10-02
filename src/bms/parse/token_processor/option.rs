@@ -51,7 +51,7 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        if let Channel::OptionChange = channel {
+        if channel == Channel::OptionChange {
             for (time, option_id) in ids_from_message(
                 track,
                 message,

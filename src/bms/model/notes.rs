@@ -793,7 +793,7 @@ mod tests {
 
         assert!(notes.pop_note().is_none());
 
-        notes.push_note(note.clone());
+        notes.push_note(note);
         let (idx, _) = notes.all_entries().next().unwrap();
         notes.change_note_channel(
             [idx],
@@ -830,7 +830,7 @@ mod tests {
 
         assert!(notes.pop_note().is_none());
 
-        notes.push_note(note.clone());
+        notes.push_note(note);
         let (idx, _) = notes.all_entries().next().unwrap();
         notes.change_note_time(
             idx,

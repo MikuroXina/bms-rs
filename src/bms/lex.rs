@@ -200,7 +200,6 @@ mod tests {
             tokens
                 .tokens
                 .iter()
-                .cloned()
                 .map(|t| t.content().clone())
                 .collect::<Vec<_>>(),
             vec![

@@ -52,25 +52,25 @@ impl ObjTime {
 
     /// Get the track where the object is in.
     #[must_use]
-    pub fn track(&self) -> Track {
+    pub const fn track(&self) -> Track {
         self.track
     }
 
     /// Get the time offset numerator in the track.
     #[must_use]
-    pub fn numerator(&self) -> u64 {
+    pub const fn numerator(&self) -> u64 {
         self.numerator
     }
 
     /// Get the time offset denominator in the track.
     #[must_use]
-    pub fn denominator(&self) -> NonZeroU64 {
+    pub const fn denominator(&self) -> NonZeroU64 {
         self.denominator
     }
 
     /// Get the time offset denominator in the track as u64.
     #[must_use]
-    pub fn denominator_u64(&self) -> u64 {
+    pub const fn denominator_u64(&self) -> u64 {
         self.denominator.get()
     }
 }

@@ -189,7 +189,7 @@ pub struct Others {
 impl Bms {
     /// Returns the sound note objects information.
     #[must_use]
-    pub fn notes(&self) -> &Notes {
+    pub const fn notes(&self) -> &Notes {
         &self.notes
     }
 
