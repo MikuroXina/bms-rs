@@ -85,7 +85,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.all_notes().filter(|obj| !obj.wav_id.is_null())
     /// ```
     pub fn all_notes(&self) -> impl Iterator<Item = &WavObj> {
@@ -102,7 +102,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.all_entries().filter(|(_, obj)| !obj.wav_id.is_null())
     /// ```
     pub fn all_entries(&self) -> impl Iterator<Item = (WavObjArenaIndex, &WavObj)> {
@@ -131,7 +131,7 @@ impl Notes {
     /// the order may be disrupted as some objects may be replaced with dangling objects.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.all_notes_insertion_order().filter(|obj| !obj.wav_id.is_null())
     /// ```
     pub fn all_notes_insertion_order(&self) -> impl Iterator<Item = &WavObj> {
@@ -148,7 +148,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.playables().filter(|obj| !obj.wav_id.is_null())
     /// ```
     pub fn playables<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -172,7 +172,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.displayables().filter(|obj| !obj.wav_id.is_null())
     /// ```
     pub fn displayables<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -196,7 +196,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.bgms().filter(|obj| !obj.wav_id.is_null())
     /// ```
     pub fn bgms<T>(&self) -> impl Iterator<Item = &WavObj>
@@ -220,7 +220,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.notes_on(channel_id).filter(|(_, obj)| !obj.wav_id.is_null())
     /// ```
     pub fn notes_on<T>(
@@ -247,7 +247,7 @@ impl Notes {
     /// to the Notes object.
     ///
     /// To filter out dangling objects, use:
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// notes.notes_in(time_span).filter(|(_, obj)| !obj.wav_id.is_null())
     /// ```
     pub fn notes_in<R: std::ops::RangeBounds<ObjTime>>(
