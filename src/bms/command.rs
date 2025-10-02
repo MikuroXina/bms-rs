@@ -408,7 +408,7 @@ impl<'a, K> ObjIdManager<'a, K>
 where
     K: std::hash::Hash + Eq + ?Sized,
 {
-    /// Create a new empty ObjIdManager
+    /// Creates a new empty ObjIdManager.
     #[must_use]
     pub fn new() -> Self {
         let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
@@ -420,7 +420,7 @@ where
         }
     }
 
-    /// Create a new ObjIdManager with iterator of assigned entries
+    /// Creates a new ObjIdManager with iterator of assigned entries.
     pub fn from_entries<I: IntoIterator<Item = (&'a K, ObjId)>>(iter: I) -> Self {
         let mut value_to_id: HashMap<&'a K, ObjId> = HashMap::new();
         let mut used_ids: HashSet<ObjId> = HashSet::new();
@@ -445,12 +445,12 @@ where
         }
     }
 
-    /// Returns whether the key is already assigned any id
+    /// Returns whether the key is already assigned any id.
     pub fn is_assigned(&self, key: &'a K) -> bool {
         self.value_to_id.contains_key(key)
     }
 
-    /// Get or allocate an ObjId for a key without creating tokens
+    /// Gets or allocates an ObjId for a key without creating tokens.
     pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
         if let Some(&id) = self.value_to_id.get(key) {
             Some(id)
@@ -463,10 +463,9 @@ where
         }
     }
 
-    /// Get used ids
-    #[must_use]
-    pub const fn get_used_ids(&self) -> &HashSet<ObjId> {
-        &self.used_ids
+    /// Get assigned ids as an iterator.
+    pub fn into_assigned_ids(self) -> impl Iterator<Item = ObjId> {
+        self.used_ids.into_iter()
     }
 }
 
