@@ -155,7 +155,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
                 let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
                 if !self.0.borrow().header.case_sensitive_obj_id {
-                    id = id.fit_into_type(crate::bms::command::BaseType::Base36);
+                    id = id.fit_into_type(BaseType::Base36);
                 };
                 let argb = Argb {
                     alpha,
