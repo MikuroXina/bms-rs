@@ -325,7 +325,7 @@ impl<'a> BmsonProcessor<'a> {
             .map(|y_coord| y_coord.value())
             .max()
             .cloned()
-            .unwrap_or(Decimal::from(0));
+            .unwrap_or_else(|| Decimal::from(0));
 
         if max_y <= Decimal::from(0) {
             return;

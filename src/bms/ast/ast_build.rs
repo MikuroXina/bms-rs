@@ -539,8 +539,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(errors, vec![]);
         let Some(Unit::SwitchBlock { cases, .. }) =
             ast.iter().find(|u| matches!(u, Unit::SwitchBlock { .. }))
@@ -573,8 +572,7 @@ mod tests {
             .enumerate()
             .map(|(i, t)| t.into_wrapper_range(i..i))
             .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert!(errors.contains(&AstBuildWarning::UnmatchedEndRandom.into_wrapper(&tokens[1])));
     }
 
@@ -586,8 +584,7 @@ mod tests {
             .enumerate()
             .map(|(i, t)| t.into_wrapper_range(i..i))
             .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert!(errors.contains(&AstBuildWarning::UnmatchedEndIf.into_wrapper(&tokens[1])));
     }
 
@@ -608,8 +605,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
@@ -662,8 +658,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
@@ -716,8 +711,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(errors, vec![]);
         let Unit::RandomBlock {
             value: _,
@@ -814,8 +808,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::RandomDuplicateIfBranchValue.into_wrapper(&tokens[3])]
@@ -836,8 +829,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::RandomIfBranchValueOutOfRange.into_wrapper(&tokens[1])]
@@ -859,8 +851,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::SwitchDuplicateCaseValue.into_wrapper(&tokens[3])]
@@ -880,8 +871,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(
             errors,
             vec![AstBuildWarning::SwitchCaseValueOutOfRange.into_wrapper(&tokens[1])]
@@ -905,8 +895,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (_ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (_ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         assert_eq!(
             errors,
             vec![
@@ -928,8 +917,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         // Should not produce any errors, Random block should auto-close
         assert_eq!(errors, vec![]);
         // Should have three units: RandomBlock and two TokenWithRange
@@ -978,8 +966,7 @@ mod tests {
         .enumerate()
         .map(|(i, t)| t.into_wrapper_range(i..i))
         .collect::<Vec<_>>();
-        let token_refs = tokens.iter().collect::<Vec<_>>();
-        let (ast, errors) = build_control_flow_ast(&mut token_refs.into_iter().peekable());
+        let (ast, errors) = build_control_flow_ast(&mut tokens.iter().peekable());
         // Should not produce any errors
         assert_eq!(errors, vec![]);
         // Should have two units: RandomBlock and TokenWithRange

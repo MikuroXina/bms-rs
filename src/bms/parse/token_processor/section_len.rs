@@ -17,7 +17,7 @@ impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
     }
 
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        if let Channel::SectionLen = channel {
+        if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
             let length = Decimal::from(Decimal::from_fraction(

@@ -158,11 +158,11 @@ pub struct BmsonInfo<'a> {
 
 /// Default mode hint, beatmania 7 keys.
 #[must_use]
-pub fn default_mode_hint() -> &'static str {
+pub const fn default_mode_hint() -> &'static str {
     "beat-7k"
 }
 
-fn default_mode_hint_cow() -> Cow<'static, str> {
+const fn default_mode_hint_cow() -> Cow<'static, str> {
     Cow::Borrowed(default_mode_hint())
 }
 
@@ -181,7 +181,7 @@ pub const fn default_resolution() -> u64 {
     240
 }
 
-fn default_resolution_nonzero() -> NonZeroU64 {
+const fn default_resolution_nonzero() -> NonZeroU64 {
     NonZeroU64::new(default_resolution()).expect("default_resolution should be non-zero")
 }
 

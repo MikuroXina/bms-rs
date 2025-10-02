@@ -151,12 +151,13 @@ impl Bms {
             chart_name: Cow::Owned(String::new()),
             level: self.header.play_level.unwrap_or_default() as u32,
             init_bpm: {
-                let bpm_value = if let Some(bpm) = self.arrangers.bpm.as_ref() {
-                    bpm.to_f64().unwrap_or(120.0)
-                } else {
-                    warnings.push(BmsToBmsonWarning::MissingBpm);
-                    120.0
-                };
+                let bpm_value = self.arrangers.bpm.as_ref().map_or_else(
+                    || {
+                        warnings.push(BmsToBmsonWarning::MissingBpm);
+                        120.0
+                    },
+                    |bpm| bpm.to_f64().unwrap_or(120.0),
+                );
                 FinF64::new(bpm_value).unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
                     FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
@@ -164,12 +165,13 @@ impl Bms {
             },
             judge_rank,
             total: {
-                let total_value = if let Some(total) = self.header.total.as_ref() {
-                    total.to_f64().unwrap_or(100.0)
-                } else {
-                    warnings.push(BmsToBmsonWarning::MissingTotal);
-                    100.0
-                };
+                let total_value = self.header.total.as_ref().map_or_else(
+                    || {
+                        warnings.push(BmsToBmsonWarning::MissingTotal);
+                        100.0
+                    },
+                    |total| total.to_f64().unwrap_or(100.0),
+                );
                 FinF64::new(total_value).unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidTotal);
                     FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")

@@ -22,7 +22,7 @@ impl ExWavPan {
 
     /// Returns the underlying value.
     #[must_use]
-    pub fn value(self) -> i64 {
+    pub const fn value(self) -> i64 {
         self.0
     }
 
@@ -37,7 +37,7 @@ impl TryFrom<i64> for ExWavPan {
     type Error = i64;
 
     fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value.clamp(-10000, 10000))
+        Self::new(value).ok_or_else(|| value.clamp(-10000, 10000))
     }
 }
 
@@ -58,7 +58,7 @@ impl ExWavVolume {
 
     /// Returns the underlying value.
     #[must_use]
-    pub fn value(self) -> i64 {
+    pub const fn value(self) -> i64 {
         self.0
     }
 
@@ -73,7 +73,7 @@ impl TryFrom<i64> for ExWavVolume {
     type Error = i64;
 
     fn try_from(value: i64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value.clamp(-10000, 0))
+        Self::new(value).ok_or_else(|| value.clamp(-10000, 0))
     }
 }
 
@@ -98,7 +98,7 @@ impl ExWavFrequency {
 
     /// Returns the underlying value.
     #[must_use]
-    pub fn value(self) -> u64 {
+    pub const fn value(self) -> u64 {
         self.0
     }
 }
@@ -107,7 +107,7 @@ impl TryFrom<u64> for ExWavFrequency {
     type Error = u64;
 
     fn try_from(value: u64) -> std::result::Result<Self, Self::Error> {
-        Self::new(value).ok_or(value.clamp(Self::MIN_FREQUENCY, Self::MAX_FREQUENCY))
+        Self::new(value).ok_or_else(|| value.clamp(Self::MIN_FREQUENCY, Self::MAX_FREQUENCY))
     }
 }
 
@@ -217,7 +217,7 @@ pub enum WavCmdParam {
 impl WavCmdParam {
     /// Converts an operation type of `#WAVCMD` into the corresponding string literal.
     #[must_use]
-    pub fn to_str(self) -> &'static str {
+    pub const fn to_str(self) -> &'static str {
         match self {
             Self::Pitch => "00",
             Self::Volume => "01",

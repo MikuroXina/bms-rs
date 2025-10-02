@@ -13,6 +13,7 @@ impl Bms {
     /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
     #[must_use]
     pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
+        // TODO: split into subroutines to refactor
         let mut tokens: Vec<Token<'a>> = Vec::new();
 
         // Others section lines FIRST to preserve order equality on roundtrip
@@ -63,11 +64,17 @@ impl Bms {
                     .chain(
                         offset_x
                             .zip(*offset_y)
-                            .map(|(x, y)| [x, y])
+                            .map(Into::<[i32; 2]>::into)
                             .into_iter()
                             .flatten(),
                     )
-                    .chain(abs_x.zip(*abs_y).map(|(x, y)| [x, y]).into_iter().flatten())
+                    .chain(
+                        abs_x
+                            .zip(*abs_y)
+                            .map(Into::<[i32; 2]>::into)
+                            .into_iter()
+                            .flatten(),
+                    )
                     .join(" ");
                 tokens.push(Token::Header {
                     name: "EXTCHR".into(),
@@ -234,7 +241,7 @@ impl Bms {
         }
 
         // LnType
-        if let LnType::Mgq = self.header.ln_type {
+        if self.header.ln_type == LnType::Mgq {
             tokens.push(Token::Header {
                 name: "LNTYPE".into(),
                 args: "2".into(),
@@ -416,8 +423,18 @@ impl Bms {
                     .map(|(id, def)| {
                         (
                             *id,
-                            if let Some(freq) = def.frequency {
-                                Token::Header {
+                            def.frequency.map_or_else(
+                                || Token::Header {
+                                    name: format!("EXWAV{id}").into(),
+                                    args: format!(
+                                        "pv {} {} {}",
+                                        def.pan.value(),
+                                        def.volume.value(),
+                                        def.path.display()
+                                    )
+                                    .into(),
+                                },
+                                |freq| Token::Header {
                                     name: format!("EXWAV{id}").into(),
                                     args: format!(
                                         "pvf {} {} {} {}",
@@ -427,19 +444,8 @@ impl Bms {
                                         def.path.display()
                                     )
                                     .into(),
-                                }
-                            } else {
-                                Token::Header {
-                                    name: format!("EXWAV{id}").into(),
-                                    args: format!(
-                                        "pv {} {} {}",
-                                        def.pan.value(),
-                                        def.volume.value(),
-                                        def.path.display()
-                                    )
-                                    .into(),
-                                }
-                            },
+                                },
+                            ),
                         )
                     })
                     .collect::<BTreeMap<_, _>>()
@@ -953,13 +959,11 @@ impl Bms {
             )>,
             |obj| {
                 // Channel mapping: determine channel based on channel_id
-                if let Some(_map) = obj.channel_id.try_into_map::<T>() {
-                    Channel::Note {
+                obj.channel_id
+                    .try_into_map::<T>()
+                    .map_or(Channel::Bgm, |_map| Channel::Note {
                         channel_id: obj.channel_id,
-                    }
-                } else {
-                    Channel::Bgm
-                }
+                    })
             },
             |obj, _id| {
                 let s = obj.wav_id.to_string();

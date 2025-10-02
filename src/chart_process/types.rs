@@ -14,13 +14,13 @@ pub struct YCoordinate(pub Decimal);
 impl YCoordinate {
     /// Create a new YCoordinate
     #[must_use]
-    pub fn new(value: Decimal) -> Self {
+    pub const fn new(value: Decimal) -> Self {
         Self(value)
     }
 
     /// Get the internal Decimal value
     #[must_use]
-    pub fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &Decimal {
         &self.0
     }
 
@@ -85,19 +85,19 @@ impl std::ops::Div for YCoordinate {
 ///
 /// 0 is the judgment line, 1 is the position where the note generally starts to appear.
 /// The value of this type is only affected by: current Y, Y visible range, and current Speed, Scroll values.
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct DisplayRatio(pub Decimal);
 
 impl DisplayRatio {
     /// Create a new DisplayRatio
     #[must_use]
-    pub fn new(value: Decimal) -> Self {
+    pub const fn new(value: Decimal) -> Self {
         Self(value)
     }
 
     /// Get the internal Decimal value
     #[must_use]
-    pub fn value(&self) -> &Decimal {
+    pub const fn value(&self) -> &Decimal {
         &self.0
     }
 
@@ -212,19 +212,19 @@ pub struct ChartEventWithPosition {
 impl ChartEventWithPosition {
     /// Create a new ChartEventWithPosition
     #[must_use]
-    pub fn new(position: YCoordinate, event: ChartEvent) -> Self {
+    pub const fn new(position: YCoordinate, event: ChartEvent) -> Self {
         Self { position, event }
     }
 
     /// Get event position
     #[must_use]
-    pub fn position(&self) -> &YCoordinate {
+    pub const fn position(&self) -> &YCoordinate {
         &self.position
     }
 
     /// Get chart event
     #[must_use]
-    pub fn event(&self) -> &ChartEvent {
+    pub const fn event(&self) -> &ChartEvent {
         &self.event
     }
 
@@ -263,7 +263,11 @@ pub struct VisibleEvent {
 impl VisibleEvent {
     /// Create a new VisibleEvent
     #[must_use]
-    pub fn new(position: YCoordinate, event: ChartEvent, display_ratio: DisplayRatio) -> Self {
+    pub const fn new(
+        position: YCoordinate,
+        event: ChartEvent,
+        display_ratio: DisplayRatio,
+    ) -> Self {
         Self {
             position,
             event,
@@ -273,19 +277,19 @@ impl VisibleEvent {
 
     /// Get event position
     #[must_use]
-    pub fn position(&self) -> &YCoordinate {
+    pub const fn position(&self) -> &YCoordinate {
         &self.position
     }
 
     /// Get chart event
     #[must_use]
-    pub fn event(&self) -> &ChartEvent {
+    pub const fn event(&self) -> &ChartEvent {
         &self.event
     }
 
     /// Get display ratio
     #[must_use]
-    pub fn display_ratio(&self) -> &DisplayRatio {
+    pub const fn display_ratio(&self) -> &DisplayRatio {
         &self.display_ratio
     }
 
