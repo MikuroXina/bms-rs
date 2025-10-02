@@ -13,7 +13,7 @@ use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::
 use itertools::Itertools;
 
 use super::{ParseWarning, Result};
-use crate::bms::prelude::*;
+use crate::bms::{command::BaseType, prelude::*};
 
 mod bmp;
 mod bpm;
@@ -249,10 +249,10 @@ fn ids_from_message<'a>(
             (id != "00").then(|| {
                 let obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id);
                 obj_id.map(|id| {
-                    if case_sensitive_obj_id {
-                        id.fit_into_type(crate::bms::command::BaseType::Base62)
+                    if !case_sensitive_obj_id {
+                        id.fit_into_type(BaseType::Base36)
                     } else {
-                        id.fit_into_type(crate::bms::command::BaseType::Base36)
+                        id
                     }
                 })
             })

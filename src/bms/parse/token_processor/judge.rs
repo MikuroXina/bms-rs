@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 use fraction::GenericFraction;
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#RANK`` and `#EXRANKxx` definitions and objects on `Judge` channel.
 pub struct JudgeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -31,11 +31,9 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                     ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
                 })?;
                 let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                id = if self.0.borrow().header.case_sensitive_obj_id {
-                    id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    id.fit_into_type(crate::bms::command::BaseType::Base36)
-                };
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                }
 
                 let to_insert = ExRankDef { id, judge_level };
                 if let Some(older) = self.0.borrow_mut().scope_defines.exrank_defs.get_mut(&id) {
@@ -62,7 +60,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                 let judge_level = JudgeLevel::OtherInt(value);
                 let id00 = <ObjId as std::convert::TryFrom<&str>>::try_from("00")
                     .expect("00 must be valid ObjId")
-                    .fit_into_type(crate::bms::command::BaseType::Base36);
+                    .fit_into_type(BaseType::Base36);
                 self.0.borrow_mut().scope_defines.exrank_defs.insert(
                     id00,
                     ExRankDef {

@@ -13,7 +13,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, hex_values_from_message, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
 pub struct BpmProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -35,10 +35,8 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
                     &name["EXBPM".len()..]
                 };
                 let mut bpm_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                if self.0.borrow().header.case_sensitive_obj_id {
-                    bpm_obj_id = bpm_obj_id.fit_into_type(crate::bms::command::BaseType::Base62);
-                } else {
-                    bpm_obj_id = bpm_obj_id.fit_into_type(crate::bms::command::BaseType::Base36);
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    bpm_obj_id = bpm_obj_id.fit_into_type(BaseType::Base36);
                 }
                 let bpm = Decimal::from_fraction(
                     GenericFraction::from_str(args)

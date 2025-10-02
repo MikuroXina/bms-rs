@@ -22,7 +22,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#WAVxx` and `#LNOBJ` definitions and objects on `Bgm` and `Note` channels.
 pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
@@ -39,10 +39,8 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 }
                 let path = Path::new(args);
                 let mut wav_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                if self.0.borrow().header.case_sensitive_obj_id {
-                    wav_obj_id = wav_obj_id.fit_into_type(crate::bms::command::BaseType::Base62);
-                } else {
-                    wav_obj_id = wav_obj_id.fit_into_type(crate::bms::command::BaseType::Base36);
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    wav_obj_id = wav_obj_id.fit_into_type(BaseType::Base36);
                 }
                 if let Some(older) = self.0.borrow_mut().notes.wav_files.get_mut(&wav_obj_id) {
                     self.1
@@ -127,11 +125,9 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                     return Err(ParseWarning::SyntaxError("expected filename".into()));
                 };
                 let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                id = if self.0.borrow().header.case_sensitive_obj_id {
-                    id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    id.fit_into_type(crate::bms::command::BaseType::Base36)
-                };
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                }
                 let path = Path::new(file_name);
                 let to_insert = ExWavDef {
                     id,
@@ -158,11 +154,9 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             }
             "LNOBJ" => {
                 let mut end_id = <ObjId as std::convert::TryFrom<&str>>::try_from(args)?;
-                end_id = if self.0.borrow().header.case_sensitive_obj_id {
-                    end_id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    end_id.fit_into_type(crate::bms::command::BaseType::Base36)
-                };
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    end_id = end_id.fit_into_type(BaseType::Base36);
+                }
                 let mut end_note = self
                     .0
                     .borrow_mut()
@@ -241,11 +235,9 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                     }
                 };
                 let mut wav_index = <ObjId as std::convert::TryFrom<&str>>::try_from(args[1])?;
-                wav_index = if self.0.borrow().header.case_sensitive_obj_id {
-                    wav_index.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    wav_index.fit_into_type(crate::bms::command::BaseType::Base36)
-                };
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    wav_index = wav_index.fit_into_type(BaseType::Base36);
+                }
                 let value: u32 = args[2]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;

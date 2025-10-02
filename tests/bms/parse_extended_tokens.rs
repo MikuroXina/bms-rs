@@ -296,7 +296,7 @@ fn test_token_parsing_comprehensive() {
     assert!(
         bms.scope_defines
             .bga_defs
-            .contains_key(&ObjId::try_from("02", false).unwrap())
+            .contains_key(&ObjId::try_from("02").unwrap())
     );
     assert!(
         bms.scope_defines
@@ -306,17 +306,17 @@ fn test_token_parsing_comprehensive() {
     assert!(
         bms.scope_defines
             .exwav_defs
-            .contains_key(&ObjId::try_from("01", false).unwrap())
+            .contains_key(&ObjId::try_from("01").unwrap())
     );
     assert!(
         bms.others
             .change_options
-            .contains_key(&ObjId::try_from("01", false).unwrap())
+            .contains_key(&ObjId::try_from("01").unwrap())
     );
     assert!(
         bms.others
             .texts
-            .contains_key(&ObjId::try_from("01", false).unwrap())
+            .contains_key(&ObjId::try_from("01").unwrap())
     );
 }
 

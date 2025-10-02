@@ -29,7 +29,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{command::BaseType, model::Bms, prelude::*};
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
@@ -49,10 +49,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 }
 
                 let mut bmp_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                bmp_obj_id = if self.0.borrow().header.case_sensitive_obj_id {
-                    bmp_obj_id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    bmp_obj_id.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
                 };
                 let to_insert = Bmp {
                     file: path.into(),
@@ -111,10 +109,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
 
                 let path = args[1];
                 let mut bmp_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                bmp_obj_id = if self.0.borrow().header.case_sensitive_obj_id {
-                    bmp_obj_id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    bmp_obj_id.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    bmp_obj_id = bmp_obj_id.fit_into_type(BaseType::Base36);
                 };
                 let to_insert = Bmp {
                     file: path.into(),
@@ -158,10 +154,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
                 let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                id = if self.0.borrow().header.case_sensitive_obj_id {
-                    id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    id.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(crate::bms::command::BaseType::Base36);
                 };
                 let argb = Argb {
                     alpha,
@@ -213,12 +207,13 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let mut id = ObjId::try_from(id)?;
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
+                };
                 let mut source_bmp = <ObjId as std::convert::TryFrom<&str>>::try_from(args[0])?;
-                source_bmp = if self.0.borrow().header.case_sensitive_obj_id {
-                    source_bmp.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    source_bmp.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    source_bmp = source_bmp.fit_into_type(BaseType::Base36);
                 };
                 let trim_top_left = (sx, sy);
                 let trim_size = (w, h);
@@ -275,16 +270,12 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
                 let mut id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                id = if self.0.borrow().header.case_sensitive_obj_id {
-                    id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    id.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    id = id.fit_into_type(BaseType::Base36);
                 };
                 let mut source_bmp = <ObjId as std::convert::TryFrom<&str>>::try_from(args[0])?;
-                source_bmp = if self.0.borrow().header.case_sensitive_obj_id {
-                    source_bmp.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    source_bmp.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    source_bmp = source_bmp.fit_into_type(BaseType::Base36);
                 };
                 let to_insert = BgaDef {
                     id,
@@ -369,10 +360,8 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
 
                 let pattern = args[1].to_owned();
                 let mut sw_obj_id = <ObjId as std::convert::TryFrom<&str>>::try_from(id)?;
-                sw_obj_id = if self.0.borrow().header.case_sensitive_obj_id {
-                    sw_obj_id.fit_into_type(crate::bms::command::BaseType::Base62)
-                } else {
-                    sw_obj_id.fit_into_type(crate::bms::command::BaseType::Base36)
+                if !self.0.borrow().header.case_sensitive_obj_id {
+                    sw_obj_id = sw_obj_id.fit_into_type(BaseType::Base36);
                 };
                 let ev = SwBgaEvent {
                     frame_rate,
