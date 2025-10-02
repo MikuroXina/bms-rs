@@ -109,6 +109,41 @@ impl std::fmt::Display for JudgeLevel {
     }
 }
 
+/// Represents the base type for object ID encoding in BMS files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BaseType {
+    /// Base 16: Hexadecimal IDs (0-9A-F)
+    Base16,
+    /// Base 36: Case-insensitive IDs (0-9A-Z)
+    Base36,
+    /// Base 62: Case-sensitive IDs (0-9A-Za-z)
+    Base62,
+}
+
+impl std::fmt::Display for BaseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Base16 => write!(f, "16"),
+            Self::Base36 => write!(f, "36"),
+            Self::Base62 => write!(f, "62"),
+        }
+    }
+}
+
+impl std::str::FromStr for BaseType {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "16" => Ok(Self::Base16),
+            "36" => Ok(Self::Base36),
+            "62" => Ok(Self::Base62),
+            _ => Err(format!("Invalid base type: {}", s)),
+        }
+    }
+}
+
 pub(crate) const fn char_to_base62(ch: char) -> Option<u8> {
     match ch {
         '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
@@ -234,21 +269,68 @@ impl ObjId {
         self.0[1] = self.0[1].to_ascii_uppercase();
     }
 
-    /// Returns whether both characters are valid Base36 characters (0-9, A-Z).
+    /// Returns the base type used by this object ID based on its value range.
+    ///
+    /// This function determines the base type by checking the character ranges:
+    /// - If all characters are in 0-9A-F range: Base16
+    /// - If all characters are in 0-9A-Z range: Base36
+    /// - Otherwise: Base62
     #[must_use]
-    pub fn is_base36(self) -> bool {
-        self.0
+    pub fn base_type(self) -> BaseType {
+        // Check if all characters are valid for Base16 (0-9A-F)
+        if self
+            .0
             .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase())
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='F'))
+        {
+            return BaseType::Base16;
+        }
+
+        // Check if all characters are valid for Base36 (0-9A-Z)
+        if self
+            .0
+            .iter()
+            .map(|&c| c as char)
+            .all(|c| matches!(c, '0'..='9' | 'A'..='Z'))
+        {
+            return BaseType::Base36;
+        }
+
+        // Otherwise, it's Base62
+        BaseType::Base62
     }
 
-    /// Returns whether both characters are valid Base62 characters (0-9, A-Z, a-z).
+    /// Converts this object ID to fit the specified base type.
+    ///
+    /// This function applies the same logic as make_uppercase for all base types:
+    /// - Converts all characters to uppercase
+    /// - For Base16, ensures characters are within 0-9A-F by mapping G-Z to '0'
     #[must_use]
-    pub fn is_base62(self) -> bool {
-        self.0
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
+    pub fn fit_into_type(mut self, base_type: BaseType) -> Self {
+        match base_type {
+            BaseType::Base16 => {
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self.0
+                    .iter_mut()
+                    .filter(|ch| (b'G'..=b'Z').contains(ch))
+                    .for_each(|ch| *ch = b'0');
+                self
+            }
+            BaseType::Base36 => {
+                self.0
+                    .iter_mut()
+                    .for_each(|ch| *ch = ch.to_ascii_uppercase());
+                self
+            }
+            BaseType::Base62 => self,
+        }
     }
+
+    // NOTE: `is_base36` and `is_base62` were removed.
+    // Use `base_type()` and compare against `BaseType` instead.
 
     /// Returns an iterator over all possible ObjId values, ordered by priority:
     /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
@@ -270,8 +352,8 @@ impl ObjId {
             (0..62usize)
                 .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
                 .filter(move |obj_id| {
-                    // Skip "00" and Base36 values (already yielded above)
-                    !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
+                    // Skip "00" and Base36/Base16 values (already yielded above)
+                    !obj_id.is_null() && obj_id.base_type() == BaseType::Base62
                 })
         });
 
@@ -496,19 +578,19 @@ mod tests {
         // Should have exactly 3843 values
         assert_eq!(all_values.len(), 3843);
 
-        // First 1295 values should be Base36 (0-9, A-Z)
+        // First 1295 values should be Base36-compatible (0-9, A-Z)
         for (i, obj_id) in all_values.iter().enumerate() {
             if i < 1295 {
                 assert!(
-                    obj_id.is_base36(),
-                    "Value at index {} should be Base36: {:?}",
+                    matches!(obj_id.base_type(), BaseType::Base16 | BaseType::Base36),
+                    "Value at index {} should be Base36-compatible: {:?}",
                     i,
                     obj_id
                 );
             } else {
                 assert!(
-                    !obj_id.is_base36(),
-                    "Value at index {} should NOT be Base36: {:?}",
+                    obj_id.base_type() == BaseType::Base62,
+                    "Value at index {} should be Base62: {:?}",
                     i,
                     obj_id
                 );

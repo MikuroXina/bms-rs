@@ -1284,7 +1284,12 @@ impl Base62Checker {
     }
 
     fn check(&mut self, iter: impl IntoIterator<Item = ObjId>) {
-        if !self.using_base62 && iter.into_iter().any(|id| !id.is_base36() && id.is_base62()) {
+        use crate::bms::command::BaseType;
+        if !self.using_base62
+            && iter
+                .into_iter()
+                .any(|id| id.base_type() == BaseType::Base62)
+        {
             self.using_base62 = true;
         }
     }
