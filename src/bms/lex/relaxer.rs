@@ -5,12 +5,13 @@ use crate::bms::lex::{
 };
 use num::BigUint;
 
-/// Trait以提供可扩展的宽松词法（Relaxer）规则。
+/// Trait providing extensible relaxed lexing (Relaxer) rules.
 pub trait Relaxer {
-    /// 规范化原始命令token（如大小写、全角`#`、常见拼写）。
+    /// Normalize raw command token (case, fullwidth `#`, common typos).
     fn normalize_command(&self, command: &str) -> String;
 
-    /// 处理需要读取额外token或构造特定Token的特殊模式；若已处理，返回`Some(TokenWithRange)`。
+    /// Handle special patterns that require reading extra tokens or constructing a specific Token;
+    /// return `Some(TokenWithRange)` if handled.
     fn try_handle_special<'a>(
         &self,
         command_upper: &str,
@@ -19,7 +20,7 @@ pub trait Relaxer {
     ) -> Option<TokenWithRange<'a>>;
 }
 
-/// 将输入统一转换为大写以便后续规则匹配。
+/// Convert input to uppercase for subsequent rule matching.
 pub struct UppercaseRelaxer;
 
 impl Relaxer for UppercaseRelaxer {
@@ -36,7 +37,7 @@ impl Relaxer for UppercaseRelaxer {
     }
 }
 
-/// 处理以全角`＃`开头的命令，将其替换为半角`#`。
+/// Replace a leading fullwidth `＃` with ASCII `#`.
 pub struct FullwidthHashRelaxer;
 
 impl Relaxer for FullwidthHashRelaxer {
@@ -59,7 +60,7 @@ impl Relaxer for FullwidthHashRelaxer {
     }
 }
 
-/// 处理常见拼写/别名：`#RONDAM`→`#RANDOM`，`#IFEND`→`#ENDIF`。
+/// Handle common typos/aliases: `#RONDAM` → `#RANDOM`, `#IFEND` → `#ENDIF`.
 pub struct TypoRelaxer;
 
 impl Relaxer for TypoRelaxer {
@@ -80,7 +81,7 @@ impl Relaxer for TypoRelaxer {
     }
 }
 
-/// 处理无空格数字后缀：`#RANDOMn`、`#IFn`。
+/// Handle number suffix without space: `#RANDOMn`, `#IFn`.
 pub struct NumberSuffixRelaxer;
 
 impl Relaxer for NumberSuffixRelaxer {
@@ -113,7 +114,7 @@ impl Relaxer for NumberSuffixRelaxer {
     }
 }
 
-/// 处理分词形式的 `#END IF`（需消费后续`IF`）。
+/// Handle tokenized form `#END IF` (consumes the following `IF`).
 pub struct SpacedEndIfRelaxer;
 
 impl Relaxer for SpacedEndIfRelaxer {
@@ -138,7 +139,7 @@ impl Relaxer for SpacedEndIfRelaxer {
     }
 }
 
-/// 返回默认的 Relaxer 列表：大写→全角`#`→拼写→数字后缀→`#END IF`。
+/// Return the default Relaxer chain: Uppercase → fullwidth `#` → typo → number suffix → `#END IF`.
 #[must_use]
 pub fn default_relaxers() -> Vec<Box<dyn Relaxer>> {
     vec![
