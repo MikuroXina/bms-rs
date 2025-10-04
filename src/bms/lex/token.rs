@@ -9,7 +9,7 @@ use crate::bms::{
     prelude::read_channel,
 };
 
-use super::{Result, cursor::Cursor};
+use super::{Result, cursor::Cursor, relaxer::Relaxer};
 
 /// A token content of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -85,13 +85,27 @@ impl Token<'static> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
+    pub(crate) fn parse(
+        c: &mut Cursor<'a>,
+        relaxers: &Vec<Box<dyn Relaxer>>,
+    ) -> Result<TokenWithRange<'a>> {
         let channel_parser = read_channel;
         let (command_range, command) = c
             .next_token_with_range()
             .ok_or_else(|| c.make_err_expected_token("command"))?;
+        // Apply normalization across pipeline
+        let mut upper = command.to_string();
+        for r in relaxers.iter() {
+            upper = r.normalize_command(&upper);
+        }
+        // Try special handlers
+        for r in relaxers.iter() {
+            if let Some(tok) = r.try_handle_special(&upper, c, command_range.start) {
+                return Ok(tok);
+            }
+        }
 
-        let token = match command.to_uppercase().as_str() {
+        let token = match upper.as_str() {
             // Part: ControlFlow/Random
             "#RANDOM" => {
                 let rand_max = c
@@ -349,10 +363,12 @@ fn fmt_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bms::lex::relaxer::default_relaxers;
 
     fn parse_token(input: &'_ str) -> Token<'_> {
         let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor).unwrap().into_content()
+        let relaxers = default_relaxers();
+        Token::parse(&mut cursor, &relaxers).unwrap().into_content()
     }
 
     #[test]

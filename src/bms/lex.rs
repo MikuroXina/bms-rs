@@ -4,6 +4,8 @@
 //! [`BmsParseOutput`])
 
 mod cursor;
+/// Relaxed lexing support: trait and default implementation.
+pub mod relaxer;
 pub mod token;
 
 use thiserror::Error;
@@ -14,6 +16,7 @@ use crate::{
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
+use self::relaxer::Relaxer;
 use self::{
     cursor::Cursor,
     token::{Token, TokenWithRange},
@@ -108,13 +111,13 @@ impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
+    pub fn parse_lex(source: &'a str, relaxers: Vec<Box<dyn Relaxer>>) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            match Token::parse(&mut cursor) {
+            match Token::parse(&mut cursor, &relaxers) {
                 Ok(token_with_range) => {
                     tokens.push(token_with_range);
                 }
@@ -133,6 +136,8 @@ impl<'a> TokenStream<'a> {
     pub fn iter(&self) -> std::slice::Iter<'_, TokenWithRange<'a>> {
         self.tokens.iter()
     }
+
+    // removed parse_lex_with_relaxer; use parse_lex(..., relaxers) instead
 }
 
 impl<'a> TokenRefStream<'a> {
@@ -159,6 +164,7 @@ impl ToAriadne for LexWarningWithRange {
 #[cfg(test)]
 mod tests {
     use crate::{
+        bms::lex::relaxer::default_relaxers,
         bms::{
             command::{channel::Channel, time::Track},
             lex::{LexOutput, TokenStream},
@@ -193,7 +199,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC);
+        } = TokenStream::parse_lex(SRC, default_relaxers());
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

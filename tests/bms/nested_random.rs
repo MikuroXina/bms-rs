@@ -45,7 +45,7 @@ fn nested_random() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(SRC);
+    } = TokenStream::parse_lex(SRC, default_relaxers());
     assert_eq!(lex_warnings, vec![]);
 
     let AstBuildOutput {

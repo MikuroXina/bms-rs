@@ -6,7 +6,7 @@ fn test_lal() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, default_relaxers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -40,7 +40,7 @@ fn test_nc() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, default_relaxers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -80,7 +80,7 @@ fn test_j219() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, default_relaxers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -114,7 +114,7 @@ fn test_blank() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, default_relaxers());
     assert_eq!(
         warnings
             .into_iter()
@@ -145,7 +145,7 @@ fn test_bemuse_ext() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, default_relaxers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,

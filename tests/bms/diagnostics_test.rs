@@ -60,7 +60,8 @@ fn test_unknown_command_warning() {
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";
 
-    let output = bms_rs::bms::lex::TokenStream::parse_lex(bms_source);
+    use bms_rs::bms::lex::relaxer::default_relaxers;
+    let output = bms_rs::bms::lex::TokenStream::parse_lex(bms_source, default_relaxers());
 
     // Should have tokens including UnknownCommand
     assert!(!output.tokens.tokens.is_empty());

@@ -58,6 +58,9 @@ pub use super::{
     parse_bms_with_rng,
 };
 
+// Re-export default relaxers for lexing convenience
+pub use super::lex::relaxer::default_relaxers;
+
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
 pub use super::{ast::rng::RandRng, parse_bms};
