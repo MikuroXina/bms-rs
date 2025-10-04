@@ -10,5 +10,6 @@ mod parse_extended_tokens;
 mod playing_conditions;
 mod prelude_test;
 mod prompt_handlers;
+mod relaxed_lex;
 mod unparse_merge;
 mod unparse_roundtrip;

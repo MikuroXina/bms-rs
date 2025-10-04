@@ -123,10 +123,11 @@ pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> BmsOutput {
 /// It uses the default channel parser and a custom random number generator.
 pub fn parse_bms_with_rng<T: KeyLayoutMapper, R: Rng>(source: &str, rng: R) -> BmsOutput {
     // Parse tokens using default channel parser
+    use crate::bms::lex::relaxer::default_relaxers;
     let LexOutput {
         tokens,
         lex_warnings,
-    } = lex::TokenStream::parse_lex(source);
+    } = lex::TokenStream::parse_lex(source, default_relaxers());
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
