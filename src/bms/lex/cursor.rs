@@ -1,7 +1,18 @@
 use super::{LexWarning, LexWarningWithRange};
 use crate::bms::command::mixin::SourceRangeMixinExt;
 
-pub struct Cursor<'a> {
+/// Represents a checkpoint state of the cursor that can be saved and restored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CursorCheckpoint {
+    /// The line position, starts with 1.
+    line: usize,
+    /// The column position of char count, starts with 1. It is NOT byte count.
+    col: usize,
+    /// The index position.
+    index: usize,
+}
+
+pub(crate) struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
     /// The column position of char count, starts with 1. It is NOT byte count.
@@ -139,6 +150,22 @@ impl<'a> Cursor<'a> {
         self.index
     }
 
+    /// Save the current cursor state as a checkpoint.
+    pub(crate) fn save_checkpoint(&self) -> CursorCheckpoint {
+        CursorCheckpoint {
+            line: self.line,
+            col: self.col,
+            index: self.index,
+        }
+    }
+
+    /// Restore the cursor state from a checkpoint.
+    pub(crate) fn restore_checkpoint(&mut self, checkpoint: CursorCheckpoint) {
+        self.line = checkpoint.line;
+        self.col = checkpoint.col;
+        self.index = checkpoint.index;
+    }
+
     pub(crate) fn make_err_expected_token(
         &self,
         message: impl Into<String>,
@@ -262,4 +289,79 @@ fn test_next_line_no_trailing_newline() {
 
     assert_eq!(cursor.next_token(), Some("END"));
     assert_eq!(cursor.next_line_entire(), "END");
+}
+
+#[test]
+fn test_checkpoint_functionality() {
+    const SOURCE: &str = "hello world foo bar";
+
+    let mut cursor = Cursor::new(SOURCE);
+
+    // Save initial checkpoint
+    let initial_checkpoint = cursor.save_checkpoint();
+    assert_eq!(initial_checkpoint.line, 1);
+    assert_eq!(initial_checkpoint.col, 1);
+    assert_eq!(initial_checkpoint.index, 0);
+
+    // Advance cursor
+    assert_eq!(cursor.next_token(), Some("hello"));
+    assert_eq!(cursor.next_token(), Some("world"));
+
+    // Save checkpoint after advancing
+    let mid_checkpoint = cursor.save_checkpoint();
+    assert_eq!(mid_checkpoint.line, 1);
+    assert!(mid_checkpoint.col > 1);
+    assert!(mid_checkpoint.index > 0);
+
+    // Advance further
+    assert_eq!(cursor.next_token(), Some("foo"));
+    assert_eq!(cursor.next_token(), Some("bar"));
+
+    // Restore to mid checkpoint
+    cursor.restore_checkpoint(mid_checkpoint);
+    assert_eq!(cursor.next_token(), Some("foo"));
+    assert_eq!(cursor.next_token(), Some("bar"));
+
+    // Restore to initial checkpoint
+    cursor.restore_checkpoint(initial_checkpoint);
+    assert_eq!(cursor.next_token(), Some("hello"));
+    assert_eq!(cursor.next_token(), Some("world"));
+    assert_eq!(cursor.next_token(), Some("foo"));
+    assert_eq!(cursor.next_token(), Some("bar"));
+}
+
+#[test]
+fn test_checkpoint_with_multiline() {
+    const SOURCE: &str = "line1\nline2\nline3";
+
+    let mut cursor = Cursor::new(SOURCE);
+
+    // Save checkpoint at start
+    let start_checkpoint = cursor.save_checkpoint();
+
+    // Advance to second line
+    assert_eq!(cursor.next_token(), Some("line1"));
+    assert_eq!(cursor.next_line_remaining(), "");
+    assert_eq!(cursor.next_token(), Some("line2"));
+
+    // Save checkpoint on second line
+    let line2_checkpoint = cursor.save_checkpoint();
+    assert_eq!(line2_checkpoint.line, 2);
+
+    // Advance to third line
+    assert_eq!(cursor.next_line_remaining(), "");
+    assert_eq!(cursor.next_token(), Some("line3"));
+
+    // Restore to second line checkpoint
+    cursor.restore_checkpoint(line2_checkpoint);
+    assert_eq!(cursor.next_line_remaining(), "");
+    assert_eq!(cursor.next_token(), Some("line3"));
+
+    // Restore to start checkpoint
+    cursor.restore_checkpoint(start_checkpoint);
+    assert_eq!(cursor.next_token(), Some("line1"));
+    assert_eq!(cursor.next_line_remaining(), "");
+    assert_eq!(cursor.next_token(), Some("line2"));
+    assert_eq!(cursor.next_line_remaining(), "");
+    assert_eq!(cursor.next_token(), Some("line3"));
 }
