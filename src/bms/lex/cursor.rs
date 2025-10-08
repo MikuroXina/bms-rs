@@ -9,7 +9,7 @@ pub(crate) struct CursorCheckpoint {
     /// The column position of char count, starts with 1. It is NOT byte count.
     col: usize,
     /// The index position.
-    index: usize,
+    pub(crate) index: usize,
 }
 
 pub(crate) struct Cursor<'a> {

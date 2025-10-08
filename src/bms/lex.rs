@@ -4,6 +4,7 @@
 //! [`BmsParseOutput`])
 
 mod cursor;
+mod parsers;
 pub mod token;
 
 use thiserror::Error;
@@ -14,10 +15,7 @@ use crate::{
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
-use self::{
-    cursor::Cursor,
-    token::{Token, TokenWithRange},
-};
+use self::{cursor::Cursor, parsers::LexerParser, token::TokenWithRange};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -110,11 +108,12 @@ impl<'a> TokenStream<'a> {
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
     pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
+        let parser = LexerParser::new();
 
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            match Token::parse(&mut cursor) {
+            match parser.parse_token(&mut cursor) {
                 Ok(token_with_range) => {
                     tokens.push(token_with_range);
                 }
