@@ -1,4 +1,4 @@
-use bms_rs::bms::{lex::parsers, prelude::*};
+use bms_rs::bms::prelude::*;
 use num::BigUint;
 use std::num::NonZeroU64;
 
@@ -45,7 +45,7 @@ fn nested_random() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(SRC, parsers::default_parsers());
+    } = TokenStream::parse_lex(SRC, default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let AstBuildOutput {

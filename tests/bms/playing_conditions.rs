@@ -1,4 +1,4 @@
-use bms_rs::bms::{lex::parsers, prelude::*};
+use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_playing_conditions_empty_bms() {
@@ -7,7 +7,7 @@ fn test_playing_conditions_empty_bms() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, parsers::default_parsers());
+    } = TokenStream::parse_lex(source, default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
@@ -37,7 +37,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, parsers::default_parsers());
+    } = TokenStream::parse_lex(source, default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
@@ -64,7 +64,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, parsers::default_parsers());
+    } = TokenStream::parse_lex(source, default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     assert!(
@@ -108,7 +108,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, parsers::default_parsers());
+    } = TokenStream::parse_lex(source, default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {

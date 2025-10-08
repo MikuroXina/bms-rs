@@ -43,7 +43,7 @@
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, bms_rs::bms::lex::parsers::default_parsers());
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, bms_rs::bms::lex::token_parser::default_parsers());
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
@@ -75,7 +75,7 @@
 //! use bms_rs::bms::prelude::*;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, bms_rs::bms::lex::parsers::default_parsers());
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, bms_rs::bms::lex::token_parser::default_parsers());
 //! assert_eq!(lex_warnings, vec![]);
 //!
 //! // Build AST from tokens
