@@ -39,8 +39,8 @@ pub use super::{
         cursor::{Cursor, CursorCheckpoint},
         token::{Token, TokenWithRange},
         token_parser::{
-            CommentParser, ControlFlowParser, HeaderParser, LexerParser, MessageParser,
-            TokenParser, default_parsers,
+            CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, LexerParser,
+            MessageParser, TokenParser, default_parsers, default_parsers_with_relaxer,
         },
     },
     model::{
@@ -58,6 +58,7 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, Prompter,
         },
+        token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms_with_rng,

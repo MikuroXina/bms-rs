@@ -253,3 +253,83 @@ pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
         Box::new(CommentParser),
     ]
 }
+
+/// Parser for common illegal but frequent mistakes in BMS sources.
+///
+/// This parser handles various common typos and formatting errors that are
+/// frequently found in BMS files, providing more lenient parsing.
+pub struct CommonRelaxer;
+
+impl<'a> TokenParser<'a> for CommonRelaxer {
+    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
+        let checkpoint = cursor.save_checkpoint();
+
+        let Some(command) = cursor.next_token() else {
+            cursor.restore_checkpoint(checkpoint);
+            return Ok(None);
+        };
+
+        // Handle common typos in random control commands
+        let token = if command.eq_ignore_ascii_case("#RONDAM") {
+            // #RONDAM n -> #RANDOM n
+            let rand_max = cursor
+                .next_token()
+                .ok_or_else(|| cursor.make_err_expected_token("random max"))?
+                .parse()
+                .map_err(|_| cursor.make_err_expected_token("integer"))?;
+            Some(Token::Random(rand_max))
+        } else if command.eq_ignore_ascii_case("#END") {
+            // Check for #END IF -> #ENDIF
+            cursor
+                .peek_next_token()
+                .filter(|next_token| next_token.eq_ignore_ascii_case("IF"))
+                .map(|_| {
+                    cursor.next_token(); // consume "IF"
+                    Token::EndIf
+                })
+        } else if command == "＃ENDIF" {
+            // Full-width #ENDIF -> treat as #ENDIF
+            Some(Token::EndIf)
+        } else if let Some(n_part) = command
+            .to_uppercase()
+            .strip_prefix("#RANDOM")
+            .filter(|_| command.len() > 7)
+        {
+            // #RANDOMn -> #RANDOM n
+            n_part.parse().ok().map(Token::Random)
+        } else if let Some(remaining) = command
+            .to_uppercase()
+            .strip_prefix("#IF")
+            .filter(|_| command.len() > 3)
+        {
+            if remaining.chars().all(|c: char| c.is_ascii_digit()) {
+                // #IFn -> #IF n
+                remaining.parse().ok().map(Token::If)
+            } else if remaining.eq_ignore_ascii_case("END") {
+                // #IFEND -> #ENDIF
+                Some(Token::EndIf)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if token.is_none() {
+            cursor.restore_checkpoint(checkpoint);
+        }
+
+        Ok(token)
+    }
+}
+
+/// Creates a vector of default token parsers with common relaxer in the standard order.
+pub fn default_parsers_with_relaxer<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
+    vec![
+        Box::new(CommonRelaxer),
+        Box::new(ControlFlowParser),
+        Box::new(MessageParser),
+        Box::new(HeaderParser),
+        Box::new(CommentParser),
+    ]
+}
