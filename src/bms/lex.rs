@@ -4,8 +4,8 @@
 //! [`BmsParseOutput`])
 
 pub mod cursor;
+pub mod parser;
 pub mod token;
-pub mod token_parser;
 
 use thiserror::Error;
 
@@ -15,7 +15,7 @@ use crate::{
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
-use self::{cursor::Cursor, token::TokenWithRange, token_parser::TokenParser};
+use self::{cursor::Cursor, parser::TokenParser, token::TokenWithRange};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -213,7 +213,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC, crate::bms::lex::token_parser::default_parsers());
+        } = TokenStream::parse_lex(SRC, crate::bms::lex::parser::default_parsers());
 
         assert_eq!(warnings, vec![]);
         assert_eq!(
