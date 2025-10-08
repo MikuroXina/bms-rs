@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{lex::parsers, prelude::*};
 
 #[test]
 fn test_not_base_62() {
@@ -10,6 +10,7 @@ fn test_not_base_62() {
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
+        parsers::default_parsers(),
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {
@@ -38,6 +39,7 @@ fn test_base_62() {
 
         #BASE 62
     ",
+        parsers::default_parsers(),
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {

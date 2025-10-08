@@ -4,7 +4,7 @@
 //! [`BmsParseOutput`])
 
 mod cursor;
-mod parsers;
+pub mod parsers;
 pub mod token;
 
 use thiserror::Error;
@@ -15,7 +15,7 @@ use crate::{
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
-use self::{cursor::Cursor, parsers::LexerParser, token::TokenWithRange};
+use self::{cursor::Cursor, parsers::TokenParser, token::TokenWithRange};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -106,20 +106,41 @@ impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
+    pub fn parse_lex(source: &'a str, parsers: Vec<Box<dyn TokenParser<'a>>>) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
-        let parser = LexerParser::new();
 
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            match parser.parse_token(&mut cursor) {
-                Ok(token_with_range) => {
-                    tokens.push(token_with_range);
+            let command_range = cursor.save_checkpoint();
+
+            // Try each parser in order
+            let mut found_token = false;
+            for parser in &parsers {
+                let checkpoint = cursor.save_checkpoint();
+
+                match parser.try_parse(&mut cursor) {
+                    Ok(Some(token)) => {
+                        let token_range = command_range.index..cursor.index();
+                        tokens.push(SourceRangeMixin::new(token, token_range));
+                        found_token = true;
+                        break;
+                    }
+                    Ok(None) => {
+                        cursor.restore_checkpoint(checkpoint);
+                        continue;
+                    }
+                    Err(warning) => {
+                        cursor.restore_checkpoint(checkpoint);
+                        warnings.push(warning);
+                        found_token = true;
+                        break;
+                    }
                 }
-                Err(warning) => {
-                    warnings.push(warning);
-                }
+            }
+
+            if !found_token {
+                warnings.push(cursor.make_err_expected_token("valid token"));
             }
         }
         LexOutput {
@@ -192,7 +213,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC);
+        } = TokenStream::parse_lex(SRC, crate::bms::lex::parsers::default_parsers());
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

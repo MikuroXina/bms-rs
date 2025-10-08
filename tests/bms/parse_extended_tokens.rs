@@ -1,5 +1,5 @@
 #[cfg(feature = "minor-command")]
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{lex::parsers, prelude::*};
 
 #[test]
 #[cfg(feature = "minor-command")]
@@ -11,7 +11,7 @@ fn test_atbga_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -42,7 +42,7 @@ fn test_bga_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -74,7 +74,7 @@ fn test_exrank_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -103,7 +103,7 @@ fn test_exwav_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -135,7 +135,7 @@ fn test_changeoption_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -164,7 +164,7 @@ fn test_text_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -197,7 +197,7 @@ fn test_notes_parse_extended_tokens() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -258,7 +258,7 @@ fn test_token_parsing_comprehensive() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -331,7 +331,7 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
@@ -355,7 +355,7 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
@@ -379,7 +379,7 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {

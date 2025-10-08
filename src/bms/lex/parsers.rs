@@ -243,3 +243,13 @@ impl Default for LexerParser {
         Self::new()
     }
 }
+
+/// Creates a vector of default token parsers in the standard order.
+pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
+    vec![
+        Box::new(ControlFlowParser),
+        Box::new(MessageParser),
+        Box::new(HeaderParser),
+        Box::new(CommentParser),
+    ]
+}

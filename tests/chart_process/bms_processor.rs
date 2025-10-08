@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use num::ToPrimitive;
 
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{lex::parsers, prelude::*};
 use bms_rs::chart_process::prelude::*;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -87,7 +87,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
@@ -133,7 +133,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,

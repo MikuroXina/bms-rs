@@ -3,16 +3,16 @@ use crate::bms::command::mixin::SourceRangeMixinExt;
 
 /// Represents a checkpoint state of the cursor that can be saved and restored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct CursorCheckpoint {
+pub struct CursorCheckpoint {
     /// The line position, starts with 1.
-    line: usize,
+    pub line: usize,
     /// The column position of char count, starts with 1. It is NOT byte count.
-    col: usize,
+    pub col: usize,
     /// The index position.
-    pub(crate) index: usize,
+    pub index: usize,
 }
 
-pub(crate) struct Cursor<'a> {
+pub struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
     /// The column position of char count, starts with 1. It is NOT byte count.
@@ -24,7 +24,7 @@ pub(crate) struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub(crate) const fn new(source: &'a str) -> Self {
+    pub const fn new(source: &'a str) -> Self {
         Self {
             line: 1,
             col: 1,
@@ -33,7 +33,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub(crate) fn is_end(&self) -> bool {
+    pub fn is_end(&self) -> bool {
         self.peek_next_token().is_none()
     }
 
@@ -51,7 +51,7 @@ impl<'a> Cursor<'a> {
         next_token_start..next_token_end
     }
 
-    pub(crate) fn peek_next_token(&self) -> Option<&'a str> {
+    pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
@@ -60,7 +60,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the next token with range.
-    pub(crate) fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
+    pub fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
@@ -85,7 +85,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the next token.
-    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+    pub fn next_token(&mut self) -> Option<&'a str> {
         self.next_token_with_range().map(|(_, token)| token)
     }
 
@@ -120,7 +120,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the remaining part of this line.
-    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+    pub fn next_line_remaining(&mut self) -> &'a str {
         // Compute the current line bounds without consuming the trailing newline.
         let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
@@ -132,7 +132,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the entire line.
-    pub(crate) fn next_line_entire(&mut self) -> &'a str {
+    pub fn next_line_entire(&mut self) -> &'a str {
         // Compute the current line bounds without consuming the trailing newline.
         let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
@@ -146,12 +146,12 @@ impl<'a> Cursor<'a> {
     }
 
     /// Returns the current byte index in the source string.
-    pub(crate) const fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         self.index
     }
 
     /// Save the current cursor state as a checkpoint.
-    pub(crate) fn save_checkpoint(&self) -> CursorCheckpoint {
+    pub fn save_checkpoint(&self) -> CursorCheckpoint {
         CursorCheckpoint {
             line: self.line,
             col: self.col,
@@ -160,26 +160,20 @@ impl<'a> Cursor<'a> {
     }
 
     /// Restore the cursor state from a checkpoint.
-    pub(crate) fn restore_checkpoint(&mut self, checkpoint: CursorCheckpoint) {
+    pub fn restore_checkpoint(&mut self, checkpoint: CursorCheckpoint) {
         self.line = checkpoint.line;
         self.col = checkpoint.col;
         self.index = checkpoint.index;
     }
 
-    pub(crate) fn make_err_expected_token(
-        &self,
-        message: impl Into<String>,
-    ) -> LexWarningWithRange {
+    pub fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarningWithRange {
         LexWarning::ExpectedToken {
             message: message.into(),
         }
         .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_unknown_channel(
-        &self,
-        channel: impl Into<String>,
-    ) -> LexWarningWithRange {
+    pub fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarningWithRange {
         LexWarning::UnknownChannel {
             channel: channel.into(),
         }

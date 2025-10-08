@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::bms::{lex::parsers, prelude::*};
 
 fn assert_btree_maps_equal<K, V>(
     left: &std::collections::BTreeMap<K, V>,
@@ -71,7 +71,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source);
+    } = TokenStream::parse_lex(source, parsers::default_parsers());
     // Allow warnings for files with empty resource definitions
     let _ = lex_warnings;
 
