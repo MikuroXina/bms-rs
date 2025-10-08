@@ -1,3 +1,8 @@
+//! Cursor for lexical analysis of BMS source text.
+//!
+//! Provides utilities for traversing and parsing BMS source strings character by character,
+//! with support for checkpoints and error reporting.
+
 use super::{LexWarning, LexWarningWithRange};
 use crate::bms::command::mixin::SourceRangeMixinExt;
 
@@ -12,6 +17,10 @@ pub struct CursorCheckpoint {
     pub index: usize,
 }
 
+/// A cursor for traversing BMS source text during lexical analysis.
+///
+/// Tracks the current position in the source string, including line and column numbers,
+/// and provides methods for consuming tokens and managing checkpoints for backtracking.
 pub struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
@@ -24,6 +33,7 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
+    /// Creates a new cursor positioned at the beginning of the source string.
     pub const fn new(source: &'a str) -> Self {
         Self {
             line: 1,
@@ -33,6 +43,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// Returns `true` if the cursor has reached the end of the source string.
     pub fn is_end(&self) -> bool {
         self.peek_next_token().is_none()
     }
@@ -51,6 +62,9 @@ impl<'a> Cursor<'a> {
         next_token_start..next_token_end
     }
 
+    /// Returns the next token without advancing the cursor position.
+    ///
+    /// Returns `None` if there are no more tokens in the source string.
     pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
@@ -166,6 +180,7 @@ impl<'a> Cursor<'a> {
         self.index = checkpoint.index;
     }
 
+    /// Creates a lexical warning for an expected token that was not found.
     pub fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarningWithRange {
         LexWarning::ExpectedToken {
             message: message.into(),
@@ -173,6 +188,7 @@ impl<'a> Cursor<'a> {
         .into_wrapper_range(self.index()..self.index())
     }
 
+    /// Creates a lexical warning for an unknown channel identifier.
     pub fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarningWithRange {
         LexWarning::UnknownChannel {
             channel: channel.into(),

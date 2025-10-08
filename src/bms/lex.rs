@@ -3,7 +3,7 @@
 //! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
 //! [`BmsParseOutput`])
 
-mod cursor;
+pub mod cursor;
 pub mod parsers;
 pub mod token;
 

@@ -36,6 +36,11 @@ pub use super::{
     },
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
+        cursor::{Cursor, CursorCheckpoint},
+        parsers::{
+            CommentParser, ControlFlowParser, HeaderParser, LexerParser, MessageParser,
+            TokenParser, default_parsers,
+        },
         token::{Token, TokenWithRange},
     },
     model::{
