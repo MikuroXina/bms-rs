@@ -31,15 +31,12 @@ impl TokenProcessor for RepresentationProcessor {
                 .push(format!("#{name} {args}"));
         }
         match name.to_ascii_uppercase().as_str() {
-            "BASE" => match args {
-                "62" => {
-                    self.0.borrow_mut().header.case_sensitive_obj_id = true;
-                }
-                "16" | "36" => {}
-                _ => {
+            "BASE" => {
+                if args != "62" {
                     return Err(ParseWarning::OutOfBase62);
                 }
-            },
+                self.0.borrow_mut().header.case_sensitive_obj_id = true;
+            }
             "LNMODE" => {
                 let mode: u8 = args.parse().map_err(|_| {
                     ParseWarning::SyntaxError("expected integer between 1 and 3".into())
