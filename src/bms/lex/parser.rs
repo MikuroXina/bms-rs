@@ -2,9 +2,10 @@
 //!
 //! This module contains specialized parsers that work with `&mut Cursor` to parse
 //! different types of BMS tokens. Each parser is responsible for a specific token type
-//! and uses `CursorCheckpoint` for error recovery and backtracking.
+//! and leverages `Cursor::try_next_token` for error recovery and backtracking.
 
 use std::borrow::Cow;
+use num::BigUint;
 
 use crate::bms::{
     command::{mixin::SourceRangeMixin, time::Track},
@@ -31,84 +32,96 @@ pub struct ControlFlowParser;
 
 impl<'a> TokenParser<'a> for ControlFlowParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        let checkpoint = cursor.save_checkpoint();
+        enum Kind { Random, SetRandom, If, ElseIf, Else, EndIf, EndRandom, Switch, SetSwitch, Case, Skip, Def, EndSwitch }
 
-        let Some(command) = cursor.next_token() else {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        };
+        let kind = cursor.try_next_token(|command| {
+            let k = match command.to_uppercase().as_str() {
+                "#RANDOM" => Some(Kind::Random),
+                "#SETRANDOM" => Some(Kind::SetRandom),
+                "#IF" => Some(Kind::If),
+                "#ELSEIF" => Some(Kind::ElseIf),
+                "#ELSE" => Some(Kind::Else),
+                "#ENDIF" => Some(Kind::EndIf),
+                "#ENDRANDOM" => Some(Kind::EndRandom),
+                "#SWITCH" => Some(Kind::Switch),
+                "#SETSWITCH" => Some(Kind::SetSwitch),
+                "#CASE" => Some(Kind::Case),
+                "#SKIP" => Some(Kind::Skip),
+                "#DEF" => Some(Kind::Def),
+                "#ENDSW" => Some(Kind::EndSwitch),
+                _ => None,
+            };
+            Ok(k)
+        })?;
 
-        let token = match command.to_uppercase().as_str() {
-            "#RANDOM" => {
+        let Some(kind) = kind else { return Ok(None); };
+
+        let token = match kind {
+            Kind::Random => {
                 let rand_max = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("random max"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::Random(rand_max))
+                Token::Random(rand_max)
             }
-            "#SETRANDOM" => {
+            Kind::SetRandom => {
                 let rand_value = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("random value"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::SetRandom(rand_value))
+                Token::SetRandom(rand_value)
             }
-            "#IF" => {
+            Kind::If => {
                 let rand_target = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("random target"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::If(rand_target))
+                Token::If(rand_target)
             }
-            "#ELSEIF" => {
+            Kind::ElseIf => {
                 let rand_target = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("random target"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::ElseIf(rand_target))
+                Token::ElseIf(rand_target)
             }
-            "#ELSE" => Some(Token::Else),
-            "#ENDIF" => Some(Token::EndIf),
-            "#ENDRANDOM" => Some(Token::EndRandom),
-            "#SWITCH" => {
+            Kind::Else => Token::Else,
+            Kind::EndIf => Token::EndIf,
+            Kind::EndRandom => Token::EndRandom,
+            Kind::Switch => {
                 let switch_max = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("switch max"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::Switch(switch_max))
+                Token::Switch(switch_max)
             }
-            "#SETSWITCH" => {
+            Kind::SetSwitch => {
                 let switch_value = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("switch value"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::SetSwitch(switch_value))
+                Token::SetSwitch(switch_value)
             }
-            "#CASE" => {
+            Kind::Case => {
                 let case_value = cursor
                     .next_token()
                     .ok_or_else(|| cursor.make_err_expected_token("switch case value"))?
                     .parse()
                     .map_err(|_| cursor.make_err_expected_token("integer"))?;
-                Some(Token::Case(case_value))
+                Token::Case(case_value)
             }
-            "#SKIP" => Some(Token::Skip),
-            "#DEF" => Some(Token::Def),
-            "#ENDSW" => Some(Token::EndSwitch),
-            _ => None,
+            Kind::Skip => Token::Skip,
+            Kind::Def => Token::Def,
+            Kind::EndSwitch => Token::EndSwitch,
         };
 
-        if token.is_none() {
-            cursor.restore_checkpoint(checkpoint);
-        }
-
-        Ok(token)
+        Ok(Some(token))
     }
 }
 
@@ -117,17 +130,14 @@ pub struct MessageParser;
 
 impl<'a> TokenParser<'a> for MessageParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        let checkpoint = cursor.save_checkpoint();
+        let matched = cursor.try_next_token(|command| {
+            if !command.starts_with('#') || command.chars().nth(6) != Some(':') || command.len() < 8 {
+                return Ok(None);
+            }
+            Ok(Some(()))
+        })?;
 
-        let Some(command) = cursor.next_token() else {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        };
-
-        if !command.starts_with('#') || command.chars().nth(6) != Some(':') || command.len() < 8 {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        }
+        if matched.is_none() { return Ok(None); }
 
         let message_line = cursor.next_line_entire().trim_start();
         let track = message_line[1..4]
@@ -152,17 +162,14 @@ pub struct HeaderParser;
 
 impl<'a> TokenParser<'a> for HeaderParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        let checkpoint = cursor.save_checkpoint();
+        let matched = cursor.try_next_token(|command| {
+            if !command.starts_with('#') {
+                return Ok(None);
+            }
+            Ok(Some(command))
+        })?;
 
-        let Some(command) = cursor.next_token() else {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        };
-
-        if !command.starts_with('#') {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        }
+        let Some(command) = matched else { return Ok(None); };
 
         let args = cursor.next_line_remaining();
         Ok(Some(Token::Header {
@@ -177,17 +184,12 @@ pub struct CommentParser;
 
 impl<'a> TokenParser<'a> for CommentParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        let checkpoint = cursor.save_checkpoint();
+        let matched = cursor.try_next_token(|command| {
+            if command.starts_with('#') { return Ok(None); }
+            Ok(Some(()))
+        })?;
 
-        let Some(command) = cursor.next_token() else {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        };
-
-        if command.starts_with('#') {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        }
+        if matched.is_none() { return Ok(None); }
 
         let comment = cursor.next_line_entire();
         Ok(Some(Token::NotACommand(comment)))
@@ -199,13 +201,14 @@ pub struct LexerParser;
 
 impl LexerParser {
     /// Creates a new lexer parser.
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
     /// Parses a token from the cursor using all available parsers.
     pub fn parse_token<'a>(&self, cursor: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
-        let command_range = cursor.save_checkpoint();
+        let command_start = cursor.index();
 
         // Try each parser in order
         let parsers: Vec<Box<dyn TokenParser<'a>>> = vec![
@@ -216,21 +219,13 @@ impl LexerParser {
         ];
 
         for parser in parsers {
-            let checkpoint = cursor.save_checkpoint();
-
             match parser.try_parse(cursor) {
                 Ok(Some(token)) => {
-                    let token_range = command_range.index..cursor.index();
+                    let token_range = command_start..cursor.index();
                     return Ok(SourceRangeMixin::new(token, token_range));
                 }
-                Ok(None) => {
-                    cursor.restore_checkpoint(checkpoint);
-                    continue;
-                }
-                Err(warning) => {
-                    cursor.restore_checkpoint(checkpoint);
-                    return Err(warning);
-                }
+                Ok(None) => continue,
+                Err(warning) => return Err(warning),
             }
         }
 
@@ -245,6 +240,7 @@ impl Default for LexerParser {
 }
 
 /// Creates a vector of default token parsers in the standard order.
+#[must_use]
 pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
     vec![
         Box::new(ControlFlowParser),
@@ -262,68 +258,52 @@ pub struct CommonRelaxer;
 
 impl<'a> TokenParser<'a> for CommonRelaxer {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        let checkpoint = cursor.save_checkpoint();
+        enum RelaxAction { RandomFromNext, EndIfDirect, RandomFromSuffix(BigUint), IfFromSuffix(BigUint) }
 
-        let Some(command) = cursor.next_token() else {
-            cursor.restore_checkpoint(checkpoint);
-            return Ok(None);
-        };
-
-        // Handle common typos in random control commands
-        let token = if command.eq_ignore_ascii_case("#RONDAM") {
-            // #RONDAM n -> #RANDOM n
-            let rand_max = cursor
-                .next_token()
-                .ok_or_else(|| cursor.make_err_expected_token("random max"))?
-                .parse()
-                .map_err(|_| cursor.make_err_expected_token("integer"))?;
-            Some(Token::Random(rand_max))
-        } else if command.eq_ignore_ascii_case("#END") {
-            // Check for #END IF -> #ENDIF
-            cursor
-                .peek_next_token()
-                .filter(|next_token| next_token.eq_ignore_ascii_case("IF"))
-                .map(|_| {
-                    cursor.next_token(); // consume "IF"
-                    Token::EndIf
-                })
-        } else if command == "＃ENDIF" {
-            // Full-width #ENDIF -> treat as #ENDIF
-            Some(Token::EndIf)
-        } else if let Some(n_part) = command
-            .to_uppercase()
-            .strip_prefix("#RANDOM")
-            .filter(|_| command.len() > 7)
-        {
-            // #RANDOMn -> #RANDOM n
-            n_part.parse().ok().map(Token::Random)
-        } else if let Some(remaining) = command
-            .to_uppercase()
-            .strip_prefix("#IF")
-            .filter(|_| command.len() > 3)
-        {
-            if remaining.chars().all(|c: char| c.is_ascii_digit()) {
-                // #IFn -> #IF n
-                remaining.parse().ok().map(Token::If)
-            } else if remaining.eq_ignore_ascii_case("END") {
-                // #IFEND -> #ENDIF
-                Some(Token::EndIf)
+        let action = cursor.try_next_token(|command| {
+            let upper = command.to_uppercase();
+            let act = if upper == "#RONDAM" {
+                Some(RelaxAction::RandomFromNext)
+            } else if command == "＃ENDIF" {
+                Some(RelaxAction::EndIfDirect)
+            } else if let Some(n_part) = upper.strip_prefix("#RANDOM").filter(|_| command.len() > 7) {
+                if let Ok(n) = n_part.parse::<BigUint>() { Some(RelaxAction::RandomFromSuffix(n)) } else { None }
+            } else if let Some(remaining) = upper.strip_prefix("#IF").filter(|_| command.len() > 3) {
+                if remaining.chars().all(|c: char| c.is_ascii_digit()) {
+                    if let Ok(n) = remaining.parse::<BigUint>() { Some(RelaxAction::IfFromSuffix(n)) } else { None }
+                } else if remaining.eq_ignore_ascii_case("END") {
+                    Some(RelaxAction::EndIfDirect)
+                } else {
+                    None
+                }
             } else {
                 None
+            };
+            Ok(act)
+        })?;
+
+        let Some(action) = action else { return Ok(None); };
+
+        let token = match action {
+            RelaxAction::RandomFromNext => {
+                let rand_max = cursor
+                    .next_token()
+                    .ok_or_else(|| cursor.make_err_expected_token("random max"))?
+                    .parse::<BigUint>()
+                    .map_err(|_| cursor.make_err_expected_token("integer"))?;
+                Token::Random(rand_max)
             }
-        } else {
-            None
+            RelaxAction::EndIfDirect => Token::EndIf,
+            RelaxAction::RandomFromSuffix(n) => Token::Random(n),
+            RelaxAction::IfFromSuffix(n) => Token::If(n),
         };
 
-        if token.is_none() {
-            cursor.restore_checkpoint(checkpoint);
-        }
-
-        Ok(token)
+        Ok(Some(token))
     }
 }
 
 /// Creates a vector of default token parsers with common relaxer in the standard order.
+#[must_use]
 pub fn default_parsers_with_relaxer<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
     vec![
         Box::new(CommonRelaxer),

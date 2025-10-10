@@ -1,26 +1,15 @@
 //! Cursor for lexical analysis of BMS source text.
 //!
 //! Provides utilities for traversing and parsing BMS source strings character by character,
-//! with support for checkpoints and error reporting.
+//! with error reporting.
 
-use super::{LexWarning, LexWarningWithRange};
+use super::{LexWarning, LexWarningWithRange, Result};
 use crate::bms::command::mixin::SourceRangeMixinExt;
-
-/// Represents a checkpoint state of the cursor that can be saved and restored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CursorCheckpoint {
-    /// The line position, starts with 1.
-    pub line: usize,
-    /// The column position of char count, starts with 1. It is NOT byte count.
-    pub col: usize,
-    /// The index position.
-    pub index: usize,
-}
 
 /// A cursor for traversing BMS source text during lexical analysis.
 ///
 /// Tracks the current position in the source string, including line and column numbers,
-/// and provides methods for consuming tokens and managing checkpoints for backtracking.
+/// and provides methods for consuming tokens.
 pub struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
@@ -34,6 +23,7 @@ pub struct Cursor<'a> {
 
 impl<'a> Cursor<'a> {
     /// Creates a new cursor positioned at the beginning of the source string.
+    #[must_use]
     pub const fn new(source: &'a str) -> Self {
         Self {
             line: 1,
@@ -44,6 +34,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Returns `true` if the cursor has reached the end of the source string.
+    #[must_use]
     pub fn is_end(&self) -> bool {
         self.peek_next_token().is_none()
     }
@@ -65,6 +56,7 @@ impl<'a> Cursor<'a> {
     /// Returns the next token without advancing the cursor position.
     ///
     /// Returns `None` if there are no more tokens in the source string.
+    #[must_use]
     pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
@@ -101,6 +93,32 @@ impl<'a> Cursor<'a> {
     /// Move cursor, through and return the next token.
     pub fn next_token(&mut self) -> Option<&'a str> {
         self.next_token_with_range().map(|(_, token)| token)
+    }
+
+    /// Moves cursor then passes the next token to `op`. This state will be recovered if `op` returned `None`.
+    pub fn try_next_token<R: 'a, F: FnOnce(&'a str) -> Result<Option<R>>>(
+        &mut self,
+        op: F,
+    ) -> Result<Option<R>> {
+        let old_line = self.line;
+        let old_col = self.col;
+        let old_index = self.index;
+
+        let Some(token) = self.next_token() else {
+            return Ok(None);
+        };
+
+        match op(token) {
+            Ok(Some(r)) => Ok(Some(r)),
+            Ok(None) => {
+                // recover state
+                self.line = old_line;
+                self.col = old_col;
+                self.index = old_index;
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Determine the end of the current line and handle CRLF (\r\n) correctly.
@@ -160,24 +178,9 @@ impl<'a> Cursor<'a> {
     }
 
     /// Returns the current byte index in the source string.
+    #[must_use]
     pub const fn index(&self) -> usize {
         self.index
-    }
-
-    /// Save the current cursor state as a checkpoint.
-    pub fn save_checkpoint(&self) -> CursorCheckpoint {
-        CursorCheckpoint {
-            line: self.line,
-            col: self.col,
-            index: self.index,
-        }
-    }
-
-    /// Restore the cursor state from a checkpoint.
-    pub fn restore_checkpoint(&mut self, checkpoint: CursorCheckpoint) {
-        self.line = checkpoint.line;
-        self.col = checkpoint.col;
-        self.index = checkpoint.index;
     }
 
     /// Creates a lexical warning for an expected token that was not found.
@@ -299,79 +302,4 @@ fn test_next_line_no_trailing_newline() {
 
     assert_eq!(cursor.next_token(), Some("END"));
     assert_eq!(cursor.next_line_entire(), "END");
-}
-
-#[test]
-fn test_checkpoint_functionality() {
-    const SOURCE: &str = "hello world foo bar";
-
-    let mut cursor = Cursor::new(SOURCE);
-
-    // Save initial checkpoint
-    let initial_checkpoint = cursor.save_checkpoint();
-    assert_eq!(initial_checkpoint.line, 1);
-    assert_eq!(initial_checkpoint.col, 1);
-    assert_eq!(initial_checkpoint.index, 0);
-
-    // Advance cursor
-    assert_eq!(cursor.next_token(), Some("hello"));
-    assert_eq!(cursor.next_token(), Some("world"));
-
-    // Save checkpoint after advancing
-    let mid_checkpoint = cursor.save_checkpoint();
-    assert_eq!(mid_checkpoint.line, 1);
-    assert!(mid_checkpoint.col > 1);
-    assert!(mid_checkpoint.index > 0);
-
-    // Advance further
-    assert_eq!(cursor.next_token(), Some("foo"));
-    assert_eq!(cursor.next_token(), Some("bar"));
-
-    // Restore to mid checkpoint
-    cursor.restore_checkpoint(mid_checkpoint);
-    assert_eq!(cursor.next_token(), Some("foo"));
-    assert_eq!(cursor.next_token(), Some("bar"));
-
-    // Restore to initial checkpoint
-    cursor.restore_checkpoint(initial_checkpoint);
-    assert_eq!(cursor.next_token(), Some("hello"));
-    assert_eq!(cursor.next_token(), Some("world"));
-    assert_eq!(cursor.next_token(), Some("foo"));
-    assert_eq!(cursor.next_token(), Some("bar"));
-}
-
-#[test]
-fn test_checkpoint_with_multiline() {
-    const SOURCE: &str = "line1\nline2\nline3";
-
-    let mut cursor = Cursor::new(SOURCE);
-
-    // Save checkpoint at start
-    let start_checkpoint = cursor.save_checkpoint();
-
-    // Advance to second line
-    assert_eq!(cursor.next_token(), Some("line1"));
-    assert_eq!(cursor.next_line_remaining(), "");
-    assert_eq!(cursor.next_token(), Some("line2"));
-
-    // Save checkpoint on second line
-    let line2_checkpoint = cursor.save_checkpoint();
-    assert_eq!(line2_checkpoint.line, 2);
-
-    // Advance to third line
-    assert_eq!(cursor.next_line_remaining(), "");
-    assert_eq!(cursor.next_token(), Some("line3"));
-
-    // Restore to second line checkpoint
-    cursor.restore_checkpoint(line2_checkpoint);
-    assert_eq!(cursor.next_line_remaining(), "");
-    assert_eq!(cursor.next_token(), Some("line3"));
-
-    // Restore to start checkpoint
-    cursor.restore_checkpoint(start_checkpoint);
-    assert_eq!(cursor.next_token(), Some("line1"));
-    assert_eq!(cursor.next_line_remaining(), "");
-    assert_eq!(cursor.next_token(), Some("line2"));
-    assert_eq!(cursor.next_line_remaining(), "");
-    assert_eq!(cursor.next_token(), Some("line3"));
 }

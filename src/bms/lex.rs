@@ -112,26 +112,20 @@ impl<'a> TokenStream<'a> {
         let mut tokens = vec![];
         let mut warnings = vec![];
         while !cursor.is_end() {
-            let command_range = cursor.save_checkpoint();
+            let command_start = cursor.index();
 
             // Try each parser in order
             let mut found_token = false;
             for parser in &parsers {
-                let checkpoint = cursor.save_checkpoint();
-
                 match parser.try_parse(&mut cursor) {
                     Ok(Some(token)) => {
-                        let token_range = command_range.index..cursor.index();
+                        let token_range = command_start..cursor.index();
                         tokens.push(SourceRangeMixin::new(token, token_range));
                         found_token = true;
                         break;
                     }
-                    Ok(None) => {
-                        cursor.restore_checkpoint(checkpoint);
-                        continue;
-                    }
+                    Ok(None) => continue,
                     Err(warning) => {
-                        cursor.restore_checkpoint(checkpoint);
                         warnings.push(warning);
                         found_token = true;
                         break;

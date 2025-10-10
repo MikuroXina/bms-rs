@@ -36,7 +36,7 @@ pub use super::{
     },
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
-        cursor::{Cursor, CursorCheckpoint},
+        cursor::Cursor,
         parser::{
             CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, LexerParser,
             MessageParser, TokenParser, default_parsers, default_parsers_with_relaxer,
