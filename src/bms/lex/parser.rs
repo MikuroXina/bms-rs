@@ -4,8 +4,8 @@
 //! different types of BMS tokens. Each parser is responsible for a specific token type
 //! and leverages `Cursor::try_next_token` for error recovery and backtracking.
 
-use std::borrow::Cow;
 use num::BigUint;
+use std::borrow::Cow;
 
 use crate::bms::{
     command::{mixin::SourceRangeMixin, time::Track},
@@ -32,7 +32,21 @@ pub struct ControlFlowParser;
 
 impl<'a> TokenParser<'a> for ControlFlowParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        enum Kind { Random, SetRandom, If, ElseIf, Else, EndIf, EndRandom, Switch, SetSwitch, Case, Skip, Def, EndSwitch }
+        enum Kind {
+            Random,
+            SetRandom,
+            If,
+            ElseIf,
+            Else,
+            EndIf,
+            EndRandom,
+            Switch,
+            SetSwitch,
+            Case,
+            Skip,
+            Def,
+            EndSwitch,
+        }
 
         let kind = cursor.try_next_token(|command| {
             let k = match command.to_uppercase().as_str() {
@@ -54,7 +68,9 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
             Ok(k)
         })?;
 
-        let Some(kind) = kind else { return Ok(None); };
+        let Some(kind) = kind else {
+            return Ok(None);
+        };
 
         let token = match kind {
             Kind::Random => {
@@ -131,13 +147,16 @@ pub struct MessageParser;
 impl<'a> TokenParser<'a> for MessageParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
         let matched = cursor.try_next_token(|command| {
-            if !command.starts_with('#') || command.chars().nth(6) != Some(':') || command.len() < 8 {
+            if !command.starts_with('#') || command.chars().nth(6) != Some(':') || command.len() < 8
+            {
                 return Ok(None);
             }
             Ok(Some(()))
         })?;
 
-        if matched.is_none() { return Ok(None); }
+        if matched.is_none() {
+            return Ok(None);
+        }
 
         let message_line = cursor.next_line_entire().trim_start();
         let track = message_line[1..4]
@@ -169,7 +188,9 @@ impl<'a> TokenParser<'a> for HeaderParser {
             Ok(Some(command))
         })?;
 
-        let Some(command) = matched else { return Ok(None); };
+        let Some(command) = matched else {
+            return Ok(None);
+        };
 
         let args = cursor.next_line_remaining();
         Ok(Some(Token::Header {
@@ -185,11 +206,15 @@ pub struct CommentParser;
 impl<'a> TokenParser<'a> for CommentParser {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
         let matched = cursor.try_next_token(|command| {
-            if command.starts_with('#') { return Ok(None); }
+            if command.starts_with('#') {
+                return Ok(None);
+            }
             Ok(Some(()))
         })?;
 
-        if matched.is_none() { return Ok(None); }
+        if matched.is_none() {
+            return Ok(None);
+        }
 
         let comment = cursor.next_line_entire();
         Ok(Some(Token::NotACommand(comment)))
@@ -258,7 +283,12 @@ pub struct CommonRelaxer;
 
 impl<'a> TokenParser<'a> for CommonRelaxer {
     fn try_parse(&self, cursor: &mut Cursor<'a>) -> Result<Option<Token<'a>>> {
-        enum RelaxAction { RandomFromNext, EndIfDirect, RandomFromSuffix(BigUint), IfFromSuffix(BigUint) }
+        enum RelaxAction {
+            RandomFromNext,
+            EndIfDirect,
+            RandomFromSuffix(BigUint),
+            IfFromSuffix(BigUint),
+        }
 
         let action = cursor.try_next_token(|command| {
             let upper = command.to_uppercase();
@@ -266,11 +296,21 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
                 Some(RelaxAction::RandomFromNext)
             } else if command == "＃ENDIF" {
                 Some(RelaxAction::EndIfDirect)
-            } else if let Some(n_part) = upper.strip_prefix("#RANDOM").filter(|_| command.len() > 7) {
-                if let Ok(n) = n_part.parse::<BigUint>() { Some(RelaxAction::RandomFromSuffix(n)) } else { None }
-            } else if let Some(remaining) = upper.strip_prefix("#IF").filter(|_| command.len() > 3) {
+            } else if let Some(n_part) = upper.strip_prefix("#RANDOM").filter(|_| command.len() > 7)
+            {
+                if let Ok(n) = n_part.parse::<BigUint>() {
+                    Some(RelaxAction::RandomFromSuffix(n))
+                } else {
+                    None
+                }
+            } else if let Some(remaining) = upper.strip_prefix("#IF").filter(|_| command.len() > 3)
+            {
                 if remaining.chars().all(|c: char| c.is_ascii_digit()) {
-                    if let Ok(n) = remaining.parse::<BigUint>() { Some(RelaxAction::IfFromSuffix(n)) } else { None }
+                    if let Ok(n) = remaining.parse::<BigUint>() {
+                        Some(RelaxAction::IfFromSuffix(n))
+                    } else {
+                        None
+                    }
                 } else if remaining.eq_ignore_ascii_case("END") {
                     Some(RelaxAction::EndIfDirect)
                 } else {
@@ -282,7 +322,9 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
             Ok(act)
         })?;
 
-        let Some(action) = action else { return Ok(None); };
+        let Some(action) = action else {
+            return Ok(None);
+        };
 
         let token = match action {
             RelaxAction::RandomFromNext => {
