@@ -15,7 +15,11 @@ use crate::{
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
-use self::{cursor::Cursor, parser::TokenParser, token::TokenWithRange};
+use self::{
+    cursor::Cursor,
+    parser::{TokenParser, default_parsers},
+    token::TokenWithRange,
+};
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -106,11 +110,15 @@ impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str, parsers: Vec<Box<dyn TokenParser<'a>>>) -> LexOutput<'a> {
+    pub fn parse_lex(
+        source: &'a str,
+        parsers: Option<Vec<Box<dyn TokenParser<'a>>>>,
+    ) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
         let mut tokens = vec![];
         let mut warnings = vec![];
+        let parsers = parsers.unwrap_or_else(default_parsers);
         while !cursor.is_end() {
             let command_start = cursor.index();
 
@@ -207,7 +215,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC, crate::bms::lex::parser::default_parsers());
+        } = TokenStream::parse_lex(SRC, None);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

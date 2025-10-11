@@ -126,7 +126,7 @@ pub fn parse_bms_with_rng<T: KeyLayoutMapper, R: Rng>(source: &str, rng: R) -> B
     let LexOutput {
         tokens,
         lex_warnings,
-    } = lex::TokenStream::parse_lex(source, lex::parser::default_parsers());
+    } = lex::TokenStream::parse_lex(source, None);
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();

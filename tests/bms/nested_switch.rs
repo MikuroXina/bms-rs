@@ -24,7 +24,7 @@ fn switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(warnings, vec![]);
     let AstBuildOutput {
         root,
@@ -67,7 +67,7 @@ fn nested_switch_simpler() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(warnings, vec![]);
     let AstBuildOutput {
         root,
@@ -127,7 +127,7 @@ fn nested_switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(warnings, vec![]);
     let AstBuildOutput {
         root,
@@ -342,7 +342,7 @@ fn nested_random_in_switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(warnings, vec![]);
     let AstBuildOutput {
         root,
@@ -557,7 +557,7 @@ fn nested_switch_in_random() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(warnings, vec![]);
     let AstBuildOutput {
         root,
@@ -767,7 +767,7 @@ fn test_switch_insane() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(SRC, default_parsers());
+    } = TokenStream::parse_lex(SRC, None);
     assert_eq!(lex_warnings, vec![]);
 
     // CASE 1, RANDOM 1

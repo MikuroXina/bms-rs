@@ -10,7 +10,7 @@ fn test_not_base_62() {
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
-        default_parsers(),
+        None,
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {
@@ -39,7 +39,7 @@ fn test_base_62() {
 
         #BASE 62
     ",
-        default_parsers(),
+        None,
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {
