@@ -55,12 +55,12 @@ fn test_empty_warnings() {
 
 #[test]
 fn test_unknown_command_warning() {
-    use bms_rs::bms::lex::token::Token;
+    use bms_rs::bms::prelude::*;
 
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";
 
-    let output = bms_rs::bms::lex::TokenStream::parse_lex(bms_source);
+    let output = TokenStream::parse_lex(bms_source, None);
 
     // Should have tokens including UnknownCommand
     assert!(!output.tokens.tokens.is_empty());

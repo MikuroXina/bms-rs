@@ -36,6 +36,11 @@ pub use super::{
     },
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
+        cursor::Cursor,
+        parser::{
+            CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, MessageParser,
+            TokenParser, default_parsers, default_parsers_with_relaxer,
+        },
         token::{Token, TokenWithRange},
     },
     model::{
@@ -53,6 +58,7 @@ pub use super::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, Prompter,
         },
+        token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms_with_rng,
