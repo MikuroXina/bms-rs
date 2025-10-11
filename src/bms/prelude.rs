@@ -38,8 +38,8 @@ pub use super::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
         parser::{
-            CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, LexerParser,
-            MessageParser, TokenParser, default_parsers, default_parsers_with_relaxer,
+            CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, MessageParser,
+            TokenParser, default_parsers, default_parsers_with_relaxer,
         },
         token::{Token, TokenWithRange},
     },

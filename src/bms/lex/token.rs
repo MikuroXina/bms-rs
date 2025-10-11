@@ -243,10 +243,15 @@ mod tests {
     use super::*;
 
     fn parse_token(input: &'_ str) -> Token<'_> {
-        use crate::bms::lex::{cursor::Cursor, parser::LexerParser};
-        let mut cursor = Cursor::new(input);
-        LexerParser::new()
-            .parse_token(&mut cursor)
+        use crate::bms::lex::parser::default_parsers;
+        let result = crate::bms::lex::TokenStream::parse_lex(input, Some(default_parsers()));
+        assert_eq!(result.lex_warnings, vec![]);
+        assert_eq!(result.tokens.tokens.len(), 1);
+        result
+            .tokens
+            .tokens
+            .into_iter()
+            .next()
             .unwrap()
             .into_content()
     }

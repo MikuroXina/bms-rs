@@ -7,16 +7,9 @@
 use num::BigUint;
 use std::borrow::Cow;
 
-use crate::bms::{
-    command::{mixin::SourceRangeMixin, time::Track},
-    prelude::read_channel,
-};
+use crate::bms::{command::time::Track, prelude::read_channel};
 
-use super::{
-    Result,
-    cursor::Cursor,
-    token::{Token, TokenWithRange},
-};
+use super::{Result, cursor::Cursor, token::Token};
 
 /// Trait for parsers that can parse tokens from a cursor.
 pub trait TokenParser<'a> {
@@ -218,49 +211,6 @@ impl<'a> TokenParser<'a> for CommentParser {
 
         let comment = cursor.next_line_entire();
         Ok(Some(Token::NotACommand(comment)))
-    }
-}
-
-/// Main parser that coordinates all specialized parsers.
-pub struct LexerParser;
-
-impl LexerParser {
-    /// Creates a new lexer parser.
-    #[must_use]
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Parses a token from the cursor using all available parsers.
-    pub fn parse_token<'a>(&self, cursor: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
-        let command_start = cursor.index();
-
-        // Try each parser in order
-        let parsers: Vec<Box<dyn TokenParser<'a>>> = vec![
-            Box::new(ControlFlowParser),
-            Box::new(MessageParser),
-            Box::new(HeaderParser),
-            Box::new(CommentParser),
-        ];
-
-        for parser in parsers {
-            match parser.try_parse(cursor) {
-                Ok(Some(token)) => {
-                    let token_range = command_start..cursor.index();
-                    return Ok(SourceRangeMixin::new(token, token_range));
-                }
-                Ok(None) => continue,
-                Err(warning) => return Err(warning),
-            }
-        }
-
-        Err(cursor.make_err_expected_token("valid token"))
-    }
-}
-
-impl Default for LexerParser {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
