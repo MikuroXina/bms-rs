@@ -4,12 +4,13 @@ use std::borrow::Cow;
 
 use num::BigUint;
 
-use crate::bms::{
-    command::{channel::Channel, mixin::SourceRangeMixin, time::Track},
-    prelude::read_channel,
-};
-
 use super::{Result, cursor::Cursor};
+
+use crate::bms::command::{
+    channel::{Channel, NoteChannelId, read_channel},
+    mixin::SourceRangeMixin,
+    time::Track,
+};
 
 /// A token content of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -249,101 +250,9 @@ fn fmt_message(
     channel: Channel,
     message: &str,
 ) -> std::fmt::Result {
-    // Convert channel back to string representation
-    match channel {
-        Channel::BgaBase => {
-            write!(f, "#{:03}04:{}", track.0, message)
-        }
-        Channel::BgaLayer => {
-            write!(f, "#{:03}07:{}", track.0, message)
-        }
-        Channel::BgaPoor => {
-            write!(f, "#{:03}06:{}", track.0, message)
-        }
-        Channel::Bgm => {
-            write!(f, "#{:03}01:{}", track.0, message)
-        }
-        Channel::BpmChangeU8 => {
-            write!(f, "#{:03}03:{}", track.0, message)
-        }
-        Channel::BpmChange => {
-            write!(f, "#{:03}08:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::OptionChange => {
-            write!(f, "#{:03}A6:{}", track.0, message)
-        }
-        Channel::Note { channel_id } => {
-            write!(f, "#{:03}{}:{}", track.0, channel_id, message)
-        }
-        Channel::SectionLen => {
-            write!(f, "#{:03}02:{}", track.0, message)
-        }
-        Channel::Stop => {
-            write!(f, "#{:03}09:{}", track.0, message)
-        }
-        Channel::Scroll => {
-            write!(f, "#{:03}SC:{}", track.0, message)
-        }
-        Channel::Speed => {
-            write!(f, "#{:03}SP:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::Seek => {
-            write!(f, "#{:03}05:{}", track.0, message)
-        }
-        Channel::BgaLayer2 => {
-            write!(f, "#{:03}0A:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaBaseOpacity => {
-            write!(f, "#{:03}0B:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayerOpacity => {
-            write!(f, "#{:03}0C:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayer2Opacity => {
-            write!(f, "#{:03}0D:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaPoorOpacity => {
-            write!(f, "#{:03}0E:{}", track.0, message)
-        }
-        Channel::BgmVolume => {
-            write!(f, "#{:03}97:{}", track.0, message)
-        }
-        Channel::KeyVolume => {
-            write!(f, "#{:03}98:{}", track.0, message)
-        }
-        Channel::Text => {
-            write!(f, "#{:03}99:{}", track.0, message)
-        }
-        Channel::Judge => {
-            write!(f, "#{:03}A0:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaBaseArgb => {
-            write!(f, "#{:03}A1:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayerArgb => {
-            write!(f, "#{:03}A2:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaLayer2Argb => {
-            write!(f, "#{:03}A3:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaPoorArgb => {
-            write!(f, "#{:03}A4:{}", track.0, message)
-        }
-        #[cfg(feature = "minor-command")]
-        Channel::BgaKeybound => {
-            write!(f, "#{:03}A5:{}", track.0, message)
-        }
-    }
+    // Convert channel back to string representation using the new From trait
+    let channel_id = NoteChannelId::from(channel);
+    write!(f, "#{:03}{}:{}", track.0, channel_id, message)
 }
 
 #[cfg(test)]
