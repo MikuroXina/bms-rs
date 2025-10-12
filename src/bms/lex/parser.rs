@@ -5,26 +5,34 @@
 //! and leverages `Cursor::try_next_token` for error recovery and backtracking.
 
 use num::BigUint;
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::ControlFlow};
 
 use crate::bms::{command::time::Track, prelude::read_channel};
 
-use super::{Result, cursor::Cursor, token::Token};
+use super::{cursor::Cursor, token::Token};
 
 /// Trait for parsers that can parse tokens from a cursor.
 pub trait TokenParser<'a> {
     /// Attempts to parse a token from the cursor.
-    /// Returns `Some(Ok(token))` if parsing succeeds,
-    /// `None` if this parser doesn't handle the current input,
-    /// or `Some(Err(warning))` if parsing fails.
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>>;
+    /// Returns `Continue` if parsing succeeds,
+    /// `Break(LexWarningWithRange)` if parsing fails.
+    /// `push_token` will be called with a parsed new token.
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange>;
 }
 
 /// Parser for control flow commands like #RANDOM, #IF, #SWITCH, etc.
 pub struct ControlFlowParser;
 
 impl<'a> TokenParser<'a> for ControlFlowParser {
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>> {
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange> {
         enum Kind {
             Random,
             SetRandom,
@@ -61,10 +69,13 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
             Ok(k)
         }) {
             Ok(kind) => kind,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        let kind = kind?;
+        let kind = match kind {
+            Some(k) => k,
+            None => return ControlFlow::Continue(()),
+        };
 
         let token = match kind {
             Kind::Random => {
@@ -76,7 +87,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::Random(rand_max)
             }
@@ -89,7 +100,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::SetRandom(rand_value)
             }
@@ -102,7 +113,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::If(rand_target)
             }
@@ -115,7 +126,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::ElseIf(rand_target)
             }
@@ -131,7 +142,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::Switch(switch_max)
             }
@@ -144,7 +155,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::SetSwitch(switch_value)
             }
@@ -157,7 +168,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::Case(case_value)
             }
@@ -166,7 +177,8 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
             Kind::EndSwitch => Token::EndSwitch,
         };
 
-        Some(Ok(token))
+        push_token(token);
+        ControlFlow::Continue(())
     }
 }
 
@@ -174,7 +186,11 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
 pub struct MessageParser;
 
 impl<'a> TokenParser<'a> for MessageParser {
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>> {
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange> {
         let matched = match cursor.try_next_token(|command| {
             if !command.starts_with('#') || command.chars().nth(6) != Some(':') || command.len() < 8
             {
@@ -183,10 +199,13 @@ impl<'a> TokenParser<'a> for MessageParser {
             Ok(Some(()))
         }) {
             Ok(matched) => matched,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        matched?;
+        match matched {
+            Some(m) => m,
+            None => return ControlFlow::Continue(()),
+        };
 
         let message_line = cursor.next_line_entire().trim_start();
         let track = match message_line[1..4]
@@ -194,7 +213,7 @@ impl<'a> TokenParser<'a> for MessageParser {
             .map_err(|_| cursor.make_err_expected_token("[000-999]"))
         {
             Ok(track) => track,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
         let channel = &message_line[4..6];
         let message = &message_line[7..];
@@ -203,14 +222,15 @@ impl<'a> TokenParser<'a> for MessageParser {
             .ok_or_else(|| cursor.make_err_unknown_channel(channel.to_string()))
         {
             Ok(channel) => channel,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        Some(Ok(Token::Message {
+        push_token(Token::Message {
             track: Track(track),
             channel,
             message: Cow::Borrowed(message),
-        }))
+        });
+        ControlFlow::Continue(())
     }
 }
 
@@ -218,7 +238,11 @@ impl<'a> TokenParser<'a> for MessageParser {
 pub struct HeaderParser;
 
 impl<'a> TokenParser<'a> for HeaderParser {
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>> {
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange> {
         let matched = match cursor.try_next_token(|command| {
             if !command.starts_with('#') {
                 return Ok(None);
@@ -226,16 +250,20 @@ impl<'a> TokenParser<'a> for HeaderParser {
             Ok(Some(command))
         }) {
             Ok(matched) => matched,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        let command = matched?;
+        let command = match matched {
+            Some(cmd) => cmd,
+            None => return ControlFlow::Continue(()),
+        };
 
         let args = cursor.next_line_remaining();
-        Some(Ok(Token::Header {
+        push_token(Token::Header {
             name: command.trim_start_matches('#').to_owned().into(),
             args: args.into(),
-        }))
+        });
+        ControlFlow::Continue(())
     }
 }
 
@@ -243,7 +271,11 @@ impl<'a> TokenParser<'a> for HeaderParser {
 pub struct CommentParser;
 
 impl<'a> TokenParser<'a> for CommentParser {
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>> {
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange> {
         let matched = match cursor.try_next_token(|command| {
             if command.starts_with('#') {
                 return Ok(None);
@@ -251,19 +283,23 @@ impl<'a> TokenParser<'a> for CommentParser {
             Ok(Some(()))
         }) {
             Ok(matched) => matched,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        matched?;
+        match matched {
+            Some(m) => m,
+            None => return ControlFlow::Continue(()),
+        };
 
         let comment = cursor.next_line_entire();
-        Some(Ok(Token::NotACommand(comment)))
+        push_token(Token::NotACommand(comment));
+        ControlFlow::Continue(())
     }
 }
 
 /// Creates a vector of default token parsers in the standard order.
 #[must_use]
-pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
+pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a> + 'a>> {
     vec![
         Box::new(ControlFlowParser),
         Box::new(MessageParser),
@@ -279,7 +315,11 @@ pub fn default_parsers<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
 pub struct CommonRelaxer;
 
 impl<'a> TokenParser<'a> for CommonRelaxer {
-    fn try_parse(&self, cursor: &mut Cursor<'a>) -> Option<Result<Token<'a>>> {
+    fn try_parse(
+        &self,
+        cursor: &mut Cursor<'a>,
+        push_token: &mut dyn FnMut(Token<'a>),
+    ) -> ControlFlow<super::LexWarningWithRange> {
         enum RelaxAction {
             RandomFromNext,
             EndIfDirect,
@@ -318,10 +358,13 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
             Ok(act)
         }) {
             Ok(action) => action,
-            Err(e) => return Some(Err(e)),
+            Err(e) => return ControlFlow::Break(e),
         };
 
-        let action = action?;
+        let action = match action {
+            Some(a) => a,
+            None => return ControlFlow::Continue(()),
+        };
 
         let token = match action {
             RelaxAction::RandomFromNext => {
@@ -333,7 +376,7 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
                             .map_err(|_| cursor.make_err_expected_token("integer"))
                     }) {
                     Ok(value) => value,
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => return ControlFlow::Break(e),
                 };
                 Token::Random(rand_max)
             }
@@ -342,13 +385,14 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
             RelaxAction::IfFromSuffix(n) => Token::If(n),
         };
 
-        Some(Ok(token))
+        push_token(token);
+        ControlFlow::Continue(())
     }
 }
 
 /// Creates a vector of default token parsers with common relaxer in the standard order.
 #[must_use]
-pub fn default_parsers_with_relaxer<'a>() -> Vec<Box<dyn TokenParser<'a>>> {
+pub fn default_parsers_with_relaxer<'a>() -> Vec<Box<dyn TokenParser<'a> + 'a>> {
     vec![
         Box::new(CommonRelaxer),
         Box::new(ControlFlowParser),

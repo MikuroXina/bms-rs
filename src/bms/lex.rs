@@ -7,6 +7,7 @@ pub mod cursor;
 pub mod parser;
 pub mod token;
 
+use std::ops::ControlFlow;
 use thiserror::Error;
 
 use crate::{
@@ -112,7 +113,7 @@ impl<'a> TokenStream<'a> {
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
     pub fn parse_lex(
         source: &'a str,
-        parsers: Option<Vec<Box<dyn TokenParser<'a>>>>,
+        parsers: Option<Vec<Box<dyn TokenParser<'a> + 'a>>>,
     ) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
@@ -125,15 +126,23 @@ impl<'a> TokenStream<'a> {
             // Try each parser in order
             let mut found_token = false;
             for parser in &parsers {
-                match parser.try_parse(&mut cursor) {
-                    Some(Ok(token)) => {
-                        let token_range = command_start..cursor.index();
-                        tokens.push(SourceRangeMixin::new(token, token_range));
-                        found_token = true;
-                        break;
+                let mut tokens_collected = Vec::new();
+                match parser.try_parse(&mut cursor, &mut |token| {
+                    tokens_collected.push(token);
+                }) {
+                    ControlFlow::Continue(()) => {
+                        if !tokens_collected.is_empty() {
+                            // Add all collected tokens with the same range
+                            let token_range = command_start..cursor.index();
+                            for token in tokens_collected {
+                                tokens.push(SourceRangeMixin::new(token, token_range.clone()));
+                            }
+                            found_token = true;
+                            break;
+                        }
+                        // Continue to next parser if no tokens were collected
                     }
-                    None => continue,
-                    Some(Err(warning)) => {
+                    ControlFlow::Break(warning) => {
                         warnings.push(warning);
                         found_token = true;
                         break;
