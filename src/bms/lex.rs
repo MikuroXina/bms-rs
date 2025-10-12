@@ -126,14 +126,14 @@ impl<'a> TokenStream<'a> {
             let mut found_token = false;
             for parser in &parsers {
                 match parser.try_parse(&mut cursor) {
-                    Ok(Some(token)) => {
+                    Some(Ok(token)) => {
                         let token_range = command_start..cursor.index();
                         tokens.push(SourceRangeMixin::new(token, token_range));
                         found_token = true;
                         break;
                     }
-                    Ok(None) => continue,
-                    Err(warning) => {
+                    None => continue,
+                    Some(Err(warning)) => {
                         warnings.push(warning);
                         found_token = true;
                         break;
