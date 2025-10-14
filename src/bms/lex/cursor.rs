@@ -1,6 +1,15 @@
-use super::{LexWarning, LexWarningWithRange};
+//! Cursor for lexical analysis of BMS source text.
+//!
+//! Provides utilities for traversing and parsing BMS source strings character by character,
+//! with error reporting.
+
+use super::{LexWarning, LexWarningWithRange, Result};
 use crate::bms::command::mixin::SourceRangeMixinExt;
 
+/// A cursor for traversing BMS source text during lexical analysis.
+///
+/// Tracks the current position in the source string, including line and column numbers,
+/// and provides methods for consuming tokens.
 pub struct Cursor<'a> {
     /// The line position, starts with 1.
     line: usize,
@@ -13,7 +22,9 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub(crate) const fn new(source: &'a str) -> Self {
+    /// Creates a new cursor positioned at the beginning of the source string.
+    #[must_use]
+    pub const fn new(source: &'a str) -> Self {
         Self {
             line: 1,
             col: 1,
@@ -22,7 +33,9 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub(crate) fn is_end(&self) -> bool {
+    /// Returns `true` if the cursor has reached the end of the source string.
+    #[must_use]
+    pub fn is_end(&self) -> bool {
         self.peek_next_token().is_none()
     }
 
@@ -40,7 +53,11 @@ impl<'a> Cursor<'a> {
         next_token_start..next_token_end
     }
 
-    pub(crate) fn peek_next_token(&self) -> Option<&'a str> {
+    /// Returns the next token without advancing the cursor position.
+    ///
+    /// Returns `None` if there are no more tokens in the source string.
+    #[must_use]
+    pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
@@ -49,7 +66,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the next token with range.
-    pub(crate) fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
+    pub fn next_token_with_range(&mut self) -> Option<(std::ops::Range<usize>, &'a str)> {
         let ret = self.peek_next_token_range();
         if ret.is_empty() {
             return None;
@@ -74,8 +91,34 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the next token.
-    pub(crate) fn next_token(&mut self) -> Option<&'a str> {
+    pub fn next_token(&mut self) -> Option<&'a str> {
         self.next_token_with_range().map(|(_, token)| token)
+    }
+
+    /// Moves cursor then passes the next token to `op`. This state will be recovered if `op` returned `None`.
+    pub fn try_next_token<R: 'a, F: FnOnce(&'a str) -> Result<Option<R>>>(
+        &mut self,
+        op: F,
+    ) -> Result<Option<R>> {
+        let old_line = self.line;
+        let old_col = self.col;
+        let old_index = self.index;
+
+        let Some(token) = self.next_token() else {
+            return Ok(None);
+        };
+
+        match op(token) {
+            Ok(Some(r)) => Ok(Some(r)),
+            Ok(None) => {
+                // recover state
+                self.line = old_line;
+                self.col = old_col;
+                self.index = old_index;
+                Ok(None)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Determine the end of the current line and handle CRLF (\r\n) correctly.
@@ -109,7 +152,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the remaining part of this line.
-    pub(crate) fn next_line_remaining(&mut self) -> &'a str {
+    pub fn next_line_remaining(&mut self) -> &'a str {
         // Compute the current line bounds without consuming the trailing newline.
         let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
@@ -121,7 +164,7 @@ impl<'a> Cursor<'a> {
     }
 
     /// Move cursor, through and return the entire line.
-    pub(crate) fn next_line_entire(&mut self) -> &'a str {
+    pub fn next_line_entire(&mut self) -> &'a str {
         // Compute the current line bounds without consuming the trailing newline.
         let (remaining_end, ret_line_end_index) = self.current_line_bounds();
         let ret_remaining = &self.source[self.index..ret_line_end_index];
@@ -135,24 +178,21 @@ impl<'a> Cursor<'a> {
     }
 
     /// Returns the current byte index in the source string.
-    pub(crate) const fn index(&self) -> usize {
+    #[must_use]
+    pub const fn index(&self) -> usize {
         self.index
     }
 
-    pub(crate) fn make_err_expected_token(
-        &self,
-        message: impl Into<String>,
-    ) -> LexWarningWithRange {
+    /// Creates a lexical warning for an expected token that was not found.
+    pub fn make_err_expected_token(&self, message: impl Into<String>) -> LexWarningWithRange {
         LexWarning::ExpectedToken {
             message: message.into(),
         }
         .into_wrapper_range(self.index()..self.index())
     }
 
-    pub(crate) fn make_err_unknown_channel(
-        &self,
-        channel: impl Into<String>,
-    ) -> LexWarningWithRange {
+    /// Creates a lexical warning for an unknown channel identifier.
+    pub fn make_err_unknown_channel(&self, channel: impl Into<String>) -> LexWarningWithRange {
         LexWarning::UnknownChannel {
             channel: channel.into(),
         }

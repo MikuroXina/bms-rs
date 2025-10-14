@@ -1,4 +1,4 @@
-use bms_rs::bms::lex::{LexOutput, TokenStream, token::Token};
+use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_cursor_with_no_ending_return_and_newline() {
@@ -8,7 +8,7 @@ fn test_cursor_with_no_ending_return_and_newline() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(text);
+    } = TokenStream::parse_lex(text, None);
     assert_eq!(warnings, vec![]);
     let mut tokens_iter = tokens.tokens.into_iter();
     assert_eq!(

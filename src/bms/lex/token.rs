@@ -4,10 +4,8 @@ use std::borrow::Cow;
 
 use num::BigUint;
 
-use super::{Result, cursor::Cursor};
-
 use crate::bms::command::{
-    channel::{Channel, NoteChannelId, read_channel},
+    channel::{Channel, NoteChannelId},
     mixin::SourceRangeMixin,
     time::Track,
 };
@@ -86,109 +84,6 @@ impl Token<'static> {
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn parse(c: &mut Cursor<'a>) -> Result<TokenWithRange<'a>> {
-        let channel_parser = read_channel;
-        let (command_range, command) = c
-            .next_token_with_range()
-            .ok_or_else(|| c.make_err_expected_token("command"))?;
-
-        let token = match command.to_uppercase().as_str() {
-            // Part: ControlFlow/Random
-            "#RANDOM" => {
-                let rand_max = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("random max"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Random(rand_max)
-            }
-            "#SETRANDOM" => {
-                let rand_value = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("random value"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::SetRandom(rand_value)
-            }
-            "#IF" => {
-                let rand_target = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("random target"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::If(rand_target)
-            }
-            "#ELSEIF" => {
-                let rand_target = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("random target"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::ElseIf(rand_target)
-            }
-            "#ELSE" => Self::Else,
-            "#ENDIF" => Self::EndIf,
-            "#ENDRANDOM" => Self::EndRandom,
-            // Part: ControlFlow/Switch
-            "#SWITCH" => {
-                let switch_max = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("switch max"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Switch(switch_max)
-            }
-            "#SETSWITCH" => {
-                let switch_value = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("switch value"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::SetSwitch(switch_value)
-            }
-            "#CASE" => {
-                let case_value = c
-                    .next_token()
-                    .ok_or_else(|| c.make_err_expected_token("switch case value"))?
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("integer"))?;
-                Self::Case(case_value)
-            }
-            "#SKIP" => Self::Skip,
-            "#DEF" => Self::Def, // See https://hitkey.bms.ms/cmds.htm#DEF
-            "#ENDSW" => Self::EndSwitch, // See https://hitkey.bms.ms/cmds.htm#ENDSW
-            // Part: Normal 2
-            message
-                if message.starts_with('#')
-                    && message.chars().nth(6) == Some(':')
-                    && 8 <= message.len() =>
-            {
-                let message_line = c.next_line_entire().trim_start();
-                let track = message_line[1..4]
-                    .parse()
-                    .map_err(|_| c.make_err_expected_token("[000-999]"))?;
-                let channel = &message_line[4..6];
-                let message = &message_line[7..];
-                Self::Message {
-                    track: Track(track),
-                    channel: channel_parser(channel)
-                        .ok_or_else(|| c.make_err_unknown_channel(channel.to_string()))?,
-                    message: Cow::Borrowed(message),
-                }
-            }
-            // Other commands & Comment
-            others if others.starts_with('#') => Self::Header {
-                name: command.trim_start_matches('#').to_owned().into(),
-                args: c.next_line_remaining().into(),
-            },
-            _not_command => Self::NotACommand(c.next_line_entire()),
-        };
-
-        // Calculate the full range of this token (from command start to current cursor position)
-        let token_range = command_range.start..c.index();
-        Ok(SourceRangeMixin::new(token, token_range))
-    }
-
     /// Checks if a token is a control flow token.
     #[must_use]
     pub const fn is_control_flow_token(&self) -> bool {
@@ -260,8 +155,17 @@ mod tests {
     use super::*;
 
     fn parse_token(input: &'_ str) -> Token<'_> {
-        let mut cursor = Cursor::new(input);
-        Token::parse(&mut cursor).unwrap().into_content()
+        use crate::bms::lex::parser::default_parsers;
+        let result = crate::bms::lex::TokenStream::parse_lex(input, Some(default_parsers()));
+        assert_eq!(result.lex_warnings, vec![]);
+        assert_eq!(result.tokens.tokens.len(), 1);
+        result
+            .tokens
+            .tokens
+            .into_iter()
+            .next()
+            .unwrap()
+            .into_content()
     }
 
     #[test]

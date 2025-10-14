@@ -3,9 +3,11 @@
 //! Raw [String] == [lex] ==> [`TokenStream`] (in [`BmsLexOutput`]) == [parse] ==> [Bms] (in
 //! [`BmsParseOutput`])
 
-mod cursor;
+pub mod cursor;
+pub mod parser;
 pub mod token;
 
+use std::ops::ControlFlow;
 use thiserror::Error;
 
 use crate::{
@@ -16,7 +18,8 @@ use ariadne::{Color, Label, Report, ReportKind};
 
 use self::{
     cursor::Cursor,
-    token::{Token, TokenWithRange},
+    parser::{TokenParser, default_parsers},
+    token::TokenWithRange,
 };
 
 /// An error occurred when lexical analysis.
@@ -108,19 +111,50 @@ impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
-    pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
+    ///
+    /// The `parsers` parameter allows customizing the token parsers. If `None`,
+    /// it defaults to `default_parsers()` in the standard order.
+    pub fn parse_lex(
+        source: &'a str,
+        parsers: Option<Vec<Box<dyn TokenParser<'a> + 'a>>>,
+    ) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
         let mut tokens = vec![];
         let mut warnings = vec![];
+        let parsers = parsers.unwrap_or_else(default_parsers);
         while !cursor.is_end() {
-            match Token::parse(&mut cursor) {
-                Ok(token_with_range) => {
-                    tokens.push(token_with_range);
+            let command_start = cursor.index();
+
+            // Try each parser in order
+            let mut found_token = false;
+            for parser in &parsers {
+                let mut tokens_collected = Vec::new();
+                match parser.try_parse(&mut cursor, &mut |token| {
+                    tokens_collected.push(token);
+                }) {
+                    ControlFlow::Continue(()) => {
+                        if !tokens_collected.is_empty() {
+                            // Add all collected tokens with the same range
+                            let token_range = command_start..cursor.index();
+                            for token in tokens_collected {
+                                tokens.push(SourceRangeMixin::new(token, token_range.clone()));
+                            }
+                            found_token = true;
+                            break;
+                        }
+                        // Continue to next parser if no tokens were collected
+                    }
+                    ControlFlow::Break(warning) => {
+                        warnings.push(warning);
+                        found_token = true;
+                        break;
+                    }
                 }
-                Err(warning) => {
-                    warnings.push(warning);
-                }
+            }
+
+            if !found_token {
+                warnings.push(cursor.make_err_expected_token("valid token"));
             }
         }
         LexOutput {
@@ -193,7 +227,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC);
+        } = TokenStream::parse_lex(SRC, None);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(
