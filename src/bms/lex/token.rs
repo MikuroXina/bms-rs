@@ -4,11 +4,8 @@ use std::borrow::Cow;
 
 use num::BigUint;
 
-use crate::bms::command::{channel::Channel, mixin::SourceRangeMixin, time::Track};
-use super::{Result, cursor::Cursor};
-
 use crate::bms::command::{
-    channel::{Channel, NoteChannelId, read_channel},
+    channel::{Channel, NoteChannelId},
     mixin::SourceRangeMixin,
     time::Track,
 };
