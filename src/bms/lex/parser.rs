@@ -338,11 +338,10 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
                 Some(RelaxAction::EndIfDirect)
             } else if let Some(n_part) = upper.strip_prefix("#RANDOM").filter(|_| command.len() > 7)
             {
-                if let Ok(n) = n_part.parse::<BigUint>() {
-                    Some(RelaxAction::RandomFromSuffix(n))
-                } else {
-                    None
-                }
+                n_part
+                    .parse::<BigUint>()
+                    .ok()
+                    .map(RelaxAction::RandomFromSuffix)
             } else if let Some(remaining) = upper.strip_prefix("#IF").filter(|_| command.len() > 3)
             {
                 if remaining.chars().all(|c: char| c.is_ascii_digit()) {

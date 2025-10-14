@@ -101,19 +101,19 @@ impl<'a> From<ControlFlowToken> for Token<'a> {
 impl std::fmt::Display for ControlFlowToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ControlFlowToken::Case(value) => write!(f, "#CASE {value}"),
-            ControlFlowToken::Def => write!(f, "#DEF"),
-            ControlFlowToken::Else => write!(f, "#ELSE"),
-            ControlFlowToken::ElseIf(value) => write!(f, "#ELSEIF {value}"),
-            ControlFlowToken::EndIf => write!(f, "#ENDIF"),
-            ControlFlowToken::EndRandom => write!(f, "#ENDRANDOM"),
-            ControlFlowToken::EndSwitch => write!(f, "#ENDSW"),
-            ControlFlowToken::If(value) => write!(f, "#IF {value}"),
-            ControlFlowToken::Random(value) => write!(f, "#RANDOM {value}"),
-            ControlFlowToken::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
-            ControlFlowToken::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
-            ControlFlowToken::Skip => write!(f, "#SKIP"),
-            ControlFlowToken::Switch(value) => write!(f, "#SWITCH {value}"),
+            Self::Case(value) => write!(f, "#CASE {value}"),
+            Self::Def => write!(f, "#DEF"),
+            Self::Else => write!(f, "#ELSE"),
+            Self::ElseIf(value) => write!(f, "#ELSEIF {value}"),
+            Self::EndIf => write!(f, "#ENDIF"),
+            Self::EndRandom => write!(f, "#ENDRANDOM"),
+            Self::EndSwitch => write!(f, "#ENDSW"),
+            Self::If(value) => write!(f, "#IF {value}"),
+            Self::Random(value) => write!(f, "#RANDOM {value}"),
+            Self::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
+            Self::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
+            Self::Skip => write!(f, "#SKIP"),
+            Self::Switch(value) => write!(f, "#SWITCH {value}"),
         }
     }
 }
