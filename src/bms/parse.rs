@@ -100,21 +100,10 @@ impl Bms {
                 } => {
                     messages.push((token.range(), track, channel, message));
                 }
-                Token::Random(_)
-                | Token::SetRandom(_)
-                | Token::If(_)
-                | Token::ElseIf(_)
-                | Token::Else
-                | Token::EndIf
-                | Token::EndRandom
-                | Token::Switch(_)
-                | Token::SetSwitch(_)
-                | Token::Case(_)
-                | Token::Def
-                | Token::Skip
-                | Token::EndSwitch => {
+                t if t.is_control_flow_token() => {
                     // control tokens skipped
                 }
+                _ => {}
             }
         }
         let preset = minor_preset::<P, T>(Rc::clone(&share), &prompt_handler);

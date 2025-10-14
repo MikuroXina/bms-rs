@@ -9,7 +9,10 @@ use std::{borrow::Cow, ops::ControlFlow};
 
 use crate::bms::{command::time::Track, prelude::read_channel};
 
-use super::{cursor::Cursor, token::Token};
+use super::{
+    cursor::Cursor,
+    token::{ControlFlowToken, Token},
+};
 
 /// Trait for parsers that can parse tokens from a cursor.
 pub trait TokenParser<'a> {
@@ -89,7 +92,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::Random(rand_max)
+                ControlFlowToken::Random(rand_max)
             }
             Kind::SetRandom => {
                 let rand_value = match cursor
@@ -102,7 +105,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::SetRandom(rand_value)
+                ControlFlowToken::SetRandom(rand_value)
             }
             Kind::If => {
                 let rand_target = match cursor
@@ -115,7 +118,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::If(rand_target)
+                ControlFlowToken::If(rand_target)
             }
             Kind::ElseIf => {
                 let rand_target = match cursor
@@ -128,11 +131,11 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::ElseIf(rand_target)
+                ControlFlowToken::ElseIf(rand_target)
             }
-            Kind::Else => Token::Else,
-            Kind::EndIf => Token::EndIf,
-            Kind::EndRandom => Token::EndRandom,
+            Kind::Else => ControlFlowToken::Else,
+            Kind::EndIf => ControlFlowToken::EndIf,
+            Kind::EndRandom => ControlFlowToken::EndRandom,
             Kind::Switch => {
                 let switch_max = match cursor
                     .next_token()
@@ -144,7 +147,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::Switch(switch_max)
+                ControlFlowToken::Switch(switch_max)
             }
             Kind::SetSwitch => {
                 let switch_value = match cursor
@@ -157,7 +160,7 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::SetSwitch(switch_value)
+                ControlFlowToken::SetSwitch(switch_value)
             }
             Kind::Case => {
                 let case_value = match cursor
@@ -170,14 +173,14 @@ impl<'a> TokenParser<'a> for ControlFlowParser {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::Case(case_value)
+                ControlFlowToken::Case(case_value)
             }
-            Kind::Skip => Token::Skip,
-            Kind::Def => Token::Def,
-            Kind::EndSwitch => Token::EndSwitch,
+            Kind::Skip => ControlFlowToken::Skip,
+            Kind::Def => ControlFlowToken::Def,
+            Kind::EndSwitch => ControlFlowToken::EndSwitch,
         };
 
-        push_token(token);
+        push_token(token.into());
         ControlFlow::Continue(())
     }
 }
@@ -378,14 +381,14 @@ impl<'a> TokenParser<'a> for CommonRelaxer {
                     Ok(value) => value,
                     Err(e) => return ControlFlow::Break(e),
                 };
-                Token::Random(rand_max)
+                ControlFlowToken::Random(rand_max)
             }
-            RelaxAction::EndIfDirect => Token::EndIf,
-            RelaxAction::RandomFromSuffix(n) => Token::Random(n),
-            RelaxAction::IfFromSuffix(n) => Token::If(n),
+            RelaxAction::EndIfDirect => ControlFlowToken::EndIf,
+            RelaxAction::RandomFromSuffix(n) => ControlFlowToken::Random(n),
+            RelaxAction::IfFromSuffix(n) => ControlFlowToken::If(n),
         };
 
-        push_token(token);
+        push_token(token.into());
         ControlFlow::Continue(())
     }
 }

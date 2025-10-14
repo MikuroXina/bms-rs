@@ -41,7 +41,7 @@ pub use super::{
             CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, MessageParser,
             TokenParser, default_parsers, default_parsers_with_relaxer,
         },
-        token::{Token, TokenWithRange},
+        token::{ControlFlowToken, Token, TokenWithRange},
     },
     model::{
         Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
