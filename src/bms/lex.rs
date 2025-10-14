@@ -111,6 +111,9 @@ impl<'a, 'b> IntoIterator for &'b TokenRefStream<'a> {
 impl<'a> TokenStream<'a> {
     /// Analyzes and converts the BMS format text into [`TokenStream`].
     /// Use this function when you want to parse the BMS format text with a custom channel parser.
+    ///
+    /// The `parsers` parameter allows customizing the token parsers. If `None`,
+    /// it defaults to `default_parsers()` in the standard order.
     pub fn parse_lex(
         source: &'a str,
         parsers: Option<Vec<Box<dyn TokenParser<'a> + 'a>>>,
