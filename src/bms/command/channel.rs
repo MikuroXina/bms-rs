@@ -280,6 +280,98 @@ impl NoteChannelId {
     }
 }
 
+impl TryFrom<NoteChannelId> for Channel {
+    type Error = NoteChannelId;
+
+    fn try_from(channel_id: NoteChannelId) -> Result<Self, Self::Error> {
+        match channel_id.0 {
+            [b'0', b'1'] => Ok(Channel::Bgm),
+            [b'0', b'2'] => Ok(Channel::SectionLen),
+            [b'0', b'3'] => Ok(Channel::BpmChangeU8),
+            [b'0', b'4'] => Ok(Channel::BgaBase),
+            #[cfg(feature = "minor-command")]
+            [b'0', b'5'] => Ok(Channel::Seek),
+            [b'0', b'6'] => Ok(Channel::BgaPoor),
+            [b'0', b'7'] => Ok(Channel::BgaLayer),
+            [b'0', b'8'] => Ok(Channel::BpmChange),
+            [b'0', b'9'] => Ok(Channel::Stop),
+            [b'0', b'A'] => Ok(Channel::BgaLayer2),
+            #[cfg(feature = "minor-command")]
+            [b'0', b'B'] => Ok(Channel::BgaBaseOpacity),
+            #[cfg(feature = "minor-command")]
+            [b'0', b'C'] => Ok(Channel::BgaLayerOpacity),
+            #[cfg(feature = "minor-command")]
+            [b'0', b'D'] => Ok(Channel::BgaLayer2Opacity),
+            #[cfg(feature = "minor-command")]
+            [b'0', b'E'] => Ok(Channel::BgaPoorOpacity),
+            [b'9', b'7'] => Ok(Channel::BgmVolume),
+            [b'9', b'8'] => Ok(Channel::KeyVolume),
+            [b'9', b'9'] => Ok(Channel::Text),
+            [b'A', b'0'] => Ok(Channel::Judge),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'1'] => Ok(Channel::BgaBaseArgb),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'2'] => Ok(Channel::BgaLayerArgb),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'3'] => Ok(Channel::BgaLayer2Argb),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'4'] => Ok(Channel::BgaPoorArgb),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'5'] => Ok(Channel::BgaKeybound),
+            #[cfg(feature = "minor-command")]
+            [b'A', b'6'] => Ok(Channel::OptionChange),
+            [b'S', b'C'] => Ok(Channel::Scroll),
+            [b'S', b'P'] => Ok(Channel::Speed),
+            _ => Err(channel_id),
+        }
+    }
+}
+
+impl From<Channel> for NoteChannelId {
+    fn from(channel: Channel) -> Self {
+        match channel {
+            Channel::Bgm => Self([b'0', b'1']),
+            Channel::SectionLen => Self([b'0', b'2']),
+            Channel::BpmChangeU8 => Self([b'0', b'3']),
+            Channel::BgaBase => Self([b'0', b'4']),
+            #[cfg(feature = "minor-command")]
+            Channel::Seek => Self([b'0', b'5']),
+            Channel::BgaPoor => Self([b'0', b'6']),
+            Channel::BgaLayer => Self([b'0', b'7']),
+            Channel::BpmChange => Self([b'0', b'8']),
+            Channel::Stop => Self([b'0', b'9']),
+            Channel::BgaLayer2 => Self([b'0', b'A']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseOpacity => Self([b'0', b'B']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerOpacity => Self([b'0', b'C']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Opacity => Self([b'0', b'D']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorOpacity => Self([b'0', b'E']),
+            Channel::BgmVolume => Self([b'9', b'7']),
+            Channel::KeyVolume => Self([b'9', b'8']),
+            Channel::Text => Self([b'9', b'9']),
+            Channel::Judge => Self([b'A', b'0']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaBaseArgb => Self([b'A', b'1']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayerArgb => Self([b'A', b'2']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaLayer2Argb => Self([b'A', b'3']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaPoorArgb => Self([b'A', b'4']),
+            #[cfg(feature = "minor-command")]
+            Channel::BgaKeybound => Self([b'A', b'5']),
+            #[cfg(feature = "minor-command")]
+            Channel::OptionChange => Self([b'A', b'6']),
+            Channel::Scroll => Self([b'S', b'C']),
+            Channel::Speed => Self([b'S', b'P']),
+            Channel::Note { channel_id } => channel_id,
+        }
+    }
+}
+
 /// A key of the controller or keyboard.
 ///
 /// - Beat 5K/7K/10K/14K:
@@ -354,47 +446,8 @@ impl Key {
 ///
 /// For general part, please call this function when using other functions.
 fn read_channel_general(channel: &str) -> Option<Channel> {
-    use Channel::*;
-    Some(match channel.to_uppercase().as_str() {
-        "01" => Bgm,
-        "02" => SectionLen,
-        "03" => BpmChangeU8,
-        "08" => BpmChange,
-        "04" => BgaBase,
-        #[cfg(feature = "minor-command")]
-        "05" => Seek,
-        "06" => BgaPoor,
-        "07" => BgaLayer,
-        "09" => Stop,
-        "0A" => BgaLayer2,
-        #[cfg(feature = "minor-command")]
-        "0B" => BgaBaseOpacity,
-        #[cfg(feature = "minor-command")]
-        "0C" => BgaLayerOpacity,
-        #[cfg(feature = "minor-command")]
-        "0D" => BgaLayer2Opacity,
-        #[cfg(feature = "minor-command")]
-        "0E" => BgaPoorOpacity,
-        "97" => BgmVolume,
-        "98" => KeyVolume,
-        "99" => Text,
-        "A0" => Judge,
-        #[cfg(feature = "minor-command")]
-        "A1" => BgaBaseArgb,
-        #[cfg(feature = "minor-command")]
-        "A2" => BgaLayerArgb,
-        #[cfg(feature = "minor-command")]
-        "A3" => BgaLayer2Argb,
-        #[cfg(feature = "minor-command")]
-        "A4" => BgaPoorArgb,
-        #[cfg(feature = "minor-command")]
-        "A5" => BgaKeybound,
-        #[cfg(feature = "minor-command")]
-        "A6" => OptionChange,
-        "SC" => Scroll,
-        "SP" => Speed,
-        _ => return None,
-    })
+    let channel_id = channel.parse::<NoteChannelId>().ok()?;
+    Channel::try_from(channel_id).ok()
 }
 
 /// Reads a channel from a string. (Generic channel reader)

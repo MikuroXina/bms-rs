@@ -38,6 +38,9 @@ pub use types::{ChartEventWithPosition, VisibleEvent};
 ///
 /// These events represent actual events during chart playback, such as note triggers, BGM playback,
 /// BPM changes, etc. Setting and control related events have been separated into [`ControlEvent`].
+///
+/// The effects of [`ChartEvent`] members on [`YCoordinate`] and [`DisplayRatio`] are calculated by the corresponding
+/// [`ChartProcessor`] implementation, so there's no need to recalculate them.
 #[derive(Debug, Clone)]
 pub enum ChartEvent {
     /// Key note reaches judgment line (includes visible, long, mine, invisible notes, distinguished by `kind`)
