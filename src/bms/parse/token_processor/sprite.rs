@@ -24,7 +24,7 @@ impl TokenProcessor for SpriteProcessor {
                     )));
                 }
                 self.0.borrow_mut().header.banner = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             "BACKBMP" => {
                 if args.is_empty() {
@@ -33,7 +33,7 @@ impl TokenProcessor for SpriteProcessor {
                     )));
                 }
                 self.0.borrow_mut().header.back_bmp = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             "STAGEFILE" => {
                 if args.is_empty() {
@@ -42,7 +42,7 @@ impl TokenProcessor for SpriteProcessor {
                     )));
                 }
                 self.0.borrow_mut().header.stage_file = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             "EXTCHR" => {
@@ -138,7 +138,7 @@ impl TokenProcessor for SpriteProcessor {
                     abs_y,
                 };
                 self.0.borrow_mut().others.extchr_events.push(ev);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             charfile if charfile.starts_with("CHARFILE") => {
@@ -148,11 +148,9 @@ impl TokenProcessor for SpriteProcessor {
                     )));
                 }
                 self.0.borrow_mut().graphics.char_file = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
-            _ => {
-                return ControlFlow::Continue(());
-            }
+            _ => ControlFlow::Continue(()),
         }
     }
 

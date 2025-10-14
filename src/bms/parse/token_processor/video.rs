@@ -37,7 +37,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     )));
                 }
                 self.0.borrow_mut().graphics.video_file = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             "MOVIE" => {
                 if args.is_empty() {
@@ -46,7 +46,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     )));
                 }
                 self.0.borrow_mut().header.movie = Some(Path::new(args).into());
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             "VIDEOF/S" => {
@@ -59,7 +59,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     }
                 };
                 self.0.borrow_mut().graphics.video_fs = Some(frame_rate);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             "VIDEOCOLORS" => {
@@ -72,7 +72,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     }
                 };
                 self.0.borrow_mut().graphics.video_colors = Some(colors);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             "VIDEODLY" => {
@@ -85,7 +85,7 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     }
                 };
                 self.0.borrow_mut().graphics.video_dly = Some(delay);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             seek if seek.starts_with("SEEK") => {
@@ -121,11 +121,9 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                 } else {
                     self.0.borrow_mut().others.seek_events.insert(id, ms);
                 }
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
-            _ => {
-                return ControlFlow::Continue(());
-            }
+            _ => ControlFlow::Continue(()),
         }
     }
 

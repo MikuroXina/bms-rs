@@ -86,6 +86,7 @@ impl Bms {
         tokens
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         #[cfg(feature = "minor-command")]
         {
@@ -1277,7 +1278,7 @@ struct Base62Checker {
 }
 
 impl Base62Checker {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             using_base62: false,
         }
@@ -1289,7 +1290,7 @@ impl Base62Checker {
         }
     }
 
-    fn into_using_base62(self) -> bool {
+    const fn into_using_base62(self) -> bool {
         self.using_base62
     }
 }

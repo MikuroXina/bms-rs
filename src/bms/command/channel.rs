@@ -244,19 +244,19 @@ impl FromStr for NoteChannelId {
 
 impl From<NoteChannelId> for u16 {
     fn from(value: NoteChannelId) -> Self {
-        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+        base62_to_byte(value.0[0]) as Self * 62 + base62_to_byte(value.0[1]) as Self
     }
 }
 
 impl From<NoteChannelId> for u32 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u32
+        Into::<u16>::into(value) as Self
     }
 }
 
 impl From<NoteChannelId> for u64 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u64
+        Into::<u16>::into(value) as Self
     }
 }
 
@@ -285,43 +285,43 @@ impl TryFrom<NoteChannelId> for Channel {
 
     fn try_from(channel_id: NoteChannelId) -> Result<Self, Self::Error> {
         match channel_id.0 {
-            [b'0', b'1'] => Ok(Channel::Bgm),
-            [b'0', b'2'] => Ok(Channel::SectionLen),
-            [b'0', b'3'] => Ok(Channel::BpmChangeU8),
-            [b'0', b'4'] => Ok(Channel::BgaBase),
+            [b'0', b'1'] => Ok(Self::Bgm),
+            [b'0', b'2'] => Ok(Self::SectionLen),
+            [b'0', b'3'] => Ok(Self::BpmChangeU8),
+            [b'0', b'4'] => Ok(Self::BgaBase),
             #[cfg(feature = "minor-command")]
-            [b'0', b'5'] => Ok(Channel::Seek),
-            [b'0', b'6'] => Ok(Channel::BgaPoor),
-            [b'0', b'7'] => Ok(Channel::BgaLayer),
-            [b'0', b'8'] => Ok(Channel::BpmChange),
-            [b'0', b'9'] => Ok(Channel::Stop),
-            [b'0', b'A'] => Ok(Channel::BgaLayer2),
+            [b'0', b'5'] => Ok(Self::Seek),
+            [b'0', b'6'] => Ok(Self::BgaPoor),
+            [b'0', b'7'] => Ok(Self::BgaLayer),
+            [b'0', b'8'] => Ok(Self::BpmChange),
+            [b'0', b'9'] => Ok(Self::Stop),
+            [b'0', b'A'] => Ok(Self::BgaLayer2),
             #[cfg(feature = "minor-command")]
-            [b'0', b'B'] => Ok(Channel::BgaBaseOpacity),
+            [b'0', b'B'] => Ok(Self::BgaBaseOpacity),
             #[cfg(feature = "minor-command")]
-            [b'0', b'C'] => Ok(Channel::BgaLayerOpacity),
+            [b'0', b'C'] => Ok(Self::BgaLayerOpacity),
             #[cfg(feature = "minor-command")]
-            [b'0', b'D'] => Ok(Channel::BgaLayer2Opacity),
+            [b'0', b'D'] => Ok(Self::BgaLayer2Opacity),
             #[cfg(feature = "minor-command")]
-            [b'0', b'E'] => Ok(Channel::BgaPoorOpacity),
-            [b'9', b'7'] => Ok(Channel::BgmVolume),
-            [b'9', b'8'] => Ok(Channel::KeyVolume),
-            [b'9', b'9'] => Ok(Channel::Text),
-            [b'A', b'0'] => Ok(Channel::Judge),
+            [b'0', b'E'] => Ok(Self::BgaPoorOpacity),
+            [b'9', b'7'] => Ok(Self::BgmVolume),
+            [b'9', b'8'] => Ok(Self::KeyVolume),
+            [b'9', b'9'] => Ok(Self::Text),
+            [b'A', b'0'] => Ok(Self::Judge),
             #[cfg(feature = "minor-command")]
-            [b'A', b'1'] => Ok(Channel::BgaBaseArgb),
+            [b'A', b'1'] => Ok(Self::BgaBaseArgb),
             #[cfg(feature = "minor-command")]
-            [b'A', b'2'] => Ok(Channel::BgaLayerArgb),
+            [b'A', b'2'] => Ok(Self::BgaLayerArgb),
             #[cfg(feature = "minor-command")]
-            [b'A', b'3'] => Ok(Channel::BgaLayer2Argb),
+            [b'A', b'3'] => Ok(Self::BgaLayer2Argb),
             #[cfg(feature = "minor-command")]
-            [b'A', b'4'] => Ok(Channel::BgaPoorArgb),
+            [b'A', b'4'] => Ok(Self::BgaPoorArgb),
             #[cfg(feature = "minor-command")]
-            [b'A', b'5'] => Ok(Channel::BgaKeybound),
+            [b'A', b'5'] => Ok(Self::BgaKeybound),
             #[cfg(feature = "minor-command")]
-            [b'A', b'6'] => Ok(Channel::OptionChange),
-            [b'S', b'C'] => Ok(Channel::Scroll),
-            [b'S', b'P'] => Ok(Channel::Speed),
+            [b'A', b'6'] => Ok(Self::OptionChange),
+            [b'S', b'C'] => Ok(Self::Scroll),
+            [b'S', b'P'] => Ok(Self::Speed),
             _ => Err(channel_id),
         }
     }

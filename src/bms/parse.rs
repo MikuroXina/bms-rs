@@ -135,7 +135,7 @@ impl Bms {
         // 1) Run representation processor first across all headers to record raw lines and set global flags (e.g., BASE 62).
         // 2) Run remaining processors on headers, now with representation effects applied.
         let mut skip_header_in_second_pass = vec![false; headers.len()];
-        if let Some(repr_proc) = preset.get(0) {
+        if let Some(repr_proc) = preset.first() {
             for (idx, (range, name, args)) in headers.iter().enumerate() {
                 match repr_proc.on_header(name, args.as_ref()) {
                     std::ops::ControlFlow::Continue(()) => {}

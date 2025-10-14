@@ -63,7 +63,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                         .wav_files
                         .insert(wav_obj_id, path.into());
                 }
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             ex_wav if ex_wav.starts_with("EXWAV") => {
@@ -205,7 +205,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                         .exwav_defs
                         .insert(id, to_insert);
                 }
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             "LNOBJ" => {
                 let end_id =
@@ -268,7 +268,7 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 end_note_tuple.1 = NoteKind::Long;
                 end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
                 self.0.borrow_mut().notes.push_note(end_note);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             #[cfg(feature = "minor-command")]
             "WAVCMD" => {
@@ -345,11 +345,9 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                         .wavcmd_events
                         .insert(key, ev);
                 }
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
-            _ => {
-                return ControlFlow::Continue(());
-            }
+            _ => ControlFlow::Continue(()),
         }
     }
 

@@ -36,6 +36,7 @@ use std::ops::ControlFlow;
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
+    #[allow(clippy::cognitive_complexity)]
     fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         match name.to_ascii_uppercase().as_str() {
             bmp if bmp.starts_with("BMP") => {

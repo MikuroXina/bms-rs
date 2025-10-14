@@ -30,7 +30,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                     }
                 };
                 self.0.borrow_mut().header.rank = Some(rank);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             ex_rank if ex_rank.starts_with("EXRANK") => {
                 let id = &name["EXRANK".len()..];
@@ -67,7 +67,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                         .exrank_defs
                         .insert(id, to_insert);
                 }
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             dex_ex_rank if dex_ex_rank.starts_with("DEFEXRANK") => {
                 let value = match args.parse() {
@@ -87,7 +87,7 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                         judge_level,
                     },
                 );
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
             "TOTAL" => {
                 let frac = match GenericFraction::from_str(args) {
@@ -100,11 +100,9 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                 };
                 let total = Decimal::from_fraction(frac);
                 self.0.borrow_mut().header.total = Some(total);
-                return ControlFlow::Break(Ok(()));
+                ControlFlow::Break(Ok(()))
             }
-            _ => {
-                return ControlFlow::Continue(());
-            }
+            _ => ControlFlow::Continue(()),
         }
     }
 
