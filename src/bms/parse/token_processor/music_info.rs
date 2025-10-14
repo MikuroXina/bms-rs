@@ -13,12 +13,13 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
+use std::ops::ControlFlow;
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
 pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MusicInfoProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         match name.to_ascii_uppercase().as_str() {
             "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),
             "TITLE" => self.0.borrow_mut().header.title = Some(args.to_string()),
@@ -34,12 +35,14 @@ impl TokenProcessor for MusicInfoProcessor {
                 .push(args.to_string()),
             "MAKER" => self.0.borrow_mut().header.maker = Some(args.to_string()),
             "PREVIEW" => self.0.borrow_mut().header.preview_music = Some(Path::new(args).into()),
-            _ => {}
+            _ => {
+                return ControlFlow::Continue(());
+            }
         }
-        Ok(())
+        ControlFlow::Break(Ok(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> ControlFlow<Result<()>> {
+        ControlFlow::Continue(())
     }
 }

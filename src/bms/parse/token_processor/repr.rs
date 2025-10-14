@@ -11,12 +11,13 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::{ParseWarning, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
+use std::ops::ControlFlow;
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
 pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for RepresentationProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         if args.is_empty() {
             self.0
                 .borrow_mut()
@@ -33,22 +34,27 @@ impl TokenProcessor for RepresentationProcessor {
         match name.to_ascii_uppercase().as_str() {
             "BASE" => {
                 if args != "62" {
-                    return Err(ParseWarning::OutOfBase62);
+                    return ControlFlow::Break(Err(ParseWarning::OutOfBase62));
                 }
                 self.0.borrow_mut().header.case_sensitive_obj_id = true;
             }
             "LNMODE" => {
-                let mode: u8 = args.parse().map_err(|_| {
-                    ParseWarning::SyntaxError("expected integer between 1 and 3".into())
-                })?;
+                let mode: u8 = match args.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected integer between 1 and 3".into(),
+                        )));
+                    }
+                };
                 let mode = match mode {
                     1 => LnMode::Ln,
                     2 => LnMode::Cn,
                     3 => LnMode::Hcn,
                     _ => {
-                        return Err(ParseWarning::SyntaxError(
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
                             "expected long note mode between 1 and 3".into(),
-                        ));
+                        )));
                     }
                 };
                 self.0.borrow_mut().header.ln_mode = mode;
@@ -65,10 +71,10 @@ impl TokenProcessor for RepresentationProcessor {
             }
             _ => {}
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> ControlFlow<Result<()>> {
+        ControlFlow::Continue(())
     }
 }

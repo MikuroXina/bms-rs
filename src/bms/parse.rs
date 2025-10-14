@@ -119,24 +119,67 @@ impl Bms {
         }
         let preset = minor_preset::<P, T>(Rc::clone(&share), &prompt_handler);
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
-        for proc in &preset {
-            for (range, comment) in &comments {
-                if let Err(err) = proc.on_comment(comment) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+        for (range, comment) in &comments {
+            for proc in &preset {
+                match proc.on_comment(comment) {
+                    std::ops::ControlFlow::Continue(()) => continue,
+                    std::ops::ControlFlow::Break(Ok(())) => break,
+                    std::ops::ControlFlow::Break(Err(err)) => {
+                        parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                        break;
+                    }
                 }
             }
         }
-        for proc in &preset {
-            for (range, name, args) in &headers {
-                if let Err(err) = proc.on_header(name, args.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+        // Two-pass header processing:
+        // 1) Run representation processor first across all headers to record raw lines and set global flags (e.g., BASE 62).
+        // 2) Run remaining processors on headers, now with representation effects applied.
+        let mut skip_header_in_second_pass = vec![false; headers.len()];
+        if let Some(repr_proc) = preset.get(0) {
+            for (idx, (range, name, args)) in headers.iter().enumerate() {
+                match repr_proc.on_header(name, args.as_ref()) {
+                    std::ops::ControlFlow::Continue(()) => {}
+                    std::ops::ControlFlow::Break(Ok(())) => {
+                        // Skip running other processors for this header in second pass to preserve original short-circuit behavior.
+                        skip_header_in_second_pass[idx] = true;
+                    }
+                    std::ops::ControlFlow::Break(Err(err)) => {
+                        parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                        skip_header_in_second_pass[idx] = true;
+                    }
                 }
             }
         }
-        for proc in &preset {
-            for (range, track, channel, message) in &messages {
-                if let Err(err) = proc.on_message(**track, **channel, message.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+
+        // Second pass: iterate processors first, then headers, to preserve a stable processor-priority order
+        // for warnings/emissions while still short-circuiting headers once handled.
+        let mut header_already_handled = skip_header_in_second_pass;
+        for proc in preset.iter().skip(1) {
+            for (idx, (range, name, args)) in headers.iter().enumerate() {
+                if header_already_handled[idx] {
+                    continue;
+                }
+                match proc.on_header(name, args.as_ref()) {
+                    std::ops::ControlFlow::Continue(()) => {}
+                    std::ops::ControlFlow::Break(Ok(())) => {
+                        header_already_handled[idx] = true;
+                    }
+                    std::ops::ControlFlow::Break(Err(err)) => {
+                        parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                        header_already_handled[idx] = true;
+                    }
+                }
+            }
+        }
+        for (range, track, channel, message) in &messages {
+            for proc in &preset {
+                match proc.on_message(**track, **channel, message.as_ref()) {
+                    std::ops::ControlFlow::Continue(()) => continue,
+                    std::ops::ControlFlow::Break(Ok(())) => break,
+                    std::ops::ControlFlow::Break(Err(err)) => {
+                        parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                        break;
+                    }
                 }
             }
         }

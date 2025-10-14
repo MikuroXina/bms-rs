@@ -9,75 +9,116 @@ use std::{cell::RefCell, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
+use std::ops::ControlFlow;
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for SpriteProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         match name.to_ascii_uppercase().as_str() {
             "BANNER" => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected banner filename".into()));
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                        "expected banner filename".into(),
+                    )));
                 }
                 self.0.borrow_mut().header.banner = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
             "BACKBMP" => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
                         "expected backbmp filename".into(),
-                    ));
+                    )));
                 }
                 self.0.borrow_mut().header.back_bmp = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
             "STAGEFILE" => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
                         "expected splashscreen image filename".into(),
-                    ));
+                    )));
                 }
                 self.0.borrow_mut().header.stage_file = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             "EXTCHR" => {
                 // Allow multiple spaces between parameters
                 let params: Vec<_> = args.split_whitespace().collect();
                 if !(6..=10).contains(&params.len()) {
-                    return Err(ParseWarning::SyntaxError(
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
                         "params length must be between 6 and 10".into(),
-                    ));
+                    )));
                 }
-                let sprite_num = params[0]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected sprite_num i32".into()))?;
+                let sprite_num = match params[0].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected sprite_num i32".into(),
+                        )));
+                    }
+                };
                 let bmp_num = params[1];
                 // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
                 let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
-                    -stripped
-                        .parse::<i32>()
-                        .map_err(|_| ParseWarning::SyntaxError("expected bmp_num is i32".into()))?
+                    -match stripped.parse::<i32>() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                                "expected bmp_num is i32".into(),
+                            )));
+                        }
+                    }
                 } else if bmp_num.starts_with("0x")
                     || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
                 {
                     i32::from_str_radix(bmp_num, 16)
                         .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
                 } else {
-                    bmp_num.parse().map_err(|_| {
-                        ParseWarning::SyntaxError("expected bmp_num is i32 in hexadecimal".into())
-                    })?
+                    match bmp_num.parse() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                                "expected bmp_num is i32 in hexadecimal".into(),
+                            )));
+                        }
+                    }
                 };
-                let start_x = params[2]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected start_x is i32".into()))?;
-                let start_y = params[3]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected start_y is i32".into()))?;
-                let end_x = params[4]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected end_x is i32".into()))?;
-                let end_y = params[5]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected end_y is i32".into()))?;
+                let start_x = match params[2].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected start_x is i32".into(),
+                        )));
+                    }
+                };
+                let start_y = match params[3].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected start_y is i32".into(),
+                        )));
+                    }
+                };
+                let end_x = match params[4].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected end_x is i32".into(),
+                        )));
+                    }
+                };
+                let end_y = match params[5].parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected end_y is i32".into(),
+                        )));
+                    }
+                };
                 // offsetX/offsetY are optional
                 let offset_x = params.get(6).and_then(|v| v.parse().ok());
                 let offset_y = params.get(7).and_then(|v| v.parse().ok());
@@ -97,22 +138,25 @@ impl TokenProcessor for SpriteProcessor {
                     abs_y,
                 };
                 self.0.borrow_mut().others.extchr_events.push(ev);
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             charfile if charfile.starts_with("CHARFILE") => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
                         "expected character filename".into(),
-                    ));
+                    )));
                 }
                 self.0.borrow_mut().graphics.char_file = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
-            _ => {}
+            _ => {
+                return ControlFlow::Continue(());
+            }
         }
-        Ok(())
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> ControlFlow<Result<()>> {
+        ControlFlow::Continue(())
     }
 }

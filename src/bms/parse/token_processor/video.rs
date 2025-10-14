@@ -19,6 +19,7 @@ use num::BigUint;
 use super::ids_from_message;
 use super::{super::prompt::Prompter, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
+use std::ops::ControlFlow;
 
 /// It processes `#VIDEOFILE`, `#MOVIE` and so on definitions and objects on `Seek` channel.
 pub struct VideoProcessor<'a, P>(
@@ -27,42 +28,64 @@ pub struct VideoProcessor<'a, P>(
 );
 
 impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         match name.to_ascii_uppercase().as_str() {
             "VIDEOFILE" => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected video filename".into()));
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                        "expected video filename".into(),
+                    )));
                 }
                 self.0.borrow_mut().graphics.video_file = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
             "MOVIE" => {
                 if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected movie filename".into()));
+                    return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                        "expected movie filename".into(),
+                    )));
                 }
                 self.0.borrow_mut().header.movie = Some(Path::new(args).into());
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             "VIDEOF/S" => {
-                let frame_rate = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-                );
+                let frame_rate = match GenericFraction::<BigUint>::from_str(args) {
+                    Ok(frac) => Decimal::from_fraction(frac),
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected f64".into(),
+                        )));
+                    }
+                };
                 self.0.borrow_mut().graphics.video_fs = Some(frame_rate);
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             "VIDEOCOLORS" => {
-                let colors = args
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
+                let colors = match args.parse() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected u8".into(),
+                        )));
+                    }
+                };
                 self.0.borrow_mut().graphics.video_colors = Some(colors);
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             "VIDEODLY" => {
-                let delay = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-                );
+                let delay = match GenericFraction::<BigUint>::from_str(args) {
+                    Ok(frac) => Decimal::from_fraction(frac),
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected f64".into(),
+                        )));
+                    }
+                };
                 self.0.borrow_mut().graphics.video_dly = Some(delay);
+                return ControlFlow::Break(Ok(()));
             }
             #[cfg(feature = "minor-command")]
             seek if seek.starts_with("SEEK") => {
@@ -70,30 +93,48 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                 use num::BigUint;
 
                 let id = &name["SEEK".len()..];
-                let ms = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-                );
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let ms = match GenericFraction::<BigUint>::from_str(args) {
+                    Ok(frac) => Decimal::from_fraction(frac),
+                    Err(_) => {
+                        return ControlFlow::Break(Err(ParseWarning::SyntaxError(
+                            "expected decimal".into(),
+                        )));
+                    }
+                };
+                let id = match ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Break(Err(e)),
+                };
 
                 if let Some(older) = self.0.borrow_mut().others.seek_events.get_mut(&id) {
-                    self.1
+                    if let Err(e) = self
+                        .1
                         .handle_def_duplication(DefDuplication::SeekEvent {
                             id,
                             older,
                             newer: &ms,
                         })
-                        .apply_def(older, ms, id)?;
+                        .apply_def(older, ms, id)
+                    {
+                        return ControlFlow::Break(Err(e));
+                    }
                 } else {
                     self.0.borrow_mut().others.seek_events.insert(id, ms);
                 }
+                return ControlFlow::Break(Ok(()));
             }
-            _ => {}
+            _ => {
+                return ControlFlow::Continue(());
+            }
         }
-        Ok(())
     }
 
-    fn on_message(&self, _track: Track, channel: Channel, _message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        _track: Track,
+        channel: Channel,
+        _message: &str,
+    ) -> ControlFlow<Result<()>> {
         match channel {
             #[cfg(feature = "minor-command")]
             Channel::Seek => {
@@ -103,22 +144,25 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
                     self.0.borrow().header.case_sensitive_obj_id,
                     |w| self.1.warn(w),
                 ) {
-                    let position = self
+                    let position = match self.0.borrow().others.seek_events.get(&seek_id).cloned() {
+                        Some(v) => v,
+                        None => {
+                            return ControlFlow::Break(Err(ParseWarning::UndefinedObject(seek_id)));
+                        }
+                    };
+                    if let Err(e) = self
                         .0
-                        .borrow()
-                        .others
-                        .seek_events
-                        .get(&seek_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                    self.0
                         .borrow_mut()
                         .notes
-                        .push_seek_event(SeekObj { time, position }, self.1)?;
+                        .push_seek_event(SeekObj { time, position }, self.1)
+                    {
+                        return ControlFlow::Break(Err(e));
+                    }
                 }
+                return ControlFlow::Break(Ok(()));
             }
             _ => {}
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }

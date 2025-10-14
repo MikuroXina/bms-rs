@@ -14,6 +14,7 @@ use itertools::Itertools;
 
 use super::{ParseWarning, Result};
 use crate::bms::prelude::*;
+use std::ops::ControlFlow;
 
 mod bmp;
 mod bpm;
@@ -41,13 +42,13 @@ mod wav;
 /// - The effects of called `on_message` must be same regardless order of calls.
 pub trait TokenProcessor {
     /// Processes a header command consists of `#{name} {args}`.
-    fn on_header(&self, name: &str, args: &str) -> Result<()>;
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>>;
     /// Processes a message command consists of `#{track}{channel}:{message}`.
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()>;
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> ControlFlow<Result<()>>;
 
     /// Processes a comment line, which doesn't starts from `#`.
-    fn on_comment(&self, _line: &str) -> Result<()> {
-        Ok(())
+    fn on_comment(&self, _line: &str) -> ControlFlow<Result<()>> {
+        ControlFlow::Continue(())
     }
 }
 

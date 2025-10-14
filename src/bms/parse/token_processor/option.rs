@@ -10,13 +10,14 @@ use super::{
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
+use std::ops::ControlFlow;
 use std::{cell::RefCell, rc::Rc};
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
 pub struct OptionProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> ControlFlow<Result<()>> {
         match name.to_ascii_uppercase().as_str() {
             "OPTION" => {
                 self.0
@@ -25,18 +26,26 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                     .options
                     .get_or_insert_with(Vec::new)
                     .push(args.to_string());
+                return ControlFlow::Break(Ok(()));
             }
             change_option if change_option.starts_with("CHANGEOPTION") => {
                 let id = &name["CHANGEOPTION".len()..];
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let id = match ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id) {
+                    Ok(v) => v,
+                    Err(e) => return ControlFlow::Break(Err(e)),
+                };
                 if let Some(older) = self.0.borrow_mut().others.change_options.get_mut(&id) {
-                    self.1
+                    if let Err(e) = self
+                        .1
                         .handle_def_duplication(DefDuplication::ChangeOption {
                             id,
                             older,
                             newer: args,
                         })
-                        .apply_def(older, args.to_string(), id)?;
+                        .apply_def(older, args.to_string(), id)
+                    {
+                        return ControlFlow::Break(Err(e));
+                    }
                 } else {
                     self.0
                         .borrow_mut()
@@ -44,13 +53,14 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                         .change_options
                         .insert(id, args.to_string());
                 }
+                return ControlFlow::Break(Ok(()));
             }
             _ => {}
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> ControlFlow<Result<()>> {
         if channel == Channel::OptionChange {
             for (time, option_id) in ids_from_message(
                 track,
@@ -58,20 +68,30 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                 self.0.borrow().header.case_sensitive_obj_id,
                 |w| self.1.warn(w),
             ) {
-                let option = self
+                let option = match self
                     .0
                     .borrow()
                     .others
                     .change_options
                     .get(&option_id)
                     .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(option_id))?;
-                self.0
+                {
+                    Some(v) => v,
+                    None => {
+                        return ControlFlow::Break(Err(ParseWarning::UndefinedObject(option_id)));
+                    }
+                };
+                if let Err(e) = self
+                    .0
                     .borrow_mut()
                     .notes
-                    .push_option_event(OptionObj { time, option }, self.1)?;
+                    .push_option_event(OptionObj { time, option }, self.1)
+                {
+                    return ControlFlow::Break(Err(e));
+                }
             }
+            return ControlFlow::Break(Ok(()));
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }
