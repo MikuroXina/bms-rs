@@ -2,7 +2,7 @@
 //!
 //! - `#SPEED[01-ZZ] n` - Spacing factor definition. It changes spacing among notes while keeps scrolling speed.
 //! - `#xxxSP:` - Spacing factor channel.
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
@@ -16,7 +16,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct SpeedProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         if name.to_ascii_uppercase().starts_with("SPEED") {
             let id = &name["SPEED".len()..];
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
@@ -46,10 +46,10 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
                     .insert(speed_obj_id, factor);
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::Speed {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
@@ -67,6 +67,6 @@ impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
                     .push_speed_factor_change(SpeedObj { time, factor }, self.1)?;
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

@@ -21,7 +21,7 @@
 //! - `#SWBGA[01-ZZ] fr:time:line:loop:a,r,g,b pattern` - Key bound animated images.
 //! - `#xxxA5:` - Key bound BGA animation trigger channel.
 
-use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc, str::FromStr};
 
 #[cfg(feature = "minor-command")]
 use super::hex_values_from_message;
@@ -35,7 +35,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             bmp if bmp.starts_with("BMP") => {
                 let id = &name["BMP".len()..];
@@ -45,7 +45,7 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
                 let path = Path::new(args);
                 if id == "00" {
                     self.0.borrow_mut().graphics.poor_bmp = Some(path.into());
-                    return Ok(());
+                    return Ok(ControlFlow::Continue(()));
                 }
 
                 let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
@@ -379,10 +379,10 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
         match channel {
             channel @ (Channel::BgaBase
@@ -475,6 +475,6 @@ impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

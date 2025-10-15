@@ -1,7 +1,7 @@
 //! This module handles the tokens:
 //!
 //! - `#xxx02:`: Section length ratio channel. `1.0` makes `xxx` section to be 4/4 beat.
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
@@ -12,11 +12,11 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct SectionLenProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
-    fn on_header(&self, _: &str, _: &str) -> Result<()> {
-        Ok(())
+    fn on_header(&self, _: &str, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
@@ -35,6 +35,6 @@ impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
                 .arrangers
                 .push_section_len_change(SectionLenChangeObj { track, length }, self.1)?;
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

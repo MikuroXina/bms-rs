@@ -9,7 +9,7 @@
 //! - `#MAKER author` - Author of the score.
 //! - `#PREVIEW path` - Path of the preview music file.
 
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
@@ -18,7 +18,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MusicInfoProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),
             "TITLE" => self.0.borrow_mut().header.title = Some(args.to_string()),
@@ -36,10 +36,10 @@ impl TokenProcessor for MusicInfoProcessor {
             "PREVIEW" => self.0.borrow_mut().header.preview_music = Some(Path::new(args).into()),
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 }

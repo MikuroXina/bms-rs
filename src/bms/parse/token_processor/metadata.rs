@@ -13,7 +13,7 @@
 //! - `#DIVIDEPROP n` - Dividing resolution of playing. Obsolete.
 //! - `#OCT/FP` - Octave mode option.
 
-use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc, str::FromStr};
 
 use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
@@ -22,7 +22,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct MetadataProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MetadataProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "PLAYER" => self.0.borrow_mut().header.player = Some(PlayerMode::from_str(args)?),
             "DIFFICULTY" => {
@@ -51,14 +51,14 @@ impl TokenProcessor for MetadataProcessor {
             "OCT/FP" => self.0.borrow_mut().others.is_octave = true,
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_comment(&self, line: &str) -> Result<()> {
+    fn on_comment(&self, line: &str) -> Result<ControlFlow<()>> {
         let line = line.trim();
         if line.starts_with("%EMAIL") {
             self.0.borrow_mut().header.email =
@@ -68,6 +68,6 @@ impl TokenProcessor for MetadataProcessor {
             self.0.borrow_mut().header.url =
                 Some(line.trim_start_matches("%URL").trim().to_string());
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

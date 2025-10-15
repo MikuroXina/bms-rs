@@ -10,13 +10,13 @@ use super::{
     ParseWarning, Result, TokenProcessor, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc};
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
 pub struct OptionProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "OPTION" => {
                 self.0
@@ -47,10 +47,10 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::OptionChange {
             for (time, option_id) in ids_from_message(
                 track,
@@ -72,6 +72,6 @@ impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
                     .push_option_event(OptionObj { time, option }, self.1)?;
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

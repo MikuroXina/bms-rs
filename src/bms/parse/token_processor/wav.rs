@@ -16,7 +16,7 @@
 //! - `#xxx[61-6Z]:` - Player 2 long-note channel.
 //! - `#xxx[D1-DZ]:` - Player 1 landmine channel with damage amount.
 //! - `#xxx[E1-EZ]:` - Player 2 landmine channel with damage amount.
-use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, ops::ControlFlow, path::Path, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -28,7 +28,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             wav if wav.starts_with("WAV") => {
                 let id = &name["WAV".len()..];
@@ -273,10 +273,10 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::Bgm {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
@@ -294,6 +294,6 @@ impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> 
                 });
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

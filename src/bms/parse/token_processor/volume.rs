@@ -3,7 +3,7 @@
 //! - `#VOLWAV n` - Changes the score's volume at `n`%.
 //! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc};
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, hex_values_from_message};
 use crate::bms::{model::Bms, prelude::*};
@@ -12,7 +12,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         if name.to_ascii_uppercase().as_str() == "VOLWAV" {
             let volume = args
                 .parse()
@@ -22,10 +22,10 @@ impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
             };
             self.0.borrow_mut().header.volume = volume;
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         match channel {
             Channel::BgmVolume => {
                 for (time, volume_value) in
@@ -55,6 +55,6 @@ impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

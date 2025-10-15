@@ -7,7 +7,7 @@
 //! - `#MATERIALS path` - Unknown. Obsolete.
 #![cfg(feature = "minor-command")]
 
-use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc, str::FromStr};
 
 use num::BigUint;
 
@@ -18,7 +18,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for ResourcesProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "MIDIFILE" => {
                 if args.is_empty() {
@@ -50,10 +50,10 @@ impl TokenProcessor for ResourcesProcessor {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 }

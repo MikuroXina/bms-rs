@@ -8,7 +8,7 @@
 //! - `#xxx:05` - Video seek channel. Obsolete.
 #[cfg(feature = "minor-command")]
 use std::str::FromStr;
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc};
 
 #[cfg(feature = "minor-command")]
 use fraction::GenericFraction;
@@ -27,7 +27,7 @@ pub struct VideoProcessor<'a, P>(
 );
 
 impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "VIDEOFILE" => {
                 if args.is_empty() {
@@ -90,10 +90,15 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _track: Track, channel: Channel, _message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        _track: Track,
+        channel: Channel,
+        _message: &str,
+    ) -> Result<ControlFlow<()>> {
         match channel {
             #[cfg(feature = "minor-command")]
             Channel::Seek => {
@@ -119,6 +124,6 @@ impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

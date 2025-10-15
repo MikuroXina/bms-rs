@@ -6,7 +6,7 @@
 //! - `#DEFEXRANK mode` - Custom judgement level option.
 //! - `#TOTAL n` - Gauge increasing rate option. When the player played perfect, the gauge will increase the amount of `n`%.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
@@ -17,7 +17,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct JudgeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "RANK" => {
                 self.0.borrow_mut().header.rank =
@@ -72,10 +72,10 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::Judge {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, judge_id) in
@@ -98,6 +98,6 @@ impl<P: Prompter> TokenProcessor for JudgeProcessor<'_, P> {
                 )?;
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

@@ -3,7 +3,7 @@
 //! - `#STOP[01-ZZ] n` - Stop definition. It stops the scroll as `n` of 192nd note.
 //! - `#xxx09:` - Stop channel.
 //! - `#STP xxx.yyy time` - It stops `time` milliseconds at section `xxx` and its position (`yyy` / 1000).
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
@@ -17,7 +17,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct StopProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         if name.to_ascii_uppercase().starts_with("STOP") {
             let id = &name["STOP".len()..];
             let len =
@@ -93,10 +93,10 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                 self.0.borrow_mut().arrangers.stp_events.insert(time, ev);
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::Stop {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
@@ -116,6 +116,6 @@ impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
                     .push_stop(StopObj { time, duration });
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

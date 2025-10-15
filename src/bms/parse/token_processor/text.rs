@@ -3,7 +3,7 @@
 //! - `#TEXT[01-ZZ] text` - Text definition shown on playing. It can be double-quoted.
 //! - `#SONG[01-ZZ] text` - Text definition. Obsolete.
 //! - `#xxx99:` - Text channel.
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc};
 
 use super::{super::prompt::Prompter, Result, TokenProcessor, ids_from_message};
 use crate::bms::{model::Bms, prelude::*};
@@ -12,7 +12,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {
             let id = &name["TEXT".len()..];
@@ -34,10 +34,10 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
                     .insert(id, args.to_string());
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::Text {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, text_id) in
@@ -57,6 +57,6 @@ impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
                     .push_text_event(TextObj { time, text }, self.1)?;
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

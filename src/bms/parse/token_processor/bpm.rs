@@ -5,7 +5,7 @@
 //! - `#BASEBPM` - Reference speed for scroll speed. Obsolete.
 //! - `#xxx08:` - BPM change channel.
 
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
@@ -19,7 +19,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct BpmProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "BPM" => {
                 let bpm = Decimal::from_fraction(
@@ -62,10 +62,10 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<ControlFlow<()>> {
         if channel == Channel::BpmChange {
             let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
@@ -97,6 +97,6 @@ impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
                     .push_bpm_change_u8(time, value, self.1)?;
             }
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 }

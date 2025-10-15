@@ -5,7 +5,7 @@
 //! - `#STAGEFILE image` - The splashscreen image path shown on loading the score.
 //! - `#EXTCHR sprite_no bmp_no start_x start_y end_x end_y [offset_x offset_y [x y]]` - Extended character definition. It modifies a BMS player's sprite. Almost unsupported.
 //! - `#CHARFILE character` - The character CHP path shown at the side on playing.
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, path::Path, rc::Rc};
 
 use super::{Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
@@ -14,7 +14,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for SpriteProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         match name.to_ascii_uppercase().as_str() {
             "BANNER" => {
                 if args.is_empty() {
@@ -109,10 +109,10 @@ impl TokenProcessor for SpriteProcessor {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 }

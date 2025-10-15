@@ -7,7 +7,7 @@
 //! - `#CHARSET charset` - Declares charset used in the BMS source. It doesn't have any meaning to this library.
 //!
 //! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::ControlFlow, rc::Rc};
 
 use super::{ParseWarning, Result, TokenProcessor};
 use crate::bms::{model::Bms, prelude::*};
@@ -16,7 +16,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for RepresentationProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<ControlFlow<()>> {
         if args.is_empty() {
             self.0
                 .borrow_mut()
@@ -65,10 +65,10 @@ impl TokenProcessor for RepresentationProcessor {
             }
             _ => {}
         }
-        Ok(())
+        Ok(ControlFlow::Continue(()))
     }
 
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
-        Ok(())
+    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<ControlFlow<()>> {
+        Ok(ControlFlow::Continue(()))
     }
 }
