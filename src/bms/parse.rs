@@ -121,22 +121,28 @@ impl Bms {
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         for proc in &preset {
             for (range, comment) in &comments {
-                if let Err(err) = proc.on_comment(comment) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                match proc.on_comment(comment) {
+                    Ok(std::ops::ControlFlow::Continue(())) => {}
+                    Ok(std::ops::ControlFlow::Break(())) => break,
+                    Err(err) => parse_warnings.push(err.into_wrapper_range((*range).clone())),
                 }
             }
         }
         for proc in &preset {
             for (range, name, args) in &headers {
-                if let Err(err) = proc.on_header(name, args.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                match proc.on_header(name, args.as_ref()) {
+                    Ok(std::ops::ControlFlow::Continue(())) => {}
+                    Ok(std::ops::ControlFlow::Break(())) => break,
+                    Err(err) => parse_warnings.push(err.into_wrapper_range((*range).clone())),
                 }
             }
         }
         for proc in &preset {
             for (range, track, channel, message) in &messages {
-                if let Err(err) = proc.on_message(**track, **channel, message.as_ref()) {
-                    parse_warnings.push(err.into_wrapper_range((*range).clone()));
+                match proc.on_message(**track, **channel, message.as_ref()) {
+                    Ok(std::ops::ControlFlow::Continue(())) => {}
+                    Ok(std::ops::ControlFlow::Break(())) => break,
+                    Err(err) => parse_warnings.push(err.into_wrapper_range((*range).clone())),
                 }
             }
         }
