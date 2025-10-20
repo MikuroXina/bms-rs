@@ -115,14 +115,8 @@ mod tests {
     fn parse_token(input: &'_ str) -> Token<'_> {
         let result = crate::bms::lex::TokenStream::parse_lex(input);
         assert_eq!(result.lex_warnings, vec![]);
-        assert_eq!(result.tokens.tokens.len(), 1);
-        result
-            .tokens
-            .tokens
-            .into_iter()
-            .next()
-            .unwrap()
-            .into_content()
+        assert_eq!(result.tokens.iter().len(), 1);
+        result.tokens.into_iter().next().unwrap().into_content()
     }
 
     #[test]

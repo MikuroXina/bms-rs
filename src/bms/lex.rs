@@ -119,11 +119,7 @@ impl<'a> TokenStream<'a> {
 
         let mut tokens = vec![];
         let mut warnings = vec![];
-        while !cursor.is_end() {
-            let command_start = cursor.index();
-
-            let line_head = cursor.next_line_entire();
-            let token_range = command_start..cursor.index();
+        while let Some((token_range, line_head)) = cursor.next_token_with_range() {
             let token = if line_head.trim().starts_with("#") {
                 let command_body = line_head.trim().trim_start_matches("#");
                 let message_head: Vec<_> = command_body.chars().take(6).collect();
@@ -137,12 +133,13 @@ impl<'a> TokenStream<'a> {
                 } else {
                     let args = cursor.next_line_remaining();
                     Ok(Token::Header {
-                        name: line_head.trim_start_matches('#').to_owned().into(),
+                        name: command_body.to_owned().into(),
                         args: args.trim().into(),
                     })
                 }
             } else {
-                Ok(Token::NotACommand(line_head))
+                let line = cursor.next_line_entire();
+                Ok(Token::NotACommand(line))
             };
             let token = match token {
                 Ok(token) => token,
