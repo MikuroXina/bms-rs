@@ -4,23 +4,24 @@
 //! [`BmsParseOutput`])
 
 pub mod cursor;
-pub mod parser;
 pub mod token;
 
-use std::ops::ControlFlow;
+use std::borrow::Cow;
+
 use thiserror::Error;
 
 use crate::{
-    bms::command::mixin::SourceRangeMixin,
+    bms::{command::mixin::SourceRangeMixin, prelude::Track},
     diagnostics::{SimpleSource, ToAriadne},
 };
 use ariadne::{Color, Label, Report, ReportKind};
 
 use self::{
     cursor::Cursor,
-    parser::{TokenParser, default_parsers},
-    token::TokenWithRange,
+    token::{Token, TokenWithRange},
 };
+
+use super::prelude::read_channel;
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -63,8 +64,7 @@ pub struct LexOutput<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TokenStream<'a> {
-    /// The tokens.
-    pub tokens: Vec<TokenWithRange<'a>>,
+    pub(crate) tokens: Vec<TokenWithRange<'a>>,
 }
 
 impl<'a> IntoIterator for TokenStream<'a> {
@@ -114,53 +114,65 @@ impl<'a> TokenStream<'a> {
     ///
     /// The `parsers` parameter allows customizing the token parsers. If `None`,
     /// it defaults to `default_parsers()` in the standard order.
-    pub fn parse_lex(
-        source: &'a str,
-        parsers: Option<Vec<Box<dyn TokenParser<'a> + 'a>>>,
-    ) -> LexOutput<'a> {
+    pub fn parse_lex(source: &'a str) -> LexOutput<'a> {
         let mut cursor = Cursor::new(source);
 
         let mut tokens = vec![];
         let mut warnings = vec![];
-        let parsers = parsers.unwrap_or_else(default_parsers);
         while !cursor.is_end() {
             let command_start = cursor.index();
 
-            // Try each parser in order
-            let mut found_token = false;
-            for parser in &parsers {
-                let mut tokens_collected = Vec::new();
-                match parser.try_parse(&mut cursor, &mut |token| {
-                    tokens_collected.push(token);
-                }) {
-                    ControlFlow::Continue(()) => {
-                        if !tokens_collected.is_empty() {
-                            // Add all collected tokens with the same range
-                            let token_range = command_start..cursor.index();
-                            for token in tokens_collected {
-                                tokens.push(SourceRangeMixin::new(token, token_range.clone()));
-                            }
-                            found_token = true;
-                            break;
-                        }
-                        // Continue to next parser if no tokens were collected
-                    }
-                    ControlFlow::Break(warning) => {
-                        warnings.push(warning);
-                        found_token = true;
-                        break;
-                    }
+            let line_head = cursor.next_line_entire();
+            let token_range = command_start..cursor.index();
+            let token = if line_head.trim().starts_with("#") {
+                let command_body = line_head.trim().trim_start_matches("#");
+                let message_head: Vec<_> = command_body.chars().take(6).collect();
+                let is_message_command = message_head
+                    .iter()
+                    .take(5)
+                    .all(|c| c.is_ascii_alphanumeric())
+                    && message_head.get(5) == Some(&':');
+                if is_message_command {
+                    Self::parse_message(line_head, &cursor)
+                } else {
+                    let args = cursor.next_line_remaining();
+                    Ok(Token::Header {
+                        name: line_head.trim_start_matches('#').to_owned().into(),
+                        args: args.trim().into(),
+                    })
                 }
-            }
-
-            if !found_token {
-                warnings.push(cursor.make_err_expected_token("valid token"));
-            }
+            } else {
+                Ok(Token::NotACommand(line_head))
+            };
+            let token = match token {
+                Ok(token) => token,
+                Err(e) => {
+                    warnings.push(e);
+                    continue;
+                }
+            };
+            tokens.push(SourceRangeMixin::new(token, token_range));
         }
         LexOutput {
             tokens: TokenStream { tokens },
             lex_warnings: warnings,
         }
+    }
+
+    fn parse_message(line: &'a str, cursor: &Cursor<'a>) -> Result<Token<'a>> {
+        let track = line[1..4]
+            .parse()
+            .map_err(|_| cursor.make_err_expected_token("[000-999]"))?;
+        let channel = &line[4..6];
+        let message = &line[7..];
+
+        let channel = read_channel(channel)
+            .ok_or_else(|| cursor.make_err_unknown_channel(channel.to_string()))?;
+        Ok(Token::Message {
+            track: Track(track),
+            channel,
+            message: Cow::Borrowed(message),
+        })
     }
 
     /// Makes a new iterator of tokens.
@@ -227,7 +239,7 @@ mod tests {
         let LexOutput {
             tokens,
             lex_warnings: warnings,
-        } = TokenStream::parse_lex(SRC, None);
+        } = TokenStream::parse_lex(SRC);
 
         assert_eq!(warnings, vec![]);
         assert_eq!(

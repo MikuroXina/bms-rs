@@ -45,7 +45,6 @@ use std::{cell::RefCell, rc::Rc};
 use num::BigUint;
 
 use crate::{
-    ast::rng::Rng,
     bms::prelude::*,
     parse::{ParseWarning, Result},
 };
@@ -54,8 +53,7 @@ use super::TokenProcessor;
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
-pub struct RandomTokenProcessor<'a, P, R, N> {
-    prompter: &'a P,
+pub struct RandomTokenProcessor<R, N> {
     rng: Rc<RefCell<R>>,
     /// It must not be empty.
     state_stack: RefCell<Vec<ProcessState>>,
@@ -89,10 +87,9 @@ enum ProcessState {
     SwitchSkipping,
 }
 
-impl<'a, P, R, N> RandomTokenProcessor<'a, P, R, N> {
-    pub fn new(prompter: &'a P, rng: Rc<RefCell<R>>, next: N, relaxed: bool) -> Self {
+impl<R, N> RandomTokenProcessor<R, N> {
+    pub fn new(rng: Rc<RefCell<R>>, next: N, relaxed: bool) -> Self {
         Self {
-            prompter,
             rng,
             state_stack: RefCell::new(vec![ProcessState::Root]),
             next,
@@ -101,7 +98,7 @@ impl<'a, P, R, N> RandomTokenProcessor<'a, P, R, N> {
     }
 }
 
-impl<P: Prompter, R: Rng, N: TokenProcessor> RandomTokenProcessor<'_, P, R, N> {
+impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn visit_random(&self, args: &str) -> Result<()> {
         let push_new_one = || {
             let max: BigUint = args.trim().parse().map_err(|_| {
@@ -413,7 +410,7 @@ impl<P: Prompter, R: Rng, N: TokenProcessor> RandomTokenProcessor<'_, P, R, N> {
     }
 }
 
-impl<P: Prompter, R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<'_, P, R, N> {
+impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         let upper_name = name.to_ascii_uppercase();
         if self.relaxed {
@@ -458,7 +455,7 @@ impl<P: Prompter, R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProce
     }
 
     fn on_comment(&self, line: &str) -> Result<()> {
-        if self.relaxed && line.trim().to_ascii_uppercase() == "＃ENDIF" {
+        if self.relaxed && line.trim().eq_ignore_ascii_case("＃ENDIF") {
             return self.visit_end_if();
         }
 

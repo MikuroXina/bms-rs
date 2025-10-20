@@ -79,7 +79,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
 
 /// A processor [`SequentialProcessor`] which does `first` then `second`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct SequentialProcessor<F, S> {
+pub struct SequentialProcessor<F, S> {
     first: F,
     second: S,
 }
@@ -136,7 +136,7 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
             prompter,
             PhantomData,
         ));
-    random::RandomTokenProcessor::new(prompter, rng, sub_processor, false)
+    random::RandomTokenProcessor::new(rng, sub_processor, false)
 }
 
 /// Returns commonly used processors.
@@ -162,7 +162,7 @@ pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
             prompter,
             PhantomData,
         ));
-    random::RandomTokenProcessor::new(prompter, rng, sub_processor, true)
+    random::RandomTokenProcessor::new(rng, sub_processor, true)
 }
 
 /// Returns all of processors this crate provided.
@@ -203,7 +203,7 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
             prompter,
             PhantomData,
         ));
-    random::RandomTokenProcessor::new(prompter, rng, sub_processor, true)
+    random::RandomTokenProcessor::new(rng, sub_processor, true)
 }
 
 /// Parses message values with warnings.
