@@ -80,6 +80,19 @@ pub fn default_preset(bms: Rc<RefCell<Bms>>) -> impl TokenProcessor {
     )
 }
 
+/// The token processor with your custom random number generator (extended from [`default_preset`]). It picks newer token on duplicated, and parses tokens as possible.
+pub fn default_preset_with_rng<R: Rng + 'static>(
+    rng: R,
+) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor> {
+    move |bms| {
+        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
+            bms,
+            &AlwaysWarnAndUseNewer,
+            Rc::new(RefCell::new(rng)),
+        ))
+    }
+}
+
 /// Parse a BMS file from source text.
 ///
 /// This function provides a convenient way to parse a BMS file in one step.
