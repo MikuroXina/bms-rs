@@ -43,7 +43,7 @@
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, None);
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //! // You can modify the tokens before parsing, for some commands that this library does not warpped.
 //! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
@@ -52,7 +52,7 @@
 //! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
 //! #[cfg(not(feature = "rand"))]
 //! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
-//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
+//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
 //!     token_refs, AlwaysWarnAndUseNewer
 //! );
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
@@ -75,7 +75,7 @@
 //! use bms_rs::bms::prelude::*;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, None);
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
 //!
 //! // Build AST from tokens

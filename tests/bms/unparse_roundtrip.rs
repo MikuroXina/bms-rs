@@ -71,7 +71,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     // Allow warnings for files with empty resource definitions
     let _ = lex_warnings;
 
@@ -80,7 +80,10 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms1,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings;
 
@@ -96,7 +99,10 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         bms: bms2,
         parse_warnings: parse_warnings2,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens2_wrapped, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens2_wrapped,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings2;
 

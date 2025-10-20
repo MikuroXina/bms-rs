@@ -1,68 +1,56 @@
 use bms_rs::bms::prelude::*;
 
-use std::borrow::Cow;
 use std::num::NonZeroU64;
 use std::path::Path;
+
+// BMS source with various conflicts
+const SOURCE_WITH_CONFLICTS: &str = r#"
+    // BPM definition conflicts
+    #BPM01 120
+    #BPM01 140
+    // Stop definition conflicts
+    #STOP01 0.5
+    #STOP01 1.0
+    // Scroll definition conflicts
+    #SCROLL01 1.0
+    #SCROLL01 2.0
+    // Speed definition conflicts
+    #SPEED01 1.0
+    #SPEED01 1.5
+    // WAV definition conflicts
+    #WAV01 old.wav
+    #WAV01 new.wav
+    // BMP definition conflicts
+    #BMP01 old.bmp
+    #BMP01 new.bmp
+    // TEXT definition conflicts
+    #TEXT01 old text
+    #TEXT01 new text
+    // Event conflicts
+    #BPM 120
+    #BPM01 120
+    #BPM02 140
+    #BPM03 160
+
+    #00108:01
+    #00208:02
+    #00108:03
+    // Same time as first
+"#;
 
 /// Test AlwaysUseOlder behavior with various conflict types
 #[test]
 fn test_always_use_older() {
-    // Create tokens with various conflicts
-    let tokens: Vec<TokenWithRange> = vec![
-        // BPM definition conflicts
-        Token::header("BPM01", "120"),
-        Token::header("BPM01", "140"),
-        // Stop definition conflicts
-        Token::header("STOP01", "0.5"),
-        Token::header("STOP01", "1.0"),
-        // Scroll definition conflicts
-        Token::header("SCROLL01", "1.0"),
-        Token::header("SCROLL01", "2.0"),
-        // Speed definition conflicts
-        Token::header("SPEED01", "1.0"),
-        Token::header("SPEED01", "1.5"),
-        // WAV definition conflicts
-        Token::header("WAV01", "old.wav"),
-        Token::header("WAV01", "new.wav"),
-        // BMP definition conflicts
-        Token::header("BMP01", "old.bmp"),
-        Token::header("BMP01", "new.bmp"),
-        // TEXT definition conflicts
-        Token::header("TEXT01", "old text"),
-        Token::header("TEXT01", "new text"),
-        // Event conflicts
-        Token::header("BPM", "120"),
-        Token::header("BPM01", "120"),
-        Token::header("BPM02", "140"),
-        Token::header("BPM03", "160"),
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("01"),
-        },
-        Token::Message {
-            track: Track(2),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("02"),
-        },
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("03"),
-        }, // Same time as first
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(i, content)| content.into_wrapper_range(i..i))
-    .collect();
-
-    let token_stream = TokenStream { tokens };
+    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&token_stream, AlwaysUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysUseOlder),
+    );
 
     // Should have no warnings since AlwaysUseOlder handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -137,62 +125,16 @@ fn test_always_use_older() {
 /// Test AlwaysUseNewer behavior with various conflict types
 #[test]
 fn test_always_use_newer() {
-    // Create tokens with various conflicts
-    let tokens: Vec<TokenWithRange> = vec![
-        // BPM definition conflicts
-        Token::header("BPM01", "120"),
-        Token::header("BPM01", "140"),
-        // Stop definition conflicts
-        Token::header("STOP01", "0.5"),
-        Token::header("STOP01", "1.0"),
-        // Scroll definition conflicts
-        Token::header("SCROLL01", "1.0"),
-        Token::header("SCROLL01", "2.0"),
-        // Speed definition conflicts
-        Token::header("SPEED01", "1.0"),
-        Token::header("SPEED01", "1.5"),
-        // WAV definition conflicts
-        Token::header("WAV01", "old.wav"),
-        Token::header("WAV01", "new.wav"),
-        // BMP definition conflicts
-        Token::header("BMP01", "old.bmp"),
-        Token::header("BMP01", "new.bmp"),
-        // TEXT definition conflicts
-        Token::header("TEXT01", "old text"),
-        Token::header("TEXT01", "new text"),
-        // Event conflicts
-        Token::header("BPM", "120"),
-        Token::header("BPM01", "120"),
-        Token::header("BPM02", "140"),
-        Token::header("BPM03", "160"),
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("01"),
-        },
-        Token::Message {
-            track: Track(2),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("02"),
-        },
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("03"),
-        }, // Same time as first
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(i, content)| content.into_wrapper_range(i..i))
-    .collect();
-
-    let token_stream = TokenStream { tokens };
+    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&token_stream, AlwaysUseNewer);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysUseNewer),
+    );
 
     // Should have no warnings since AlwaysUseNewer handles conflicts silently
     assert_eq!(parse_warnings, vec![]);
@@ -267,62 +209,16 @@ fn test_always_use_newer() {
 /// Test AlwaysWarnAndUseOlder behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_older() {
-    // Create tokens with various conflicts
-    let tokens: Vec<TokenWithRange> = vec![
-        // BPM definition conflicts
-        Token::header("BPM01", "120"),
-        Token::header("BPM01", "140"),
-        // Stop definition conflicts
-        Token::header("STOP01", "0.5"),
-        Token::header("STOP01", "1.0"),
-        // Scroll definition conflicts
-        Token::header("SCROLL01", "1.0"),
-        Token::header("SCROLL01", "2.0"),
-        // Speed definition conflicts
-        Token::header("SPEED01", "1.0"),
-        Token::header("SPEED01", "1.5"),
-        // WAV definition conflicts
-        Token::header("WAV01", "old.wav"),
-        Token::header("WAV01", "new.wav"),
-        // BMP definition conflicts
-        Token::header("BMP01", "old.bmp"),
-        Token::header("BMP01", "new.bmp"),
-        // TEXT definition conflicts
-        Token::header("TEXT01", "old text"),
-        Token::header("TEXT01", "new text"),
-        // Event conflicts
-        Token::header("BPM", "120"),
-        Token::header("BPM01", "120"),
-        Token::header("BPM02", "140"),
-        Token::header("BPM03", "160"),
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("01"),
-        },
-        Token::Message {
-            track: Track(2),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("02"),
-        },
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("03"),
-        }, // Same time as first
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(i, content)| content.into_wrapper_range(i..i))
-    .collect();
-
-    let token_stream = TokenStream { tokens };
+    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&token_stream, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(parse_warnings.len(), 9);
@@ -401,61 +297,16 @@ fn test_always_warn_and_use_older() {
 /// Test AlwaysWarnAndUseNewer behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_newer() {
-    // Create tokens with various conflicts
-    let tokens: Vec<TokenWithRange> = vec![
-        // BPM definition conflicts
-        Token::header("BPM01", "120"),
-        Token::header("BPM01", "140"),
-        // Stop definition conflicts
-        Token::header("STOP01", "0.5"),
-        Token::header("STOP01", "1.0"),
-        // Scroll definition conflicts
-        Token::header("SCROLL01", "1.0"),
-        Token::header("SCROLL01", "2.0"),
-        // Speed definition conflicts
-        Token::header("SPEED01", "1.0"),
-        Token::header("SPEED01", "1.5"),
-        // WAV definition conflicts
-        Token::header("WAV01", "old.wav"),
-        Token::header("WAV01", "new.wav"),
-        // BMP definition conflicts
-        Token::header("BMP01", "old.bmp"),
-        Token::header("BMP01", "new.bmp"),
-        // TEXT definition conflicts
-        Token::header("TEXT01", "old text"),
-        Token::header("TEXT01", "new text"),
-        // Event conflicts
-        Token::header("BPM", "120"),
-        Token::header("BPM01", "120"),
-        Token::header("BPM02", "140"),
-        Token::header("BPM03", "160"),
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("01"),
-        },
-        Token::Message {
-            track: Track(2),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("02"),
-        },
-        Token::Message {
-            track: Track(1),
-            channel: Channel::BpmChange,
-            message: Cow::Borrowed("03"),
-        }, // Same time as first
-    ]
-    .into_iter()
-    .enumerate()
-    .map(|(i, content)| content.into_wrapper_range(i..i))
-    .collect();
-    let token_stream = TokenStream { tokens };
+    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&token_stream, AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseNewer),
+    );
 
     // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
     assert!(

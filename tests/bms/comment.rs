@@ -12,9 +12,9 @@ fn test_comment() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(text, None);
+    } = TokenStream::parse_lex(text);
     assert_eq!(warnings, vec![]);
-    let mut ts_iter = tokens.tokens.into_iter();
+    let mut ts_iter = tokens.into_iter();
     assert_eq!(
         ts_iter.next().unwrap().content(),
         &Token::header("Comment", "This is a comment")

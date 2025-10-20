@@ -28,7 +28,6 @@ pub mod prelude;
 pub mod rng;
 pub mod unparse;
 
-use rand::{SeedableRng as _, rngs::StdRng};
 use thiserror::Error;
 
 use ariadne::{Label, Report, ReportKind};
@@ -72,7 +71,9 @@ pub enum BmsWarning {
 }
 
 /// The token processor used in [`parse_bms`]. It picks newer token on duplicated, uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
+#[cfg(feature = "rand")]
 pub fn default_preset(bms: Rc<RefCell<Bms>>) -> impl TokenProcessor {
+    use rand::{SeedableRng as _, rngs::StdRng};
     token_processor::minor_preset::<_, KeyLayoutBeat, _>(
         bms,
         &AlwaysWarnAndUseNewer,
@@ -89,6 +90,21 @@ pub fn default_preset_with_rng<R: Rng + 'static>(
             bms,
             &AlwaysWarnAndUseNewer,
             Rc::new(RefCell::new(rng)),
+        ))
+    }
+}
+
+/// The token processor with your custom prompter (extended from [`default_preset`]). It uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
+#[cfg(feature = "rand")]
+pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
+    prompter: &'a P,
+) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor + 'a> {
+    use rand::{SeedableRng as _, rngs::StdRng};
+    move |bms| {
+        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
+            bms,
+            prompter,
+            Rc::new(RefCell::new(RandRng(StdRng::from_os_rng()))),
         ))
     }
 }

@@ -24,20 +24,14 @@ fn switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -67,20 +61,14 @@ fn nested_switch_simpler() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -127,20 +115,14 @@ fn nested_switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -188,18 +170,12 @@ fn nested_switch() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -251,18 +227,12 @@ fn nested_switch() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -342,20 +312,14 @@ fn nested_random_in_switch() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -403,18 +367,12 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -466,18 +424,12 @@ fn nested_random_in_switch() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -557,20 +509,14 @@ fn nested_switch_in_random() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -618,18 +564,12 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -681,18 +621,12 @@ fn nested_switch_in_random() {
         ]
     );
 
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
     let rng = RngMock([BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -767,22 +701,17 @@ fn test_switch_insane() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(SRC, None);
+    } = TokenStream::parse_lex(SRC);
     assert_eq!(lex_warnings, vec![]);
 
     // CASE 1, RANDOM 1
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -812,18 +741,13 @@ fn test_switch_insane() {
     );
 
     // CASE 1, RANDOM 2
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -853,18 +777,13 @@ fn test_switch_insane() {
     );
 
     // CASE 2
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -884,18 +803,13 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 1
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(3u64), BigUint::from(1u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -943,18 +857,13 @@ fn test_switch_insane() {
     );
 
     // CASE 3, SWITCH 2
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(3u64), BigUint::from(2u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -1002,18 +911,13 @@ fn test_switch_insane() {
     );
 
     // CASE 4 (DEFAULT)
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    assert_eq!(ast_build_warnings, vec![]);
+
     let rng = RngMock([BigUint::from(4u64)]);
-    let AstParseOutput { token_refs } = root.parse(rng);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(token_refs, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset_with_rng(rng));
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),

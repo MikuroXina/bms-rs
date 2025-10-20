@@ -10,14 +10,13 @@ fn test_not_base_62() {
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
-        None,
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysUseNewer);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 1);
@@ -39,14 +38,13 @@ fn test_base_62() {
 
         #BASE 62
     ",
-        None,
     );
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysUseNewer);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 2);

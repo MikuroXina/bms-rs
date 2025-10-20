@@ -41,13 +41,13 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens
             .clone()
             .into_iter()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        AlwaysWarnAndUseOlder,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
     );
 
     // Unparse back to tokens
@@ -116,13 +116,13 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens
             .clone()
             .into_iter()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        AlwaysWarnAndUseOlder,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
     );
 
     // Unparse back to tokens
@@ -188,13 +188,13 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens
             .clone()
             .into_iter()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        AlwaysWarnAndUseOlder,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
     );
 
     // Unparse back to tokens
@@ -255,13 +255,13 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
+    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens
             .clone()
             .into_iter()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        AlwaysWarnAndUseOlder,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
     );
 
     // Unparse back to tokens

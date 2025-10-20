@@ -3,17 +3,8 @@ use bms_rs::bms::prelude::*;
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(
@@ -37,17 +28,8 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(bms.header.title.as_deref(), Some("NULCTRL"));
@@ -77,17 +59,8 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content
     assert_eq!(bms.header.title.as_deref(), Some("J219"));
@@ -114,7 +87,7 @@ fn test_blank() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(
         warnings
             .into_iter()
@@ -126,7 +99,7 @@ fn test_blank() {
     let ParseOutput {
         bms: _,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysUseNewer);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
     assert_eq!(
         parse_warnings
             .into_iter()
@@ -142,17 +115,8 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
-    assert_eq!(parse_warnings, vec![]);
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes

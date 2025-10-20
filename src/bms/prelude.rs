@@ -28,6 +28,7 @@ pub use super::{
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
+    default_preset, default_preset_with_prompter, default_preset_with_rng,
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
@@ -51,6 +52,7 @@ pub use super::{
         token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
+    parse_bms, parse_bms_with_preset,
     rng::{Rng, RngMock},
 };
 

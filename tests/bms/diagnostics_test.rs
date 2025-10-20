@@ -60,16 +60,16 @@ fn test_unknown_command_warning() {
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";
 
-    let output = TokenStream::parse_lex(bms_source, None);
+    let output = TokenStream::parse_lex(bms_source);
 
     // Should have tokens including UnknownCommand
-    assert!(!output.tokens.tokens.is_empty());
+    assert!(output.tokens.iter().next().is_some());
 
     // Should not have warnings
     assert!(output.lex_warnings.is_empty());
 
     // Check if there's an UnknownCommand token
-    let has_unknown_command_token = output.tokens.tokens.iter().any(|t| {
+    let has_unknown_command_token = output.tokens.iter().any(|t| {
         matches!(
             t.content(),
             Token::Header {

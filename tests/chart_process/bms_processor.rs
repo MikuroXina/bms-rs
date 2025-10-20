@@ -13,13 +13,16 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
@@ -87,13 +90,16 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
@@ -133,13 +139,16 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+    );
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
