@@ -194,6 +194,7 @@ fn all_tokens<F: FnMut(&Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
             warnings.push(warning.into_wrapper(token));
         }
     }
+    *input = &[];
     Ok(warnings)
 }
 

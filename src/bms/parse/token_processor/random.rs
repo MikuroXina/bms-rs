@@ -416,7 +416,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_others(&self, mut tokens: &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn visit_others(&self, tokens: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::Root
@@ -424,9 +424,12 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 activated: true, ..
             }
             | ProcessState::ElseBlock { activated: true }
-            | ProcessState::SwitchActive { .. } => self.next.process(&mut tokens),
+            | ProcessState::SwitchActive { .. } => self.next.process(tokens),
             ProcessState::Random { .. } => Err(ParseError::UnexpectedControlFlow),
-            _ => Ok(vec![]),
+            _ => {
+                *tokens = &[];
+                Ok(vec![])
+            }
         }
     }
 }
