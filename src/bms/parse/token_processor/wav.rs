@@ -19,8 +19,11 @@
 use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
 use super::{
-    super::prompt::{DefDuplication, Prompter},
-    ParseWarning, Result, TokenProcessor, ids_from_message,
+    super::{
+        Result,
+        prompt::{DefDuplication, Prompter},
+    },
+    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
 
@@ -28,20 +31,18 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self.on_message(*track, *channel, message.as_ref())?,
-            Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

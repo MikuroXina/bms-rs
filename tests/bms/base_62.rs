@@ -20,7 +20,8 @@ fn test_not_base_62() {
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysUseNewer),
-    );
+    )
+    .unwrap();
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 1);
@@ -51,7 +52,8 @@ fn test_base_62() {
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysUseNewer),
-    );
+    )
+    .unwrap();
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 2);

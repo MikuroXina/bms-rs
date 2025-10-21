@@ -9,21 +9,23 @@
 //! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
 use std::{cell::RefCell, rc::Rc};
 
-use super::{ParseWarning, Result, TokenProcessor};
-use crate::bms::{model::Bms, prelude::*};
+use super::{ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens};
+use crate::{
+    bms::{model::Bms, prelude::*},
+    parse::Result,
+};
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
 pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for RepresentationProcessor {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        for token in &**input {
-            match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-                Token::Message { .. } | Token::NotACommand(_) => {}
-            }
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message { .. } | Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

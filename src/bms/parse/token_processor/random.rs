@@ -46,10 +46,10 @@ use num::BigUint;
 
 use crate::{
     bms::prelude::*,
-    parse::{ParseWarning, Result},
+    parse::{ParseError, ParseWarning},
 };
 
-use super::TokenProcessor;
+use super::{TokenProcessor, TokenProcessorResult, all_tokens};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -99,15 +99,18 @@ impl<R, N> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn visit_random(&self, args: &str) -> Result<()> {
+    fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            let max: BigUint = args.trim().parse().map_err(|_| {
+            let max: BigUint = match args.trim().parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-            })?;
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
             let range = BigUint::from(1u64)..=max;
             let generated = self.rng.borrow_mut().generate(range.clone());
             if !range.contains(&generated) {
-                return Err(ParseWarning::RandomGeneratedValueOutOfRange {
+                return Err(ParseError::RandomGeneratedValueOutOfRange {
                     expected: range,
                     actual: generated,
                 });
@@ -115,7 +118,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             self.state_stack
                 .borrow_mut()
                 .push(ProcessState::Random { generated });
-            Ok(())
+            Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
@@ -127,19 +130,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_set_random(&self, args: &str) -> Result<()> {
+    fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            let generated = args.trim().parse().map_err(|_| {
+            let generated = match args.trim().parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-            })?;
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
             self.state_stack
                 .borrow_mut()
                 .push(ProcessState::Random { generated });
-            Ok(())
+            Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
@@ -151,21 +157,24 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_if(&self, args: &str) -> Result<()> {
+    fn visit_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = |generated: BigUint| {
-            let cond = args.trim().parse().map_err(|_| {
+            let cond = match args.trim().parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-            })?;
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
             let activated = generated == cond;
             self.state_stack.borrow_mut().push(ProcessState::IfBlock {
                 if_chain_has_been_activated: activated,
                 activated,
             });
-            Ok(())
+            Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
@@ -180,11 +189,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 };
                 push_new_one(generated)
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_else_if(&self, args: &str) -> Result<()> {
+    fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::IfBlock {
@@ -203,22 +212,25 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                         activated: false,
                     });
                 } else {
-                    let cond = args.trim().parse().map_err(|_| {
+                    let cond = match args.trim().parse().map_err(|_| {
                         ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-                    })?;
+                    }) {
+                        Ok(max) => max,
+                        Err(warning) => return Ok(Some(warning)),
+                    };
                     let activated = generated == cond;
                     self.state_stack.borrow_mut().push(ProcessState::IfBlock {
                         if_chain_has_been_activated: activated,
                         activated,
                     });
                 }
-                Ok(())
+                Ok(None)
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_else(&self) -> Result<()> {
+    fn visit_else(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::IfBlock {
@@ -231,22 +243,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 });
                 Ok(())
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_end_if(&self) -> Result<()> {
+    fn visit_end_if(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_end_random(&self) -> Result<()> {
+    fn visit_end_random(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::Random { .. }
@@ -255,19 +267,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_switch(&self, args: &str) -> Result<()> {
+    fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            let max: BigUint = args.trim().parse().map_err(|_| {
+            let max: BigUint = match args.trim().parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-            })?;
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
             let range = BigUint::from(1u64)..=max;
             let generated = self.rng.borrow_mut().generate(range.clone());
             if !range.contains(&generated) {
-                return Err(ParseWarning::SwitchGeneratedValueOutOfRange {
+                return Err(ParseError::SwitchGeneratedValueOutOfRange {
                     expected: range,
                     actual: generated,
                 });
@@ -275,7 +290,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             self.state_stack
                 .borrow_mut()
                 .push(ProcessState::SwitchBeforeActive { generated });
-            Ok(())
+            Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
@@ -287,15 +302,18 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_switch(&self, args: &str) -> Result<()> {
+    fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            let generated = args.trim().parse().map_err(|_| {
+            let generated = match args.trim().parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-            })?;
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
             self.state_stack
                 .borrow_mut()
                 .push(ProcessState::SwitchBeforeActive { generated });
-            Ok(())
+            Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
@@ -307,11 +325,14 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_case(&self, args: &str) -> Result<()> {
-        let cond = args
-            .trim()
-            .parse()
-            .map_err(|_| ParseWarning::SyntaxError(format!("expected integer but got {args:?}")))?;
+    fn visit_case(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+        let cond =
+            match args.trim().parse().map_err(|_| {
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+            }) {
+                Ok(max) => max,
+                Err(warning) => return Ok(Some(warning)),
+            };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
@@ -321,7 +342,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                         .borrow_mut()
                         .push(ProcessState::SwitchActive { generated });
                 }
-                Ok(())
+                Ok(None)
             }
             ProcessState::SwitchActive { generated }
             | ProcessState::SwitchAfterActive { generated } => {
@@ -335,14 +356,14 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                         .borrow_mut()
                         .push(ProcessState::SwitchAfterActive { generated });
                 }
-                Ok(())
+                Ok(None)
             }
-            ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            ProcessState::SwitchSkipping => Ok(None),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_skip(&self) -> Result<()> {
+    fn visit_skip(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchActive { .. } => {
@@ -355,11 +376,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_default(&self) -> Result<()> {
+    fn visit_default(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
@@ -377,11 +398,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_end_switch(&self) -> Result<()> {
+    fn visit_end_switch(&self) -> Result<(), ParseError> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchBeforeActive { .. }
@@ -391,11 +412,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseWarning::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow),
         }
     }
 
-    fn visit_others(&self, mut tokens: &[Token<'_>]) -> Result<()> {
+    fn visit_others(&self, mut tokens: &[TokenWithRange<'_>]) -> TokenProcessorResult {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::Root
@@ -404,44 +425,43 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             | ProcessState::ElseBlock { activated: true }
             | ProcessState::SwitchActive { .. } => self.next.process(&mut tokens),
-            ProcessState::Random { .. } => Err(ParseWarning::UnexpectedControlFlow),
-            _ => Ok(()),
+            ProcessState::Random { .. } => Err(ParseError::UnexpectedControlFlow),
+            _ => Ok(vec![]),
         }
     }
 }
 
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message { .. } => self.next.process(input)?,
-            Token::NotACommand(line) => self.on_comment(line)?,
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        let mut cloned = *input;
+        let mut warnings = all_tokens(&mut cloned, |token| match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()),
+            Token::Message { .. } => Ok(None),
+            Token::NotACommand(line) => self.on_comment(line),
+        })?;
+        warnings.extend(self.visit_others(input)?);
+        Ok(warnings)
     }
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let upper_name = name.to_ascii_uppercase();
         if self.relaxed {
             match upper_name.as_str() {
                 "RONDAM" => {
                     self.visit_random(args)?;
-                    return Ok(());
+                    return Ok(None);
                 }
                 upper_name
                     if upper_name.starts_with("RANDOM") && upper_name.len() > "RANDOM".len() =>
                 {
                     self.visit_random(upper_name.trim_start_matches("RANDOM"))?;
-                    return Ok(());
+                    return Ok(None);
                 }
                 upper_name if upper_name.starts_with("IF") && upper_name.len() > "IF".len() => {
                     self.visit_if(upper_name.trim_start_matches("IF"))?;
-                    return Ok(());
+                    return Ok(None);
                 }
                 _ => {}
             }
@@ -451,29 +471,23 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             "SETRANDOM" => self.visit_set_random(args),
             "IF" => self.visit_if(args),
             "ELSEIF" => self.visit_else_if(args),
-            "ELSE" => self.visit_else(),
+            "ELSE" => self.visit_else().map(|_| None),
             "ENDIF" => self.visit_else_if(args),
-            "ENDRANDOM" => self.visit_end_random(),
+            "ENDRANDOM" => self.visit_end_random().map(|_| None),
             "SWITCH" => self.visit_switch(args),
             "SETSWITCH" => self.visit_set_switch(args),
             "CASE" => self.visit_case(args),
-            "SKIP" => self.visit_skip(),
-            "DEF" => self.visit_default(),
-            "ENDSW" => self.visit_end_switch(),
-            _ => self.visit_others(&[Token::Header {
-                name: name.into(),
-                args: args.into(),
-            }]),
+            "SKIP" => self.visit_skip().map(|_| None),
+            "DEF" => self.visit_default().map(|_| None),
+            "ENDSW" => self.visit_end_switch().map(|_| None),
+            _ => Ok(None),
         }
     }
 
-    fn on_comment(&self, line: &str) -> Result<()> {
+    fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ParseError> {
         if self.relaxed && line.trim().eq_ignore_ascii_case("＃ENDIF") {
             self.visit_end_if()?;
-            return Ok(());
         }
-
-        let mut singleton: &[_] = &[Token::NotACommand(line)];
-        self.next.process(&mut singleton)
+        Ok(None)
     }
 }

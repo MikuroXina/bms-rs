@@ -26,29 +26,33 @@ use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 #[cfg(feature = "minor-command")]
 use super::hex_values_from_message;
 use super::{
-    super::prompt::{DefDuplication, Prompter},
-    ParseWarning, Result, TokenProcessor, ids_from_message,
+    super::{
+        Result,
+        prompt::{DefDuplication, Prompter},
+    },
+    ParseWarning, TokenProcessor, TokenProcessorResult, ids_from_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::{
+    bms::{model::Bms, prelude::*},
+    parse::token_processor::all_tokens,
+};
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self.on_message(*track, *channel, message.as_ref())?,
-            Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

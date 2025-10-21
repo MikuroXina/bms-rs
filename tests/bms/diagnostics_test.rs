@@ -32,7 +32,7 @@ fn test_emit_warnings_with_real_bms() {
     let bms_source = "#TITLE Test Song\n#ARTIST Composer\n#INVALID_COMMAND test\n";
 
     // Parse BMS file, should produce warnings
-    let output = parse_bms::<KeyLayoutBeat>(bms_source);
+    let output = parse_bms::<KeyLayoutBeat>(bms_source).unwrap();
 
     if !output.warnings.is_empty() {
         // Note: here we just verify the function can be called normally

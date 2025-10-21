@@ -22,7 +22,8 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
@@ -99,7 +100,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
@@ -148,7 +150,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);

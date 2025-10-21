@@ -3,7 +3,7 @@ use bms_rs::bms::prelude::*;
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -28,7 +28,7 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -59,7 +59,7 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -99,7 +99,7 @@ fn test_blank() {
     let ParseOutput {
         bms: _,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(
         parse_warnings
             .into_iter()
@@ -115,7 +115,7 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source);
+    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content - this file has minimal header info

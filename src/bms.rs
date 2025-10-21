@@ -38,7 +38,7 @@ use self::{
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseOutput, ParseWarningWithRange,
+        ParseError, ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{self, TokenProcessor},
     },
@@ -126,7 +126,7 @@ pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
 /// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 /// println!("Warnings: {:?}", warnings);
 /// ```
-pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> BmsOutput {
+pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> Result<BmsOutput, ParseError> {
     parse_bms_with_preset::<T, _, _>(source, default_preset)
 }
 
@@ -138,7 +138,7 @@ pub fn parse_bms_with_preset<
 >(
     source: &str,
     preset: F,
-) -> BmsOutput {
+) -> Result<BmsOutput, ParseError> {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -151,7 +151,7 @@ pub fn parse_bms_with_preset<
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, T, TP, _>(&tokens, preset);
+    } = Bms::from_token_stream::<'_, T, TP, _>(&tokens, preset)?;
 
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
@@ -166,7 +166,7 @@ pub fn parse_bms_with_preset<
     // Convert playing errors to BmsWarning
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
-    BmsOutput { bms, warnings }
+    Ok(BmsOutput { bms, warnings })
 }
 
 /// Output of parsing a BMS file.

@@ -49,7 +49,8 @@ fn test_scenario_1_no_merge() {
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -124,7 +125,8 @@ fn test_scenario_2_can_merge() {
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -196,7 +198,8 @@ fn test_scenario_3_cross_track_no_merge() {
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -263,7 +266,8 @@ fn test_scenario_4_input_order_preservation() {
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();

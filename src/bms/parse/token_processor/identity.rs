@@ -1,13 +1,14 @@
 //! This module provides an identity token processor which does nothing. It is convenient for us to compose token processors on compilation else branch.
 
-use crate::{bms::prelude::*, parse::Result};
+use crate::bms::prelude::*;
 
-use super::TokenProcessor;
+use super::{TokenProcessor, TokenProcessorResult};
 
 pub struct IdentityTokenProcessor;
 
 impl TokenProcessor for IdentityTokenProcessor {
-    fn process(&self, _: &mut &[Token<'_>]) -> Result<()> {
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        *input = &[];
+        Ok(vec![])
     }
 }

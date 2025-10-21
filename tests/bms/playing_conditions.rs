@@ -13,7 +13,7 @@ fn test_playing_conditions_empty_bms() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -43,7 +43,7 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -81,7 +81,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -112,7 +112,7 @@ fn test_playing_conditions_invisible_notes_only() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     assert_eq!(parse_warnings, vec![]);
 

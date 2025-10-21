@@ -12,7 +12,8 @@ fn test_channel_volume() {
     let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
         src,
         default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    )
+    .unwrap();
     assert!(
         warnings
             .into_iter()
@@ -88,7 +89,8 @@ fn test_channel_text() {
     let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
         src,
         default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    )
+    .unwrap();
     assert_eq!(
         warnings
             .into_iter()
@@ -146,7 +148,8 @@ fn test_channel_judge() {
     let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
         src,
         default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    )
+    .unwrap();
     assert_eq!(
         warnings
             .into_iter()
@@ -217,7 +220,8 @@ fn test_bga_opacity_channels() {
     let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
         src,
         default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    )
+    .unwrap();
     assert_eq!(
         warnings
             .into_iter()
@@ -336,7 +340,8 @@ fn test_bga_argb_channels() {
     let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
         src,
         default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    );
+    )
+    .unwrap();
     assert_eq!(
         warnings
             .into_iter()

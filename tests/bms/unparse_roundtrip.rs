@@ -84,7 +84,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings;
 
@@ -103,7 +104,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens2_wrapped,
         default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    );
+    )
+    .unwrap();
     // Allow warnings for files with empty resource definitions
     let _ = parse_warnings2;
 

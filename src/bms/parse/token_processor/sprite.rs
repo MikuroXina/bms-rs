@@ -7,22 +7,20 @@
 //! - `#CHARFILE character` - The character CHP path shown at the side on playing.
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-use super::{Result, TokenProcessor};
+use super::{super::Result, TokenProcessor, TokenProcessorResult, all_tokens};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for SpriteProcessor {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message { .. } | Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message { .. } | Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

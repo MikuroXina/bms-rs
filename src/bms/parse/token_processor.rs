@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::
 
 use itertools::Itertools;
 
-use super::{ParseWarning, Result};
+use super::{ParseError, ParseWarning};
 use crate::bms::prelude::*;
 
 mod bmp;
@@ -33,10 +33,13 @@ mod video;
 mod volume;
 mod wav;
 
+/// A type alias of `Result<(), Vec<ParseWarningWithRange>`.
+pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseError>;
+
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
-    /// Processes a command from the stream `input`.
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()>;
+    /// Processes commands by consuming all the stream `input`. It mutates `input`
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -52,7 +55,7 @@ pub trait TokenProcessor {
 }
 
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
-    fn process(&self, tokens: &mut &[Token<'_>]) -> Result<()> {
+    fn process(&self, tokens: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
         T::process(self, tokens)
     }
 }
@@ -65,9 +68,16 @@ pub struct SequentialProcessor<F, S> {
 }
 
 impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let mut checkpoint = *input;
-        self.first.process(&mut checkpoint)?;
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        let mut cloned = *input;
+        let mut prev_len = cloned.len();
+        loop {
+            self.first.process(&mut cloned)?;
+            if cloned.len() == prev_len {
+                break;
+            }
+            prev_len = cloned.len();
+        }
         self.second.process(input)
     }
 }
@@ -174,6 +184,19 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
     random::RandomTokenProcessor::new(rng, sub_processor, true)
 }
 
+fn all_tokens<F: FnMut(&Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
+    input: &mut &[TokenWithRange<'_>],
+    mut f: F,
+) -> TokenProcessorResult {
+    let mut warnings = vec![];
+    for token in &**input {
+        if let Some(warning) = f(token.content())? {
+            warnings.push(warning.into_wrapper(token));
+        }
+    }
+    Ok(warnings)
+}
+
 /// Parses message values with warnings.
 ///
 /// This function processes BMS message strings by filtering out invalid characters,
@@ -206,7 +229,7 @@ fn parse_message_values_with_warnings<'a, T, F>(
     mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, T)> + 'a
 where
-    F: FnMut(&str) -> Option<Result<T>> + 'a,
+    F: FnMut(&str) -> Option<Result<T, ParseWarning>> + 'a,
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.

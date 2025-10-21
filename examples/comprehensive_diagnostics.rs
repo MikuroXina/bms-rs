@@ -23,7 +23,7 @@ fn demonstrate_warning_types() {
     let source = SimpleSource::new("demo.bms", source_text);
 
     // Create various types of warnings
-    let warnings = vec![
+    let warnings = [
         BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined),
         BmsWarning::PlayingWarning(PlayingWarning::NoDisplayableNotes),
         BmsWarning::PlayingWarning(PlayingWarning::NoPlayableNotes),
@@ -55,7 +55,7 @@ fn demonstrate_integration() {
 "#;
 
     println!("   Parsing BMS file...");
-    let output = parse_bms::<KeyLayoutBeat>(bms_source);
+    let output = parse_bms::<KeyLayoutBeat>(bms_source).expect("must be parsed");
 
     println!(
         "   Parsing completed, found {} warnings",

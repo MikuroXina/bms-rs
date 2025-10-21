@@ -5,27 +5,28 @@
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 use std::{cell::RefCell, rc::Rc};
 
-use super::{super::prompt::Prompter, Result, TokenProcessor, hex_values_from_message};
+use super::{
+    super::{Result, prompt::Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens, hex_values_from_message,
+};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self.on_message(*track, *channel, message.as_ref())?,
-            Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

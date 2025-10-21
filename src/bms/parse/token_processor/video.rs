@@ -17,7 +17,10 @@ use num::BigUint;
 
 #[cfg(feature = "minor-command")]
 use super::ids_from_message;
-use super::{super::prompt::Prompter, Result, TokenProcessor};
+use super::{
+    super::{Result, prompt::Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens,
+};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes `#VIDEOFILE`, `#MOVIE` and so on definitions and objects on `Seek` channel.
@@ -27,20 +30,18 @@ pub struct VideoProcessor<'a, P>(
 );
 
 impl<P: Prompter> TokenProcessor for VideoProcessor<'_, P> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self.on_message(*track, *channel, message.as_ref())?,
-            Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 

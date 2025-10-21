@@ -5,27 +5,27 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::{super::prompt::Prompter, ParseWarning, Result, TokenProcessor, filter_message};
+use super::{
+    super::{Result, prompt::Prompter},
+    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, filter_message,
+};
 use crate::bms::{model::Bms, prelude::*};
 
 /// It processes objects on `SectionLen` channel.
 pub struct SectionLenProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
-    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
-        let Some(token) = input.split_off_first() else {
-            return Ok(());
-        };
-        match token {
-            Token::Header { .. } => {}
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self.on_message(*track, *channel, message.as_ref())?,
-            Token::NotACommand(_) => {}
-        }
-        Ok(())
+    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::Header { .. } | Token::NotACommand(_) => None,
+            })
+        })
     }
 }
 
