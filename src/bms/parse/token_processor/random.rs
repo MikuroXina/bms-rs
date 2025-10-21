@@ -27,7 +27,7 @@
 //!
 //! | token \ state | `Root` | `Random` | `IfBlock` | `ElseBlock` | `SwitchBeforeActive` | `SwitchActive` | `SwitchAfterActive` | `SwitchSkipping` |
 //! | --: | -- | -- | -- | -- | -- | -- | -- | -- |
-//! | `RANDOM`, `SETRANDOM` | push `Random` | pop -> push `Random` | push `Random` | push `Random` | error | error | error | error |
+//! | `RANDOM`, `SETRANDOM` | push `Random` | pop -> push `Random` | push `Random` | push `Random` | ignore | push `Random` | ignore | ignore |
 //! | `IF` | error | push `IfBlock` | pop -> push `IfBlock` | pop -> push `IfBlock` | error | error | error | error |
 //! | `ELSEIF` | error | error | pop -> push `IfBlock` | error | error | error | error | error |
 //! | `ELSE` | error | error | pop -> push `ElseBlock` | error | error | error | error | error |
@@ -122,15 +122,16 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
-            ProcessState::Root | ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
-                push_new_one()
-            }
+            ProcessState::Root
+            | ProcessState::IfBlock { .. }
+            | ProcessState::ElseBlock { .. }
+            | ProcessState::SwitchActive { .. } => push_new_one(),
             ProcessState::Random { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Ok(None),
         }
     }
 
@@ -149,15 +150,16 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
-            ProcessState::Root | ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
-                push_new_one()
-            }
+            ProcessState::Root
+            | ProcessState::IfBlock { .. }
+            | ProcessState::ElseBlock { .. }
+            | ProcessState::SwitchActive { .. } => push_new_one(),
             ProcessState::Random { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Ok(None),
         }
     }
 
@@ -189,7 +191,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 };
                 push_new_one(generated)
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#IF must be on a random scope",
+            )),
         }
     }
 
@@ -226,7 +230,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 }
                 Ok(None)
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ELSEIF must come after of a #IF",
+            )),
         }
     }
 
@@ -243,7 +249,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 });
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ELSE must come after #IF or #ELSEIF",
+            )),
         }
     }
 
@@ -254,7 +262,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ENDIF must come after #IF, #ELSEIF or #ELSE",
+            )),
         }
     }
 
@@ -267,7 +277,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ENDRANDOM must come after #RANDOM",
+            )),
         }
     }
 
@@ -359,7 +371,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(None)
             }
             ProcessState::SwitchSkipping => Ok(None),
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#CASE must be on a switch block",
+            )),
         }
     }
 
@@ -376,7 +390,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#SKIP must be on a switch block",
+            )),
         }
     }
 
@@ -398,7 +414,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#DEF must be on a switch block",
+            )),
         }
     }
 
@@ -412,7 +430,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow),
+            _ => Err(ParseError::UnexpectedControlFlow(
+                "#ENDSWITCH must come after #SWITCH",
+            )),
         }
     }
 
@@ -425,7 +445,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             | ProcessState::ElseBlock { activated: true }
             | ProcessState::SwitchActive { .. } => self.next.process(tokens),
-            ProcessState::Random { .. } => Err(ParseError::UnexpectedControlFlow),
+            ProcessState::Random { .. } => Err(ParseError::UnexpectedControlFlow(
+                "non-control flow tokens must not be on a random scope",
+            )),
             _ => {
                 *tokens = &[];
                 Ok(vec![])

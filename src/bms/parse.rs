@@ -57,8 +57,8 @@ pub enum ParseWarning {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParseError {
     /// Unexpected control flow.
-    #[error("unexpected control flow")]
-    UnexpectedControlFlow,
+    #[error("unexpected control flow {0}")]
+    UnexpectedControlFlow(&'static str),
     /// [`Rng`] generated a value outside the required [`RangeInclusive`] for a random block.
     #[error("random generated value out of range: expected {expected:?}, got {actual}")]
     RandomGeneratedValueOutOfRange {
