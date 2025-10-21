@@ -395,7 +395,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_others(&self, name: &str, args: &str) -> Result<()> {
+    fn visit_others(&self, mut tokens: &[Token<'_>]) -> Result<()> {
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::Root
@@ -403,7 +403,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 activated: true, ..
             }
             | ProcessState::ElseBlock { activated: true }
-            | ProcessState::SwitchActive { .. } => self.next.on_header(name, args),
+            | ProcessState::SwitchActive { .. } => self.next.process(&mut tokens),
             ProcessState::Random { .. } => Err(ParseWarning::UnexpectedControlFlow),
             _ => Ok(()),
         }
@@ -411,6 +411,20 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message { .. } => self.next.process(input)?,
+            Token::NotACommand(line) => self.on_comment(line)?,
+        }
+        Ok(())
+    }
+}
+
+impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         let upper_name = name.to_ascii_uppercase();
         if self.relaxed {
@@ -446,19 +460,20 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             "SKIP" => self.visit_skip(),
             "DEF" => self.visit_default(),
             "ENDSW" => self.visit_end_switch(),
-            _ => self.visit_others(name, args),
+            _ => self.visit_others(&[Token::Header {
+                name: name.into(),
+                args: args.into(),
+            }]),
         }
-    }
-
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        self.next.on_message(track, channel, message)
     }
 
     fn on_comment(&self, line: &str) -> Result<()> {
         if self.relaxed && line.trim().eq_ignore_ascii_case("＃ENDIF") {
-            return self.visit_end_if();
+            self.visit_end_if()?;
+            return Ok(());
         }
 
-        self.next.on_comment(line)
+        let mut singleton: &[_] = &[Token::NotACommand(line)];
+        self.next.process(&mut singleton)
     }
 }

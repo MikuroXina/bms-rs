@@ -12,6 +12,24 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => self.on_message(*track, *channel, message.as_ref())?,
+            Token::NotACommand(_) => {}
+        }
+        Ok(())
+    }
+}
+
+impl<P: Prompter> TextProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {

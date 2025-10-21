@@ -34,21 +34,9 @@ mod volume;
 mod wav;
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
-///
-/// There are some invariants on calling:
-///
-/// - Once `on_message` is called, `one_header` must not be invoked after that.
-/// - The effects of called `on_message` must be same regardless order of calls.
 pub trait TokenProcessor {
-    /// Processes a header command consists of `#{name} {args}`.
-    fn on_header(&self, name: &str, args: &str) -> Result<()>;
-    /// Processes a message command consists of `#{track}{channel}:{message}`.
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()>;
-
-    /// Processes a comment line, which doesn't starts from `#`.
-    fn on_comment(&self, _line: &str) -> Result<()> {
-        Ok(())
-    }
+    /// Processes a command from the stream `input`.
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -64,16 +52,8 @@ pub trait TokenProcessor {
 }
 
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        T::on_header(self, name, args)
-    }
-
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        T::on_message(self, track, channel, message)
-    }
-
-    fn on_comment(&self, line: &str) -> Result<()> {
-        T::on_comment(self, line)
+    fn process(&self, tokens: &mut &[Token<'_>]) -> Result<()> {
+        T::process(self, tokens)
     }
 }
 
@@ -85,22 +65,10 @@ pub struct SequentialProcessor<F, S> {
 }
 
 impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
-        self.first
-            .on_header(name, args)
-            .and_then(|_| self.second.on_header(name, args))
-    }
-
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        self.first
-            .on_message(track, channel, message)
-            .and_then(|_| self.second.on_message(track, channel, message))
-    }
-
-    fn on_comment(&self, line: &str) -> Result<()> {
-        self.first
-            .on_comment(line)
-            .and_then(|_| self.second.on_comment(line))
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let mut checkpoint = *input;
+        self.first.process(&mut checkpoint)?;
+        self.second.process(input)
     }
 }
 

@@ -12,10 +12,12 @@ use std::{cell::RefCell, ops::RangeInclusive, rc::Rc};
 use num::BigUint;
 use thiserror::Error;
 
-use crate::diagnostics::{SimpleSource, ToAriadne};
+use crate::{
+    bms::prelude::SourceRangeMixinExt,
+    diagnostics::{SimpleSource, ToAriadne},
+};
 use ariadne::{Color, Label, Report, ReportKind};
 
-use super::prelude::*;
 use crate::bms::{
     command::{
         ObjId,
@@ -23,7 +25,7 @@ use crate::bms::{
         mixin::SourceRangeMixin,
         time::{ObjTime, Track},
     },
-    lex::token::{Token, TokenWithRange},
+    lex::token::TokenWithRange,
     model::Bms,
 };
 
@@ -102,40 +104,24 @@ impl Bms {
     ) -> ParseOutput {
         let bms = Self::default();
         let share = Rc::new(RefCell::new(bms));
-        let mut comments = vec![];
-        let mut headers = vec![];
-        let mut messages = vec![];
-        for token in token_iter {
-            match token.content() {
-                Token::NotACommand(line) => comments.push((token.range(), line)),
-                Token::Header { name, args } => {
-                    headers.push((token.range(), name, args));
-                }
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => {
-                    messages.push((token.range(), track, channel, message));
-                }
-            }
-        }
         let mut parse_warnings: Vec<ParseWarningWithRange> = vec![];
         let proc = proc_fn(Rc::clone(&share));
-        for (range, comment) in &comments {
-            if let Err(err) = proc.on_comment(comment) {
-                parse_warnings.push(err.into_wrapper_range((*range).clone()));
+        let (ranges, tokens): (Vec<_>, Vec<_>) = token_iter
+            .into_iter()
+            .map(|token| (token.range().clone(), token.content().clone()))
+            .unzip();
+        let mut tokens_slice = tokens.as_slice();
+        let mut prev_len = tokens_slice.len();
+        loop {
+            if let Err(err) = proc.process(&mut tokens_slice) {
+                parse_warnings.push(
+                    err.into_wrapper_range(ranges[tokens.len() - tokens_slice.len()].clone()),
+                );
             }
-        }
-        for (range, name, args) in &headers {
-            if let Err(err) = proc.on_header(name, args.as_ref()) {
-                parse_warnings.push(err.into_wrapper_range((*range).clone()));
+            if prev_len == tokens_slice.len() {
+                break;
             }
-        }
-        for (range, track, channel, message) in &messages {
-            if let Err(err) = proc.on_message(**track, **channel, message.as_ref()) {
-                parse_warnings.push(err.into_wrapper_range((*range).clone()));
-            }
+            prev_len = tokens_slice.len();
         }
         std::mem::drop(proc);
 

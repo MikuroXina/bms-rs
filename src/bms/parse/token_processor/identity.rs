@@ -7,11 +7,7 @@ use super::TokenProcessor;
 pub struct IdentityTokenProcessor;
 
 impl TokenProcessor for IdentityTokenProcessor {
-    fn on_header(&self, _: &str, _: &str) -> Result<()> {
-        Ok(())
-    }
-
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
+    fn process(&self, _: &mut &[Token<'_>]) -> Result<()> {
         Ok(())
     }
 }

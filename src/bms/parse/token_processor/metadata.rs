@@ -22,6 +22,20 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct MetadataProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MetadataProcessor {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message { .. } => {}
+            Token::NotACommand(line) => self.on_comment(line)?,
+        }
+        Ok(())
+    }
+}
+
+impl MetadataProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "PLAYER" => self.0.borrow_mut().header.player = Some(PlayerMode::from_str(args)?),
@@ -51,10 +65,6 @@ impl TokenProcessor for MetadataProcessor {
             "OCT/FP" => self.0.borrow_mut().others.is_octave = true,
             _ => {}
         }
-        Ok(())
-    }
-
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
         Ok(())
     }
 

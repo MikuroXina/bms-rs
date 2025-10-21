@@ -16,6 +16,18 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for RepresentationProcessor {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        for token in &**input {
+            match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+                Token::Message { .. } | Token::NotACommand(_) => {}
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RepresentationProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if args.is_empty() {
             self.0
@@ -65,10 +77,6 @@ impl TokenProcessor for RepresentationProcessor {
             }
             _ => {}
         }
-        Ok(())
-    }
-
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
         Ok(())
     }
 }

@@ -12,6 +12,24 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => self.on_message(*track, *channel, message.as_ref())?,
+            Token::NotACommand(_) => {}
+        }
+        Ok(())
+    }
+}
+
+impl<P: Prompter> VolumeProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         if name.to_ascii_uppercase().as_str() == "VOLWAV" {
             let volume = args

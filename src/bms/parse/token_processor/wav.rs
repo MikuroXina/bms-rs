@@ -28,6 +28,24 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => self.on_message(*track, *channel, message.as_ref())?,
+            Token::NotACommand(_) => {}
+        }
+        Ok(())
+    }
+}
+
+impl<P: Prompter, T: KeyLayoutMapper> WavProcessor<'_, P, T> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             wav if wav.starts_with("WAV") => {

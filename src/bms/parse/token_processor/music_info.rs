@@ -18,6 +18,19 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MusicInfoProcessor {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+            Token::Message { .. } | Token::NotACommand(_) => {}
+        }
+        Ok(())
+    }
+}
+
+impl MusicInfoProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),
@@ -36,10 +49,6 @@ impl TokenProcessor for MusicInfoProcessor {
             "PREVIEW" => self.0.borrow_mut().header.preview_music = Some(Path::new(args).into()),
             _ => {}
         }
-        Ok(())
-    }
-
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
         Ok(())
     }
 }

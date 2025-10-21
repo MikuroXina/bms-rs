@@ -12,10 +12,24 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct SectionLenProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
-    fn on_header(&self, _: &str, _: &str) -> Result<()> {
+    fn process(&self, input: &mut &[Token<'_>]) -> Result<()> {
+        let Some(token) = input.split_off_first() else {
+            return Ok(());
+        };
+        match token {
+            Token::Header { .. } => {}
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => self.on_message(*track, *channel, message.as_ref())?,
+            Token::NotACommand(_) => {}
+        }
         Ok(())
     }
+}
 
+impl<P: Prompter> SectionLenProcessor<'_, P> {
     fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
