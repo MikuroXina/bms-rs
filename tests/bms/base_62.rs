@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn test_not_base_62() {
@@ -16,7 +17,10 @@ fn test_not_base_62() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysUseNewer),
+    );
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 1);
@@ -44,7 +48,10 @@ fn test_base_62() {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+        &tokens,
+        default_preset_with_prompter(&AlwaysUseNewer),
+    );
     assert_eq!(parse_warnings, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.notes().wav_files.len(), 2);

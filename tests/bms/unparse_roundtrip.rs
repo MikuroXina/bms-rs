@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use pretty_assertions::assert_eq;
 
 fn assert_btree_maps_equal<K, V>(
     left: &std::collections::BTreeMap<K, V>,

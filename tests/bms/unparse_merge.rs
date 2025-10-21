@@ -1,5 +1,6 @@
 use bms_rs::bms::command::channel::NoteChannelId;
 use bms_rs::bms::prelude::*;
+use pretty_assertions::assert_eq;
 use std::borrow::Cow;
 
 /// Test scenario 1: Mixed merge behavior (some messages can be merged, others cannot)
