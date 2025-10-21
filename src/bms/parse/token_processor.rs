@@ -70,15 +70,9 @@ pub struct SequentialProcessor<F, S> {
 impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
     fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
         let mut cloned = *input;
-        let mut prev_len = cloned.len();
-        loop {
-            self.first.process(&mut cloned)?;
-            if cloned.len() == prev_len {
-                break;
-            }
-            prev_len = cloned.len();
-        }
-        self.second.process(input)
+        let mut warnings = self.first.process(&mut cloned)?;
+        warnings.extend(self.second.process(input)?);
+        Ok(warnings)
     }
 }
 
