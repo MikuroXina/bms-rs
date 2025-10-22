@@ -11,13 +11,14 @@
 //! - `#SETSWITCH` - Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
 //! - `#CASE` - Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the command control flow will **fallthrough** to the next `#CASE` or `#DEF`.
 //! - `#SKIP` - Escapes the current switch scope. It is often used in the end of every case scope.
-//! - `#DEF` - Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope.
+//! - `#DEF` - Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope, otherwise the following cases are ignored.
 //! - `#ENDSW` - Closes the random scope.
 //!
 //! And with a relaxed flag:
 //!
 //! - `#RONDAM` - Type of `#RANDOM`.
 //! - `＃ENDIF` - Full width `#` typo of `#ENDIF`.
+//! - `#END IF` - Type of `#ENDIF`.
 //! - `#RANDOM[n]` - `#RANDOM` and args without spaces.
 //! - `#IF[n]` - `#IF` and args without spaces.
 //!
@@ -27,7 +28,7 @@
 //!
 //! | token \ state | `Root` | `Random` | `IfBlock` | `ElseBlock` | `SwitchBeforeActive` | `SwitchActive` | `SwitchAfterActive` | `SwitchSkipping` |
 //! | --: | -- | -- | -- | -- | -- | -- | -- | -- |
-//! | `RANDOM`, `SETRANDOM` | push `Random` | pop -> push `Random` | push `Random` | push `Random` | ignore | push `Random` | ignore | ignore |
+//! | `RANDOM`, `SETRANDOM` | push `Random` | pop -> push `Random` | push `Random` | push `Random` | push `Random` | push `Random` | push `Random` | push `Random` |
 //! | `IF` | error | push `IfBlock` | pop -> push `IfBlock` | pop -> push `IfBlock` | error | error | error | error |
 //! | `ELSEIF` | error | error | pop -> push `IfBlock` | error | error | error | error | error |
 //! | `ELSE` | error | error | pop -> push `ElseBlock` | error | error | error | error | error |
@@ -101,6 +102,12 @@ impl<R, N> RandomTokenProcessor<R, N> {
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
+            if !self.is_activated() {
+                self.state_stack.borrow_mut().push(ProcessState::Random {
+                    generated: BigUint::from(0u32),
+                });
+                return Ok(None);
+            }
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -125,18 +132,26 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
             | ProcessState::ElseBlock { .. }
-            | ProcessState::SwitchActive { .. } => push_new_one(),
+            | ProcessState::SwitchBeforeActive { .. }
+            | ProcessState::SwitchActive { .. }
+            | ProcessState::SwitchAfterActive { .. }
+            | ProcessState::SwitchSkipping => push_new_one(),
             ProcessState::Random { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Ok(None),
         }
     }
 
     fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
+            if !self.is_activated() {
+                self.state_stack.borrow_mut().push(ProcessState::Random {
+                    generated: BigUint::from(0u32),
+                });
+                return Ok(None);
+            }
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -153,13 +168,15 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
             | ProcessState::ElseBlock { .. }
-            | ProcessState::SwitchActive { .. } => push_new_one(),
+            | ProcessState::SwitchBeforeActive { .. }
+            | ProcessState::SwitchActive { .. }
+            | ProcessState::SwitchAfterActive { .. }
+            | ProcessState::SwitchSkipping => push_new_one(),
             ProcessState::Random { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
                 push_new_one()
             }
-            _ => Ok(None),
         }
     }
 
@@ -285,6 +302,14 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 
     fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
+            if !self.is_activated() {
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchAfterActive {
+                        generated: BigUint::from(0u32),
+                    });
+                return Ok(None);
+            }
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -316,6 +341,14 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 
     fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
+            if !self.is_activated() {
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchAfterActive {
+                        generated: BigUint::from(0u32),
+                    });
+                return Ok(None);
+            }
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -378,7 +411,6 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_skip(&self) -> Result<(), ParseError> {
-        dbg!(self.state_stack.borrow());
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchActive { .. } => {
@@ -455,8 +487,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
         let mut activated = vec![];
-        let mut cloned = *input;
-        let mut warnings = all_tokens_with_range(&mut cloned, |token| {
+        let mut warnings = all_tokens_with_range(input, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -467,7 +498,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             }
             Ok(res)
         })?;
-        warnings.extend(self.next.process(input)?);
+        warnings.extend(self.next.process(&mut &activated[..])?);
         Ok(warnings)
     }
 }
@@ -479,6 +510,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             match upper_name.as_str() {
                 "RONDAM" => {
                     return self.visit_random(args);
+                }
+                "END" if args == "IF" => {
+                    return self.visit_end_if().map(|_| None);
                 }
                 upper_name
                     if upper_name.starts_with("RANDOM") && upper_name.len() > "RANDOM".len() =>
