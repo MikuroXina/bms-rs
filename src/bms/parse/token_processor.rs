@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::
 
 use itertools::Itertools;
 
-use super::{ParseError, ParseWarning};
+use super::{ParseError, ParseErrorWithRange, ParseWarning};
 use crate::bms::prelude::*;
 
 mod bmp;
@@ -34,7 +34,7 @@ mod volume;
 mod wav;
 
 /// A type alias of `Result<(), Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseError>;
+pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseErrorWithRange>;
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
@@ -184,7 +184,7 @@ fn all_tokens<F: FnMut(&Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
 ) -> TokenProcessorResult {
     let mut warnings = vec![];
     for token in &**input {
-        if let Some(warning) = f(token.content())? {
+        if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
             warnings.push(warning.into_wrapper(token));
         }
     }

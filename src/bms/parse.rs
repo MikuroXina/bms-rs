@@ -83,6 +83,9 @@ pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
 /// A parse warning with position information.
 pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 
+/// A parse error with position information.
+pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
+
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -104,7 +107,7 @@ impl Bms {
     >(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         proc_fn: FTP,
-    ) -> core::result::Result<ParseOutput, ParseError> {
+    ) -> core::result::Result<ParseOutput, ParseErrorWithRange> {
         let bms = Self::default();
         let share = Rc::new(RefCell::new(bms));
         let proc = proc_fn(Rc::clone(&share));

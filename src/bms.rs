@@ -38,7 +38,7 @@ use self::{
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseError, ParseOutput, ParseWarningWithRange,
+        ParseErrorWithRange, ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{self, TokenProcessor},
     },
@@ -126,7 +126,7 @@ pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
 /// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 /// println!("Warnings: {:?}", warnings);
 /// ```
-pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> Result<BmsOutput, ParseError> {
+pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> Result<BmsOutput, ParseErrorWithRange> {
     parse_bms_with_preset::<T, _, _>(source, default_preset)
 }
 
@@ -138,7 +138,7 @@ pub fn parse_bms_with_preset<
 >(
     source: &str,
     preset: F,
-) -> Result<BmsOutput, ParseError> {
+) -> Result<BmsOutput, ParseErrorWithRange> {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
