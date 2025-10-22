@@ -53,6 +53,12 @@ pub trait Rng {
     fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint;
 }
 
+impl<T: Rng + ?Sized> Rng for Box<T> {
+    fn generate(&mut self, range: RangeInclusive<BigUint>) -> BigUint {
+        T::generate(self, range)
+    }
+}
+
 /// A deterministic mock random number generator for testing.
 ///
 /// This implementation returns values from a predefined array in rotation.
