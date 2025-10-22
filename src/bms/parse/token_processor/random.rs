@@ -35,7 +35,7 @@
 //! | `ENDIF` | error | error | pop | pop | error | error | error | error |
 //! | `ENDRANDOM` | error | pop | pop | pop | error | error | error | error |
 //! | `SWITCH`, `SETSWITCH` | push `SwitchBeforeActive` | pop -> push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` |
-//! | `CASE` | error | error | error | error | pop -> push `SwitchActive` if matches generated else `SwitchBeforeActive` | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | ignore |
+//! | `CASE` | error | pop until `RandomBlock`, `IfBlock`, or `ElseBlock` -> parse again | same to left | same to left | same to left | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | ignore |
 //! | `SKIP` | error | error | error | error | ignore | pop -> push `SwitchSkipping` | ignore | ignore |
 //! | `DEF` | error | error | error | error | pop -> push `SwitchActive` | pop -> push `SwitchAfterActive` | ignore | ignore |
 //! | `ENDSW` | error | error | error | error | pop | pop | pop | pop |
@@ -68,6 +68,7 @@ enum ProcessState {
     Root,
     Random {
         generated: BigUint,
+        activated: bool,
     },
     IfBlock {
         if_chain_has_been_activated: bool,
@@ -102,12 +103,6 @@ impl<R, N> RandomTokenProcessor<R, N> {
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            if !self.is_activated() {
-                self.state_stack.borrow_mut().push(ProcessState::Random {
-                    generated: BigUint::from(0u32),
-                });
-                return Ok(None);
-            }
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -116,15 +111,17 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             };
             let range = BigUint::from(1u64)..=max;
             let generated = self.rng.borrow_mut().generate(range.clone());
-            if !range.contains(&generated) {
+            let activated = self.is_activated();
+            if activated && !range.contains(&generated) {
                 return Err(ParseError::RandomGeneratedValueOutOfRange {
                     expected: range,
                     actual: generated,
                 });
             }
-            self.state_stack
-                .borrow_mut()
-                .push(ProcessState::Random { generated });
+            self.state_stack.borrow_mut().push(ProcessState::Random {
+                generated,
+                activated,
+            });
             Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
@@ -146,21 +143,17 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 
     fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            if !self.is_activated() {
-                self.state_stack.borrow_mut().push(ProcessState::Random {
-                    generated: BigUint::from(0u32),
-                });
-                return Ok(None);
-            }
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            self.state_stack
-                .borrow_mut()
-                .push(ProcessState::Random { generated });
+            let activated = self.is_activated();
+            self.state_stack.borrow_mut().push(ProcessState::Random {
+                generated,
+                activated,
+            });
             Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
@@ -197,11 +190,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
-            ProcessState::Random { generated } => push_new_one(generated),
+            ProcessState::Random { generated, .. } => push_new_one(generated),
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
-                let ProcessState::Random { generated } =
+                let ProcessState::Random { generated, .. } =
                     self.state_stack.borrow().last().cloned().unwrap()
                 else {
                     panic!("ElseBlock is not on Random");
@@ -222,7 +215,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 ..
             } => {
                 self.state_stack.borrow_mut().pop();
-                let ProcessState::Random { generated } =
+                let ProcessState::Random { generated, .. } =
                     self.state_stack.borrow().last().cloned().unwrap()
                 else {
                     panic!("IfBlock is not on Random");
@@ -302,14 +295,6 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 
     fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            if !self.is_activated() {
-                self.state_stack
-                    .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive {
-                        generated: BigUint::from(0u32),
-                    });
-                return Ok(None);
-            }
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
@@ -318,15 +303,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             };
             let range = BigUint::from(1u64)..=max;
             let generated = self.rng.borrow_mut().generate(range.clone());
-            if !range.contains(&generated) {
-                return Err(ParseError::SwitchGeneratedValueOutOfRange {
-                    expected: range,
-                    actual: generated,
-                });
+            let activated = self.is_activated();
+            if activated {
+                if !range.contains(&generated) {
+                    return Err(ParseError::SwitchGeneratedValueOutOfRange {
+                        expected: range,
+                        actual: generated,
+                    });
+                }
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchBeforeActive { generated });
+            } else {
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchAfterActive { generated });
             }
-            self.state_stack
-                .borrow_mut()
-                .push(ProcessState::SwitchBeforeActive { generated });
             Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
@@ -341,23 +333,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 
     fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
-            if !self.is_activated() {
-                self.state_stack
-                    .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive {
-                        generated: BigUint::from(0u32),
-                    });
-                return Ok(None);
-            }
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            self.state_stack
-                .borrow_mut()
-                .push(ProcessState::SwitchBeforeActive { generated });
+            let activated = self.is_activated();
+            if activated {
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchBeforeActive { generated });
+            } else {
+                self.state_stack
+                    .borrow_mut()
+                    .push(ProcessState::SwitchAfterActive { generated });
+            }
             Ok(None)
         };
         let top = self.state_stack.borrow().last().cloned().unwrap();
@@ -378,6 +369,17 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             Ok(max) => max,
             Err(warning) => return Ok(Some(warning)),
         };
+        loop {
+            let top = self.state_stack.borrow().last().cloned().unwrap();
+            if let ProcessState::Random { .. }
+            | ProcessState::IfBlock { .. }
+            | ProcessState::ElseBlock { .. } = top
+            {
+                self.state_stack.borrow_mut().pop();
+            } else {
+                break;
+            }
+        }
         let top = self.state_stack.borrow().last().cloned().unwrap();
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
@@ -470,17 +472,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn is_activated(&self) -> bool {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
-        matches!(
-            top,
-            ProcessState::Root
-                | ProcessState::IfBlock {
-                    activated: true,
-                    ..
-                }
-                | ProcessState::ElseBlock { activated: true }
-                | ProcessState::SwitchActive { .. }
-        )
+        self.state_stack.borrow().iter().all(|state| {
+            matches!(
+                state,
+                ProcessState::Root
+                    | ProcessState::Random {
+                        activated: true,
+                        ..
+                    }
+                    | ProcessState::IfBlock {
+                        activated: true,
+                        ..
+                    }
+                    | ProcessState::ElseBlock { activated: true }
+                    | ProcessState::SwitchActive { .. }
+            )
+        })
     }
 }
 
