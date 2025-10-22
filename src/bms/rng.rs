@@ -43,7 +43,7 @@ pub trait Rng {
     /// # Examples
     ///
     /// ```rust
-    /// use bms_rs::bms::ast::rng::{Rng, RngMock};
+    /// use bms_rs::bms::rng::{Rng, RngMock};
     /// use num::BigUint;
     ///
     /// let mut rng = RngMock([BigUint::from(5u64)]);
@@ -67,7 +67,7 @@ impl<T: Rng + ?Sized> Rng for Box<T> {
 /// # Examples
 ///
 /// ```rust
-/// use bms_rs::bms::ast::rng::{Rng, RngMock};
+/// use bms_rs::bms::rng::{Rng, RngMock};
 /// use num::BigUint;
 ///
 /// let mut rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
@@ -96,7 +96,7 @@ impl<const N: usize> Rng for RngMock<N> {
 ///
 /// ```rust
 /// # #[cfg(feature = "rand")]
-/// use bms_rs::bms::ast::rng::{Rng, RandRng};
+/// use bms_rs::bms::rng::{Rng, RandRng};
 /// # #[cfg(feature = "rand")]
 /// use rand::{rngs::StdRng, SeedableRng};
 /// # #[cfg(feature = "rand")]

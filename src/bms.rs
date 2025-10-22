@@ -121,7 +121,7 @@ pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
 /// use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 ///
 /// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
-/// let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(source);
+/// let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(source).expect("must be parsed");
 /// println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 /// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 /// println!("Warnings: {:?}", warnings);

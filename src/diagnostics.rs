@@ -15,7 +15,7 @@
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
-//! let output = parse_bms::<KeyLayoutBeat>(bms_source);
+//! let output = parse_bms::<KeyLayoutBeat>(bms_source).expect("must be parsed");
 //!
 //! // Output all warnings
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);

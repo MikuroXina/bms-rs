@@ -21,9 +21,9 @@
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source);
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)]));
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)])).expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
