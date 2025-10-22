@@ -46,7 +46,7 @@ use num::BigUint;
 
 use crate::{
     bms::prelude::*,
-    parse::{ParseError, ParseWarning},
+    parse::{ParseError, ParseWarning, token_processor::all_tokens_with_range},
 };
 
 use super::{TokenProcessor, TokenProcessorResult};
@@ -437,110 +437,77 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_others(&self, token: &TokenWithRange<'_>) -> TokenProcessorResult {
+    fn is_activated(&self) -> bool {
         let top = self.state_stack.borrow().last().cloned().unwrap();
-        match top {
+        matches!(
+            top,
             ProcessState::Root
-            | ProcessState::IfBlock {
-                activated: true, ..
-            }
-            | ProcessState::ElseBlock { activated: true }
-            | ProcessState::SwitchActive { .. } => {
-                let mut slice = std::slice::from_ref(token);
-                self.next.process(&mut slice)
-            }
-            ProcessState::Random { .. } => Err(ParseError::UnexpectedControlFlow(
-                "non-control flow tokens must not be on a random scope",
-            )
-            .into_wrapper(token)),
-            _ => Ok(vec![]),
-        }
+                | ProcessState::IfBlock {
+                    activated: true,
+                    ..
+                }
+                | ProcessState::ElseBlock { activated: true }
+                | ProcessState::SwitchActive { .. }
+        )
     }
 }
 
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
-        let mut warnings = vec![];
-        for token in &**input {
-            match token.content() {
-                Token::Header { name, args } => {
-                    warnings.extend(self.on_header(name.as_ref(), args.as_ref(), token)?);
-                }
-                Token::Message { .. } => {
-                    let mut slice = std::slice::from_ref(token);
-                    warnings.extend(self.next.process(&mut slice)?);
-                }
-                Token::NotACommand(line) => {
-                    warnings.extend(
-                        self.on_comment(line)
-                            .map_err(|err| err.into_wrapper(token))?
-                            .map(|warning| warning.into_wrapper(token)),
-                    );
-                }
+        let mut activated = vec![];
+        let mut cloned = *input;
+        let mut warnings = all_tokens_with_range(&mut cloned, |token| {
+            let res = match token.content() {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+                Token::Message { .. } => None,
+                Token::NotACommand(line) => self.on_comment(line)?,
+            };
+            if self.is_activated() {
+                activated.push(token.clone());
             }
-        }
-        *input = &[];
+            Ok(res)
+        })?;
+        warnings.extend(self.next.process(input)?);
         Ok(warnings)
     }
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn on_header(
-        &self,
-        name: &str,
-        args: &str,
-        token: &TokenWithRange<'_>,
-    ) -> TokenProcessorResult {
+    fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
         let upper_name = name.to_ascii_uppercase();
-        let mut warnings = vec![];
         if self.relaxed {
             match upper_name.as_str() {
                 "RONDAM" => {
-                    warnings.extend(
-                        self.visit_random(args)
-                            .map_err(|err| err.into_wrapper(token))?,
-                    );
+                    return self.visit_random(args);
                 }
                 upper_name
                     if upper_name.starts_with("RANDOM") && upper_name.len() > "RANDOM".len() =>
                 {
-                    warnings.extend(
-                        self.visit_random(upper_name.trim_start_matches("RANDOM"))
-                            .map_err(|err| err.into_wrapper(token))?,
-                    );
+                    return self.visit_random(upper_name.trim_start_matches("RANDOM"));
                 }
                 upper_name if upper_name.starts_with("IF") && upper_name.len() > "IF".len() => {
-                    warnings.extend(
-                        self.visit_if(upper_name.trim_start_matches("IF"))
-                            .map_err(|err| err.into_wrapper(token))?,
-                    );
+                    return self.visit_if(upper_name.trim_start_matches("IF"));
                 }
                 _ => {}
             }
         }
-        Ok(warnings
-            .into_iter()
-            .chain(
-                match upper_name.as_str() {
-                    "RANDOM" => self.visit_random(args),
-                    "SETRANDOM" => self.visit_set_random(args),
-                    "IF" => self.visit_if(args),
-                    "ELSEIF" => self.visit_else_if(args),
-                    "ELSE" => self.visit_else().map(|_| None),
-                    "ENDIF" => self.visit_else_if(args),
-                    "ENDRANDOM" => self.visit_end_random().map(|_| None),
-                    "SWITCH" => self.visit_switch(args),
-                    "SETSWITCH" => self.visit_set_switch(args),
-                    "CASE" => self.visit_case(args),
-                    "SKIP" => self.visit_skip().map(|_| None),
-                    "DEF" => self.visit_default().map(|_| None),
-                    "ENDSW" => self.visit_end_switch().map(|_| None),
-                    _ => return self.visit_others(token),
-                }
-                .map_err(|err| err.into_wrapper(token))?,
-            )
-            .map(|warning| warning.into_wrapper(token))
-            .collect::<Vec<_>>())
+
+        match upper_name.as_str() {
+            "RANDOM" => self.visit_random(args),
+            "SETRANDOM" => self.visit_set_random(args),
+            "IF" => self.visit_if(args),
+            "ELSEIF" => self.visit_else_if(args),
+            "ELSE" => self.visit_else().map(|_| None),
+            "ENDIF" => self.visit_end_if().map(|_| None),
+            "ENDRANDOM" => self.visit_end_random().map(|_| None),
+            "SWITCH" => self.visit_switch(args),
+            "SETSWITCH" => self.visit_set_switch(args),
+            "CASE" => self.visit_case(args),
+            "SKIP" => self.visit_skip().map(|_| None),
+            "DEF" => self.visit_default().map(|_| None),
+            "ENDSW" => self.visit_end_switch().map(|_| None),
+            _ => Ok(None),
+        }
     }
 
     fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ParseError> {
