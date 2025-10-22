@@ -65,8 +65,6 @@
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 //! ```
 //!
-//! - Note: You can also use [`bms::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
-//!
 //! # Features
 //!
 //! - For supported commands, see [docs.rs#Token](https://docs.rs/bms-rs/latest/bms_rs/bms/lex/token/enum.Token.html).
