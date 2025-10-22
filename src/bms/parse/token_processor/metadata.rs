@@ -25,7 +25,7 @@ use crate::{
 pub struct MetadataProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MetadataProcessor {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),

@@ -112,7 +112,7 @@ impl Bms {
         let share = Rc::new(RefCell::new(bms));
         let proc = proc_fn(Rc::clone(&share));
 
-        let tokens: Vec<_> = token_iter.into_iter().cloned().collect();
+        let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let parse_warnings = proc.process(&mut tokens_slice)?;
         std::mem::drop(proc);

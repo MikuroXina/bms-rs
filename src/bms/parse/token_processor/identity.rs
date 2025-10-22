@@ -7,7 +7,7 @@ use super::{TokenProcessor, TokenProcessorResult};
 pub struct IdentityTokenProcessor;
 
 impl TokenProcessor for IdentityTokenProcessor {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         *input = &[];
         Ok(vec![])
     }

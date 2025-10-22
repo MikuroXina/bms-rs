@@ -31,7 +31,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct WavProcessor<'a, P, T>(pub Rc<RefCell<Bms>>, pub &'a P, pub PhantomData<fn() -> T>);
 
 impl<P: Prompter, T: KeyLayoutMapper> TokenProcessor for WavProcessor<'_, P, T> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),

@@ -492,7 +492,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         let mut activated = vec![];
         let mut warnings = all_tokens_with_range(input, |token| {
             let res = match token.content() {
@@ -501,7 +501,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
                 Token::NotACommand(line) => self.on_comment(line)?,
             };
             if self.is_activated() {
-                activated.push(token.clone());
+                activated.push(token);
             }
             Ok(res)
         })?;

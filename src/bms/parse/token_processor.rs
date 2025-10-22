@@ -39,7 +39,7 @@ pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseErrorWit
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
     /// Processes commands by consuming all the stream `input`. It mutates `input`
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult;
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -55,8 +55,8 @@ pub trait TokenProcessor {
 }
 
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
-    fn process(&self, tokens: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
-        T::process(self, tokens)
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+        T::process(self, input)
     }
 }
 
@@ -68,7 +68,7 @@ pub struct SequentialProcessor<F, S> {
 }
 
 impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         let mut cloned = *input;
         let mut warnings = self.first.process(&mut cloned)?;
         warnings.extend(self.second.process(input)?);
@@ -179,7 +179,7 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
 }
 
 fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
-    input: &mut &'a [TokenWithRange<'_>],
+    input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,
 ) -> TokenProcessorResult {
     let mut warnings = vec![];
@@ -196,7 +196,7 @@ fn all_tokens_with_range<
     'a,
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 >(
-    input: &mut &'a [TokenWithRange<'_>],
+    input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,
 ) -> TokenProcessorResult {
     let mut warnings = vec![];

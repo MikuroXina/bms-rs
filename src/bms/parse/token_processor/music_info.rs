@@ -18,7 +18,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for MusicInfoProcessor {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),

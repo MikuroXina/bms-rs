@@ -41,7 +41,7 @@ use crate::{
 pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),

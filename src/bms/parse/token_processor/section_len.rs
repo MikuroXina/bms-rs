@@ -15,7 +15,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct SectionLenProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Message {

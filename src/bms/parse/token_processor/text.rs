@@ -15,7 +15,7 @@ use crate::bms::{model::Bms, prelude::*};
 pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
-    fn process(&self, input: &mut &[TokenWithRange<'_>]) -> TokenProcessorResult {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
         all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
