@@ -116,7 +116,14 @@ fn test_blank() {
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
     let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
-    assert_eq!(warnings, vec![]);
+    assert_eq!(
+        warnings,
+        vec![
+            BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined),
+            BmsWarning::PlayingError(PlayingError::BpmUndefined),
+            BmsWarning::PlayingError(PlayingError::NoNotes)
+        ]
+    );
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes
