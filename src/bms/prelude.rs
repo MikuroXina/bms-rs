@@ -9,12 +9,6 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 // Re-export types from bms module
 pub use super::{
     BmsOutput, BmsWarning, Decimal,
-    ast::{
-        AstBuildOutput, AstBuildWarning, AstBuildWarningWithRange, AstParseOutput, AstParseWarning,
-        AstParseWarningWithRange, AstRoot,
-        rng::{Rng, RngMock},
-        structure::{BlockValue, CaseBranch, CaseBranchValue, IfBlock, Unit},
-    },
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
@@ -34,13 +28,10 @@ pub use super::{
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
+    default_preset, default_preset_with_prompter, default_preset_with_rng,
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
-        parser::{
-            CommentParser, CommonRelaxer, ControlFlowParser, HeaderParser, MessageParser,
-            TokenParser, default_parsers, default_parsers_with_relaxer,
-        },
         token::{Token, TokenWithRange},
     },
     model::{
@@ -61,12 +52,13 @@ pub use super::{
         token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
-    parse_bms_with_rng,
+    parse_bms, parse_bms_with_preset,
+    rng::{Rng, RngMock},
 };
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
-pub use super::{ast::rng::RandRng, parse_bms};
+pub use super::rng::RandRng;
 
 // Re-export minor command types when feature is enabled
 #[cfg(feature = "minor-command")]

@@ -11,13 +11,27 @@ use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
 use num::BigUint;
 
-use super::{Result, TokenProcessor};
-use crate::bms::{model::Bms, prelude::*};
+use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use crate::{
+    bms::{model::Bms, prelude::*},
+    parse::Result,
+};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
 pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
 
 impl TokenProcessor for ResourcesProcessor {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message { .. } | Token::NotACommand(_) => None,
+            })
+        })
+    }
+}
+
+impl ResourcesProcessor {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "MIDIFILE" => {
@@ -50,10 +64,6 @@ impl TokenProcessor for ResourcesProcessor {
             }
             _ => {}
         }
-        Ok(())
-    }
-
-    fn on_message(&self, _: Track, _: Channel, _: &str) -> Result<()> {
         Ok(())
     }
 }

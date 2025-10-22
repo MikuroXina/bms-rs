@@ -1,8 +1,8 @@
-#[cfg(feature = "minor-command")]
+#![cfg(feature = "minor-command")]
+
 use bms_rs::bms::prelude::*;
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_atbga_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -11,13 +11,13 @@ fn test_atbga_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
@@ -33,7 +33,6 @@ fn test_atbga_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_bga_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -42,13 +41,13 @@ fn test_bga_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #BGA is parsed correctly
@@ -65,7 +64,6 @@ fn test_bga_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_exrank_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -74,13 +72,13 @@ fn test_exrank_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXRANK is parsed correctly
@@ -94,7 +92,6 @@ fn test_exrank_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_exwav_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -103,13 +100,13 @@ fn test_exwav_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #EXWAV is parsed correctly
@@ -126,7 +123,6 @@ fn test_exwav_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_changeoption_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -135,13 +131,13 @@ fn test_changeoption_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
@@ -155,7 +151,6 @@ fn test_changeoption_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_text_parsing() {
     let source = r#"
 #TITLE Test BMS
@@ -164,13 +159,13 @@ fn test_text_parsing() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that #TEXT is parsed correctly
@@ -184,7 +179,6 @@ fn test_text_parsing() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_notes_parse_extended_tokens() {
     let source = r#"
 #TITLE Test BMS
@@ -197,13 +191,13 @@ fn test_notes_parse_extended_tokens() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
@@ -235,7 +229,6 @@ fn test_notes_parse_extended_tokens() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_token_parsing_comprehensive() {
     let source = r#"
 #TITLE Test BMS
@@ -258,13 +251,13 @@ fn test_token_parsing_comprehensive() {
     let LexOutput {
         tokens,
         lex_warnings: warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     assert_eq!(parse_warnings, vec![]);
 
     // Verify that all new tokens are parsed correctly
@@ -321,7 +314,6 @@ fn test_token_parsing_comprehensive() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
 fn test_exwav_out_of_range_values() {
     // Test pan value out of range
     let source = r#"
@@ -331,14 +323,14 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
@@ -355,14 +347,14 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
@@ -379,14 +371,14 @@ fn test_exwav_out_of_range_values() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms: _,
         parse_warnings,
         ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };

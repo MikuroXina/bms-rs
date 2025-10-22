@@ -1,26 +1,26 @@
 //! This module provides [`TokenProcessor`] and its implementations, which reads [`Token`] and applies data to [`Bms`].
 //!
-//! Also it provides preset functions that returns a set of [`TokenProcessor`] trait objects:
+//! Also it provides preset functions that returns a [`TokenProcessor`] trait object:
 //!
 //! - [`pedantic_preset`] - All processors without obsolete/deprecated.
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
-//!
-//! For consistency of its priority, you need to invoke [`TokenProcessor`]s from the first item.
 
 use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
-use super::{ParseWarning, Result};
+use super::{ParseError, ParseErrorWithRange, ParseWarning};
 use crate::bms::prelude::*;
 
 mod bmp;
 mod bpm;
+mod identity;
 mod judge;
 mod metadata;
 mod music_info;
 mod option;
+mod random;
 mod repr;
 mod resources;
 mod scroll;
@@ -33,112 +33,167 @@ mod video;
 mod volume;
 mod wav;
 
-/// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
-///
-/// There are some invariants on calling:
-///
-/// - Once `on_message` is called, `one_header` must not be invoked after that.
-/// - The effects of called `on_message` must be same regardless order of calls.
-pub trait TokenProcessor {
-    /// Processes a header command consists of `#{name} {args}`.
-    fn on_header(&self, name: &str, args: &str) -> Result<()>;
-    /// Processes a message command consists of `#{track}{channel}:{message}`.
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()>;
+/// A type alias of `Result<(), Vec<ParseWarningWithRange>`.
+pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseErrorWithRange>;
 
-    /// Processes a comment line, which doesn't starts from `#`.
-    fn on_comment(&self, _line: &str) -> Result<()> {
-        Ok(())
+/// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
+pub trait TokenProcessor {
+    /// Processes commands by consuming all the stream `input`. It mutates `input`
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult;
+
+    /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
+    fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
+    where
+        Self: Sized,
+        S: TokenProcessor + Sized,
+    {
+        SequentialProcessor {
+            first: self,
+            second,
+        }
+    }
+}
+
+impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+        T::process(self, input)
+    }
+}
+
+/// A processor [`SequentialProcessor`] which does `first` then `second`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SequentialProcessor<F, S> {
+    first: F,
+    second: S,
+}
+
+impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+        let mut cloned = *input;
+        let mut warnings = self.first.process(&mut cloned)?;
+        warnings.extend(self.second.process(input)?);
+        Ok(warnings)
     }
 }
 
 /// Returns all processors without obsolete/deprecated.
-pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
-) -> Vec<Box<dyn TokenProcessor + 'a>> {
-    vec![
-        // RepresentationProcessor must have the highest priority.
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
-        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
-        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
-        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
-        #[cfg(feature = "minor-command")]
-        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
-        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
-        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
-        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
-        Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
-        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor::<P, T>(
+    rng: Rc<RefCell<R>>,
+) -> impl TokenProcessor + 'a {
+    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
+        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
+        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
+        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
+        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
+        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
+    #[cfg(feature = "minor-command")]
+    let sub_processor = sub_processor.then(option::OptionProcessor(Rc::clone(&bms), prompter));
+    let sub_processor = sub_processor
+        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
+        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
+        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
+        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
+        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
+        .then(text::TextProcessor(Rc::clone(&bms), prompter))
+        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
+        .then(wav::WavProcessor::<P, T>(
             Rc::clone(&bms),
             prompter,
             PhantomData,
-        )),
-    ]
+        ));
+    random::RandomTokenProcessor::new(rng, sub_processor, false)
 }
 
 /// Returns commonly used processors.
-pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
-) -> Vec<Box<dyn TokenProcessor + 'a>> {
-    vec![
-        // RepresentationProcessor must have the highest priority.
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
-        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
-        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
-        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
-        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
-        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
-        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
-        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
-        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor::<P, T>(
+    rng: Rc<RefCell<R>>,
+) -> impl TokenProcessor + 'a {
+    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
+        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
+        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
+        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
+        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
+        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)))
+        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
+        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
+        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
+        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
+        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
+        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
+        .then(wav::WavProcessor::<P, T>(
             Rc::clone(&bms),
             prompter,
             PhantomData,
-        )),
-    ]
+        ));
+    random::RandomTokenProcessor::new(rng, sub_processor, true)
 }
 
 /// Returns all of processors this crate provided.
-pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a>(
+pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
     bms: Rc<RefCell<Bms>>,
     prompter: &'a P,
-) -> Vec<Box<dyn TokenProcessor + 'a>> {
-    vec![
-        // RepresentationProcessor must have the highest priority.
-        Box::new(repr::RepresentationProcessor(Rc::clone(&bms))),
-        Box::new(bmp::BmpProcessor(Rc::clone(&bms), prompter)),
-        Box::new(bpm::BpmProcessor(Rc::clone(&bms), prompter)),
-        Box::new(judge::JudgeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(metadata::MetadataProcessor(Rc::clone(&bms))),
-        Box::new(music_info::MusicInfoProcessor(Rc::clone(&bms))),
-        #[cfg(feature = "minor-command")]
-        Box::new(option::OptionProcessor(Rc::clone(&bms), prompter)),
-        #[cfg(feature = "minor-command")]
-        Box::new(resources::ResourcesProcessor(Rc::clone(&bms))),
-        Box::new(scroll::ScrollProcessor(Rc::clone(&bms), prompter)),
-        Box::new(section_len::SectionLenProcessor(Rc::clone(&bms), prompter)),
-        Box::new(speed::SpeedProcessor(Rc::clone(&bms), prompter)),
-        Box::new(sprite::SpriteProcessor(Rc::clone(&bms))),
-        Box::new(stop::StopProcessor(Rc::clone(&bms), prompter)),
-        Box::new(text::TextProcessor(Rc::clone(&bms), prompter)),
-        Box::new(video::VideoProcessor(Rc::clone(&bms), prompter)),
-        Box::new(volume::VolumeProcessor(Rc::clone(&bms), prompter)),
-        Box::new(wav::WavProcessor::<P, T>(
+    rng: Rc<RefCell<R>>,
+) -> impl TokenProcessor + 'a {
+    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
+        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
+        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
+        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
+        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
+        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
+    #[cfg(feature = "minor-command")]
+    let sub_processor = sub_processor
+        .then(option::OptionProcessor(Rc::clone(&bms), prompter))
+        .then(resources::ResourcesProcessor(Rc::clone(&bms)));
+    let sub_processor = sub_processor
+        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
+        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
+        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
+        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
+        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
+        .then(text::TextProcessor(Rc::clone(&bms), prompter))
+        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
+        .then(volume::VolumeProcessor(Rc::clone(&bms), prompter))
+        .then(wav::WavProcessor::<P, T>(
             Rc::clone(&bms),
             prompter,
             PhantomData,
-        )),
-    ]
+        ));
+    random::RandomTokenProcessor::new(rng, sub_processor, true)
+}
+
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
+    input: &mut &'a [&TokenWithRange<'_>],
+    mut f: F,
+) -> TokenProcessorResult {
+    let mut warnings = vec![];
+    for token in &**input {
+        if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
+            warnings.push(warning.into_wrapper(token));
+        }
+    }
+    *input = &[];
+    Ok(warnings)
+}
+
+fn all_tokens_with_range<
+    'a,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+>(
+    input: &mut &'a [&TokenWithRange<'_>],
+    mut f: F,
+) -> TokenProcessorResult {
+    let mut warnings = vec![];
+    for token in &**input {
+        if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
+            warnings.push(warning.into_wrapper(token));
+        }
+    }
+    *input = &[];
+    Ok(warnings)
 }
 
 /// Parses message values with warnings.
@@ -173,7 +228,7 @@ fn parse_message_values_with_warnings<'a, T, F>(
     mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
 ) -> impl Iterator<Item = (ObjTime, T)> + 'a
 where
-    F: FnMut(&str) -> Option<Result<T>> + 'a,
+    F: FnMut(&str) -> Option<Result<T, ParseWarning>> + 'a,
 {
     // Centralize message filtering here so callers don't need to call `filter_message`.
     // Use a simple pair-wise char reader without storing self-referential iterators.

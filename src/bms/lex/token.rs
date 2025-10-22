@@ -2,8 +2,6 @@
 
 use std::borrow::Cow;
 
-use num::BigUint;
-
 use crate::bms::command::{
     channel::{Channel, NoteChannelId},
     mixin::SourceRangeMixin,
@@ -15,28 +13,6 @@ use crate::bms::command::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum Token<'a> {
-    /// `#CASE [u32]`. Starts a case scope if the integer equals to the generated random number. If there's no `#SKIP` command in the scope, the parsing will **fallthrough** to the next `#CASE` or `#DEF`. See also [`Token::Switch`].
-    Case(BigUint),
-    /// `#DEF`. Starts a case scope if any `#CASE` had not matched to the generated random number. It must be placed in the end of the switch scope. See also [`Token::Switch`].
-    Def,
-    /// `#ELSEIF [u32]`. Starts an if scope when the preceding `#IF` had not matched to the generated random number. It must be in an if scope.
-    Else,
-    /// `#ELSEIF [u32]`. Starts an if scope when the integer equals to the generated random number. It must be in an if scope. If preceding `#IF` had matched to the generated, this scope don't start. Syntax sugar for:
-    ///
-    /// ```text
-    /// #ELSE
-    ///   #IF n
-    ///   // ...
-    ///   #ENDIF
-    /// #ENDIF
-    /// ```
-    ElseIf(BigUint),
-    /// `#ENDIF`. Closes the if scope. See [`Token::If`].
-    EndIf,
-    /// `#ENDRANDOM`. Closes the random scope. See [`Token::Random`].
-    EndRandom,
-    /// `#ENDSW`. Closes the random scope. See [`Token::Switch`].
-    EndSwitch,
     /// `#[name] [args]` Other command line starts from `#`.
     Header {
         /// String after `#` and until the first whitespace. It is always uppercase.
@@ -44,8 +20,6 @@ pub enum Token<'a> {
         /// String after `#name` and whitespaces.
         args: Cow<'a, str>,
     },
-    /// `#IF [u32]`. Starts an if scope when the integer equals to the generated random number. This must be placed in a random scope. See also [`Token::Random`].
-    If(BigUint),
     /// Non-empty lines that not starts in `'#'` in bms file.
     NotACommand(&'a str),
     /// `#XXXYY:ZZ...`. Defines the message which places the object onto the score. `XXX` is the track, `YY` is the channel, and `ZZ...` is the object id sequence.
@@ -57,16 +31,6 @@ pub enum Token<'a> {
         /// The message to the channel.
         message: Cow<'a, str>,
     },
-    /// `#RANDOM [u32]`. Starts a random scope which can contain only `#IF`-`#ENDIF` scopes. The random scope must close with `#ENDRANDOM`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#IF` equals to the random integer, the commands in an if scope will be parsed, otherwise all command in it will be ignored. Any command except `#IF` and `#ENDIF` must not be included in the scope, but some players allow it.
-    Random(BigUint),
-    /// `#SETRANDOM [u32]`. Starts a random scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetRandom(BigUint),
-    /// `#SETSWITCH [u32]`. Starts a switch scope but the integer will be used as the generated random number. It should be used only for tests.
-    SetSwitch(BigUint),
-    /// `#SKIP`. Escapes the current switch scope. It is often used in the end of every case scope.
-    Skip,
-    /// `#SWITCH [u32]`. Starts a switch scope which can contain only `#CASE` or `#DEF` scopes. The switch scope must close with `#ENDSW`. A random integer from 1 to the integer will be generated when parsing the score. Then if the integer of `#CASE` equals to the random integer, the commands in a case scope will be parsed, otherwise all command in it will be ignored. Any command except `#CASE` and `#DEF` must not be included in the scope, but some players allow it.
-    Switch(BigUint),
 }
 
 /// A token with position information.
@@ -83,33 +47,39 @@ impl Token<'static> {
     }
 }
 
-impl<'a> Token<'a> {
+impl Token<'_> {
+    /// Returns whether the token is a header with name `command_name`.
+    #[must_use]
+    pub fn is_header(&self, command_name: &str) -> bool {
+        matches!(self,  Token::Header { name, .. } if name.eq_ignore_ascii_case(command_name))
+    }
+
     /// Checks if a token is a control flow token.
     #[must_use]
-    pub const fn is_control_flow_token(&self) -> bool {
-        matches!(
-            self,
-            Token::Random(_)
-                | Token::SetRandom(_)
-                | Token::If(_)
-                | Token::ElseIf(_)
-                | Token::Else
-                | Token::EndIf
-                | Token::EndRandom
-                | Token::Switch(_)
-                | Token::SetSwitch(_)
-                | Token::Case(_)
-                | Token::Def
-                | Token::Skip
-                | Token::EndSwitch
-        )
+    pub fn is_control_flow_token(&self) -> bool {
+        [
+            "RANDOM",
+            "SETRANDOM",
+            "IF",
+            "ELSEIF",
+            "ELSE",
+            "ENDIF",
+            "ENDRANDOM",
+            "SWITCH",
+            "SETSWITCH",
+            "CASE",
+            "DEF",
+            "SKIP",
+            "ENDSWITCH",
+        ]
+        .iter()
+        .any(|command_name| self.is_header(command_name))
     }
 }
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Case(value) => write!(f, "#CASE {value}"),
             Token::Header { name, args } => {
                 if args.is_empty() {
                     write!(f, "#{name}")
@@ -118,23 +88,11 @@ impl std::fmt::Display for Token<'_> {
                 }
             }
             Token::NotACommand(comment) => write!(f, "{comment}"),
-            Token::Def => write!(f, "#DEF"),
-            Token::Else => write!(f, "#ELSE"),
-            Token::ElseIf(value) => write!(f, "#ELSEIF {value}"),
-            Token::EndIf => write!(f, "#ENDIF"),
-            Token::EndRandom => write!(f, "#ENDRANDOM"),
-            Token::EndSwitch => write!(f, "#ENDSW"),
-            Token::If(value) => write!(f, "#IF {value}"),
             Token::Message {
                 track,
                 channel,
                 message,
             } => fmt_message(f, *track, *channel, message.as_ref()),
-            Token::Random(value) => write!(f, "#RANDOM {value}"),
-            Token::SetRandom(value) => write!(f, "#SETRANDOM {value}"),
-            Token::SetSwitch(value) => write!(f, "#SETSWITCH {value}"),
-            Token::Skip => write!(f, "#SKIP"),
-            Token::Switch(value) => write!(f, "#SWITCH {value}"),
         }
     }
 }
@@ -155,17 +113,10 @@ mod tests {
     use super::*;
 
     fn parse_token(input: &'_ str) -> Token<'_> {
-        use crate::bms::lex::parser::default_parsers;
-        let result = crate::bms::lex::TokenStream::parse_lex(input, Some(default_parsers()));
+        let result = crate::bms::lex::TokenStream::parse_lex(input);
         assert_eq!(result.lex_warnings, vec![]);
-        assert_eq!(result.tokens.tokens.len(), 1);
-        result
-            .tokens
-            .tokens
-            .into_iter()
-            .next()
-            .unwrap()
-            .into_content()
+        assert_eq!(result.tokens.iter().len(), 1);
+        result.tokens.into_iter().next().unwrap().into_content()
     }
 
     #[test]

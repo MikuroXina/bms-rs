@@ -15,15 +15,17 @@
 //! - Do not support commands having ambiguous semantics.
 //! - Do not support syntax came from typo (such as `#RONDOM` or `#END IF`).
 
+use std::{cell::RefCell, rc::Rc};
+
 use fraction::GenericDecimal;
 use num::BigUint;
 
-pub mod ast;
 pub mod command;
 pub mod lex;
 pub mod model;
 pub mod parse;
 pub mod prelude;
+pub mod rng;
 pub mod unparse;
 
 use thiserror::Error;
@@ -32,21 +34,15 @@ use ariadne::{Label, Report, ReportKind};
 
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
-#[cfg(feature = "rand")]
-use self::ast::rng::RandRng;
 use self::{
-    ast::{
-        AstBuildOutput, AstBuildWarningWithRange, AstParseOutput, AstParseWarningWithRange,
-        AstRoot, rng::Rng,
-    },
-    command::channel::mapper::KeyLayoutMapper,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseOutput, ParseWarningWithRange,
+        ParseErrorWithRange, ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
+        token_processor::{self, TokenProcessor},
     },
-    prelude::AlwaysWarnAndUseNewer,
+    prelude::*,
 };
 
 /// Decimal type used throughout the BMS module.
@@ -63,12 +59,6 @@ pub enum BmsWarning {
     /// An error comes from lexical analyzer.
     #[error("Warn: lex: {0}")]
     Lex(#[from] LexWarningWithRange),
-    /// An error comes from AST builder.
-    #[error("Warn: ast_build: {0}")]
-    AstBuild(#[from] AstBuildWarningWithRange),
-    /// A warning comes from AST parsing.
-    #[error("Warn: ast_parse: {0}")]
-    AstParse(#[from] AstParseWarningWithRange),
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithRange),
@@ -80,21 +70,49 @@ pub enum BmsWarning {
     PlayingError(#[from] PlayingError),
 }
 
-/// Output of parsing a BMS file.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[must_use]
-pub struct BmsOutput {
-    /// The parsed BMS data.
-    pub bms: Bms,
-    /// Warnings that occurred during parsing.
-    pub warnings: Vec<BmsWarning>,
+/// The token processor used in [`parse_bms`]. It picks newer token on duplicated, uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
+#[cfg(feature = "rand")]
+pub fn default_preset(bms: Rc<RefCell<Bms>>) -> impl TokenProcessor {
+    use rand::{SeedableRng as _, rngs::StdRng};
+    token_processor::minor_preset::<_, KeyLayoutBeat, _>(
+        bms,
+        &AlwaysWarnAndUseNewer,
+        Rc::new(RefCell::new(RandRng(StdRng::from_os_rng()))),
+    )
+}
+
+/// The token processor with your custom random number generator (extended from [`default_preset`]). It picks newer token on duplicated, and parses tokens as possible.
+pub fn default_preset_with_rng<R: Rng + 'static>(
+    rng: R,
+) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor> {
+    move |bms| {
+        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
+            bms,
+            &AlwaysWarnAndUseNewer,
+            Rc::new(RefCell::new(rng)),
+        ))
+    }
+}
+
+/// The token processor with your custom prompter (extended from [`default_preset`]). It uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
+#[cfg(feature = "rand")]
+pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
+    prompter: &'a P,
+) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor + 'a> {
+    use rand::{SeedableRng as _, rngs::StdRng};
+    move |bms| {
+        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
+            bms,
+            prompter,
+            Rc::new(RefCell::new(RandRng(StdRng::from_os_rng()))),
+        ))
+    }
 }
 
 /// Parse a BMS file from source text.
 ///
 /// This function provides a convenient way to parse a BMS file in one step.
-/// It uses the default channel parser and a default random number generator (from [`rand::rngs::OsRng`]).
+/// It uses the default channel parser and a default random number generator (from [`rand::rngs::OsRng`]). See also [`default_preset`].
 ///
 /// # Example
 ///
@@ -103,50 +121,38 @@ pub struct BmsOutput {
 /// use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
 ///
 /// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
-/// let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(source);
+/// let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(source).expect("must be parsed");
 /// println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 /// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
 /// println!("Warnings: {:?}", warnings);
 /// ```
-#[cfg(feature = "rand")]
-pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> BmsOutput {
-    use rand::{SeedableRng, rngs::StdRng};
-
-    // Parse BMS using default RNG and prompt handler
-    let rng = RandRng(StdRng::from_os_rng());
-    parse_bms_with_rng::<T, _>(source, rng)
+pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> Result<BmsOutput, ParseErrorWithRange> {
+    parse_bms_with_preset::<T, _, _>(source, default_preset)
 }
 
-/// Parse a BMS file from source text using a custom random number generator.
-///
-/// This function provides a convenient way to parse a BMS file in one step.
-/// It uses the default channel parser and a custom random number generator.
-pub fn parse_bms_with_rng<T: KeyLayoutMapper, R: Rng>(source: &str, rng: R) -> BmsOutput {
+/// Parse a BMS file from source text with the specified command preset.
+pub fn parse_bms_with_preset<
+    T: KeyLayoutMapper,
+    F: FnOnce(Rc<RefCell<Bms>>) -> TP,
+    TP: TokenProcessor,
+>(
+    source: &str,
+    preset: F,
+) -> Result<BmsOutput, ParseErrorWithRange> {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
         lex_warnings,
-    } = lex::TokenStream::parse_lex(source, None);
+    } = lex::TokenStream::parse_lex(source);
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
-    // Build AST
-    let AstBuildOutput {
-        root,
-        ast_build_warnings,
-    } = AstRoot::from_token_stream(&tokens);
-    warnings.extend(ast_build_warnings.into_iter().map(BmsWarning::AstBuild));
 
-    // Parse AST
-    let (AstParseOutput { token_refs }, ast_parse_warnings) = root.parse_with_warnings(rng);
-    // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, T, AlwaysWarnAndUseNewer>(token_refs, AlwaysWarnAndUseNewer);
+    } = Bms::from_token_stream::<'_, T, TP, _>(&tokens, preset)?;
 
-    // Convert ast-parse and parse warnings to BmsWarning
-    warnings.extend(ast_parse_warnings.into_iter().map(BmsWarning::AstParse));
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
     let PlayingCheckOutput {
@@ -160,7 +166,18 @@ pub fn parse_bms_with_rng<T: KeyLayoutMapper, R: Rng>(source: &str, rng: R) -> B
     // Convert playing errors to BmsWarning
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
-    BmsOutput { bms, warnings }
+    Ok(BmsOutput { bms, warnings })
+}
+
+/// Output of parsing a BMS file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[must_use]
+pub struct BmsOutput {
+    /// The parsed BMS data.
+    pub bms: Bms,
+    /// Warnings that occurred during parsing.
+    pub warnings: Vec<BmsWarning>,
 }
 
 impl ToAriadne for BmsWarning {
@@ -171,8 +188,6 @@ impl ToAriadne for BmsWarning {
         use BmsWarning::*;
         match self {
             Lex(e) => e.to_report(src),
-            AstBuild(e) => e.to_report(src),
-            AstParse(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {

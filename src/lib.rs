@@ -21,9 +21,9 @@
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source);
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)]));
+//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)])).expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
@@ -43,18 +43,18 @@
 //! use num::BigUint;
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, None);
+//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source);
 //! assert_eq!(lex_warnings, vec![]);
-//! // You can modify the tokens before parsing, for some commands that this library does not warpped.
-//! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
-//! assert_eq!(ast_build_warnings, vec![]);
+//! // You can modify the tokens before parsing.
+//!
 //! #[cfg(feature = "rand")]
-//! let AstParseOutput { token_refs } = root.parse(RandRng(StdRng::seed_from_u64(42)));
+//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+//!     &tokens, default_preset_with_rng(RandRng(StdRng::seed_from_u64(42))),
+//! ).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let AstParseOutput { token_refs } = root.parse(RngMock([BigUint::from(1u64)]));
-//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(
-//!     token_refs, AlwaysWarnAndUseNewer
-//! );
+//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+//!     &tokens, default_preset_with_rng(RngMock([BigUint::from(1u64)])),
+//! ).expect("must be parsed");
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! assert_eq!(parse_warnings, vec![]);
 //! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
@@ -63,27 +63,6 @@
 //! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
 //! println!("Artist: {}", bms.header.artist.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
-//! ```
-//!
-//! - Note: You can also use [`bms::model::Bms::from_token_stream_with_ast`] to skip the AST building & parsing step.
-//!
-//! ## AST Extraction Usage
-//!
-//! You can also extract tokens back from an AST using the [`bms::ast::AstRoot::extract`] method, which serves as the inverse of [`bms::ast::AstRoot::from_token_stream`]:
-//!
-//! ```rust
-//! use bms_rs::bms::prelude::*;
-//!
-//! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
-//! let LexOutput { tokens, lex_warnings } = TokenStream::parse_lex(&source, None);
-//! assert_eq!(lex_warnings, vec![]);
-//!
-//! // Build AST from tokens
-//! let AstBuildOutput { root, ast_build_warnings } = AstRoot::from_token_stream(&tokens);
-//! assert_eq!(ast_build_warnings, vec![]);
-//!
-//! // Extract tokens back from AST
-//! let extracted_tokens = root.extract();
 //! ```
 //!
 //! # Features
@@ -166,4 +145,4 @@ pub mod bmson;
 pub mod chart_process;
 pub mod diagnostics;
 
-pub use bms::{ast, command, lex, parse};
+pub use bms::{command, lex, parse};

@@ -6,8 +6,11 @@
 #![cfg(feature = "minor-command")]
 
 use super::{
-    super::prompt::{DefDuplication, Prompter},
-    ParseWarning, Result, TokenProcessor, ids_from_message,
+    super::{
+        Result,
+        prompt::{DefDuplication, Prompter},
+    },
+    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
 };
 use crate::bms::{model::Bms, prelude::*};
 use std::{cell::RefCell, rc::Rc};
@@ -16,6 +19,22 @@ use std::{cell::RefCell, rc::Rc};
 pub struct OptionProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
 
 impl<P: Prompter> TokenProcessor for OptionProcessor<'_, P> {
+    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+        all_tokens(input, |token| {
+            Ok(match token {
+                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                Token::NotACommand(_) => None,
+            })
+        })
+    }
+}
+
+impl<P: Prompter> OptionProcessor<'_, P> {
     fn on_header(&self, name: &str, args: &str) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "OPTION" => {

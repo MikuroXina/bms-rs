@@ -32,7 +32,7 @@ fn test_emit_warnings_with_real_bms() {
     let bms_source = "#TITLE Test Song\n#ARTIST Composer\n#INVALID_COMMAND test\n";
 
     // Parse BMS file, should produce warnings
-    let output = parse_bms::<KeyLayoutBeat>(bms_source);
+    let output = parse_bms::<KeyLayoutBeat>(bms_source).unwrap();
 
     if !output.warnings.is_empty() {
         // Note: here we just verify the function can be called normally
@@ -60,16 +60,16 @@ fn test_unknown_command_warning() {
     // Test BMS with unknown command
     let bms_source = "#TITLE Test\n#UNKNOWN_COMMAND value\n#ARTIST Composer\n";
 
-    let output = TokenStream::parse_lex(bms_source, None);
+    let output = TokenStream::parse_lex(bms_source);
 
     // Should have tokens including UnknownCommand
-    assert!(!output.tokens.tokens.is_empty());
+    assert!(output.tokens.iter().next().is_some());
 
     // Should not have warnings
     assert!(output.lex_warnings.is_empty());
 
     // Check if there's an UnknownCommand token
-    let has_unknown_command_token = output.tokens.tokens.iter().any(|t| {
+    let has_unknown_command_token = output.tokens.iter().any(|t| {
         matches!(
             t.content(),
             Token::Header {

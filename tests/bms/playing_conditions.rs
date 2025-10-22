@@ -7,13 +7,13 @@ fn test_playing_conditions_empty_bms() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -37,13 +37,13 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -64,18 +64,16 @@ fn test_playing_conditions_with_bpm_change_only() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     assert!(
         !tokens
-            .tokens
             .iter()
             .any(|t| t.content() == &Token::header("BPM", "120"))
     );
     assert!(
         tokens
-            .tokens
             .iter()
             .any(|t| t.content() == &Token::header("BPM08", "120"))
     );
@@ -83,7 +81,7 @@ fn test_playing_conditions_with_bpm_change_only() {
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -108,13 +106,13 @@ fn test_playing_conditions_invisible_notes_only() {
     let LexOutput {
         tokens,
         lex_warnings,
-    } = TokenStream::parse_lex(source, None);
+    } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
         parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _>(&tokens, AlwaysWarnAndUseOlder);
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
 
     assert_eq!(parse_warnings, vec![]);
 

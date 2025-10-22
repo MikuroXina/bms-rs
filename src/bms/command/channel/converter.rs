@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use super::{Key, PlayerSide};
-use crate::bms::ast::rng::JavaRandom;
+use crate::bms::rng::JavaRandom;
 
 /// A trait for converting [`super::Key`]s in different layouts.
 ///
