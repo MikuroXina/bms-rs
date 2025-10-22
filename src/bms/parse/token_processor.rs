@@ -88,13 +88,8 @@ pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
         .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
         .then(metadata::MetadataProcessor(Rc::clone(&bms)))
         .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
-    let sub_processor = if cfg!(feature = "minor-command") {
-        sub_processor
-            .then(Box::new(option::OptionProcessor(Rc::clone(&bms), prompter))
-                as Box<dyn TokenProcessor>)
-    } else {
-        sub_processor.then(Box::new(identity::IdentityTokenProcessor) as Box<dyn TokenProcessor>)
-    };
+    #[cfg(feature = "minor-command")]
+    let sub_processor = sub_processor.then(option::OptionProcessor(Rc::clone(&bms), prompter));
     let sub_processor = sub_processor
         .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
         .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
@@ -149,18 +144,10 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
         .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
         .then(metadata::MetadataProcessor(Rc::clone(&bms)))
         .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
-    let sub_processor = if cfg!(feature = "minor-command") {
-        sub_processor
-            .then(Box::new(option::OptionProcessor(Rc::clone(&bms), prompter))
-                as Box<dyn TokenProcessor>)
-            .then(
-                Box::new(resources::ResourcesProcessor(Rc::clone(&bms))) as Box<dyn TokenProcessor>
-            )
-    } else {
-        sub_processor
-            .then(Box::new(identity::IdentityTokenProcessor) as Box<dyn TokenProcessor>)
-            .then(Box::new(identity::IdentityTokenProcessor) as Box<dyn TokenProcessor>)
-    };
+    #[cfg(feature = "minor-command")]
+    let sub_processor = sub_processor
+        .then(option::OptionProcessor(Rc::clone(&bms), prompter))
+        .then(resources::ResourcesProcessor(Rc::clone(&bms)));
     let sub_processor = sub_processor
         .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
         .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))

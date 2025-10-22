@@ -4,6 +4,7 @@ use crate::bms::prelude::*;
 
 use super::{TokenProcessor, TokenProcessorResult};
 
+#[allow(dead_code)]
 pub struct IdentityTokenProcessor;
 
 impl TokenProcessor for IdentityTokenProcessor {
