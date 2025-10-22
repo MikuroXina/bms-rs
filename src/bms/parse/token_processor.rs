@@ -178,13 +178,30 @@ pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
     random::RandomTokenProcessor::new(rng, sub_processor, true)
 }
 
-fn all_tokens<F: FnMut(&Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
-    input: &mut &[TokenWithRange<'_>],
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
+    input: &mut &'a [TokenWithRange<'_>],
     mut f: F,
 ) -> TokenProcessorResult {
     let mut warnings = vec![];
     for token in &**input {
         if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
+            warnings.push(warning.into_wrapper(token));
+        }
+    }
+    *input = &[];
+    Ok(warnings)
+}
+
+fn all_tokens_with_range<
+    'a,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+>(
+    input: &mut &'a [TokenWithRange<'_>],
+    mut f: F,
+) -> TokenProcessorResult {
+    let mut warnings = vec![];
+    for token in &**input {
+        if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
             warnings.push(warning.into_wrapper(token));
         }
     }
