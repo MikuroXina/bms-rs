@@ -1,5 +1,6 @@
 use bms_rs::bms::prelude::*;
 use num::BigUint;
+use pretty_assertions::assert_eq;
 use std::num::NonZeroU64;
 
 #[test]
