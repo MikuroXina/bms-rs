@@ -3,40 +3,77 @@
 //! - `#STOP[01-ZZ] n` - Stop definition. It stops the scroll as `n` of 192nd note.
 //! - `#xxx09:` - Stop channel.
 //! - `#STP xxx.yyy time` - It stops `time` milliseconds at section `xxx` and its position (`yyy` / 1000).
+
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
 use super::{
-    super::{
-        Result,
-        prompt::{DefDuplication, Prompter},
-    },
-    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
+    super::prompt::{DefDuplication, Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::stop::StopObjects,
+    prelude::*,
+};
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
-pub struct StopProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StopProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for StopProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl StopProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for StopProcessor {
+    type Output = StopObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = StopObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> StopProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl StopProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut StopObjects,
+    ) -> Result<()> {
         if name.to_ascii_uppercase().starts_with("STOP") {
             let id = &name["STOP".len()..];
             let len =
@@ -44,16 +81,10 @@ impl<P: Prompter> StopProcessor<'_, P> {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 
-            let stop_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let stop_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
-            if let Some(older) = self
-                .0
-                .borrow_mut()
-                .scope_defines
-                .stop_defs
-                .get_mut(&stop_obj_id)
-            {
-                self.1
+            if let Some(older) = objects.stop_defs.get_mut(&stop_obj_id) {
+                prompter
                     .handle_def_duplication(DefDuplication::Stop {
                         id: stop_obj_id,
                         older: older.clone(),
@@ -61,11 +92,7 @@ impl<P: Prompter> StopProcessor<'_, P> {
                     })
                     .apply_def(older, len, stop_obj_id)?;
             } else {
-                self.0
-                    .borrow_mut()
-                    .scope_defines
-                    .stop_defs
-                    .insert(stop_obj_id, len);
+                objects.stop_defs.insert(stop_obj_id, len);
             }
         }
         #[cfg(feature = "minor-command")]
@@ -98,10 +125,10 @@ impl<P: Prompter> StopProcessor<'_, P> {
 
             // Store by ObjTime as key, handle duplication with prompt handler
             let ev = StpEvent { time, duration };
-            if let Some(older) = self.0.borrow_mut().arrangers.stp_events.get_mut(&time) {
+            if let Some(older) = objects.stp_events.get_mut(&time) {
                 use crate::parse::prompt::ChannelDuplication;
 
-                self.1
+                prompter
                     .handle_channel_duplication(ChannelDuplication::StpEvent {
                         time,
                         older,
@@ -109,30 +136,31 @@ impl<P: Prompter> StopProcessor<'_, P> {
                     })
                     .apply_channel(older, ev, time, Channel::Stop)?;
             } else {
-                self.0.borrow_mut().arrangers.stp_events.insert(time, ev);
+                objects.stp_events.insert(time, ev);
             }
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut StopObjects,
+    ) -> Result<()> {
         if channel == Channel::Stop {
-            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
-            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
+            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
+            {
                 // Record used STOP id for validity checks
-                self.0.borrow_mut().arrangers.stop_ids_used.insert(obj);
-                let duration = self
-                    .0
-                    .borrow()
-                    .scope_defines
+                objects.stop_ids_used.insert(obj);
+                let duration = objects
                     .stop_defs
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .push_stop(StopObj { time, duration });
+                objects.push_stop(StopObj { time, duration });
             }
         }
         Ok(())

@@ -15,12 +15,13 @@
 //! - Do not support commands having ambiguous semantics.
 //! - Do not support syntax came from typo (such as `#RONDOM` or `#END IF`).
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use fraction::GenericDecimal;
 use num::BigUint;
 
 pub mod command;
+pub mod error;
 pub mod lex;
 pub mod model;
 pub mod parse;
@@ -35,12 +36,12 @@ use ariadne::{Label, Report, ReportKind};
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
+    error::ParseErrorWithRange,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseErrorWithRange, ParseOutput, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{self, TokenProcessor},
+        token_processor::{TokenProcessor, TokenProcessorResult},
     },
     prelude::*,
 };
@@ -70,74 +71,95 @@ pub enum BmsWarning {
     PlayingError(#[from] PlayingError),
 }
 
-/// The token processor used in [`parse_bms`]. It picks newer token on duplicated, uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
-#[cfg(feature = "rand")]
-pub fn default_preset(bms: Rc<RefCell<Bms>>) -> impl TokenProcessor {
-    use rand::{SeedableRng as _, rngs::StdRng};
-    token_processor::minor_preset::<_, KeyLayoutBeat, _>(
-        bms,
-        &AlwaysWarnAndUseNewer,
-        Rc::new(RefCell::new(RandRng(StdRng::from_os_rng()))),
-    )
-}
-
-/// The token processor with your custom random number generator (extended from [`default_preset`]). It picks newer token on duplicated, and parses tokens as possible.
-pub fn default_preset_with_rng<R: Rng + 'static>(
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct ParseConfig<T, P, R> {
+    key_mapper: PhantomData<fn() -> T>,
+    prompter: P,
     rng: R,
-) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor> {
-    move |bms| {
-        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
-            bms,
-            &AlwaysWarnAndUseNewer,
-            Rc::new(RefCell::new(rng)),
-        ))
-    }
+    use_minor: bool,
 }
 
-/// The token processor with your custom prompter (extended from [`default_preset`]). It uses a default random number generator (from [`rand::rngs::OsRng`]), and parses tokens as possible.
 #[cfg(feature = "rand")]
-pub fn default_preset_with_prompter<'a, P: Prompter + 'a>(
-    prompter: &'a P,
-) -> impl FnOnce(Rc<RefCell<Bms>>) -> Box<dyn TokenProcessor + 'a> {
+pub fn default_config()
+-> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, RandRng<rand::rngs::StdRng>> {
     use rand::{SeedableRng as _, rngs::StdRng};
-    move |bms| {
-        Box::new(token_processor::minor_preset::<_, KeyLayoutBeat, _>(
-            bms,
-            prompter,
-            Rc::new(RefCell::new(RandRng(StdRng::from_os_rng()))),
-        ))
+    ParseConfig {
+        key_mapper: PhantomData,
+        prompter: AlwaysWarnAndUseNewer,
+        rng: RandRng(StdRng::from_os_rng()),
+        use_minor: true,
     }
 }
 
-/// Parse a BMS file from source text.
-///
-/// This function provides a convenient way to parse a BMS file in one step.
-/// It uses the default channel parser and a default random number generator (from [`rand::rngs::OsRng`]). See also [`default_preset`].
-///
-/// # Example
-///
-/// ```
-/// use bms_rs::bms::{parse_bms, BmsOutput};
-/// use bms_rs::bms::command::channel::mapper::KeyLayoutBeat;
-///
-/// let source = "#TITLE Test Song\n#BPM 120\n#00101:0101";
-/// let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(source).expect("must be parsed");
-/// println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
-/// println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
-/// println!("Warnings: {:?}", warnings);
-/// ```
-pub fn parse_bms<T: KeyLayoutMapper>(source: &str) -> Result<BmsOutput, ParseErrorWithRange> {
-    parse_bms_with_preset::<T, _, _>(source, default_preset)
+pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R> {
+    ParseConfig {
+        key_mapper: PhantomData,
+        prompter: AlwaysWarnAndUseNewer,
+        rng,
+        use_minor: true,
+    }
+}
+
+impl<T, P, R> ParseConfig<T, P, R> {
+    pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R> {
+        ParseConfig {
+            key_mapper: PhantomData,
+            prompter,
+            rng: self.rng,
+            use_minor: self.use_minor,
+        }
+    }
+
+    pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<T, P, R2> {
+        ParseConfig {
+            key_mapper: PhantomData,
+            prompter: self.prompter,
+            rng,
+            use_minor: self.use_minor,
+        }
+    }
+
+    pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
+    where
+        T: KeyLayoutMapper,
+        P: Prompter,
+        R: Rng,
+    {
+        struct AggregateTokenProcessor<T, R> {
+            key_mapper: PhantomData<fn() -> T>,
+            rng: Rc<RefCell<R>>,
+            use_minor: bool,
+        }
+        impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
+            type Output = Bms;
+
+            fn process<P: Prompter>(
+                &self,
+                input: &mut &[&TokenWithRange<'_>],
+                prompter: &P,
+            ) -> TokenProcessorResult<Self::Output> {
+                if self.use_minor {
+                    minor_preset::<T, R>(Rc::clone(&self.rng)).process(input, prompter)
+                } else {
+                    common_preset::<T, R>(Rc::clone(&self.rng)).process(input, prompter)
+                }
+            }
+        }
+        (
+            AggregateTokenProcessor::<T, R> {
+                key_mapper: PhantomData,
+                rng: Rc::new(RefCell::new(self.rng)),
+                use_minor: self.use_minor,
+            },
+            self.prompter,
+        )
+    }
 }
 
 /// Parse a BMS file from source text with the specified command preset.
-pub fn parse_bms_with_preset<
-    T: KeyLayoutMapper,
-    F: FnOnce(Rc<RefCell<Bms>>) -> TP,
-    TP: TokenProcessor,
->(
+pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     source: &str,
-    preset: F,
+    config: ParseConfig<T, P, R>,
 ) -> Result<BmsOutput, ParseErrorWithRange> {
     // Parse tokens using default channel parser
     let LexOutput {
@@ -148,12 +170,8 @@ pub fn parse_bms_with_preset<
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, T, TP, _>(&tokens, preset)?;
-
-    warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
+    let (proc, prompter) = config.build();
+    let bms = Bms::from_token_stream::<'_, T, _, _>(&tokens, proc, prompter)?;
 
     let PlayingCheckOutput {
         playing_warnings,

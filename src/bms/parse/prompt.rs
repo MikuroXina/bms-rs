@@ -11,9 +11,9 @@ use crate::bms::{
         channel::Channel,
         time::{ObjTime, Track},
     },
+    error::{ParseWarning, ParseWarningWithRange, Result},
 };
 
-use super::{ParseWarning, Result};
 use crate::bms::{
     model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
     model::obj::{
@@ -42,8 +42,8 @@ pub trait Prompter {
     fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
     fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
-    /// Shows the user a [`ParseWarning`].
-    fn warn(&self, warning: ParseWarning) {
+    /// Shows the user a [`ParseWarningWithRange`].
+    fn warn(&self, warning: ParseWarningWithRange) {
         eprintln!("{warning:?}");
     }
 }

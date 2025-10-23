@@ -10,43 +10,78 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 use fraction::GenericFraction;
 
 use super::{
-    super::{
-        Result,
-        prompt::{DefDuplication, Prompter},
-    },
-    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, hex_values_from_message,
-    ids_from_message,
+    super::prompt::{DefDuplication, Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_hex_values, parse_obj_ids,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::bpm::BpmObjects,
+    prelude::*,
+};
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
-pub struct BpmProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BpmProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for BpmProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl BpmProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for BpmProcessor {
+    type Output = BpmObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = BpmObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> BpmProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl BpmProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut BpmObjects,
+    ) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "BPM" => {
                 let bpm = Decimal::from_fraction(
                     GenericFraction::from_str(args)
                         .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
                 );
-                self.0.borrow_mut().arrangers.bpm = Some(bpm);
+                objects.bpm = Some(bpm);
             }
             bpm if bpm.starts_with("BPM") || bpm.starts_with("EXBPM") => {
                 let id = if bpm.starts_with("BPM") {
@@ -54,14 +89,13 @@ impl<P: Prompter> BpmProcessor<'_, P> {
                 } else {
                     &name["EXBPM".len()..]
                 };
-                let bpm_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
                 let bpm = Decimal::from_fraction(
                     GenericFraction::from_str(args)
                         .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
                 );
-                let scope_defines = &mut self.0.borrow_mut().scope_defines;
-                if let Some(older) = scope_defines.bpm_defs.get_mut(&bpm_obj_id) {
-                    self.1
+                if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::BpmChange {
                             id: bpm_obj_id,
                             older: older.clone(),
@@ -69,7 +103,7 @@ impl<P: Prompter> BpmProcessor<'_, P> {
                         })
                         .apply_def(older, bpm, bpm_obj_id)?;
                 } else {
-                    scope_defines.bpm_defs.insert(bpm_obj_id, bpm);
+                    objects.bpm_defs.insert(bpm_obj_id, bpm);
                 }
             }
             #[cfg(feature = "minor-command")]
@@ -78,43 +112,41 @@ impl<P: Prompter> BpmProcessor<'_, P> {
                     GenericFraction::from_str(args)
                         .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
                 );
-                self.0.borrow_mut().arrangers.base_bpm = Some(bpm);
+                objects.base_bpm = Some(bpm);
             }
             _ => {}
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut BpmObjects,
+    ) -> Result<()> {
         if channel == Channel::BpmChange {
-            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
-            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
+            for (time, obj) in parse_obj_ids(
+                track,
+                message.clone(),
+                prompter,
+                &self.case_sensitive_obj_id,
+            ) {
                 // Record used BPM change id for validity checks
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .bpm_change_ids_used
-                    .insert(obj);
-                let bpm = self
-                    .0
-                    .borrow()
-                    .scope_defines
+                objects.bpm_change_ids_used.insert(obj);
+                let bpm = objects
                     .bpm_defs
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .push_bpm_change(BpmChangeObj { time, bpm }, self.1)?;
+                objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
             }
         }
         if channel == Channel::BpmChangeU8 {
-            for (time, value) in hex_values_from_message(track, message, |w| self.1.warn(w)) {
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .push_bpm_change_u8(time, value, self.1)?;
+            for (time, value) in parse_hex_values(track, message, prompter) {
+                objects.push_bpm_change_u8(time, value, prompter)?;
             }
         }
         Ok(())

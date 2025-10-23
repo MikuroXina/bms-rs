@@ -7,60 +7,60 @@
 //! - `#MATERIALS path` - Unknown. Obsolete.
 #![cfg(feature = "minor-command")]
 
-use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
+use std::{path::Path, str::FromStr};
 
 use num::BigUint;
 
 use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::{
-    bms::{model::Bms, prelude::*},
-    parse::Result,
-};
+use crate::bms::{error::Result, model::resources::Resources, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
-pub struct ResourcesProcessor(pub Rc<RefCell<Bms>>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ResourcesProcessor;
 
 impl TokenProcessor for ResourcesProcessor {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
+    type Output = Resources;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut resources = Resources::default();
+        all_tokens(input, prompter, |token| {
             Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), &mut resources)
+                    .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(resources)
     }
 }
 
 impl ResourcesProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str, resources: &mut Resources) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "MIDIFILE" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected midi filename".into()));
                 }
-                self.0.borrow_mut().notes.midi_file = Some(Path::new(args).into());
+                resources.midi_file = Some(Path::new(args).into());
             }
             "CDDA" => {
                 let big_uint = BigUint::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                self.0.borrow_mut().others.cdda.push(big_uint)
+                resources.cdda.push(big_uint)
             }
             "MATERIALSWAV" => {
-                self.0
-                    .borrow_mut()
-                    .notes
-                    .materials_wav
-                    .push(Path::new(args).into());
+                resources.materials_wav.push(Path::new(args).into());
             }
             "MATERIALSBMP" => {
-                self.0
-                    .borrow_mut()
-                    .graphics
-                    .materials_bmp
-                    .push(Path::new(args).into());
+                resources.materials_bmp.push(Path::new(args).into());
             }
             "MATERIALS" => {
-                self.0.borrow_mut().others.materials_path = Some(Path::new(args).into());
+                resources.materials_path = Some(Path::new(args).into());
             }
             _ => {}
         }

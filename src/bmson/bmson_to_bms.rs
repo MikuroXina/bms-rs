@@ -65,40 +65,40 @@ impl Bms {
             NonZeroU64::new(value.info.resolution.get()).expect("resolution should be non-zero");
 
         // Convert info to header
-        bms.header.title = Some(value.info.title.into_owned());
-        bms.header.subtitle = Some(value.info.subtitle.into_owned());
-        bms.header.artist = Some(value.info.artist.into_owned());
-        bms.header.sub_artist = value
+        bms.music_info.title = Some(value.info.title.into_owned());
+        bms.music_info.subtitle = Some(value.info.subtitle.into_owned());
+        bms.music_info.artist = Some(value.info.artist.into_owned());
+        bms.music_info.sub_artist = value
             .info
             .subartists
             .first()
             .map(|s| s.clone().into_owned());
-        bms.header.genre = Some(value.info.genre.into_owned());
-        bms.header.play_level = Some(value.info.level as u8);
-        bms.header.total = Some(Decimal::from(value.info.total.as_f64()));
-        bms.header.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
-        bms.header.stage_file = value
+        bms.music_info.genre = Some(value.info.genre.into_owned());
+        bms.metadata.play_level = Some(value.info.level as u8);
+        bms.judge.total = Some(Decimal::from(value.info.total.as_f64()));
+        bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
+        bms.sprite.stage_file = value
             .info
             .eyecatch_image
             .map(|s| PathBuf::from(s.into_owned()));
-        bms.header.banner = value
+        bms.sprite.banner = value
             .info
             .banner_image
             .map(|s| PathBuf::from(s.into_owned()));
-        bms.header.preview_music = value
+        bms.music_info.preview_music = value
             .info
             .preview_music
             .map(|s| PathBuf::from(s.into_owned()));
 
         // Convert judge rank
         let judge_rank_value = (value.info.judge_rank.as_f64() * 18.0) as i64;
-        bms.header.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
+        bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.arrangers.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
+        bms.bpm.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
 
         // Convert resolution
-        bms.arrangers.section_len_changes.insert(
+        bms.section_len.section_len_changes.insert(
             Track(0),
             SectionLenChangeObj {
                 track: Track(0),
@@ -116,11 +116,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::BpmDefOutOfRange);
                 ObjId::null()
             });
-            bms.scope_defines.bpm_defs.insert(bpm_def_id, bpm.clone());
+            bms.bpm.bpm_defs.insert(bpm_def_id, bpm.clone());
 
-            bms.arrangers
-                .bpm_changes
-                .insert(time, BpmChangeObj { time, bpm });
+            bms.bpm.bpm_changes.insert(time, BpmChangeObj { time, bpm });
         }
 
         // Convert stop events
@@ -133,11 +131,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::StopDefOutOfRange);
                 ObjId::null()
             });
-            bms.scope_defines
-                .stop_defs
-                .insert(stop_def_id, duration.clone());
+            bms.stop.stop_defs.insert(stop_def_id, duration.clone());
 
-            bms.arrangers.stops.insert(time, StopObj { time, duration });
+            bms.stop.stops.insert(time, StopObj { time, duration });
         }
 
         // Convert scroll events
@@ -150,11 +146,9 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::ScrollDefOutOfRange);
                 ObjId::null()
             });
-            bms.scope_defines
-                .scroll_defs
-                .insert(scroll_def_id, factor.clone());
+            bms.scroll.scroll_defs.insert(scroll_def_id, factor.clone());
 
-            bms.arrangers
+            bms.scroll
                 .scrolling_factor_changes
                 .insert(time, ScrollingFactorObj { time, factor });
         }
@@ -166,7 +160,7 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
             });
-            bms.notes.wav_files.insert(obj_id, wav_path);
+            bms.wav.wav_files.insert(obj_id, wav_path);
 
             for note in sound_channel.notes {
                 let time = convert_pulse_to_obj_time(note.y, resolution);
@@ -182,7 +176,7 @@ impl Bms {
                     channel_id: KeyLayoutBeat::new(side, kind, key).to_channel_id(),
                     wav_id: obj_id,
                 };
-                bms.notes.push_note(obj);
+                bms.wav.notes.push_note(obj);
             }
         }
 
@@ -193,7 +187,7 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
             });
-            bms.notes.wav_files.insert(obj_id, wav_path);
+            bms.wav.wav_files.insert(obj_id, wav_path);
 
             for mine_event in mine_channel.notes {
                 let time = convert_pulse_to_obj_time(mine_event.y, resolution);
@@ -204,7 +198,7 @@ impl Bms {
                     channel_id: KeyLayoutBeat::new(side, NoteKind::Landmine, key).to_channel_id(),
                     wav_id: obj_id,
                 };
-                bms.notes.push_note(obj);
+                bms.wav.notes.push_note(obj);
             }
         }
 
@@ -215,7 +209,7 @@ impl Bms {
                 warnings.push(BmsonToBmsWarning::WavObjIdOutOfRange);
                 ObjId::null()
             });
-            bms.notes.wav_files.insert(obj_id, wav_path);
+            bms.wav.wav_files.insert(obj_id, wav_path);
 
             for key_event in key_channel.notes {
                 let time = convert_pulse_to_obj_time(key_event.y, resolution);
@@ -226,7 +220,7 @@ impl Bms {
                     channel_id: KeyLayoutBeat::new(side, NoteKind::Invisible, key).to_channel_id(),
                     wav_id: obj_id,
                 };
-                bms.notes.push_note(obj);
+                bms.wav.notes.push_note(obj);
             }
         }
 
@@ -241,7 +235,7 @@ impl Bms {
                 ObjId::null()
             });
             bga_id_to_obj_id.insert(bga_header.id, obj_id);
-            bms.graphics.bmp_files.insert(
+            bms.bmp.bmp_files.insert(
                 obj_id,
                 Bmp {
                     file: bmp_path,
@@ -261,7 +255,7 @@ impl Bms {
         for bga_event in value.bga.bga_events {
             let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
-            bms.graphics.bga_changes.insert(
+            bms.bmp.bga_changes.insert(
                 time,
                 BgaObj {
                     time,
@@ -274,7 +268,7 @@ impl Bms {
         for bga_event in value.bga.layer_events {
             let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
-            bms.graphics.bga_changes.insert(
+            bms.bmp.bga_changes.insert(
                 time,
                 BgaObj {
                     time,
@@ -287,7 +281,7 @@ impl Bms {
         for bga_event in value.bga.poor_events {
             let time = convert_pulse_to_obj_time(bga_event.y, resolution);
             let obj_id = get_bga_obj_id(&bga_event.id);
-            bms.graphics.bga_changes.insert(
+            bms.bmp.bga_changes.insert(
                 time,
                 BgaObj {
                     time,

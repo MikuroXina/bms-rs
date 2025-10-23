@@ -9,47 +9,61 @@
 //! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
 use std::{cell::RefCell, rc::Rc};
 
-use super::{ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::{
-    bms::{model::Bms, prelude::*},
-    parse::Result,
+use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::repr::BmsSourceRepresentation,
+    prelude::*,
 };
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
-pub struct RepresentationProcessor(pub Rc<RefCell<Bms>>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepresentationProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
+
+impl RepresentationProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
 
 impl TokenProcessor for RepresentationProcessor {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
+    type Output = BmsSourceRepresentation;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut repr = BmsSourceRepresentation::default();
+        all_tokens(input, prompter, |token| {
             Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), &mut repr)
+                    .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(repr)
     }
 }
 
 impl RepresentationProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str, repr: &mut BmsSourceRepresentation) -> Result<()> {
         if args.is_empty() {
-            self.0
-                .borrow_mut()
-                .others
-                .raw_command_lines
-                .push(format!("#{name}"));
+            repr.raw_command_lines.push(format!("#{name}"));
         } else {
-            self.0
-                .borrow_mut()
-                .others
-                .raw_command_lines
-                .push(format!("#{name} {args}"));
+            repr.raw_command_lines.push(format!("#{name} {args}"));
         }
         match name.to_ascii_uppercase().as_str() {
             "BASE" => {
                 if args != "62" {
                     return Err(ParseWarning::OutOfBase62);
                 }
-                self.0.borrow_mut().header.case_sensitive_obj_id = true;
+                *self.case_sensitive_obj_id.borrow_mut() = true;
             }
             "LNMODE" => {
                 let mode: u8 = args.parse().map_err(|_| {
@@ -65,17 +79,17 @@ impl RepresentationProcessor {
                         ));
                     }
                 };
-                self.0.borrow_mut().header.ln_mode = mode;
+                repr.ln_mode = mode;
             }
             "LNTYPE" => {
-                self.0.borrow_mut().header.ln_type = if args == "2" {
+                repr.ln_type = if args == "2" {
                     LnType::Mgq
                 } else {
                     LnType::Rdm
                 };
             }
             "CHARSET" => {
-                // `#CHARSET` doesn't have a meaning because this library accepts only UTF-8.
+                repr.charset = Some(args.into());
             }
             _ => {}
         }

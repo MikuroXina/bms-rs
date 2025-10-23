@@ -5,33 +5,45 @@
 //! - `#STAGEFILE image` - The splashscreen image path shown on loading the score.
 //! - `#EXTCHR sprite_no bmp_no start_x start_y end_x end_y [offset_x offset_y [x y]]` - Extended character definition. It modifies a BMS player's sprite. Almost unsupported.
 //! - `#CHARFILE character` - The character CHP path shown at the side on playing.
-use std::{cell::RefCell, path::Path, rc::Rc};
 
-use super::{super::Result, TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{model::Bms, prelude::*};
+use std::path::Path;
+
+use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use crate::bms::{error::Result, model::sprite::Sprites, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
-pub struct SpriteProcessor(pub Rc<RefCell<Bms>>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SpriteProcessor;
 
 impl TokenProcessor for SpriteProcessor {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
+    type Output = Sprites;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut sprites = Sprites::default();
+        all_tokens(input, prompter, |token| {
             Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), &mut sprites)
+                    .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(sprites)
     }
 }
 
 impl SpriteProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str, sprites: &mut Sprites) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             "BANNER" => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError("expected banner filename".into()));
                 }
-                self.0.borrow_mut().header.banner = Some(Path::new(args).into());
+                sprites.banner = Some(Path::new(args).into());
             }
             "BACKBMP" => {
                 if args.is_empty() {
@@ -39,7 +51,7 @@ impl SpriteProcessor {
                         "expected backbmp filename".into(),
                     ));
                 }
-                self.0.borrow_mut().header.back_bmp = Some(Path::new(args).into());
+                sprites.back_bmp = Some(Path::new(args).into());
             }
             "STAGEFILE" => {
                 if args.is_empty() {
@@ -47,7 +59,7 @@ impl SpriteProcessor {
                         "expected splashscreen image filename".into(),
                     ));
                 }
-                self.0.borrow_mut().header.stage_file = Some(Path::new(args).into());
+                sprites.stage_file = Some(Path::new(args).into());
             }
             #[cfg(feature = "minor-command")]
             "EXTCHR" => {
@@ -107,7 +119,7 @@ impl SpriteProcessor {
                     abs_x,
                     abs_y,
                 };
-                self.0.borrow_mut().others.extchr_events.push(ev);
+                sprites.extchr_events.push(ev);
             }
             #[cfg(feature = "minor-command")]
             charfile if charfile.starts_with("CHARFILE") => {
@@ -116,7 +128,7 @@ impl SpriteProcessor {
                         "expected character filename".into(),
                     ));
                 }
-                self.0.borrow_mut().graphics.char_file = Some(Path::new(args).into());
+                sprites.char_file = Some(Path::new(args).into());
             }
             _ => {}
         }

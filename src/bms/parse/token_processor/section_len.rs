@@ -1,36 +1,58 @@
 //! This module handles the tokens:
 //!
 //! - `#xxx02:`: Section length ratio channel. `1.0` makes `xxx` section to be 4/4 beat.
-use std::{cell::RefCell, rc::Rc, str::FromStr};
+
+use std::str::FromStr;
 
 use fraction::GenericFraction;
 
 use super::{
-    super::{Result, prompt::Prompter},
-    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, filter_message,
+    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens, filter_message,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::section_len::SectionLenObjects,
+    prelude::*,
+};
 
 /// It processes objects on `SectionLen` channel.
-pub struct SectionLenProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SectionLenProcessor;
 
-impl<P: Prompter> TokenProcessor for SectionLenProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
+impl TokenProcessor for SectionLenProcessor {
+    type Output = SectionLenObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = SectionLenObjects::default();
+        all_tokens(input, prompter, |token| {
             Ok(match token {
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Header { .. } | Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> SectionLenProcessor<'_, P> {
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+impl SectionLenProcessor {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: &str,
+        prompter: &impl Prompter,
+        objects: &mut SectionLenObjects,
+    ) -> Result<()> {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
@@ -44,10 +66,7 @@ impl<P: Prompter> SectionLenProcessor<'_, P> {
                     "section length must be greater than zero".to_string(),
                 ));
             }
-            self.0
-                .borrow_mut()
-                .arrangers
-                .push_section_len_change(SectionLenChangeObj { track, length }, self.1)?;
+            objects.push_section_len_change(SectionLenChangeObj { track, length }, prompter)?;
         }
         Ok(())
     }

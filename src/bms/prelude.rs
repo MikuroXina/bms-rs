@@ -8,7 +8,7 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
 pub use super::{
-    BmsOutput, BmsWarning, Decimal,
+    BmsOutput, BmsWarning, Decimal, ParseConfig,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
@@ -28,14 +28,15 @@ pub use super::{
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
-    default_preset, default_preset_with_prompter, default_preset_with_rng,
+    default_config, default_config_with_rng,
+    error::{ParseWarning, ParseWarningWithRange},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
         token::{Token, TokenWithRange},
     },
     model::{
-        Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
+        Bms, Notes,
         def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
         obj::{
             BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
@@ -43,7 +44,7 @@ pub use super::{
         },
     },
     parse::{
-        ParseOutput, ParseWarning, ParseWarningWithRange,
+        ParseOutput,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
@@ -52,7 +53,7 @@ pub use super::{
         token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
-    parse_bms, parse_bms_with_preset,
+    parse_bms,
     rng::{Rng, RngMock},
 };
 

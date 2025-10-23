@@ -1,76 +1,72 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, btree_map::Entry},
     path::PathBuf,
 };
 
-use crate::{
-    bms::prelude::*,
-    parse::{Result, prompt::ChannelDuplication},
-};
+#[cfg(feature = "minor-command")]
+use crate::bms::error::Result;
+use crate::{bms::prelude::*, parse::prompt::ChannelDuplication};
 
-/// The graphics objects that are used in the score.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Graphics {
-    /// The path of the background video. The video should be started the playing from the section 000.
-    /// This video is displayed behind the gameplay area.
-    /// Its audio track should not be played.
-    pub video_file: Option<PathBuf>,
+pub struct BmpObjects {
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
+    /// The display mode for background image/video.
+    pub poor_bga_mode: PoorMode,
     /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
     pub bga_changes: BTreeMap<ObjTime, BgaObj>,
     /// The path of image, which is shown when the player got POOR.
     /// This image is displayed when the player misses a note or gets a poor judgment.
     pub poor_bmp: Option<PathBuf>,
-    /// The display mode for background image/video.
-    pub poor_bga_mode: PoorMode,
-    /// Material BMP file paths. #MATERIALSBMP
+    /// Storage for #@BGA definitions
     #[cfg(feature = "minor-command")]
-    pub materials_bmp: Vec<PathBuf>,
-    /// Character file path. #CHARFILE
+    pub atbga_defs: HashMap<ObjId, AtBgaDef>,
+    /// Storage for #BGA definitions
     #[cfg(feature = "minor-command")]
-    pub char_file: Option<PathBuf>,
-    /// Video color depth. #VIDEOCOLORS
+    pub bga_defs: HashMap<ObjId, BgaDef>,
+    /// SWBGA events, indexed by [`ObjId`]. `#SWBGA`
     #[cfg(feature = "minor-command")]
-    pub video_colors: Option<u8>,
-    /// Video delay. #VIDEODLY
+    pub swbga_events: HashMap<ObjId, SwBgaEvent>,
+    /// ARGB definitions, indexed by [`ObjId`]. `#ARGB`
     #[cfg(feature = "minor-command")]
-    pub video_dly: Option<Decimal>,
-    /// Video frame rate. #VIDEOF/S
-    #[cfg(feature = "minor-command")]
-    pub video_fs: Option<Decimal>,
+    pub argb_defs: HashMap<ObjId, Argb>,
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
     #[cfg(feature = "minor-command")]
     pub bga_opacity_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaOpacityObj>>,
     /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
     #[cfg(feature = "minor-command")]
     pub bga_argb_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaArgbObj>>,
+    /// BGA keybound events, indexed by time. #A5
+    #[cfg(feature = "minor-command")]
+    pub bga_keybound_events: BTreeMap<ObjTime, BgaKeyboundObj>,
 }
 
-impl Graphics {
-    /// Returns the bga change objects.
+impl BmpObjects {
+    /// Gets the time of the last BPM change object.
     #[must_use]
-    pub const fn bga_changes(&self) -> &BTreeMap<ObjTime, BgaObj> {
-        &self.bga_changes
+    pub fn last_obj_time(&self) -> Option<ObjTime> {
+        self.bga_changes.last_key_value().map(|(&time, _)| time)
     }
+}
 
+impl BmpObjects {
     /// Adds a new bga change object to the notes.
     pub fn push_bga_change(
         &mut self,
         bga: BgaObj,
         channel: Channel,
-        prompt_handler: &impl Prompter,
+        prompter: &impl Prompter,
     ) -> Result<()> {
         match self.bga_changes.entry(bga.time) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(bga);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 let existing = entry.get();
 
-                prompt_handler
+                prompter
                     .handle_channel_duplication(ChannelDuplication::BgaChangeEvent {
                         time: bga.time,
                         older: existing,
@@ -87,21 +83,21 @@ impl Graphics {
         &mut self,
         opacity_obj: BgaOpacityObj,
         channel: Channel,
-        prompt_handler: &impl Prompter,
+        prompter: &impl Prompter,
     ) -> Result<()> {
         let this_layer_map = self
             .bga_opacity_changes
             .entry(opacity_obj.layer)
             .or_default();
         match this_layer_map.entry(opacity_obj.time) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(opacity_obj);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 let existing = entry.get();
 
-                prompt_handler
+                prompter
                     .handle_channel_duplication(ChannelDuplication::BgaOpacityChangeEvent {
                         time: opacity_obj.time,
                         older: existing,
@@ -123,24 +119,55 @@ impl Graphics {
         &mut self,
         argb_obj: BgaArgbObj,
         channel: Channel,
-        prompt_handler: &impl Prompter,
+        prompter: &impl Prompter,
     ) -> Result<()> {
         let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
         match this_layer_map.entry(argb_obj.time) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(argb_obj);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
+            Entry::Occupied(mut entry) => {
                 let existing = entry.get();
 
-                prompt_handler
+                prompter
                     .handle_channel_duplication(ChannelDuplication::BgaArgbChangeEvent {
                         time: argb_obj.time,
                         older: existing,
                         newer: &argb_obj,
                     })
                     .apply_channel(entry.get_mut(), argb_obj.clone(), argb_obj.time, channel)
+            }
+        }
+    }
+
+    /// Adds a new BGA keybound object to the notes.
+    #[cfg(feature = "minor-command")]
+    pub fn push_bga_keybound_event(
+        &mut self,
+        keybound_obj: BgaKeyboundObj,
+        prompter: &impl Prompter,
+    ) -> Result<()> {
+        match self.bga_keybound_events.entry(keybound_obj.time) {
+            Entry::Vacant(entry) => {
+                entry.insert(keybound_obj);
+                Ok(())
+            }
+            Entry::Occupied(mut entry) => {
+                let existing = entry.get();
+
+                prompter
+                    .handle_channel_duplication(ChannelDuplication::BgaKeyboundEvent {
+                        time: keybound_obj.time,
+                        older: existing,
+                        newer: &keybound_obj,
+                    })
+                    .apply_channel(
+                        entry.get_mut(),
+                        keybound_obj.clone(),
+                        keybound_obj.time,
+                        Channel::BgaKeybound,
+                    )
             }
         }
     }

@@ -2,55 +2,86 @@
 //!
 //! - `#SCROLL[01-ZZ] n` - Scrolling speed factor definition. It changes scrolling speed while keeps BPM.
 //! - `#xxxSC:` - Scrolling speed factor channel.
+
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
 use super::{
-    super::{
-        Result,
-        prompt::{DefDuplication, Prompter},
-    },
-    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
+    super::prompt::{DefDuplication, Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::scroll::ScrollObjects,
+    prelude::*,
+};
 
 /// It processes `#SCROLLxx` definitions and objects on `Scroll` channel.
-pub struct ScrollProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScrollProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for ScrollProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl ScrollProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for ScrollProcessor {
+    type Output = ScrollObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = ScrollObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> ScrollProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl ScrollProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut ScrollObjects,
+    ) -> Result<()> {
         if name.to_ascii_uppercase().starts_with("SCROLL") {
             let id = &name["SCROLL".len()..];
             let factor =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
-            let scroll_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-            if let Some(older) = self
-                .0
-                .borrow_mut()
-                .scope_defines
-                .scroll_defs
-                .get_mut(&scroll_obj_id)
-            {
-                self.1
+            let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+            if let Some(older) = objects.scroll_defs.get_mut(&scroll_obj_id) {
+                prompter
                     .handle_def_duplication(DefDuplication::ScrollingFactorChange {
                         id: scroll_obj_id,
                         older: older.clone(),
@@ -58,32 +89,30 @@ impl<P: Prompter> ScrollProcessor<'_, P> {
                     })
                     .apply_def(older, factor, scroll_obj_id)?;
             } else {
-                self.0
-                    .borrow_mut()
-                    .scope_defines
-                    .scroll_defs
-                    .insert(scroll_obj_id, factor);
+                objects.scroll_defs.insert(scroll_obj_id, factor);
             }
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut ScrollObjects,
+    ) -> Result<()> {
         if channel == Channel::Scroll {
-            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
-            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
-                let factor = self
-                    .0
-                    .borrow()
-                    .scope_defines
+            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
+            {
+                let factor = objects
                     .scroll_defs
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, self.1)?;
+                objects
+                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
             }
         }
         Ok(())
