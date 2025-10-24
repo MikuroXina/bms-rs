@@ -113,6 +113,7 @@ where
     }
 }
 
+/// A processor [`SequentialProcessor`] which maps the output of the token processor `TP` by the function `F`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Mapped<TP, F> {
     source: TP,
@@ -346,7 +347,7 @@ fn parse_obj_ids<P: Prompter>(
     prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> {
-    if message.content().len() % 2 != 0 {
+    if !message.content().len().is_multiple_of(2) {
         prompter.warn(
             ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
         );
@@ -383,7 +384,7 @@ fn parse_hex_values<P: Prompter>(
     message: SourceRangeMixin<&str>,
     prompter: &P,
 ) -> impl Iterator<Item = (ObjTime, u8)> {
-    if message.content().len() % 2 != 0 {
+    if !message.content().len().is_multiple_of(2) {
         prompter.warn(
             ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
         );
