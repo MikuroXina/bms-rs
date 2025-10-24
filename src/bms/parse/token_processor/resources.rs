@@ -5,7 +5,6 @@
 //! - `#MATERIALSWAV path` - Specifies the shared audio path. Obsolete.
 //! - `#MATERIALSBMP path` - Specifies the shared image path. Obsolete.
 //! - `#MATERIALS path` - Unknown. Obsolete.
-#![cfg(feature = "minor-command")]
 
 use std::{path::Path, str::FromStr};
 

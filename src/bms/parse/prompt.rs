@@ -22,7 +22,6 @@ use crate::bms::{
     },
 };
 
-#[cfg(feature = "minor-command")]
 use crate::bms::{
     command::{
         graphics::Argb,
@@ -143,7 +142,6 @@ pub enum DefDuplication<'a> {
         newer: &'a ExRankDef,
     },
     /// EXWAV definition is duplicated.
-    #[cfg(feature = "minor-command")]
     ExWav {
         /// Duplicated EXWAV object id.
         id: ObjId,
@@ -162,7 +160,6 @@ pub enum DefDuplication<'a> {
         newer: Decimal,
     },
     /// BGA ARGB color definition is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaArgb {
         /// Duplicated BGA ARGB object id.
         id: ObjId,
@@ -172,7 +169,6 @@ pub enum DefDuplication<'a> {
         newer: &'a Argb,
     },
     /// `WAVCMD` event is duplicated.
-    #[cfg(feature = "minor-command")]
     WavCmdEvent {
         /// Duplicated `WAVCMD` event `wav_index`.
         wav_index: ObjId,
@@ -182,7 +178,6 @@ pub enum DefDuplication<'a> {
         newer: &'a WavCmdEvent,
     },
     /// SWBGA event is duplicated.
-    #[cfg(feature = "minor-command")]
     SwBgaEvent {
         /// Duplicated SWBGA event id.
         id: ObjId,
@@ -192,7 +187,6 @@ pub enum DefDuplication<'a> {
         newer: &'a SwBgaEvent,
     },
     /// Seek event is duplicated.
-    #[cfg(feature = "minor-command")]
     SeekEvent {
         /// Duplicated Seek event id.
         id: ObjId,
@@ -255,7 +249,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaObj,
     },
     /// BGA opacity change event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaOpacityChangeEvent {
         /// Duplicated BGA opacity change time.
         time: ObjTime,
@@ -265,7 +258,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaOpacityObj,
     },
     /// BGA ARGB color change event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaArgbChangeEvent {
         /// Duplicated BGA ARGB change time.
         time: ObjTime,
@@ -275,7 +267,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaArgbObj,
     },
     /// STP event is duplicated.
-    #[cfg(feature = "minor-command")]
     StpEvent {
         /// Duplicated STP event time.
         time: ObjTime,
@@ -303,7 +294,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a KeyVolumeObj,
     },
     /// Seek message event is duplicated.
-    #[cfg(feature = "minor-command")]
     SeekMessageEvent {
         /// Duplicated seek time.
         time: ObjTime,
@@ -331,7 +321,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a JudgeObj,
     },
     /// BGA keybound event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaKeyboundEvent {
         /// Duplicated BGA keybound time.
         time: ObjTime,
@@ -341,7 +330,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaKeyboundObj,
     },
     /// Option event is duplicated.
-    #[cfg(feature = "minor-command")]
     OptionEvent {
         /// Duplicated option time.
         time: ObjTime,

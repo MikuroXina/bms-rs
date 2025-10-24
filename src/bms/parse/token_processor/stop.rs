@@ -95,7 +95,7 @@ impl StopProcessor {
                 objects.stop_defs.insert(stop_obj_id, len);
             }
         }
-        #[cfg(feature = "minor-command")]
+
         if name.to_ascii_uppercase().starts_with("STP") {
             // Parse xxx.yyy zzzz
             use std::{num::NonZeroU64, time::Duration};

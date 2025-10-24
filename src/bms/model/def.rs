@@ -6,7 +6,6 @@ use crate::bms::command::{
     graphics::{Argb, PixelPoint, PixelSize},
 };
 
-#[cfg(feature = "minor-command")]
 use crate::bms::command::minor_command::{ExWavFrequency, ExWavPan, ExWavVolume};
 
 /// A definition for #@BGA command.
@@ -44,7 +43,7 @@ pub struct BgaDef {
 /// A definition for #EXWAV command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct ExWavDef {
     /// The object ID.
     pub id: ObjId,

@@ -62,7 +62,7 @@ pub use super::{
 pub use super::rng::RandRng;
 
 // Re-export minor command types when feature is enabled
-#[cfg(feature = "minor-command")]
+
 pub use super::{
     command::minor_command::{
         ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,

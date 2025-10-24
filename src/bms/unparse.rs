@@ -25,33 +25,33 @@ impl Bms {
 
         // Add ObjIds from definition tokens that are not covered by managers
         // ExWav definitions
-        #[cfg(feature = "minor-command")]
+
         base62_checker.check(self.wav.exwav_defs.keys().copied());
 
         // WavCmd events (use wav_index ObjId)
-        #[cfg(feature = "minor-command")]
+
         base62_checker.check(self.wav.wavcmd_events.values().map(|ev| ev.wav_index));
 
         // AtBga definitions (use both id and source_bmp ObjIds)
-        #[cfg(feature = "minor-command")]
+
         {
             base62_checker.check(self.bmp.atbga_defs.keys().copied());
             base62_checker.check(self.bmp.atbga_defs.values().map(|def| def.source_bmp));
         }
 
         // Bga definitions (use both id and source_bmp ObjIds)
-        #[cfg(feature = "minor-command")]
+
         {
             base62_checker.check(self.bmp.bga_defs.keys().copied());
             base62_checker.check(self.bmp.bga_defs.values().map(|def| def.source_bmp));
         }
 
         // Argb definitions
-        #[cfg(feature = "minor-command")]
+
         base62_checker.check(self.bmp.argb_defs.keys().copied());
 
         // SwBga events
-        #[cfg(feature = "minor-command")]
+
         base62_checker.check(self.bmp.swbga_events.keys().copied());
 
         // Wav resource files
@@ -72,7 +72,7 @@ impl Bms {
     }
 
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
-        #[cfg(feature = "minor-command")]
+
         {
             // Options
             if let Some(options) = self.option.options.as_ref() {
@@ -329,7 +329,7 @@ impl Bms {
         );
 
         // PoorBga mode
-        #[cfg(feature = "minor-command")]
+
         if self.bmp.poor_bga_mode != PoorMode::default() {
             tokens.push(Token::Header {
                 name: "POORBGA".into(),
@@ -338,7 +338,7 @@ impl Bms {
         }
 
         // Add basic definitions
-        #[cfg(feature = "minor-command")]
+
         if let Some(base_bpm) = self.bpm.base_bpm.as_ref() {
             tokens.push(Token::Header {
                 name: "BASEBPM".into(),
@@ -388,7 +388,7 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
+
         tokens.extend(
             self.video
                 .seek_defs
@@ -474,7 +474,7 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
+
         {
             tokens.extend(
                 self.wav
@@ -628,7 +628,7 @@ impl Bms {
             });
         }
 
-        #[cfg(feature = "minor-command")]
+
         {
             if let Some(midi_file) = self.resources.midi_file.as_ref()
                 && !midi_file.as_path().as_os_str().is_empty()
@@ -657,7 +657,7 @@ impl Bms {
             });
         }
 
-        #[cfg(feature = "minor-command")]
+
         {
             if let Some(colors) = self.video.video_colors {
                 tokens.push(Token::Header {
@@ -756,7 +756,7 @@ impl Bms {
             .iter()
             .map(|(k, v)| (&v.judge_level, *k))
             .collect();
-        #[cfg(feature = "minor-command")]
+
         let seek_value_to_id: HashMap<&'a Decimal, ObjId> =
             self.video.seek_defs.iter().map(|(k, v)| (v, *k)).collect();
 
@@ -895,7 +895,7 @@ impl Bms {
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
-        #[cfg(feature = "minor-command")]
+
         {
             // STP events, sorted by time for consistent output
             let mut stp_events: Vec<_> = self.stop.stp_events.values().collect();
@@ -934,7 +934,7 @@ impl Bms {
         );
         message_tokens.extend(bga_message_tokens);
 
-        #[cfg(feature = "minor-command")]
+
         {
             // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
             for (layer, opacity_changes) in &self.bmp.bga_opacity_changes {
@@ -1159,7 +1159,7 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
+
         {
             // Messages: SEEK (#xxx05)
             let mut seek_manager =

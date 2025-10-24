@@ -68,9 +68,9 @@ impl MetadataProcessor {
                 }
                 metadata.wav_path_root = Some(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
+
             "DIVIDEPROP" => metadata.divide_prop = Some(args.to_string()),
-            #[cfg(feature = "minor-command")]
+
             "OCT/FP" => metadata.is_octave = true,
             _ => {}
         }

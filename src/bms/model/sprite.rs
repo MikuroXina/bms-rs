@@ -15,9 +15,9 @@ pub struct Sprites {
     /// This image is used in music selection screens.
     pub banner: Option<PathBuf>,
     /// Extended-character events. `#ExtChr`
-    #[cfg(feature = "minor-command")]
+
     pub extchr_events: Vec<ExtChrEvent>,
     /// Character file path. `#CHARFILE`
-    #[cfg(feature = "minor-command")]
+
     pub char_file: Option<PathBuf>,
 }

@@ -167,7 +167,7 @@ impl BmpProcessor {
                     objects.bmp_files.insert(bmp_obj_id, to_insert);
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             argb if argb.starts_with("ARGB") => {
                 let id = &name["ARGB".len()..];
                 let parts: Vec<_> = args.split(',').collect();
@@ -211,7 +211,7 @@ impl BmpProcessor {
             "POORBGA" => {
                 objects.poor_bga_mode = PoorMode::from_str(args)?;
             }
-            #[cfg(feature = "minor-command")]
+
             atbga if atbga.starts_with("@BGA") => {
                 let id = &name["@BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -263,7 +263,7 @@ impl BmpProcessor {
                     objects.atbga_defs.insert(id, to_insert);
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             bga if bga.starts_with("BGA") && !bga.starts_with("BGAPOOR") => {
                 let id = &name["BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -313,7 +313,7 @@ impl BmpProcessor {
                 }
             }
 
-            #[cfg(feature = "minor-command")]
+
             swbga if swbga.starts_with("SWBGA") => {
                 let id = &name[5..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -435,7 +435,7 @@ impl BmpProcessor {
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             channel @ (Channel::BgaBaseOpacity
             | Channel::BgaLayerOpacity
             | Channel::BgaLayer2Opacity
@@ -455,7 +455,7 @@ impl BmpProcessor {
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             channel @ (Channel::BgaBaseArgb
             | Channel::BgaLayerArgb
             | Channel::BgaLayer2Argb
@@ -478,7 +478,7 @@ impl BmpProcessor {
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaKeybound => {
                 use super::parse_obj_ids;
                 for (time, keybound_id) in

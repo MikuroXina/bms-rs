@@ -13,7 +13,6 @@ use crate::{
     command::channel::NoteChannelId,
 };
 
-#[cfg(feature = "minor-command")]
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};
 
 /// An object playing sound on the score.
@@ -203,16 +202,16 @@ impl BgaLayer {
     pub const fn from_channel(channel: Channel) -> Option<Self> {
         match channel {
             Channel::BgaBase => Some(Self::Base),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(Self::Base),
             Channel::BgaLayer => Some(Self::Overlay),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(Self::Overlay),
             Channel::BgaLayer2 => Some(Self::Overlay2),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(Self::Overlay2),
             Channel::BgaPoor => Some(Self::Poor),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(Self::Poor),
             _ => None,
         }
@@ -293,7 +292,7 @@ impl Ord for SpeedObj {
 /// An object to change the opacity of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct BgaOpacityObj {
     /// The time which the opacity change is on.
     pub time: ObjTime,
@@ -306,7 +305,7 @@ pub struct BgaOpacityObj {
 /// An object to change the ARGB color of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct BgaArgbObj {
     /// The time which the ARGB change is on.
     pub time: ObjTime,
@@ -339,7 +338,7 @@ pub struct KeyVolumeObj {
 /// An object to seek video position.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
@@ -370,7 +369,7 @@ pub struct JudgeObj {
 /// An object to change BGA keybound.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct BgaKeyboundObj {
     /// The time which the BGA keybound change is on.
     pub time: ObjTime,
@@ -381,7 +380,7 @@ pub struct BgaKeyboundObj {
 /// An object to change option.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg(feature = "minor-command")]
+
 pub struct OptionObj {
     /// The time which the option change is on.
     pub time: ObjTime,

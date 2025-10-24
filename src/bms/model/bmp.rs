@@ -3,9 +3,10 @@ use std::{
     path::PathBuf,
 };
 
-#[cfg(feature = "minor-command")]
-use crate::bms::error::Result;
-use crate::{bms::prelude::*, parse::prompt::ChannelDuplication};
+use crate::{
+    bms::{error::Result, prelude::*},
+    parse::prompt::ChannelDuplication,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,25 +21,25 @@ pub struct BmpObjects {
     /// This image is displayed when the player misses a note or gets a poor judgment.
     pub poor_bmp: Option<PathBuf>,
     /// Storage for #@BGA definitions
-    #[cfg(feature = "minor-command")]
+
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
     /// Storage for #BGA definitions
-    #[cfg(feature = "minor-command")]
+
     pub bga_defs: HashMap<ObjId, BgaDef>,
     /// SWBGA events, indexed by [`ObjId`]. `#SWBGA`
-    #[cfg(feature = "minor-command")]
+
     pub swbga_events: HashMap<ObjId, SwBgaEvent>,
     /// ARGB definitions, indexed by [`ObjId`]. `#ARGB`
-    #[cfg(feature = "minor-command")]
+
     pub argb_defs: HashMap<ObjId, Argb>,
     /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
-    #[cfg(feature = "minor-command")]
+
     pub bga_opacity_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaOpacityObj>>,
     /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
-    #[cfg(feature = "minor-command")]
+
     pub bga_argb_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaArgbObj>>,
     /// BGA keybound events, indexed by time. #A5
-    #[cfg(feature = "minor-command")]
+
     pub bga_keybound_events: BTreeMap<ObjTime, BgaKeyboundObj>,
 }
 
@@ -78,7 +79,7 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA opacity change object to the graphics.
-    #[cfg(feature = "minor-command")]
+
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
@@ -114,7 +115,7 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA ARGB color change object to the graphics.
-    #[cfg(feature = "minor-command")]
+
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
@@ -142,7 +143,7 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA keybound object to the notes.
-    #[cfg(feature = "minor-command")]
+
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,

@@ -1,10 +1,7 @@
-#[cfg(feature = "minor-command")]
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-#[cfg(feature = "minor-command")]
-use crate::bms::error::Result;
-use crate::bms::prelude::*;
+use crate::bms::{error::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -16,25 +13,20 @@ pub struct Video {
     /// - Audio track in video is not played
     pub video_file: Option<PathBuf>,
     /// Video color depth. #VIDEOCOLORS
-    #[cfg(feature = "minor-command")]
     pub video_colors: Option<u8>,
     /// Video delay. #VIDEODLY
-    #[cfg(feature = "minor-command")]
     pub video_dly: Option<Decimal>,
     /// Video frame rate. #VIDEOF/S
-    #[cfg(feature = "minor-command")]
     pub video_fs: Option<Decimal>,
     /// Seek event definitions. `#SEEK`
-    #[cfg(feature = "minor-command")]
     pub seek_defs: HashMap<ObjId, Decimal>,
     /// Seek events, indexed by time. `#05`
-    #[cfg(feature = "minor-command")]
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
 }
 
 impl Video {
     /// Adds a new seek object to the notes.
-    #[cfg(feature = "minor-command")]
+
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,

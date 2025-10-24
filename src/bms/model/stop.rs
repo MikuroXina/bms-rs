@@ -1,6 +1,4 @@
-#[cfg(feature = "minor-command")]
-use std::collections::BTreeMap;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::bms::prelude::*;
 
@@ -14,7 +12,6 @@ pub struct StopObjects {
     /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
     pub stop_ids_used: HashSet<ObjId>,
     /// bemaniaDX STP events, indexed by [`ObjTime`]. `#STP`
-    #[cfg(feature = "minor-command")]
     pub stp_events: BTreeMap<ObjTime, StpEvent>,
 }
 

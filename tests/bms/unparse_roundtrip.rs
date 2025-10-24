@@ -126,7 +126,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     );
 
     // Compare minor-command scope_defines if enabled
-    #[cfg(feature = "minor-command")]
+
     {
         assert_hash_maps_equal(
             &bms2.wav.exwav_defs,
@@ -181,7 +181,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     );
 
     // Compare minor-command arrangers if enabled
-    #[cfg(feature = "minor-command")]
+
     {
         assert_btree_maps_equal(&bms2.stop.stp_events, &bms1.stop.stp_events, "STP events");
         assert_eq!(bms2.bpm.base_bpm, bms1.bpm.base_bpm, "Base BPM");
@@ -215,7 +215,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     );
 
     // Compare minor-command notes if enabled
-    #[cfg(feature = "minor-command")]
+
     {
         assert_eq!(
             bms2.resources.midi_file, bms1.resources.midi_file,
@@ -253,7 +253,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     );
 
     // Compare minor-command graphics if enabled
-    #[cfg(feature = "minor-command")]
+
     {
         assert_eq!(
             bms2.resources.materials_bmp, bms1.resources.materials_bmp,
@@ -290,7 +290,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     );
 
     // Compare minor-command others if enabled
-    #[cfg(feature = "minor-command")]
+
     {
         assert_eq!(bms2.option.options, bms1.option.options, "Options");
         assert_eq!(

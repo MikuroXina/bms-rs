@@ -7,13 +7,11 @@
 //! - `#SEEK[00-ZZ] n` - It controls playing time of the video BGA. Obsolete.
 //! - `#xxx:05` - Video seek channel. Obsolete.
 
-#[cfg(feature = "minor-command")]
 use std::str::FromStr;
 use std::{cell::RefCell, path::Path, rc::Rc};
 
-#[cfg(feature = "minor-command")]
 use fraction::GenericFraction;
-#[cfg(feature = "minor-command")]
+
 use num::BigUint;
 
 use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range};
@@ -82,7 +80,7 @@ impl VideoProcessor {
                 }
                 video.video_file = Some(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
+
             "VIDEOF/S" => {
                 let frame_rate = Decimal::from_fraction(
                     GenericFraction::<BigUint>::from_str(args)
@@ -90,14 +88,14 @@ impl VideoProcessor {
                 );
                 video.video_fs = Some(frame_rate);
             }
-            #[cfg(feature = "minor-command")]
+
             "VIDEOCOLORS" => {
                 let colors = args
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
                 video.video_colors = Some(colors);
             }
-            #[cfg(feature = "minor-command")]
+
             "VIDEODLY" => {
                 let delay = Decimal::from_fraction(
                     GenericFraction::<BigUint>::from_str(args)
@@ -105,7 +103,7 @@ impl VideoProcessor {
                 );
                 video.video_dly = Some(delay);
             }
-            #[cfg(feature = "minor-command")]
+
             seek if seek.starts_with("SEEK") => {
                 use fraction::GenericFraction;
                 use num::BigUint;
@@ -142,23 +140,19 @@ impl VideoProcessor {
         prompter: &impl Prompter,
         video: &mut Video,
     ) -> Result<()> {
-        match channel {
-            #[cfg(feature = "minor-command")]
-            Channel::Seek => {
-                use super::parse_obj_ids;
+        if let Channel::Seek = channel {
+            use super::parse_obj_ids;
 
-                for (time, seek_id) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
-                    let position = video
-                        .seek_defs
-                        .get(&seek_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                    video.push_seek_event(SeekObj { time, position }, prompter)?;
-                }
+            for (time, seek_id) in
+                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
+            {
+                let position = video
+                    .seek_defs
+                    .get(&seek_id)
+                    .cloned()
+                    .ok_or(ParseWarning::UndefinedObject(seek_id))?;
+                video.push_seek_event(SeekObj { time, position }, prompter)?;
             }
-            _ => {}
         }
         Ok(())
     }

@@ -61,7 +61,7 @@ impl SpriteProcessor {
                 }
                 sprites.stage_file = Some(Path::new(args).into());
             }
-            #[cfg(feature = "minor-command")]
+
             "EXTCHR" => {
                 // Allow multiple spaces between parameters
                 let params: Vec<_> = args.split_whitespace().collect();
@@ -121,7 +121,7 @@ impl SpriteProcessor {
                 };
                 sprites.extchr_events.push(ev);
             }
-            #[cfg(feature = "minor-command")]
+
             charfile if charfile.starts_with("CHARFILE") => {
                 if args.is_empty() {
                     return Err(ParseWarning::SyntaxError(

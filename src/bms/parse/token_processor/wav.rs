@@ -105,7 +105,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                     objects.wav_files.insert(wav_obj_id, path.into());
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             ex_wav if ex_wav.starts_with("EXWAV") => {
                 let id = &name["EXWAV".len()..];
                 let mut args = args.split_whitespace();
@@ -244,7 +244,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                 end_note.channel_id = T::from_tuple(end_note_tuple).to_channel_id();
                 objects.notes.push_note(end_note);
             }
-            #[cfg(feature = "minor-command")]
+
             "WAVCMD" => {
                 let args: Vec<_> = args.split_whitespace().collect();
                 if args.len() != 3 {

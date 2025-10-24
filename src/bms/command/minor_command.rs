@@ -1,4 +1,4 @@
-#![cfg(feature = "minor-command")]
+
 
 use crate::bms::command::time::ObjTime;
 use std::time::Duration;

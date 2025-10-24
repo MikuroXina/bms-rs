@@ -13,7 +13,7 @@ pub struct BpmObjects {
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
     pub bpm_defs: HashMap<ObjId, Decimal>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    #[cfg(feature = "minor-command")]
+
     pub base_bpm: Option<Decimal>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message

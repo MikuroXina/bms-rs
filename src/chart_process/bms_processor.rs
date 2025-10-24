@@ -160,7 +160,7 @@ impl BmsProcessor {
         }
 
         // BGA opacity change events (requires minor-command feature)
-        #[cfg(feature = "minor-command")]
+
         for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
                 let y =
@@ -178,7 +178,7 @@ impl BmsProcessor {
         }
 
         // BGA ARGB color change events (requires minor-command feature)
-        #[cfg(feature = "minor-command")]
+
         for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
                 let y = Self::y_of_time_static(bms, argb_obj.time, &bms.speed.speed_factor_changes);
@@ -253,7 +253,7 @@ impl BmsProcessor {
         }
 
         // Minor-command feature events
-        #[cfg(feature = "minor-command")]
+
         {
             // Video seek events
             for seek_obj in bms.video.seek_events.values() {

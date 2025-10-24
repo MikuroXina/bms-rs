@@ -106,7 +106,7 @@ impl BpmProcessor {
                     objects.bpm_defs.insert(bpm_obj_id, bpm);
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             "BASEBPM" => {
                 let bpm = Decimal::from_fraction(
                     GenericFraction::from_str(args)

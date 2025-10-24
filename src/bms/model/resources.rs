@@ -1,5 +1,3 @@
-#![cfg(feature = "minor-command")]
-
 use std::path::PathBuf;
 
 use num::BigUint;

@@ -200,7 +200,7 @@ fn test_channel_judge() {
     );
 }
 
-#[cfg(feature = "minor-command")]
+
 #[test]
 fn test_bga_opacity_channels() {
     // Test BGA opacity channels as a group
@@ -316,7 +316,7 @@ fn test_bga_opacity_channels() {
     );
 }
 
-#[cfg(feature = "minor-command")]
+
 #[test]
 fn test_bga_argb_channels() {
     // Test BGA ARGB channels as a group

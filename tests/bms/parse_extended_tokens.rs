@@ -1,4 +1,4 @@
-#![cfg(feature = "minor-command")]
+
 
 use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
 

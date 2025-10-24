@@ -18,10 +18,10 @@ pub struct Metadata {
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
     /// Divide property. #DIVIDEPROP
-    #[cfg(feature = "minor-command")]
+
     pub divide_prop: Option<String>,
     /// Whether the score is the octave mode.
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
-    #[cfg(feature = "minor-command")]
+
     pub is_octave: bool,
 }

@@ -146,7 +146,7 @@ pub fn pedantic_preset<T: KeyLayoutMapper, R: Rng>(rng: Rc<RefCell<R>>) -> impl 
         .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
         .then(metadata::MetadataProcessor)
         .then(music_info::MusicInfoProcessor);
-    #[cfg(feature = "minor-command")]
+
     let sub_processor = sub_processor.then(option::OptionProcessor::new(&case_sensitive_obj_id));
     let sub_processor = sub_processor
         .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
@@ -204,8 +204,10 @@ pub fn common_preset<T: KeyLayoutMapper, R: Rng>(
                 judge,
                 metadata,
                 music_info,
+
                 option: Default::default(),
                 repr,
+
                 resources: Default::default(),
                 scroll,
                 section_len,
@@ -232,7 +234,7 @@ pub fn minor_preset<T: KeyLayoutMapper, R: Rng>(
         .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
         .then(metadata::MetadataProcessor)
         .then(music_info::MusicInfoProcessor);
-    #[cfg(feature = "minor-command")]
+
     let sub_processor = sub_processor
         .then(option::OptionProcessor::new(&case_sensitive_obj_id))
         .then(resources::ResourcesProcessor);

@@ -130,7 +130,7 @@ fn test_prelude_imports() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
+
 fn test_prelude_minor_command_imports() {
     // Test minor command types when feature is enabled
     let _wav_cmd_param = WavCmdParam::Pitch;

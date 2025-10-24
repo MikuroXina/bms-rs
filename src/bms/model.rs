@@ -30,11 +30,12 @@ pub use notes::Notes;
 
 use self::{
     bmp::BmpObjects, bpm::BpmObjects, judge::JudgeObjects, metadata::Metadata,
-    music_info::MusicInfo, option::OptionObjects, repr::BmsSourceRepresentation,
-    resources::Resources, scroll::ScrollObjects, section_len::SectionLenObjects,
-    speed::SpeedObjects, sprite::Sprites, stop::StopObjects, text::TextObjects, video::Video,
-    volume::VolumeObjects, wav::WavObjects,
+    music_info::MusicInfo, repr::BmsSourceRepresentation, scroll::ScrollObjects,
+    section_len::SectionLenObjects, speed::SpeedObjects, sprite::Sprites, stop::StopObjects,
+    text::TextObjects, video::Video, volume::VolumeObjects, wav::WavObjects,
 };
+
+use self::{option::OptionObjects, resources::Resources};
 
 /// A score data aggregate of BMS format.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -45,10 +46,8 @@ pub struct Bms {
     pub judge: JudgeObjects,
     pub metadata: Metadata,
     pub music_info: MusicInfo,
-    #[cfg(feature = "minor-command")]
     pub option: OptionObjects,
     pub repr: BmsSourceRepresentation,
-    #[cfg(feature = "minor-command")]
     pub resources: Resources,
     pub scroll: ScrollObjects,
     pub section_len: SectionLenObjects,
