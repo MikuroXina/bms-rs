@@ -2,7 +2,7 @@
 //!
 //! An object implementing [`Prompter`] is required by [`super::Bms::from_token_stream`]. It is used to handle conflicts and prompt workarounds on parsing the BMS file.
 
-use std::path::Path;
+use std::{cell::RefCell, path::Path};
 
 use crate::bms::{
     Decimal,
@@ -494,5 +494,83 @@ impl Prompter for AlwaysWarnAndUseNewer {
 
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
+    }
+}
+
+/// The strategy that always panics on reported a warning and uses newer values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PanicAndUseNewer;
+
+impl Prompter for PanicAndUseNewer {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        panic!("{warning:?}");
+    }
+}
+
+/// The strategy that always panics on reported a warning and uses older values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PanicAndUseOlder;
+
+impl Prompter for PanicAndUseOlder {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        panic!("{warning:?}");
+    }
+}
+
+pub fn warning_collector<P>(
+    prompter: P,
+    dst: &mut Vec<ParseWarningWithRange>,
+) -> WarningCollector<P> {
+    WarningCollector {
+        source: prompter,
+        dst: RefCell::from(dst),
+    }
+}
+
+pub struct WarningCollector<'a, P> {
+    source: P,
+    dst: RefCell<&'a mut Vec<ParseWarningWithRange>>,
+}
+
+impl<P: Prompter> Prompter for WarningCollector<'_, P> {
+    fn handle_def_duplication(&self, duplication: DefDuplication) -> DuplicationWorkaround {
+        self.source.handle_def_duplication(duplication)
+    }
+
+    fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround {
+        self.source.handle_track_duplication(duplication)
+    }
+
+    fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround {
+        self.source.handle_channel_duplication(duplication)
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        self.source.warn(warning.clone());
+        self.dst.borrow_mut().push(warning);
     }
 }

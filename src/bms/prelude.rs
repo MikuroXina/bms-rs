@@ -48,7 +48,7 @@ pub use super::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-            DefDuplication, DuplicationWorkaround, Prompter,
+            DefDuplication, DuplicationWorkaround, PanicAndUseNewer, PanicAndUseOlder, Prompter,
         },
         token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
