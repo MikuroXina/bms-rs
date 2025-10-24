@@ -12,21 +12,21 @@
 //!
 //! ```rust
 //! #[cfg(feature = "rand")]
-//! use bms_rs::bms::{parse_bms, BmsOutput};
+//! use bms_rs::bms::{BmsOutput, default_config, parse_bms};
 //! #[cfg(not(feature = "rand"))]
-//! use bms_rs::bms::{ast::rng::RngMock, parse_bms_with_rng, BmsOutput};
+//! use bms_rs::bms::{BmsOutput, ast::rng::RngMock, default_config_with_rng, parse_bms};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
 //! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms::<KeyLayoutBeat>(&source).expect("must be parsed");
+//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config()).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings }: BmsOutput = parse_bms_with_rng::<KeyLayoutBeat, _>(&source, RngMock([BigUint::from(1u64)])).expect("must be parsed");
+//! let BmsOutput { bms, warnings } = parse_bms_with_rng(&source, default_config_with_rng(RngMock([BigUint::from(1u64)]))).expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
-//! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
+//! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
+//! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
 //! ```
 //!
 //! ## Advanced Usage
@@ -48,21 +48,20 @@
 //! // You can modify the tokens before parsing.
 //!
 //! #[cfg(feature = "rand")]
-//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
-//!     &tokens, default_preset_with_rng(RandRng(StdRng::seed_from_u64(42))),
+//! let bms = Bms::from_token_stream(
+//!     &tokens, default_config_with_rng(RandRng(StdRng::seed_from_u64(42))),
 //! ).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let ParseOutput { bms, parse_warnings }: ParseOutput = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
-//!     &tokens, default_preset_with_rng(RngMock([BigUint::from(1u64)])),
+//! let bms = Bms::from_token_stream(
+//!     &tokens, default_config_with_rng(RngMock([BigUint::from(1u64)])),
 //! ).expect("must be parsed");
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
-//! assert_eq!(parse_warnings, vec![]);
 //! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
 //! assert_eq!(playing_warnings, vec![]);
 //! assert_eq!(playing_errors, vec![]);
-//! println!("Title: {}", bms.header.title.as_deref().unwrap_or("Unknown"));
-//! println!("Artist: {}", bms.header.artist.as_deref().unwrap_or("Unknown"));
-//! println!("BPM: {}", bms.arrangers.bpm.unwrap_or(120.into()));
+//! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
+//! println!("Artist: {}", bms.music_info.artist.as_deref().unwrap_or("Unknown"));
+//! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
 //! ```
 //!
 //! # Features

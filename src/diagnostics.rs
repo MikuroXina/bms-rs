@@ -11,11 +11,14 @@
 //! # Usage Example
 //!
 //! ```rust
-//! use bms_rs::{diagnostics::emit_bms_warnings, bms::{BmsWarning, parse_bms, command::channel::mapper::KeyLayoutBeat}};
+//! use bms_rs::{
+//!     bms::{BmsWarning, default_config, command::channel::mapper::KeyLayoutBeat, parse_bms},
+//!     diagnostics::emit_bms_warnings,
+//! };
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
-//! let output = parse_bms::<KeyLayoutBeat>(bms_source).expect("must be parsed");
+//! let output = parse_bms(bms_source, default_config()).expect("must be parsed");
 //!
 //! // Output all warnings
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);
