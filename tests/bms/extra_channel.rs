@@ -9,11 +9,8 @@ fn test_channel_volume() {
     #00198:22232425
     #00297:05060708
     "#;
-    let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
-        src,
-        default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    let BmsOutput { bms, warnings } =
+        parse_bms(src, default_config_with_rng(RngMock([BigUint::from(1u64)]))).unwrap();
     assert!(
         warnings
             .into_iter()
@@ -21,10 +18,10 @@ fn test_channel_volume() {
             .count()
             == 0
     );
-    assert_eq!(bms.notes().bgm_volume_changes.len(), 8);
-    assert_eq!(bms.notes().key_volume_changes.len(), 4);
+    assert_eq!(bms.volume.bgm_volume_changes.len(), 8);
+    assert_eq!(bms.volume.key_volume_changes.len(), 4);
     assert_eq!(
-        bms.notes().bgm_volume_changes.get(&ObjTime::new(
+        bms.volume.bgm_volume_changes.get(&ObjTime::new(
             1,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -39,7 +36,7 @@ fn test_channel_volume() {
         })
     );
     assert_eq!(
-        bms.notes().key_volume_changes.get(&ObjTime::new(
+        bms.volume.key_volume_changes.get(&ObjTime::new(
             1,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -54,7 +51,7 @@ fn test_channel_volume() {
         })
     );
     assert_eq!(
-        bms.notes().bgm_volume_changes.get(&ObjTime::new(
+        bms.volume.bgm_volume_changes.get(&ObjTime::new(
             2,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -69,7 +66,7 @@ fn test_channel_volume() {
         })
     );
     assert_eq!(
-        bms.notes().key_volume_changes.get(&ObjTime::new(
+        bms.volume.key_volume_changes.get(&ObjTime::new(
             2,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -86,11 +83,8 @@ fn test_channel_text() {
     #00199:01000200
     #00299:02000100
     "#;
-    let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
-        src,
-        default_preset_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    let BmsOutput { bms, warnings } =
+        parse_bms(src, default_config_with_rng(RngMock([BigUint::from(1u64)]))).unwrap();
     assert_eq!(
         warnings
             .into_iter()
@@ -99,9 +93,9 @@ fn test_channel_text() {
         vec![]
     );
 
-    assert_eq!(bms.notes().text_events.len(), 4);
+    assert_eq!(bms.text.text_events.len(), 4);
     assert_eq!(
-        bms.notes().text_events.get(&ObjTime::new(
+        bms.text.text_events.get(&ObjTime::new(
             1,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -116,7 +110,7 @@ fn test_channel_text() {
         })
     );
     assert_eq!(
-        bms.notes().text_events.get(&ObjTime::new(
+        bms.text.text_events.get(&ObjTime::new(
             2,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -145,9 +139,9 @@ fn test_channel_judge() {
     #001A0:01000200
     #002A0:02000100
     "#;
-    let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
+    let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _>(
         src,
-        default_preset_with_rng(RngMock([BigUint::from(1u64)])),
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
     )
     .unwrap();
     assert_eq!(
@@ -158,9 +152,9 @@ fn test_channel_judge() {
         vec![]
     );
 
-    assert_eq!(bms.notes().judge_events.len(), 4);
+    assert_eq!(bms.judge.judge_events.len(), 4);
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(
+        bms.judge.judge_events.get(&ObjTime::new(
             1,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -175,7 +169,7 @@ fn test_channel_judge() {
         })
     );
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(
+        bms.judge.judge_events.get(&ObjTime::new(
             2,
             0,
             NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
@@ -190,7 +184,7 @@ fn test_channel_judge() {
         })
     );
     assert_eq!(
-        bms.notes().judge_events.get(&ObjTime::new(
+        bms.judge.judge_events.get(&ObjTime::new(
             2,
             1,
             NonZeroU64::new(2).expect("2 should be a valid NonZeroU64")
@@ -217,9 +211,9 @@ fn test_bga_opacity_channels() {
     #0010D:A0
     #0010E:B0
     "#;
-    let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
+    let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _>(
         src,
-        default_preset_with_rng(RngMock([BigUint::from(1u64)])),
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
     )
     .unwrap();
     assert_eq!(
@@ -231,11 +225,11 @@ fn test_bga_opacity_channels() {
     );
 
     // Verify BGA opacity objects are parsed correctly
-    assert_eq!(bms.graphics.bga_opacity_changes.len(), 4);
+    assert_eq!(bms.bmp.bga_opacity_changes.len(), 4);
 
     // Check BgaBaseOpacity (0B) - Base layer
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_opacity_changes
             .get(&BgaLayer::Base)
             .unwrap()
@@ -257,7 +251,7 @@ fn test_bga_opacity_channels() {
 
     // Check BgaLayerOpacity (0C) - Overlay layer
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_opacity_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
@@ -279,7 +273,7 @@ fn test_bga_opacity_channels() {
 
     // Check BgaLayer2Opacity (0D) - Overlay2 layer
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_opacity_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
@@ -301,7 +295,7 @@ fn test_bga_opacity_channels() {
 
     // Check BgaPoorOpacity (0E) - Poor layer
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_opacity_changes
             .get(&BgaLayer::Poor)
             .unwrap()
@@ -337,9 +331,9 @@ fn test_bga_argb_channels() {
     #001A3:03010204
     #001A4:04010203
     "#;
-    let BmsOutput { bms, warnings } = parse_bms_with_preset::<KeyLayoutBeat, _, _>(
+    let BmsOutput { bms, warnings } = parse_bms::<KeyLayoutBeat, _, _>(
         src,
-        default_preset_with_rng(RngMock([BigUint::from(1u64)])),
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
     )
     .unwrap();
     assert_eq!(
@@ -351,11 +345,11 @@ fn test_bga_argb_channels() {
     );
 
     // Verify BGA ARGB objects are parsed correctly
-    assert_eq!(bms.graphics.bga_argb_changes.len(), 4);
+    assert_eq!(bms.bmp.bga_argb_changes.len(), 4);
 
     // Check BgaBaseArgb (A1) - Base layer with red color
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_argb_changes
             .get(&BgaLayer::Base)
             .unwrap()
@@ -382,7 +376,7 @@ fn test_bga_argb_channels() {
 
     // Check BgaLayerArgb (A2) - Overlay layer with green color
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_argb_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
@@ -409,7 +403,7 @@ fn test_bga_argb_channels() {
 
     // Check BgaLayer2Argb (A3) - Overlay2 layer with blue color
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_argb_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
@@ -436,7 +430,7 @@ fn test_bga_argb_channels() {
 
     // Check BgaPoorArgb (A4) - Poor layer with yellow color
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bga_argb_changes
             .get(&BgaLayer::Poor)
             .unwrap()

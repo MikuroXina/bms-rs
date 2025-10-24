@@ -1,6 +1,6 @@
 #![cfg(feature = "minor-command")]
 
-use bms_rs::bms::prelude::*;
+use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
 
 #[test]
 fn test_atbga_parsing() {
@@ -13,19 +13,14 @@ fn test_atbga_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
     // Verify that #@BGA is parsed correctly
     assert!(
-        bms.scope_defines
+        bms.bmp
             .atbga_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let atbga_def = &bms.scope_defines.atbga_defs[&ObjId::try_from("01", false).unwrap()];
+    let atbga_def = &bms.bmp.atbga_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(atbga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(atbga_def.trim_size, PixelSize::new(100, 200));
@@ -43,20 +38,15 @@ fn test_bga_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that #BGA is parsed correctly
     assert!(
-        bms.scope_defines
+        bms.bmp
             .bga_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let bga_def = &bms.scope_defines.bga_defs[&ObjId::try_from("01", false).unwrap()];
+    let bga_def = &bms.bmp.bga_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(bga_def.source_bmp, ObjId::try_from("02", false).unwrap());
     assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
     assert_eq!(bga_def.trim_bottom_right, PixelPoint::new(110, 220));
@@ -74,20 +64,15 @@ fn test_exrank_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that #EXRANK is parsed correctly
     assert!(
-        bms.scope_defines
+        bms.judge
             .exrank_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exrank_def = &bms.scope_defines.exrank_defs[&ObjId::try_from("01", false).unwrap()];
+    let exrank_def = &bms.judge.exrank_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
 
@@ -102,20 +87,15 @@ fn test_exwav_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that #EXWAV is parsed correctly
     assert!(
-        bms.scope_defines
+        bms.wav
             .exwav_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let exwav_def = &bms.scope_defines.exwav_defs[&ObjId::try_from("01", false).unwrap()];
+    let exwav_def = &bms.wav.exwav_defs[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(exwav_def.pan.value(), 10000);
     assert_eq!(exwav_def.volume.value(), 0);
     assert_eq!(exwav_def.frequency.map(|f| f.value()), Some(48000));
@@ -133,20 +113,15 @@ fn test_changeoption_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that #CHANGEOPTION is parsed correctly
     assert!(
-        bms.others
+        bms.option
             .change_options
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let option = &bms.others.change_options[&ObjId::try_from("01", false).unwrap()];
+    let option = &bms.option.change_options[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(option, "test_option");
 }
 
@@ -161,20 +136,15 @@ fn test_text_parsing() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that #TEXT is parsed correctly
     assert!(
-        bms.others
+        bms.text
             .texts
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
-    let text = &bms.others.texts[&ObjId::try_from("01", false).unwrap()];
+    let text = &bms.text.texts[&ObjId::try_from("01", false).unwrap()];
     assert_eq!(text, "test_text");
 }
 
@@ -193,36 +163,31 @@ fn test_notes_parse_extended_tokens() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that extended fields in Notes are parsed correctly
     assert!(
-        bms.scope_defines
+        bms.judge
             .exrank_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.scope_defines
+        bms.wav
             .exwav_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.scope_defines
+        bms.wav
             .exwav_defs
             .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
-        bms.others
+        bms.option
             .change_options
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.others
+        bms.text
             .texts
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
@@ -253,61 +218,56 @@ fn test_token_parsing_comprehensive() {
         lex_warnings: warnings,
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config()).unwrap();
 
     // Verify that all new tokens are parsed correctly
-    assert_eq!(bms.header.artist, Some("Test Artist".to_string()));
-    assert_eq!(bms.header.email, Some("test@example.com".to_string()));
-    assert_eq!(bms.header.url, Some("http://example.com".to_string()));
-    assert_eq!(bms.header.maker, Some("Test Maker".to_string()));
+    assert_eq!(bms.music_info.artist, Some("Test Artist".to_string()));
+    assert_eq!(bms.metadata.email, Some("test@example.com".to_string()));
+    assert_eq!(bms.metadata.url, Some("http://example.com".to_string()));
+    assert_eq!(bms.music_info.maker, Some("Test Maker".to_string()));
     assert_eq!(
-        bms.notes().midi_file,
+        bms.resources.midi_file,
         Some(std::path::PathBuf::from("test.mid"))
     );
     assert_eq!(
-        bms.graphics.video_file,
+        bms.video.video_file,
         Some(std::path::PathBuf::from("test.mp4"))
     );
-    assert_eq!(bms.graphics.poor_bga_mode, PoorMode::Overlay);
-    assert!(bms.others.is_octave);
+    assert_eq!(bms.bmp.poor_bga_mode, PoorMode::Overlay);
+    assert!(bms.metadata.is_octave);
     assert_eq!(
-        bms.notes().wav_path_root,
+        bms.metadata.wav_path_root,
         Some(std::path::PathBuf::from("wav/"))
     );
 
     // Verify new definition structures
     assert!(
-        bms.scope_defines
+        bms.bmp
             .atbga_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.scope_defines
+        bms.bmp
             .bga_defs
             .contains_key(&ObjId::try_from("02", false).unwrap())
     );
     assert!(
-        bms.scope_defines
+        bms.judge
             .exrank_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.scope_defines
+        bms.wav
             .exwav_defs
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.others
+        bms.option
             .change_options
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     assert!(
-        bms.others
+        bms.text
             .texts
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
@@ -326,11 +286,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms: _,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let mut parse_warnings = vec![];
+    Bms::from_token_stream(
+        &tokens,
+        default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
+    )
+    .unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
@@ -350,11 +311,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms: _,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let mut parse_warnings = vec![];
+    Bms::from_token_stream(
+        &tokens,
+        default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
+    )
+    .unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
@@ -374,11 +336,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms: _,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let mut parse_warnings = vec![];
+    Bms::from_token_stream(
+        &tokens,
+        default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
+    )
+    .unwrap();
     let [warn] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };

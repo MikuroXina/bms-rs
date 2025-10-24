@@ -77,17 +77,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     let _ = lex_warnings;
 
     // tokens -> Bms
-    let ParseOutput {
-        bms: bms1,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
-        &tokens,
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
-    // Allow warnings for files with empty resource definitions
-    let _ = parse_warnings;
+    let bms1 =
+        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder)).unwrap();
 
     // Bms -> tokens (unparse)
     let tokens2 = bms1.unparse::<KeyLayoutBeat>();
@@ -97,45 +88,40 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         .collect();
 
     // tokens -> Bms
-    let ParseOutput {
-        bms: bms2,
-        parse_warnings: parse_warnings2,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms2 = Bms::from_token_stream(
         &tokens2_wrapped,
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(AlwaysWarnAndUseOlder),
     )
     .unwrap();
-    // Allow warnings for files with empty resource definitions
-    let _ = parse_warnings2;
 
     // Compare individual parts first to provide better debugging information
-    assert_eq!(bms2.header, bms1.header, "Headers don't match");
-
-    // Compare scope_defines sub-parts in detail
-    assert_hash_maps_equal(
-        &bms2.scope_defines.bpm_defs,
-        &bms1.scope_defines.bpm_defs,
-        "BPM definitions",
+    assert_eq!(bms2.repr, bms1.repr, "Representations don't match");
+    assert_eq!(
+        bms2.music_info, bms1.music_info,
+        "Music information don't match"
     );
+    assert_eq!(bms2.metadata, bms1.metadata, "Metadata don't match");
+
+    // Compare definitions in detail
+    assert_hash_maps_equal(&bms2.bpm.bpm_defs, &bms1.bpm.bpm_defs, "BPM definitions");
     assert_hash_maps_equal(
-        &bms2.scope_defines.stop_defs,
-        &bms1.scope_defines.stop_defs,
+        &bms2.stop.stop_defs,
+        &bms1.stop.stop_defs,
         "Stop definitions",
     );
     assert_hash_maps_equal(
-        &bms2.scope_defines.scroll_defs,
-        &bms1.scope_defines.scroll_defs,
+        &bms2.scroll.scroll_defs,
+        &bms1.scroll.scroll_defs,
         "Scroll definitions",
     );
     assert_hash_maps_equal(
-        &bms2.scope_defines.speed_defs,
-        &bms1.scope_defines.speed_defs,
+        &bms2.speed.speed_defs,
+        &bms1.speed.speed_defs,
         "Speed definitions",
     );
     assert_hash_maps_equal(
-        &bms2.scope_defines.exrank_defs,
-        &bms1.scope_defines.exrank_defs,
+        &bms2.judge.exrank_defs,
+        &bms1.judge.exrank_defs,
         "EXRANK definitions",
     );
 
@@ -143,154 +129,126 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     #[cfg(feature = "minor-command")]
     {
         assert_hash_maps_equal(
-            &bms2.scope_defines.exwav_defs,
-            &bms1.scope_defines.exwav_defs,
+            &bms2.wav.exwav_defs,
+            &bms1.wav.exwav_defs,
             "EXWAV definitions",
         );
         assert_hash_maps_equal(
-            &bms2.scope_defines.wavcmd_events,
-            &bms1.scope_defines.wavcmd_events,
+            &bms2.wav.wavcmd_events,
+            &bms1.wav.wavcmd_events,
             "WAVCMD events",
         );
         assert_hash_maps_equal(
-            &bms2.scope_defines.atbga_defs,
-            &bms1.scope_defines.atbga_defs,
+            &bms2.bmp.atbga_defs,
+            &bms1.bmp.atbga_defs,
             "@BGA definitions",
         );
+        assert_hash_maps_equal(&bms2.bmp.bga_defs, &bms1.bmp.bga_defs, "BGA definitions");
         assert_hash_maps_equal(
-            &bms2.scope_defines.bga_defs,
-            &bms1.scope_defines.bga_defs,
-            "BGA definitions",
-        );
-        assert_hash_maps_equal(
-            &bms2.scope_defines.swbga_events,
-            &bms1.scope_defines.swbga_events,
+            &bms2.bmp.swbga_events,
+            &bms1.bmp.swbga_events,
             "SWBGA events",
         );
-        assert_hash_maps_equal(
-            &bms2.scope_defines.argb_defs,
-            &bms1.scope_defines.argb_defs,
-            "ARGB definitions",
-        );
+        assert_hash_maps_equal(&bms2.bmp.argb_defs, &bms1.bmp.argb_defs, "ARGB definitions");
     }
 
-    assert_eq!(bms2.arrangers, bms1.arrangers, "Arrangers don't match");
-
-    // Compare arrangers sub-parts in detail
+    // Compare events in detail
     assert_btree_maps_equal(
-        &bms2.arrangers.section_len_changes,
-        &bms1.arrangers.section_len_changes,
+        &bms2.section_len.section_len_changes,
+        &bms1.section_len.section_len_changes,
         "Section length changes",
     );
-    assert_eq!(bms2.arrangers.bpm, bms1.arrangers.bpm, "BPM");
-    assert_btree_maps_equal(
-        &bms2.arrangers.bpm_changes,
-        &bms1.arrangers.bpm_changes,
-        "BPM changes",
-    );
+    assert_eq!(bms2.bpm.bpm, bms1.bpm.bpm, "BPM");
+    assert_btree_maps_equal(&bms2.bpm.bpm_changes, &bms1.bpm.bpm_changes, "BPM changes");
     assert_eq!(
-        bms2.arrangers.bpm_change_ids_used, bms1.arrangers.bpm_change_ids_used,
+        bms2.bpm.bpm_change_ids_used, bms1.bpm.bpm_change_ids_used,
         "BPM change IDs used"
     );
-    assert_btree_maps_equal(&bms2.arrangers.stops, &bms1.arrangers.stops, "Stops");
+    assert_btree_maps_equal(&bms2.stop.stops, &bms1.stop.stops, "Stops");
     assert_eq!(
-        bms2.arrangers.stop_ids_used, bms1.arrangers.stop_ids_used,
+        bms2.stop.stop_ids_used, bms1.stop.stop_ids_used,
         "Stop IDs used"
     );
     assert_btree_maps_equal(
-        &bms2.arrangers.scrolling_factor_changes,
-        &bms1.arrangers.scrolling_factor_changes,
+        &bms2.scroll.scrolling_factor_changes,
+        &bms1.scroll.scrolling_factor_changes,
         "Scrolling factor changes",
     );
     assert_btree_maps_equal(
-        &bms2.arrangers.speed_factor_changes,
-        &bms1.arrangers.speed_factor_changes,
+        &bms2.speed.speed_factor_changes,
+        &bms1.speed.speed_factor_changes,
         "Speed factor changes",
     );
 
     // Compare minor-command arrangers if enabled
     #[cfg(feature = "minor-command")]
     {
-        assert_btree_maps_equal(
-            &bms2.arrangers.stp_events,
-            &bms1.arrangers.stp_events,
-            "STP events",
-        );
-        assert_eq!(bms2.arrangers.base_bpm, bms1.arrangers.base_bpm, "Base BPM");
+        assert_btree_maps_equal(&bms2.stop.stp_events, &bms1.stop.stp_events, "STP events");
+        assert_eq!(bms2.bpm.base_bpm, bms1.bpm.base_bpm, "Base BPM");
     }
 
-    assert_eq!(bms2.notes, bms1.notes, "Notes don't match");
-
-    // Compare notes sub-parts in detail
+    // Compare notes in detail
     assert_eq!(
-        bms2.notes.wav_path_root, bms1.notes.wav_path_root,
+        bms2.metadata.wav_path_root, bms1.metadata.wav_path_root,
         "WAV path root"
     );
-    assert_hash_maps_equal(&bms2.notes.wav_files, &bms1.notes.wav_files, "WAV files");
+    assert_hash_maps_equal(&bms2.wav.wav_files, &bms1.wav.wav_files, "WAV files");
     assert_btree_maps_equal(
-        &bms2.notes.bgm_volume_changes,
-        &bms1.notes.bgm_volume_changes,
+        &bms2.volume.bgm_volume_changes,
+        &bms1.volume.bgm_volume_changes,
         "BGM volume changes",
     );
     assert_btree_maps_equal(
-        &bms2.notes.key_volume_changes,
-        &bms1.notes.key_volume_changes,
+        &bms2.volume.key_volume_changes,
+        &bms1.volume.key_volume_changes,
         "Key volume changes",
     );
     assert_btree_maps_equal(
-        &bms2.notes.text_events,
-        &bms1.notes.text_events,
+        &bms2.text.text_events,
+        &bms1.text.text_events,
         "Text events",
     );
     assert_btree_maps_equal(
-        &bms2.notes.judge_events,
-        &bms1.notes.judge_events,
+        &bms2.judge.judge_events,
+        &bms1.judge.judge_events,
         "Judge events",
     );
 
     // Compare minor-command notes if enabled
     #[cfg(feature = "minor-command")]
     {
-        assert_eq!(bms2.notes.midi_file, bms1.notes.midi_file, "MIDI file");
         assert_eq!(
-            bms2.notes.materials_wav, bms1.notes.materials_wav,
+            bms2.resources.midi_file, bms1.resources.midi_file,
+            "MIDI file"
+        );
+        assert_eq!(
+            bms2.resources.materials_wav, bms1.resources.materials_wav,
             "Materials WAV"
         );
         assert_btree_maps_equal(
-            &bms2.notes.seek_events,
-            &bms1.notes.seek_events,
+            &bms2.video.seek_events,
+            &bms1.video.seek_events,
             "Seek events",
         );
         assert_btree_maps_equal(
-            &bms2.notes.bga_keybound_events,
-            &bms1.notes.bga_keybound_events,
+            &bms2.bmp.bga_keybound_events,
+            &bms1.bmp.bga_keybound_events,
             "BGA keybound events",
         );
         assert_btree_maps_equal(
-            &bms2.notes.option_events,
-            &bms1.notes.option_events,
+            &bms2.option.option_events,
+            &bms1.option.option_events,
             "Option events",
         );
     }
 
     // Compare graphics sub-parts in detail
+    assert_eq!(bms2.video.video_file, bms1.video.video_file, "Video file");
+    assert_hash_maps_equal(&bms2.bmp.bmp_files, &bms1.bmp.bmp_files, "BMP files");
+    assert_btree_maps_equal(&bms2.bmp.bga_changes, &bms1.bmp.bga_changes, "BGA changes");
+    assert_eq!(bms2.bmp.poor_bmp, bms1.bmp.poor_bmp, "Poor BMP");
     assert_eq!(
-        bms2.graphics.video_file, bms1.graphics.video_file,
-        "Video file"
-    );
-    assert_hash_maps_equal(
-        &bms2.graphics.bmp_files,
-        &bms1.graphics.bmp_files,
-        "BMP files",
-    );
-    assert_btree_maps_equal(
-        &bms2.graphics.bga_changes,
-        &bms1.graphics.bga_changes,
-        "BGA changes",
-    );
-    assert_eq!(bms2.graphics.poor_bmp, bms1.graphics.poor_bmp, "Poor BMP");
-    assert_eq!(
-        bms2.graphics.poor_bga_mode, bms1.graphics.poor_bga_mode,
+        bms2.bmp.poor_bga_mode, bms1.bmp.poor_bga_mode,
         "Poor BGA mode"
     );
 
@@ -298,74 +256,68 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     #[cfg(feature = "minor-command")]
     {
         assert_eq!(
-            bms2.graphics.materials_bmp, bms1.graphics.materials_bmp,
+            bms2.resources.materials_bmp, bms1.resources.materials_bmp,
             "Materials BMP"
         );
+        assert_eq!(bms2.sprite.char_file, bms1.sprite.char_file, "Char file");
         assert_eq!(
-            bms2.graphics.char_file, bms1.graphics.char_file,
-            "Char file"
-        );
-        assert_eq!(
-            bms2.graphics.video_colors, bms1.graphics.video_colors,
+            bms2.video.video_colors, bms1.video.video_colors,
             "Video colors"
         );
-        assert_eq!(
-            bms2.graphics.video_dly, bms1.graphics.video_dly,
-            "Video delay"
-        );
-        assert_eq!(
-            bms2.graphics.video_fs, bms1.graphics.video_fs,
-            "Video frame rate"
-        );
+        assert_eq!(bms2.video.video_dly, bms1.video.video_dly, "Video delay");
+        assert_eq!(bms2.video.video_fs, bms1.video.video_fs, "Video frame rate");
         assert_hash_maps_equal(
-            &bms2.graphics.bga_opacity_changes,
-            &bms1.graphics.bga_opacity_changes,
+            &bms2.bmp.bga_opacity_changes,
+            &bms1.bmp.bga_opacity_changes,
             "BGA opacity changes",
         );
         assert_hash_maps_equal(
-            &bms2.graphics.bga_argb_changes,
-            &bms1.graphics.bga_argb_changes,
+            &bms2.bmp.bga_argb_changes,
+            &bms1.bmp.bga_argb_changes,
             "BGA ARGB changes",
         );
     }
 
     // Compare others sub-parts in detail
-    assert_hash_maps_equal(&bms2.others.texts, &bms1.others.texts, "Texts");
+    assert_hash_maps_equal(&bms2.text.texts, &bms1.text.texts, "Texts");
     assert_eq!(
-        bms2.others.non_command_lines, bms1.others.non_command_lines,
+        bms2.repr.non_command_lines, bms1.repr.non_command_lines,
         "Non-command lines"
     );
     assert_eq!(
-        bms2.others.raw_command_lines, bms1.others.raw_command_lines,
+        bms2.repr.raw_command_lines, bms1.repr.raw_command_lines,
         "Raw command lines"
     );
 
     // Compare minor-command others if enabled
     #[cfg(feature = "minor-command")]
     {
-        assert_eq!(bms2.others.options, bms1.others.options, "Options");
-        assert_eq!(bms2.others.is_octave, bms1.others.is_octave, "Is octave");
-        assert_eq!(bms2.others.cdda, bms1.others.cdda, "CDDA");
+        assert_eq!(bms2.option.options, bms1.option.options, "Options");
+        assert_eq!(
+            bms2.metadata.is_octave, bms1.metadata.is_octave,
+            "Is octave"
+        );
+        assert_eq!(bms2.resources.cdda, bms1.resources.cdda, "CDDA");
         assert_hash_maps_equal(
-            &bms2.others.seek_events,
-            &bms1.others.seek_events,
+            &bms2.video.seek_defs,
+            &bms1.video.seek_defs,
             "Seek events in others",
         );
         assert_eq!(
-            bms2.others.extchr_events, bms1.others.extchr_events,
+            bms2.sprite.extchr_events, bms1.sprite.extchr_events,
             "Extended character events"
         );
         assert_hash_maps_equal(
-            &bms2.others.change_options,
-            &bms1.others.change_options,
+            &bms2.option.change_options,
+            &bms1.option.change_options,
             "Change options",
         );
         assert_eq!(
-            bms2.others.divide_prop, bms1.others.divide_prop,
+            bms2.metadata.divide_prop, bms1.metadata.divide_prop,
             "Divide property"
         );
         assert_eq!(
-            bms2.others.materials_path, bms1.others.materials_path,
+            bms2.resources.materials_path, bms1.resources.materials_path,
             "Materials path"
         );
     }

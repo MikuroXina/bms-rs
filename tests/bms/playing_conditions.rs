@@ -10,17 +10,12 @@ fn test_playing_conditions_empty_bms() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
     } = bms.check_playing::<KeyLayoutBeat>();
-
-    assert_eq!(parse_warnings, vec![]);
 
     // Should have warnings and errors for empty BMS
     assert!(playing_warnings.contains(&PlayingWarning::TotalUndefined));
@@ -40,17 +35,12 @@ fn test_playing_conditions_with_bpm_and_notes() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
     } = bms.check_playing::<KeyLayoutBeat>();
-
-    assert_eq!(parse_warnings, vec![]);
 
     // Should not have any warnings or errors for valid BMS
     assert_eq!(playing_warnings, vec![]);
@@ -78,22 +68,17 @@ fn test_playing_conditions_with_bpm_change_only() {
             .any(|t| t.content() == &Token::header("BPM08", "120"))
     );
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
     } = bms.check_playing::<KeyLayoutBeat>();
 
-    assert_eq!(parse_warnings, vec![]);
-
     // Should have StartBpmUndefined warning but no BpmUndefined error
-    assert_eq!(bms.arrangers.bpm, None);
-    assert_eq!(bms.scope_defines.bpm_defs.len(), 1);
-    assert_eq!(bms.arrangers.bpm_changes.len(), 0);
+    assert_eq!(bms.bpm.bpm, None);
+    assert_eq!(bms.bpm.bpm_defs.len(), 1);
+    assert_eq!(bms.bpm.bpm_changes.len(), 0);
     assert!(playing_errors.contains(&PlayingError::BpmUndefined));
     assert!(!playing_warnings.contains(&PlayingWarning::StartBpmUndefined));
 }
@@ -109,12 +94,7 @@ fn test_playing_conditions_invisible_notes_only() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
-
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,

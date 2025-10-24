@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
 
 use std::num::NonZeroU64;
 use std::path::Path;
@@ -43,43 +43,30 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 fn test_always_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
-        &tokens,
-        default_preset_with_prompter(&AlwaysUseOlder),
-    )
-    .unwrap();
-
-    // Should have no warnings since AlwaysUseOlder handles conflicts silently
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
-        bms.scope_defines
-            .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(0.5))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
@@ -87,14 +74,14 @@ fn test_always_use_older() {
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes()
+        bms.wav
             .wav_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bmp_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Bmp {
@@ -104,12 +91,12 @@ fn test_always_use_older() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.text.texts.get(&ObjId::try_from("01", false).unwrap()),
         Some(&"old text".to_string())
     );
 
     // Check that the older BPM change event is used (01, not 03)
-    let bpm_changes: Vec<_> = bms.arrangers.bpm_changes.iter().collect();
+    let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     assert_eq!(
         bpm_changes[0].0,
@@ -128,43 +115,30 @@ fn test_always_use_older() {
 fn test_always_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
-        &tokens,
-        default_preset_with_prompter(&AlwaysUseNewer),
-    )
-    .unwrap();
-
-    // Should have no warnings since AlwaysUseNewer handles conflicts silently
-    assert_eq!(parse_warnings, vec![]);
+    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
-        bms.scope_defines
-            .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(2.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.5))
@@ -172,14 +146,14 @@ fn test_always_use_newer() {
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes()
+        bms.wav
             .wav_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bmp_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Bmp {
@@ -189,12 +163,12 @@ fn test_always_use_newer() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.text.texts.get(&ObjId::try_from("01", false).unwrap()),
         Some(&"new text".to_string())
     );
 
     // Check that the newer BPM change event is used (03, not 01)
-    let bpm_changes: Vec<_> = bms.arrangers.bpm_changes.iter().collect();
+    let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     assert_eq!(
         bpm_changes[0].0,
@@ -213,13 +187,13 @@ fn test_always_use_newer() {
 fn test_always_warn_and_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let mut parse_warnings = vec![];
+    let bms = Bms::from_token_stream(
         &tokens,
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(warning_collector(
+            AlwaysWarnAndUseOlder,
+            &mut parse_warnings,
+        )),
     )
     .unwrap();
 
@@ -232,28 +206,26 @@ fn test_always_warn_and_use_older() {
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
-        bms.scope_defines
-            .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(0.5))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
@@ -261,14 +233,14 @@ fn test_always_warn_and_use_older() {
 
     // Check that older values are used for all other conflicts
     assert_eq!(
-        bms.notes()
+        bms.wav
             .wav_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Path::new("old.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bmp_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Bmp {
@@ -278,12 +250,12 @@ fn test_always_warn_and_use_older() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.text.texts.get(&ObjId::try_from("01", false).unwrap()),
         Some(&"old text".to_string())
     );
 
     // Check that the older BPM change event is used (01, not 03)
-    let bpm_changes: Vec<_> = bms.arrangers.bpm_changes.iter().collect();
+    let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     assert_eq!(
         bpm_changes[0].0,
@@ -302,13 +274,13 @@ fn test_always_warn_and_use_older() {
 fn test_always_warn_and_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let mut parse_warnings = vec![];
+    let bms = Bms::from_token_stream(
         &tokens,
-        default_preset_with_prompter(&AlwaysWarnAndUseNewer),
+        default_config().prompter(warning_collector(
+            AlwaysWarnAndUseNewer,
+            &mut parse_warnings,
+        )),
     )
     .unwrap();
 
@@ -321,28 +293,26 @@ fn test_always_warn_and_use_newer() {
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
-        bms.scope_defines
-            .bpm_defs
-            .get(&ObjId::try_from("01", false).unwrap()),
+        bms.bpm.bpm_defs.get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(120))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.stop
             .stop_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(2.0))
     );
 
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1.5))
@@ -350,14 +320,14 @@ fn test_always_warn_and_use_newer() {
 
     // Check that newer values are used for all other conflicts
     assert_eq!(
-        bms.notes()
+        bms.wav
             .wav_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Path::new("new.wav").to_path_buf())
     );
 
     assert_eq!(
-        bms.graphics
+        bms.bmp
             .bmp_files
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Bmp {
@@ -367,12 +337,12 @@ fn test_always_warn_and_use_newer() {
     );
 
     assert_eq!(
-        bms.others.texts.get(&ObjId::try_from("01", false).unwrap()),
+        bms.text.texts.get(&ObjId::try_from("01", false).unwrap()),
         Some(&"new text".to_string())
     );
 
     // Check that the newer BPM change event is used (03, not 01)
-    let bpm_changes: Vec<_> = bms.arrangers.bpm_changes.iter().collect();
+    let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     assert_eq!(
         bpm_changes[0].0,

@@ -1,4 +1,4 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::{bms::prelude::*, parse::prompt::PanicAndUseNewer};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -13,20 +13,15 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_preset_with_prompter(&AlwaysUseNewer),
+        default_config().prompter(PanicAndUseNewer),
     )
-    .unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    .expect("no errors");
     eprintln!("{bms:?}");
-    assert_eq!(bms.notes().wav_files.len(), 1);
+    assert_eq!(bms.wav.wav_files.len(), 1);
     assert_eq!(
-        bms.notes().wav_files.iter().next().unwrap().1,
+        bms.wav.wav_files.iter().next().unwrap().1,
         &std::path::Path::new("fuga.wav").to_path_buf()
     );
 }
@@ -45,16 +40,11 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let ParseOutput {
-        bms,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_preset_with_prompter(&AlwaysUseNewer),
+        default_config().prompter(PanicAndUseNewer),
     )
-    .unwrap();
-    assert_eq!(parse_warnings, vec![]);
+    .expect("no errors");
     eprintln!("{bms:?}");
-    assert_eq!(bms.notes().wav_files.len(), 2);
+    assert_eq!(bms.wav.wav_files.len(), 2);
 }
