@@ -17,7 +17,11 @@ use crate::bms::{
 
 use self::{prompt::Prompter, token_processor::TokenProcessor};
 
-use super::error::{ParseErrorWithRange, ParseWarningWithRange};
+use super::{
+    ParseConfig,
+    error::{ParseErrorWithRange, ParseWarningWithRange},
+    rng::Rng,
+};
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,18 +36,13 @@ pub struct ParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream<
-        'a,
-        T: KeyLayoutMapper,
-        TP: TokenProcessor<Output = Bms>,
-        P: Prompter,
-    >(
+    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter, R: Rng>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        proc: TP,
-        prompter: P,
+        config: ParseConfig<T, P, R>,
     ) -> core::result::Result<Bms, ParseErrorWithRange> {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
+        let (proc, prompter) = config.build();
         let bms = proc.process(&mut tokens_slice, &prompter)?;
         Ok(bms)
     }

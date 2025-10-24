@@ -77,6 +77,7 @@ pub struct ParseConfig<T, P, R> {
     prompter: P,
     rng: R,
     use_minor: bool,
+    // TODO: add `use_relaxed: bool,`
 }
 
 #[cfg(feature = "rand")]
@@ -116,6 +117,20 @@ impl<T, P, R> ParseConfig<T, P, R> {
             prompter: self.prompter,
             rng,
             use_minor: self.use_minor,
+        }
+    }
+
+    pub fn use_common(self) -> Self {
+        Self {
+            use_minor: false,
+            ..self
+        }
+    }
+
+    pub fn use_minor(self) -> Self {
+        Self {
+            use_minor: true,
+            ..self
         }
     }
 
@@ -170,8 +185,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    let (proc, prompter) = config.build();
-    let bms = Bms::from_token_stream::<'_, T, _, _>(&tokens, proc, prompter)?;
+    let bms = Bms::from_token_stream::<'_, T, _, _>(&tokens, config)?;
 
     let PlayingCheckOutput {
         playing_warnings,
