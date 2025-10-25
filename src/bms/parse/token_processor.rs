@@ -2,7 +2,6 @@
 //!
 //! Also it provides preset functions that returns a [`TokenProcessor`] trait object:
 //!
-//! - [`pedantic_preset`] - All processors without obsolete/deprecated.
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
 
@@ -137,32 +136,10 @@ where
     }
 }
 
-/// Returns all processors without obsolete/deprecated.
-pub fn pedantic_preset<T: KeyLayoutMapper, R: Rng>(rng: Rc<RefCell<R>>) -> impl TokenProcessor {
-    let case_sensitive_obj_id = Rc::new(RefCell::new(false));
-    let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
-        .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
-        .then(bpm::BpmProcessor::new(&case_sensitive_obj_id))
-        .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
-        .then(metadata::MetadataProcessor)
-        .then(music_info::MusicInfoProcessor);
-
-    let sub_processor = sub_processor.then(option::OptionProcessor::new(&case_sensitive_obj_id));
-    let sub_processor = sub_processor
-        .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
-        .then(section_len::SectionLenProcessor)
-        .then(speed::SpeedProcessor::new(&case_sensitive_obj_id))
-        .then(sprite::SpriteProcessor)
-        .then(stop::StopProcessor::new(&case_sensitive_obj_id))
-        .then(text::TextProcessor::new(&case_sensitive_obj_id))
-        .then(video::VideoProcessor::new(&case_sensitive_obj_id))
-        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, false)
-}
-
 /// Returns commonly used processors.
-pub fn common_preset<T: KeyLayoutMapper, R: Rng>(
+pub(crate) fn common_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
+    relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));
     let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
@@ -178,7 +155,7 @@ pub fn common_preset<T: KeyLayoutMapper, R: Rng>(
         .then(stop::StopProcessor::new(&case_sensitive_obj_id))
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, true).map(
+    random::RandomTokenProcessor::new(rng, sub_processor, relaxed).map(
         |(
             (
                 (
@@ -224,8 +201,9 @@ pub fn common_preset<T: KeyLayoutMapper, R: Rng>(
 }
 
 /// Returns all of processors this crate provided.
-pub fn minor_preset<T: KeyLayoutMapper, R: Rng>(
+pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
+    relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));
     let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
@@ -248,7 +226,7 @@ pub fn minor_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, true).map(
+    random::RandomTokenProcessor::new(rng, sub_processor, relaxed).map(
         |(
             (
                 (

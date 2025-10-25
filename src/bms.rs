@@ -41,7 +41,7 @@ use self::{
     model::Bms,
     parse::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, TokenProcessorResult},
+        token_processor::{TokenProcessor, TokenProcessorResult, common_preset, minor_preset},
     },
     prelude::*,
 };
@@ -79,7 +79,7 @@ pub struct ParseConfig<T, P, R> {
     prompter: P,
     rng: R,
     use_minor: bool,
-    // TODO: add `use_relaxed: bool,`
+    use_relaxed: bool,
 }
 
 /// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
@@ -92,6 +92,7 @@ pub fn default_config()
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
         use_minor: true,
+        use_relaxed: true,
     }
 }
 
@@ -102,6 +103,7 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
         prompter: AlwaysWarnAndUseNewer,
         rng,
         use_minor: true,
+        use_relaxed: true,
     }
 }
 
@@ -113,6 +115,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             prompter,
             rng: self.rng,
             use_minor: self.use_minor,
+            use_relaxed: self.use_relaxed,
         }
     }
 
@@ -123,6 +126,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             prompter: self.prompter,
             rng,
             use_minor: self.use_minor,
+            use_relaxed: self.use_relaxed,
         }
     }
 
@@ -142,6 +146,22 @@ impl<T, P, R> ParseConfig<T, P, R> {
         }
     }
 
+    /// Change to use pedantic token processors that don't recognize common mistakes.
+    pub fn use_pedantic(self) -> Self {
+        Self {
+            use_relaxed: false,
+            ..self
+        }
+    }
+
+    /// Change to use relaxed token processors that recognize common mistakes. This is the default option.
+    pub fn use_relaxed(self) -> Self {
+        Self {
+            use_relaxed: true,
+            ..self
+        }
+    }
+
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
     where
         T: KeyLayoutMapper,
@@ -152,6 +172,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData<fn() -> T>,
             rng: Rc<RefCell<R>>,
             use_minor: bool,
+            use_relaxed: bool,
         }
         impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
             type Output = Bms;
@@ -162,9 +183,11 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 prompter: &P,
             ) -> TokenProcessorResult<Self::Output> {
                 if self.use_minor {
-                    minor_preset::<T, R>(Rc::clone(&self.rng)).process(input, prompter)
+                    minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
+                        .process(input, prompter)
                 } else {
-                    common_preset::<T, R>(Rc::clone(&self.rng)).process(input, prompter)
+                    common_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
+                        .process(input, prompter)
                 }
             }
         }
@@ -173,6 +196,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 key_mapper: PhantomData,
                 rng: Rc::new(RefCell::new(self.rng)),
                 use_minor: self.use_minor,
+                use_relaxed: self.use_relaxed,
             },
             self.prompter,
         )
