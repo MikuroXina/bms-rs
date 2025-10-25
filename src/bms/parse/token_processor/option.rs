@@ -10,10 +10,13 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{
-    error::{ParseWarning, Result},
-    model::option::OptionObjects,
-    prelude::*,
+use crate::{
+    bms::{
+        error::{ParseWarning, Result},
+        model::option::OptionObjects,
+        prelude::*,
+    },
+    util::StrExtension,
 };
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
@@ -72,29 +75,25 @@ impl OptionProcessor {
         prompter: &impl Prompter,
         objects: &mut OptionObjects,
     ) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "OPTION" => {
-                objects
-                    .options
-                    .get_or_insert_with(Vec::new)
-                    .push(args.to_string());
+        if name.eq_ignore_ascii_case("OPTION") {
+            objects
+                .options
+                .get_or_insert_with(Vec::new)
+                .push(args.to_string());
+        }
+        if let Some(id) = name.strip_prefix_ignore_case("CHANGEOPTION") {
+            let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+            if let Some(older) = objects.change_options.get_mut(&id) {
+                prompter
+                    .handle_def_duplication(DefDuplication::ChangeOption {
+                        id,
+                        older,
+                        newer: args,
+                    })
+                    .apply_def(older, args.to_string(), id)?;
+            } else {
+                objects.change_options.insert(id, args.to_string());
             }
-            change_option if change_option.starts_with("CHANGEOPTION") => {
-                let id = &name["CHANGEOPTION".len()..];
-                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-                if let Some(older) = objects.change_options.get_mut(&id) {
-                    prompter
-                        .handle_def_duplication(DefDuplication::ChangeOption {
-                            id,
-                            older,
-                            newer: args,
-                        })
-                        .apply_def(older, args.to_string(), id)?;
-                } else {
-                    objects.change_options.insert(id, args.to_string());
-                }
-            }
-            _ => {}
         }
         Ok(())
     }

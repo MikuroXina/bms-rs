@@ -46,33 +46,38 @@ impl TokenProcessor for MetadataProcessor {
 
 impl MetadataProcessor {
     fn on_header(&self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "PLAYER" => metadata.player = Some(PlayerMode::from_str(args)?),
-            "DIFFICULTY" => {
-                metadata.difficulty = Some(
-                    args.parse()
-                        .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?,
-                );
+        if name.eq_ignore_ascii_case("PLAYER") {
+            metadata.player = Some(PlayerMode::from_str(args)?);
+        }
+        if name.eq_ignore_ascii_case("DIFFICULTY") {
+            metadata.difficulty = Some(
+                args.parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?,
+            );
+        }
+        if name.eq_ignore_ascii_case("PLAYLEVEL") {
+            metadata.play_level = Some(
+                args.parse()
+                    .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?,
+            );
+        }
+        if name.eq_ignore_ascii_case("EMAIL") {
+            metadata.email = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("URL") {
+            metadata.url = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("PATH_WAV") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError("expected wav root path".into()));
             }
-            "PLAYLEVEL" => {
-                metadata.play_level = Some(
-                    args.parse()
-                        .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?,
-                );
-            }
-            "EMAIL" => metadata.email = Some(args.to_string()),
-            "URL" => metadata.url = Some(args.to_string()),
-            "PATH_WAV" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected wav root path".into()));
-                }
-                metadata.wav_path_root = Some(Path::new(args).into());
-            }
-
-            "DIVIDEPROP" => metadata.divide_prop = Some(args.to_string()),
-
-            "OCT/FP" => metadata.is_octave = true,
-            _ => {}
+            metadata.wav_path_root = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("DIVIDEPROP") {
+            metadata.divide_prop = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("OCT/FP") {
+            metadata.is_octave = true;
         }
         Ok(())
     }

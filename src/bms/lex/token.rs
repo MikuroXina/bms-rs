@@ -15,7 +15,7 @@ use crate::bms::command::{
 pub enum Token<'a> {
     /// `#[name] [args]` Other command line starts from `#`.
     Header {
-        /// String after `#` and until the first whitespace. It is always uppercase.
+        /// String after `#` and until the first whitespace. It is NOT always uppercase.
         name: Cow<'a, str>,
         /// String after `#name` and whitespaces.
         args: Cow<'a, str>,

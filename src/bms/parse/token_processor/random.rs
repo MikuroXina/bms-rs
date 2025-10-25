@@ -51,6 +51,7 @@ use crate::{
         prelude::*,
     },
     parse::token_processor::all_tokens_with_range,
+    util::StrExtension,
 };
 
 use super::{TokenProcessor, TokenProcessorResult};
@@ -520,43 +521,61 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
-        let upper_name = name.to_ascii_uppercase();
         if self.relaxed {
-            match upper_name.as_str() {
-                "RONDAM" => {
-                    return self.visit_random(args);
-                }
-                "END" if args == "IF" => {
-                    return self.visit_end_if().map(|_| None);
-                }
-                upper_name
-                    if upper_name.starts_with("RANDOM") && upper_name.len() > "RANDOM".len() =>
-                {
-                    return self.visit_random(upper_name.trim_start_matches("RANDOM"));
-                }
-                upper_name if upper_name.starts_with("IF") && upper_name.len() > "IF".len() => {
-                    return self.visit_if(upper_name.trim_start_matches("IF"));
-                }
-                _ => {}
+            if name.eq_ignore_ascii_case("RONDAM") {
+                return self.visit_random(args);
+            }
+            if name.eq_ignore_ascii_case("END") && args.eq_ignore_ascii_case("IF") {
+                return self.visit_end_if().map(|_| None);
+            }
+            if let Some(wrong_arg) = name.strip_prefix_ignore_case("RANDOM") {
+                return self.visit_random(wrong_arg);
+            }
+            if let Some(wrong_arg) = name.strip_prefix_ignore_case("IF") {
+                return self.visit_if(wrong_arg);
             }
         }
 
-        match upper_name.as_str() {
-            "RANDOM" => self.visit_random(args),
-            "SETRANDOM" => self.visit_set_random(args),
-            "IF" => self.visit_if(args),
-            "ELSEIF" => self.visit_else_if(args),
-            "ELSE" => self.visit_else().map(|_| None),
-            "ENDIF" => self.visit_end_if().map(|_| None),
-            "ENDRANDOM" => self.visit_end_random().map(|_| None),
-            "SWITCH" => self.visit_switch(args),
-            "SETSWITCH" => self.visit_set_switch(args),
-            "CASE" => self.visit_case(args),
-            "SKIP" => self.visit_skip().map(|_| None),
-            "DEF" => self.visit_default().map(|_| None),
-            "ENDSW" => self.visit_end_switch().map(|_| None),
-            _ => Ok(None),
+        if name.eq_ignore_ascii_case("RANDOM") {
+            return self.visit_random(args);
         }
+        if name.eq_ignore_ascii_case("SETRANDOM") {
+            return self.visit_set_random(args);
+        }
+        if name.eq_ignore_ascii_case("IF") {
+            return self.visit_if(args);
+        }
+        if name.eq_ignore_ascii_case("ELSEIF") {
+            return self.visit_else_if(args);
+        }
+        if name.eq_ignore_ascii_case("ELSE") {
+            return self.visit_else().map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDIF") {
+            return self.visit_end_if().map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDRANDOM") {
+            return self.visit_end_random().map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("SWITCH") {
+            return self.visit_switch(args);
+        }
+        if name.eq_ignore_ascii_case("SETSWITCH") {
+            return self.visit_set_switch(args);
+        }
+        if name.eq_ignore_ascii_case("CASE") {
+            return self.visit_case(args);
+        }
+        if name.eq_ignore_ascii_case("SKIP") {
+            return self.visit_skip().map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("DEF") {
+            return self.visit_default().map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDSW") {
+            return self.visit_end_switch().map(|_| None);
+        }
+        Ok(None)
     }
 
     fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ParseError> {

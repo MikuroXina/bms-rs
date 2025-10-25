@@ -14,7 +14,10 @@ use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
     parse_obj_ids,
 };
-use crate::bms::{error::Result, model::judge::JudgeObjects, prelude::*};
+use crate::{
+    bms::{error::Result, model::judge::JudgeObjects, prelude::*},
+    util::StrExtension,
+};
 
 /// It processes `#RANK`` and `#EXRANKxx` definitions and objects on `Judge` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,54 +75,50 @@ impl JudgeProcessor {
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
     ) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "RANK" => {
-                objects.rank = Some(JudgeLevel::try_from(args).map_err(|_| {
-                    ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
-                })?);
-            }
-            ex_rank if ex_rank.starts_with("EXRANK") => {
-                let id = &name["EXRANK".len()..];
-                let judge_level = JudgeLevel::try_from(args).map_err(|_| {
-                    ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
-                })?;
-                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+        if name.eq_ignore_ascii_case("RANK") {
+            objects.rank = Some(JudgeLevel::try_from(args).map_err(|_| {
+                ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
+            })?);
+        }
+        if let Some(id) = name.strip_prefix_ignore_case("EXRANK") {
+            let judge_level = JudgeLevel::try_from(args).map_err(|_| {
+                ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
+            })?;
+            let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
-                let to_insert = ExRankDef { id, judge_level };
-                if let Some(older) = objects.exrank_defs.get_mut(&id) {
-                    prompter
-                        .handle_def_duplication(DefDuplication::ExRank {
-                            id,
-                            older,
-                            newer: &to_insert,
-                        })
-                        .apply_def(older, to_insert, id)?;
-                } else {
-                    objects.exrank_defs.insert(id, to_insert);
-                }
+            let to_insert = ExRankDef { id, judge_level };
+            if let Some(older) = objects.exrank_defs.get_mut(&id) {
+                prompter
+                    .handle_def_duplication(DefDuplication::ExRank {
+                        id,
+                        older,
+                        newer: &to_insert,
+                    })
+                    .apply_def(older, to_insert, id)?;
+            } else {
+                objects.exrank_defs.insert(id, to_insert);
             }
-            dex_ex_rank if dex_ex_rank.starts_with("DEFEXRANK") => {
-                let value = args
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected u64".into()))?;
+        }
+        if name.eq_ignore_ascii_case("DEFEXRANK") {
+            let value = args
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected u64".into()))?;
 
-                let judge_level = JudgeLevel::OtherInt(value);
-                objects.exrank_defs.insert(
-                    ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                    ExRankDef {
-                        id: ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                        judge_level,
-                    },
-                );
-            }
-            "TOTAL" => {
-                let total = Decimal::from_fraction(
-                    GenericFraction::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-                );
-                objects.total = Some(total);
-            }
-            _ => {}
+            let judge_level = JudgeLevel::OtherInt(value);
+            objects.exrank_defs.insert(
+                ObjId::try_from("00", false).expect("00 must be valid ObjId"),
+                ExRankDef {
+                    id: ObjId::try_from("00", false).expect("00 must be valid ObjId"),
+                    judge_level,
+                },
+            );
+        }
+        if name.eq_ignore_ascii_case("TOTAL") {
+            let total = Decimal::from_fraction(
+                GenericFraction::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
+            );
+            objects.total = Some(total);
         }
         Ok(())
     }

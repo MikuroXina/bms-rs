@@ -41,19 +41,32 @@ impl TokenProcessor for MusicInfoProcessor {
 
 impl MusicInfoProcessor {
     fn on_header(&self, name: &str, args: &str, music_info: &mut MusicInfo) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "GENRE" => music_info.genre = Some(args.to_string()),
-            "TITLE" => music_info.title = Some(args.to_string()),
-            "SUBTITLE" => music_info.subtitle = Some(args.to_string()),
-            "ARTIST" => music_info.artist = Some(args.to_string()),
-            "SUBARTIST" => music_info.sub_artist = Some(args.to_string()),
-            "COMMENT" => music_info
+        if name.eq_ignore_ascii_case("GENRE") {
+            music_info.genre = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("TITLE") {
+            music_info.title = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("SUBTITLE") {
+            music_info.subtitle = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("ARTIST") {
+            music_info.artist = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("SUBARTIST") {
+            music_info.sub_artist = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("COMMENT") {
+            music_info
                 .comment
                 .get_or_insert_with(Vec::new)
-                .push(args.to_string()),
-            "MAKER" => music_info.maker = Some(args.to_string()),
-            "PREVIEW" => music_info.preview_music = Some(Path::new(args).into()),
-            _ => {}
+                .push(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("MAKER") {
+            music_info.maker = Some(args.to_string());
+        }
+        if name.eq_ignore_ascii_case("PREVIEW") {
+            music_info.preview_music = Some(Path::new(args).into());
         }
         Ok(())
     }

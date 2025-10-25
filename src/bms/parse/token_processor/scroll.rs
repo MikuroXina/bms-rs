@@ -11,10 +11,13 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{
-    error::{ParseWarning, Result},
-    model::scroll::ScrollObjects,
-    prelude::*,
+use crate::{
+    bms::{
+        error::{ParseWarning, Result},
+        model::scroll::ScrollObjects,
+        prelude::*,
+    },
+    util::StrExtension,
 };
 
 /// It processes `#SCROLLxx` definitions and objects on `Scroll` channel.
@@ -73,8 +76,7 @@ impl ScrollProcessor {
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
     ) -> Result<()> {
-        if name.to_ascii_uppercase().starts_with("SCROLL") {
-            let id = &name["SCROLL".len()..];
+        if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
             let factor =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())

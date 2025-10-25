@@ -12,10 +12,13 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{
-    error::{ParseWarning, Result},
-    model::stop::StopObjects,
-    prelude::*,
+use crate::{
+    bms::{
+        error::{ParseWarning, Result},
+        model::stop::StopObjects,
+        prelude::*,
+    },
+    util::StrExtension,
 };
 
 /// It processes `#STOPxx` definitions and objects on `Stop` channel.
@@ -74,8 +77,7 @@ impl StopProcessor {
         prompter: &impl Prompter,
         objects: &mut StopObjects,
     ) -> Result<()> {
-        if name.to_ascii_uppercase().starts_with("STOP") {
-            let id = &name["STOP".len()..];
+        if let Some(id) = name.strip_prefix_ignore_case("STOP") {
             let len =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
@@ -95,8 +97,7 @@ impl StopProcessor {
                 objects.stop_defs.insert(stop_obj_id, len);
             }
         }
-
-        if name.to_ascii_uppercase().starts_with("STP") {
+        if name.eq_ignore_ascii_case("STP") {
             // Parse xxx.yyy zzzz
             use std::{num::NonZeroU64, time::Duration};
             let args: Vec<_> = args.split_whitespace().collect();

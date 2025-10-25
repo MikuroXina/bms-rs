@@ -38,99 +38,91 @@ impl TokenProcessor for SpriteProcessor {
 
 impl SpriteProcessor {
     fn on_header(&self, name: &str, args: &str, sprites: &mut Sprites) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "BANNER" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected banner filename".into()));
-                }
-                sprites.banner = Some(Path::new(args).into());
+        if name.eq_ignore_ascii_case("BANNER") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError("expected banner filename".into()));
             }
-            "BACKBMP" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
-                        "expected backbmp filename".into(),
-                    ));
-                }
-                sprites.back_bmp = Some(Path::new(args).into());
+            sprites.banner = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("BACKBMP") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError(
+                    "expected backbmp filename".into(),
+                ));
             }
-            "STAGEFILE" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
-                        "expected splashscreen image filename".into(),
-                    ));
-                }
-                sprites.stage_file = Some(Path::new(args).into());
+            sprites.back_bmp = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("STAGEFILE") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError(
+                    "expected splashscreen image filename".into(),
+                ));
             }
-
-            "EXTCHR" => {
-                // Allow multiple spaces between parameters
-                let params: Vec<_> = args.split_whitespace().collect();
-                if !(6..=10).contains(&params.len()) {
-                    return Err(ParseWarning::SyntaxError(
-                        "params length must be between 6 and 10".into(),
-                    ));
-                }
-                let sprite_num = params[0]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected sprite_num i32".into()))?;
-                let bmp_num = params[1];
-                // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
-                let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
-                    -stripped
-                        .parse::<i32>()
-                        .map_err(|_| ParseWarning::SyntaxError("expected bmp_num is i32".into()))?
-                } else if bmp_num.starts_with("0x")
-                    || bmp_num.chars().all(|c| c.is_ascii_hexdigit())
-                {
-                    i32::from_str_radix(bmp_num, 16)
-                        .unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
-                } else {
-                    bmp_num.parse().map_err(|_| {
-                        ParseWarning::SyntaxError("expected bmp_num is i32 in hexadecimal".into())
-                    })?
-                };
-                let start_x = params[2]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected start_x is i32".into()))?;
-                let start_y = params[3]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected start_y is i32".into()))?;
-                let end_x = params[4]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected end_x is i32".into()))?;
-                let end_y = params[5]
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected end_y is i32".into()))?;
-                // offsetX/offsetY are optional
-                let offset_x = params.get(6).and_then(|v| v.parse().ok());
-                let offset_y = params.get(7).and_then(|v| v.parse().ok());
-                // x/y are optional, only present if offset exists
-                let abs_x = params.get(8).and_then(|v| v.parse().ok());
-                let abs_y = params.get(9).and_then(|v| v.parse().ok());
-                let ev = ExtChrEvent {
-                    sprite_num,
-                    bmp_num,
-                    start_x,
-                    start_y,
-                    end_x,
-                    end_y,
-                    offset_x,
-                    offset_y,
-                    abs_x,
-                    abs_y,
-                };
-                sprites.extchr_events.push(ev);
+            sprites.stage_file = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("EXTCHR") {
+            // Allow multiple spaces between parameters
+            let params: Vec<_> = args.split_whitespace().collect();
+            if !(6..=10).contains(&params.len()) {
+                return Err(ParseWarning::SyntaxError(
+                    "params length must be between 6 and 10".into(),
+                ));
             }
-
-            charfile if charfile.starts_with("CHARFILE") => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError(
-                        "expected character filename".into(),
-                    ));
-                }
-                sprites.char_file = Some(Path::new(args).into());
+            let sprite_num = params[0]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected sprite_num i32".into()))?;
+            let bmp_num = params[1];
+            // BMPNum supports hexadecimal (e.g. 09/FF), also supports -1/-257, etc.
+            let bmp_num = if let Some(stripped) = bmp_num.strip_prefix("-") {
+                -stripped
+                    .parse::<i32>()
+                    .map_err(|_| ParseWarning::SyntaxError("expected bmp_num is i32".into()))?
+            } else if bmp_num.starts_with("0x") || bmp_num.chars().all(|c| c.is_ascii_hexdigit()) {
+                i32::from_str_radix(bmp_num, 16).unwrap_or_else(|_| bmp_num.parse().unwrap_or(0))
+            } else {
+                bmp_num.parse().map_err(|_| {
+                    ParseWarning::SyntaxError("expected bmp_num is i32 in hexadecimal".into())
+                })?
+            };
+            let start_x = params[2]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected start_x is i32".into()))?;
+            let start_y = params[3]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected start_y is i32".into()))?;
+            let end_x = params[4]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected end_x is i32".into()))?;
+            let end_y = params[5]
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected end_y is i32".into()))?;
+            // offsetX/offsetY are optional
+            let offset_x = params.get(6).and_then(|v| v.parse().ok());
+            let offset_y = params.get(7).and_then(|v| v.parse().ok());
+            // x/y are optional, only present if offset exists
+            let abs_x = params.get(8).and_then(|v| v.parse().ok());
+            let abs_y = params.get(9).and_then(|v| v.parse().ok());
+            let ev = ExtChrEvent {
+                sprite_num,
+                bmp_num,
+                start_x,
+                start_y,
+                end_x,
+                end_y,
+                offset_x,
+                offset_y,
+                abs_x,
+                abs_y,
+            };
+            sprites.extchr_events.push(ev);
+        }
+        if name.eq_ignore_ascii_case("CHARFILE") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError(
+                    "expected character filename".into(),
+                ));
             }
-            _ => {}
+            sprites.char_file = Some(Path::new(args).into());
         }
         Ok(())
     }
