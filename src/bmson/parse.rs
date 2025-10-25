@@ -1,9 +1,12 @@
 //! This is a parser for JSON.
 
-use ariadne::{Color, Report, ReportKind};
 use chumsky::{error::RichReason, prelude::*};
 use serde_json::Value;
 
+#[cfg(feature = "diagnostics")]
+use ariadne::{Color, Report, ReportKind};
+
+#[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne, build_report};
 
 /// This is a parser for JSON.
@@ -198,6 +201,7 @@ pub struct Warning<'a>(pub Rich<'a, char>);
 #[derive(Debug, Clone)]
 pub struct Error<'a>(pub Rich<'a, char>);
 
+#[cfg(feature = "diagnostics")]
 impl<'a> ToAriadne for Recovered<'a> {
     fn to_report<'b>(
         &self,
@@ -216,6 +220,7 @@ impl<'a> ToAriadne for Recovered<'a> {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 impl<'a> ToAriadne for Warning<'a> {
     fn to_report<'b>(
         &self,
@@ -234,6 +239,7 @@ impl<'a> ToAriadne for Warning<'a> {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 impl<'a> ToAriadne for Error<'a> {
     fn to_report<'b>(
         &self,

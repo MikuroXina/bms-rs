@@ -38,14 +38,15 @@ use std::{
     num::{NonZeroU8, NonZeroU64},
 };
 
+#[cfg(feature = "diagnostics")]
 use ariadne::{Color, Report, ReportKind};
 use chumsky::{prelude::*, span::SimpleSpan};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::{
-    bms::command::LnMode,
-    diagnostics::{ToAriadne, build_report},
-};
+use crate::bms::command::LnMode;
+
+#[cfg(feature = "diagnostics")]
+use crate::diagnostics::{ToAriadne, build_report};
 
 use self::{
     fin_f64::FinF64,
@@ -457,6 +458,7 @@ pub enum BmsonParseError<'a> {
     },
 }
 
+#[cfg(feature = "diagnostics")]
 impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
     fn to_report<'b>(
         &self,
@@ -473,6 +475,7 @@ impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 impl<'a> ToAriadne for BmsonParseError<'a> {
     fn to_report<'b>(
         &self,

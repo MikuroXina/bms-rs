@@ -14,10 +14,7 @@ use crate::bms::{
 use crate::bms::prelude::SwBgaEvent;
 
 pub mod bms_processor;
-#[cfg(feature = "bmson")]
 pub mod bmson_processor;
-#[cfg(not(feature = "bmson"))]
-pub mod bmson_processor {}
 
 use std::{collections::HashMap, path::Path, time::SystemTime};
 

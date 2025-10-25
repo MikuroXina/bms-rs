@@ -11,6 +11,8 @@
 //! # Usage Example
 //!
 //! ```rust
+//! # #[cfg(feature = "diagnostics")]
+//! # {
 //! use bms_rs::{
 //!     bms::{BmsWarning, default_config, command::channel::mapper::KeyLayoutBeat, parse_bms},
 //!     diagnostics::emit_bms_warnings,
@@ -22,8 +24,10 @@
 //!
 //! // Output all warnings
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);
+//! # }
 //! ```
 
+#[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
 /// Simple source container that holds the filename and source text.
@@ -103,6 +107,7 @@ impl<'a> SimpleSource<'a> {
 ///     let _ = report.print(("test.bms".to_string(), ariadne_source.clone()));
 /// }
 /// ```
+#[cfg(feature = "diagnostics")]
 pub trait ToAriadne {
     /// Convert error to ariadne Report.
     ///
@@ -118,6 +123,7 @@ pub trait ToAriadne {
 /// Helper to build a styled ariadne `Report` consistently.
 ///
 /// This reduces duplication across multiple `ToAriadne` implementations.
+#[cfg(feature = "diagnostics")]
 #[must_use]
 pub fn build_report<'a>(
     src: &SimpleSource<'a>,
@@ -162,6 +168,7 @@ pub fn build_report<'a>(
 /// * `name` - Name of the source file, used for display in diagnostic information
 /// * `source` - Complete BMS source text
 /// * `warnings` - List of warnings to display
+#[cfg(feature = "diagnostics")]
 pub fn emit_bms_warnings<'a>(
     name: &'a str,
     source: &'a str,

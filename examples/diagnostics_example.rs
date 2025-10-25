@@ -2,6 +2,8 @@
 //!
 //! This example shows how to use bms-rs's diagnostics functionality to parse BMS files and display beautiful diagnostic information.
 
+#![cfg(feature = "diagnostics")]
+
 use bms_rs::bms::prelude::*;
 
 fn main() {

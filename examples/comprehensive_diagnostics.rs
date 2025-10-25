@@ -2,6 +2,8 @@
 //!
 //! This example shows how to use bms-rs's diagnostics functionality to handle all types of warnings.
 
+#![cfg(feature = "diagnostics")]
+
 use bms_rs::bms::prelude::*;
 
 fn main() {

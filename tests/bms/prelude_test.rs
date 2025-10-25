@@ -100,22 +100,6 @@ fn test_prelude_imports() {
     // Test rng types
     let _rng_mock = RngMock::<1>([BigUint::from(1u32)]);
 
-    // Test diagnostics types
-    let _simple_source = SimpleSource::new("test.bms", "#TITLE Test");
-    let _bms_warning = BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined);
-
-    // Test diagnostics functionality
-    let source_text = "#TITLE Test\n#ARTIST Composer\n";
-    let source = SimpleSource::new("test.bms", source_text);
-    let warnings = vec![BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)];
-
-    // Test that diagnostics functions can be called
-    emit_bms_warnings("test.bms", source_text, &warnings);
-
-    // Test ToAriadne trait
-    let _report = _bms_warning.to_report(&source);
-    // Report is created successfully
-
     // Test that we can use the prelude types
     assert_eq!(_player_mode, PlayerMode::Single);
     assert_eq!(_judge_level, JudgeLevel::Normal);
@@ -169,4 +153,24 @@ fn test_prelude_minor_command_imports() {
     assert_eq!(_ex_wav_pan.value(), 0);
     assert_eq!(_ex_wav_volume.value(), 0);
     assert_eq!(_ex_wav_frequency.value(), 100);
+}
+
+#[test]
+#[cfg(feature = "diagnostics")]
+fn test_prelude_diagnostics_imports() {
+    // Test diagnostics types
+    let _simple_source = SimpleSource::new("test.bms", "#TITLE Test");
+    let _bms_warning = BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined);
+
+    // Test diagnostics functionality
+    let source_text = "#TITLE Test\n#ARTIST Composer\n";
+    let source = SimpleSource::new("test.bms", source_text);
+    let warnings = vec![BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)];
+
+    // Test that diagnostics functions can be called
+    emit_bms_warnings("test.bms", source_text, &warnings);
+
+    // Test ToAriadne trait
+    let _report = _bms_warning.to_report(&source);
+    // Report is created successfully
 }

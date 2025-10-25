@@ -8,7 +8,9 @@ pub mod prompt;
 pub mod token_processor;
 pub mod validity;
 
+#[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne};
+#[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind};
 
 use crate::bms::{
@@ -48,6 +50,7 @@ impl Bms {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 impl ToAriadne for ParseWarningWithRange {
     fn to_report<'a>(
         &self,

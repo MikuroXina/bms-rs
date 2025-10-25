@@ -10,10 +10,10 @@ use std::borrow::Cow;
 
 use thiserror::Error;
 
-use crate::{
-    bms::{command::mixin::SourceRangeMixin, prelude::Track},
-    diagnostics::{SimpleSource, ToAriadne},
-};
+use crate::bms::{command::mixin::SourceRangeMixin, prelude::Track};
+#[cfg(feature = "diagnostics")]
+use crate::diagnostics::{SimpleSource, ToAriadne};
+#[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind};
 
 use self::{
@@ -185,6 +185,7 @@ impl<'a> TokenRefStream<'a> {
     }
 }
 
+#[cfg(feature = "diagnostics")]
 impl ToAriadne for LexWarningWithRange {
     fn to_report<'a>(
         &self,

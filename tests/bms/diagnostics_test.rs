@@ -1,5 +1,7 @@
 //! Test diagnostics module functionality
 
+#![cfg(feature = "diagnostics")]
+
 use bms_rs::{
     bms::{BmsWarning, default_config, parse_bms},
     diagnostics::{SimpleSource, emit_bms_warnings},

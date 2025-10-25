@@ -14,7 +14,7 @@
 //! #[cfg(feature = "rand")]
 //! use bms_rs::bms::{BmsOutput, default_config, parse_bms};
 //! #[cfg(not(feature = "rand"))]
-//! use bms_rs::bms::{BmsOutput, ast::rng::RngMock, default_config_with_rng, parse_bms};
+//! use bms_rs::bms::{BmsOutput, rng::RngMock, default_config_with_rng, parse_bms};
 //! #[cfg(not(feature = "rand"))]
 //! use num::BigUint;
 //! use bms_rs::bms::{command::channel::mapper::KeyLayoutBeat, BmsWarning};
@@ -23,7 +23,7 @@
 //! #[cfg(feature = "rand")]
 //! let BmsOutput { bms, warnings } = parse_bms(&source, default_config()).expect("must be parsed");
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings } = parse_bms_with_rng(&source, default_config_with_rng(RngMock([BigUint::from(1u64)]))).expect("must be parsed");
+//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config_with_rng(RngMock([BigUint::from(1u64)]))).expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));

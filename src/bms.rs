@@ -31,8 +31,10 @@ pub mod unparse;
 
 use thiserror::Error;
 
+#[cfg(feature = "diagnostics")]
 use ariadne::{Label, Report, ReportKind};
 
+#[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
@@ -91,6 +93,19 @@ pub fn default_config()
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
+        use_minor: true,
+        use_relaxed: true,
+    }
+}
+
+/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
+/// This version is available when the `rand` feature is not enabled.
+#[cfg(not(feature = "rand"))]
+pub fn default_config() -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom> {
+    ParseConfig {
+        key_mapper: PhantomData,
+        prompter: AlwaysWarnAndUseNewer,
+        rng: rng::JavaRandom::default(),
         use_minor: true,
         use_relaxed: true,
     }
@@ -255,6 +270,7 @@ pub struct BmsOutput {
     pub warnings: Vec<BmsWarning>,
 }
 
+#[cfg(feature = "diagnostics")]
 impl ToAriadne for BmsWarning {
     fn to_report<'a>(
         &self,

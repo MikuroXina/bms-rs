@@ -35,3 +35,11 @@ chumsky = { version = "0.11.1", optional = true, features = ["serde"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
+
+[[example]]
+name = "diagnostics_example"
+required-features = ["diagnostics"]
+
+[[example]]
+name = "comprehensive_diagnostics"
+required-features = ["diagnostics"]
