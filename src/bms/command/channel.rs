@@ -45,21 +45,16 @@ pub enum Channel {
     /// For the note spacing change object.
     Speed,
     /// For the video seek object. `#SEEKxx n`
-    #[cfg(feature = "minor-command")]
     Seek,
     /// For the BGA LAYER2 object. `#BMPxx` (LAYER2 is layered over LAYER)
     BgaLayer2,
     /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
-    #[cfg(feature = "minor-command")]
     BgaBaseOpacity,
     /// For the opacity of BGA LAYER. transparent « [01-FF] » opaque
-    #[cfg(feature = "minor-command")]
     BgaLayerOpacity,
     /// For the opacity of BGA LAYER2. transparent « [01-FF] » opaque
-    #[cfg(feature = "minor-command")]
     BgaLayer2Opacity,
     /// For the opacity of BGA POOR. transparent « [01-FF] » opaque
-    #[cfg(feature = "minor-command")]
     BgaPoorOpacity,
     /// For the BGM volume. min 1 « [01-FF] » max 255 (= original sound)
     BgmVolume,
@@ -70,22 +65,16 @@ pub enum Channel {
     /// For the JUDGE object. `#EXRANKxx n` (100 corresponds to RANK:NORMAL. integer or decimal fraction)
     Judge,
     /// For the BGA BASE aRGB. `#ARGBxx a,r,g,b` (each [0-255])
-    #[cfg(feature = "minor-command")]
     BgaBaseArgb,
     /// For the BGA LAYER aRGB. `#ARGBxx`
-    #[cfg(feature = "minor-command")]
     BgaLayerArgb,
     /// For the BGA LAYER2 aRGB. `#ARGBxx`
-    #[cfg(feature = "minor-command")]
     BgaLayer2Argb,
     /// For the BGA POOR aRGB. `#ARGBxx`
-    #[cfg(feature = "minor-command")]
     BgaPoorArgb,
     /// For the BGA KEYBOUND. `#SWBGAxx`
-    #[cfg(feature = "minor-command")]
     BgaKeybound,
     /// For the OPTION. `#CHANGEOPTIONxx` (multiline)
-    #[cfg(feature = "minor-command")]
     OptionChange,
 }
 
@@ -104,32 +93,32 @@ impl std::fmt::Display for Channel {
             Self::Stop => write!(f, "STOP"),
             Self::Scroll => write!(f, "SCROLL"),
             Self::Speed => write!(f, "SPEED"),
-            #[cfg(feature = "minor-command")]
+
             Self::Seek => write!(f, "SEEK"),
             Self::BgaLayer2 => write!(f, "BGA_LAYER2"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaBaseOpacity => write!(f, "BGA_BASE_OPACITY"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaLayerOpacity => write!(f, "BGA_LAYER_OPACITY"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaLayer2Opacity => write!(f, "BGA_LAYER2_OPACITY"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaPoorOpacity => write!(f, "BGA_POOR_OPACITY"),
             Self::BgmVolume => write!(f, "BGM_VOLUME"),
             Self::KeyVolume => write!(f, "KEY_VOLUME"),
             Self::Text => write!(f, "TEXT"),
             Self::Judge => write!(f, "JUDGE"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaBaseArgb => write!(f, "BGA_BASE_ARGB"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaLayerArgb => write!(f, "BGA_LAYER_ARGB"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaLayer2Argb => write!(f, "BGA_LAYER2_ARGB"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaPoorArgb => write!(f, "BGA_POOR_ARGB"),
-            #[cfg(feature = "minor-command")]
+
             Self::BgaKeybound => write!(f, "BGA_KEYBOUND"),
-            #[cfg(feature = "minor-command")]
+
             Self::OptionChange => write!(f, "CHANGE_OPTION"),
         }
     }
@@ -289,36 +278,36 @@ impl TryFrom<NoteChannelId> for Channel {
             [b'0', b'2'] => Ok(Channel::SectionLen),
             [b'0', b'3'] => Ok(Channel::BpmChangeU8),
             [b'0', b'4'] => Ok(Channel::BgaBase),
-            #[cfg(feature = "minor-command")]
+
             [b'0', b'5'] => Ok(Channel::Seek),
             [b'0', b'6'] => Ok(Channel::BgaPoor),
             [b'0', b'7'] => Ok(Channel::BgaLayer),
             [b'0', b'8'] => Ok(Channel::BpmChange),
             [b'0', b'9'] => Ok(Channel::Stop),
             [b'0', b'A'] => Ok(Channel::BgaLayer2),
-            #[cfg(feature = "minor-command")]
+
             [b'0', b'B'] => Ok(Channel::BgaBaseOpacity),
-            #[cfg(feature = "minor-command")]
+
             [b'0', b'C'] => Ok(Channel::BgaLayerOpacity),
-            #[cfg(feature = "minor-command")]
+
             [b'0', b'D'] => Ok(Channel::BgaLayer2Opacity),
-            #[cfg(feature = "minor-command")]
+
             [b'0', b'E'] => Ok(Channel::BgaPoorOpacity),
             [b'9', b'7'] => Ok(Channel::BgmVolume),
             [b'9', b'8'] => Ok(Channel::KeyVolume),
             [b'9', b'9'] => Ok(Channel::Text),
             [b'A', b'0'] => Ok(Channel::Judge),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'1'] => Ok(Channel::BgaBaseArgb),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'2'] => Ok(Channel::BgaLayerArgb),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'3'] => Ok(Channel::BgaLayer2Argb),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'4'] => Ok(Channel::BgaPoorArgb),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'5'] => Ok(Channel::BgaKeybound),
-            #[cfg(feature = "minor-command")]
+
             [b'A', b'6'] => Ok(Channel::OptionChange),
             [b'S', b'C'] => Ok(Channel::Scroll),
             [b'S', b'P'] => Ok(Channel::Speed),
@@ -334,36 +323,36 @@ impl From<Channel> for NoteChannelId {
             Channel::SectionLen => Self([b'0', b'2']),
             Channel::BpmChangeU8 => Self([b'0', b'3']),
             Channel::BgaBase => Self([b'0', b'4']),
-            #[cfg(feature = "minor-command")]
+
             Channel::Seek => Self([b'0', b'5']),
             Channel::BgaPoor => Self([b'0', b'6']),
             Channel::BgaLayer => Self([b'0', b'7']),
             Channel::BpmChange => Self([b'0', b'8']),
             Channel::Stop => Self([b'0', b'9']),
             Channel::BgaLayer2 => Self([b'0', b'A']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaBaseOpacity => Self([b'0', b'B']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayerOpacity => Self([b'0', b'C']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayer2Opacity => Self([b'0', b'D']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaPoorOpacity => Self([b'0', b'E']),
             Channel::BgmVolume => Self([b'9', b'7']),
             Channel::KeyVolume => Self([b'9', b'8']),
             Channel::Text => Self([b'9', b'9']),
             Channel::Judge => Self([b'A', b'0']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaBaseArgb => Self([b'A', b'1']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayerArgb => Self([b'A', b'2']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaLayer2Argb => Self([b'A', b'3']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaPoorArgb => Self([b'A', b'4']),
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaKeybound => Self([b'A', b'5']),
-            #[cfg(feature = "minor-command")]
+
             Channel::OptionChange => Self([b'A', b'6']),
             Channel::Scroll => Self([b'S', b'C']),
             Channel::Speed => Self([b'S', b'P']),

@@ -8,7 +8,7 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
 pub use super::{
-    BmsOutput, BmsWarning, Decimal,
+    BmsOutput, BmsWarning, Decimal, ParseConfig,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
@@ -25,50 +25,45 @@ pub use super::{
             read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
+        minor_command::{
+            ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+            WavCmdParam,
+        },
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
-    default_preset, default_preset_with_prompter, default_preset_with_rng,
+    default_config, default_config_with_rng,
+    error::{ParseWarning, ParseWarningWithRange},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
         token::{Token, TokenWithRange},
     },
     model::{
-        Arrangers, Bms, Graphics, Header, Notes, Others, ScopeDefines,
-        def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+        Bms, Notes,
+        bmp::{AtBgaDef, BgaDef, Bmp},
+        judge::ExRankDef,
         obj::{
-            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
-            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj, WavObj,
+            BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
+            BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
+            SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
         },
+        wav::ExWavDef,
     },
     parse::{
-        ParseOutput, ParseWarning, ParseWarningWithRange,
+        ParseOutput,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-            DefDuplication, DuplicationWorkaround, Prompter,
+            DefDuplication, DuplicationWorkaround, PanicAndUseNewer, PanicAndUseOlder, Prompter,
         },
         token_processor::{common_preset, minor_preset, pedantic_preset},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
-    parse_bms, parse_bms_with_preset,
+    parse_bms,
     rng::{Rng, RngMock},
 };
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
 pub use super::rng::RandRng;
-
-// Re-export minor command types when feature is enabled
-#[cfg(feature = "minor-command")]
-pub use super::{
-    command::minor_command::{
-        ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
-        WavCmdParam,
-    },
-    model::{
-        def::ExWavDef,
-        obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
-    },
-};

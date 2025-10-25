@@ -55,7 +55,7 @@ fn demonstrate_integration() {
 "#;
 
     println!("   Parsing BMS file...");
-    let output = parse_bms::<KeyLayoutBeat>(bms_source).expect("must be parsed");
+    let output = parse_bms(bms_source, default_config()).expect("must be parsed");
 
     println!(
         "   Parsing completed, found {} warnings",

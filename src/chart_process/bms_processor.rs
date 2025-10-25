@@ -44,7 +44,7 @@ impl BmsProcessor {
     pub fn new<T: KeyLayoutMapper>(bms: Bms) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
-            .arrangers
+            .bpm
             .bpm
             .as_ref()
             .cloned()
@@ -83,7 +83,7 @@ impl BmsProcessor {
 
         // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
-            let y = Self::y_of_time_static(bms, obj.offset, &bms.arrangers.speed_factor_changes);
+            let y = Self::y_of_time_static(bms, obj.offset, &bms.speed.speed_factor_changes);
             let event = Self::event_for_note_static::<T>(bms, obj, y.clone());
 
             events_map
@@ -93,8 +93,8 @@ impl BmsProcessor {
         }
 
         // BPM change events
-        for change in bms.arrangers.bpm_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
+        for change in bms.bpm.bpm_changes.values() {
+            let y = Self::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
@@ -106,8 +106,8 @@ impl BmsProcessor {
         }
 
         // Scroll change events
-        for change in bms.arrangers.scrolling_factor_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
+        for change in bms.scroll.scrolling_factor_changes.values() {
+            let y = Self::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
@@ -119,8 +119,8 @@ impl BmsProcessor {
         }
 
         // Speed change events
-        for change in bms.arrangers.speed_factor_changes.values() {
-            let y = Self::y_of_time_static(bms, change.time, &bms.arrangers.speed_factor_changes);
+        for change in bms.speed.speed_factor_changes.values() {
+            let y = Self::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
@@ -132,8 +132,8 @@ impl BmsProcessor {
         }
 
         // Stop events
-        for stop in bms.arrangers.stops.values() {
-            let y = Self::y_of_time_static(bms, stop.time, &bms.arrangers.speed_factor_changes);
+        for stop in bms.stop.stops.values() {
+            let y = Self::y_of_time_static(bms, stop.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::Stop {
                 duration: stop.duration.clone(),
             };
@@ -145,8 +145,8 @@ impl BmsProcessor {
         }
 
         // BGA change events
-        for bga_obj in bms.graphics.bga_changes.values() {
-            let y = Self::y_of_time_static(bms, bga_obj.time, &bms.arrangers.speed_factor_changes);
+        for bga_obj in bms.bmp.bga_changes.values() {
+            let y = Self::y_of_time_static(bms, bga_obj.time, &bms.speed.speed_factor_changes);
             let bmp_index = bga_obj.id.as_u16() as usize;
             let event = ChartEvent::BgaChange {
                 layer: bga_obj.layer,
@@ -160,14 +160,11 @@ impl BmsProcessor {
         }
 
         // BGA opacity change events (requires minor-command feature)
-        #[cfg(feature = "minor-command")]
-        for (layer, opacity_changes) in &bms.graphics.bga_opacity_changes {
+
+        for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
-                let y = Self::y_of_time_static(
-                    bms,
-                    opacity_obj.time,
-                    &bms.arrangers.speed_factor_changes,
-                );
+                let y =
+                    Self::y_of_time_static(bms, opacity_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
@@ -181,11 +178,10 @@ impl BmsProcessor {
         }
 
         // BGA ARGB color change events (requires minor-command feature)
-        #[cfg(feature = "minor-command")]
-        for (layer, argb_changes) in &bms.graphics.bga_argb_changes {
+
+        for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
-                let y =
-                    Self::y_of_time_static(bms, argb_obj.time, &bms.arrangers.speed_factor_changes);
+                let y = Self::y_of_time_static(bms, argb_obj.time, &bms.speed.speed_factor_changes);
                 let argb = ((argb_obj.argb.alpha as u32) << 24)
                     | ((argb_obj.argb.red as u32) << 16)
                     | ((argb_obj.argb.green as u32) << 8)
@@ -203,12 +199,9 @@ impl BmsProcessor {
         }
 
         // BGM volume change events
-        for bgm_volume_obj in bms.notes.bgm_volume_changes.values() {
-            let y = Self::y_of_time_static(
-                bms,
-                bgm_volume_obj.time,
-                &bms.arrangers.speed_factor_changes,
-            );
+        for bgm_volume_obj in bms.volume.bgm_volume_changes.values() {
+            let y =
+                Self::y_of_time_static(bms, bgm_volume_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
             };
@@ -220,12 +213,9 @@ impl BmsProcessor {
         }
 
         // KEY volume change events
-        for key_volume_obj in bms.notes.key_volume_changes.values() {
-            let y = Self::y_of_time_static(
-                bms,
-                key_volume_obj.time,
-                &bms.arrangers.speed_factor_changes,
-            );
+        for key_volume_obj in bms.volume.key_volume_changes.values() {
+            let y =
+                Self::y_of_time_static(bms, key_volume_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
             };
@@ -237,8 +227,8 @@ impl BmsProcessor {
         }
 
         // Text display events
-        for text_obj in bms.notes.text_events.values() {
-            let y = Self::y_of_time_static(bms, text_obj.time, &bms.arrangers.speed_factor_changes);
+        for text_obj in bms.text.text_events.values() {
+            let y = Self::y_of_time_static(bms, text_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::TextDisplay {
                 text: text_obj.text.clone(),
             };
@@ -250,9 +240,8 @@ impl BmsProcessor {
         }
 
         // Judge level change events
-        for judge_obj in bms.notes.judge_events.values() {
-            let y =
-                Self::y_of_time_static(bms, judge_obj.time, &bms.arrangers.speed_factor_changes);
+        for judge_obj in bms.judge.judge_events.values() {
+            let y = Self::y_of_time_static(bms, judge_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
             };
@@ -264,12 +253,11 @@ impl BmsProcessor {
         }
 
         // Minor-command feature events
-        #[cfg(feature = "minor-command")]
+
         {
             // Video seek events
-            for seek_obj in bms.notes.seek_events.values() {
-                let y =
-                    Self::y_of_time_static(bms, seek_obj.time, &bms.arrangers.speed_factor_changes);
+            for seek_obj in bms.video.seek_events.values() {
+                let y = Self::y_of_time_static(bms, seek_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::VideoSeek {
                     seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
                 };
@@ -281,11 +269,11 @@ impl BmsProcessor {
             }
 
             // BGA key binding events
-            for bga_keybound_obj in bms.notes.bga_keybound_events.values() {
+            for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
                 let y = Self::y_of_time_static(
                     bms,
                     bga_keybound_obj.time,
-                    &bms.arrangers.speed_factor_changes,
+                    &bms.speed.speed_factor_changes,
                 );
                 let event = ChartEvent::BgaKeybound {
                     event: bga_keybound_obj.event.clone(),
@@ -298,12 +286,9 @@ impl BmsProcessor {
             }
 
             // Option change events
-            for option_obj in bms.notes.option_events.values() {
-                let y = Self::y_of_time_static(
-                    bms,
-                    option_obj.time,
-                    &bms.arrangers.speed_factor_changes,
-                );
+            for option_obj in bms.option.option_events.values() {
+                let y =
+                    Self::y_of_time_static(bms, option_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::OptionChange {
                     option: option_obj.option.clone(),
                 };
@@ -356,7 +341,7 @@ impl BmsProcessor {
                     0,
                     NonZeroU64::new(1).expect("1 should be a valid NonZeroU64"),
                 ),
-                &bms.arrangers.speed_factor_changes,
+                &bms.speed.speed_factor_changes,
             );
 
             if track_y <= max_y {
@@ -378,7 +363,7 @@ impl BmsProcessor {
         // Accumulate complete measures
         for t in 0..time.track().0 {
             let section_len = bms
-                .arrangers
+                .section_len
                 .section_len_changes
                 .get(&Track(t))
                 .map(|s| &s.length)
@@ -388,7 +373,7 @@ impl BmsProcessor {
         }
         // Accumulate proportionally within current measure
         let current_len = bms
-            .arrangers
+            .section_len
             .section_len_changes
             .get(&time.track())
             .map(|s| &s.length)
@@ -433,7 +418,7 @@ impl BmsProcessor {
                         let next_y = Self::y_of_time_static(
                             bms,
                             next_obj.offset,
-                            &bms.arrangers.speed_factor_changes,
+                            &bms.speed.speed_factor_changes,
                         );
                         YCoordinate::from(next_y - y.clone())
                     })
@@ -452,7 +437,7 @@ impl BmsProcessor {
     /// Get the length of specified Track (SectionLength), default 1.0
     fn section_length_of(&self, track: Track) -> Decimal {
         self.bms
-            .arrangers
+            .section_len
             .section_len_changes
             .get(&track)
             .map(|s| s.length.clone())
@@ -497,21 +482,21 @@ impl BmsProcessor {
         // Collect three event sources, find the minimum item with y greater than threshold
         let mut best: Option<(Decimal, FlowEvent)> = None;
 
-        for change in self.bms.arrangers.bpm_changes.values() {
+        for change in self.bms.bpm.bpm_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
                 let bpm = change.bpm.clone();
                 best = min_by_y_decimal(best, (y, FlowEvent::Bpm(bpm)));
             }
         }
-        for change in self.bms.arrangers.scrolling_factor_changes.values() {
+        for change in self.bms.scroll.scrolling_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
                 let factor = change.factor.clone();
                 best = min_by_y_decimal(best, (y, FlowEvent::Scroll(factor)));
             }
         }
-        for change in self.bms.arrangers.speed_factor_changes.values() {
+        for change in self.bms.speed.speed_factor_changes.values() {
             let y = self.y_of_time(change.time);
             if y > y_from_exclusive {
                 let factor = change.factor.clone();
@@ -608,7 +593,7 @@ impl BmsProcessor {
 impl ChartProcessor for BmsProcessor {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
         self.bms
-            .notes
+            .wav
             .wav_files
             .iter()
             .map(|(obj_id, path)| (WavId::from(obj_id.as_u16() as usize), path.as_path()))
@@ -617,7 +602,7 @@ impl ChartProcessor for BmsProcessor {
 
     fn bmp_files(&self) -> HashMap<BmpId, &Path> {
         self.bms
-            .graphics
+            .bmp
             .bmp_files
             .iter()
             .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.as_path()))
@@ -646,7 +631,7 @@ impl ChartProcessor for BmsProcessor {
         // Initialize current_bpm to header or default
         self.current_bpm = self
             .bms
-            .arrangers
+            .bpm
             .bpm
             .as_ref()
             .cloned()

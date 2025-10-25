@@ -25,55 +25,40 @@ impl Bms {
 
         // Add ObjIds from definition tokens that are not covered by managers
         // ExWav definitions
-        #[cfg(feature = "minor-command")]
-        base62_checker.check(self.scope_defines.exwav_defs.keys().copied());
+
+        base62_checker.check(self.wav.exwav_defs.keys().copied());
 
         // WavCmd events (use wav_index ObjId)
-        #[cfg(feature = "minor-command")]
-        base62_checker.check(
-            self.scope_defines
-                .wavcmd_events
-                .values()
-                .map(|ev| ev.wav_index),
-        );
+
+        base62_checker.check(self.wav.wavcmd_events.values().map(|ev| ev.wav_index));
 
         // AtBga definitions (use both id and source_bmp ObjIds)
-        #[cfg(feature = "minor-command")]
+
         {
-            base62_checker.check(self.scope_defines.atbga_defs.keys().copied());
-            base62_checker.check(
-                self.scope_defines
-                    .atbga_defs
-                    .values()
-                    .map(|def| def.source_bmp),
-            );
+            base62_checker.check(self.bmp.atbga_defs.keys().copied());
+            base62_checker.check(self.bmp.atbga_defs.values().map(|def| def.source_bmp));
         }
 
         // Bga definitions (use both id and source_bmp ObjIds)
-        #[cfg(feature = "minor-command")]
+
         {
-            base62_checker.check(self.scope_defines.bga_defs.keys().copied());
-            base62_checker.check(
-                self.scope_defines
-                    .bga_defs
-                    .values()
-                    .map(|def| def.source_bmp),
-            );
+            base62_checker.check(self.bmp.bga_defs.keys().copied());
+            base62_checker.check(self.bmp.bga_defs.values().map(|def| def.source_bmp));
         }
 
         // Argb definitions
-        #[cfg(feature = "minor-command")]
-        base62_checker.check(self.scope_defines.argb_defs.keys().copied());
+
+        base62_checker.check(self.bmp.argb_defs.keys().copied());
 
         // SwBga events
-        #[cfg(feature = "minor-command")]
-        base62_checker.check(self.scope_defines.swbga_events.keys().copied());
+
+        base62_checker.check(self.bmp.swbga_events.keys().copied());
 
         // Wav resource files
-        base62_checker.check(self.notes.wav_files.keys().copied());
+        base62_checker.check(self.wav.wav_files.keys().copied());
 
         // Bmp/ExBmp resource files
-        base62_checker.check(self.graphics.bmp_files.keys().copied());
+        base62_checker.check(self.bmp.bmp_files.keys().copied());
 
         // Add Base62 token if needed
         if base62_checker.into_using_base62() {
@@ -87,160 +72,158 @@ impl Bms {
     }
 
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
-        #[cfg(feature = "minor-command")]
-        {
-            // Options
-            if let Some(options) = self.others.options.as_ref() {
-                for option in options {
-                    tokens.push(Token::Header {
-                        name: "OPTION".into(),
-                        args: option.into(),
-                    });
-                }
-            }
-            // Octave mode
-            if self.others.is_octave {
+        // Options
+        if let Some(options) = self.option.options.as_ref() {
+            for option in options {
                 tokens.push(Token::Header {
-                    name: "OCT/FP".into(),
-                    args: "".into(),
-                });
-            }
-            // CDDA events
-            for cdda in &self.others.cdda {
-                tokens.push(Token::Header {
-                    name: "CDDA".into(),
-                    args: cdda.to_string().into(),
-                });
-            }
-            // Extended character events
-            for ExtChrEvent {
-                sprite_num,
-                bmp_num,
-                start_x,
-                start_y,
-                end_x,
-                end_y,
-                offset_x,
-                offset_y,
-                abs_x,
-                abs_y,
-            } in &self.others.extchr_events
-            {
-                use itertools::Itertools;
-
-                let buf = [sprite_num, bmp_num, start_x, start_y, end_x, end_y]
-                    .into_iter()
-                    .copied()
-                    .chain(
-                        offset_x
-                            .zip(*offset_y)
-                            .map(Into::<[i32; 2]>::into)
-                            .into_iter()
-                            .flatten(),
-                    )
-                    .chain(
-                        abs_x
-                            .zip(*abs_y)
-                            .map(Into::<[i32; 2]>::into)
-                            .into_iter()
-                            .flatten(),
-                    )
-                    .join(" ");
-                tokens.push(Token::Header {
-                    name: "EXTCHR".into(),
-                    args: buf.into(),
-                });
-            }
-            // Change options
-            for (id, option) in &self.others.change_options {
-                tokens.push(Token::Header {
-                    name: format!("CHANGEOPTION{id}").into(),
-                    args: option.as_str().into(),
-                });
-            }
-            // Divide property
-            if let Some(divide_prop) = self.others.divide_prop.as_ref() {
-                tokens.push(Token::Header {
-                    name: "DIVIDEPROP".into(),
-                    args: divide_prop.as_str().into(),
-                });
-            }
-            // Materials path
-            if let Some(materials_path) = self.others.materials_path.as_ref()
-                && !materials_path.as_path().as_os_str().is_empty()
-            {
-                tokens.push(Token::Header {
-                    name: "MATERIALS".into(),
-                    args: materials_path.display().to_string().into(),
+                    name: "OPTION".into(),
+                    args: option.into(),
                 });
             }
         }
-        for line in &self.others.non_command_lines {
+        // Octave mode
+        if self.metadata.is_octave {
+            tokens.push(Token::Header {
+                name: "OCT/FP".into(),
+                args: "".into(),
+            });
+        }
+        // CDDA events
+        for cdda in &self.resources.cdda {
+            tokens.push(Token::Header {
+                name: "CDDA".into(),
+                args: cdda.to_string().into(),
+            });
+        }
+        // Extended character events
+        for ExtChrEvent {
+            sprite_num,
+            bmp_num,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            offset_x,
+            offset_y,
+            abs_x,
+            abs_y,
+        } in &self.sprite.extchr_events
+        {
+            use itertools::Itertools;
+
+            let buf = [sprite_num, bmp_num, start_x, start_y, end_x, end_y]
+                .into_iter()
+                .copied()
+                .chain(
+                    offset_x
+                        .zip(*offset_y)
+                        .map(Into::<[i32; 2]>::into)
+                        .into_iter()
+                        .flatten(),
+                )
+                .chain(
+                    abs_x
+                        .zip(*abs_y)
+                        .map(Into::<[i32; 2]>::into)
+                        .into_iter()
+                        .flatten(),
+                )
+                .join(" ");
+            tokens.push(Token::Header {
+                name: "EXTCHR".into(),
+                args: buf.into(),
+            });
+        }
+        // Change options
+        for (id, option) in &self.option.change_options {
+            tokens.push(Token::Header {
+                name: format!("CHANGEOPTION{id}").into(),
+                args: option.as_str().into(),
+            });
+        }
+        // Divide property
+        if let Some(divide_prop) = self.metadata.divide_prop.as_ref() {
+            tokens.push(Token::Header {
+                name: "DIVIDEPROP".into(),
+                args: divide_prop.as_str().into(),
+            });
+        }
+        // Materials path
+        if let Some(materials_path) = self.resources.materials_path.as_ref()
+            && !materials_path.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "MATERIALS".into(),
+                args: materials_path.display().to_string().into(),
+            });
+        }
+
+        for line in &self.repr.non_command_lines {
             tokens.push(Token::NotACommand(line.as_str()));
         }
 
         // Header
-        if let Some(player) = self.header.player {
+        if let Some(player) = self.metadata.player {
             tokens.push(Token::Header {
                 name: "PLAYER".into(),
                 args: player.to_string().into(),
             });
         }
-        if let Some(maker) = self.header.maker.as_deref() {
+        if let Some(maker) = self.music_info.maker.as_deref() {
             tokens.push(Token::Header {
                 name: "MAKER".into(),
                 args: maker.into(),
             });
         }
-        if let Some(genre) = self.header.genre.as_deref() {
+        if let Some(genre) = self.music_info.genre.as_deref() {
             tokens.push(Token::Header {
                 name: "GENRE".into(),
                 args: genre.into(),
             });
         }
-        if let Some(title) = self.header.title.as_deref() {
+        if let Some(title) = self.music_info.title.as_deref() {
             tokens.push(Token::Header {
                 name: "TITLE".into(),
                 args: title.into(),
             });
         }
-        if let Some(artist) = self.header.artist.as_deref() {
+        if let Some(artist) = self.music_info.artist.as_deref() {
             tokens.push(Token::Header {
                 name: "ARTIST".into(),
                 args: artist.into(),
             });
         }
-        if let Some(sub_artist) = self.header.sub_artist.as_deref() {
+        if let Some(sub_artist) = self.music_info.sub_artist.as_deref() {
             tokens.push(Token::Header {
                 name: "SUBARTIST".into(),
                 args: sub_artist.into(),
             });
         }
-        if let Some(bpm) = self.arrangers.bpm.as_ref() {
+        if let Some(bpm) = self.bpm.bpm.as_ref() {
             tokens.push(Token::Header {
                 name: "BPM".into(),
                 args: bpm.to_string().into(),
             });
         }
-        if let Some(play_level) = self.header.play_level {
+        if let Some(play_level) = self.metadata.play_level {
             tokens.push(Token::Header {
                 name: "PLAYLEVEL".into(),
                 args: play_level.to_string().into(),
             });
         }
-        if let Some(rank) = self.header.rank {
+        if let Some(rank) = self.judge.rank {
             tokens.push(Token::Header {
                 name: "RANK".into(),
                 args: rank.to_string().into(),
             });
         }
-        if let Some(subtitle) = self.header.subtitle.as_deref() {
+        if let Some(subtitle) = self.music_info.subtitle.as_deref() {
             tokens.push(Token::Header {
                 name: "SUBTITLE".into(),
                 args: subtitle.into(),
             });
         }
-        if let Some(stage_file) = self.header.stage_file.as_ref()
+        if let Some(stage_file) = self.sprite.stage_file.as_ref()
             && !stage_file.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -248,7 +231,7 @@ impl Bms {
                 args: stage_file.display().to_string().into(),
             });
         }
-        if let Some(back_bmp) = self.header.back_bmp.as_ref()
+        if let Some(back_bmp) = self.sprite.back_bmp.as_ref()
             && !back_bmp.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -256,7 +239,7 @@ impl Bms {
                 args: back_bmp.display().to_string().into(),
             });
         }
-        if let Some(banner) = self.header.banner.as_ref()
+        if let Some(banner) = self.sprite.banner.as_ref()
             && !banner.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -264,13 +247,13 @@ impl Bms {
                 args: banner.display().to_string().into(),
             });
         }
-        if let Some(difficulty) = self.header.difficulty {
+        if let Some(difficulty) = self.metadata.difficulty {
             tokens.push(Token::Header {
                 name: "DIFFICULTY".into(),
                 args: difficulty.to_string().into(),
             });
         }
-        if let Some(preview) = self.header.preview_music.as_ref()
+        if let Some(preview) = self.music_info.preview_music.as_ref()
             && !preview.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -278,7 +261,7 @@ impl Bms {
                 args: preview.display().to_string().into(),
             });
         }
-        if let Some(movie) = self.header.movie.as_ref()
+        if let Some(movie) = self.video.video_file.as_ref()
             && !movie.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -286,24 +269,24 @@ impl Bms {
                 args: movie.display().to_string().into(),
             });
         }
-        if let Some(comment_lines) = self.header.comment.as_ref() {
+        if let Some(comment_lines) = self.music_info.comment.as_ref() {
             for line in comment_lines {
                 tokens.push(Token::NotACommand(line.as_str()));
             }
         }
-        if let Some(total) = self.header.total.as_ref() {
+        if let Some(total) = self.judge.total.as_ref() {
             tokens.push(Token::Header {
                 name: "TOTAL".into(),
                 args: total.to_string().into(),
             });
         }
-        if let Some(email) = self.header.email.as_deref() {
+        if let Some(email) = self.metadata.email.as_deref() {
             tokens.push(Token::Header {
                 name: "EMAIL".into(),
                 args: email.into(),
             });
         }
-        if let Some(url) = self.header.url.as_deref() {
+        if let Some(url) = self.metadata.url.as_deref() {
             tokens.push(Token::Header {
                 name: "URL".into(),
                 args: url.into(),
@@ -311,22 +294,22 @@ impl Bms {
         }
 
         // LnType
-        if self.header.ln_type == LnType::Mgq {
+        if self.repr.ln_type == LnType::Mgq {
             tokens.push(Token::Header {
                 name: "LNTYPE".into(),
                 args: "2".into(),
             });
         }
         // LnMode
-        if self.header.ln_mode != LnMode::default() {
+        if self.repr.ln_mode != LnMode::default() {
             tokens.push(Token::Header {
                 name: "LNMODE".into(),
-                args: (self.header.ln_mode as u8).to_string().into(),
+                args: (self.repr.ln_mode as u8).to_string().into(),
             });
         }
 
         tokens.extend(
-            self.notes
+            self.wav
                 .wav_files
                 .iter()
                 .filter(|(_, path)| !path.as_path().as_os_str().is_empty())
@@ -344,17 +327,17 @@ impl Bms {
         );
 
         // PoorBga mode
-        #[cfg(feature = "minor-command")]
-        if self.graphics.poor_bga_mode != PoorMode::default() {
+
+        if self.bmp.poor_bga_mode != PoorMode::default() {
             tokens.push(Token::Header {
                 name: "POORBGA".into(),
-                args: self.graphics.poor_bga_mode.as_str().into(),
+                args: self.bmp.poor_bga_mode.as_str().into(),
             });
         }
 
         // Add basic definitions
-        #[cfg(feature = "minor-command")]
-        if let Some(base_bpm) = self.arrangers.base_bpm.as_ref() {
+
+        if let Some(base_bpm) = self.bpm.base_bpm.as_ref() {
             tokens.push(Token::Header {
                 name: "BASEBPM".into(),
                 args: base_bpm.to_string().into(),
@@ -362,7 +345,7 @@ impl Bms {
         }
 
         tokens.extend(
-            self.scope_defines
+            self.bpm
                 .bpm_defs
                 .iter()
                 .map(|(id, v)| {
@@ -387,7 +370,7 @@ impl Bms {
         // Definitions in scope (existing ones first)
         // Use iterator chains to efficiently collect all definition tokens
         tokens.extend(
-            self.scope_defines
+            self.stop
                 .stop_defs
                 .iter()
                 .map(|(id, v)| {
@@ -403,10 +386,9 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
         tokens.extend(
-            self.others
-                .seek_events
+            self.video
+                .seek_defs
                 .iter()
                 .map(|(id, v)| {
                     (
@@ -422,7 +404,7 @@ impl Bms {
         );
 
         tokens.extend(
-            self.scope_defines
+            self.scroll
                 .scroll_defs
                 .iter()
                 .map(|(id, v)| {
@@ -439,7 +421,7 @@ impl Bms {
         );
 
         tokens.extend(
-            self.scope_defines
+            self.speed
                 .speed_defs
                 .iter()
                 .map(|(id, v)| {
@@ -456,7 +438,7 @@ impl Bms {
         );
 
         tokens.extend(
-            self.others
+            self.text
                 .texts
                 .iter()
                 .map(|(id, text)| {
@@ -473,7 +455,7 @@ impl Bms {
         );
 
         tokens.extend(
-            self.scope_defines
+            self.judge
                 .exrank_defs
                 .iter()
                 .map(|(id, exrank)| {
@@ -489,10 +471,9 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
         {
             tokens.extend(
-                self.scope_defines
+                self.wav
                     .exwav_defs
                     .iter()
                     .map(|(id, def)| {
@@ -528,7 +509,7 @@ impl Bms {
             );
 
             // wavcmd_events should be sorted by wav_index for consistent output
-            let mut wavcmd_events: Vec<_> = self.scope_defines.wavcmd_events.values().collect();
+            let mut wavcmd_events: Vec<_> = self.wav.wavcmd_events.values().collect();
             wavcmd_events.sort_by_key(|ev| ev.wav_index);
             tokens.extend(wavcmd_events.into_iter().map(|ev| Token::Header {
                 name: "WAVCMD".into(),
@@ -536,7 +517,7 @@ impl Bms {
             }));
 
             tokens.extend(
-                self.scope_defines
+                self.bmp
                     .atbga_defs
                     .iter()
                     .map(|(id, def)| {
@@ -563,7 +544,7 @@ impl Bms {
             );
 
             tokens.extend(
-                self.scope_defines
+                self.bmp
                     .bga_defs
                     .iter()
                     .map(|(id, def)| {
@@ -590,7 +571,7 @@ impl Bms {
             );
 
             tokens.extend(
-                self.scope_defines
+                self.bmp
                     .argb_defs
                     .iter()
                     .map(
@@ -617,7 +598,7 @@ impl Bms {
             );
 
             // SWBGA events, sorted by ObjId for consistent output
-            let mut swbga_events: Vec<_> = self.scope_defines.swbga_events.iter().collect();
+            let mut swbga_events: Vec<_> = self.bmp.swbga_events.iter().collect();
             swbga_events.sort_by_key(|(id, _)| *id);
             tokens.extend(
                 swbga_events
@@ -636,16 +617,15 @@ impl Bms {
     fn unparse_resource_tokens<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
         // Resources - Use iterator chains to efficiently collect resource tokens
         // Add basic resource tokens
-        if let Some(path_root) = self.notes.wav_path_root.as_ref() {
+        if let Some(path_root) = self.metadata.wav_path_root.as_ref() {
             tokens.push(Token::Header {
                 name: "PATH_WAV".into(),
                 args: path_root.display().to_string().into(),
             });
         }
 
-        #[cfg(feature = "minor-command")]
         {
-            if let Some(midi_file) = self.notes.midi_file.as_ref()
+            if let Some(midi_file) = self.resources.midi_file.as_ref()
                 && !midi_file.as_path().as_os_str().is_empty()
             {
                 tokens.push(Token::Header {
@@ -653,7 +633,7 @@ impl Bms {
                     args: midi_file.display().to_string().into(),
                 });
             }
-            if let Some(materials_wav) = self.notes.materials_wav.first()
+            if let Some(materials_wav) = self.resources.materials_wav.first()
                 && !materials_wav.as_path().as_os_str().is_empty()
             {
                 tokens.push(Token::Header {
@@ -663,7 +643,7 @@ impl Bms {
             }
         }
 
-        if let Some(video_file) = self.graphics.video_file.as_ref()
+        if let Some(video_file) = self.video.video_file.as_ref()
             && !video_file.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -672,27 +652,26 @@ impl Bms {
             });
         }
 
-        #[cfg(feature = "minor-command")]
         {
-            if let Some(colors) = self.graphics.video_colors {
+            if let Some(colors) = self.video.video_colors {
                 tokens.push(Token::Header {
                     name: "VIDEOCOLORS".into(),
                     args: colors.to_string().into(),
                 });
             }
-            if let Some(delay) = self.graphics.video_dly.as_ref() {
+            if let Some(delay) = self.video.video_dly.as_ref() {
                 tokens.push(Token::Header {
                     name: "VIDEODLY".into(),
                     args: delay.to_string().into(),
                 });
             }
-            if let Some(fps) = self.graphics.video_fs.as_ref() {
+            if let Some(fps) = self.video.video_fs.as_ref() {
                 tokens.push(Token::Header {
                     name: "VIDEOF/S".into(),
                     args: fps.to_string().into(),
                 });
             }
-            if let Some(char_file) = self.graphics.char_file.as_ref()
+            if let Some(char_file) = self.sprite.char_file.as_ref()
                 && !char_file.as_path().as_os_str().is_empty()
             {
                 tokens.push(Token::Header {
@@ -700,7 +679,7 @@ impl Bms {
                     args: char_file.display().to_string().into(),
                 });
             }
-            if let Some(materials_bmp) = self.graphics.materials_bmp.first()
+            if let Some(materials_bmp) = self.resources.materials_bmp.first()
                 && !materials_bmp.as_path().as_os_str().is_empty()
             {
                 tokens.push(Token::Header {
@@ -711,10 +690,10 @@ impl Bms {
         }
 
         // VolWav as an expansion command
-        if self.header.volume != Volume::default() {
+        if self.volume.volume != Volume::default() {
             tokens.push(Token::Header {
                 name: "VOLWAV".into(),
-                args: self.header.volume.relative_percent.to_string().into(),
+                args: self.volume.volume.relative_percent.to_string().into(),
             });
         }
     }
@@ -730,7 +709,7 @@ impl Bms {
 
         // Messages: Section length - Use iterator chain to collect tokens (sorted by track for consistent output)
         let mut section_len_tokens: Vec<_> = self
-            .arrangers
+            .section_len
             .section_len_changes
             .values()
             .map(|obj| Token::Message {
@@ -747,49 +726,33 @@ impl Bms {
 
         // Helper closures for mapping definitions
 
-        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> = self
-            .scope_defines
-            .bpm_defs
-            .iter()
-            .map(|(k, v)| (v, *k))
-            .collect();
-        let stop_value_to_id: HashMap<&'a Decimal, ObjId> = self
-            .scope_defines
-            .stop_defs
-            .iter()
-            .map(|(k, v)| (v, *k))
-            .collect();
+        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> =
+            self.bpm.bpm_defs.iter().map(|(k, v)| (v, *k)).collect();
+        let stop_value_to_id: HashMap<&'a Decimal, ObjId> =
+            self.stop.stop_defs.iter().map(|(k, v)| (v, *k)).collect();
         let scroll_value_to_id: HashMap<&'a Decimal, ObjId> = self
-            .scope_defines
+            .scroll
             .scroll_defs
             .iter()
             .map(|(k, v)| (v, *k))
             .collect();
-        let speed_value_to_id: HashMap<&'a Decimal, ObjId> = self
-            .scope_defines
-            .speed_defs
-            .iter()
-            .map(|(k, v)| (v, *k))
-            .collect();
+        let speed_value_to_id: HashMap<&'a Decimal, ObjId> =
+            self.speed.speed_defs.iter().map(|(k, v)| (v, *k)).collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
-            .others
+            .text
             .texts
             .iter()
             .map(|(k, v)| (v.as_str(), *k))
             .collect();
         let exrank_value_to_id: HashMap<&'a JudgeLevel, ObjId> = self
-            .scope_defines
+            .judge
             .exrank_defs
             .iter()
             .map(|(k, v)| (&v.judge_level, *k))
             .collect();
-        #[cfg(feature = "minor-command")]
-        let seek_value_to_id: HashMap<&'a Decimal, ObjId> = self
-            .others
-            .seek_events
-            .iter()
-            .map(|(k, v)| (v, *k))
-            .collect();
+
+        let seek_value_to_id: HashMap<&'a Decimal, ObjId> =
+            self.video.seek_defs.iter().map(|(k, v)| (v, *k)).collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
         let mut bpm_message_tokens = Vec::new();
@@ -799,7 +762,7 @@ impl Bms {
             message_tokens: bpm_u8_message_tokens,
             ..
         } = build_event_messages(
-            self.arrangers.bpm_changes_u8.iter(),
+            self.bpm.bpm_changes_u8.iter(),
             None::<(
                 fn(ObjId, &()) -> Token,
                 fn(&_) -> &(),
@@ -822,7 +785,7 @@ impl Bms {
             message_tokens: other_message_tokens,
             ..
         } = build_event_messages(
-            self.arrangers.bpm_changes.iter(),
+            self.bpm.bpm_changes.iter(),
             Some((
                 |id, bpm: &Decimal| Token::Header {
                     name: format!("BPM{id}").into(),
@@ -853,7 +816,7 @@ impl Bms {
             message_tokens: stop_message_tokens,
             ..
         } = build_event_messages(
-            self.arrangers.stops.iter(),
+            self.stop.stops.iter(),
             Some((
                 |id, duration: &Decimal| Token::Header {
                     name: format!("STOP{id}").into(),
@@ -880,7 +843,7 @@ impl Bms {
             message_tokens: scroll_message_tokens,
             ..
         } = build_event_messages(
-            self.arrangers.scrolling_factor_changes.iter(),
+            self.scroll.scrolling_factor_changes.iter(),
             Some((
                 |id, factor: &Decimal| Token::Header {
                     name: format!("SCROLL{id}").into(),
@@ -907,7 +870,7 @@ impl Bms {
             message_tokens: speed_message_tokens,
             ..
         } = build_event_messages(
-            self.arrangers.speed_factor_changes.iter(),
+            self.speed.speed_factor_changes.iter(),
             Some((
                 |id, factor: &Decimal| Token::Header {
                     name: format!("SPEED{id}").into(),
@@ -926,10 +889,9 @@ impl Bms {
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
-        #[cfg(feature = "minor-command")]
         {
             // STP events, sorted by time for consistent output
-            let mut stp_events: Vec<_> = self.arrangers.stp_events.values().collect();
+            let mut stp_events: Vec<_> = self.stop.stp_events.values().collect();
             stp_events.sort_by_key(|ev| ev.time);
             tokens.extend(stp_events.into_iter().map(|ev| {
                 Token::Header {
@@ -950,7 +912,7 @@ impl Bms {
             message_tokens: bga_message_tokens,
             ..
         } = build_event_messages(
-            self.graphics.bga_changes.iter(),
+            self.bmp.bga_changes.iter(),
             None::<(
                 fn(ObjId, &'a ()) -> Token<'a>,
                 fn(&_) -> &'a (),
@@ -965,10 +927,9 @@ impl Bms {
         );
         message_tokens.extend(bga_message_tokens);
 
-        #[cfg(feature = "minor-command")]
         {
             // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
-            for (layer, opacity_changes) in &self.graphics.bga_opacity_changes {
+            for (layer, opacity_changes) in &self.bmp.bga_opacity_changes {
                 let EventProcessingResult {
                     message_tokens: opacity_message_tokens,
                     ..
@@ -995,7 +956,7 @@ impl Bms {
             }
 
             // Messages: BGA ARGB changes (#xxxA1/#xxxA2/#xxxA3/#xxxA4)
-            for (layer, argb_changes) in &self.graphics.bga_argb_changes {
+            for (layer, argb_changes) in &self.bmp.bga_argb_changes {
                 let EventProcessingResult {
                     message_tokens: argb_message_tokens,
                     ..
@@ -1029,7 +990,8 @@ impl Bms {
             message_tokens: notes_message_tokens,
             ..
         } = build_event_messages(
-            self.notes
+            self.wav
+                .notes
                 .all_notes_insertion_order()
                 .map(|obj| (&obj.offset, obj)),
             None::<(
@@ -1059,7 +1021,7 @@ impl Bms {
             message_tokens: bgm_volume_message_tokens,
             ..
         } = build_event_messages(
-            self.notes.bgm_volume_changes.iter(),
+            self.volume.bgm_volume_changes.iter(),
             None::<(
                 fn(ObjId, &'a ()) -> Token<'a>,
                 fn(&_) -> &'a (),
@@ -1079,7 +1041,7 @@ impl Bms {
             message_tokens: key_volume_message_tokens,
             ..
         } = build_event_messages(
-            self.notes.key_volume_changes.iter(),
+            self.volume.key_volume_changes.iter(),
             None::<(
                 fn(ObjId, &'a ()) -> Token<'a>,
                 fn(&_) -> &'a (),
@@ -1102,7 +1064,7 @@ impl Bms {
             message_tokens: text_message_tokens,
             ..
         } = build_event_messages(
-            self.notes.text_events.iter(),
+            self.text.text_events.iter(),
             Some((
                 |id, text: &'a str| Token::Header {
                     name: format!("TEXT{id}").into(),
@@ -1128,7 +1090,7 @@ impl Bms {
             message_tokens: judge_message_tokens,
             ..
         } = build_event_messages(
-            self.notes.judge_events.iter(),
+            self.judge.judge_events.iter(),
             Some((
                 |id, judge_level: &JudgeLevel| Token::Header {
                     name: format!("EXRANK{id}").into(),
@@ -1147,7 +1109,7 @@ impl Bms {
         late_def_tokens.extend(judge_late_def_tokens);
         message_tokens.extend(judge_message_tokens);
 
-        if let Some(poor_bmp) = self.graphics.poor_bmp.as_ref()
+        if let Some(poor_bmp) = self.bmp.poor_bmp.as_ref()
             && !poor_bmp.as_path().as_os_str().is_empty()
         {
             tokens.push(Token::Header {
@@ -1157,7 +1119,7 @@ impl Bms {
         }
 
         tokens.extend(
-            self.graphics
+            self.bmp
                 .bmp_files
                 .iter()
                 .filter(|(_, bmp)| !bmp.file.as_path().as_os_str().is_empty())
@@ -1189,7 +1151,6 @@ impl Bms {
                 .into_values(),
         );
 
-        #[cfg(feature = "minor-command")]
         {
             // Messages: SEEK (#xxx05)
             let mut seek_manager =
@@ -1199,7 +1160,7 @@ impl Bms {
                 message_tokens: seek_message_tokens,
                 ..
             } = build_event_messages(
-                self.notes.seek_events.iter(),
+                self.video.seek_events.iter(),
                 Some((
                     |id, position: &Decimal| Token::Header {
                         name: format!("SEEK{id}").into(),
@@ -1224,7 +1185,7 @@ impl Bms {
                 message_tokens: bga_keybound_message_tokens,
                 ..
             } = build_event_messages(
-                self.notes.bga_keybound_events.iter(),
+                self.bmp.bga_keybound_events.iter(),
                 None::<(
                     fn(ObjId, &'a ()) -> Token<'a>,
                     fn(&_) -> &'a (),
@@ -1244,7 +1205,7 @@ impl Bms {
                 message_tokens: option_message_tokens,
                 ..
             } = build_event_messages(
-                self.notes.option_events.iter(),
+                self.option.option_events.iter(),
                 None::<(
                     fn(ObjId, &'a ()) -> Token<'a>,
                     fn(&_) -> &'a (),

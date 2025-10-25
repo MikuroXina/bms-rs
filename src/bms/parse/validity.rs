@@ -132,29 +132,29 @@ impl Bms {
     fn check_missing(&self) -> Vec<ValidityMissing> {
         let mut missing = vec![];
         // 1) Check notes reference valid WAV ids.
-        for obj_id in self.notes.all_notes().map(|obj| &obj.wav_id) {
-            if !self.notes.wav_files.contains_key(obj_id) {
+        for obj_id in self.wav.notes.all_notes().map(|obj| &obj.wav_id) {
+            if !self.wav.wav_files.contains_key(obj_id) {
                 missing.push(ValidityMissing::WavForNote(*obj_id));
             }
         }
 
         // 2) Check BGAs reference valid BMP ids.
-        for bga_obj in self.graphics.bga_changes().values() {
-            if !self.graphics.bmp_files.contains_key(&bga_obj.id) {
+        for bga_obj in self.bmp.bga_changes.values() {
+            if !self.bmp.bmp_files.contains_key(&bga_obj.id) {
                 missing.push(ValidityMissing::BmpForBga(bga_obj.id));
             }
         }
 
         // 3) Check BPM change ids used in messages have corresponding #BPMxx definitions.
-        for id in &self.arrangers.bpm_change_ids_used {
-            if !self.scope_defines.bpm_defs.contains_key(id) {
+        for id in &self.bpm.bpm_change_ids_used {
+            if !self.bpm.bpm_defs.contains_key(id) {
                 missing.push(ValidityMissing::BpmChangeDef(*id));
             }
         }
 
         // 4) Check STOP ids used in messages have corresponding #STOPxx definitions.
-        for id in &self.arrangers.stop_ids_used {
-            if !self.scope_defines.stop_defs.contains_key(id) {
+        for id in &self.stop.stop_ids_used {
+            if !self.stop.stop_defs.contains_key(id) {
                 missing.push(ValidityMissing::StopDef(*id));
             }
         }
@@ -171,7 +171,7 @@ impl Bms {
         //      - Overlap: landmine vs single (same time, same lane)
         //      - Overlap: landmine within long interval -> warn once at long start
         let mut lane_to_notes: HashMap<Key, Vec<&WavObj>> = HashMap::new();
-        for obj in self.notes.all_notes() {
+        for obj in self.wav.notes.all_notes() {
             // Visible note in section 000 (track index 0)
             let Some(map) = KeyLayoutBeat::from_channel_id(obj.channel_id) else {
                 continue;
@@ -373,7 +373,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
         // No WAV defined for id
         let out = bms.check_validity();
         assert!(out.missing.contains(&ValidityMissing::WavForNote(id)));
@@ -384,7 +384,7 @@ mod tests {
         let mut bms = Bms::default();
         let id = ObjId::try_from("0B", false).unwrap();
         let time = t(1, 0, 4);
-        bms.graphics.bga_changes.insert(
+        bms.bmp.bga_changes.insert(
             time,
             BgaObj {
                 time,
@@ -408,7 +408,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
@@ -436,7 +436,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id2,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
@@ -476,7 +476,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id_vis,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
@@ -515,7 +515,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id_mine,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
@@ -543,7 +543,7 @@ mod tests {
                 .to_channel_id(),
             wav_id: id_mine,
         });
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         assert!(out.invalid.iter().any(|e| matches!(
@@ -584,7 +584,7 @@ mod tests {
             wav_id: id_vis,
         });
 
-        bms.notes = notes;
+        bms.wav.notes = notes;
 
         let out = bms.check_validity();
         // This should detect the overlap, but currently fails due to the bug

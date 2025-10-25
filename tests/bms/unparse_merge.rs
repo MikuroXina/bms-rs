@@ -42,13 +42,13 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream(
         &tokens
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(AlwaysWarnAndUseOlder),
     )
     .unwrap();
 
@@ -118,13 +118,13 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream(
         &tokens
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(AlwaysWarnAndUseOlder),
     )
     .unwrap();
 
@@ -191,13 +191,13 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream(
         &tokens
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(AlwaysWarnAndUseOlder),
     )
     .unwrap();
 
@@ -259,13 +259,13 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Convert tokens to Bms
-    let ParseOutput { bms, .. } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let bms = Bms::from_token_stream(
         &tokens
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
-        default_preset_with_prompter(&AlwaysWarnAndUseOlder),
+        default_config().prompter(AlwaysWarnAndUseOlder),
     )
     .unwrap();
 

@@ -23,41 +23,68 @@
 
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
-#[cfg(feature = "minor-command")]
-use super::hex_values_from_message;
 use super::{
-    super::{
-        Result,
-        prompt::{DefDuplication, Prompter},
-    },
-    ParseWarning, TokenProcessor, TokenProcessorResult, ids_from_message,
+    super::prompt::{DefDuplication, Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::{
-    bms::{model::Bms, prelude::*},
-    parse::token_processor::all_tokens,
-};
+use crate::bms::{error::Result, model::bmp::BmpObjects, prelude::*};
 
 /// It processes `#BMPxx`, `#BGAxx` and `#@BGAxx` definitions and objects on `BgaBase`, `BgaLayer`, `BgaPoor`, `BgaLayer2` and so on channels.
-pub struct BmpProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BmpProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for BmpProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl BmpProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for BmpProcessor {
+    type Output = BmpObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = BmpObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> BmpProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl BmpProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut BmpObjects,
+    ) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
             bmp if bmp.starts_with("BMP") => {
                 let id = &name["BMP".len()..];
@@ -66,17 +93,17 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                 }
                 let path = Path::new(args);
                 if id == "00" {
-                    self.0.borrow_mut().graphics.poor_bmp = Some(path.into());
+                    objects.poor_bmp = Some(path.into());
                     return Ok(());
                 }
 
-                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let bmp_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color: Argb::default(),
                 };
-                if let Some(older) = self.0.borrow_mut().graphics.bmp_files.get_mut(&bmp_obj_id) {
-                    self.1
+                if let Some(older) = objects.bmp_files.get_mut(&bmp_obj_id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::Bmp {
                             id: bmp_obj_id,
                             older,
@@ -84,11 +111,7 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, to_insert, bmp_obj_id)?;
                 } else {
-                    self.0
-                        .borrow_mut()
-                        .graphics
-                        .bmp_files
-                        .insert(bmp_obj_id, to_insert);
+                    objects.bmp_files.insert(bmp_obj_id, to_insert);
                 }
             }
             exbmp if exbmp.starts_with("EXBMP") => {
@@ -127,13 +150,13 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                 };
 
                 let path = args[1];
-                let bmp_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let bmp_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
                 let to_insert = Bmp {
                     file: path.into(),
                     transparent_color,
                 };
-                if let Some(older) = self.0.borrow_mut().graphics.bmp_files.get_mut(&bmp_obj_id) {
-                    self.1
+                if let Some(older) = objects.bmp_files.get_mut(&bmp_obj_id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::Bmp {
                             id: bmp_obj_id,
                             older,
@@ -141,14 +164,10 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, to_insert, bmp_obj_id)?;
                 } else {
-                    self.0
-                        .borrow_mut()
-                        .graphics
-                        .bmp_files
-                        .insert(bmp_obj_id, to_insert);
+                    objects.bmp_files.insert(bmp_obj_id, to_insert);
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             argb if argb.starts_with("ARGB") => {
                 let id = &name["ARGB".len()..];
                 let parts: Vec<_> = args.split(',').collect();
@@ -169,7 +188,7 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                 let blue = parts[3]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
                 let argb = Argb {
                     alpha,
                     red,
@@ -177,8 +196,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                     blue,
                 };
 
-                if let Some(older) = self.0.borrow_mut().scope_defines.argb_defs.get_mut(&id) {
-                    self.1
+                if let Some(older) = objects.argb_defs.get_mut(&id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::BgaArgb {
                             id,
                             older,
@@ -186,13 +205,13 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, argb, id)?;
                 } else {
-                    self.0.borrow_mut().scope_defines.argb_defs.insert(id, argb);
+                    objects.argb_defs.insert(id, argb);
                 }
             }
             "POORBGA" => {
-                self.0.borrow_mut().graphics.poor_bga_mode = PoorMode::from_str(args)?;
+                objects.poor_bga_mode = PoorMode::from_str(args)?;
             }
-            #[cfg(feature = "minor-command")]
+
             atbga if atbga.starts_with("@BGA") => {
                 let id = &name["@BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -220,9 +239,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-                let source_bmp =
-                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
+                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+                let source_bmp = ObjId::try_from(args[0], *self.case_sensitive_obj_id.borrow())?;
                 let trim_top_left = (sx, sy);
                 let trim_size = (w, h);
                 let draw_point = (dx, dy);
@@ -233,8 +251,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                     trim_size: trim_size.to_owned().into(),
                     draw_point: draw_point.to_owned().into(),
                 };
-                if let Some(older) = self.0.borrow_mut().scope_defines.atbga_defs.get_mut(&id) {
-                    self.1
+                if let Some(older) = objects.atbga_defs.get_mut(&id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::AtBga {
                             id,
                             older,
@@ -242,14 +260,10 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, to_insert, id)?;
                 } else {
-                    self.0
-                        .borrow_mut()
-                        .scope_defines
-                        .atbga_defs
-                        .insert(id, to_insert);
+                    objects.atbga_defs.insert(id, to_insert);
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             bga if bga.starts_with("BGA") && !bga.starts_with("BGAPOOR") => {
                 let id = &name["BGA".len()..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -277,9 +291,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                 let dy = args[6]
                     .parse()
                     .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
-                let source_bmp =
-                    ObjId::try_from(args[0], self.0.borrow().header.case_sensitive_obj_id)?;
+                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+                let source_bmp = ObjId::try_from(args[0], *self.case_sensitive_obj_id.borrow())?;
                 let to_insert = BgaDef {
                     id,
                     source_bmp,
@@ -287,8 +300,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                     trim_bottom_right: PixelPoint::new(x2, y2),
                     draw_point: PixelPoint::new(dx, dy),
                 };
-                if let Some(older) = self.0.borrow_mut().scope_defines.bga_defs.get_mut(&id) {
-                    self.1
+                if let Some(older) = objects.bga_defs.get_mut(&id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::Bga {
                             id,
                             older,
@@ -296,15 +309,9 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, to_insert, id)?;
                 } else {
-                    self.0
-                        .borrow_mut()
-                        .scope_defines
-                        .bga_defs
-                        .insert(id, to_insert);
+                    objects.bga_defs.insert(id, to_insert);
                 }
             }
-
-            #[cfg(feature = "minor-command")]
             swbga if swbga.starts_with("SWBGA") => {
                 let id = &name[5..];
                 let args: Vec<_> = args.split_whitespace().collect();
@@ -362,7 +369,7 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                     .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
                 let pattern = args[1].to_owned();
-                let sw_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+                let sw_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
                 let ev = SwBgaEvent {
                     frame_rate,
                     total_time,
@@ -377,14 +384,8 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                     pattern,
                 };
 
-                if let Some(older) = self
-                    .0
-                    .borrow_mut()
-                    .scope_defines
-                    .swbga_events
-                    .get_mut(&sw_obj_id)
-                {
-                    self.1
+                if let Some(older) = objects.swbga_events.get_mut(&sw_obj_id) {
+                    prompter
                         .handle_def_duplication(DefDuplication::SwBgaEvent {
                             id: sw_obj_id,
                             older,
@@ -392,11 +393,7 @@ impl<P: Prompter> BmpProcessor<'_, P> {
                         })
                         .apply_def(older, ev, sw_obj_id)?;
                 } else {
-                    self.0
-                        .borrow_mut()
-                        .scope_defines
-                        .swbga_events
-                        .insert(sw_obj_id, ev);
+                    objects.swbga_events.insert(sw_obj_id, ev);
                 }
             }
             _ => {}
@@ -404,95 +401,93 @@ impl<P: Prompter> BmpProcessor<'_, P> {
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
-        let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut BmpObjects,
+    ) -> Result<()> {
         match channel {
             channel @ (Channel::BgaBase
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
                 for (time, obj) in
-                    ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))
+                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
                 {
-                    if !self.0.borrow().graphics.bmp_files.contains_key(&obj) {
+                    if !objects.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.0.borrow_mut().graphics.push_bga_change(
+                    objects.push_bga_change(
                         BgaObj {
                             time,
                             id: obj,
                             layer,
                         },
                         channel,
-                        self.1,
+                        prompter,
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             channel @ (Channel::BgaBaseOpacity
             | Channel::BgaLayerOpacity
             | Channel::BgaLayer2Opacity
             | Channel::BgaPoorOpacity) => {
-                for (time, opacity_value) in
-                    hex_values_from_message(track, message, |w| self.1.warn(w))
-                {
+                use super::parse_hex_values;
+                for (time, opacity_value) in parse_hex_values(track, message, prompter) {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    self.0.borrow_mut().graphics.push_bga_opacity_change(
+                    objects.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
                             layer,
                             opacity: opacity_value,
                         },
                         channel,
-                        self.1,
+                        prompter,
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             channel @ (Channel::BgaBaseArgb
             | Channel::BgaLayerArgb
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
+                use super::parse_obj_ids;
                 for (time, argb_id) in
-                    ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))
+                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
                 {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    let argb = self
-                        .0
-                        .borrow()
-                        .scope_defines
+                    let argb = objects
                         .argb_defs
                         .get(&argb_id)
                         .cloned()
                         .ok_or(ParseWarning::UndefinedObject(argb_id))?;
-                    self.0.borrow_mut().graphics.push_bga_argb_change(
+                    objects.push_bga_argb_change(
                         BgaArgbObj { time, layer, argb },
                         channel,
-                        self.1,
+                        prompter,
                     )?;
                 }
             }
-            #[cfg(feature = "minor-command")]
+
             Channel::BgaKeybound => {
+                use super::parse_obj_ids;
                 for (time, keybound_id) in
-                    ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))
+                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
                 {
-                    let event = self
-                        .0
-                        .borrow()
-                        .scope_defines
+                    let event = objects
                         .swbga_events
                         .get(&keybound_id)
                         .cloned()
                         .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
-                    self.0
-                        .borrow_mut()
-                        .notes
-                        .push_bga_keybound_event(BgaKeyboundObj { time, event }, self.1)?;
+                    objects.push_bga_keybound_event(BgaKeyboundObj { time, event }, prompter)?;
                 }
             }
             _ => {}

@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "minor-command")]
+
     fn test_display_minor_commands() {
         // Test minor commands
         let test_cases = vec![
@@ -251,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "minor-command")]
+
     fn test_display_complex_commands() {
         // Test complex commands with multiple parameters
         let test_cases = vec![

@@ -2,55 +2,86 @@
 //!
 //! - `#SPEED[01-ZZ] n` - Spacing factor definition. It changes spacing among notes while keeps scrolling speed.
 //! - `#xxxSP:` - Spacing factor channel.
+
 use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
 use super::{
-    super::{
-        Result,
-        prompt::{DefDuplication, Prompter},
-    },
-    ParseWarning, TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
+    super::prompt::{DefDuplication, Prompter},
+    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{
+    error::{ParseWarning, Result},
+    model::speed::SpeedObjects,
+    prelude::*,
+};
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
-pub struct SpeedProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpeedProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for SpeedProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl SpeedProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for SpeedProcessor {
+    type Output = SpeedObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = SpeedObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> SpeedProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl SpeedProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut SpeedObjects,
+    ) -> Result<()> {
         if name.to_ascii_uppercase().starts_with("SPEED") {
             let id = &name["SPEED".len()..];
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);
-            let speed_obj_id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
-            if let Some(older) = self
-                .0
-                .borrow_mut()
-                .scope_defines
-                .speed_defs
-                .get_mut(&speed_obj_id)
-            {
-                self.1
+            if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {
+                prompter
                     .handle_def_duplication(DefDuplication::SpeedFactorChange {
                         id: speed_obj_id,
                         older: older.clone(),
@@ -58,32 +89,29 @@ impl<P: Prompter> SpeedProcessor<'_, P> {
                     })
                     .apply_def(older, factor, speed_obj_id)?;
             } else {
-                self.0
-                    .borrow_mut()
-                    .scope_defines
-                    .speed_defs
-                    .insert(speed_obj_id, factor);
+                objects.speed_defs.insert(speed_obj_id, factor);
             }
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut SpeedObjects,
+    ) -> Result<()> {
         if channel == Channel::Speed {
-            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
-            for (time, obj) in ids_from_message(track, message, is_sensitive, |w| self.1.warn(w)) {
-                let factor = self
-                    .0
-                    .borrow()
-                    .scope_defines
+            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
+            {
+                let factor = objects
                     .speed_defs
                     .get(&obj)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(obj))?;
-                self.0
-                    .borrow_mut()
-                    .arrangers
-                    .push_speed_factor_change(SpeedObj { time, factor }, self.1)?;
+                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
             }
         }
         Ok(())

@@ -41,7 +41,7 @@ impl PulseConverter {
         let mut current_pulses: u64 = 0;
         loop {
             let section_len: f64 = bms
-                .arrangers
+                .section_len
                 .section_len_changes
                 .get(&Track(current_track))
                 .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
@@ -90,7 +90,7 @@ impl PulseConverter {
 fn pulse_conversion() {
     use std::num::NonZeroU64;
 
-    use crate::bms::model::{Arrangers, obj::SectionLenChangeObj};
+    use crate::bms::model::{obj::SectionLenChangeObj, section_len::SectionLenObjects};
 
     // Source BMS:
     // ```
@@ -98,7 +98,7 @@ fn pulse_conversion() {
     // #00103:1.25
     // ```
     let notes = {
-        let mut notes = Arrangers::default();
+        let mut notes = SectionLenObjects::default();
         let prompt_handler = crate::bms::parse::prompt::AlwaysUseNewer;
         notes
             .push_section_len_change(
@@ -121,7 +121,7 @@ fn pulse_conversion() {
         notes
     };
     let converter = PulseConverter::new(&crate::bms::model::Bms {
-        arrangers: notes,
+        section_len: notes,
         ..Default::default()
     });
 

@@ -69,7 +69,7 @@ impl Bms {
 
         let mut warnings = Vec::new();
         let converter = PulseConverter::new(&self);
-        let judge_rank = FinF64::new(match self.header.rank {
+        let judge_rank = FinF64::new(match self.judge.rank {
             Some(JudgeLevel::OtherInt(4)) => VERY_EASY_WIDTH / NORMAL_WIDTH, // VeryEasy implementation of beatoraja.
             Some(JudgeLevel::Easy) => EASY_WIDTH / NORMAL_WIDTH,
             Some(JudgeLevel::Normal | JudgeLevel::OtherInt(_)) | None => 1.0,
@@ -98,7 +98,7 @@ impl Bms {
             .collect();
 
         let bpm_events =
-            self.arrangers
+            self.bpm
                 .bpm_changes
                 .values()
                 .map(|bpm_change| BpmEvent {
@@ -112,7 +112,7 @@ impl Bms {
                 .collect();
 
         let stop_events = self
-            .arrangers
+            .stop
             .stops
             .values()
             .filter_map(|stop| {
@@ -124,19 +124,19 @@ impl Bms {
             .collect();
 
         let info = BmsonInfo {
-            title: Cow::Owned(self.header.title.unwrap_or_default()),
-            subtitle: Cow::Owned(self.header.subtitle.unwrap_or_default()),
-            artist: Cow::Owned(self.header.artist.unwrap_or_default()),
-            subartists: vec![Cow::Owned(self.header.sub_artist.unwrap_or_default())],
-            genre: Cow::Owned(self.header.genre.unwrap_or_default()),
+            title: Cow::Owned(self.music_info.title.unwrap_or_default()),
+            subtitle: Cow::Owned(self.music_info.subtitle.unwrap_or_default()),
+            artist: Cow::Owned(self.music_info.artist.unwrap_or_default()),
+            subartists: vec![Cow::Owned(self.music_info.sub_artist.unwrap_or_default())],
+            genre: Cow::Owned(self.music_info.genre.unwrap_or_default()),
             mode_hint: {
                 // TODO: Support other modes
-                let is_7keys = self.notes.all_notes().any(|note| {
+                let is_7keys = self.wav.notes.all_notes().any(|note| {
                     note.channel_id
                         .try_into_map::<KeyLayoutBeat>()
                         .is_some_and(|map| matches!(map.key(), Key::Key(6 | 7)))
                 });
-                let is_dp = self.notes.all_notes().any(|note| {
+                let is_dp = self.wav.notes.all_notes().any(|note| {
                     note.channel_id
                         .try_into_map::<KeyLayoutBeat>()
                         .is_some_and(|map| map.side() == PlayerSide::Player2)
@@ -149,9 +149,9 @@ impl Bms {
                 }
             },
             chart_name: Cow::Owned(String::new()),
-            level: self.header.play_level.unwrap_or_default() as u32,
+            level: self.metadata.play_level.unwrap_or_default() as u32,
             init_bpm: {
-                let bpm_value = self.arrangers.bpm.as_ref().map_or_else(
+                let bpm_value = self.bpm.bpm.as_ref().map_or_else(
                     || {
                         warnings.push(BmsToBmsonWarning::MissingBpm);
                         120.0
@@ -165,7 +165,7 @@ impl Bms {
             },
             judge_rank,
             total: {
-                let total_value = self.header.total.as_ref().map_or_else(
+                let total_value = self.judge.total.as_ref().map_or_else(
                     || {
                         warnings.push(BmsToBmsonWarning::MissingTotal);
                         100.0
@@ -178,33 +178,33 @@ impl Bms {
                 })
             },
             back_image: self
-                .header
+                .sprite
                 .back_bmp
                 .clone()
                 .map(|path| Cow::Owned(path.display().to_string())),
             eyecatch_image: self
-                .header
+                .sprite
                 .stage_file
                 .map(|path| Cow::Owned(path.display().to_string())),
             title_image: self
-                .header
+                .sprite
                 .back_bmp
                 .map(|path| Cow::Owned(path.display().to_string())),
             banner_image: self
-                .header
+                .sprite
                 .banner
                 .map(|path| Cow::Owned(path.display().to_string())),
             preview_music: None,
             resolution,
-            ln_type: self.header.ln_mode,
+            ln_type: self.repr.ln_mode,
         };
 
         let (sound_channels, mine_channels, key_channels) = {
-            let path_root = self.notes.wav_path_root.clone().unwrap_or_default();
+            let path_root = self.metadata.wav_path_root.clone().unwrap_or_default();
             let mut sound_map: HashMap<_, Vec<Note>> = HashMap::new();
             let mut mine_map: HashMap<_, Vec<MineEvent>> = HashMap::new();
             let mut key_map: HashMap<_, Vec<KeyEvent>> = HashMap::new();
-            for note in self.notes.all_notes() {
+            for note in self.wav.notes.all_notes() {
                 let note_lane = note
                     .channel_id
                     .try_into_map::<KeyLayoutBeat>()
@@ -253,6 +253,7 @@ impl Bms {
                     }
                     Some(NoteKind::Long) => {
                         let duration = self
+                            .wav
                             .notes
                             .next_obj_by_key(note.channel_id, note.offset)
                             .map_or(0, |next_note| {
@@ -263,7 +264,7 @@ impl Bms {
                             y: pulses,
                             l: duration,
                             c: false,
-                            t: Some(self.header.ln_mode),
+                            t: Some(self.repr.ln_mode),
                             up: Some(false),
                         });
                     }
@@ -273,7 +274,7 @@ impl Bms {
                             y: pulses,
                             l: 0,
                             c: false,
-                            t: Some(self.header.ln_mode),
+                            t: Some(self.repr.ln_mode),
                             up: Some(false),
                         });
                     }
@@ -283,7 +284,7 @@ impl Bms {
                 .into_iter()
                 .map(|(obj, notes)| {
                     let sound_path =
-                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                        path_root.join(self.wav.wav_files.get(&obj).cloned().unwrap_or_default());
                     SoundChannel {
                         name: Cow::Owned(sound_path.display().to_string()),
                         notes,
@@ -294,7 +295,7 @@ impl Bms {
                 .into_iter()
                 .map(|(obj, notes)| {
                     let sound_path =
-                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                        path_root.join(self.wav.wav_files.get(&obj).cloned().unwrap_or_default());
                     MineChannel {
                         name: Cow::Owned(sound_path.display().to_string()),
                         notes,
@@ -305,7 +306,7 @@ impl Bms {
                 .into_iter()
                 .map(|(obj, notes)| {
                     let sound_path =
-                        path_root.join(self.notes.wav_files.get(&obj).cloned().unwrap_or_default());
+                        path_root.join(self.wav.wav_files.get(&obj).cloned().unwrap_or_default());
                     KeyChannel {
                         name: Cow::Owned(sound_path.display().to_string()),
                         notes,
@@ -322,13 +323,13 @@ impl Bms {
                 layer_events: vec![],
                 poor_events: vec![],
             };
-            for (id, bmp) in &self.graphics.bmp_files {
+            for (id, bmp) in &self.bmp.bmp_files {
                 bga.bga_header.push(BgaHeader {
                     id: BgaId(id.as_u32()),
                     name: Cow::Owned(bmp.file.display().to_string()),
                 });
             }
-            for (&time, change) in self.graphics.bga_changes() {
+            for (&time, change) in &self.bmp.bga_changes {
                 let target = match change.layer {
                     BgaLayer::Base => &mut bga.bga_events,
                     BgaLayer::Poor => &mut bga.poor_events,
@@ -343,7 +344,7 @@ impl Bms {
         };
 
         let scroll_events = self
-            .arrangers
+            .scroll
             .scrolling_factor_changes
             .values()
             .filter_map(|scroll| {

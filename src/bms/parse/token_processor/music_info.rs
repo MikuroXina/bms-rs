@@ -9,42 +9,50 @@
 //! - `#MAKER author` - Author of the score.
 //! - `#PREVIEW path` - Path of the preview music file.
 
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::path::Path;
 
-use super::{super::Result, TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{model::Bms, prelude::*};
+use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use crate::bms::{error::Result, model::music_info::MusicInfo, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
-pub struct MusicInfoProcessor(pub Rc<RefCell<Bms>>);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MusicInfoProcessor;
 
 impl TokenProcessor for MusicInfoProcessor {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
+    type Output = MusicInfo;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut music_info = MusicInfo::default();
+        all_tokens(input, prompter, |token| {
             Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), &mut music_info)
+                    .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(music_info)
     }
 }
 
 impl MusicInfoProcessor {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+    fn on_header(&self, name: &str, args: &str, music_info: &mut MusicInfo) -> Result<()> {
         match name.to_ascii_uppercase().as_str() {
-            "GENRE" => self.0.borrow_mut().header.genre = Some(args.to_string()),
-            "TITLE" => self.0.borrow_mut().header.title = Some(args.to_string()),
-            "SUBTITLE" => self.0.borrow_mut().header.subtitle = Some(args.to_string()),
-            "ARTIST" => self.0.borrow_mut().header.artist = Some(args.to_string()),
-            "SUBARTIST" => self.0.borrow_mut().header.sub_artist = Some(args.to_string()),
-            "COMMENT" => self
-                .0
-                .borrow_mut()
-                .header
+            "GENRE" => music_info.genre = Some(args.to_string()),
+            "TITLE" => music_info.title = Some(args.to_string()),
+            "SUBTITLE" => music_info.subtitle = Some(args.to_string()),
+            "ARTIST" => music_info.artist = Some(args.to_string()),
+            "SUBARTIST" => music_info.sub_artist = Some(args.to_string()),
+            "COMMENT" => music_info
                 .comment
                 .get_or_insert_with(Vec::new)
                 .push(args.to_string()),
-            "MAKER" => self.0.borrow_mut().header.maker = Some(args.to_string()),
-            "PREVIEW" => self.0.borrow_mut().header.preview_music = Some(Path::new(args).into()),
+            "MAKER" => music_info.maker = Some(args.to_string()),
+            "PREVIEW" => music_info.preview_music = Some(Path::new(args).into()),
             _ => {}
         }
         Ok(())

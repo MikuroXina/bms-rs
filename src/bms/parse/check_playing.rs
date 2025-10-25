@@ -59,13 +59,13 @@ impl Bms {
         let mut playing_errors = Vec::new();
 
         // Check for TotalUndefined warning
-        if self.header.total.is_none() {
+        if self.judge.total.is_none() {
             playing_warnings.push(PlayingWarning::TotalUndefined);
         }
 
         // Check for BPM-related conditions
-        if self.arrangers.bpm.is_none() {
-            if self.arrangers.bpm_changes.is_empty() {
+        if self.bpm.bpm.is_none() {
+            if self.bpm.bpm_changes.is_empty() {
                 playing_errors.push(PlayingError::BpmUndefined);
             } else {
                 playing_warnings.push(PlayingWarning::StartBpmUndefined);
@@ -73,17 +73,17 @@ impl Bms {
         }
 
         // Check for notes
-        if self.notes.is_empty() {
+        if self.wav.notes.is_empty() {
             playing_errors.push(PlayingError::NoNotes);
         } else {
             // Check for displayable notes (Visible, Long, Landmine)
-            let has_displayable = self.notes.displayables::<T>().next().is_some();
+            let has_displayable = self.wav.notes.displayables::<T>().next().is_some();
             if !has_displayable {
                 playing_warnings.push(PlayingWarning::NoDisplayableNotes);
             }
 
             // Check for playable notes (all except Invisible)
-            let has_playable = self.notes.playables::<T>().next().is_some();
+            let has_playable = self.wav.notes.playables::<T>().next().is_some();
             if !has_playable {
                 playing_warnings.push(PlayingWarning::NoPlayableNotes);
             }

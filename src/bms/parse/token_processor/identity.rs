@@ -5,11 +5,18 @@ use crate::bms::prelude::*;
 use super::{TokenProcessor, TokenProcessorResult};
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IdentityTokenProcessor;
 
 impl TokenProcessor for IdentityTokenProcessor {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+    type Output = ();
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        _: &P,
+    ) -> TokenProcessorResult<Self::Output> {
         *input = &[];
-        Ok(vec![])
+        Ok(())
     }
 }

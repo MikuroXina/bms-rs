@@ -11,7 +11,6 @@ use crate::bms::{
     prelude::{BgaLayer, Key, NoteKind, PlayerSide},
 };
 
-#[cfg(feature = "minor-command")]
 use crate::bms::prelude::SwBgaEvent;
 
 pub mod bms_processor;
@@ -96,7 +95,6 @@ pub enum ChartEvent {
     /// BGA opacity change event (requires minor-command feature)
     ///
     /// Dynamically adjust the opacity of the specified BGA layer to achieve fade-in/fade-out effects.
-    #[cfg(feature = "minor-command")]
     BgaOpacityChange {
         /// BGA layer
         layer: BgaLayer,
@@ -106,7 +104,6 @@ pub enum ChartEvent {
     /// BGA ARGB color change event (requires minor-command feature)
     ///
     /// Dynamically adjust the color of the specified BGA layer through ARGB values to achieve color filter effects.
-    #[cfg(feature = "minor-command")]
     BgaArgbChange {
         /// BGA layer
         layer: BgaLayer,
@@ -144,7 +141,6 @@ pub enum ChartEvent {
     /// Video seek event (requires minor-command feature)
     ///
     /// Triggered when playback position reaches video seek time point, used for video playback control.
-    #[cfg(feature = "minor-command")]
     VideoSeek {
         /// Seek time point (seconds)
         seek_time: f64,
@@ -152,7 +148,6 @@ pub enum ChartEvent {
     /// BGA key binding event (requires minor-command feature)
     ///
     /// Triggered when playback position reaches BGA key binding time point, used for BGA and key binding control.
-    #[cfg(feature = "minor-command")]
     BgaKeybound {
         /// BGA key binding event type
         event: SwBgaEvent,
@@ -160,7 +155,6 @@ pub enum ChartEvent {
     /// Option change event (requires minor-command feature)
     ///
     /// Triggered when playback position reaches option change time point, used for dynamic game option adjustment.
-    #[cfg(feature = "minor-command")]
     OptionChange {
         /// Option content
         option: String,

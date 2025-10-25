@@ -1,26 +1,26 @@
-use bms_rs::bms::prelude::*;
+use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
 
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
     assert_eq!(
-        bms.header.title.as_deref(),
+        bms.music_info.title.as_deref(),
         Some("Lilith ambivalence lovers")
     );
     assert_eq!(
-        bms.header.artist.as_deref(),
+        bms.music_info.artist.as_deref(),
         Some("ikaruga_nex (obj:Mikuro Xina)")
     );
-    assert_eq!(bms.header.genre.as_deref(), Some("Hi-Tech Rave"));
-    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(151)));
-    assert_eq!(bms.header.play_level, Some(7));
-    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
-    assert_eq!(bms.header.difficulty, Some(2));
-    assert_eq!(bms.header.total, Some(Decimal::from(359.6)));
+    assert_eq!(bms.music_info.genre.as_deref(), Some("Hi-Tech Rave"));
+    assert_eq!(bms.bpm.bpm, Some(Decimal::from(151)));
+    assert_eq!(bms.metadata.play_level, Some(7));
+    assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
+    assert_eq!(bms.metadata.difficulty, Some(2));
+    assert_eq!(bms.judge.total, Some(Decimal::from(359.6)));
 
     eprintln!("{bms:?}");
 }
@@ -28,28 +28,28 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
-    assert_eq!(bms.header.title.as_deref(), Some("NULCTRL"));
+    assert_eq!(bms.music_info.title.as_deref(), Some("NULCTRL"));
     assert_eq!(
-        bms.header.artist.as_deref(),
+        bms.music_info.artist.as_deref(),
         Some("Silentroom obj: Mikuro Xina")
     );
-    assert_eq!(bms.header.genre.as_deref(), Some("MOTION"));
-    assert_eq!(bms.header.subtitle.as_deref(), Some("[STX]"));
-    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(100)));
-    assert_eq!(bms.header.play_level, Some(5));
-    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
-    assert_eq!(bms.header.difficulty, Some(2));
-    assert_eq!(bms.header.total, Some(Decimal::from(260)));
+    assert_eq!(bms.music_info.genre.as_deref(), Some("MOTION"));
+    assert_eq!(bms.music_info.subtitle.as_deref(), Some("[STX]"));
+    assert_eq!(bms.bpm.bpm, Some(Decimal::from(100)));
+    assert_eq!(bms.metadata.play_level, Some(5));
+    assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
+    assert_eq!(bms.metadata.difficulty, Some(2));
+    assert_eq!(bms.judge.total, Some(Decimal::from(260)));
     assert_eq!(
-        bms.header.stage_file.as_ref().map(|p| p.to_string_lossy()),
+        bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("stagefile.png".into())
     );
     assert_eq!(
-        bms.header.banner.as_ref().map(|p| p.to_string_lossy()),
+        bms.sprite.banner.as_ref().map(|p| p.to_string_lossy()),
         Some("banner.png".into())
     );
 
@@ -59,22 +59,22 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
-    assert_eq!(bms.header.title.as_deref(), Some("J219"));
+    assert_eq!(bms.music_info.title.as_deref(), Some("J219"));
     assert_eq!(
-        bms.header.artist.as_deref(),
+        bms.music_info.artist.as_deref(),
         Some("cranky (obj: Mikuro Xina)")
     );
-    assert_eq!(bms.header.genre.as_deref(), Some("EURO BEAT"));
-    assert_eq!(bms.arrangers.bpm, Some(Decimal::from(147)));
-    assert_eq!(bms.header.play_level, Some(6));
-    assert_eq!(bms.header.rank, Some(JudgeLevel::Easy));
-    assert_eq!(bms.header.total, Some(Decimal::from(218)));
+    assert_eq!(bms.music_info.genre.as_deref(), Some("EURO BEAT"));
+    assert_eq!(bms.bpm.bpm, Some(Decimal::from(147)));
+    assert_eq!(bms.metadata.play_level, Some(6));
+    assert_eq!(bms.judge.rank, Some(JudgeLevel::Easy));
+    assert_eq!(bms.judge.total, Some(Decimal::from(218)));
     assert_eq!(
-        bms.header.stage_file.as_ref().map(|p| p.to_string_lossy()),
+        bms.sprite.stage_file.as_ref().map(|p| p.to_string_lossy()),
         Some("J219title.bmp".into())
     );
 
@@ -96,10 +96,12 @@ fn test_blank() {
         vec![]
     );
 
-    let ParseOutput {
-        bms: _,
-        parse_warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(&tokens, default_preset).unwrap();
+    let mut parse_warnings = vec![];
+    let _ = Bms::from_token_stream(
+        &tokens,
+        default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
+    )
+    .unwrap();
     assert_eq!(
         parse_warnings
             .into_iter()
@@ -115,7 +117,7 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms::<KeyLayoutBeat>(source).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
     assert_eq!(
         warnings,
         vec![
@@ -127,33 +129,33 @@ fn test_bemuse_ext() {
 
     // Check header content - this file has minimal header info
     // but should have scrolling and spacing factor changes
-    assert_eq!(bms.scope_defines.scroll_defs.len(), 2);
-    assert_eq!(bms.scope_defines.speed_defs.len(), 2);
+    assert_eq!(bms.scroll.scroll_defs.len(), 2);
+    assert_eq!(bms.speed.speed_defs.len(), 2);
 
-    assert_eq!(bms.arrangers.scrolling_factor_changes.len(), 4);
-    assert_eq!(bms.arrangers.speed_factor_changes.len(), 4);
+    assert_eq!(bms.scroll.scrolling_factor_changes.len(), 4);
+    assert_eq!(bms.speed.speed_factor_changes.len(), 4);
 
     // Check specific values
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.scope_defines
+        bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("02", false).unwrap()),
         Some(&Decimal::from(0.5))
     );
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
         Some(&Decimal::from(1))
     );
     assert_eq!(
-        bms.scope_defines
+        bms.speed
             .speed_defs
             .get(&ObjId::try_from("02", false).unwrap()),
         Some(&Decimal::from(0.5))

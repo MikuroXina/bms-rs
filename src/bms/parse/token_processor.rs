@@ -6,12 +6,14 @@
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
 
-use std::{borrow::Cow, cell::RefCell, marker::PhantomData, num::NonZeroU64, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
-use super::{ParseError, ParseErrorWithRange, ParseWarning};
-use crate::bms::prelude::*;
+use crate::bms::{
+    error::{ParseError, ParseErrorWithRange},
+    prelude::*,
+};
 
 mod bmp;
 mod bpm;
@@ -33,13 +35,20 @@ mod video;
 mod volume;
 mod wav;
 
-/// A type alias of `Result<(), Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult = Result<Vec<ParseWarningWithRange>, ParseErrorWithRange>;
+/// A type alias of `Result<T, Vec<ParseWarningWithRange>`.
+pub type TokenProcessorResult<T> = Result<T, ParseErrorWithRange>;
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
+    /// A result data of the process.
+    type Output;
+
     /// Processes commands by consuming all the stream `input`. It mutates `input`
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult;
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -52,11 +61,29 @@ pub trait TokenProcessor {
             second,
         }
     }
+
+    /// Maps a result of the processor by the mapping function `f`.
+    fn map<F, O>(self, f: F) -> Mapped<Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Output) -> O,
+    {
+        Mapped {
+            source: self,
+            mapping: f,
+        }
+    }
 }
 
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        T::process(self, input)
+    type Output = <T as TokenProcessor>::Output;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        T::process(self, input, prompter)
     }
 }
 
@@ -67,262 +94,330 @@ pub struct SequentialProcessor<F, S> {
     second: S,
 }
 
-impl<F: TokenProcessor, S: TokenProcessor> TokenProcessor for SequentialProcessor<F, S> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+impl<F, S> TokenProcessor for SequentialProcessor<F, S>
+where
+    F: TokenProcessor,
+    S: TokenProcessor,
+{
+    type Output = (F::Output, S::Output);
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
         let mut cloned = *input;
-        let mut warnings = self.first.process(&mut cloned)?;
-        warnings.extend(self.second.process(input)?);
-        Ok(warnings)
+        let first_output = self.first.process(&mut cloned, prompter)?;
+        let second_output = self.second.process(input, prompter)?;
+        Ok((first_output, second_output))
+    }
+}
+
+/// A processor [`SequentialProcessor`] which maps the output of the token processor `TP` by the function `F`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Mapped<TP, F> {
+    source: TP,
+    mapping: F,
+}
+
+impl<O, TP, F> TokenProcessor for Mapped<TP, F>
+where
+    TP: TokenProcessor,
+    F: Fn(TP::Output) -> O,
+{
+    type Output = O;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let res = self.source.process(input, prompter)?;
+        Ok((self.mapping)(res))
     }
 }
 
 /// Returns all processors without obsolete/deprecated.
-pub fn pedantic_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
-    bms: Rc<RefCell<Bms>>,
-    prompter: &'a P,
-    rng: Rc<RefCell<R>>,
-) -> impl TokenProcessor + 'a {
-    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
-        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
-        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
-        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
-        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
-        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
-    #[cfg(feature = "minor-command")]
-    let sub_processor = sub_processor.then(option::OptionProcessor(Rc::clone(&bms), prompter));
+pub fn pedantic_preset<T: KeyLayoutMapper, R: Rng>(rng: Rc<RefCell<R>>) -> impl TokenProcessor {
+    let case_sensitive_obj_id = Rc::new(RefCell::new(false));
+    let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
+        .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
+        .then(bpm::BpmProcessor::new(&case_sensitive_obj_id))
+        .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
+        .then(metadata::MetadataProcessor)
+        .then(music_info::MusicInfoProcessor);
+
+    let sub_processor = sub_processor.then(option::OptionProcessor::new(&case_sensitive_obj_id));
     let sub_processor = sub_processor
-        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
-        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
-        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
-        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
-        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
-        .then(text::TextProcessor(Rc::clone(&bms), prompter))
-        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
-        .then(wav::WavProcessor::<P, T>(
-            Rc::clone(&bms),
-            prompter,
-            PhantomData,
-        ));
+        .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
+        .then(section_len::SectionLenProcessor)
+        .then(speed::SpeedProcessor::new(&case_sensitive_obj_id))
+        .then(sprite::SpriteProcessor)
+        .then(stop::StopProcessor::new(&case_sensitive_obj_id))
+        .then(text::TextProcessor::new(&case_sensitive_obj_id))
+        .then(video::VideoProcessor::new(&case_sensitive_obj_id))
+        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
     random::RandomTokenProcessor::new(rng, sub_processor, false)
 }
 
 /// Returns commonly used processors.
-pub fn common_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
-    bms: Rc<RefCell<Bms>>,
-    prompter: &'a P,
+pub fn common_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
-) -> impl TokenProcessor + 'a {
-    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
-        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
-        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
-        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
-        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
-        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)))
-        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
-        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
-        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
-        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
-        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
-        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
-        .then(wav::WavProcessor::<P, T>(
-            Rc::clone(&bms),
-            prompter,
-            PhantomData,
-        ));
-    random::RandomTokenProcessor::new(rng, sub_processor, true)
+) -> impl TokenProcessor<Output = Bms> {
+    let case_sensitive_obj_id = Rc::new(RefCell::new(false));
+    let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
+        .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
+        .then(bpm::BpmProcessor::new(&case_sensitive_obj_id))
+        .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
+        .then(metadata::MetadataProcessor)
+        .then(music_info::MusicInfoProcessor)
+        .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
+        .then(section_len::SectionLenProcessor)
+        .then(speed::SpeedProcessor::new(&case_sensitive_obj_id))
+        .then(sprite::SpriteProcessor)
+        .then(stop::StopProcessor::new(&case_sensitive_obj_id))
+        .then(video::VideoProcessor::new(&case_sensitive_obj_id))
+        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
+    random::RandomTokenProcessor::new(rng, sub_processor, true).map(
+        |(
+            (
+                (
+                    (
+                        (
+                            (
+                                ((((((repr, bmp), bpm), judge), metadata), music_info), scroll),
+                                section_len,
+                            ),
+                            speed,
+                        ),
+                        sprite,
+                    ),
+                    stop,
+                ),
+                video,
+            ),
+            wav,
+        )| {
+            Bms {
+                bmp,
+                bpm,
+                judge,
+                metadata,
+                music_info,
+
+                option: Default::default(),
+                repr,
+
+                resources: Default::default(),
+                scroll,
+                section_len,
+                speed,
+                sprite,
+                stop,
+                text: Default::default(),
+                video,
+                volume: Default::default(),
+                wav,
+            }
+        },
+    )
 }
 
 /// Returns all of processors this crate provided.
-pub fn minor_preset<'a, P: Prompter, T: KeyLayoutMapper + 'a, R: Rng + 'a>(
-    bms: Rc<RefCell<Bms>>,
-    prompter: &'a P,
+pub fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
-) -> impl TokenProcessor + 'a {
-    let sub_processor = repr::RepresentationProcessor(Rc::clone(&bms))
-        .then(bmp::BmpProcessor(Rc::clone(&bms), prompter))
-        .then(bpm::BpmProcessor(Rc::clone(&bms), prompter))
-        .then(judge::JudgeProcessor(Rc::clone(&bms), prompter))
-        .then(metadata::MetadataProcessor(Rc::clone(&bms)))
-        .then(music_info::MusicInfoProcessor(Rc::clone(&bms)));
-    #[cfg(feature = "minor-command")]
+) -> impl TokenProcessor<Output = Bms> {
+    let case_sensitive_obj_id = Rc::new(RefCell::new(false));
+    let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
+        .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
+        .then(bpm::BpmProcessor::new(&case_sensitive_obj_id))
+        .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
+        .then(metadata::MetadataProcessor)
+        .then(music_info::MusicInfoProcessor);
+
     let sub_processor = sub_processor
-        .then(option::OptionProcessor(Rc::clone(&bms), prompter))
-        .then(resources::ResourcesProcessor(Rc::clone(&bms)));
+        .then(option::OptionProcessor::new(&case_sensitive_obj_id))
+        .then(resources::ResourcesProcessor);
     let sub_processor = sub_processor
-        .then(scroll::ScrollProcessor(Rc::clone(&bms), prompter))
-        .then(section_len::SectionLenProcessor(Rc::clone(&bms), prompter))
-        .then(speed::SpeedProcessor(Rc::clone(&bms), prompter))
-        .then(sprite::SpriteProcessor(Rc::clone(&bms)))
-        .then(stop::StopProcessor(Rc::clone(&bms), prompter))
-        .then(text::TextProcessor(Rc::clone(&bms), prompter))
-        .then(video::VideoProcessor(Rc::clone(&bms), prompter))
-        .then(volume::VolumeProcessor(Rc::clone(&bms), prompter))
-        .then(wav::WavProcessor::<P, T>(
-            Rc::clone(&bms),
-            prompter,
-            PhantomData,
-        ));
-    random::RandomTokenProcessor::new(rng, sub_processor, true)
+        .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
+        .then(section_len::SectionLenProcessor)
+        .then(speed::SpeedProcessor::new(&case_sensitive_obj_id))
+        .then(sprite::SpriteProcessor)
+        .then(stop::StopProcessor::new(&case_sensitive_obj_id))
+        .then(text::TextProcessor::new(&case_sensitive_obj_id))
+        .then(video::VideoProcessor::new(&case_sensitive_obj_id))
+        .then(volume::VolumeProcessor)
+        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
+    random::RandomTokenProcessor::new(rng, sub_processor, true).map(
+        |(
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                (
+                                                    (
+                                                        ((((repr, bmp), bpm), judge), metadata),
+                                                        music_info,
+                                                    ),
+                                                    option,
+                                                ),
+                                                resources,
+                                            ),
+                                            scroll,
+                                        ),
+                                        section_len,
+                                    ),
+                                    speed,
+                                ),
+                                sprite,
+                            ),
+                            stop,
+                        ),
+                        text,
+                    ),
+                    video,
+                ),
+                volume,
+            ),
+            wav,
+        )| Bms {
+            bmp,
+            bpm,
+            judge,
+            metadata,
+            music_info,
+            option,
+            repr,
+            resources,
+            scroll,
+            section_len,
+            speed,
+            sprite,
+            stop,
+            text,
+            video,
+            volume,
+            wav,
+        },
+    )
 }
 
-fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
+fn all_tokens<
+    'a,
+    P: Prompter,
+    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
+>(
     input: &mut &'a [&TokenWithRange<'_>],
+    prompter: &P,
     mut f: F,
-) -> TokenProcessorResult {
-    let mut warnings = vec![];
+) -> TokenProcessorResult<()> {
     for token in &**input {
         if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
-            warnings.push(warning.into_wrapper(token));
+            prompter.warn(warning.into_wrapper(token));
         }
     }
     *input = &[];
-    Ok(warnings)
+    Ok(())
 }
 
 fn all_tokens_with_range<
     'a,
+    P: Prompter,
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
+    prompter: &P,
     mut f: F,
-) -> TokenProcessorResult {
-    let mut warnings = vec![];
+) -> TokenProcessorResult<()> {
     for token in &**input {
         if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
-            warnings.push(warning.into_wrapper(token));
+            prompter.warn(warning.into_wrapper(token));
         }
     }
     *input = &[];
-    Ok(warnings)
+    Ok(())
 }
 
-/// Parses message values with warnings.
-///
-/// This function processes BMS message strings by filtering out invalid characters,
-/// then parsing character pairs into values using the provided `parse_value` function.
-/// It returns an iterator that yields `(ObjTime, T)` pairs for each successfully parsed value.
-///
-/// # Arguments
-/// * `track` - The track number for time calculation
-/// * `message` - The raw message string to parse
-/// * `parse_value` - A closure that takes two characters and a mutable warnings vector,
-///   returning `Option<T>` if parsing succeeds or `None` if the pair should be skipped
-/// * `parse_warnings` - A mutable vector to collect parsing warnings
-///
-/// # Returns
-/// An iterator yielding `(ObjTime, T)` pairs where:
-/// - `ObjTime` represents the timing position within the track
-/// - `T` is the parsed value from character pairs
-///
-/// # Behavior
-/// - Messages are first filtered to remove invalid characters
-/// - Character pairs are processed sequentially
-/// - Empty pairs ('00') are typically skipped by the parse_value function
-/// - Time calculation uses the track number and pair index as numerator,
-///   with total pair count as denominator
-/// - Length validation ensures message length is at least 2 characters
-fn parse_message_values_with_warnings<'a, T, F>(
+fn parse_obj_ids<P: Prompter>(
     track: Track,
-    message: &'a str,
-    mut parse_value: F,
-    mut push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, T)> + 'a
-where
-    F: FnMut(&str) -> Option<Result<T, ParseWarning>> + 'a,
-{
-    // Centralize message filtering here so callers don't need to call `filter_message`.
-    // Use a simple pair-wise char reader without storing self-referential iterators.
+    message: SourceRangeMixin<&str>,
+    prompter: &P,
+    case_sensitive_obj_id: &RefCell<bool>,
+) -> impl Iterator<Item = (ObjTime, ObjId)> {
+    if !message.content().len().is_multiple_of(2) {
+        prompter.warn(
+            ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
+        );
+    }
 
-    // Filter the message to remove invalid characters
-    let filtered = filter_message(message);
-
-    // Convert the filtered string to a vector of characters for pair-wise processing
-    let chars: Vec<char> = filtered.chars().collect();
-
-    // Calculate the denominator for time calculation (total number of character pairs)
-    // This will be None if the message length is less than 2
-    let denominator_opt = NonZeroU64::new((chars.len() / 2) as u64);
-
-    // Create an iterator that yields character pairs from the filtered message
-    let mut pairs_iter = chars.into_iter().tuples::<(char, char)>();
-
-    // Track the current pair index for time calculation
-    let mut pair_index: u64 = 0;
-
-    std::iter::from_fn(move || {
-        // Ensure we have a valid denominator (at least 2 characters in original message)
-        let Some(denominator) = denominator_opt else {
-            // Emit a warning for invalid message length
-            push_parse_warning(ParseWarning::SyntaxError(
-                "message length must be greater than or equals to 2".to_string(),
-            ));
-            return None;
-        };
-
-        let mut buf = String::with_capacity(2);
-        loop {
-            // Get the next character pair, or end iteration if none remain
-            let (c1, c2) = pairs_iter.next()?;
-            buf.clear();
-            buf.push(c1);
-            buf.push(c2);
-
-            // Store current pair index before incrementing
-            let current_index = pair_index;
-            pair_index += 1;
-
-            // Try to parse the character pair using the provided parse_value function
-            match parse_value(&buf) {
-                Some(Ok(value)) => {
-                    // Successfully parsed a value, calculate its timing position
-                    let time = ObjTime::new(track.0, current_index, denominator);
-                    return Some((time, value));
-                }
-                Some(Err(warning)) => {
-                    // Push the warning and continue to the next pair
-                    push_parse_warning(warning);
-                }
-                None => {
-                    // Skip this value, don't report a warning
-                    continue;
+    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
+    message
+        .content()
+        .chars()
+        .tuples()
+        .enumerate()
+        .filter_map(move |(i, (c1, c2))| {
+            let buf = String::from_iter([c1, c2]);
+            match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
+                Ok(id) if id.is_null() => None,
+                Ok(id) => Some((
+                    ObjTime::new(
+                        track.0,
+                        i as u64,
+                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                    ),
+                    id,
+                )),
+                Err(warning) => {
+                    prompter.warn(warning.into_wrapper(&message));
+                    None
                 }
             }
-        }
-    })
+        })
 }
 
-fn ids_from_message<'a>(
+fn parse_hex_values<P: Prompter>(
     track: Track,
-    message: &'a str,
-    case_sensitive_obj_id: bool,
-    push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, ObjId)> + 'a {
-    parse_message_values_with_warnings(
-        track,
-        message,
-        move |id| (id != "00").then(|| ObjId::try_from(id, case_sensitive_obj_id)),
-        push_parse_warning,
-    )
-}
+    message: SourceRangeMixin<&str>,
+    prompter: &P,
+) -> impl Iterator<Item = (ObjTime, u8)> {
+    if !message.content().len().is_multiple_of(2) {
+        prompter.warn(
+            ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
+        );
+    }
 
-// Unified hex pair parser for message channels emitting u8 values
-fn hex_values_from_message<'a>(
-    track: Track,
-    message: &'a str,
-    push_parse_warning: impl FnMut(ParseWarning) + 'a,
-) -> impl Iterator<Item = (ObjTime, u8)> + 'a {
-    parse_message_values_with_warnings(
-        track,
-        message,
-        |digits| {
-            Some(
-                u8::from_str_radix(digits, 16).map_err(|_| {
-                    ParseWarning::SyntaxError(format!("Invalid hex digits: {digits}"))
-                }),
-            )
-        },
-        push_parse_warning,
-    )
+    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
+    message
+        .content()
+        .chars()
+        .tuples()
+        .enumerate()
+        .filter_map(move |(i, (c1, c2))| {
+            let buf = String::from_iter([c1, c2]);
+            match u8::from_str_radix(&buf, 16) {
+                Ok(value) => Some((
+                    ObjTime::new(
+                        track.0,
+                        i as u64,
+                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                    ),
+                    value,
+                )),
+                Err(_) => {
+                    prompter.warn(
+                        ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
+                            .into_wrapper(&message),
+                    );
+                    None
+                }
+            }
+        })
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {

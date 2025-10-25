@@ -3,35 +3,53 @@
 //! - `#VOLWAV n` - Changes the score's volume at `n`%.
 //! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
-use std::{cell::RefCell, rc::Rc};
 
 use super::{
-    super::{Result, prompt::Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens, hex_values_from_message,
+    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
+    parse_hex_values,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
-pub struct VolumeProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct VolumeProcessor;
 
-impl<P: Prompter> TokenProcessor for VolumeProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl TokenProcessor for VolumeProcessor {
+    type Output = VolumeObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = VolumeObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> VolumeProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl VolumeProcessor {
+    fn on_header(&self, name: &str, args: &str, objects: &mut VolumeObjects) -> Result<()> {
         if name.to_ascii_uppercase().as_str() == "VOLWAV" {
             let volume = args
                 .parse()
@@ -39,36 +57,39 @@ impl<P: Prompter> VolumeProcessor<'_, P> {
             let volume = Volume {
                 relative_percent: volume,
             };
-            self.0.borrow_mut().header.volume = volume;
+            objects.volume = volume;
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut VolumeObjects,
+    ) -> Result<()> {
         match channel {
             Channel::BgmVolume => {
-                for (time, volume_value) in
-                    hex_values_from_message(track, message, |w| self.1.warn(w))
-                {
-                    self.0.borrow_mut().notes.push_bgm_volume_change(
+                for (time, volume_value) in parse_hex_values(track, message, prompter) {
+                    objects.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
                             volume: volume_value,
                         },
-                        self.1,
+                        prompter,
                     )?;
                 }
             }
             Channel::KeyVolume => {
-                for (time, volume_value) in
-                    hex_values_from_message(track, message, |w| self.1.warn(w))
-                {
-                    self.0.borrow_mut().notes.push_key_volume_change(
+                for (time, volume_value) in parse_hex_values(track, message, prompter) {
+                    objects.push_key_volume_change(
                         KeyVolumeObj {
                             time,
                             volume: volume_value,
                         },
-                        self.1,
+                        prompter,
                     )?;
                 }
             }

@@ -2,7 +2,7 @@
 //!
 //! An object implementing [`Prompter`] is required by [`super::Bms::from_token_stream`]. It is used to handle conflicts and prompt workarounds on parsing the BMS file.
 
-use std::path::Path;
+use std::{cell::RefCell, path::Path};
 
 use crate::bms::{
     Decimal,
@@ -11,27 +11,25 @@ use crate::bms::{
         channel::Channel,
         time::{ObjTime, Track},
     },
-};
-
-use super::{ParseWarning, Result};
-use crate::bms::{
-    model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{
-        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedObj, TextObj,
+    error::{ParseWarning, ParseWarningWithRange, Result},
+    model::{
+        bmp::{AtBgaDef, BgaDef, Bmp},
+        judge::ExRankDef,
+        wav::ExWavDef,
     },
 };
 
-#[cfg(feature = "minor-command")]
+use crate::bms::model::obj::{
+    BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
+    SectionLenChangeObj, SpeedObj, TextObj,
+};
+
 use crate::bms::{
     command::{
         graphics::Argb,
         minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
     },
-    model::{
-        def::ExWavDef,
-        obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
-    },
+    model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -42,8 +40,8 @@ pub trait Prompter {
     fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
     fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
-    /// Shows the user a [`ParseWarning`].
-    fn warn(&self, warning: ParseWarning) {
+    /// Shows the user a [`ParseWarningWithRange`].
+    fn warn(&self, warning: ParseWarningWithRange) {
         eprintln!("{warning:?}");
     }
 }
@@ -143,7 +141,6 @@ pub enum DefDuplication<'a> {
         newer: &'a ExRankDef,
     },
     /// EXWAV definition is duplicated.
-    #[cfg(feature = "minor-command")]
     ExWav {
         /// Duplicated EXWAV object id.
         id: ObjId,
@@ -162,7 +159,6 @@ pub enum DefDuplication<'a> {
         newer: Decimal,
     },
     /// BGA ARGB color definition is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaArgb {
         /// Duplicated BGA ARGB object id.
         id: ObjId,
@@ -172,7 +168,6 @@ pub enum DefDuplication<'a> {
         newer: &'a Argb,
     },
     /// `WAVCMD` event is duplicated.
-    #[cfg(feature = "minor-command")]
     WavCmdEvent {
         /// Duplicated `WAVCMD` event `wav_index`.
         wav_index: ObjId,
@@ -182,7 +177,6 @@ pub enum DefDuplication<'a> {
         newer: &'a WavCmdEvent,
     },
     /// SWBGA event is duplicated.
-    #[cfg(feature = "minor-command")]
     SwBgaEvent {
         /// Duplicated SWBGA event id.
         id: ObjId,
@@ -192,7 +186,6 @@ pub enum DefDuplication<'a> {
         newer: &'a SwBgaEvent,
     },
     /// Seek event is duplicated.
-    #[cfg(feature = "minor-command")]
     SeekEvent {
         /// Duplicated Seek event id.
         id: ObjId,
@@ -255,7 +248,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaObj,
     },
     /// BGA opacity change event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaOpacityChangeEvent {
         /// Duplicated BGA opacity change time.
         time: ObjTime,
@@ -265,7 +257,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaOpacityObj,
     },
     /// BGA ARGB color change event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaArgbChangeEvent {
         /// Duplicated BGA ARGB change time.
         time: ObjTime,
@@ -275,7 +266,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaArgbObj,
     },
     /// STP event is duplicated.
-    #[cfg(feature = "minor-command")]
     StpEvent {
         /// Duplicated STP event time.
         time: ObjTime,
@@ -303,7 +293,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a KeyVolumeObj,
     },
     /// Seek message event is duplicated.
-    #[cfg(feature = "minor-command")]
     SeekMessageEvent {
         /// Duplicated seek time.
         time: ObjTime,
@@ -331,7 +320,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a JudgeObj,
     },
     /// BGA keybound event is duplicated.
-    #[cfg(feature = "minor-command")]
     BgaKeyboundEvent {
         /// Duplicated BGA keybound time.
         time: ObjTime,
@@ -341,7 +329,6 @@ pub enum ChannelDuplication<'a> {
         newer: &'a BgaKeyboundObj,
     },
     /// Option event is duplicated.
-    #[cfg(feature = "minor-command")]
     OptionEvent {
         /// Duplicated option time.
         time: ObjTime,
@@ -494,5 +481,85 @@ impl Prompter for AlwaysWarnAndUseNewer {
 
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
+    }
+}
+
+/// The strategy that always panics on reported a warning and uses newer values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PanicAndUseNewer;
+
+impl Prompter for PanicAndUseNewer {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseNewer
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        panic!("{warning:?}");
+    }
+}
+
+/// The strategy that always panics on reported a warning and uses older values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PanicAndUseOlder;
+
+impl Prompter for PanicAndUseOlder {
+    fn handle_def_duplication(&self, _: DefDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn handle_track_duplication(&self, _: TrackDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
+        DuplicationWorkaround::UseOlder
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        panic!("{warning:?}");
+    }
+}
+
+/// Creates a new [`Prompter`] for collecting warnings to the vec `dst` and delegates them another one `prompter`.
+pub fn warning_collector<P>(
+    prompter: P,
+    dst: &'_ mut Vec<ParseWarningWithRange>,
+) -> WarningCollector<'_, P> {
+    WarningCollector {
+        source: prompter,
+        dst: RefCell::from(dst),
+    }
+}
+
+/// A [`Prompter`] that collects warnings to a vec and delegates them another one.
+pub struct WarningCollector<'a, P> {
+    source: P,
+    dst: RefCell<&'a mut Vec<ParseWarningWithRange>>,
+}
+
+impl<P: Prompter> Prompter for WarningCollector<'_, P> {
+    fn handle_def_duplication(&self, duplication: DefDuplication) -> DuplicationWorkaround {
+        self.source.handle_def_duplication(duplication)
+    }
+
+    fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround {
+        self.source.handle_track_duplication(duplication)
+    }
+
+    fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround {
+        self.source.handle_channel_duplication(duplication)
+    }
+
+    fn warn(&self, warning: ParseWarningWithRange) {
+        self.source.warn(warning.clone());
+        self.dst.borrow_mut().push(warning);
     }
 }

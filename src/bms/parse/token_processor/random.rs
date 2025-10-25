@@ -46,8 +46,11 @@ use std::{cell::RefCell, rc::Rc};
 use num::BigUint;
 
 use crate::{
-    bms::prelude::*,
-    parse::{ParseError, ParseWarning, token_processor::all_tokens_with_range},
+    bms::{
+        error::{ParseError, ParseWarning},
+        prelude::*,
+    },
+    parse::token_processor::all_tokens_with_range,
 };
 
 use super::{TokenProcessor, TokenProcessorResult};
@@ -492,9 +495,15 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
+    type Output = <N as TokenProcessor>::Output;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
         let mut activated = vec![];
-        let mut warnings = all_tokens_with_range(input, |token| {
+        all_tokens_with_range(input, prompter, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -505,8 +514,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             }
             Ok(res)
         })?;
-        warnings.extend(self.next.process(&mut &activated[..])?);
-        Ok(warnings)
+        self.next.process(&mut &activated[..], prompter)
     }
 }
 

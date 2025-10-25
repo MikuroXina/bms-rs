@@ -3,42 +3,78 @@
 //! - `#TEXT[01-ZZ] text` - Text definition shown on playing. It can be double-quoted.
 //! - `#SONG[01-ZZ] text` - Text definition. Obsolete.
 //! - `#xxx99:` - Text channel.
+
 use std::{cell::RefCell, rc::Rc};
 
 use super::{
-    super::{Result, prompt::Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens, ids_from_message,
+    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
+    parse_obj_ids,
 };
-use crate::bms::{model::Bms, prelude::*};
+use crate::bms::{error::Result, model::text::TextObjects, prelude::*};
 
 /// It processes `#TEXTxx` definition and objects on `Text` channel.
-pub struct TextProcessor<'a, P>(pub Rc<RefCell<Bms>>, pub &'a P);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextProcessor {
+    case_sensitive_obj_id: Rc<RefCell<bool>>,
+}
 
-impl<P: Prompter> TokenProcessor for TextProcessor<'_, P> {
-    fn process(&self, input: &mut &[&TokenWithRange<'_>]) -> TokenProcessorResult {
-        all_tokens(input, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref()).err(),
+impl TextProcessor {
+    pub fn new(case_sensitive_obj_id: &Rc<RefCell<bool>>) -> Self {
+        Self {
+            case_sensitive_obj_id: Rc::clone(case_sensitive_obj_id),
+        }
+    }
+}
+
+impl TokenProcessor for TextProcessor {
+    type Output = TextObjects;
+
+    fn process<P: Prompter>(
+        &self,
+        input: &mut &[&TokenWithRange<'_>],
+        prompter: &P,
+    ) -> TokenProcessorResult<Self::Output> {
+        let mut objects = TextObjects::default();
+        all_tokens_with_range(input, prompter, |token| {
+            Ok(match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self.on_message(*track, *channel, message.as_ref()).err(),
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .err(),
                 Token::NotACommand(_) => None,
             })
-        })
+        })?;
+        Ok(objects)
     }
 }
 
-impl<P: Prompter> TextProcessor<'_, P> {
-    fn on_header(&self, name: &str, args: &str) -> Result<()> {
+impl TextProcessor {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        prompter: &impl Prompter,
+        objects: &mut TextObjects,
+    ) -> Result<()> {
         let upper = name.to_ascii_uppercase();
         if upper.starts_with("TEXT") || upper.starts_with("SONG") {
             let id = &name["TEXT".len()..];
-            let id = ObjId::try_from(id, self.0.borrow().header.case_sensitive_obj_id)?;
+            let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
-            if let Some(older) = self.0.borrow_mut().others.texts.get_mut(&id) {
-                self.1
+            if let Some(older) = objects.texts.get_mut(&id) {
+                prompter
                     .handle_def_duplication(DefDuplication::Text {
                         id,
                         older,
@@ -46,34 +82,30 @@ impl<P: Prompter> TextProcessor<'_, P> {
                     })
                     .apply_def(older, args.to_string(), id)?;
             } else {
-                self.0
-                    .borrow_mut()
-                    .others
-                    .texts
-                    .insert(id, args.to_string());
+                objects.texts.insert(id, args.to_string());
             }
         }
         Ok(())
     }
 
-    fn on_message(&self, track: Track, channel: Channel, message: &str) -> Result<()> {
+    fn on_message(
+        &self,
+        track: Track,
+        channel: Channel,
+        message: SourceRangeMixin<&str>,
+        prompter: &impl Prompter,
+        objects: &mut TextObjects,
+    ) -> Result<()> {
         if channel == Channel::Text {
-            let is_sensitive = self.0.borrow().header.case_sensitive_obj_id;
             for (time, text_id) in
-                ids_from_message(track, message, is_sensitive, |w| self.1.warn(w))
+                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
             {
-                let text = self
-                    .0
-                    .borrow()
-                    .others
+                let text = objects
                     .texts
                     .get(&text_id)
                     .cloned()
                     .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                self.0
-                    .borrow_mut()
-                    .notes
-                    .push_text_event(TextObj { time, text }, self.1)?;
+                objects.push_text_event(TextObj { time, text }, prompter)?;
             }
         }
         Ok(())

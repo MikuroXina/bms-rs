@@ -33,12 +33,6 @@ fn test_prelude_imports() {
 
     // Test model types
     let _bms = Bms::default();
-    let _header = Header::default();
-    let _scope_defines = ScopeDefines::default();
-    let _arrangers = Arrangers::default();
-    let _notes = Notes::default();
-    let _graphics = Graphics::default();
-    let _others = Others::default();
 
     // Test model::def types
     let _at_bga_def = AtBgaDef {
@@ -136,7 +130,7 @@ fn test_prelude_imports() {
 }
 
 #[test]
-#[cfg(feature = "minor-command")]
+
 fn test_prelude_minor_command_imports() {
     // Test minor command types when feature is enabled
     let _wav_cmd_param = WavCmdParam::Pitch;

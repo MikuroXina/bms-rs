@@ -45,26 +45,29 @@ fn test_bmson_to_bms_conversion() {
     let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
 
     // Verify conversion
-    assert_eq!(bms.header.title, Some("Test Song".to_string()));
-    assert_eq!(bms.header.subtitle, Some("Test Subtitle".to_string()));
-    assert_eq!(bms.header.artist, Some("Test Artist".to_string()));
-    assert_eq!(bms.header.sub_artist, Some("Test Sub Artist".to_string()));
-    assert_eq!(bms.header.genre, Some("Test Genre".to_string()));
-    assert_eq!(bms.header.play_level, Some(5));
+    assert_eq!(bms.music_info.title, Some("Test Song".to_string()));
+    assert_eq!(bms.music_info.subtitle, Some("Test Subtitle".to_string()));
+    assert_eq!(bms.music_info.artist, Some("Test Artist".to_string()));
     assert_eq!(
-        bms.header.back_bmp,
+        bms.music_info.sub_artist,
+        Some("Test Sub Artist".to_string())
+    );
+    assert_eq!(bms.music_info.genre, Some("Test Genre".to_string()));
+    assert_eq!(bms.metadata.play_level, Some(5));
+    assert_eq!(
+        bms.sprite.back_bmp,
         Some(std::path::PathBuf::from("back.png"))
     );
     assert_eq!(
-        bms.header.stage_file,
+        bms.sprite.stage_file,
         Some(std::path::PathBuf::from("eyecatch.png"))
     );
     assert_eq!(
-        bms.header.banner,
+        bms.sprite.banner,
         Some(std::path::PathBuf::from("banner.png"))
     );
     assert_eq!(
-        bms.header.preview_music,
+        bms.music_info.preview_music,
         Some(std::path::PathBuf::from("preview.wav"))
     );
 }
@@ -131,7 +134,7 @@ fn test_bmson_to_bms_with_notes() {
     let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
 
     // Verify that notes were converted
-    assert_eq!(bms.notes().wav_files.len(), 1);
+    assert_eq!(bms.wav.wav_files.len(), 1);
 
     // Check that we have 2 notes
     let notes_count = bms.notes().all_notes().count();
