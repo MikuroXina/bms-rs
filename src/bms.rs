@@ -108,6 +108,17 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
 }
 
 impl<T, P, R> ParseConfig<T, P, R> {
+    /// Sets the key mapper to the `T2` one.
+    pub fn key_mapper<T2: KeyLayoutMapper>(self) -> ParseConfig<T2, P, R> {
+        ParseConfig {
+            key_mapper: PhantomData,
+            prompter: self.prompter,
+            rng: self.rng,
+            use_minor: self.use_minor,
+            use_relaxed: self.use_relaxed,
+        }
+    }
+
     /// Sets the prompter to `prompter`.
     pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R> {
         ParseConfig {
