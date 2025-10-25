@@ -21,4 +21,5 @@ pub use crate::bms::prelude::SwBgaEvent;
 pub use super::bms_processor::BmsProcessor;
 
 // Re-export BmsonProcessor from bmson_processor module
+#[cfg(feature = "bmson")]
 pub use super::bmson_processor::BmsonProcessor;

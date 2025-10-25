@@ -1,4 +1,5 @@
 //! Bmson Processor Module.
+#![cfg(feature = "bmson")]
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;

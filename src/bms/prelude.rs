@@ -4,6 +4,7 @@
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
 // Re-export diagnostics from bms level
+#[cfg(feature = "diagnostics")]
 pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
