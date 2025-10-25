@@ -13,10 +13,13 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_hex_values, parse_obj_ids,
 };
-use crate::bms::{
-    error::{ParseWarning, Result},
-    model::bpm::BpmObjects,
-    prelude::*,
+use crate::{
+    bms::{
+        error::{ParseWarning, Result},
+        model::bpm::BpmObjects,
+        prelude::*,
+    },
+    util::StrExtension,
 };
 
 /// It processes `#BPM` and `#BPMxx` definitions and objects on `BpmChange` and `BpmChangeU8` channels.
@@ -75,46 +78,40 @@ impl BpmProcessor {
         prompter: &impl Prompter,
         objects: &mut BpmObjects,
     ) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "BPM" => {
-                let bpm = Decimal::from_fraction(
-                    GenericFraction::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-                );
-                objects.bpm = Some(bpm);
+        if name.eq_ignore_ascii_case("BPM") {
+            let bpm = Decimal::from_fraction(
+                GenericFraction::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+            );
+            objects.bpm = Some(bpm);
+        }
+        if let Some(id) = name
+            .strip_prefix_ignore_case("BPM")
+            .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
+        {
+            let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+            let bpm = Decimal::from_fraction(
+                GenericFraction::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+            );
+            if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
+                prompter
+                    .handle_def_duplication(DefDuplication::BpmChange {
+                        id: bpm_obj_id,
+                        older: older.clone(),
+                        newer: bpm.clone(),
+                    })
+                    .apply_def(older, bpm, bpm_obj_id)?;
+            } else {
+                objects.bpm_defs.insert(bpm_obj_id, bpm);
             }
-            bpm if bpm.starts_with("BPM") || bpm.starts_with("EXBPM") => {
-                let id = if bpm.starts_with("BPM") {
-                    &name["BPM".len()..]
-                } else {
-                    &name["EXBPM".len()..]
-                };
-                let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-                let bpm = Decimal::from_fraction(
-                    GenericFraction::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-                );
-                if let Some(older) = objects.bpm_defs.get_mut(&bpm_obj_id) {
-                    prompter
-                        .handle_def_duplication(DefDuplication::BpmChange {
-                            id: bpm_obj_id,
-                            older: older.clone(),
-                            newer: bpm.clone(),
-                        })
-                        .apply_def(older, bpm, bpm_obj_id)?;
-                } else {
-                    objects.bpm_defs.insert(bpm_obj_id, bpm);
-                }
-            }
-
-            "BASEBPM" => {
-                let bpm = Decimal::from_fraction(
-                    GenericFraction::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
-                );
-                objects.base_bpm = Some(bpm);
-            }
-            _ => {}
+        }
+        if name.eq_ignore_ascii_case("BASEBPM") {
+            let bpm = Decimal::from_fraction(
+                GenericFraction::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
+            );
+            objects.base_bpm = Some(bpm);
         }
         Ok(())
     }

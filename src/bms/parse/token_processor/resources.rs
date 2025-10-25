@@ -40,28 +40,25 @@ impl TokenProcessor for ResourcesProcessor {
 
 impl ResourcesProcessor {
     fn on_header(&self, name: &str, args: &str, resources: &mut Resources) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "MIDIFILE" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected midi filename".into()));
-                }
-                resources.midi_file = Some(Path::new(args).into());
+        if name.eq_ignore_ascii_case("MIDIFILE") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError("expected midi filename".into()));
             }
-            "CDDA" => {
-                let big_uint = BigUint::from_str(args)
-                    .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-                resources.cdda.push(big_uint)
-            }
-            "MATERIALSWAV" => {
-                resources.materials_wav.push(Path::new(args).into());
-            }
-            "MATERIALSBMP" => {
-                resources.materials_bmp.push(Path::new(args).into());
-            }
-            "MATERIALS" => {
-                resources.materials_path = Some(Path::new(args).into());
-            }
-            _ => {}
+            resources.midi_file = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("CDDA") {
+            let big_uint = BigUint::from_str(args)
+                .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
+            resources.cdda.push(big_uint)
+        }
+        if name.eq_ignore_ascii_case("MATERIALSWAV") {
+            resources.materials_wav.push(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("MATERIALSBMP") {
+            resources.materials_bmp.push(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("MATERIALS") {
+            resources.materials_path = Some(Path::new(args).into());
         }
         Ok(())
     }

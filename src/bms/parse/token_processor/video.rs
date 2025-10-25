@@ -15,7 +15,10 @@ use fraction::GenericFraction;
 use num::BigUint;
 
 use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range};
-use crate::bms::{error::Result, model::video::Video, prelude::*};
+use crate::{
+    bms::{error::Result, model::video::Video, prelude::*},
+    util::StrExtension,
+};
 
 /// It processes `#VIDEOFILE`, `#MOVIE` and so on definitions and objects on `Seek` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,61 +76,53 @@ impl VideoProcessor {
         prompter: &impl Prompter,
         video: &mut Video,
     ) -> Result<()> {
-        match name.to_ascii_uppercase().as_str() {
-            "VIDEOFILE" | "MOVIE" => {
-                if args.is_empty() {
-                    return Err(ParseWarning::SyntaxError("expected video filename".into()));
-                }
-                video.video_file = Some(Path::new(args).into());
+        if name.eq_ignore_ascii_case("VIDEOFILE") || name.eq_ignore_ascii_case("MOVIE") {
+            if args.is_empty() {
+                return Err(ParseWarning::SyntaxError("expected video filename".into()));
             }
+            video.video_file = Some(Path::new(args).into());
+        }
+        if name.eq_ignore_ascii_case("VIDEOF/S") {
+            let frame_rate = Decimal::from_fraction(
+                GenericFraction::<BigUint>::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
+            );
+            video.video_fs = Some(frame_rate);
+        }
+        if name.eq_ignore_ascii_case("VIDEOCOLORS") {
+            let colors = args
+                .parse()
+                .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
+            video.video_colors = Some(colors);
+        }
+        if name.eq_ignore_ascii_case("VIDEODLY") {
+            let delay = Decimal::from_fraction(
+                GenericFraction::<BigUint>::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
+            );
+            video.video_dly = Some(delay);
+        }
+        if let Some(id) = name.strip_prefix_ignore_case("SEEK") {
+            use fraction::GenericFraction;
+            use num::BigUint;
 
-            "VIDEOF/S" => {
-                let frame_rate = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-                );
-                video.video_fs = Some(frame_rate);
+            let ms = Decimal::from_fraction(
+                GenericFraction::<BigUint>::from_str(args)
+                    .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
+            );
+            let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
+
+            if let Some(older) = video.seek_defs.get_mut(&id) {
+                prompter
+                    .handle_def_duplication(DefDuplication::SeekEvent {
+                        id,
+                        older,
+                        newer: &ms,
+                    })
+                    .apply_def(older, ms, id)?;
+            } else {
+                video.seek_defs.insert(id, ms);
             }
-
-            "VIDEOCOLORS" => {
-                let colors = args
-                    .parse()
-                    .map_err(|_| ParseWarning::SyntaxError("expected u8".into()))?;
-                video.video_colors = Some(colors);
-            }
-
-            "VIDEODLY" => {
-                let delay = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
-                );
-                video.video_dly = Some(delay);
-            }
-
-            seek if seek.starts_with("SEEK") => {
-                use fraction::GenericFraction;
-                use num::BigUint;
-
-                let id = &name["SEEK".len()..];
-                let ms = Decimal::from_fraction(
-                    GenericFraction::<BigUint>::from_str(args)
-                        .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
-                );
-                let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-
-                if let Some(older) = video.seek_defs.get_mut(&id) {
-                    prompter
-                        .handle_def_duplication(DefDuplication::SeekEvent {
-                            id,
-                            older,
-                            newer: &ms,
-                        })
-                        .apply_def(older, ms, id)?;
-                } else {
-                    video.seek_defs.insert(id, ms);
-                }
-            }
-            _ => {}
         }
         Ok(())
     }

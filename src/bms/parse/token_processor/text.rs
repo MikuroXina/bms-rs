@@ -10,7 +10,10 @@ use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
     parse_obj_ids,
 };
-use crate::bms::{error::Result, model::text::TextObjects, prelude::*};
+use crate::{
+    bms::{error::Result, model::text::TextObjects, prelude::*},
+    util::StrExtension,
+};
 
 /// It processes `#TEXTxx` definition and objects on `Text` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,9 +71,10 @@ impl TextProcessor {
         prompter: &impl Prompter,
         objects: &mut TextObjects,
     ) -> Result<()> {
-        let upper = name.to_ascii_uppercase();
-        if upper.starts_with("TEXT") || upper.starts_with("SONG") {
-            let id = &name["TEXT".len()..];
+        if let Some(id) = name
+            .strip_prefix_ignore_case("TEXT")
+            .or_else(|| name.strip_prefix_ignore_case("SONG"))
+        {
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.texts.get_mut(&id) {

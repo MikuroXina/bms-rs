@@ -11,10 +11,13 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
 };
-use crate::bms::{
-    error::{ParseWarning, Result},
-    model::speed::SpeedObjects,
-    prelude::*,
+use crate::{
+    bms::{
+        error::{ParseWarning, Result},
+        model::speed::SpeedObjects,
+        prelude::*,
+    },
+    util::StrExtension,
 };
 
 /// It processes `#SPEEDxx` definitions and objects on `Speed` channel.
@@ -73,8 +76,7 @@ impl SpeedProcessor {
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
     ) -> Result<()> {
-        if name.to_ascii_uppercase().starts_with("SPEED") {
-            let id = &name["SPEED".len()..];
+        if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
             })?);

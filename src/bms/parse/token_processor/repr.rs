@@ -58,40 +58,37 @@ impl RepresentationProcessor {
         } else {
             repr.raw_command_lines.push(format!("#{name} {args}"));
         }
-        match name.to_ascii_uppercase().as_str() {
-            "BASE" => {
-                if args != "62" {
-                    return Err(ParseWarning::OutOfBase62);
+        if name.eq_ignore_ascii_case("BASE") {
+            if args != "62" {
+                return Err(ParseWarning::OutOfBase62);
+            }
+            *self.case_sensitive_obj_id.borrow_mut() = true;
+        }
+        if name.eq_ignore_ascii_case("LNMODE") {
+            let mode: u8 = args.parse().map_err(|_| {
+                ParseWarning::SyntaxError("expected integer between 1 and 3".into())
+            })?;
+            let mode = match mode {
+                1 => LnMode::Ln,
+                2 => LnMode::Cn,
+                3 => LnMode::Hcn,
+                _ => {
+                    return Err(ParseWarning::SyntaxError(
+                        "expected long note mode between 1 and 3".into(),
+                    ));
                 }
-                *self.case_sensitive_obj_id.borrow_mut() = true;
-            }
-            "LNMODE" => {
-                let mode: u8 = args.parse().map_err(|_| {
-                    ParseWarning::SyntaxError("expected integer between 1 and 3".into())
-                })?;
-                let mode = match mode {
-                    1 => LnMode::Ln,
-                    2 => LnMode::Cn,
-                    3 => LnMode::Hcn,
-                    _ => {
-                        return Err(ParseWarning::SyntaxError(
-                            "expected long note mode between 1 and 3".into(),
-                        ));
-                    }
-                };
-                repr.ln_mode = mode;
-            }
-            "LNTYPE" => {
-                repr.ln_type = if args == "2" {
-                    LnType::Mgq
-                } else {
-                    LnType::Rdm
-                };
-            }
-            "CHARSET" => {
-                repr.charset = Some(args.into());
-            }
-            _ => {}
+            };
+            repr.ln_mode = mode;
+        }
+        if name.eq_ignore_ascii_case("LNTYPE") {
+            repr.ln_type = if args == "2" {
+                LnType::Mgq
+            } else {
+                LnType::Rdm
+            };
+        }
+        if name.eq_ignore_ascii_case("CHARSET") {
+            repr.charset = Some(args.into());
         }
         Ok(())
     }

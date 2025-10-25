@@ -50,7 +50,7 @@ impl TokenProcessor for VolumeProcessor {
 
 impl VolumeProcessor {
     fn on_header(&self, name: &str, args: &str, objects: &mut VolumeObjects) -> Result<()> {
-        if name.to_ascii_uppercase().as_str() == "VOLWAV" {
+        if name.eq_ignore_ascii_case("VOLWAV") {
             let volume = args
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
