@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.10.0](https://github.com/MikuroXina/bms-rs/compare/v0.9.0...v0.10.0) (2025-10-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* Enforce token processor output and model definition ([#233](https://github.com/MikuroXina/bms-rs/issues/233))
+* Make token processors stronger and Remove ast module ([#232](https://github.com/MikuroXina/bms-rs/issues/232))
+* Refresh token system ([#215](https://github.com/MikuroXina/bms-rs/issues/215))
+* **bmson:** parse_bmson use chumsky, move `bms::diagnostics` to `crate::diagnostics` ([#205](https://github.com/MikuroXina/bms-rs/issues/205))
+* ObjTime should use NonZeroU64 ([#207](https://github.com/MikuroXina/bms-rs/issues/207))
+
+### Features
+
+* Add use_pedantic/use_relaxed ([#235](https://github.com/MikuroXina/bms-rs/issues/235)) ([8a53261](https://github.com/MikuroXina/bms-rs/commit/8a5326120f28c555ae1548c60bd9a3148bf818f2))
+* **bmson:** parse_bmson use chumsky, move `bms::diagnostics` to `crate::diagnostics` ([#205](https://github.com/MikuroXina/bms-rs/issues/205)) ([94a523d](https://github.com/MikuroXina/bms-rs/commit/94a523d517ebc8972c630679f330510686a19c1c))
+* chart_processor ([#200](https://github.com/MikuroXina/bms-rs/issues/200)) ([a0771f8](https://github.com/MikuroXina/bms-rs/commit/a0771f8bc09f9da062f086fd972a2ba579169262))
+* Enforce token processor output and model definition ([#233](https://github.com/MikuroXina/bms-rs/issues/233)) ([3516134](https://github.com/MikuroXina/bms-rs/commit/3516134efa0e55eb41f03483e706b1c5526f5182))
+* Impl bms to token ([#212](https://github.com/MikuroXina/bms-rs/issues/212)) ([62d842d](https://github.com/MikuroXina/bms-rs/commit/62d842d6193e139ff99ffc87a255a31a5e795339))
+* impl Channel and NoteChannelId convert ([#227](https://github.com/MikuroXina/bms-rs/issues/227)) ([6876187](https://github.com/MikuroXina/bms-rs/commit/68761876c6ad58a5f3aceebc68ba24652bfa5f9e))
+* Make token processors stronger and Remove ast module ([#232](https://github.com/MikuroXina/bms-rs/issues/232)) ([106226c](https://github.com/MikuroXina/bms-rs/commit/106226c69674d5e08e3cc64f60120d46f230d0e1))
+* Merge message parse logic, dealing with non-fit chars, and more recovable message parsing ([#210](https://github.com/MikuroXina/bms-rs/issues/210)) ([db4bc02](https://github.com/MikuroXina/bms-rs/commit/db4bc0291a863e3ba706218ea3693e628496cf46))
+* parse_bmson, serde_path_to_error version ([#201](https://github.com/MikuroXina/bms-rs/issues/201)) ([6ab9044](https://github.com/MikuroXina/bms-rs/commit/6ab904406f30931cb8a07d141b23565fd5a75227))
+
+
+### Bug Fixes
+
+* Avoid to_ascii_uppercase ([#234](https://github.com/MikuroXina/bms-rs/issues/234)) ([92a4e79](https://github.com/MikuroXina/bms-rs/commit/92a4e7904248b2da89c58be30b4fa0b9b245c32e))
+* bmson resolution deserialize ([#209](https://github.com/MikuroXina/bms-rs/issues/209)) ([da713c1](https://github.com/MikuroXina/bms-rs/commit/da713c12a2432029d9ca29006dfc3f94c844c752))
+* Fix clippy nursery warnings ([#217](https://github.com/MikuroXina/bms-rs/issues/217)) ([7cc678e](https://github.com/MikuroXina/bms-rs/commit/7cc678e9c24beaefd24d2408c16a5fed90daa222))
+* Hotfix ([#216](https://github.com/MikuroXina/bms-rs/issues/216)) ([7545288](https://github.com/MikuroXina/bms-rs/commit/7545288c4837f4fb8e55dbacbecfa95aeab12a70))
+* ObjTime should use NonZeroU64 ([#207](https://github.com/MikuroXina/bms-rs/issues/207)) ([2711155](https://github.com/MikuroXina/bms-rs/commit/2711155345512b787abfcdff4475fe531e4bb20f))
+* Refresh token system ([#215](https://github.com/MikuroXina/bms-rs/issues/215)) ([5ba3542](https://github.com/MikuroXina/bms-rs/commit/5ba3542cee296895b5c28a1839ce3039043779a0))
+
+
+### Miscellaneous Chores
+
+* Release 0.10.0 ([#236](https://github.com/MikuroXina/bms-rs/issues/236)) ([1e85ffa](https://github.com/MikuroXina/bms-rs/commit/1e85ffaf53e9897f86ffa216854d7e0860ef4c44))
+
 ## [0.9.0](https://github.com/MikuroXina/bms-rs/compare/v0.8.0...v0.9.0) (2025-09-02)
 
 
