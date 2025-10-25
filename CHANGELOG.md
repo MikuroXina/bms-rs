@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/MikuroXina/bms-rs/compare/v0.10.0...v0.10.1) (2025-10-25)
+
+
+### Features
+
+* Hotfix to Add key_mapper ([#237](https://github.com/MikuroXina/bms-rs/issues/237)) ([d4d5879](https://github.com/MikuroXina/bms-rs/commit/d4d5879eaaf3f22b3650e1c6703f9e542332d8e6))
+
 ## [0.10.0](https://github.com/MikuroXina/bms-rs/compare/v0.9.0...v0.10.0) (2025-10-25)
 
 
