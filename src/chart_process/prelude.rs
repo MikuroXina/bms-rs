@@ -15,7 +15,6 @@ pub use super::ChartProcessor;
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
 
-
 pub use crate::bms::prelude::SwBgaEvent;
 
 // Re-export BmsProcessor from bms_processor module

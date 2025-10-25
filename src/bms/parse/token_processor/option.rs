@@ -4,6 +4,7 @@
 //! - `#CHANGEOPTION[01-ZZ] option_id` - Option change definition for a BMS player software. In most cases, it has also the vendor-prefix.
 //! - `#xxxA6:` - Option change channel.
 
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
@@ -14,7 +15,6 @@ use crate::bms::{
     model::option::OptionObjects,
     prelude::*,
 };
-use std::{cell::RefCell, rc::Rc};
 
 /// It processes `#OPTION` and `#CHANGEOPTIONxx` definitions and objects on `Option` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]

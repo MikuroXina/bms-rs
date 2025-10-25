@@ -200,7 +200,6 @@ fn test_channel_judge() {
     );
 }
 
-
 #[test]
 fn test_bga_opacity_channels() {
     // Test BGA opacity channels as a group
@@ -315,7 +314,6 @@ fn test_bga_opacity_channels() {
         })
     );
 }
-
 
 #[test]
 fn test_bga_argb_channels() {

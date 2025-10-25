@@ -45,21 +45,16 @@ pub enum Channel {
     /// For the note spacing change object.
     Speed,
     /// For the video seek object. `#SEEKxx n`
-
     Seek,
     /// For the BGA LAYER2 object. `#BMPxx` (LAYER2 is layered over LAYER)
     BgaLayer2,
     /// For the opacity of BGA BASE. transparent « [01-FF] » opaque
-
     BgaBaseOpacity,
     /// For the opacity of BGA LAYER. transparent « [01-FF] » opaque
-
     BgaLayerOpacity,
     /// For the opacity of BGA LAYER2. transparent « [01-FF] » opaque
-
     BgaLayer2Opacity,
     /// For the opacity of BGA POOR. transparent « [01-FF] » opaque
-
     BgaPoorOpacity,
     /// For the BGM volume. min 1 « [01-FF] » max 255 (= original sound)
     BgmVolume,
@@ -70,22 +65,16 @@ pub enum Channel {
     /// For the JUDGE object. `#EXRANKxx n` (100 corresponds to RANK:NORMAL. integer or decimal fraction)
     Judge,
     /// For the BGA BASE aRGB. `#ARGBxx a,r,g,b` (each [0-255])
-
     BgaBaseArgb,
     /// For the BGA LAYER aRGB. `#ARGBxx`
-
     BgaLayerArgb,
     /// For the BGA LAYER2 aRGB. `#ARGBxx`
-
     BgaLayer2Argb,
     /// For the BGA POOR aRGB. `#ARGBxx`
-
     BgaPoorArgb,
     /// For the BGA KEYBOUND. `#SWBGAxx`
-
     BgaKeybound,
     /// For the OPTION. `#CHANGEOPTIONxx` (multiline)
-
     OptionChange,
 }
 

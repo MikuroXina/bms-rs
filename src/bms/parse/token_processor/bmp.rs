@@ -312,8 +312,6 @@ impl BmpProcessor {
                     objects.bga_defs.insert(id, to_insert);
                 }
             }
-
-
             swbga if swbga.starts_with("SWBGA") => {
                 let id = &name[5..];
                 let args: Vec<_> = args.split_whitespace().collect();

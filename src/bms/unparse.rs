@@ -72,94 +72,92 @@ impl Bms {
     }
 
     fn unparse_headers<'a>(&'a self, tokens: &mut Vec<Token<'a>>) {
-
-        {
-            // Options
-            if let Some(options) = self.option.options.as_ref() {
-                for option in options {
-                    tokens.push(Token::Header {
-                        name: "OPTION".into(),
-                        args: option.into(),
-                    });
-                }
-            }
-            // Octave mode
-            if self.metadata.is_octave {
+        // Options
+        if let Some(options) = self.option.options.as_ref() {
+            for option in options {
                 tokens.push(Token::Header {
-                    name: "OCT/FP".into(),
-                    args: "".into(),
-                });
-            }
-            // CDDA events
-            for cdda in &self.resources.cdda {
-                tokens.push(Token::Header {
-                    name: "CDDA".into(),
-                    args: cdda.to_string().into(),
-                });
-            }
-            // Extended character events
-            for ExtChrEvent {
-                sprite_num,
-                bmp_num,
-                start_x,
-                start_y,
-                end_x,
-                end_y,
-                offset_x,
-                offset_y,
-                abs_x,
-                abs_y,
-            } in &self.sprite.extchr_events
-            {
-                use itertools::Itertools;
-
-                let buf = [sprite_num, bmp_num, start_x, start_y, end_x, end_y]
-                    .into_iter()
-                    .copied()
-                    .chain(
-                        offset_x
-                            .zip(*offset_y)
-                            .map(Into::<[i32; 2]>::into)
-                            .into_iter()
-                            .flatten(),
-                    )
-                    .chain(
-                        abs_x
-                            .zip(*abs_y)
-                            .map(Into::<[i32; 2]>::into)
-                            .into_iter()
-                            .flatten(),
-                    )
-                    .join(" ");
-                tokens.push(Token::Header {
-                    name: "EXTCHR".into(),
-                    args: buf.into(),
-                });
-            }
-            // Change options
-            for (id, option) in &self.option.change_options {
-                tokens.push(Token::Header {
-                    name: format!("CHANGEOPTION{id}").into(),
-                    args: option.as_str().into(),
-                });
-            }
-            // Divide property
-            if let Some(divide_prop) = self.metadata.divide_prop.as_ref() {
-                tokens.push(Token::Header {
-                    name: "DIVIDEPROP".into(),
-                    args: divide_prop.as_str().into(),
-                });
-            }
-            // Materials path
-            if let Some(materials_path) = self.resources.materials_path.as_ref()
-                && !materials_path.as_path().as_os_str().is_empty()
-            {
-                tokens.push(Token::Header {
-                    name: "MATERIALS".into(),
-                    args: materials_path.display().to_string().into(),
+                    name: "OPTION".into(),
+                    args: option.into(),
                 });
             }
         }
+        // Octave mode
+        if self.metadata.is_octave {
+            tokens.push(Token::Header {
+                name: "OCT/FP".into(),
+                args: "".into(),
+            });
+        }
+        // CDDA events
+        for cdda in &self.resources.cdda {
+            tokens.push(Token::Header {
+                name: "CDDA".into(),
+                args: cdda.to_string().into(),
+            });
+        }
+        // Extended character events
+        for ExtChrEvent {
+            sprite_num,
+            bmp_num,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            offset_x,
+            offset_y,
+            abs_x,
+            abs_y,
+        } in &self.sprite.extchr_events
+        {
+            use itertools::Itertools;
+
+            let buf = [sprite_num, bmp_num, start_x, start_y, end_x, end_y]
+                .into_iter()
+                .copied()
+                .chain(
+                    offset_x
+                        .zip(*offset_y)
+                        .map(Into::<[i32; 2]>::into)
+                        .into_iter()
+                        .flatten(),
+                )
+                .chain(
+                    abs_x
+                        .zip(*abs_y)
+                        .map(Into::<[i32; 2]>::into)
+                        .into_iter()
+                        .flatten(),
+                )
+                .join(" ");
+            tokens.push(Token::Header {
+                name: "EXTCHR".into(),
+                args: buf.into(),
+            });
+        }
+        // Change options
+        for (id, option) in &self.option.change_options {
+            tokens.push(Token::Header {
+                name: format!("CHANGEOPTION{id}").into(),
+                args: option.as_str().into(),
+            });
+        }
+        // Divide property
+        if let Some(divide_prop) = self.metadata.divide_prop.as_ref() {
+            tokens.push(Token::Header {
+                name: "DIVIDEPROP".into(),
+                args: divide_prop.as_str().into(),
+            });
+        }
+        // Materials path
+        if let Some(materials_path) = self.resources.materials_path.as_ref()
+            && !materials_path.as_path().as_os_str().is_empty()
+        {
+            tokens.push(Token::Header {
+                name: "MATERIALS".into(),
+                args: materials_path.display().to_string().into(),
+            });
+        }
+
         for line in &self.repr.non_command_lines {
             tokens.push(Token::NotACommand(line.as_str()));
         }
@@ -388,7 +386,6 @@ impl Bms {
                 .into_values(),
         );
 
-
         tokens.extend(
             self.video
                 .seek_defs
@@ -473,7 +470,6 @@ impl Bms {
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
-
 
         {
             tokens.extend(
@@ -628,7 +624,6 @@ impl Bms {
             });
         }
 
-
         {
             if let Some(midi_file) = self.resources.midi_file.as_ref()
                 && !midi_file.as_path().as_os_str().is_empty()
@@ -656,7 +651,6 @@ impl Bms {
                 args: video_file.display().to_string().into(),
             });
         }
-
 
         {
             if let Some(colors) = self.video.video_colors {
@@ -895,7 +889,6 @@ impl Bms {
         late_def_tokens.extend(speed_late_def_tokens);
         message_tokens.extend(speed_message_tokens);
 
-
         {
             // STP events, sorted by time for consistent output
             let mut stp_events: Vec<_> = self.stop.stp_events.values().collect();
@@ -933,7 +926,6 @@ impl Bms {
             },
         );
         message_tokens.extend(bga_message_tokens);
-
 
         {
             // Messages: BGA opacity changes (#xxx0B/#xxx0C/#xxx0D/#xxx0E)
@@ -1158,7 +1150,6 @@ impl Bms {
                 .collect::<BTreeMap<_, _>>()
                 .into_values(),
         );
-
 
         {
             // Messages: SEEK (#xxx05)

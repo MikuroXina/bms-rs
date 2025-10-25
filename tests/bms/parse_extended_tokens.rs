@@ -1,5 +1,3 @@
-
-
 use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
 
 #[test]
