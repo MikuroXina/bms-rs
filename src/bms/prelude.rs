@@ -12,7 +12,7 @@ pub use super::{
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
-            Channel, Key, NoteChannelId, NoteKind, PlayerSide,
+            Channel, ChannelIdParseError, Key, NoteChannelId, NoteKind, PlayerSide,
             converter::{
                 KeyConverter, KeyMappingConvertFlip, KeyMappingConvertLaneRandomShuffle,
                 KeyMappingConvertLaneRotateShuffle, KeyMappingConvertMirror,
@@ -33,34 +33,50 @@ pub use super::{
         time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,
-    error::{ParseWarning, ParseWarningWithRange},
+    error::{ParseError, ParseErrorWithRange, ParseWarning, ParseWarningWithRange},
     lex::{
-        LexOutput, LexWarning, TokenRefStream, TokenStream,
+        LexOutput, LexWarning, LexWarningWithRange, TokenRefStream, TokenStream,
         cursor::Cursor,
         token::{Token, TokenWithRange},
     },
     model::{
         Bms, Notes,
-        bmp::{AtBgaDef, BgaDef, Bmp},
-        judge::ExRankDef,
+        bmp::{AtBgaDef, BgaDef, Bmp, BmpObjects},
+        bpm::BpmObjects,
+        judge::{ExRankDef, JudgeObjects},
+        metadata::Metadata,
+        music_info::MusicInfo,
         obj::{
             BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
             BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
             SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
         },
-        wav::ExWavDef,
+        option::OptionObjects,
+        repr::BmsSourceRepresentation,
+        resources::Resources,
+        scroll::ScrollObjects,
+        section_len::SectionLenObjects,
+        speed::SpeedObjects,
+        sprite::Sprites,
+        stop::StopObjects,
+        text::TextObjects,
+        video::Video,
+        volume::VolumeObjects,
+        wav::{ExWavDef, WavObjects},
     },
     parse::{
         ParseOutput,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-            DefDuplication, DuplicationWorkaround, PanicAndUseNewer, PanicAndUseOlder, Prompter,
+            ChannelDuplication, DefDuplication, DuplicationWorkaround, PanicAndUseNewer,
+            PanicAndUseOlder, Prompter, TrackDuplication, WarningCollector,
         },
+        token_processor::{TokenProcessor, TokenProcessorResult},
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
     parse_bms,
-    rng::{Rng, RngMock},
+    rng::{JavaRandom, Rng, RngMock},
 };
 
 // Re-export related members when `rand` feature is enabled
