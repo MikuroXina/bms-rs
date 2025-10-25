@@ -12,14 +12,16 @@ use crate::bms::{
         time::{ObjTime, Track},
     },
     error::{ParseWarning, ParseWarningWithRange, Result},
+    model::{
+        bmp::{AtBgaDef, BgaDef, Bmp},
+        judge::ExRankDef,
+        wav::ExWavDef,
+    },
 };
 
-use crate::bms::{
-    model::def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
-    model::obj::{
-        BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
-        SectionLenChangeObj, SpeedObj, TextObj,
-    },
+use crate::bms::model::obj::{
+    BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj, ScrollingFactorObj,
+    SectionLenChangeObj, SpeedObj, TextObj,
 };
 
 use crate::bms::{
@@ -27,10 +29,7 @@ use crate::bms::{
         graphics::Argb,
         minor_command::{StpEvent, SwBgaEvent, WavCmdEvent},
     },
-    model::{
-        def::ExWavDef,
-        obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
-    },
+    model::obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
 };
 
 /// An interface to prompt about handling conflicts on the BMS file.
@@ -529,16 +528,18 @@ impl Prompter for PanicAndUseOlder {
     }
 }
 
+/// Creates a new [`Prompter`] for collecting warnings to the vec `dst` and delegates them another one `prompter`.
 pub fn warning_collector<P>(
     prompter: P,
-    dst: &mut Vec<ParseWarningWithRange>,
-) -> WarningCollector<P> {
+    dst: &'_ mut Vec<ParseWarningWithRange>,
+) -> WarningCollector<'_, P> {
     WarningCollector {
         source: prompter,
         dst: RefCell::from(dst),
     }
 }
 
+/// A [`Prompter`] that collects warnings to a vec and delegates them another one.
 pub struct WarningCollector<'a, P> {
     source: P,
     dst: RefCell<&'a mut Vec<ParseWarningWithRange>>,

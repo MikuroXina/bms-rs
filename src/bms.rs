@@ -71,7 +71,9 @@ pub enum BmsWarning {
     PlayingError(#[from] PlayingError),
 }
 
+/// A configuration builder for [`parse_bms`]. Its methods can be chained to set parameters you want.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[must_use]
 pub struct ParseConfig<T, P, R> {
     key_mapper: PhantomData<fn() -> T>,
     prompter: P,
@@ -80,6 +82,7 @@ pub struct ParseConfig<T, P, R> {
     // TODO: add `use_relaxed: bool,`
 }
 
+/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
 #[cfg(feature = "rand")]
 pub fn default_config()
 -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, RandRng<rand::rngs::StdRng>> {
@@ -92,6 +95,7 @@ pub fn default_config()
     }
 }
 
+/// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
 pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R> {
     ParseConfig {
         key_mapper: PhantomData,
@@ -102,6 +106,7 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
 }
 
 impl<T, P, R> ParseConfig<T, P, R> {
+    /// Sets the prompter to `prompter`.
     pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R> {
         ParseConfig {
             key_mapper: PhantomData,
@@ -111,6 +116,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
         }
     }
 
+    /// Sets the RNG to `rng`.
     pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<T, P, R2> {
         ParseConfig {
             key_mapper: PhantomData,
@@ -120,6 +126,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
         }
     }
 
+    /// Change to use common token processors that don't try to parse minor commands.
     pub fn use_common(self) -> Self {
         Self {
             use_minor: false,
@@ -127,6 +134,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
         }
     }
 
+    /// Change to use minor token processors that try to parse minor commands. This is the default option.
     pub fn use_minor(self) -> Self {
         Self {
             use_minor: true,

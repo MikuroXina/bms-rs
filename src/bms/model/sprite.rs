@@ -1,9 +1,12 @@
+//! This module introduces struct [`Sprites`], which manages external paths to image assets.
+
 use std::path::PathBuf;
 
 use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages external paths to image assets.
 pub struct Sprites {
     /// The path of background image, which is shown while playing the score.
     /// This image is displayed behind the gameplay area.
@@ -15,9 +18,7 @@ pub struct Sprites {
     /// This image is used in music selection screens.
     pub banner: Option<PathBuf>,
     /// Extended-character events. `#ExtChr`
-
     pub extchr_events: Vec<ExtChrEvent>,
     /// Character file path. `#CHARFILE`
-
     pub char_file: Option<PathBuf>,
 }

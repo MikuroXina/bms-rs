@@ -1,45 +1,45 @@
+//! This module introduces struct [`BmpObjects`], which manages definitions and events of background image animation (BGI).
+
 use std::{
     collections::{BTreeMap, HashMap, btree_map::Entry},
     path::PathBuf,
 };
 
 use crate::{
-    bms::{error::Result, prelude::*},
+    bms::{
+        command::graphics::{Argb, PixelPoint, PixelSize},
+        error::Result,
+        prelude::*,
+    },
     parse::prompt::ChannelDuplication,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definitions and events of background image animation (BGI).
 pub struct BmpObjects {
     /// The BMP file paths corresponding to the id of the background image/video object.
     pub bmp_files: HashMap<ObjId, Bmp>,
     /// The display mode for background image/video.
     pub poor_bga_mode: PoorMode,
-    /// BGA change events, indexed by time. #BGA, #BGAPOOR, #BGALAYER
+    /// BGA change events, indexed by time. `#BGA`, `#BGAPOOR`, `#BGALAYER`
     pub bga_changes: BTreeMap<ObjTime, BgaObj>,
     /// The path of image, which is shown when the player got POOR.
     /// This image is displayed when the player misses a note or gets a poor judgment.
     pub poor_bmp: Option<PathBuf>,
-    /// Storage for #@BGA definitions
-
+    /// Storage for `#@BGAxx` definitions
     pub atbga_defs: HashMap<ObjId, AtBgaDef>,
-    /// Storage for #BGA definitions
-
+    /// Storage for `#BGAxx` definitions
     pub bga_defs: HashMap<ObjId, BgaDef>,
-    /// SWBGA events, indexed by [`ObjId`]. `#SWBGA`
-
+    /// SWBGA events, indexed by [`ObjId`]. `#SWBGAxx`
     pub swbga_events: HashMap<ObjId, SwBgaEvent>,
-    /// ARGB definitions, indexed by [`ObjId`]. `#ARGB`
-
+    /// ARGB definitions, indexed by [`ObjId`]. `#ARGBxx`
     pub argb_defs: HashMap<ObjId, Argb>,
-    /// BGA opacity change events, indexed by time. #0B, #0C, #0D, #0E
-
+    /// BGA opacity change events, indexed by time. `#xxx0B:`, `#xxx0C:`, `#xxx0D:`, `#xxx0E:`
     pub bga_opacity_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaOpacityObj>>,
-    /// BGA ARGB color change events, indexed by time. #A1, #A2, #A3, #A4
-
+    /// BGA color change events, indexed by time. `#xxxA1:`, `#xxxA2:`, `#xxxA3:`, `#xxxA4:`
     pub bga_argb_changes: HashMap<BgaLayer, BTreeMap<ObjTime, BgaArgbObj>>,
-    /// BGA keybound events, indexed by time. #A5
-
+    /// BGA keybound events, indexed by time. `#xxxA5:`
     pub bga_keybound_events: BTreeMap<ObjTime, BgaKeyboundObj>,
 }
 
@@ -79,7 +79,6 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA opacity change object to the graphics.
-
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
@@ -115,7 +114,6 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA ARGB color change object to the graphics.
-
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
@@ -143,7 +141,6 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA keybound object to the notes.
-
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,
@@ -172,4 +169,46 @@ impl BmpObjects {
             }
         }
     }
+}
+
+/// A background image/video data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Bmp {
+    /// The path to the image/video file. This is relative path from the BMS file.
+    pub file: PathBuf,
+    /// The color which should to be treated as transparent. It should be used only if `file` is an image.
+    pub transparent_color: Argb,
+}
+
+/// A definition for `#@BGA` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AtBgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming in pixels.
+    pub trim_top_left: PixelPoint,
+    /// The size for trimming in pixels.
+    pub trim_size: PixelSize,
+    /// The draw point position in pixels.
+    pub draw_point: PixelPoint,
+}
+
+/// A definition for `#BGA` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BgaDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The source BMP object ID.
+    pub source_bmp: ObjId,
+    /// The top-left position for trimming in pixels.
+    pub trim_top_left: PixelPoint,
+    /// The bottom-right position for trimming in pixels.
+    pub trim_bottom_right: PixelPoint,
+    /// The draw point position in pixels.
+    pub draw_point: PixelPoint,
 }

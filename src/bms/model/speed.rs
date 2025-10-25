@@ -1,3 +1,5 @@
+//! This module introduces struct [`SpeedObjects`], which manages definitions and events of spacing change.
+
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
@@ -7,6 +9,7 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definitions and events of spacing change.
 pub struct SpeedObjects {
     /// Spacing change definitions, indexed by [`ObjId`]. `#SPEED[01-ZZ]`
     pub speed_defs: HashMap<ObjId, Decimal>,

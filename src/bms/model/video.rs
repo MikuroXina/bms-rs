@@ -1,10 +1,15 @@
-use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
+//! This module introduces struct [`Video`], which manages configuration of playing background movie.
+
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 use crate::bms::{error::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages configuration of playing background movie.
 pub struct Video {
     /// Movie Define. Defines the global video file for the chart.
     /// - Video starts from section #000
@@ -12,21 +17,20 @@ pub struct Video {
     /// - No loop, stays on last frame after playback
     /// - Audio track in video is not played
     pub video_file: Option<PathBuf>,
-    /// Video color depth. #VIDEOCOLORS
+    /// Video color depth. `#VIDEOCOLORS`
     pub video_colors: Option<u8>,
-    /// Video delay. #VIDEODLY
+    /// Video delay. `#VIDEODLY`
     pub video_dly: Option<Decimal>,
-    /// Video frame rate. #VIDEOF/S
+    /// Video frame rate. `#VIDEOF/S`
     pub video_fs: Option<Decimal>,
     /// Seek event definitions. `#SEEK`
     pub seek_defs: HashMap<ObjId, Decimal>,
-    /// Seek events, indexed by time. `#05`
+    /// Seek events, indexed by time. `#xxx05:`
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
 }
 
 impl Video {
     /// Adds a new seek object to the notes.
-
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,

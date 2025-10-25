@@ -1,3 +1,5 @@
+//! This module introduces struct [`ScrollObjects`], which manages definitions and events of scroll speed change.
+
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
@@ -7,6 +9,7 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definition and events of scroll speed change.
 pub struct ScrollObjects {
     /// Scroll speed change definitions, indexed by [`ObjId`]. `#SCROLL[01-ZZ]`
     pub scroll_defs: HashMap<ObjId, Decimal>,

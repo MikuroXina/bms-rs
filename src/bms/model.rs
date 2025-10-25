@@ -3,7 +3,6 @@
 
 pub mod bmp;
 pub mod bpm;
-pub mod def;
 pub mod judge;
 pub mod metadata;
 pub mod music_info;
@@ -41,22 +40,39 @@ use self::{option::OptionObjects, resources::Resources};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bms {
+    /// Manager of background image animation.
     pub bmp: BmpObjects,
+    /// Manager of BPM events.
     pub bpm: BpmObjects,
+    /// Manager of judgments to score plays.
     pub judge: JudgeObjects,
+    /// Manager of data to organize BMS scores in your player.
     pub metadata: Metadata,
+    /// Manager of the music information.
     pub music_info: MusicInfo,
+    /// Manager of vendor-specific configurations.
     pub option: OptionObjects,
+    /// Manager about representation format of the BMS source.
     pub repr: BmsSourceRepresentation,
+    /// Manager of external resource paths.
     pub resources: Resources,
+    /// Manager of scroll speed change events.
     pub scroll: ScrollObjects,
+    /// Manager of section length change events.
     pub section_len: SectionLenObjects,
+    /// Manager of spacing factor change events.
     pub speed: SpeedObjects,
+    /// Manager of image assets except BGA/BGI.
     pub sprite: Sprites,
+    /// Manager of scroll stop events.
     pub stop: StopObjects,
+    /// Manager of caption events.
     pub text: TextObjects,
+    /// Manager of background video.
     pub video: Video,
+    /// Manager of volume controls.
     pub volume: VolumeObjects,
+    /// Manager of sounds.
     pub wav: WavObjects,
 }
 

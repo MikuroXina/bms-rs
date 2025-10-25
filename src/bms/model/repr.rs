@@ -1,7 +1,10 @@
+//! This module introduces struct [`BmsSourceRepresentation`], which manages configurations of the representation format of BMS source.
+
 use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages configurations of the representation format of BMS source.
 pub struct BmsSourceRepresentation {
     /// The LN notation type of the score.
     pub ln_type: LnType,
@@ -16,6 +19,6 @@ pub struct BmsSourceRepresentation {
     pub raw_command_lines: Vec<String>,
     /// Lines that not starts with `'#'`.
     pub non_command_lines: Vec<String>,
-    /// Whether the object ids are case-sensitive. It enables `#BASE 62` to output.
+    /// Whether the object ids are case-sensitive. It corresponds to `#BASE 62` extension command.
     pub case_sensitive_obj_id: bool,
 }

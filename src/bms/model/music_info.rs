@@ -1,7 +1,10 @@
+//! This module introduces struct [`MusicInfo`], which manages the music information of BMS scores.
+
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages the music information of BMS scores.
 pub struct MusicInfo {
     /// The genre of the score.
     pub genre: Option<String>,

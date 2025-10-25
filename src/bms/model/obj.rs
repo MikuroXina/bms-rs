@@ -1,4 +1,5 @@
 //! Definitions of the note object.
+
 use std::num::NonZeroU64;
 
 use crate::{
@@ -292,7 +293,6 @@ impl Ord for SpeedObj {
 /// An object to change the opacity of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-
 pub struct BgaOpacityObj {
     /// The time which the opacity change is on.
     pub time: ObjTime,
@@ -305,7 +305,6 @@ pub struct BgaOpacityObj {
 /// An object to change the ARGB color of BGA layers.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-
 pub struct BgaArgbObj {
     /// The time which the ARGB change is on.
     pub time: ObjTime,
@@ -338,7 +337,6 @@ pub struct KeyVolumeObj {
 /// An object to seek video position.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-
 pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
@@ -369,7 +367,6 @@ pub struct JudgeObj {
 /// An object to change BGA keybound.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-
 pub struct BgaKeyboundObj {
     /// The time which the BGA keybound change is on.
     pub time: ObjTime,
@@ -380,7 +377,6 @@ pub struct BgaKeyboundObj {
 /// An object to change option.
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-
 pub struct OptionObj {
     /// The time which the option change is on.
     pub time: ObjTime,

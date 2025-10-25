@@ -1,8 +1,12 @@
-use crate::bms::prelude::*;
+//! This module introduces struct [`Metadata`], which manages data to organize BMS scores in a BMS player.
+
 use std::path::PathBuf;
+
+use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages data to organize BMS scores in a BMS player.
 pub struct Metadata {
     /// The play style of the score.
     pub player: Option<PlayerMode>,
@@ -17,11 +21,9 @@ pub struct Metadata {
     /// The path to override the base path of the WAV file path.
     /// This allows WAV files to be referenced relative to a different directory.
     pub wav_path_root: Option<PathBuf>,
-    /// Divide property. #DIVIDEPROP
-
+    /// Divide property. `#DIVIDEPROP`
     pub divide_prop: Option<String>,
     /// Whether the score is the octave mode.
     /// In octave mode, the chart may have different note arrangements or gameplay mechanics.
-
     pub is_octave: bool,
 }

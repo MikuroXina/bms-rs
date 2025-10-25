@@ -1,3 +1,5 @@
+//! This module introduces struct [`SectionLenObjects`], which manages events of section length change.
+
 use std::{
     collections::{BTreeMap, btree_map::Entry},
     num::NonZeroU64,
@@ -10,6 +12,7 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages events of section length change.
 pub struct SectionLenObjects {
     /// Section length change events, indexed by track. `#SECLEN`
     pub section_len_changes: BTreeMap<Track, SectionLenChangeObj>,

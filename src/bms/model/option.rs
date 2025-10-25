@@ -1,8 +1,11 @@
+//! This module introduces struct [`OptionObjects`], which manages vendor-specific BMS player configuration and that events.
+
 use crate::bms::{error::Result, prelude::*};
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages vendor-specific BMS player configuration and that events.
 pub struct OptionObjects {
     /// The message for overriding options of some BMS player.
     pub options: Option<Vec<String>>,

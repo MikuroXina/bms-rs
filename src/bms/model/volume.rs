@@ -1,3 +1,5 @@
+//! This module introduces struct [`VolumeObjects`], which manages volume control and that events.
+
 use std::collections::{BTreeMap, btree_map::Entry};
 
 use crate::{
@@ -7,12 +9,13 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages volume control and that events.
 pub struct VolumeObjects {
     /// The volume of the score.
     pub volume: Volume,
-    /// BGM volume change events, indexed by time. `#97`
+    /// BGM volume change events, indexed by time. `#xxx97:`
     pub bgm_volume_changes: BTreeMap<ObjTime, BgmVolumeObj>,
-    /// KEY volume change events, indexed by time. `#98`
+    /// KEY volume change events, indexed by time. `#xxx98:`
     pub key_volume_changes: BTreeMap<ObjTime, KeyVolumeObj>,
 }
 

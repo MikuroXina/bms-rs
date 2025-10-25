@@ -1,3 +1,5 @@
+//! This module introduces struct [`TextObjects`], which manages definitions and events of caption texts.
+
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
@@ -7,11 +9,12 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definitions and events of caption texts.
 pub struct TextObjects {
     /// Storage for `#TEXT` definitions
     /// The texts corresponding to the id of the text object.
     pub texts: HashMap<ObjId, String>,
-    /// Text events, indexed by time. `#99`
+    /// Text events, indexed by time. `#xxx99:`
     pub text_events: BTreeMap<ObjTime, TextObj>,
 }
 

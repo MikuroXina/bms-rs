@@ -1,9 +1,12 @@
+//! This module introduces struct [`Resources`], which manages external resource paths.
+
 use std::path::PathBuf;
 
 use num::BigUint;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages external resource paths.
 pub struct Resources {
     /// The path of MIDI file, which is played as BGM while playing the score.
     pub midi_file: Option<PathBuf>,

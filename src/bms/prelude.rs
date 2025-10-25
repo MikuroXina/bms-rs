@@ -25,6 +25,10 @@ pub use super::{
             read_channel,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
+        minor_command::{
+            ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
+            WavCmdParam,
+        },
         mixin::{SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
@@ -37,11 +41,14 @@ pub use super::{
     },
     model::{
         Bms, Notes,
-        def::{AtBgaDef, BgaDef, Bmp, ExRankDef},
+        bmp::{AtBgaDef, BgaDef, Bmp},
+        judge::ExRankDef,
         obj::{
-            BgaLayer, BgaObj, BgmVolumeObj, BpmChangeObj, JudgeObj, KeyVolumeObj,
-            ScrollingFactorObj, SectionLenChangeObj, SpeedObj, StopObj, TextObj, WavObj,
+            BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
+            BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
+            SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
         },
+        wav::ExWavDef,
     },
     parse::{
         ParseOutput,
@@ -60,16 +67,3 @@ pub use super::{
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
 pub use super::rng::RandRng;
-
-// Re-export minor command types when feature is enabled
-
-pub use super::{
-    command::minor_command::{
-        ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
-        WavCmdParam,
-    },
-    model::{
-        def::ExWavDef,
-        obj::{BgaArgbObj, BgaKeyboundObj, BgaOpacityObj, OptionObj, SeekObj},
-    },
-};

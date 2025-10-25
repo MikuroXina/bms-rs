@@ -1,9 +1,12 @@
+//! This module introduces struct [`StopObjects`], which manages definitions and events of scroll stop.
+
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definitions and events of scroll stop.
 pub struct StopObjects {
     /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
     pub stop_defs: HashMap<ObjId, Decimal>,

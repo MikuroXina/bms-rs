@@ -1,3 +1,5 @@
+//! This module introduces struct [`JudgeObjects`], which manages internal setting values to score plays.
+
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
@@ -7,14 +9,15 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages internal setting values to score plays.
 pub struct JudgeObjects {
     /// The judgement level of the score.
     pub rank: Option<JudgeLevel>,
     /// The total gauge percentage when all notes is got as PERFECT.
     pub total: Option<Decimal>,
-    /// Storage for #EXRANK definitions
+    /// Storage for `#EXRANK` definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
-    /// Judge events, indexed by time. #A0
+    /// Judge events, indexed by time. `#xxxA0:`
     pub judge_events: BTreeMap<ObjTime, JudgeObj>,
 }
 
@@ -48,4 +51,14 @@ impl JudgeObjects {
             }
         }
     }
+}
+
+/// A definition for `#EXRANK` command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExRankDef {
+    /// The object ID.
+    pub id: ObjId,
+    /// The judge level.
+    pub judge_level: JudgeLevel,
 }

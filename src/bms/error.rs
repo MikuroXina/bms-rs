@@ -1,3 +1,5 @@
+//! This module defines enums of errors and warnings on parse process.
+
 use std::ops::RangeInclusive;
 
 use num::BigUint;

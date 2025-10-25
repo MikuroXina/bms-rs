@@ -1,3 +1,5 @@
+//! This module introduces struct [`BpmObjects`], which manages definition and events of BPM change on playing.
+
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 
 use crate::{
@@ -7,13 +9,13 @@ use crate::{
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+/// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
     pub bpm: Option<Decimal>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
     pub bpm_defs: HashMap<ObjId, Decimal>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-
     pub base_bpm: Option<Decimal>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
