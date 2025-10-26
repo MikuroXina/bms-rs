@@ -22,19 +22,19 @@ rand = ["dep:rand"]
 diagnostics = ["dep:ariadne"]
 
 [dependencies]
-itertools = "0.14.0"
-num = "0.4.2"
-fraction = "0.15.3"
-serde = { version = "1.0.200", features = ["derive"], optional = true }
-serde_json = { version = "1.0.116", optional = true }
-serde_path_to_error = { version = "0.1.17", optional = true }
-thiserror = "2.0.0"
-rand = { version = "0.9.2", optional = true }
-ariadne = { version = "0.5.1", optional = true }
-chumsky = { version = "0.11.1", optional = true, features = ["serde"] }
+itertools = "0.14"
+num = "0.4"
+fraction = "0.15"
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+serde_path_to_error = { version = "0.1", optional = true }
+thiserror = "2"
+rand = { version = "0.9", optional = true }
+ariadne = { version = "0.5", optional = true }
+chumsky = { version = "0.11", optional = true, features = ["serde"] }
 
 [dev-dependencies]
-pretty_assertions = "1.4.1"
+pretty_assertions = "1"
 
 [[example]]
 name = "diagnostics_example"
