@@ -128,7 +128,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             });
             Ok(None)
         };
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #RANDOM without state",
+            ));
+        };
         match top {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
@@ -160,7 +164,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             });
             Ok(None)
         };
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #SETRANDOM without state",
+            ));
+        };
         match top {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
@@ -192,16 +200,25 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             });
             Ok(None)
         };
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #IF without state",
+            ));
+        };
         match top {
             ProcessState::Random { generated, .. } => push_new_one(generated),
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 // close this scope and start new one
                 self.state_stack.borrow_mut().pop();
-                let ProcessState::Random { generated, .. } =
-                    self.state_stack.borrow().last().cloned().unwrap()
-                else {
-                    panic!("ElseBlock is not on Random");
+                let Some(top) = self.state_stack.borrow().last().cloned() else {
+                    return Err(ParseError::UnexpectedControlFlow(
+                        "Cannot process #IF without state",
+                    ));
+                };
+                let ProcessState::Random { generated, .. } = top else {
+                    return Err(ParseError::UnexpectedControlFlow(
+                        "#IF must be on a random scope",
+                    ));
                 };
                 push_new_one(generated)
             }
@@ -212,17 +229,26 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ELSEIF without state",
+            ));
+        };
         match top {
             ProcessState::IfBlock {
                 if_chain_has_been_activated,
                 ..
             } => {
                 self.state_stack.borrow_mut().pop();
-                let ProcessState::Random { generated, .. } =
-                    self.state_stack.borrow().last().cloned().unwrap()
-                else {
-                    panic!("IfBlock is not on Random");
+                let Some(top) = self.state_stack.borrow().last().cloned() else {
+                    return Err(ParseError::UnexpectedControlFlow(
+                        "Cannot process #ELSEIF without state after pop",
+                    ));
+                };
+                let ProcessState::Random { generated, .. } = top else {
+                    return Err(ParseError::UnexpectedControlFlow(
+                        "#ELSEIF must be on a random scope",
+                    ));
                 };
                 if if_chain_has_been_activated {
                     self.state_stack.borrow_mut().push(ProcessState::IfBlock {
@@ -251,7 +277,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_else(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ELSE without state",
+            ));
+        };
         match top {
             ProcessState::IfBlock {
                 if_chain_has_been_activated,
@@ -270,7 +300,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_end_if(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ENDIF without state",
+            ));
+        };
         match top {
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -283,7 +317,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_end_random(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ENDRANDOM without state",
+            ));
+        };
         match top {
             ProcessState::Random { .. }
             | ProcessState::IfBlock { .. }
@@ -325,7 +363,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             Ok(None)
         };
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #SWITCH without state",
+            ));
+        };
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -355,7 +397,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             Ok(None)
         };
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #SETSWITCH without state",
+            ));
+        };
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -374,7 +420,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             Err(warning) => return Ok(Some(warning)),
         };
         loop {
-            let top = self.state_stack.borrow().last().cloned().unwrap();
+            let Some(top) = self.state_stack.borrow().last().cloned() else {
+                return Err(ParseError::UnexpectedControlFlow(
+                    "Cannot process #ENDSWITCH without state",
+                ));
+            };
             if let ProcessState::Random { .. }
             | ProcessState::IfBlock { .. }
             | ProcessState::ElseBlock { .. } = top
@@ -384,7 +434,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 break;
             }
         }
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #DEFAULT without state",
+            ));
+        };
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
                 if generated == cond {
@@ -417,7 +471,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_skip(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #SKIP without state",
+            ));
+        };
         match top {
             ProcessState::SwitchActive { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -436,7 +494,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_default(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ENDIF without state",
+            ));
+        };
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
                 self.state_stack.borrow_mut().pop();
@@ -460,7 +522,11 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 
     fn visit_end_switch(&self) -> Result<(), ParseError> {
-        let top = self.state_stack.borrow().last().cloned().unwrap();
+        let Some(top) = self.state_stack.borrow().last().cloned() else {
+            return Err(ParseError::UnexpectedControlFlow(
+                "Cannot process #ENDRANDOM without state",
+            ));
+        };
         match top {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchActive { .. }
