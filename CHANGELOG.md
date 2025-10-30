@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.2](https://github.com/MikuroXina/bms-rs/compare/v0.10.1...v0.10.2) (2025-10-30)
+
+
+### Bug Fixes
+
+* delete `crate::bms` pub use ([#245](https://github.com/MikuroXina/bms-rs/issues/245)) ([01f5ce5](https://github.com/MikuroXina/bms-rs/commit/01f5ce544a49828e09ae46427ddaacbb9acb0488))
+* fill feature gate for compile in different features ([#240](https://github.com/MikuroXina/bms-rs/issues/240)) ([c964d53](https://github.com/MikuroXina/bms-rs/commit/c964d537c686b495efa432aeb0e3e06a920b8989))
+
 ## [0.10.1](https://github.com/MikuroXina/bms-rs/compare/v0.10.0...v0.10.1) (2025-10-25)
 
 
