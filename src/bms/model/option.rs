@@ -28,7 +28,7 @@ impl OptionObjects {
                 Ok(())
             }
             Entry::Occupied(mut entry) => {
-                use super::super::parse::prompt::ChannelDuplication;
+                use crate::bms::parse::prompt::ChannelDuplication;
 
                 let existing = entry.get();
 
