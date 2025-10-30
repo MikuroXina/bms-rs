@@ -1,4 +1,4 @@
-use bms_rs::{bms::prelude::*, parse::prompt::PanicAndUseNewer};
+use bms_rs::bms::{parse::prompt::PanicAndUseNewer, prelude::*};
 use pretty_assertions::assert_eq;
 
 #[test]

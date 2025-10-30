@@ -1,4 +1,4 @@
-use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
+use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
 use num::BigUint;
 use pretty_assertions::assert_eq;
 use std::num::NonZeroU64;

@@ -48,9 +48,9 @@ use num::BigUint;
 use crate::{
     bms::{
         error::{ParseError, ParseWarning},
+        parse::token_processor::all_tokens_with_range,
         prelude::*,
     },
-    parse::token_processor::all_tokens_with_range,
     util::StrExtension,
 };
 

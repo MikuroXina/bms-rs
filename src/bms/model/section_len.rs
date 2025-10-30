@@ -5,10 +5,7 @@ use std::{
     num::NonZeroU64,
 };
 
-use crate::{
-    bms::{error::Result, prelude::*},
-    parse::prompt::TrackDuplication,
-};
+use crate::bms::{error::Result, parse::prompt::TrackDuplication, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

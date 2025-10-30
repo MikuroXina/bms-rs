@@ -5,13 +5,11 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{
-    bms::{
-        command::graphics::{Argb, PixelPoint, PixelSize},
-        error::Result,
-        prelude::*,
-    },
+use crate::bms::{
+    command::graphics::{Argb, PixelPoint, PixelSize},
+    error::Result,
     parse::prompt::ChannelDuplication,
+    prelude::*,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
