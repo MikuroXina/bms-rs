@@ -1,4 +1,4 @@
-use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
+use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
 
 #[test]
 fn test_atbga_parsing() {
@@ -290,7 +290,7 @@ fn test_exwav_out_of_range_values() {
         default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
     )
     .unwrap();
-    let [warn] = &parse_warnings[..] else {
+    let [warn]: &[_] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
     assert_eq!(
@@ -315,7 +315,7 @@ fn test_exwav_out_of_range_values() {
         default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
     )
     .unwrap();
-    let [warn] = &parse_warnings[..] else {
+    let [warn]: &[_] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
     assert_eq!(
@@ -340,7 +340,7 @@ fn test_exwav_out_of_range_values() {
         default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
     )
     .unwrap();
-    let [warn] = &parse_warnings[..] else {
+    let [warn]: &[_] = &parse_warnings[..] else {
         panic!("expected 1 warning, got: {parse_warnings:?}");
     };
     assert_eq!(

@@ -2,16 +2,13 @@
 
 use std::num::NonZeroU64;
 
-use crate::{
-    bms::{
-        Decimal,
-        command::{
-            JudgeLevel, ObjId,
-            channel::Channel,
-            time::{ObjTime, Track},
-        },
+use crate::bms::{
+    Decimal,
+    command::{
+        JudgeLevel, ObjId,
+        channel::{Channel, NoteChannelId},
+        time::{ObjTime, Track},
     },
-    command::channel::NoteChannelId,
 };
 
 use crate::bms::command::{graphics::Argb, minor_command::SwBgaEvent};

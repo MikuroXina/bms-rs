@@ -127,7 +127,7 @@ impl StopProcessor {
             // Store by ObjTime as key, handle duplication with prompt handler
             let ev = StpEvent { time, duration };
             if let Some(older) = objects.stp_events.get_mut(&time) {
-                use crate::parse::prompt::ChannelDuplication;
+                use crate::bms::parse::prompt::ChannelDuplication;
 
                 prompter
                     .handle_channel_duplication(ChannelDuplication::StpEvent {

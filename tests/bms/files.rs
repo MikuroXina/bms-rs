@@ -1,4 +1,4 @@
-use bms_rs::{bms::prelude::*, parse::prompt::warning_collector};
+use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
 
 #[test]
 fn test_lal() {
