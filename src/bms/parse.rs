@@ -47,17 +47,11 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        match proc.process(&mut tokens_slice, &prompter) {
-            Ok(bms) => ParseOutput {
-                bms,
-                parse_warnings: vec![],
-                parse_errors: vec![],
-            },
-            Err(error) => ParseOutput {
-                bms: Bms::default(),
-                parse_warnings: vec![],
-                parse_errors: vec![error],
-            },
+        let (bms, parse_warnings, parse_errors) = proc.process(&mut tokens_slice, &prompter);
+        ParseOutput {
+            bms,
+            parse_warnings,
+            parse_errors,
         }
     }
 }

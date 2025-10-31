@@ -15,8 +15,12 @@
 
 use std::{path::Path, str::FromStr};
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{error::Result, model::metadata::Metadata, prelude::*};
+use super::{TokenProcessor, all_tokens};
+use crate::bms::{
+    error::{ParseErrorWithRange, Result},
+    model::metadata::Metadata,
+    prelude::*,
+};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,9 +33,13 @@ impl TokenProcessor for MetadataProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut metadata = Metadata::default();
-        all_tokens(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens(input, prompter, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut metadata)
@@ -39,8 +47,8 @@ impl TokenProcessor for MetadataProcessor {
                 Token::Message { .. } => None,
                 Token::NotACommand(line) => self.on_comment(line, &mut metadata).err(),
             })
-        })?;
-        Ok(metadata)
+        });
+        (metadata, warnings, errors)
     }
 }
 
