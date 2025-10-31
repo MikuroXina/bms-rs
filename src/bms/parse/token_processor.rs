@@ -359,85 +359,101 @@ fn all_tokens_with_range<
     ((), warnings, errors)
 }
 
-fn parse_obj_ids<P: Prompter>(
+fn parse_obj_ids_with_warnings<P: Prompter>(
     track: Track,
     message: SourceRangeMixin<&str>,
     _prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
-) -> impl Iterator<Item = (ObjTime, ObjId)> {
-    // Note: Warnings about non-multiple-of-2 message length are no longer generated
-    // since the prompter.warn function has been removed
+) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+    let mut results = Vec::new();
+
+    // Check for non-multiple-of-2 message length
+    if !message.content().len().is_multiple_of(2) {
+        warnings.push(
+            ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
+        );
+    }
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
-    message
-        .content()
-        .chars()
-        .tuples()
-        .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
-            let arr: [char; 2] = (c1, c2).into();
-            let buf = arr.into_iter().collect::<String>();
-            match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
-                Ok(id) if id.is_null() => None,
-                Ok(id) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    id,
-                )),
-                Err(_warning) => {
-                    // Note: Warnings about invalid object IDs are no longer generated
-                    // since the prompter.warn function has been removed
-                    None
-                }
+    for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
+        let buf = String::from_iter([c1, c2]);
+        match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
+            Ok(id) if id.is_null() => {}
+            Ok(id) => results.push((
+                ObjTime::new(
+                    track.0,
+                    i as u64,
+                    denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                ),
+                id,
+            )),
+            Err(warning) => {
+                warnings.push(warning.into_wrapper(&message));
             }
-        })
+        }
+    }
+
+    (results, warnings)
+}
+
+fn parse_obj_ids<P: Prompter>(
+    track: Track,
+    message: SourceRangeMixin<&str>,
+    prompter: &P,
+    case_sensitive_obj_id: &RefCell<bool>,
+) -> impl Iterator<Item = (ObjTime, ObjId)> {
+    let (results, _warnings) =
+        parse_obj_ids_with_warnings(track, message, prompter, case_sensitive_obj_id);
+    results.into_iter()
+}
+
+fn parse_hex_values_with_warnings<P: Prompter>(
+    track: Track,
+    message: SourceRangeMixin<&str>,
+    _prompter: &P,
+) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+    let mut results = Vec::new();
+
+    // Check for non-multiple-of-2 message length
+    if !message.content().len().is_multiple_of(2) {
+        warnings.push(
+            ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
+        );
+    }
+
+    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
+    for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
+        let buf = String::from_iter([c1, c2]);
+        match u8::from_str_radix(&buf, 16) {
+            Ok(value) => results.push((
+                ObjTime::new(
+                    track.0,
+                    i as u64,
+                    denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                ),
+                value,
+            )),
+            Err(_) => {
+                warnings.push(
+                    ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
+                        .into_wrapper(&message),
+                );
+            }
+        }
+    }
+
+    (results, warnings)
 }
 
 fn parse_hex_values<P: Prompter>(
     track: Track,
     message: SourceRangeMixin<&str>,
-    _prompter: &P,
+    prompter: &P,
 ) -> impl Iterator<Item = (ObjTime, u8)> {
-    // Note: Warnings about non-multiple-of-2 message length are no longer generated
-    // since the prompter.warn function has been removed
-
-    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
-    message
-        .content()
-        .chars()
-        .tuples()
-        .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
-            let buf = String::from_iter([c1, c2]);
-            match u8::from_str_radix(&buf, 16) {
-                Ok(value) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    value,
-                )),
-                Err(_) => {
-                    // Note: Warnings about invalid hex digits are no longer generated
-                    // since the prompter.warn function has been removed
-                    None
-                },
-                |value| {
-                    Some((
-                        ObjTime::new(
-                            track.0,
-                            i as u64,
-                            denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                        ),
-                        value,
-                    ))
-                },
-            )
-        })
+    let (results, _warnings) = parse_hex_values_with_warnings(track, message, prompter);
+    results.into_iter()
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {
