@@ -28,15 +28,10 @@ fn switch() {
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        parse_errors,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
+    let ParseOutput { parse_warnings, .. } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -69,15 +64,10 @@ fn nested_switch_simpler() {
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        parse_errors,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(
+    let ParseOutput { parse_warnings, .. } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 }
 
@@ -129,14 +119,13 @@ fn nested_switch() {
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -187,14 +176,13 @@ fn nested_switch() {
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -249,14 +237,13 @@ fn nested_switch() {
     let rng = RngMock([BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -341,14 +328,13 @@ fn nested_random_in_switch() {
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -399,14 +385,13 @@ fn nested_random_in_switch() {
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -461,14 +446,13 @@ fn nested_random_in_switch() {
     let rng = RngMock([BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -553,7 +537,7 @@ fn nested_switch_in_random() {
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
@@ -561,7 +545,6 @@ fn nested_switch_in_random() {
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     let collected_parse_warnings = parse_warnings.clone();
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(collected_parse_warnings, vec![]);
     assert_eq!(
@@ -613,7 +596,7 @@ fn nested_switch_in_random() {
     let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
@@ -621,7 +604,6 @@ fn nested_switch_in_random() {
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     let collected_parse_warnings = parse_warnings.clone();
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(collected_parse_warnings, vec![]);
     assert_eq!(
@@ -677,7 +659,7 @@ fn nested_switch_in_random() {
     let rng = RngMock([BigUint::from(2u64)]);
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(
@@ -685,7 +667,6 @@ fn nested_switch_in_random() {
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     let collected_parse_warnings = parse_warnings.clone();
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(collected_parse_warnings, vec![]);
     assert_eq!(
@@ -784,14 +765,13 @@ fn test_switch_insane() {
     ] {
         let ParseOutput {
             bms,
-            parse_errors,
+
             parse_warnings,
             ..
         } = Bms::from_token_stream(
             &tokens,
             default_config_with_rng(rng).prompter(AlwaysUseNewer),
         );
-        assert_eq!(parse_errors, vec![]);
         assert_eq!(parse_warnings, vec![]);
         assert_eq!(
             bms.notes().all_notes().cloned().collect::<Vec<_>>(),

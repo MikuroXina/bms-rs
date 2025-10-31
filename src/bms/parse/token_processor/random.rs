@@ -47,7 +47,7 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        error::{ControlFlowWarning, ControlFlowWarningWithRange, ParseWarning},
+        error::{ControlFlowWarning, ParseWarning},
         parse::token_processor::all_tokens_with_range,
         prelude::*,
     },
@@ -578,13 +578,9 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut activated = vec![];
-        let (_, mut warnings, mut errors) = all_tokens_with_range(input, prompter, |token| {
+        let (_, mut warnings) = all_tokens_with_range(input, prompter, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -595,10 +591,9 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             }
             Ok(res)
         });
-        let (output, next_warnings, next_errors) = self.next.process(&mut &activated[..], prompter);
+        let (output, next_warnings) = self.next.process(&mut &activated[..], prompter);
         warnings.extend(next_warnings);
-        errors.extend(next_errors);
-        (output, warnings, errors)
+        (output, warnings)
     }
 }
 

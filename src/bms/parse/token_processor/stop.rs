@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ControlFlowWarningWithRange, ParseWarning, Result},
+        error::{ParseWarning, Result},
         model::stop::StopObjects,
         prelude::*,
     },
@@ -42,14 +42,10 @@ impl TokenProcessor for StopProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = StopObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -73,7 +69,7 @@ impl TokenProcessor for StopProcessor {
             })
         });
         all_warnings.extend(warnings);
-        (objects, all_warnings, errors)
+        (objects, all_warnings)
     }
 }
 

@@ -57,6 +57,9 @@ pub enum ParseWarning {
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
+    /// Control flow warning.
+    #[error("control flow warning: {0}")]
+    ControlFlow(#[from] ControlFlowWarning),
 }
 
 /// Type alias of `core::result::Result<T, ParseWarning>`

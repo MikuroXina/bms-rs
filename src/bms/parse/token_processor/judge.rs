@@ -14,11 +14,7 @@ use super::{
     super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
 };
 use crate::{
-    bms::{
-        error::{ControlFlowWarningWithRange, Result},
-        model::judge::JudgeObjects,
-        prelude::*,
-    },
+    bms::{error::Result, model::judge::JudgeObjects, prelude::*},
     util::StrExtension,
 };
 
@@ -43,14 +39,10 @@ impl TokenProcessor for JudgeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = JudgeObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -74,7 +66,7 @@ impl TokenProcessor for JudgeProcessor {
             })
         });
         all_warnings.extend(warnings);
-        (objects, all_warnings, errors)
+        (objects, all_warnings)
     }
 }
 

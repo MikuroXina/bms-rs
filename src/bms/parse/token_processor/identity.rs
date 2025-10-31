@@ -1,6 +1,6 @@
 //! This module provides an identity token processor which does nothing. It is convenient for us to compose token processors on compilation else branch.
 
-use crate::bms::{error::ControlFlowWarningWithRange, prelude::*};
+use crate::bms::prelude::*;
 
 use super::TokenProcessor;
 
@@ -15,12 +15,8 @@ impl TokenProcessor for IdentityTokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         *input = &[];
-        ((), Vec::new(), Vec::new())
+        ((), Vec::new())
     }
 }
