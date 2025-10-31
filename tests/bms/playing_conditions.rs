@@ -12,11 +12,10 @@ fn test_playing_conditions_empty_bms() {
 
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
     let PlayingCheckOutput {
@@ -44,11 +43,10 @@ fn test_playing_conditions_with_bpm_and_notes() {
 
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
     let PlayingCheckOutput {
@@ -84,11 +82,10 @@ fn test_playing_conditions_with_bpm_change_only() {
 
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
     let PlayingCheckOutput {
@@ -117,11 +114,10 @@ fn test_playing_conditions_invisible_notes_only() {
 
     let ParseOutput {
         bms,
-        parse_errors,
+
         parse_warnings,
         ..
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
     let PlayingCheckOutput {

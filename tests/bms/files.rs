@@ -96,13 +96,9 @@ fn test_blank() {
         vec![]
     );
 
-    let ParseOutput {
-        parse_errors,
-        parse_warnings,
-        ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let ParseOutput { parse_warnings, .. } =
+        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     let collected_parse_warnings = parse_warnings;
-    assert_eq!(parse_errors, vec![]);
     assert_eq!(
         collected_parse_warnings
             .into_iter()

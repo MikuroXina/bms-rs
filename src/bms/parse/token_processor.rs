@@ -9,10 +9,7 @@ use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
-use crate::bms::{
-    error::{ControlFlowWarning, ControlFlowWarningWithRange},
-    prelude::*,
-};
+use crate::bms::{error::ControlFlowWarning, prelude::*};
 
 mod bmp;
 mod bpm;
@@ -44,11 +41,7 @@ pub trait TokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    );
+    ) -> (Self::Output, Vec<ParseWarningWithRange>);
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -82,11 +75,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         T::process(self, input, prompter)
     }
 }
@@ -109,18 +98,12 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut cloned = *input;
-        let (first_output, mut first_warnings, mut first_errors) =
-            self.first.process(&mut cloned, prompter);
-        let (second_output, second_warnings, second_errors) = self.second.process(input, prompter);
+        let (first_output, mut first_warnings) = self.first.process(&mut cloned, prompter);
+        let (second_output, second_warnings) = self.second.process(input, prompter);
         first_warnings.extend(second_warnings);
-        first_errors.extend(second_errors);
-        ((first_output, second_output), first_warnings, first_errors)
+        ((first_output, second_output), first_warnings)
     }
 }
 
@@ -142,13 +125,9 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
-        let (res, warnings, errors) = self.source.process(input, prompter);
-        ((self.mapping)(res), warnings, errors)
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+        let (res, warnings) = self.source.process(input, prompter);
+        ((self.mapping)(res), warnings)
     }
 }
 
@@ -309,13 +288,8 @@ fn all_tokens<
     input: &mut &'a [&TokenWithRange<'_>],
     _prompter: &P,
     mut f: F,
-) -> (
-    (),
-    Vec<ParseWarningWithRange>,
-    Vec<ControlFlowWarningWithRange>,
-) {
+) -> ((), Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
-    let mut errors = Vec::new();
 
     for token in &**input {
         match f(token.content()) {
@@ -325,13 +299,13 @@ fn all_tokens<
             }
             Ok(None) => {}
             Err(error) => {
-                let error_with_range = error.into_wrapper(token);
-                errors.push(error_with_range);
+                let error_with_range = ParseWarning::from(error).into_wrapper(token);
+                warnings.push(error_with_range);
             }
         }
     }
     *input = &[];
-    ((), warnings, errors)
+    ((), warnings)
 }
 
 fn all_tokens_with_range<
@@ -342,13 +316,8 @@ fn all_tokens_with_range<
     input: &mut &'a [&TokenWithRange<'_>],
     _prompter: &P,
     mut f: F,
-) -> (
-    (),
-    Vec<ParseWarningWithRange>,
-    Vec<ControlFlowWarningWithRange>,
-) {
+) -> ((), Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
-    let mut errors = Vec::new();
 
     for token in &**input {
         match f(token) {
@@ -358,13 +327,13 @@ fn all_tokens_with_range<
             }
             Ok(None) => {}
             Err(error) => {
-                let error_with_range = error.into_wrapper(token);
-                errors.push(error_with_range);
+                let error_with_range = ParseWarning::from(error).into_wrapper(token);
+                warnings.push(error_with_range);
             }
         }
     }
     *input = &[];
-    ((), warnings, errors)
+    ((), warnings)
 }
 
 fn parse_obj_ids_with_warnings<P: Prompter>(

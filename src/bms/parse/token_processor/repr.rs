@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::{TokenProcessor, all_tokens};
 use crate::bms::{
-    error::{ControlFlowWarningWithRange, ParseWarning, Result},
+    error::{ParseWarning, Result},
     model::repr::BmsSourceRepresentation,
     prelude::*,
 };
@@ -37,13 +37,9 @@ impl TokenProcessor for RepresentationProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut repr = BmsSourceRepresentation::default();
-        let (_, warnings, errors) = all_tokens(input, prompter, |token| {
+        let (_, warnings) = all_tokens(input, prompter, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut repr)
@@ -51,7 +47,7 @@ impl TokenProcessor for RepresentationProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        (repr, warnings, errors)
+        (repr, warnings)
     }
 }
 

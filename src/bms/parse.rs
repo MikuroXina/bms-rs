@@ -34,8 +34,6 @@ pub struct ParseOutput {
     pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
-    /// Errors that occurred during parsing.
-    pub parse_errors: Vec<ControlFlowWarningWithRange>,
 }
 
 impl Bms {
@@ -47,11 +45,10 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let (bms, parse_warnings, parse_errors) = proc.process(&mut tokens_slice, &prompter);
+        let (bms, parse_warnings) = proc.process(&mut tokens_slice, &prompter);
         ParseOutput {
             bms,
             parse_warnings,
-            parse_errors,
         }
     }
 }

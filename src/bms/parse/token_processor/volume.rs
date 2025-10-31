@@ -7,11 +7,7 @@
 use super::{
     super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
 };
-use crate::bms::{
-    error::{ControlFlowWarningWithRange, Result},
-    model::volume::VolumeObjects,
-    prelude::*,
-};
+use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -24,14 +20,10 @@ impl TokenProcessor for VolumeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (
-        Self::Output,
-        Vec<ParseWarningWithRange>,
-        Vec<ControlFlowWarningWithRange>,
-    ) {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = VolumeObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut objects)
@@ -55,7 +47,7 @@ impl TokenProcessor for VolumeProcessor {
             })
         });
         all_warnings.extend(warnings);
-        (objects, all_warnings, errors)
+        (objects, all_warnings)
     }
 }
 

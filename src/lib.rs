@@ -48,15 +48,15 @@
 //! // You can modify the tokens before parsing.
 //!
 //! #[cfg(feature = "rand")]
-//! let ParseOutput { bms, parse_errors, .. } = Bms::from_token_stream(
+//! let ParseOutput { bms, parse_warnings, .. } = Bms::from_token_stream(
 //!     &tokens, default_config_with_rng(RandRng(StdRng::seed_from_u64(42))),
 //! );
-//! assert_eq!(parse_errors, vec![]);
+//! assert_eq!(parse_warnings, vec![]);
 //! #[cfg(not(feature = "rand"))]
-//! let ParseOutput { bms, parse_errors, .. } = Bms::from_token_stream(
+//! let ParseOutput { bms, parse_warnings, .. } = Bms::from_token_stream(
 //!     &tokens, default_config_with_rng(RngMock([BigUint::from(1u64)])),
 //! );
-//! assert_eq!(parse_errors, vec![]);
+//! assert_eq!(parse_warnings, vec![]);
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
 //! assert_eq!(playing_warnings, vec![]);
