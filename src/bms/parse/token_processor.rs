@@ -377,7 +377,7 @@ fn parse_obj_ids_with_warnings<P: Prompter>(
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
     for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
-        let buf = String::from_iter([c1, c2]);
+        let buf = String::from_iter(<[char; 2]>::from((c1, c2)));
         match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
             Ok(id) if id.is_null() => {}
             Ok(id) => results.push((
@@ -397,17 +397,6 @@ fn parse_obj_ids_with_warnings<P: Prompter>(
     (results, warnings)
 }
 
-fn parse_obj_ids<P: Prompter>(
-    track: Track,
-    message: SourceRangeMixin<&str>,
-    prompter: &P,
-    case_sensitive_obj_id: &RefCell<bool>,
-) -> impl Iterator<Item = (ObjTime, ObjId)> {
-    let (results, _warnings) =
-        parse_obj_ids_with_warnings(track, message, prompter, case_sensitive_obj_id);
-    results.into_iter()
-}
-
 fn parse_hex_values_with_warnings<P: Prompter>(
     track: Track,
     message: SourceRangeMixin<&str>,
@@ -425,7 +414,7 @@ fn parse_hex_values_with_warnings<P: Prompter>(
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
     for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
-        let buf = String::from_iter([c1, c2]);
+        let buf = String::from_iter(<[char; 2]>::from((c1, c2)));
         match u8::from_str_radix(&buf, 16) {
             Ok(value) => results.push((
                 ObjTime::new(
@@ -445,15 +434,6 @@ fn parse_hex_values_with_warnings<P: Prompter>(
     }
 
     (results, warnings)
-}
-
-fn parse_hex_values<P: Prompter>(
-    track: Track,
-    message: SourceRangeMixin<&str>,
-    prompter: &P,
-) -> impl Iterator<Item = (ObjTime, u8)> {
-    let (results, _warnings) = parse_hex_values_with_warnings(track, message, prompter);
-    results.into_iter()
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {

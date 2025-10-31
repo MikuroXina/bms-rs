@@ -36,7 +36,6 @@ fn switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 }
@@ -78,7 +77,6 @@ fn nested_switch_simpler() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 }
@@ -138,7 +136,6 @@ fn nested_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -197,7 +194,6 @@ fn nested_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -260,7 +256,6 @@ fn nested_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -353,7 +348,6 @@ fn nested_random_in_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -412,7 +406,6 @@ fn nested_random_in_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -475,7 +468,6 @@ fn nested_random_in_switch() {
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    let parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
     assert_eq!(
@@ -799,7 +791,6 @@ fn test_switch_insane() {
             &tokens,
             default_config_with_rng(rng).prompter(AlwaysUseNewer),
         );
-        let parse_warnings = parse_warnings;
         assert_eq!(parse_errors, vec![]);
         assert_eq!(parse_warnings, vec![]);
         assert_eq!(
