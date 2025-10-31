@@ -1238,7 +1238,7 @@ struct Base62Checker {
 }
 
 impl Base62Checker {
-    const fn new() -> Self {
+    fn new() -> Self {
         Self {
             using_base62: false,
         }
@@ -1250,7 +1250,7 @@ impl Base62Checker {
         }
     }
 
-    const fn into_using_base62(self) -> bool {
+    fn into_using_base62(self) -> bool {
         self.using_base62
     }
 }

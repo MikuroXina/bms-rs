@@ -150,7 +150,9 @@ impl VideoProcessor {
         video: &mut Video,
     ) -> Vec<ParseWarningWithRange> {
         let mut warnings = Vec::new();
-        if channel == Channel::Seek {
+        if let Channel::Seek = channel {
+            use super::parse_obj_ids_with_warnings;
+
             let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
                 track,
                 message.clone(),

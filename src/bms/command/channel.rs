@@ -233,19 +233,19 @@ impl FromStr for NoteChannelId {
 
 impl From<NoteChannelId> for u16 {
     fn from(value: NoteChannelId) -> Self {
-        base62_to_byte(value.0[0]) as Self * 62 + base62_to_byte(value.0[1]) as Self
+        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
     }
 }
 
 impl From<NoteChannelId> for u32 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as Self
+        Into::<u16>::into(value) as u32
     }
 }
 
 impl From<NoteChannelId> for u64 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as Self
+        Into::<u16>::into(value) as u64
     }
 }
 
@@ -274,43 +274,43 @@ impl TryFrom<NoteChannelId> for Channel {
 
     fn try_from(channel_id: NoteChannelId) -> Result<Self, Self::Error> {
         match channel_id.0 {
-            [b'0', b'1'] => Ok(Self::Bgm),
-            [b'0', b'2'] => Ok(Self::SectionLen),
-            [b'0', b'3'] => Ok(Self::BpmChangeU8),
-            [b'0', b'4'] => Ok(Self::BgaBase),
+            [b'0', b'1'] => Ok(Channel::Bgm),
+            [b'0', b'2'] => Ok(Channel::SectionLen),
+            [b'0', b'3'] => Ok(Channel::BpmChangeU8),
+            [b'0', b'4'] => Ok(Channel::BgaBase),
 
-            [b'0', b'5'] => Ok(Self::Seek),
-            [b'0', b'6'] => Ok(Self::BgaPoor),
-            [b'0', b'7'] => Ok(Self::BgaLayer),
-            [b'0', b'8'] => Ok(Self::BpmChange),
-            [b'0', b'9'] => Ok(Self::Stop),
-            [b'1', b'0'] => Ok(Self::BgaLayer2),
+            [b'0', b'5'] => Ok(Channel::Seek),
+            [b'0', b'6'] => Ok(Channel::BgaPoor),
+            [b'0', b'7'] => Ok(Channel::BgaLayer),
+            [b'0', b'8'] => Ok(Channel::BpmChange),
+            [b'0', b'9'] => Ok(Channel::Stop),
+            [b'0', b'A'] => Ok(Channel::BgaLayer2),
 
-            [b'1', b'1'] => Ok(Self::BgaBaseOpacity),
+            [b'0', b'B'] => Ok(Channel::BgaBaseOpacity),
 
-            [b'1', b'2'] => Ok(Self::BgaLayerOpacity),
+            [b'0', b'C'] => Ok(Channel::BgaLayerOpacity),
 
-            [b'1', b'3'] => Ok(Self::BgaLayer2Opacity),
+            [b'0', b'D'] => Ok(Channel::BgaLayer2Opacity),
 
-            [b'1', b'4'] => Ok(Self::BgaPoorOpacity),
-            [b'1', b'6'] => Ok(Self::KeyVolume),
-            [b'1', b'5'] => Ok(Self::BgmVolume),
-            [b'1', b'8'] => Ok(Self::Judge),
-            [b'1', b'7'] => Ok(Self::Text),
+            [b'0', b'E'] => Ok(Channel::BgaPoorOpacity),
+            [b'9', b'7'] => Ok(Channel::BgmVolume),
+            [b'9', b'8'] => Ok(Channel::KeyVolume),
+            [b'9', b'9'] => Ok(Channel::Text),
+            [b'A', b'0'] => Ok(Channel::Judge),
 
-            [b'1', b'9'] => Ok(Self::BgaBaseArgb),
+            [b'A', b'1'] => Ok(Channel::BgaBaseArgb),
 
-            [b'2', b'0'] => Ok(Self::BgaLayerArgb),
+            [b'A', b'2'] => Ok(Channel::BgaLayerArgb),
 
-            [b'2', b'1'] => Ok(Self::BgaLayer2Argb),
+            [b'A', b'3'] => Ok(Channel::BgaLayer2Argb),
 
-            [b'2', b'2'] => Ok(Self::BgaPoorArgb),
+            [b'A', b'4'] => Ok(Channel::BgaPoorArgb),
 
-            [b'2', b'3'] => Ok(Self::BgaKeybound),
+            [b'A', b'5'] => Ok(Channel::BgaKeybound),
 
-            [b'2', b'4'] => Ok(Self::OptionChange),
-            [b'2', b'6'] => Ok(Self::Speed),
-            [b'2', b'5'] => Ok(Self::Scroll),
+            [b'A', b'6'] => Ok(Channel::OptionChange),
+            [b'S', b'C'] => Ok(Channel::Scroll),
+            [b'S', b'P'] => Ok(Channel::Speed),
             _ => Err(channel_id),
         }
     }
