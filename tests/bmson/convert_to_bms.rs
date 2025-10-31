@@ -1,9 +1,7 @@
 #![cfg(feature = "bmson")]
 
-use bms_rs::{
-    bms::{command::LnMode, model::Bms},
-    bmson::{Bmson, BmsonInfo, bmson_to_bms::BmsonToBmsOutput},
-};
+use bms_rs::{bms::prelude::*, bmson::prelude::*};
+
 use std::borrow::Cow;
 
 #[test]
@@ -42,7 +40,15 @@ fn test_bmson_to_bms_conversion() {
     };
 
     // Convert to Bms
-    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput {
+        bms,
+        warnings,
+        playing_warnings,
+        playing_errors,
+    } = Bms::from_bmson(bmson);
+    assert_eq!(warnings, vec![]);
+    assert_eq!(playing_warnings, vec![]);
+    assert_eq!(playing_errors, vec![PlayingError::NoNotes]);
 
     // Verify conversion
     assert_eq!(bms.music_info.title, Some("Test Song".to_string()));
@@ -131,7 +137,15 @@ fn test_bmson_to_bms_with_notes() {
     };
 
     // Convert to Bms
-    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput {
+        bms,
+        warnings,
+        playing_warnings,
+        playing_errors,
+    } = Bms::from_bmson(bmson);
+    assert_eq!(warnings, vec![]);
+    assert_eq!(playing_warnings, vec![]);
+    assert_eq!(playing_errors, vec![]);
 
     // Verify that notes were converted
     assert_eq!(bms.wav.wav_files.len(), 1);

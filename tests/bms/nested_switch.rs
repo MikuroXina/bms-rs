@@ -28,7 +28,10 @@ fn switch() {
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput { parse_warnings, .. } = Bms::from_token_stream(
+    let ParseOutput {
+        bms: _,
+        parse_warnings,
+    } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
@@ -64,7 +67,10 @@ fn nested_switch_simpler() {
     } = TokenStream::parse_lex(SRC);
     assert_eq!(warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput { parse_warnings, .. } = Bms::from_token_stream(
+    let ParseOutput {
+        bms: _,
+        parse_warnings,
+    } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );

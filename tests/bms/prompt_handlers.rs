@@ -43,8 +43,11 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 fn test_always_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput { bms, .. } =
-        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(parse_warnings, vec![]);
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -116,8 +119,11 @@ fn test_always_use_older() {
 fn test_always_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let ParseOutput { bms, .. } =
-        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(parse_warnings, vec![]);
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
