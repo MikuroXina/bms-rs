@@ -307,7 +307,7 @@ fn all_tokens<
     F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
+    _prompter: &P,
     mut f: F,
 ) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
     let mut warnings = Vec::new();
@@ -317,7 +317,6 @@ fn all_tokens<
         match f(token.content()) {
             Ok(Some(warning)) => {
                 let warning_with_range = warning.into_wrapper(token);
-                prompter.warn(warning_with_range.clone());
                 warnings.push(warning_with_range);
             }
             Ok(None) => {}
@@ -337,7 +336,7 @@ fn all_tokens_with_range<
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
+    _prompter: &P,
     mut f: F,
 ) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
     let mut warnings = Vec::new();
@@ -347,7 +346,6 @@ fn all_tokens_with_range<
         match f(token) {
             Ok(Some(warning)) => {
                 let warning_with_range = warning.into_wrapper(token);
-                prompter.warn(warning_with_range.clone());
                 warnings.push(warning_with_range);
             }
             Ok(None) => {}
@@ -364,14 +362,11 @@ fn all_tokens_with_range<
 fn parse_obj_ids<P: Prompter>(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
+    _prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
 ) -> impl Iterator<Item = (ObjTime, ObjId)> {
-    if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
-            ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
-        );
-    }
+    // Note: Warnings about non-multiple-of-2 message length are no longer generated
+    // since the prompter.warn function has been removed
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
     message
@@ -392,8 +387,9 @@ fn parse_obj_ids<P: Prompter>(
                     ),
                     id,
                 )),
-                Err(warning) => {
-                    prompter.warn(warning.into_wrapper(&message));
+                Err(_warning) => {
+                    // Note: Warnings about invalid object IDs are no longer generated
+                    // since the prompter.warn function has been removed
                     None
                 }
             }
@@ -403,13 +399,10 @@ fn parse_obj_ids<P: Prompter>(
 fn parse_hex_values<P: Prompter>(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
+    _prompter: &P,
 ) -> impl Iterator<Item = (ObjTime, u8)> {
-    if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
-            ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
-        );
-    }
+    // Note: Warnings about non-multiple-of-2 message length are no longer generated
+    // since the prompter.warn function has been removed
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
     message
@@ -418,14 +411,19 @@ fn parse_hex_values<P: Prompter>(
         .tuples()
         .enumerate()
         .filter_map(move |(i, (c1, c2))| {
-            let arr: [char; 2] = (c1, c2).into();
-            let buf = arr.into_iter().collect::<String>();
-            u8::from_str_radix(&buf, 16).map_or_else(
-                |_| {
-                    prompter.warn(
-                        ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
-                            .into_wrapper(&message),
-                    );
+            let buf = String::from_iter([c1, c2]);
+            match u8::from_str_radix(&buf, 16) {
+                Ok(value) => Some((
+                    ObjTime::new(
+                        track.0,
+                        i as u64,
+                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                    ),
+                    value,
+                )),
+                Err(_) => {
+                    // Note: Warnings about invalid hex digits are no longer generated
+                    // since the prompter.warn function has been removed
                     None
                 },
                 |value| {

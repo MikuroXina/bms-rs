@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
+use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_atbga_parsing() {
@@ -308,14 +308,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let mut collected_parse_warnings = vec![];
-    let ParseOutput { parse_errors, .. } = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysUseNewer,
-            &mut collected_parse_warnings,
-        )),
-    );
+    let ParseOutput {
+        parse_errors,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let collected_parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");
@@ -336,14 +334,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let mut collected_parse_warnings = vec![];
-    let ParseOutput { parse_errors, .. } = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysUseNewer,
-            &mut collected_parse_warnings,
-        )),
-    );
+    let ParseOutput {
+        parse_errors,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let collected_parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");
@@ -364,14 +360,12 @@ fn test_exwav_out_of_range_values() {
     } = TokenStream::parse_lex(source);
     assert_eq!(lex_warnings, vec![]);
 
-    let mut collected_parse_warnings = vec![];
-    let ParseOutput { parse_errors, .. } = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysUseNewer,
-            &mut collected_parse_warnings,
-        )),
-    );
+    let ParseOutput {
+        parse_errors,
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let collected_parse_warnings = parse_warnings;
     assert_eq!(parse_errors, vec![]);
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");

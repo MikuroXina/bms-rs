@@ -21,7 +21,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
         parse_errors,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
@@ -98,7 +98,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
         parse_errors,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 
@@ -147,7 +147,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         parse_errors,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
 

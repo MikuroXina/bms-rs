@@ -56,7 +56,7 @@ pub use super::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-            DefDuplication, DuplicationWorkaround, PanicAndUseNewer, PanicAndUseOlder, Prompter,
+            DefDuplication, DuplicationWorkaround, Prompter,
         },
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },

@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
+use bms_rs::bms::prelude::*;
 
 use std::num::NonZeroU64;
 use std::path::Path;
@@ -45,7 +45,7 @@ fn test_always_use_older() {
 
     let ParseOutput {
         bms, parse_errors, ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(parse_errors, vec![]);
 
     // Check that older values are used for all scope_defines conflicts
@@ -120,7 +120,7 @@ fn test_always_use_newer() {
 
     let ParseOutput {
         bms, parse_errors, ..
-    } = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer));
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(parse_errors, vec![]);
 
     // Check that newer values are used for all scope_defines conflicts
@@ -193,19 +193,13 @@ fn test_always_use_newer() {
 fn test_always_warn_and_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let mut collected_parse_warnings = vec![];
     let ParseOutput {
         bms,
         parse_errors,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysWarnAndUseOlder,
-            &mut collected_parse_warnings,
-        )),
-    );
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
+    let collected_parse_warnings = parse_warnings.clone();
     assert_eq!(parse_errors, vec![]);
     // parse_warnings should only contain prompter-related warnings (duplication warnings)
     assert!(parse_warnings.iter().all(|w| matches!(
@@ -290,19 +284,13 @@ fn test_always_warn_and_use_older() {
 fn test_always_warn_and_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let mut collected_parse_warnings = vec![];
     let ParseOutput {
         bms,
         parse_errors,
         parse_warnings,
         ..
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysWarnAndUseNewer,
-            &mut collected_parse_warnings,
-        )),
-    );
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
+    let collected_parse_warnings = parse_warnings.clone();
     assert_eq!(parse_errors, vec![]);
     // parse_warnings should only contain prompter-related warnings (duplication warnings)
     assert!(parse_warnings.iter().all(|w| matches!(
