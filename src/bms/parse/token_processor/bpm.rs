@@ -11,7 +11,8 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, all_tokens_with_range, parse_hex_values, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
+    parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{
@@ -49,6 +50,7 @@ impl TokenProcessor for BpmProcessor {
         Vec<ParseErrorWithRange>,
     ) {
         let mut objects = BpmObjects::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
@@ -58,19 +60,22 @@ impl TokenProcessor for BpmProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
         });
-        (objects, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -127,29 +132,44 @@ impl BpmProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut BpmObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::BpmChange {
-            for (time, obj) in parse_obj_ids(
+            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
                 track,
                 message.clone(),
                 prompter,
                 &self.case_sensitive_obj_id,
-            ) {
+            );
+            warnings.extend(parse_warnings);
+            for (time, obj) in obj_ids {
                 // Record used BPM change id for validity checks
                 objects.bpm_change_ids_used.insert(obj);
-                let bpm = objects
-                    .bpm_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)?;
+                let bpm = objects.bpm_defs.get(&obj).cloned();
+                match bpm {
+                    Some(bpm) => {
+                        if let Err(warning) =
+                            objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)
+                        {
+                            warnings.push(warning.into_wrapper(&message));
+                        }
+                    }
+                    None => {
+                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
+                    }
+                }
             }
         }
         if channel == Channel::BpmChangeU8 {
-            for (time, value) in parse_hex_values(track, message, prompter) {
-                objects.push_bpm_change_u8(time, value, prompter)?;
+            let (hex_values, parse_warnings) =
+                parse_hex_values_with_warnings(track, message.clone(), prompter);
+            warnings.extend(parse_warnings);
+            for (time, value) in hex_values {
+                if let Err(warning) = objects.push_bpm_change_u8(time, value, prompter) {
+                    warnings.push(warning.into_wrapper(&message));
+                }
             }
         }
-        Ok(())
+        warnings
     }
 }
