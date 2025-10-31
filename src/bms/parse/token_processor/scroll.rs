@@ -9,11 +9,11 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
+        error::{ParseErrorWithRange, ParseWarning, Result},
         model::scroll::ScrollObjects,
         prelude::*,
     },
@@ -41,9 +41,13 @@ impl TokenProcessor for ScrollProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut objects = ScrollObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -63,8 +67,8 @@ impl TokenProcessor for ScrollProcessor {
                     .err(),
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        (objects, warnings, errors)
     }
 }
 

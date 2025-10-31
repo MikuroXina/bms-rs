@@ -8,8 +8,12 @@
 
 use std::path::Path;
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{error::Result, model::sprite::Sprites, prelude::*};
+use super::{TokenProcessor, all_tokens};
+use crate::bms::{
+    error::{ParseErrorWithRange, Result},
+    model::sprite::Sprites,
+    prelude::*,
+};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,17 +26,21 @@ impl TokenProcessor for SpriteProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut sprites = Sprites::default();
-        all_tokens(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens(input, prompter, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut sprites)
                     .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(sprites)
+        });
+        (sprites, warnings, errors)
     }
 }
 

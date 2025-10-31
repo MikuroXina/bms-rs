@@ -47,14 +47,14 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        error::{ParseError, ParseWarning},
+        error::{ParseError, ParseErrorWithRange, ParseWarning},
         parse::token_processor::all_tokens_with_range,
         prelude::*,
     },
     util::StrExtension,
 };
 
-use super::{TokenProcessor, TokenProcessorResult};
+use super::TokenProcessor;
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -578,9 +578,13 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut activated = vec![];
-        all_tokens_with_range(input, prompter, |token| {
+        let (_, mut warnings, mut errors) = all_tokens_with_range(input, prompter, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -590,8 +594,11 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
                 activated.push(token);
             }
             Ok(res)
-        })?;
-        self.next.process(&mut &activated[..], prompter)
+        });
+        let (output, next_warnings, next_errors) = self.next.process(&mut &activated[..], prompter);
+        warnings.extend(next_warnings);
+        errors.extend(next_errors);
+        (output, warnings, errors)
     }
 }
 

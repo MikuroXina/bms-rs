@@ -34,9 +34,6 @@ mod video;
 mod volume;
 mod wav;
 
-/// A type alias of `Result<T, Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult<T> = Result<T, ParseErrorWithRange>;
-
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
     /// A result data of the process.
@@ -47,7 +44,11 @@ pub trait TokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output>;
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    );
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -81,7 +82,11 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         T::process(self, input, prompter)
     }
 }
@@ -104,11 +109,18 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut cloned = *input;
-        let first_output = self.first.process(&mut cloned, prompter)?;
-        let second_output = self.second.process(input, prompter)?;
-        Ok((first_output, second_output))
+        let (first_output, mut first_warnings, mut first_errors) =
+            self.first.process(&mut cloned, prompter);
+        let (second_output, second_warnings, second_errors) = self.second.process(input, prompter);
+        first_warnings.extend(second_warnings);
+        first_errors.extend(second_errors);
+        ((first_output, second_output), first_warnings, first_errors)
     }
 }
 
@@ -130,9 +142,13 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        let res = self.source.process(input, prompter)?;
-        Ok((self.mapping)(res))
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
+        let (res, warnings, errors) = self.source.process(input, prompter);
+        ((self.mapping)(res), warnings, errors)
     }
 }
 
@@ -293,14 +309,26 @@ fn all_tokens<
     input: &mut &'a [&TokenWithRange<'_>],
     prompter: &P,
     mut f: F,
-) -> TokenProcessorResult<()> {
+) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+
     for token in &**input {
-        if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+        match f(token.content()) {
+            Ok(Some(warning)) => {
+                let warning_with_range = warning.into_wrapper(token);
+                prompter.warn(warning_with_range.clone());
+                warnings.push(warning_with_range);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                let error_with_range = error.into_wrapper(token);
+                errors.push(error_with_range);
+            }
         }
     }
     *input = &[];
-    Ok(())
+    ((), warnings, errors)
 }
 
 fn all_tokens_with_range<
@@ -311,14 +339,26 @@ fn all_tokens_with_range<
     input: &mut &'a [&TokenWithRange<'_>],
     prompter: &P,
     mut f: F,
-) -> TokenProcessorResult<()> {
+) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+
     for token in &**input {
-        if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+        match f(token) {
+            Ok(Some(warning)) => {
+                let warning_with_range = warning.into_wrapper(token);
+                prompter.warn(warning_with_range.clone());
+                warnings.push(warning_with_range);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                let error_with_range = error.into_wrapper(token);
+                errors.push(error_with_range);
+            }
         }
     }
     *input = &[];
-    Ok(())
+    ((), warnings, errors)
 }
 
 fn parse_obj_ids<P: Prompter>(

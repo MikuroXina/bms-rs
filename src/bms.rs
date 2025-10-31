@@ -43,7 +43,7 @@ use self::{
     model::Bms,
     parse::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, TokenProcessorResult, common_preset, minor_preset},
+        token_processor::{TokenProcessor, common_preset, minor_preset},
     },
     prelude::*,
 };
@@ -210,7 +210,11 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 &self,
                 input: &mut &[&TokenWithRange<'_>],
                 prompter: &P,
-            ) -> TokenProcessorResult<Self::Output> {
+            ) -> (
+                Self::Output,
+                Vec<ParseWarningWithRange>,
+                Vec<ParseErrorWithRange>,
+            ) {
                 if self.use_minor {
                     minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
                         .process(input, prompter)

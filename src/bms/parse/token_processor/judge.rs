@@ -10,12 +10,13 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_obj_ids,
-};
+use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids};
 use crate::{
-    bms::{error::Result, model::judge::JudgeObjects, prelude::*},
+    bms::{
+        error::{ParseErrorWithRange, Result},
+        model::judge::JudgeObjects,
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -40,9 +41,13 @@ impl TokenProcessor for JudgeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut objects = JudgeObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -62,8 +67,8 @@ impl TokenProcessor for JudgeProcessor {
                     .err(),
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        (objects, warnings, errors)
     }
 }
 

@@ -21,10 +21,14 @@ use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{error::Result, model::wav::WavObjects, prelude::*},
+    bms::{
+        error::{ParseErrorWithRange, Result},
+        model::wav::WavObjects,
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -51,9 +55,13 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut objects = WavObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -73,8 +81,8 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
                     .err(),
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        (objects, warnings, errors)
     }
 }
 

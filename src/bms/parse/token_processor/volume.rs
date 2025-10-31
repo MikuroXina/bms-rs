@@ -4,11 +4,12 @@
 //! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_hex_values,
+use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values};
+use crate::bms::{
+    error::{ParseErrorWithRange, Result},
+    model::volume::VolumeObjects,
+    prelude::*,
 };
-use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,9 +22,13 @@ impl TokenProcessor for VolumeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ParseErrorWithRange>,
+    ) {
         let mut objects = VolumeObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut objects)
@@ -43,8 +48,8 @@ impl TokenProcessor for VolumeProcessor {
                     .err(),
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        (objects, warnings, errors)
     }
 }
 
