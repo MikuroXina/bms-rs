@@ -284,33 +284,33 @@ impl TryFrom<NoteChannelId> for Channel {
             [b'0', b'7'] => Ok(Self::BgaLayer),
             [b'0', b'8'] => Ok(Self::BpmChange),
             [b'0', b'9'] => Ok(Self::Stop),
-            [b'0', b'A'] => Ok(Self::BgaLayer2),
+            [b'1', b'0'] => Ok(Self::BgaLayer2),
 
-            [b'0', b'B'] => Ok(Self::BgaBaseOpacity),
+            [b'1', b'1'] => Ok(Self::BgaBaseOpacity),
 
-            [b'0', b'C'] => Ok(Self::BgaLayerOpacity),
+            [b'1', b'2'] => Ok(Self::BgaLayerOpacity),
 
-            [b'0', b'D'] => Ok(Self::BgaLayer2Opacity),
+            [b'1', b'3'] => Ok(Self::BgaLayer2Opacity),
 
-            [b'0', b'E'] => Ok(Self::BgaPoorOpacity),
-            [b'9', b'7'] => Ok(Self::BgmVolume),
-            [b'9', b'8'] => Ok(Self::KeyVolume),
-            [b'9', b'9'] => Ok(Self::Text),
-            [b'A', b'0'] => Ok(Self::Judge),
+            [b'1', b'4'] => Ok(Self::BgaPoorOpacity),
+            [b'1', b'6'] => Ok(Self::KeyVolume),
+            [b'1', b'5'] => Ok(Self::BgmVolume),
+            [b'1', b'8'] => Ok(Self::Judge),
+            [b'1', b'7'] => Ok(Self::Text),
 
-            [b'A', b'1'] => Ok(Self::BgaBaseArgb),
+            [b'1', b'9'] => Ok(Self::BgaBaseArgb),
 
-            [b'A', b'2'] => Ok(Self::BgaLayerArgb),
+            [b'2', b'0'] => Ok(Self::BgaLayerArgb),
 
-            [b'A', b'3'] => Ok(Self::BgaLayer2Argb),
+            [b'2', b'1'] => Ok(Self::BgaLayer2Argb),
 
-            [b'A', b'4'] => Ok(Self::BgaPoorArgb),
+            [b'2', b'2'] => Ok(Self::BgaPoorArgb),
 
-            [b'A', b'5'] => Ok(Self::BgaKeybound),
+            [b'2', b'3'] => Ok(Self::BgaKeybound),
 
-            [b'A', b'6'] => Ok(Self::OptionChange),
-            [b'S', b'C'] => Ok(Self::Scroll),
-            [b'S', b'P'] => Ok(Self::Speed),
+            [b'2', b'4'] => Ok(Self::OptionChange),
+            [b'2', b'6'] => Ok(Self::Speed),
+            [b'2', b'5'] => Ok(Self::Scroll),
             _ => Err(channel_id),
         }
     }
