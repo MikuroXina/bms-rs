@@ -47,7 +47,7 @@ impl TokenProcessor for BpmProcessor {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = BpmObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -131,12 +131,8 @@ impl BpmProcessor {
     ) -> Vec<ParseWarningWithRange> {
         let mut warnings = Vec::new();
         if channel == Channel::BpmChange {
-            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
-                track,
-                message.clone(),
-                prompter,
-                &self.case_sensitive_obj_id,
-            );
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
             warnings.extend(parse_warnings);
             for (time, obj) in obj_ids {
                 // Record used BPM change id for validity checks
@@ -158,7 +154,7 @@ impl BpmProcessor {
         }
         if channel == Channel::BpmChangeU8 {
             let (hex_values, parse_warnings) =
-                parse_hex_values_with_warnings(track, message.clone(), prompter);
+                parse_hex_values_with_warnings(track, message.clone());
             warnings.extend(parse_warnings);
             for (time, value) in hex_values {
                 if let Err(warning) = objects.push_bpm_change_u8(time, value, prompter) {

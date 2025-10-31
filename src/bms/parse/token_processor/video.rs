@@ -44,7 +44,7 @@ impl TokenProcessor for VideoProcessor {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = Video::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -143,12 +143,8 @@ impl VideoProcessor {
         if channel == Channel::Seek {
             use super::parse_obj_ids_with_warnings;
 
-            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
-                track,
-                message.clone(),
-                prompter,
-                &self.case_sensitive_obj_id,
-            );
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
             warnings.extend(parse_warnings);
             for (time, seek_id) in obj_ids {
                 let position = match video.seek_defs.get(&seek_id).cloned() {

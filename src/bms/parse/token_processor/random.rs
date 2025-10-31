@@ -580,7 +580,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         prompter: &P,
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut activated = vec![];
-        let (_, mut warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, mut warnings) = all_tokens_with_range(input, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,

@@ -23,7 +23,7 @@ impl TokenProcessor for VolumeProcessor {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = VolumeObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut objects)
@@ -77,7 +77,7 @@ impl VolumeProcessor {
         match channel {
             Channel::BgmVolume => {
                 let (hex_values, parse_warnings) =
-                    parse_hex_values_with_warnings(track, message.clone(), prompter);
+                    parse_hex_values_with_warnings(track, message.clone());
                 warnings.extend(parse_warnings);
                 for (time, volume_value) in hex_values {
                     if let Err(warning) = objects.push_bgm_volume_change(
@@ -93,7 +93,7 @@ impl VolumeProcessor {
             }
             Channel::KeyVolume => {
                 let (hex_values, parse_warnings) =
-                    parse_hex_values_with_warnings(track, message.clone(), prompter);
+                    parse_hex_values_with_warnings(track, message.clone());
                 warnings.extend(parse_warnings);
                 for (time, volume_value) in hex_values {
                     if let Err(warning) = objects.push_key_volume_change(
