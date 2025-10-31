@@ -25,7 +25,8 @@ use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
+    parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{
@@ -63,6 +64,7 @@ impl TokenProcessor for BmpProcessor {
         Vec<ParseErrorWithRange>,
     ) {
         let mut objects = BmpObjects::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
@@ -72,19 +74,22 @@ impl TokenProcessor for BmpProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
         });
-        (objects, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -408,21 +413,28 @@ impl BmpProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         match channel {
             channel @ (Channel::BgaBase
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
-                for (time, obj) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    prompter,
+                    &self.case_sensitive_obj_id,
+                );
+                warnings.extend(parse_warnings);
+                for (time, obj) in obj_ids {
                     if !objects.bmp_files.contains_key(&obj) {
-                        return Err(ParseWarning::UndefinedObject(obj));
+                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
+                        continue;
                     }
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    objects.push_bga_change(
+                    if let Err(warning) = objects.push_bga_change(
                         BgaObj {
                             time,
                             id: obj,
@@ -430,18 +442,23 @@ impl BmpProcessor {
                         },
                         channel,
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             channel @ (Channel::BgaBaseOpacity
             | Channel::BgaLayerOpacity
             | Channel::BgaLayer2Opacity
             | Channel::BgaPoorOpacity) => {
-                use super::parse_hex_values;
-                for (time, opacity_value) in parse_hex_values(track, message, prompter) {
+                use super::parse_hex_values_with_warnings;
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone(), prompter);
+                warnings.extend(parse_warnings);
+                for (time, opacity_value) in hex_values {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    objects.push_bga_opacity_change(
+                    if let Err(warning) = objects.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
                             layer,
@@ -449,46 +466,72 @@ impl BmpProcessor {
                         },
                         channel,
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             channel @ (Channel::BgaBaseArgb
             | Channel::BgaLayerArgb
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
-                use super::parse_obj_ids;
-                for (time, argb_id) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
+                use super::parse_obj_ids_with_warnings;
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    prompter,
+                    &self.case_sensitive_obj_id,
+                );
+                warnings.extend(parse_warnings);
+                for (time, argb_id) in obj_ids {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    let argb = objects
-                        .argb_defs
-                        .get(&argb_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(argb_id))?;
-                    objects.push_bga_argb_change(
+                    let argb = match objects.argb_defs.get(&argb_id).cloned() {
+                        Some(argb) => argb,
+                        None => {
+                            warnings.push(
+                                ParseWarning::UndefinedObject(argb_id).into_wrapper(&message),
+                            );
+                            continue;
+                        }
+                    };
+                    if let Err(warning) = objects.push_bga_argb_change(
                         BgaArgbObj { time, layer, argb },
                         channel,
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             Channel::BgaKeybound => {
-                use super::parse_obj_ids;
-                for (time, keybound_id) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
-                    let event = objects
-                        .swbga_events
-                        .get(&keybound_id)
-                        .cloned()
-                        .ok_or(ParseWarning::UndefinedObject(keybound_id))?;
-                    objects.push_bga_keybound_event(BgaKeyboundObj { time, event }, prompter)?;
+                use super::parse_obj_ids_with_warnings;
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    prompter,
+                    &self.case_sensitive_obj_id,
+                );
+                warnings.extend(parse_warnings);
+                for (time, keybound_id) in obj_ids {
+                    let event = match objects.swbga_events.get(&keybound_id).cloned() {
+                        Some(event) => event,
+                        None => {
+                            warnings.push(
+                                ParseWarning::UndefinedObject(keybound_id).into_wrapper(&message),
+                            );
+                            continue;
+                        }
+                    };
+                    if let Err(warning) =
+                        objects.push_bga_keybound_event(BgaKeyboundObj { time, event }, prompter)
+                    {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             _ => {}
         }
-        Ok(())
+        warnings
     }
 }

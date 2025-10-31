@@ -10,7 +10,9 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids};
+use super::{
+    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
+};
 use crate::{
     bms::{
         error::{ParseErrorWithRange, Result},
@@ -47,6 +49,7 @@ impl TokenProcessor for JudgeProcessor {
         Vec<ParseErrorWithRange>,
     ) {
         let mut objects = JudgeObjects::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
@@ -56,19 +59,22 @@ impl TokenProcessor for JudgeProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
         });
-        (objects, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -135,25 +141,36 @@ impl JudgeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::Judge {
-            for (time, judge_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
-                let exrank_def = objects
-                    .exrank_defs
-                    .get(&judge_id)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(judge_id))?;
-                objects.push_judge_event(
+            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                track,
+                message.clone(),
+                prompter,
+                &self.case_sensitive_obj_id,
+            );
+            warnings.extend(parse_warnings);
+            for (time, judge_id) in obj_ids {
+                let exrank_def = match objects.exrank_defs.get(&judge_id).cloned() {
+                    Some(exrank_def) => exrank_def,
+                    None => {
+                        warnings
+                            .push(ParseWarning::UndefinedObject(judge_id).into_wrapper(&message));
+                        continue;
+                    }
+                };
+                if let Err(warning) = objects.push_judge_event(
                     JudgeObj {
                         time,
                         judge_level: exrank_def.judge_level,
                     },
                     prompter,
-                )?;
+                ) {
+                    warnings.push(warning.into_wrapper(&message));
+                }
             }
         }
-        Ok(())
+        warnings
     }
 }
