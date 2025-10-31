@@ -14,7 +14,9 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
-use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range};
+use super::{
+    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
+};
 use crate::{
     bms::{
         error::{ParseErrorWithRange, Result},
@@ -50,29 +52,33 @@ impl TokenProcessor for VideoProcessor {
         Vec<ParseWarningWithRange>,
         Vec<ParseErrorWithRange>,
     ) {
-        let mut video = Video::default();
+        let mut objects = Video::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
                     .err(),
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
-                        &mut video,
-                    )
-                    .err(),
+                        &mut objects,
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
         });
-        (video, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -142,21 +148,32 @@ impl VideoProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> Result<()> {
-        if channel == Channel::Seek {
-            use super::parse_obj_ids;
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
+        if let Channel::Seek = channel {
+            use super::parse_obj_ids_with_warnings;
 
-            for (time, seek_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
-                let position = video
-                    .seek_defs
-                    .get(&seek_id)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(seek_id))?;
-                video.push_seek_event(SeekObj { time, position }, prompter)?;
+            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                track,
+                message.clone(),
+                prompter,
+                &self.case_sensitive_obj_id,
+            );
+            warnings.extend(parse_warnings);
+            for (time, seek_id) in obj_ids {
+                let position = match video.seek_defs.get(&seek_id).cloned() {
+                    Some(position) => position,
+                    None => {
+                        warnings
+                            .push(ParseWarning::UndefinedObject(seek_id).into_wrapper(&message));
+                        continue;
+                    }
+                };
+                if let Err(warning) = video.push_seek_event(SeekObj { time, position }, prompter) {
+                    warnings.push(warning.into_wrapper(&message));
+                }
             }
         }
-        Ok(())
+        warnings
     }
 }

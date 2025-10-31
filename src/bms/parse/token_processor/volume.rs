@@ -4,7 +4,9 @@
 //! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
-use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values};
+use super::{
+    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
+};
 use crate::bms::{
     error::{ParseErrorWithRange, Result},
     model::volume::VolumeObjects,
@@ -28,6 +30,7 @@ impl TokenProcessor for VolumeProcessor {
         Vec<ParseErrorWithRange>,
     ) {
         let mut objects = VolumeObjects::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens_with_range(input, prompter, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
@@ -37,19 +40,22 @@ impl TokenProcessor for VolumeProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
         });
-        (objects, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -74,32 +80,43 @@ impl VolumeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut VolumeObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         match channel {
             Channel::BgmVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
-                    objects.push_bgm_volume_change(
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone(), prompter);
+                warnings.extend(parse_warnings);
+                for (time, volume_value) in hex_values {
+                    if let Err(warning) = objects.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
                             volume: volume_value,
                         },
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             Channel::KeyVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
-                    objects.push_key_volume_change(
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone(), prompter);
+                warnings.extend(parse_warnings);
+                for (time, volume_value) in hex_values {
+                    if let Err(warning) = objects.push_key_volume_change(
                         KeyVolumeObj {
                             time,
                             volume: volume_value,
                         },
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             _ => {}
         }
-        Ok(())
+        warnings
     }
 }

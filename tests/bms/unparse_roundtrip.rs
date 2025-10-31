@@ -73,8 +73,8 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
-    // Allow warnings for files with empty resource definitions
-    let _ = lex_warnings;
+    // Collect all warnings for files with empty resource definitions
+    let collected_lex_warnings = lex_warnings;
 
     // tokens -> Bms
     let ParseOutput {

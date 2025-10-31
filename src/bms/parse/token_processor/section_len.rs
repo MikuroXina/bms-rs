@@ -8,7 +8,7 @@ use fraction::GenericFraction;
 
 use super::{super::prompt::Prompter, TokenProcessor, all_tokens, filter_message};
 use crate::bms::{
-    error::{ParseErrorWithRange, ParseWarning, Result},
+    error::{ParseErrorWithRange, ParseWarning},
     model::section_len::SectionLenObjects,
     prelude::*,
 };
@@ -30,19 +30,24 @@ impl TokenProcessor for SectionLenProcessor {
         Vec<ParseErrorWithRange>,
     ) {
         let mut objects = SectionLenObjects::default();
+        let mut all_warnings = Vec::new();
         let (_, warnings, errors) = all_tokens(input, prompter, |token| {
             Ok(match token {
                 Token::Message {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                    .err(),
+                } => {
+                    let message_warnings =
+                        self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects);
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::Header { .. } | Token::NotACommand(_) => None,
             })
         });
-        (objects, warnings, errors)
+        all_warnings.extend(warnings);
+        (objects, all_warnings, errors)
     }
 }
 
@@ -54,22 +59,36 @@ impl SectionLenProcessor {
         message: &str,
         prompter: &impl Prompter,
         objects: &mut SectionLenObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
-            let length = Decimal::from(Decimal::from_fraction(
-                GenericFraction::from_str(message).map_err(|_| {
-                    ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
-                })?,
-            ));
+            let fraction_result = GenericFraction::from_str(message).map_err(|_| {
+                ParseWarning::SyntaxError(format!("Invalid section length: {message}"))
+            });
+            let length = match fraction_result {
+                Ok(fraction) => Decimal::from(Decimal::from_fraction(fraction)),
+                Err(warning) => {
+                    warnings.push(warning.into_wrapper(&SourceRangeMixin::new(message, 0..0)));
+                    return warnings;
+                }
+            };
             if length <= Decimal::from(0u64) {
-                return Err(ParseWarning::SyntaxError(
-                    "section length must be greater than zero".to_string(),
-                ));
+                warnings.push(
+                    ParseWarning::SyntaxError(
+                        "section length must be greater than zero".to_string(),
+                    )
+                    .into_wrapper(&SourceRangeMixin::new(message, 0..0)),
+                );
+                return warnings;
             }
-            objects.push_section_len_change(SectionLenChangeObj { track, length }, prompter)?;
+            if let Err(warning) =
+                objects.push_section_len_change(SectionLenChangeObj { track, length }, prompter)
+            {
+                warnings.push(warning.into_wrapper(&SourceRangeMixin::new(message, 0..0)));
+            }
         }
-        Ok(())
+        warnings
     }
 }
