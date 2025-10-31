@@ -257,22 +257,30 @@ mod tests {
                 Token::header("WAV03", "bar.WAV"),
                 Token::Message {
                     track: Track(2),
-                    channel: Channel::BgaBaseOpacity,
+                    channel: Channel::Note {
+                        channel_id: "11".parse().unwrap(),
+                    },
                     message: "0303030303".into(),
                 },
                 Token::Message {
                     track: Track(2),
-                    channel: Channel::BgaBaseOpacity,
+                    channel: Channel::Note {
+                        channel_id: "11".parse().unwrap(),
+                    },
                     message: "0303000303".into(),
                 },
                 Token::Message {
                     track: Track(2),
-                    channel: Channel::BgaBaseOpacity,
+                    channel: Channel::Note {
+                        channel_id: "11".parse().unwrap(),
+                    },
                     message: "010101".into(),
                 },
                 Token::Message {
                     track: Track(2),
-                    channel: Channel::BgaBaseOpacity,
+                    channel: Channel::Note {
+                        channel_id: "11".parse().unwrap(),
+                    },
                     message: "00020202".into(),
                 },
             ]

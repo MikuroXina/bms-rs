@@ -25,7 +25,8 @@ use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
+    TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
+    parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{
