@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse::prompt::PanicAndUseNewer, prelude::*};
+use bms_rs::bms::prelude::*;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -20,7 +20,7 @@ fn test_not_base_62() {
         ..
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_config().prompter(PanicAndUseNewer),
+        default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
@@ -53,7 +53,7 @@ fn test_base_62() {
         ..
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_config().prompter(PanicAndUseNewer),
+        default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(parse_errors, vec![]);
     assert_eq!(parse_warnings, vec![]);
