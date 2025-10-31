@@ -39,7 +39,7 @@ impl TokenProcessor for OptionProcessor {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = OptionObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -108,12 +108,8 @@ impl OptionProcessor {
     ) -> Vec<ParseWarningWithRange> {
         let mut warnings = Vec::new();
         if channel == Channel::OptionChange {
-            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
-                track,
-                message.clone(),
-                prompter,
-                &self.case_sensitive_obj_id,
-            );
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
             warnings.extend(parse_warnings);
             for (time, option_id) in obj_ids {
                 let option = match objects.change_options.get(&option_id).cloned() {

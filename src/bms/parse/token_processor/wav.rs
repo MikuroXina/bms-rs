@@ -54,7 +54,7 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = WavObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, prompter, |token| {
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -296,29 +296,21 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,
-        prompter: &impl Prompter,
+        _prompter: &impl Prompter,
         objects: &mut WavObjects,
     ) -> Vec<ParseWarningWithRange> {
         let mut warnings = Vec::new();
         if channel == Channel::Bgm {
-            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
-                track,
-                message.clone(),
-                prompter,
-                &self.case_sensitive_obj_id,
-            );
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
             warnings.extend(parse_warnings);
             for (time, obj) in obj_ids {
                 objects.notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {
-            let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
-                track,
-                message.clone(),
-                prompter,
-                &self.case_sensitive_obj_id,
-            );
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
             warnings.extend(parse_warnings);
             for (offset, obj) in obj_ids {
                 objects.notes.push_note(WavObj {

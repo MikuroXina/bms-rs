@@ -455,7 +455,6 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
 
 /// Reads a channel from a string with detailed error information.
 /// Returns the channel or a ParseWarning if parsing fails.
-#[must_use]
 pub fn read_channel_with_warning(channel: &str) -> Result<Channel, ParseWarning> {
     if let Some(channel) = read_channel_general(channel) {
         return Ok(channel);

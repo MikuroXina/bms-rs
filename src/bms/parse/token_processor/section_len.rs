@@ -23,7 +23,7 @@ impl TokenProcessor for SectionLenProcessor {
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = SectionLenObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens(input, prompter, |token| {
+        let (_, warnings) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Message {
                     track,

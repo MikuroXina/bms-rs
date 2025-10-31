@@ -23,10 +23,10 @@ impl TokenProcessor for ResourcesProcessor {
     fn process<P: Prompter>(
         &self,
         input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
+        _prompter: &P,
     ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut resources = Resources::default();
-        let (_, warnings) = all_tokens(input, prompter, |token| {
+        let (_, warnings) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)

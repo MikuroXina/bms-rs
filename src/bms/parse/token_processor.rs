@@ -280,13 +280,8 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<
-    'a,
-    P: Prompter,
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
->(
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>>(
     input: &mut &'a [&TokenWithRange<'_>],
-    _prompter: &P,
     mut f: F,
 ) -> ((), Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
@@ -310,11 +305,9 @@ fn all_tokens<
 
 fn all_tokens_with_range<
     'a,
-    P: Prompter,
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
-    _prompter: &P,
     mut f: F,
 ) -> ((), Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
@@ -336,10 +329,9 @@ fn all_tokens_with_range<
     ((), warnings)
 }
 
-fn parse_obj_ids_with_warnings<P: Prompter>(
+fn parse_obj_ids_with_warnings(
     track: Track,
     message: SourceRangeMixin<&str>,
-    _prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
 ) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
@@ -374,10 +366,9 @@ fn parse_obj_ids_with_warnings<P: Prompter>(
     (results, warnings)
 }
 
-fn parse_hex_values_with_warnings<P: Prompter>(
+fn parse_hex_values_with_warnings(
     track: Track,
     message: SourceRangeMixin<&str>,
-    _prompter: &P,
 ) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
     let mut results = Vec::new();
