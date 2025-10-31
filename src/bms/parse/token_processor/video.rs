@@ -14,9 +14,7 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
-};
+use super::{super::prompt::Prompter, TokenProcessor, all_tokens_with_range};
 use crate::{
     bms::{
         error::{ParseErrorWithRange, Result},
@@ -150,7 +148,7 @@ impl VideoProcessor {
         video: &mut Video,
     ) -> Vec<ParseWarningWithRange> {
         let mut warnings = Vec::new();
-        if let Channel::Seek = channel {
+        if channel == Channel::Seek {
             use super::parse_obj_ids_with_warnings;
 
             let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
