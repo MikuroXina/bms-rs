@@ -13,7 +13,7 @@ use super::{command::ObjId, prelude::*};
 pub enum ParseError {
     /// Unexpected control flow.
     #[error("unexpected control flow {0}")]
-    UnexpectedControlFlow(&'static str),
+    UnexpectedControlFlow(String),
     /// [`Rng`] generated a value outside the required [`RangeInclusive`] for a random block.
     #[error("random generated value out of range: expected {expected:?}, got {actual}")]
     RandomGeneratedValueOutOfRange {

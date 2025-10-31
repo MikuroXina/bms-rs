@@ -225,7 +225,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 push_new_one(generated)
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#IF must be on a random scope",
+                "#IF must be on a random scope".to_string(),
             )),
         }
     }
@@ -271,7 +271,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(None)
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#ELSEIF must come after of a #IF",
+                "#ELSEIF must come after of a #IF".to_string(),
             )),
         }
     }
@@ -295,7 +295,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#ELSE must come after #IF or #ELSEIF",
+                "#ELSE must come after #IF or #ELSEIF".to_string(),
             )),
         }
     }
@@ -313,7 +313,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDIF must come after #IF, #ELSEIF or #ELSE",
+                "#ENDIF must come after #IF, #ELSEIF or #ELSE".to_string(),
             )),
         }
     }
@@ -333,7 +333,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDRANDOM must come after #RANDOM",
+                "#ENDRANDOM must come after #RANDOM".to_string(),
             )),
         }
     }
@@ -472,7 +472,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             ProcessState::SwitchSkipping => Ok(None),
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#CASE must be on a switch block",
+                "#CASE must be on a switch block".to_string(),
             )),
         }
     }
@@ -496,7 +496,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#SKIP must be on a switch block",
+                "#SKIP must be on a switch block".to_string(),
             )),
         }
     }
@@ -525,7 +525,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#DEF must be on a switch block",
+                "#DEF must be on a switch block".to_string(),
             )),
         }
     }
@@ -546,7 +546,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDSWITCH must come after #SWITCH",
+                "#ENDSWITCH must come after #SWITCH".to_string(),
             )),
         }
     }
