@@ -198,6 +198,11 @@ impl<'a> Cursor<'a> {
         }
         .into_wrapper_range(self.index()..self.index())
     }
+
+    /// Creates a lexical warning with the given warning.
+    pub fn make_err(&self, warning: LexWarning) -> LexWarningWithRange {
+        warning.into_wrapper_range(self.index()..self.index())
+    }
 }
 
 #[test]

@@ -21,7 +21,7 @@ use self::{
     token::{Token, TokenWithRange},
 };
 
-use super::prelude::read_channel;
+use super::prelude::read_channel_with_warning;
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -39,6 +39,12 @@ pub enum LexWarning {
     UnknownChannel {
         /// The channel that was not recognized.
         channel: String,
+    },
+    /// Channel ID parsing warning.
+    #[error("channel id parsing warning: {warning}")]
+    ChannelIdParseWarning {
+        /// The parsing warning.
+        warning: super::ParseWarning,
     },
 }
 
@@ -163,8 +169,12 @@ impl<'a> TokenStream<'a> {
         let channel = &line[4..6];
         let message = &line[7..];
 
-        let channel = read_channel(channel)
-            .ok_or_else(|| cursor.make_err_unknown_channel(channel.to_string()))?;
+        let channel = match read_channel_with_warning(channel) {
+            Ok(channel) => channel,
+            Err(warning) => {
+                return Err(cursor.make_err(LexWarning::ChannelIdParseWarning { warning }));
+            }
+        };
         Ok(Token::Message {
             track: Track(track),
             channel,
@@ -191,12 +201,20 @@ impl ToAriadne for LexWarningWithRange {
         &self,
         src: &SimpleSource<'a>,
     ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        use LexWarning::*;
         let (start, end) = self.as_span();
         let filename = src.name().to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("lex: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
-            .finish()
+        match self.content() {
+            ChannelIdParseWarning { warning } => {
+                // For channel ID parse warnings, delegate to ParseWarning's ToAriadne implementation
+                let parse_warning = SourceRangeMixin::new(warning.clone(), start..end);
+                parse_warning.to_report(src)
+            }
+            _ => Report::build(ReportKind::Warning, (filename.clone(), start..end))
+                .with_message("lex: ".to_string() + &self.content().to_string())
+                .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
+                .finish(),
+        }
     }
 }
 
