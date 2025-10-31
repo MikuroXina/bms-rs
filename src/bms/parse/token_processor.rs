@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 use itertools::Itertools;
 
 use crate::bms::{
-    error::{ParseError, ParseErrorWithRange},
+    error::{ControlFlowWarning, ControlFlowWarningWithRange},
     prelude::*,
 };
 
@@ -47,7 +47,7 @@ pub trait TokenProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     );
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
@@ -85,7 +85,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         T::process(self, input, prompter)
     }
@@ -112,7 +112,7 @@ where
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut cloned = *input;
         let (first_output, mut first_warnings, mut first_errors) =
@@ -145,7 +145,7 @@ where
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let (res, warnings, errors) = self.source.process(input, prompter);
         ((self.mapping)(res), warnings, errors)
@@ -304,12 +304,16 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
 fn all_tokens<
     'a,
     P: Prompter,
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
+    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
     _prompter: &P,
     mut f: F,
-) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
+) -> (
+    (),
+    Vec<ParseWarningWithRange>,
+    Vec<ControlFlowWarningWithRange>,
+) {
     let mut warnings = Vec::new();
     let mut errors = Vec::new();
 
@@ -333,12 +337,16 @@ fn all_tokens<
 fn all_tokens_with_range<
     'a,
     P: Prompter,
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
     _prompter: &P,
     mut f: F,
-) -> ((), Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
+) -> (
+    (),
+    Vec<ParseWarningWithRange>,
+    Vec<ControlFlowWarningWithRange>,
+) {
     let mut warnings = Vec::new();
     let mut errors = Vec::new();
 

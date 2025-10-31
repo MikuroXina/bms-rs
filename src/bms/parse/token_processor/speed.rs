@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseErrorWithRange, ParseWarning, Result},
+        error::{ControlFlowWarningWithRange, ParseWarning, Result},
         model::speed::SpeedObjects,
         prelude::*,
     },
@@ -44,7 +44,7 @@ impl TokenProcessor for SpeedProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = SpeedObjects::default();
         let mut all_warnings = Vec::new();

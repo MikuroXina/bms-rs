@@ -10,7 +10,7 @@ use super::{command::ObjId, prelude::*};
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseError {
+pub enum ControlFlowWarning {
     /// Unexpected control flow.
     #[error("unexpected control flow {0}")]
     UnexpectedControlFlow(String),
@@ -33,7 +33,7 @@ pub enum ParseError {
 }
 
 /// A parse error with position information.
-pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
+pub type ControlFlowWarningWithRange = SourceRangeMixin<ControlFlowWarning>;
 
 /// A warning occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]

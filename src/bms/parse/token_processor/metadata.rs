@@ -17,7 +17,7 @@ use std::{path::Path, str::FromStr};
 
 use super::{TokenProcessor, all_tokens};
 use crate::bms::{
-    error::{ParseErrorWithRange, Result},
+    error::{ControlFlowWarningWithRange, Result},
     model::metadata::Metadata,
     prelude::*,
 };
@@ -36,7 +36,7 @@ impl TokenProcessor for MetadataProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut metadata = Metadata::default();
         let (_, warnings, errors) = all_tokens(input, prompter, |token| {

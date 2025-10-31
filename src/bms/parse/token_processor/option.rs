@@ -12,7 +12,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseErrorWithRange, Result},
+        error::{ControlFlowWarningWithRange, Result},
         model::option::OptionObjects,
         prelude::*,
     },
@@ -43,7 +43,7 @@ impl TokenProcessor for OptionProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = OptionObjects::default();
         let mut all_warnings = Vec::new();

@@ -8,7 +8,7 @@ use fraction::GenericFraction;
 
 use super::{super::prompt::Prompter, TokenProcessor, all_tokens, filter_message};
 use crate::bms::{
-    error::{ParseErrorWithRange, ParseWarning},
+    error::{ControlFlowWarningWithRange, ParseWarning},
     model::section_len::SectionLenObjects,
     prelude::*,
 };
@@ -27,7 +27,7 @@ impl TokenProcessor for SectionLenProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = SectionLenObjects::default();
         let mut all_warnings = Vec::new();

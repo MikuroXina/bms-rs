@@ -38,7 +38,7 @@ use ariadne::{Label, Report, ReportKind};
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
-    error::ParseErrorWithRange,
+    error::ControlFlowWarningWithRange,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
@@ -67,7 +67,7 @@ pub enum BmsWarning {
     Parse(#[from] ParseWarningWithRange),
     /// An error from syntax parser.
     #[error("Error: parse: {0}")]
-    ParseError(#[from] ParseErrorWithRange),
+    ControlFlowWarning(#[from] ControlFlowWarningWithRange),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -213,7 +213,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             ) -> (
                 Self::Output,
                 Vec<ParseWarningWithRange>,
-                Vec<ParseErrorWithRange>,
+                Vec<ControlFlowWarningWithRange>,
             ) {
                 if self.use_minor {
                     minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
@@ -265,7 +265,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
     // Convert parse errors to BmsWarning
-    warnings.extend(parse_errors.into_iter().map(BmsWarning::ParseError));
+    warnings.extend(parse_errors.into_iter().map(BmsWarning::ControlFlowWarning));
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
@@ -297,7 +297,7 @@ impl ToAriadne for BmsWarning {
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
-            ParseError(e) => e.to_report(src),
+            ControlFlowWarning(e) => e.to_report(src),
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {
                 let filename = src.name().to_string();

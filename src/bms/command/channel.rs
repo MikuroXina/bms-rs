@@ -171,7 +171,7 @@ pub enum PlayerSide {
 
 /// Error type for parsing [`ChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum ChannelIdParseError {
+pub enum ChannelIdParseWarning {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.
     #[error("channel id must be exactly 2 ascii characters, got `{0}`")]
     ExpectedTwoAsciiChars(String),
@@ -218,16 +218,17 @@ impl TryFrom<[u8; 2]> for NoteChannelId {
 }
 
 impl FromStr for NoteChannelId {
-    type Err = ChannelIdParseError;
+    type Err = ChannelIdParseWarning;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 2 {
-            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+            return Err(ChannelIdParseWarning::ExpectedTwoAsciiChars(s.to_string()));
         }
         let mut chars = s.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+            return Err(ChannelIdParseWarning::ExpectedTwoAsciiChars(s.to_string()));
         };
-        Self::try_from([ch1, ch2]).map_err(|_| ChannelIdParseError::InvalidAsBase62(s.to_string()))
+        Self::try_from([ch1, ch2])
+            .map_err(|_| ChannelIdParseWarning::InvalidAsBase62(s.to_string()))
     }
 }
 
