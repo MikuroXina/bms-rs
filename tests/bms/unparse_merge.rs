@@ -9,7 +9,7 @@ use std::borrow::Cow;
 #[test]
 fn test_scenario_1_no_merge() {
     // Create tokens with mixed track/channel combinations - some can be merged, others cannot
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -99,7 +99,7 @@ fn test_scenario_1_no_merge() {
 #[test]
 fn test_scenario_2_can_merge() {
     // Create tokens where messages can be merged - same track and channel
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -173,7 +173,7 @@ fn test_scenario_2_can_merge() {
 #[test]
 fn test_scenario_3_cross_track_no_merge() {
     // Create tokens with same channel (Bgm) but different tracks - demonstrating cross-track isolation
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -251,7 +251,7 @@ fn test_scenario_3_cross_track_no_merge() {
 #[test]
 fn test_scenario_4_input_order_preservation() {
     // Create tokens where input order differs from potential ObjTime order
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
