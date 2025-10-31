@@ -5,7 +5,10 @@ use std::ops::RangeInclusive;
 use num::BigUint;
 use thiserror::Error;
 
-use super::{command::ObjId, prelude::*};
+use super::{
+    command::{ObjId, channel::ChannelIdParseWarning},
+    prelude::*,
+};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -60,6 +63,9 @@ pub enum ParseWarning {
     /// Control flow warning.
     #[error("control flow warning: {0}")]
     ControlFlow(#[from] ControlFlowWarning),
+    /// Channel ID parsing warning.
+    #[error("channel id parsing warning: {0}")]
+    ChannelId(#[from] ChannelIdParseWarning),
 }
 
 /// Type alias of `core::result::Result<T, ParseWarning>`

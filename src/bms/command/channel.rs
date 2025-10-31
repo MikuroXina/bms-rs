@@ -11,6 +11,8 @@ use thiserror::Error;
 
 use self::mapper::KeyLayoutMapper;
 
+use crate::bms::ParseWarning;
+
 pub mod converter;
 pub mod mapper;
 
@@ -171,6 +173,7 @@ pub enum PlayerSide {
 
 /// Error type for parsing [`ChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ChannelIdParseWarning {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.
     #[error("channel id must be exactly 2 ascii characters, got `{0}`")]
@@ -448,4 +451,15 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     }
     let channel_id = channel.parse::<NoteChannelId>().ok()?;
     Some(Channel::Note { channel_id })
+}
+
+/// Reads a channel from a string with detailed error information.
+/// Returns the channel or a ParseWarning if parsing fails.
+#[must_use]
+pub fn read_channel_with_warning(channel: &str) -> Result<Channel, ParseWarning> {
+    if let Some(channel) = read_channel_general(channel) {
+        return Ok(channel);
+    }
+    let channel_id = channel.parse::<NoteChannelId>()?;
+    Ok(Channel::Note { channel_id })
 }

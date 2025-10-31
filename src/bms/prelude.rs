@@ -23,7 +23,7 @@ pub use super::{
                 KeyLayoutBeat, KeyLayoutBeatNanasi, KeyLayoutDscOctFp, KeyLayoutMapper,
                 KeyLayoutPms, KeyLayoutPmsBmeType, KeyMapping,
             },
-            read_channel,
+            read_channel, read_channel_with_warning,
         },
         graphics::{Argb, PixelPoint, PixelSize, Rgb},
         minor_command::{
