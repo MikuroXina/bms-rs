@@ -21,7 +21,7 @@ use self::{prompt::Prompter, token_processor::TokenProcessor};
 
 use super::{
     ParseConfig,
-    error::{ParseErrorWithRange, ParseWarningWithRange},
+    error::{ControlFlowWarningWithRange, ParseWarningWithRange},
     rng::Rng,
 };
 
@@ -35,7 +35,7 @@ pub struct ParseOutput {
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
     /// Errors that occurred during parsing.
-    pub parse_errors: Vec<ParseErrorWithRange>,
+    pub parse_errors: Vec<ControlFlowWarningWithRange>,
 }
 
 impl Bms {
@@ -72,7 +72,7 @@ impl ToAriadne for ParseWarningWithRange {
 }
 
 #[cfg(feature = "diagnostics")]
-impl ToAriadne for ParseErrorWithRange {
+impl ToAriadne for ControlFlowWarningWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,

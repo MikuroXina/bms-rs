@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseErrorWithRange, Result},
+        error::{ControlFlowWarningWithRange, Result},
         model::text::TextObjects,
         prelude::*,
     },
@@ -42,7 +42,7 @@ impl TokenProcessor for TextProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = TextObjects::default();
         let mut all_warnings = Vec::new();

@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseErrorWithRange, Result},
+        error::{ControlFlowWarningWithRange, Result},
         model::judge::JudgeObjects,
         prelude::*,
     },
@@ -46,7 +46,7 @@ impl TokenProcessor for JudgeProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = JudgeObjects::default();
         let mut all_warnings = Vec::new();

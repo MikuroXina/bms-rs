@@ -12,7 +12,7 @@ use num::BigUint;
 
 use super::{TokenProcessor, all_tokens};
 use crate::bms::{
-    error::{ParseErrorWithRange, Result},
+    error::{ControlFlowWarningWithRange, Result},
     model::resources::Resources,
     prelude::*,
 };
@@ -31,7 +31,7 @@ impl TokenProcessor for ResourcesProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut resources = Resources::default();
         let (_, warnings, errors) = all_tokens(input, prompter, |token| {

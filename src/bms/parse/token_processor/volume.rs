@@ -8,7 +8,7 @@ use super::{
     super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
 };
 use crate::bms::{
-    error::{ParseErrorWithRange, Result},
+    error::{ControlFlowWarningWithRange, Result},
     model::volume::VolumeObjects,
     prelude::*,
 };
@@ -27,7 +27,7 @@ impl TokenProcessor for VolumeProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = VolumeObjects::default();
         let mut all_warnings = Vec::new();

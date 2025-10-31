@@ -10,7 +10,7 @@ use std::path::Path;
 
 use super::{TokenProcessor, all_tokens};
 use crate::bms::{
-    error::{ParseErrorWithRange, Result},
+    error::{ControlFlowWarningWithRange, Result},
     model::sprite::Sprites,
     prelude::*,
 };
@@ -29,7 +29,7 @@ impl TokenProcessor for SpriteProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut sprites = Sprites::default();
         let (_, warnings, errors) = all_tokens(input, prompter, |token| {

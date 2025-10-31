@@ -29,7 +29,7 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseErrorWithRange, Result},
+        error::{ControlFlowWarningWithRange, Result},
         model::bmp::BmpObjects,
         prelude::*,
     },
@@ -60,7 +60,7 @@ impl TokenProcessor for BmpProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut objects = BmpObjects::default();
         let mut all_warnings = Vec::new();

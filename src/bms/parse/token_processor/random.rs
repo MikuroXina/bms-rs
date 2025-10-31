@@ -47,7 +47,7 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        error::{ParseError, ParseErrorWithRange, ParseWarning},
+        error::{ControlFlowWarning, ControlFlowWarningWithRange, ParseWarning},
         parse::token_processor::all_tokens_with_range,
         prelude::*,
     },
@@ -105,7 +105,7 @@ impl<R, N> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -117,7 +117,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             let generated = self.rng.borrow_mut().generate(range.clone());
             let activated = self.is_activated();
             if activated && !range.contains(&generated) {
-                return Err(ParseError::RandomGeneratedValueOutOfRange {
+                return Err(ControlFlowWarning::RandomGeneratedValueOutOfRange {
                     expected: range,
                     actual: generated,
                 });
@@ -150,7 +150,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -187,7 +187,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_if(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let push_new_one = |generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -224,13 +224,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 };
                 push_new_one(generated)
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#IF must be on a random scope".to_string(),
             )),
         }
     }
 
-    fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -270,13 +270,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 }
                 Ok(None)
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#ELSEIF must come after of a #IF".to_string(),
             )),
         }
     }
 
-    fn visit_else(&self) -> Result<(), ParseError> {
+    fn visit_else(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -294,13 +294,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 });
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#ELSE must come after #IF or #ELSEIF".to_string(),
             )),
         }
     }
 
-    fn visit_end_if(&self) -> Result<(), ParseError> {
+    fn visit_end_if(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -312,13 +312,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#ENDIF must come after #IF, #ELSEIF or #ELSE".to_string(),
             )),
         }
     }
 
-    fn visit_end_random(&self) -> Result<(), ParseError> {
+    fn visit_end_random(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -332,13 +332,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#ENDRANDOM must come after #RANDOM".to_string(),
             )),
         }
     }
 
-    fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -351,7 +351,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             let activated = self.is_activated();
             if activated {
                 if !range.contains(&generated) {
-                    return Err(ParseError::SwitchGeneratedValueOutOfRange {
+                    return Err(ControlFlowWarning::SwitchGeneratedValueOutOfRange {
                         expected: range,
                         actual: generated,
                     });
@@ -381,7 +381,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -416,7 +416,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_case(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_case(&self, args: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         let cond = match args
             .parse()
             .map_err(|_| ParseWarning::SyntaxError(format!("expected integer but got {args:?}")))
@@ -471,13 +471,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(None)
             }
             ProcessState::SwitchSkipping => Ok(None),
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#CASE must be on a switch block".to_string(),
             )),
         }
     }
 
-    fn visit_skip(&self) -> Result<(), ParseError> {
+    fn visit_skip(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -495,13 +495,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#SKIP must be on a switch block".to_string(),
             )),
         }
     }
 
-    fn visit_default(&self) -> Result<(), ParseError> {
+    fn visit_default(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -524,13 +524,13 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#DEF must be on a switch block".to_string(),
             )),
         }
     }
 
-    fn visit_end_switch(&self) -> Result<(), ParseError> {
+    fn visit_end_switch(&self) -> Result<(), ControlFlowWarning> {
         let top = self
             .state_stack
             .borrow()
@@ -545,7 +545,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().pop();
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
+            _ => Err(ControlFlowWarning::UnexpectedControlFlow(
                 "#ENDSWITCH must come after #SWITCH".to_string(),
             )),
         }
@@ -581,7 +581,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut activated = vec![];
         let (_, mut warnings, mut errors) = all_tokens_with_range(input, prompter, |token| {
@@ -603,7 +603,11 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+    ) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         if self.relaxed {
             if name.eq_ignore_ascii_case("RONDAM") {
                 return self.visit_random(args);
@@ -661,7 +665,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         Ok(None)
     }
 
-    fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ControlFlowWarning> {
         if self.relaxed && line.trim().eq_ignore_ascii_case("＃ENDIF") {
             self.visit_end_if()?;
         }

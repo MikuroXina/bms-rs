@@ -13,7 +13,7 @@ use std::path::Path;
 
 use super::{TokenProcessor, all_tokens};
 use crate::bms::{
-    error::{ParseErrorWithRange, Result},
+    error::{ControlFlowWarningWithRange, Result},
     model::music_info::MusicInfo,
     prelude::*,
 };
@@ -32,7 +32,7 @@ impl TokenProcessor for MusicInfoProcessor {
     ) -> (
         Self::Output,
         Vec<ParseWarningWithRange>,
-        Vec<ParseErrorWithRange>,
+        Vec<ControlFlowWarningWithRange>,
     ) {
         let mut music_info = MusicInfo::default();
         let (_, warnings, errors) = all_tokens(input, prompter, |token| {
