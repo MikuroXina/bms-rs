@@ -135,39 +135,48 @@ impl BpmProcessor {
         prompter: &impl Prompter,
         objects: &mut BpmObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::BpmChange {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, obj) in obj_ids {
-                // Record used BPM change id for validity checks
-                objects.bpm_change_ids_used.insert(obj);
-                let bpm = objects.bpm_defs.get(&obj).cloned();
-                match bpm {
-                    Some(bpm) => {
-                        if let Err(warning) =
-                            objects.push_bpm_change(BpmChangeObj { time, bpm }, prompter)
-                        {
-                            warnings.push(warning.into_wrapper(&message));
-                        }
-                    }
-                    None => {
-                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
-                    }
-                }
+        match channel {
+            Channel::BpmChange => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let bpm_change_warnings = obj_ids.into_iter().flat_map(|(time, obj)| {
+                    // Record used BPM change id for validity checks
+                    objects.bpm_change_ids_used.insert(obj);
+                    let bpm = objects.bpm_defs.get(&obj).cloned();
+                    bpm.map_or_else(
+                        || Some(ParseWarning::UndefinedObject(obj).into_wrapper(&message)),
+                        |bpm| {
+                            objects
+                                .push_bpm_change(BpmChangeObj { time, bpm }, prompter)
+                                .err()
+                                .map(|warning| warning.into_wrapper(&message))
+                        },
+                    )
+                    .into_iter()
+                });
+                parse_warnings
+                    .into_iter()
+                    .chain(bpm_change_warnings)
+                    .collect()
             }
-        }
-        if channel == Channel::BpmChangeU8 {
-            let (hex_values, parse_warnings) =
-                parse_hex_values_with_warnings(track, message.clone());
-            warnings.extend(parse_warnings);
-            for (time, value) in hex_values {
-                if let Err(warning) = objects.push_bpm_change_u8(time, value, prompter) {
-                    warnings.push(warning.into_wrapper(&message));
-                }
+            Channel::BpmChangeU8 => {
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone());
+                let bpm_change_u8_warnings = hex_values.into_iter().filter_map(|(time, value)| {
+                    objects
+                        .push_bpm_change_u8(time, value, prompter)
+                        .err()
+                        .map(|warning| warning.into_wrapper(&message))
+                });
+                parse_warnings
+                    .into_iter()
+                    .chain(bpm_change_u8_warnings)
+                    .collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }

@@ -115,26 +115,35 @@ impl ScrollProcessor {
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::Scroll {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, obj) in obj_ids {
-                let factor = match objects.scroll_defs.get(&obj).cloned() {
-                    Some(factor) => factor,
-                    None => {
-                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
-                        continue;
-                    }
-                };
-                if let Err(warning) = objects
-                    .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)
-                {
-                    warnings.push(warning.into_wrapper(&message));
-                }
+        match channel {
+            Channel::Scroll => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let scroll_warnings = obj_ids.into_iter().flat_map(|(time, obj)| {
+                    objects
+                        .scroll_defs
+                        .get(&obj)
+                        .cloned()
+                        .map_or_else(
+                            || Some(ParseWarning::UndefinedObject(obj).into_wrapper(&message)),
+                            |factor| {
+                                objects
+                                    .push_scrolling_factor_change(
+                                        ScrollingFactorObj { time, factor },
+                                        prompter,
+                                    )
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(scroll_warnings).collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }

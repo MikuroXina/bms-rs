@@ -411,7 +411,6 @@ impl BmpProcessor {
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
         match channel {
             channel @ (Channel::BgaBase
             | Channel::BgaPoor
@@ -422,26 +421,28 @@ impl BmpProcessor {
                     message.clone(),
                     &self.case_sensitive_obj_id,
                 );
-                warnings.extend(parse_warnings);
-                for (time, obj) in obj_ids {
+                let bga_warnings = obj_ids.into_iter().flat_map(|(time, obj)| {
                     if !objects.bmp_files.contains_key(&obj) {
-                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
-                        continue;
+                        return vec![ParseWarning::UndefinedObject(obj).into_wrapper(&message)];
                     }
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    if let Err(warning) = objects.push_bga_change(
-                        BgaObj {
-                            time,
-                            id: obj,
-                            layer,
-                        },
-                        channel,
-                        prompter,
-                    ) {
-                        warnings.push(warning.into_wrapper(&message));
-                    }
-                }
+                    objects
+                        .push_bga_change(
+                            BgaObj {
+                                time,
+                                id: obj,
+                                layer,
+                            },
+                            channel,
+                            prompter,
+                        )
+                        .err()
+                        .map(|warning| warning.into_wrapper(&message))
+                        .into_iter()
+                        .collect::<Vec<_>>()
+                });
+                parse_warnings.into_iter().chain(bga_warnings).collect()
             }
             channel @ (Channel::BgaBaseOpacity
             | Channel::BgaLayerOpacity
@@ -450,22 +451,24 @@ impl BmpProcessor {
                 use super::parse_hex_values_with_warnings;
                 let (hex_values, parse_warnings) =
                     parse_hex_values_with_warnings(track, message.clone());
-                warnings.extend(parse_warnings);
-                for (time, opacity_value) in hex_values {
-                    let layer = BgaLayer::from_channel(channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    if let Err(warning) = objects.push_bga_opacity_change(
-                        BgaOpacityObj {
-                            time,
-                            layer,
-                            opacity: opacity_value,
-                        },
-                        channel,
-                        prompter,
-                    ) {
-                        warnings.push(warning.into_wrapper(&message));
-                    }
-                }
+                let opacity_warnings =
+                    hex_values.into_iter().filter_map(|(time, opacity_value)| {
+                        let layer = BgaLayer::from_channel(channel)
+                            .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
+                        objects
+                            .push_bga_opacity_change(
+                                BgaOpacityObj {
+                                    time,
+                                    layer,
+                                    opacity: opacity_value,
+                                },
+                                channel,
+                                prompter,
+                            )
+                            .err()
+                            .map(|warning| warning.into_wrapper(&message))
+                    });
+                parse_warnings.into_iter().chain(opacity_warnings).collect()
             }
             channel @ (Channel::BgaBaseArgb
             | Channel::BgaLayerArgb
@@ -477,27 +480,29 @@ impl BmpProcessor {
                     message.clone(),
                     &self.case_sensitive_obj_id,
                 );
-                warnings.extend(parse_warnings);
-                for (time, argb_id) in obj_ids {
+                let argb_warnings = obj_ids.into_iter().flat_map(|(time, argb_id)| {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
-                    let argb = match objects.argb_defs.get(&argb_id).cloned() {
-                        Some(argb) => argb,
-                        None => {
-                            warnings.push(
-                                ParseWarning::UndefinedObject(argb_id).into_wrapper(&message),
-                            );
-                            continue;
-                        }
-                    };
-                    if let Err(warning) = objects.push_bga_argb_change(
-                        BgaArgbObj { time, layer, argb },
-                        channel,
-                        prompter,
-                    ) {
-                        warnings.push(warning.into_wrapper(&message));
-                    }
-                }
+                    objects
+                        .argb_defs
+                        .get(&argb_id)
+                        .cloned()
+                        .map_or_else(
+                            || Some(ParseWarning::UndefinedObject(argb_id).into_wrapper(&message)),
+                            |argb| {
+                                objects
+                                    .push_bga_argb_change(
+                                        BgaArgbObj { time, layer, argb },
+                                        channel,
+                                        prompter,
+                                    )
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(argb_warnings).collect()
             }
             Channel::BgaKeybound => {
                 use super::parse_obj_ids_with_warnings;
@@ -506,26 +511,36 @@ impl BmpProcessor {
                     message.clone(),
                     &self.case_sensitive_obj_id,
                 );
-                warnings.extend(parse_warnings);
-                for (time, keybound_id) in obj_ids {
-                    let event = match objects.swbga_events.get(&keybound_id).cloned() {
-                        Some(event) => event,
-                        None => {
-                            warnings.push(
-                                ParseWarning::UndefinedObject(keybound_id).into_wrapper(&message),
-                            );
-                            continue;
-                        }
-                    };
-                    if let Err(warning) =
-                        objects.push_bga_keybound_event(BgaKeyboundObj { time, event }, prompter)
-                    {
-                        warnings.push(warning.into_wrapper(&message));
-                    }
-                }
+                let keybound_warnings = obj_ids.into_iter().flat_map(|(time, keybound_id)| {
+                    objects
+                        .swbga_events
+                        .get(&keybound_id)
+                        .cloned()
+                        .map_or_else(
+                            || {
+                                Some(
+                                    ParseWarning::UndefinedObject(keybound_id)
+                                        .into_wrapper(&message),
+                                )
+                            },
+                            |event| {
+                                objects
+                                    .push_bga_keybound_event(
+                                        BgaKeyboundObj { time, event },
+                                        prompter,
+                                    )
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings
+                    .into_iter()
+                    .chain(keybound_warnings)
+                    .collect()
             }
-            _ => {}
+            _ => Vec::new(),
         }
-        warnings
     }
 }

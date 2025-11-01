@@ -161,24 +161,32 @@ impl StopProcessor {
         _prompter: &impl Prompter,
         objects: &mut StopObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::Stop {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, obj) in obj_ids {
-                // Record used STOP id for validity checks
-                objects.stop_ids_used.insert(obj);
-                let duration = match objects.stop_defs.get(&obj).cloned() {
-                    Some(duration) => duration,
-                    None => {
-                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
-                        continue;
-                    }
-                };
-                objects.push_stop(StopObj { time, duration });
+        match channel {
+            Channel::Stop => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let stop_warnings = obj_ids.into_iter().flat_map(|(time, obj)| {
+                    // Record used STOP id for validity checks
+                    objects.stop_ids_used.insert(obj);
+                    objects
+                        .stop_defs
+                        .get(&obj)
+                        .cloned()
+                        .map_or_else(
+                            || Some(ParseWarning::UndefinedObject(obj).into_wrapper(&message)),
+                            |duration| {
+                                objects.push_stop(StopObj { time, duration });
+                                None
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(stop_warnings).collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }

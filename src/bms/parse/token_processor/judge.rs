@@ -140,31 +140,38 @@ impl JudgeProcessor {
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::Judge {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, judge_id) in obj_ids {
-                let exrank_def = match objects.exrank_defs.get(&judge_id).cloned() {
-                    Some(exrank_def) => exrank_def,
-                    None => {
-                        warnings
-                            .push(ParseWarning::UndefinedObject(judge_id).into_wrapper(&message));
-                        continue;
-                    }
-                };
-                if let Err(warning) = objects.push_judge_event(
-                    JudgeObj {
-                        time,
-                        judge_level: exrank_def.judge_level,
-                    },
-                    prompter,
-                ) {
-                    warnings.push(warning.into_wrapper(&message));
-                }
+        match channel {
+            Channel::Judge => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let judge_warnings = obj_ids.into_iter().flat_map(|(time, judge_id)| {
+                    objects
+                        .exrank_defs
+                        .get(&judge_id)
+                        .cloned()
+                        .map_or_else(
+                            || Some(ParseWarning::UndefinedObject(judge_id).into_wrapper(&message)),
+                            |exrank_def| {
+                                objects
+                                    .push_judge_event(
+                                        JudgeObj {
+                                            time,
+                                            judge_level: exrank_def.judge_level,
+                                        },
+                                        prompter,
+                                    )
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(judge_warnings).collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }

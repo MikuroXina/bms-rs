@@ -112,27 +112,36 @@ impl OptionProcessor {
         prompter: &impl Prompter,
         objects: &mut OptionObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::OptionChange {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, option_id) in obj_ids {
-                let option = match objects.change_options.get(&option_id).cloned() {
-                    Some(option) => option,
-                    None => {
-                        warnings
-                            .push(ParseWarning::UndefinedObject(option_id).into_wrapper(&message));
-                        continue;
-                    }
-                };
-                if let Err(warning) =
-                    objects.push_option_event(OptionObj { time, option }, prompter)
-                {
-                    warnings.push(warning.into_wrapper(&message));
-                }
+        match channel {
+            Channel::OptionChange => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let option_warnings = obj_ids.into_iter().flat_map(|(time, option_id)| {
+                    objects
+                        .change_options
+                        .get(&option_id)
+                        .cloned()
+                        .map_or_else(
+                            || {
+                                Some(
+                                    ParseWarning::UndefinedObject(option_id).into_wrapper(&message),
+                                )
+                            },
+                            |option| {
+                                objects
+                                    .push_option_event(OptionObj { time, option }, prompter)
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(option_warnings).collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }

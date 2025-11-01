@@ -109,25 +109,32 @@ impl TextProcessor {
         prompter: &impl Prompter,
         objects: &mut TextObjects,
     ) -> Vec<ParseWarningWithRange> {
-        let mut warnings = Vec::new();
-        if channel == Channel::Text {
-            let (obj_ids, parse_warnings) =
-                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.extend(parse_warnings);
-            for (time, text_id) in obj_ids {
-                let text = match objects.texts.get(&text_id).cloned() {
-                    Some(text) => text,
-                    None => {
-                        warnings
-                            .push(ParseWarning::UndefinedObject(text_id).into_wrapper(&message));
-                        continue;
-                    }
-                };
-                if let Err(warning) = objects.push_text_event(TextObj { time, text }, prompter) {
-                    warnings.push(warning.into_wrapper(&message));
-                }
+        match channel {
+            Channel::Text => {
+                let (obj_ids, parse_warnings) = parse_obj_ids_with_warnings(
+                    track,
+                    message.clone(),
+                    &self.case_sensitive_obj_id,
+                );
+                let text_warnings = obj_ids.into_iter().flat_map(|(time, text_id)| {
+                    objects
+                        .texts
+                        .get(&text_id)
+                        .cloned()
+                        .map_or_else(
+                            || Some(ParseWarning::UndefinedObject(text_id).into_wrapper(&message)),
+                            |text| {
+                                objects
+                                    .push_text_event(TextObj { time, text }, prompter)
+                                    .err()
+                                    .map(|warning| warning.into_wrapper(&message))
+                            },
+                        )
+                        .into_iter()
+                });
+                parse_warnings.into_iter().chain(text_warnings).collect()
             }
+            _ => Vec::new(),
         }
-        warnings
     }
 }
