@@ -3,8 +3,13 @@ use bms_rs::bms::prelude::*;
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
+    let BmsOutput {
+        bms,
+        warnings,
+        control_flow_errors,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check header content
     assert_eq!(
@@ -28,8 +33,13 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
+    let BmsOutput {
+        bms,
+        warnings,
+        control_flow_errors,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check header content
     assert_eq!(bms.music_info.title.as_deref(), Some("NULCTRL"));
@@ -59,8 +69,13 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
+    let BmsOutput {
+        bms,
+        warnings,
+        control_flow_errors,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check header content
     assert_eq!(bms.music_info.title.as_deref(), Some("J219"));
@@ -118,7 +133,12 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
+    let BmsOutput {
+        bms,
+        warnings,
+        control_flow_errors,
+    } = parse_bms(source, default_config());
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         warnings,
         vec![

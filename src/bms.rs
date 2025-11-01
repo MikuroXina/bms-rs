@@ -65,9 +65,7 @@ pub enum BmsWarning {
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithRange),
-    /// An error from syntax parser.
-    #[error("Error: parse: {0}")]
-    ControlFlowError(#[from] ControlFlowErrorWithRange),
+
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -261,13 +259,8 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
         playing_errors,
     } = bms.check_playing::<T>();
 
-    // Convert parse warnings to BmsWarning (now includes both ParseWarning and ControlFlowError)
+    // Convert parse warnings to BmsWarning
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
-    warnings.extend(
-        control_flow_errors
-            .into_iter()
-            .map(BmsWarning::ControlFlowError),
-    );
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
@@ -275,7 +268,11 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert playing errors to BmsWarning
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
-    BmsOutput { bms, warnings }
+    BmsOutput {
+        bms,
+        warnings,
+        control_flow_errors,
+    }
 }
 
 /// Output of parsing a BMS file.
@@ -287,6 +284,8 @@ pub struct BmsOutput {
     pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
+    /// Control flow errors that occurred during parsing.
+    pub control_flow_errors: Vec<ControlFlowErrorWithRange>,
 }
 
 #[cfg(feature = "diagnostics")]
@@ -299,7 +298,7 @@ impl ToAriadne for BmsWarning {
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
-            ControlFlowError(e) => e.to_report(src),
+
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {
                 let filename = src.name().to_string();

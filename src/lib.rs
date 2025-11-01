@@ -21,9 +21,9 @@
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config());
+//! let BmsOutput { bms, warnings, control_flow_errors } = parse_bms(&source, default_config());
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config_with_rng(RngMock([BigUint::from(1u64)])));
+//! let BmsOutput { bms, warnings, control_flow_errors } = parse_bms(&source, default_config_with_rng(RngMock([BigUint::from(1u64)])));
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
