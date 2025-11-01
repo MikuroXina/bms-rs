@@ -38,12 +38,12 @@ use ariadne::{Label, Report, ReportKind};
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
-    error::ParseErrorWithRange,
+    error::ControlFlowWarningWithRange,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, TokenProcessorResult, common_preset, minor_preset},
+        token_processor::{TokenProcessor, common_preset, minor_preset},
     },
     prelude::*,
 };
@@ -65,6 +65,9 @@ pub enum BmsWarning {
     /// An error comes from syntax parser.
     #[error("Warn: parse: {0}")]
     Parse(#[from] ParseWarningWithRange),
+    /// An error from syntax parser.
+    #[error("Error: parse: {0}")]
+    ControlFlowWarning(#[from] ControlFlowWarningWithRange),
     /// A warning for playing.
     #[error("Warn: playing: {0}")]
     PlayingWarning(#[from] PlayingWarning),
@@ -207,7 +210,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 &self,
                 input: &mut &[&TokenWithRange<'_>],
                 prompter: &P,
-            ) -> TokenProcessorResult<Self::Output> {
+            ) -> (Self::Output, Vec<ParseWarningWithRange>) {
                 if self.use_minor {
                     minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
                         .process(input, prompter)
@@ -233,7 +236,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
 pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     source: &str,
     config: ParseConfig<T, P, R>,
-) -> Result<BmsOutput, ParseErrorWithRange> {
+) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -243,12 +246,18 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    let bms = Bms::from_token_stream::<'_, T, _, _>(&tokens, config)?;
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
 
     let PlayingCheckOutput {
         playing_warnings,
         playing_errors,
     } = bms.check_playing::<T>();
+
+    // Convert parse warnings to BmsWarning (now includes both ParseWarning and ControlFlowWarning)
+    warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
@@ -256,7 +265,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert playing errors to BmsWarning
     warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
-    Ok(BmsOutput { bms, warnings })
+    BmsOutput { bms, warnings }
 }
 
 /// Output of parsing a BMS file.
@@ -280,6 +289,7 @@ impl ToAriadne for BmsWarning {
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
+            ControlFlowWarning(e) => e.to_report(src),
             // PlayingWarning / PlayingError have no position, locate to file start 0..0
             PlayingWarning(w) => {
                 let filename = src.name().to_string();

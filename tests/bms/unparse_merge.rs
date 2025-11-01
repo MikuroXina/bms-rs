@@ -9,7 +9,7 @@ use std::borrow::Cow;
 #[test]
 fn test_scenario_1_no_merge() {
     // Create tokens with mixed track/channel combinations - some can be merged, others cannot
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -42,15 +42,20 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    assert_eq!(parse_warnings, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -93,7 +98,7 @@ fn test_scenario_1_no_merge() {
 #[test]
 fn test_scenario_2_can_merge() {
     // Create tokens where messages can be merged - same track and channel
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -118,15 +123,20 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    assert_eq!(parse_warnings, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -161,7 +171,7 @@ fn test_scenario_2_can_merge() {
 #[test]
 fn test_scenario_3_cross_track_no_merge() {
     // Create tokens with same channel (Bgm) but different tracks - demonstrating cross-track isolation
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -191,15 +201,20 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    assert_eq!(parse_warnings, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -233,7 +248,7 @@ fn test_scenario_3_cross_track_no_merge() {
 #[test]
 fn test_scenario_4_input_order_preservation() {
     // Create tokens where input order differs from potential ObjTime order
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -259,15 +274,20 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+
+        parse_warnings,
+        ..
+    } = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    assert_eq!(parse_warnings, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();

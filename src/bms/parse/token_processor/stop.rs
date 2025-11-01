@@ -10,7 +10,7 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{
@@ -42,9 +42,10 @@ impl TokenProcessor for StopProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = StopObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let mut all_warnings = Vec::new();
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -53,19 +54,22 @@ impl TokenProcessor for StopProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        all_warnings.extend(warnings);
+        (objects, all_warnings)
     }
 }
 
@@ -148,22 +152,27 @@ impl StopProcessor {
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,
-        prompter: &impl Prompter,
+        _prompter: &impl Prompter,
         objects: &mut StopObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::Stop {
-            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
+            warnings.extend(parse_warnings);
+            for (time, obj) in obj_ids {
                 // Record used STOP id for validity checks
                 objects.stop_ids_used.insert(obj);
-                let duration = objects
-                    .stop_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
+                let duration = match objects.stop_defs.get(&obj).cloned() {
+                    Some(duration) => duration,
+                    None => {
+                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
+                        continue;
+                    }
+                };
                 objects.push_stop(StopObj { time, duration });
             }
         }
-        Ok(())
+        warnings
     }
 }

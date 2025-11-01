@@ -5,8 +5,7 @@
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
 use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_hex_values,
+    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_hex_values_with_warnings,
 };
 use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
 
@@ -21,9 +20,10 @@ impl TokenProcessor for VolumeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = VolumeObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let mut all_warnings = Vec::new();
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut objects)
@@ -32,19 +32,22 @@ impl TokenProcessor for VolumeProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        all_warnings.extend(warnings);
+        (objects, all_warnings)
     }
 }
 
@@ -69,32 +72,43 @@ impl VolumeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut VolumeObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         match channel {
             Channel::BgmVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
-                    objects.push_bgm_volume_change(
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone());
+                warnings.extend(parse_warnings);
+                for (time, volume_value) in hex_values {
+                    if let Err(warning) = objects.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
                             volume: volume_value,
                         },
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             Channel::KeyVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
-                    objects.push_key_volume_change(
+                let (hex_values, parse_warnings) =
+                    parse_hex_values_with_warnings(track, message.clone());
+                warnings.extend(parse_warnings);
+                for (time, volume_value) in hex_values {
+                    if let Err(warning) = objects.push_key_volume_change(
                         KeyVolumeObj {
                             time,
                             volume: volume_value,
                         },
                         prompter,
-                    )?;
+                    ) {
+                        warnings.push(warning.into_wrapper(&message));
+                    }
                 }
             }
             _ => {}
         }
-        Ok(())
+        warnings
     }
 }

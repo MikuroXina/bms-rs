@@ -11,7 +11,7 @@
 
 use std::path::Path;
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use super::{TokenProcessor, all_tokens};
 use crate::bms::{error::Result, model::music_info::MusicInfo, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
@@ -24,18 +24,18 @@ impl TokenProcessor for MusicInfoProcessor {
     fn process<P: Prompter>(
         &self,
         input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        _prompter: &P,
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut music_info = MusicInfo::default();
-        all_tokens(input, prompter, |token| {
+        let (_, warnings) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut music_info)
                     .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(music_info)
+        });
+        (music_info, warnings)
     }
 }
 

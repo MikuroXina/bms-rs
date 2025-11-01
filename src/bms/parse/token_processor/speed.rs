@@ -9,7 +9,7 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{
@@ -41,9 +41,10 @@ impl TokenProcessor for SpeedProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = SpeedObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let mut all_warnings = Vec::new();
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -52,19 +53,22 @@ impl TokenProcessor for SpeedProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        all_warnings.extend(warnings);
+        (objects, all_warnings)
     }
 }
 
@@ -104,18 +108,27 @@ impl SpeedProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::Speed {
-            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
-                let factor = objects
-                    .speed_defs
-                    .get(&obj)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(obj))?;
-                objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
+            warnings.extend(parse_warnings);
+            for (time, obj) in obj_ids {
+                let factor = match objects.speed_defs.get(&obj).cloned() {
+                    Some(factor) => factor,
+                    None => {
+                        warnings.push(ParseWarning::UndefinedObject(obj).into_wrapper(&message));
+                        continue;
+                    }
+                };
+                if let Err(warning) =
+                    objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)
+                {
+                    warnings.push(warning.into_wrapper(&message));
+                }
             }
         }
-        Ok(())
+        warnings
     }
 }

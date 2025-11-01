@@ -5,15 +5,18 @@ use std::ops::RangeInclusive;
 use num::BigUint;
 use thiserror::Error;
 
-use super::{command::ObjId, prelude::*};
+use super::{
+    command::{ObjId, channel::ChannelIdParseWarning},
+    prelude::*,
+};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseError {
+pub enum ControlFlowWarning {
     /// Unexpected control flow.
     #[error("unexpected control flow {0}")]
-    UnexpectedControlFlow(&'static str),
+    UnexpectedControlFlow(String),
     /// [`Rng`] generated a value outside the required [`RangeInclusive`] for a random block.
     #[error("random generated value out of range: expected {expected:?}, got {actual}")]
     RandomGeneratedValueOutOfRange {
@@ -33,7 +36,7 @@ pub enum ParseError {
 }
 
 /// A parse error with position information.
-pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
+pub type ControlFlowWarningWithRange = SourceRangeMixin<ControlFlowWarning>;
 
 /// A warning occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -57,6 +60,12 @@ pub enum ParseWarning {
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
+    /// Control flow warning.
+    #[error("control flow warning: {0}")]
+    ControlFlow(#[from] ControlFlowWarning),
+    /// Channel ID parsing warning.
+    #[error("channel id parsing warning: {0}")]
+    ChannelId(#[from] ChannelIdParseWarning),
 }
 
 /// Type alias of `core::result::Result<T, ParseWarning>`

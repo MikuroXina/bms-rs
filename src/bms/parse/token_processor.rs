@@ -9,10 +9,7 @@ use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
-use crate::bms::{
-    error::{ParseError, ParseErrorWithRange},
-    prelude::*,
-};
+use crate::bms::{error::ControlFlowWarning, prelude::*};
 
 mod bmp;
 mod bpm;
@@ -34,9 +31,6 @@ mod video;
 mod volume;
 mod wav;
 
-/// A type alias of `Result<T, Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult<T> = Result<T, ParseErrorWithRange>;
-
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
     /// A result data of the process.
@@ -47,7 +41,7 @@ pub trait TokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output>;
+    ) -> (Self::Output, Vec<ParseWarningWithRange>);
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -81,7 +75,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         T::process(self, input, prompter)
     }
 }
@@ -104,11 +98,12 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut cloned = *input;
-        let first_output = self.first.process(&mut cloned, prompter)?;
-        let second_output = self.second.process(input, prompter)?;
-        Ok((first_output, second_output))
+        let (first_output, mut first_warnings) = self.first.process(&mut cloned, prompter);
+        let (second_output, second_warnings) = self.second.process(input, prompter);
+        first_warnings.extend(second_warnings);
+        ((first_output, second_output), first_warnings)
     }
 }
 
@@ -130,9 +125,9 @@ where
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        let res = self.source.process(input, prompter)?;
-        Ok((self.mapping)(res))
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+        let (res, warnings) = self.source.process(input, prompter);
+        ((self.mapping)(res), warnings)
     }
 }
 
@@ -285,117 +280,128 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<
-    'a,
-    P: Prompter,
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
->(
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>>(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
     mut f: F,
-) -> TokenProcessorResult<()> {
+) -> ((), Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+
     for token in &**input {
-        if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+        match f(token.content()) {
+            Ok(Some(warning)) => {
+                let warning_with_range = warning.into_wrapper(token);
+                warnings.push(warning_with_range);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                let error_with_range = ParseWarning::from(error).into_wrapper(token);
+                warnings.push(error_with_range);
+            }
         }
     }
     *input = &[];
-    Ok(())
+    ((), warnings)
 }
 
 fn all_tokens_with_range<
     'a,
-    P: Prompter,
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
     mut f: F,
-) -> TokenProcessorResult<()> {
+) -> ((), Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+
     for token in &**input {
-        if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+        match f(token) {
+            Ok(Some(warning)) => {
+                let warning_with_range = warning.into_wrapper(token);
+                warnings.push(warning_with_range);
+            }
+            Ok(None) => {}
+            Err(error) => {
+                let error_with_range = ParseWarning::from(error).into_wrapper(token);
+                warnings.push(error_with_range);
+            }
         }
     }
     *input = &[];
-    Ok(())
+    ((), warnings)
 }
 
-fn parse_obj_ids<P: Prompter>(
+fn parse_obj_ids_with_warnings(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
-) -> impl Iterator<Item = (ObjTime, ObjId)> {
+) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+    let mut results = Vec::new();
+
+    // Check for non-multiple-of-2 message length
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
         );
     }
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
-    message
-        .content()
-        .chars()
-        .tuples()
-        .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
-            let buf = String::from_iter([c1, c2]);
-            match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
-                Ok(id) if id.is_null() => None,
-                Ok(id) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    id,
-                )),
-                Err(warning) => {
-                    prompter.warn(warning.into_wrapper(&message));
-                    None
-                }
+    for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
+        let buf = String::from_iter(<[char; 2]>::from((c1, c2)));
+        match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
+            Ok(id) if id.is_null() => {}
+            Ok(id) => results.push((
+                ObjTime::new(
+                    track.0,
+                    i as u64,
+                    denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                ),
+                id,
+            )),
+            Err(warning) => {
+                warnings.push(warning.into_wrapper(&message));
             }
-        })
+        }
+    }
+
+    (results, warnings)
 }
 
-fn parse_hex_values<P: Prompter>(
+fn parse_hex_values_with_warnings(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
-) -> impl Iterator<Item = (ObjTime, u8)> {
+) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
+    let mut results = Vec::new();
+
+    // Check for non-multiple-of-2 message length
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
         );
     }
 
     let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
-    message
-        .content()
-        .chars()
-        .tuples()
-        .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
-            let buf = String::from_iter([c1, c2]);
-            match u8::from_str_radix(&buf, 16) {
-                Ok(value) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    value,
-                )),
-                Err(_) => {
-                    prompter.warn(
-                        ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
-                            .into_wrapper(&message),
-                    );
-                    None
-                }
+    for (i, (c1, c2)) in message.content().chars().tuples().enumerate() {
+        let buf = String::from_iter(<[char; 2]>::from((c1, c2)));
+        match u8::from_str_radix(&buf, 16) {
+            Ok(value) => results.push((
+                ObjTime::new(
+                    track.0,
+                    i as u64,
+                    denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                ),
+                value,
+            )),
+            Err(_) => {
+                warnings.push(
+                    ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
+                        .into_wrapper(&message),
+                );
             }
-        })
+        }
+    }
+
+    (results, warnings)
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {

@@ -20,7 +20,7 @@
 //!
 //! // Parse BMS file
 //! let bms_source = "#TITLE Test\n#ARTIST Composer\n#INVALID command\n";
-//! let output = parse_bms(bms_source, default_config()).expect("must be parsed");
+//! let output = parse_bms(bms_source, default_config());
 //!
 //! // Output all warnings
 //! emit_bms_warnings("test.bms", bms_source, &output.warnings);

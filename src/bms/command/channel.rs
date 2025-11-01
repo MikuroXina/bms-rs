@@ -11,6 +11,8 @@ use thiserror::Error;
 
 use self::mapper::KeyLayoutMapper;
 
+use crate::bms::ParseWarning;
+
 pub mod converter;
 pub mod mapper;
 
@@ -171,7 +173,8 @@ pub enum PlayerSide {
 
 /// Error type for parsing [`ChannelId`] from string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
-pub enum ChannelIdParseError {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ChannelIdParseWarning {
     /// The channel id must be exactly 2 ascii characters, got `{0}`.
     #[error("channel id must be exactly 2 ascii characters, got `{0}`")]
     ExpectedTwoAsciiChars(String),
@@ -218,34 +221,35 @@ impl TryFrom<[u8; 2]> for NoteChannelId {
 }
 
 impl FromStr for NoteChannelId {
-    type Err = ChannelIdParseError;
+    type Err = ChannelIdParseWarning;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 2 {
-            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+            return Err(ChannelIdParseWarning::ExpectedTwoAsciiChars(s.to_string()));
         }
         let mut chars = s.bytes();
         let [Some(ch1), Some(ch2), None] = [chars.next(), chars.next(), chars.next()] else {
-            return Err(ChannelIdParseError::ExpectedTwoAsciiChars(s.to_string()));
+            return Err(ChannelIdParseWarning::ExpectedTwoAsciiChars(s.to_string()));
         };
-        Self::try_from([ch1, ch2]).map_err(|_| ChannelIdParseError::InvalidAsBase62(s.to_string()))
+        Self::try_from([ch1, ch2])
+            .map_err(|_| ChannelIdParseWarning::InvalidAsBase62(s.to_string()))
     }
 }
 
 impl From<NoteChannelId> for u16 {
     fn from(value: NoteChannelId) -> Self {
-        base62_to_byte(value.0[0]) as u16 * 62 + base62_to_byte(value.0[1]) as u16
+        base62_to_byte(value.0[0]) as Self * 62 + base62_to_byte(value.0[1]) as Self
     }
 }
 
 impl From<NoteChannelId> for u32 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u32
+        Into::<u16>::into(value) as Self
     }
 }
 
 impl From<NoteChannelId> for u64 {
     fn from(value: NoteChannelId) -> Self {
-        Into::<u16>::into(value) as u64
+        Into::<u16>::into(value) as Self
     }
 }
 
@@ -274,43 +278,43 @@ impl TryFrom<NoteChannelId> for Channel {
 
     fn try_from(channel_id: NoteChannelId) -> Result<Self, Self::Error> {
         match channel_id.0 {
-            [b'0', b'1'] => Ok(Channel::Bgm),
-            [b'0', b'2'] => Ok(Channel::SectionLen),
-            [b'0', b'3'] => Ok(Channel::BpmChangeU8),
-            [b'0', b'4'] => Ok(Channel::BgaBase),
+            [b'0', b'1'] => Ok(Self::Bgm),
+            [b'0', b'2'] => Ok(Self::SectionLen),
+            [b'0', b'3'] => Ok(Self::BpmChangeU8),
+            [b'0', b'4'] => Ok(Self::BgaBase),
 
-            [b'0', b'5'] => Ok(Channel::Seek),
-            [b'0', b'6'] => Ok(Channel::BgaPoor),
-            [b'0', b'7'] => Ok(Channel::BgaLayer),
-            [b'0', b'8'] => Ok(Channel::BpmChange),
-            [b'0', b'9'] => Ok(Channel::Stop),
-            [b'0', b'A'] => Ok(Channel::BgaLayer2),
+            [b'0', b'5'] => Ok(Self::Seek),
+            [b'0', b'6'] => Ok(Self::BgaPoor),
+            [b'0', b'7'] => Ok(Self::BgaLayer),
+            [b'0', b'8'] => Ok(Self::BpmChange),
+            [b'0', b'9'] => Ok(Self::Stop),
+            [b'0', b'A'] => Ok(Self::BgaLayer2),
 
-            [b'0', b'B'] => Ok(Channel::BgaBaseOpacity),
+            [b'0', b'B'] => Ok(Self::BgaBaseOpacity),
 
-            [b'0', b'C'] => Ok(Channel::BgaLayerOpacity),
+            [b'0', b'C'] => Ok(Self::BgaLayerOpacity),
 
-            [b'0', b'D'] => Ok(Channel::BgaLayer2Opacity),
+            [b'0', b'D'] => Ok(Self::BgaLayer2Opacity),
 
-            [b'0', b'E'] => Ok(Channel::BgaPoorOpacity),
-            [b'9', b'7'] => Ok(Channel::BgmVolume),
-            [b'9', b'8'] => Ok(Channel::KeyVolume),
-            [b'9', b'9'] => Ok(Channel::Text),
-            [b'A', b'0'] => Ok(Channel::Judge),
+            [b'0', b'E'] => Ok(Self::BgaPoorOpacity),
+            [b'9', b'7'] => Ok(Self::BgmVolume),
+            [b'9', b'8'] => Ok(Self::KeyVolume),
+            [b'9', b'9'] => Ok(Self::Text),
+            [b'A', b'0'] => Ok(Self::Judge),
 
-            [b'A', b'1'] => Ok(Channel::BgaBaseArgb),
+            [b'A', b'1'] => Ok(Self::BgaBaseArgb),
 
-            [b'A', b'2'] => Ok(Channel::BgaLayerArgb),
+            [b'A', b'2'] => Ok(Self::BgaLayerArgb),
 
-            [b'A', b'3'] => Ok(Channel::BgaLayer2Argb),
+            [b'A', b'3'] => Ok(Self::BgaLayer2Argb),
 
-            [b'A', b'4'] => Ok(Channel::BgaPoorArgb),
+            [b'A', b'4'] => Ok(Self::BgaPoorArgb),
 
-            [b'A', b'5'] => Ok(Channel::BgaKeybound),
+            [b'A', b'5'] => Ok(Self::BgaKeybound),
 
-            [b'A', b'6'] => Ok(Channel::OptionChange),
-            [b'S', b'C'] => Ok(Channel::Scroll),
-            [b'S', b'P'] => Ok(Channel::Speed),
+            [b'A', b'6'] => Ok(Self::OptionChange),
+            [b'S', b'C'] => Ok(Self::Scroll),
+            [b'S', b'P'] => Ok(Self::Speed),
             _ => Err(channel_id),
         }
     }
@@ -447,4 +451,16 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     }
     let channel_id = channel.parse::<NoteChannelId>().ok()?;
     Some(Channel::Note { channel_id })
+}
+
+impl FromStr for Channel {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(channel) = read_channel_general(s) {
+            return Ok(channel);
+        }
+        let channel_id = s.parse::<NoteChannelId>()?;
+        Ok(Channel::Note { channel_id })
+    }
 }

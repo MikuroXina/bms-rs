@@ -7,8 +7,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_obj_ids,
+    super::prompt::Prompter, TokenProcessor, all_tokens_with_range, parse_obj_ids_with_warnings,
 };
 use crate::{
     bms::{error::Result, model::text::TextObjects, prelude::*},
@@ -36,9 +35,10 @@ impl TokenProcessor for TextProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         let mut objects = TextObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
+        let mut all_warnings = Vec::new();
+        let (_, warnings) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -47,19 +47,22 @@ impl TokenProcessor for TextProcessor {
                     track,
                     channel,
                     message,
-                } => self
-                    .on_message(
+                } => {
+                    let message_warnings = self.on_message(
                         *track,
                         *channel,
                         message.as_ref().into_wrapper(token),
                         prompter,
                         &mut objects,
-                    )
-                    .err(),
+                    );
+                    all_warnings.extend(message_warnings);
+                    None
+                }
                 Token::NotACommand(_) => None,
             })
-        })?;
-        Ok(objects)
+        });
+        all_warnings.extend(warnings);
+        (objects, all_warnings)
     }
 }
 
@@ -99,19 +102,26 @@ impl TextProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> Result<()> {
+    ) -> Vec<ParseWarningWithRange> {
+        let mut warnings = Vec::new();
         if channel == Channel::Text {
-            for (time, text_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
-                let text = objects
-                    .texts
-                    .get(&text_id)
-                    .cloned()
-                    .ok_or(ParseWarning::UndefinedObject(text_id))?;
-                objects.push_text_event(TextObj { time, text }, prompter)?;
+            let (obj_ids, parse_warnings) =
+                parse_obj_ids_with_warnings(track, message.clone(), &self.case_sensitive_obj_id);
+            warnings.extend(parse_warnings);
+            for (time, text_id) in obj_ids {
+                let text = match objects.texts.get(&text_id).cloned() {
+                    Some(text) => text,
+                    None => {
+                        warnings
+                            .push(ParseWarning::UndefinedObject(text_id).into_wrapper(&message));
+                        continue;
+                    }
+                };
+                if let Err(warning) = objects.push_text_event(TextObj { time, text }, prompter) {
+                    warnings.push(warning.into_wrapper(&message));
+                }
             }
         }
-        Ok(())
+        warnings
     }
 }

@@ -2,7 +2,7 @@
 
 use crate::bms::prelude::*;
 
-use super::{TokenProcessor, TokenProcessorResult};
+use super::TokenProcessor;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,8 +15,8 @@ impl TokenProcessor for IdentityTokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
         *input = &[];
-        Ok(())
+        ((), Vec::new())
     }
 }
