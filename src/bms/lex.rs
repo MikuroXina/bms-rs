@@ -21,7 +21,7 @@ use self::{
     token::{Token, TokenWithRange},
 };
 
-use super::prelude::read_channel_with_warning;
+use super::prelude::Channel;
 
 /// An error occurred when lexical analysis.
 #[non_exhaustive]
@@ -169,7 +169,7 @@ impl<'a> TokenStream<'a> {
         let channel = &line[4..6];
         let message = &line[7..];
 
-        let channel = match read_channel_with_warning(channel) {
+        let channel = match channel.parse::<Channel>() {
             Ok(channel) => channel,
             Err(warning) => {
                 return Err(cursor.make_err(LexWarning::ChannelIdParseWarning { warning }));
