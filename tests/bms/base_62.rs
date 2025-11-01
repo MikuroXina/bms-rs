@@ -65,11 +65,11 @@ fn test_base_62() {
 
 #[test]
 fn test_channel_id_parse_warning() {
-    // Test read_channel_with_warning with invalid channel ID containing '@'
-    let result = read_channel_with_warning("@B");
+    // Test Channel::from_str with invalid channel ID containing '@'
+    let result = "@B".parse::<Channel>();
     assert!(
         result.is_err(),
-        "read_channel_with_warning(\"@B\") should return an error"
+        "Channel::from_str(\"@B\") should return an error"
     );
     if let Err(ParseWarning::ChannelId(ChannelIdParseWarning::InvalidAsBase62(s))) = result {
         assert_eq!(s, "@B");
@@ -80,11 +80,11 @@ fn test_channel_id_parse_warning() {
         );
     }
 
-    // Test read_channel_with_warning with channel ID that's too short
-    let result = read_channel_with_warning("A");
+    // Test Channel::from_str with channel ID that's too short
+    let result = "A".parse::<Channel>();
     assert!(
         result.is_err(),
-        "read_channel_with_warning(\"A\") should return an error"
+        "Channel::from_str(\"A\") should return an error"
     );
     if let Err(ParseWarning::ChannelId(ChannelIdParseWarning::ExpectedTwoAsciiChars(s))) = result {
         assert_eq!(s, "A");
@@ -95,11 +95,8 @@ fn test_channel_id_parse_warning() {
         );
     }
 
-    // Test read_channel_with_warning with valid channel ID
-    let result = read_channel_with_warning("AB");
-    assert!(
-        result.is_ok(),
-        "read_channel_with_warning(\"AB\") should succeed"
-    );
+    // Test Channel::from_str with valid channel ID
+    let result = "AB".parse::<Channel>();
+    assert!(result.is_ok(), "Channel::from_str(\"AB\") should succeed");
     assert!(matches!(result.unwrap(), Channel::Note { .. }));
 }

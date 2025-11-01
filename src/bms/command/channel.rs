@@ -453,12 +453,14 @@ pub fn read_channel(channel: &str) -> Option<Channel> {
     Some(Channel::Note { channel_id })
 }
 
-/// Reads a channel from a string with detailed error information.
-/// Returns the channel or a ParseWarning if parsing fails.
-pub fn read_channel_with_warning(channel: &str) -> Result<Channel, ParseWarning> {
-    if let Some(channel) = read_channel_general(channel) {
-        return Ok(channel);
+impl FromStr for Channel {
+    type Err = ParseWarning;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(channel) = read_channel_general(s) {
+            return Ok(channel);
+        }
+        let channel_id = s.parse::<NoteChannelId>()?;
+        Ok(Channel::Note { channel_id })
     }
-    let channel_id = channel.parse::<NoteChannelId>()?;
-    Ok(Channel::Note { channel_id })
 }
