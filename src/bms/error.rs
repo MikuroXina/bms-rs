@@ -13,7 +13,7 @@ use super::{
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ControlFlowWarning {
+pub enum ControlFlowError {
     /// Unexpected control flow.
     #[error("unexpected control flow {0}")]
     UnexpectedControlFlow(String),
@@ -36,7 +36,7 @@ pub enum ControlFlowWarning {
 }
 
 /// A parse error with position information.
-pub type ControlFlowWarningWithRange = SourceRangeMixin<ControlFlowWarning>;
+pub type ControlFlowErrorWithRange = SourceRangeMixin<ControlFlowError>;
 
 /// A warning occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -62,7 +62,7 @@ pub enum ParseWarning {
     OutOfBase62,
     /// Control flow warning.
     #[error("control flow warning: {0}")]
-    ControlFlow(#[from] ControlFlowWarning),
+    ControlFlow(#[from] ControlFlowError),
     /// Channel ID parsing warning.
     #[error("channel id parsing warning: {0}")]
     ChannelId(#[from] ChannelIdParseWarning),

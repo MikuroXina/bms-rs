@@ -21,7 +21,7 @@ use self::{prompt::Prompter, token_processor::TokenProcessor};
 
 use super::{
     ParseConfig,
-    error::{ControlFlowWarningWithRange, ParseWarningWithRange},
+    error::{ControlFlowErrorWithRange, ParseWarningWithRange},
     rng::Rng,
 };
 
@@ -69,7 +69,7 @@ impl ToAriadne for ParseWarningWithRange {
 }
 
 #[cfg(feature = "diagnostics")]
-impl ToAriadne for ControlFlowWarningWithRange {
+impl ToAriadne for ControlFlowErrorWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,

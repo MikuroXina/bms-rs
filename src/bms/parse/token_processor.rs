@@ -9,7 +9,7 @@ use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
 
 use itertools::Itertools;
 
-use crate::bms::{error::ControlFlowWarning, prelude::*};
+use crate::bms::{error::ControlFlowError, prelude::*};
 
 mod bmp;
 mod bpm;
@@ -280,7 +280,7 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>>(
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ControlFlowError>>(
     input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,
 ) -> ((), Vec<ParseWarningWithRange>) {
@@ -305,7 +305,7 @@ fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, Contro
 
 fn all_tokens_with_range<
     'a,
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ControlFlowWarning>,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ControlFlowError>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,

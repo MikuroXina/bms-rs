@@ -34,7 +34,7 @@ pub use super::{
         time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,
-    error::{ParseWarning, ParseWarningWithRange},
+    error::{ControlFlowError, ControlFlowErrorWithRange, ParseWarning, ParseWarningWithRange},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
