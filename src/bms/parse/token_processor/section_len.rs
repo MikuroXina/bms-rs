@@ -20,10 +20,15 @@ impl TokenProcessor for SectionLenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut objects = SectionLenObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens(input, |token| {
+        let mut all_control_flow_errors = Vec::new();
+        let (_, warnings, control_flow_errors) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Message {
                     track,
@@ -39,7 +44,8 @@ impl TokenProcessor for SectionLenProcessor {
             })
         });
         all_warnings.extend(warnings);
-        (objects, all_warnings)
+        all_control_flow_errors.extend(control_flow_errors);
+        (objects, all_warnings, all_control_flow_errors)
     }
 }
 

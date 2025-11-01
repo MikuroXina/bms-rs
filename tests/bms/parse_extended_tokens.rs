@@ -14,8 +14,10 @@ fn test_atbga_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     // Verify that #@BGA is parsed correctly
     assert!(
         bms.bmp
@@ -43,8 +45,10 @@ fn test_bga_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that #BGA is parsed correctly
     assert!(
@@ -73,8 +77,10 @@ fn test_exrank_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that #EXRANK is parsed correctly
     assert!(
@@ -100,8 +106,10 @@ fn test_exwav_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that #EXWAV is parsed correctly
     assert!(
@@ -130,8 +138,10 @@ fn test_changeoption_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that #CHANGEOPTION is parsed correctly
     assert!(
@@ -157,8 +167,10 @@ fn test_text_parsing() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that #TEXT is parsed correctly
     assert!(
@@ -188,8 +200,10 @@ fn test_notes_parse_extended_tokens() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that extended fields in Notes are parsed correctly
     assert!(
@@ -247,8 +261,10 @@ fn test_token_parsing_comprehensive() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Verify that all new tokens are parsed correctly
     assert_eq!(bms.music_info.artist, Some("Test Artist".to_string()));
@@ -319,7 +335,9 @@ fn test_exwav_out_of_range_values() {
     let ParseOutput {
         bms: _,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(control_flow_errors, vec![]);
     let collected_parse_warnings = parse_warnings;
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");
@@ -343,7 +361,9 @@ fn test_exwav_out_of_range_values() {
     let ParseOutput {
         bms: _,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(control_flow_errors, vec![]);
     let collected_parse_warnings = parse_warnings;
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");
@@ -367,7 +387,9 @@ fn test_exwav_out_of_range_values() {
     let ParseOutput {
         bms: _,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(control_flow_errors, vec![]);
     let collected_parse_warnings = parse_warnings;
     let [warn]: &[_] = &collected_parse_warnings[..] else {
         panic!("expected 1 warning, got: {collected_parse_warnings:?}");

@@ -46,8 +46,10 @@ fn test_always_use_older() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -122,8 +124,12 @@ fn test_always_use_newer() {
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(

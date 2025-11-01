@@ -210,7 +210,11 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 &self,
                 input: &mut &[&TokenWithRange<'_>],
                 prompter: &P,
-            ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+            ) -> (
+                Self::Output,
+                Vec<ParseWarningWithRange>,
+                Vec<ControlFlowErrorWithRange>,
+            ) {
                 if self.use_minor {
                     minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
                         .process(input, prompter)
@@ -249,6 +253,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     let ParseOutput {
         bms,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
 
     let PlayingCheckOutput {
@@ -258,6 +263,11 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
 
     // Convert parse warnings to BmsWarning (now includes both ParseWarning and ControlFlowError)
     warnings.extend(parse_warnings.into_iter().map(BmsWarning::Parse));
+    warnings.extend(
+        control_flow_errors
+            .into_iter()
+            .map(BmsWarning::ControlFlowError),
+    );
 
     // Convert playing warnings to BmsWarning
     warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));

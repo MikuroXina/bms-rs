@@ -44,10 +44,15 @@ impl TokenProcessor for BpmProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut objects = BpmObjects::default();
         let mut all_warnings = Vec::new();
-        let (_, warnings) = all_tokens_with_range(input, |token| {
+        let mut all_control_flow_errors = Vec::new();
+        let (_, warnings, control_flow_errors) = all_tokens_with_range(input, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -71,7 +76,8 @@ impl TokenProcessor for BpmProcessor {
             })
         });
         all_warnings.extend(warnings);
-        (objects, all_warnings)
+        all_control_flow_errors.extend(control_flow_errors);
+        (objects, all_warnings, all_control_flow_errors)
     }
 }
 

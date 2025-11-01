@@ -37,9 +37,13 @@ impl TokenProcessor for RepresentationProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut repr = BmsSourceRepresentation::default();
-        let (_, warnings) = all_tokens(input, |token| {
+        let (_, warnings, control_flow_errors) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut repr)
@@ -47,7 +51,7 @@ impl TokenProcessor for RepresentationProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        (repr, warnings)
+        (repr, warnings, control_flow_errors)
     }
 }
 

@@ -53,12 +53,13 @@ fn nested_random() {
         bms,
 
         parse_warnings,
-        ..
+        control_flow_errors,
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -115,6 +116,7 @@ fn nested_random() {
         default_config_with_rng(RngMock([BigUint::from(1u64), BigUint::from(2u64)])),
     );
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -175,6 +177,7 @@ fn nested_random() {
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
     );
     assert_eq!(parse_warnings, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![

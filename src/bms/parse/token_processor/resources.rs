@@ -24,9 +24,13 @@ impl TokenProcessor for ResourcesProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut resources = Resources::default();
-        let (_, warnings) = all_tokens(input, |token| {
+        let (_, warnings, control_flow_errors) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
@@ -34,7 +38,7 @@ impl TokenProcessor for ResourcesProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        (resources, warnings)
+        (resources, warnings, control_flow_errors)
     }
 }
 

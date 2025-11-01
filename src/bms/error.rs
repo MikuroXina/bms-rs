@@ -60,9 +60,7 @@ pub enum ParseWarning {
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
-    /// Control flow warning.
-    #[error("control flow warning: {0}")]
-    ControlFlow(#[from] ControlFlowError),
+
     /// Channel ID parsing warning.
     #[error("channel id parsing warning: {0}")]
     ChannelId(#[from] ChannelIdParseWarning),

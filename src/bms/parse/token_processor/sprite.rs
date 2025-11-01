@@ -22,9 +22,13 @@ impl TokenProcessor for SpriteProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut sprites = Sprites::default();
-        let (_, warnings) = all_tokens(input, |token| {
+        let (_, warnings, control_flow_errors) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut sprites)
@@ -32,7 +36,7 @@ impl TokenProcessor for SpriteProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        (sprites, warnings)
+        (sprites, warnings, control_flow_errors)
     }
 }
 

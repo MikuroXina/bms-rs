@@ -15,8 +15,12 @@ impl TokenProcessor for IdentityTokenProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         *input = &[];
-        ((), Vec::new())
+        ((), Vec::new(), Vec::new())
     }
 }

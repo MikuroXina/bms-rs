@@ -25,9 +25,13 @@ impl TokenProcessor for MusicInfoProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _prompter: &P,
-    ) -> (Self::Output, Vec<ParseWarningWithRange>) {
+    ) -> (
+        Self::Output,
+        Vec<ParseWarningWithRange>,
+        Vec<ControlFlowErrorWithRange>,
+    ) {
         let mut music_info = MusicInfo::default();
-        let (_, warnings) = all_tokens(input, |token| {
+        let (_, warnings, control_flow_errors) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut music_info)
@@ -35,7 +39,7 @@ impl TokenProcessor for MusicInfoProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        (music_info, warnings)
+        (music_info, warnings, control_flow_errors)
     }
 }
 
