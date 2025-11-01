@@ -461,6 +461,6 @@ impl FromStr for Channel {
             return Ok(channel);
         }
         let channel_id = s.parse::<NoteChannelId>()?;
-        Ok(Channel::Note { channel_id })
+        Ok(Self::Note { channel_id })
     }
 }
