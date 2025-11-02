@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
@@ -37,8 +37,8 @@ pub struct BmsonProcessor<'a> {
     current_scroll: Decimal,
     /// Selected base BPM used for velocity and visible window calculations
     base_bpm: Decimal,
-    /// Reaction time in seconds used to derive visible window length
-    reaction_time_seconds: Decimal,
+    /// Reaction time used to derive visible window length
+    reaction_time: Duration,
 
     /// Pending external events queue
     inbox: Vec<ControlEvent>,
@@ -59,7 +59,7 @@ impl<'a> BmsonProcessor<'a> {
     pub fn new(
         bmson: Bmson<'a>,
         base_bpm_style: BaseBpmGenerateStyle,
-        reaction_time_seconds: Decimal,
+        reaction_time: Duration,
     ) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
@@ -117,7 +117,7 @@ impl<'a> BmsonProcessor<'a> {
         let base_bpm = Self::select_base_bpm_for_bmson(&bmson, base_bpm_style);
         // Compute default visible y length via shared helper
         let default_visible_y_length =
-            compute_default_visible_y_length(base_bpm.clone(), reaction_time_seconds.clone());
+            compute_default_visible_y_length(base_bpm.clone(), reaction_time);
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -157,7 +157,7 @@ impl<'a> BmsonProcessor<'a> {
             current_bpm: init_bpm,
             current_scroll: Decimal::from(1),
             base_bpm,
-            reaction_time_seconds,
+            reaction_time,
             flow_events_by_y,
         };
 
@@ -543,7 +543,7 @@ impl<'a> BmsonProcessor<'a> {
         compute_visible_window_y(
             self.current_bpm.clone(),
             self.base_bpm.clone(),
-            self.reaction_time_seconds.clone(),
+            self.reaction_time,
         )
     }
 

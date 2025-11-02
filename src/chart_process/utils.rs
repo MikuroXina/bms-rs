@@ -2,28 +2,27 @@
 
 use crate::bms::Decimal;
 use crate::chart_process::YCoordinate;
+use std::time::Duration;
 
 /// Compute visible window length in y units based on current BPM, base BPM, and reaction time.
-/// Formula: (current_bpm / base_bpm) * reaction_time_seconds.
+/// Formula: (current_bpm / base_bpm) * reaction_time_seconds (derived from `Duration`).
 #[must_use]
 pub fn compute_visible_window_y(
     current_bpm: Decimal,
     base_bpm: Decimal,
-    reaction_time_seconds: Decimal,
+    reaction_time: Duration,
 ) -> Decimal {
-    (current_bpm / base_bpm) * reaction_time_seconds
+    let seconds = Decimal::from(reaction_time.as_secs_f64());
+    (current_bpm / base_bpm) * seconds
 }
 
 /// Compute default visible y length (YCoordinate) from the selected base BPM and reaction time.
 #[must_use]
-pub fn compute_default_visible_y_length(
-    base_bpm: Decimal,
-    reaction_time_seconds: Decimal,
-) -> YCoordinate {
+pub fn compute_default_visible_y_length(base_bpm: Decimal, reaction_time: Duration) -> YCoordinate {
     // When current BPM equals base BPM, visible window equals reaction time
     YCoordinate::from(compute_visible_window_y(
         base_bpm.clone(),
         base_bpm,
-        reaction_time_seconds,
+        reaction_time,
     ))
 }

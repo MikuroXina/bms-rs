@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroU64;
 use std::path::Path;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
@@ -41,8 +41,8 @@ pub struct BmsProcessor {
     current_scroll: Decimal,
     /// Selected base BPM used for velocity and visible window calculations
     base_bpm: Decimal,
-    /// Reaction time in seconds used to derive visible window length
-    reaction_time_seconds: Decimal,
+    /// Reaction time used to derive visible window length
+    reaction_time: Duration,
 
     /// Indexed flow events by y (for fast lookup of next flow-affecting event)
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
@@ -54,7 +54,7 @@ impl BmsProcessor {
     pub fn new<T: KeyLayoutMapper>(
         bms: Bms,
         base_bpm_style: BaseBpmGenerateStyle,
-        reaction_time_seconds: Decimal,
+        reaction_time: Duration,
     ) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
@@ -68,7 +68,7 @@ impl BmsProcessor {
         let base_bpm = Self::select_base_bpm_for_bms(&bms, base_bpm_style);
         // Compute default visible y length via shared helper
         let default_visible_y_length =
-            compute_default_visible_y_length(base_bpm.clone(), reaction_time_seconds.clone());
+            compute_default_visible_y_length(base_bpm.clone(), reaction_time);
 
         let all_events = Self::precompute_all_events::<T>(&bms);
 
@@ -181,7 +181,7 @@ impl BmsProcessor {
             current_speed: Decimal::from(1),
             current_scroll: Decimal::from(1),
             base_bpm,
-            reaction_time_seconds,
+            reaction_time,
             flow_events_by_y,
         }
     }
@@ -684,7 +684,7 @@ impl BmsProcessor {
         compute_visible_window_y(
             self.current_bpm.clone(),
             self.base_bpm.clone(),
-            self.reaction_time_seconds.clone(),
+            self.reaction_time,
         )
     }
 
