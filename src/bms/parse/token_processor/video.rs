@@ -135,7 +135,7 @@ impl VideoProcessor {
         prompter: &impl Prompter,
         video: &mut Video,
     ) -> Result<()> {
-        if let Channel::Seek = channel {
+        if channel == Channel::Seek {
             use super::parse_obj_ids;
 
             for (time, seek_id) in
