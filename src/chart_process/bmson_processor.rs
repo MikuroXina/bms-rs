@@ -12,7 +12,6 @@ use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
-// FromStr no longer needed after refactor
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -646,5 +645,3 @@ enum FlowEvent {
     Bpm(Decimal),
     Scroll(Decimal),
 }
-
-// min_by_y_decimal removed: flow events are now indexed by y for O(log n) lookup

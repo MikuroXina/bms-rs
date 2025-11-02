@@ -536,36 +536,6 @@ impl BmsProcessor {
         }
     }
 
-    /// Get the length of specified Track (SectionLength), default 1.0
-    #[allow(dead_code)]
-    fn section_length_of(&self, track: Track) -> Decimal {
-        self.bms
-            .section_len
-            .section_len_changes
-            .get(&track)
-            .map(|s| s.length.clone())
-            .unwrap_or_else(|| Decimal::from(1))
-    }
-
-    /// Convert `ObjTime` to cumulative displacement y (unit: measure, default 4/4 one measure equals 1; linearly converted by `#SECLEN`).
-    #[allow(dead_code)]
-    fn y_of_time(&self, time: ObjTime) -> Decimal {
-        let mut y = Decimal::from(0);
-        // Accumulate complete measures
-        for t in 0..time.track().0 {
-            y += self.section_length_of(Track(t));
-        }
-        // Accumulate proportionally within current measure
-        let current_len = self.section_length_of(time.track());
-        let fraction = if time.denominator().get() > 0 {
-            Decimal::from(time.numerator()) / Decimal::from(time.denominator().get())
-        } else {
-            Default::default()
-        };
-        y += current_len * fraction;
-        y
-    }
-
     /// Current instantaneous displacement velocity (y units per second).
     /// Model: v = (current_bpm / 120.0) * speed_factor (using fixed base BPM 120)
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
@@ -823,5 +793,3 @@ enum FlowEvent {
     Speed(Decimal),
     Scroll(Decimal),
 }
-
-// min_by_y_decimal removed: flow events are now indexed by y for O(log n) lookup
