@@ -6,11 +6,11 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use crate::bms::prelude::*;
+use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
-use std::str::FromStr;
 
 /// ChartProcessor of Bms files.
 pub struct BmsProcessor {
@@ -36,6 +36,9 @@ pub struct BmsProcessor {
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
+
+    /// Indexed flow events by y (for fast lookup of next flow-affecting event)
+    flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
 
 impl BmsProcessor {
@@ -50,14 +53,106 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
-        // Calculate visible Y length based on starting BPM and 600ms reaction time
-        // Formula: visible Y length = (BPM / 120.0) * 0.6 seconds
-        // Where 0.6 seconds = 600ms, 120.0 is the base BPM
-        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
-        let base_bpm = Decimal::from(120);
-        let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
+        // Compute default visible y length via shared helper
+        let default_visible_y_length = compute_default_visible_y_length(init_bpm.clone());
 
         let all_events = Self::precompute_all_events::<T>(&bms);
+
+        // Pre-index flow events by y for fast next_flow_event_after
+        let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
+        for change in bms.bpm.bpm_changes.values() {
+            let y = {
+                // y_of_time only considers section length, matching original next_flow_event_after semantics
+                let mut y = Decimal::from(0);
+                // Accumulate complete measures
+                for t in 0..change.time.track().0 {
+                    y += bms
+                        .section_len
+                        .section_len_changes
+                        .get(&Track(t))
+                        .map(|s| s.length.clone())
+                        .unwrap_or_else(|| Decimal::from(1));
+                }
+                // Accumulate proportionally within current measure
+                let current_len = bms
+                    .section_len
+                    .section_len_changes
+                    .get(&change.time.track())
+                    .map(|s| s.length.clone())
+                    .unwrap_or_else(|| Decimal::from(1));
+                let fraction = if change.time.denominator().get() > 0 {
+                    Decimal::from(change.time.numerator())
+                        / Decimal::from(change.time.denominator().get())
+                } else {
+                    Default::default()
+                };
+                y + current_len * fraction
+            };
+            flow_events_by_y
+                .entry(y)
+                .or_default()
+                .push(FlowEvent::Bpm(change.bpm.clone()));
+        }
+        for change in bms.scroll.scrolling_factor_changes.values() {
+            let y = {
+                let mut y = Decimal::from(0);
+                for t in 0..change.time.track().0 {
+                    y += bms
+                        .section_len
+                        .section_len_changes
+                        .get(&Track(t))
+                        .map(|s| s.length.clone())
+                        .unwrap_or_else(|| Decimal::from(1));
+                }
+                let current_len = bms
+                    .section_len
+                    .section_len_changes
+                    .get(&change.time.track())
+                    .map(|s| s.length.clone())
+                    .unwrap_or_else(|| Decimal::from(1));
+                let fraction = if change.time.denominator().get() > 0 {
+                    Decimal::from(change.time.numerator())
+                        / Decimal::from(change.time.denominator().get())
+                } else {
+                    Default::default()
+                };
+                y + current_len * fraction
+            };
+            flow_events_by_y
+                .entry(y)
+                .or_default()
+                .push(FlowEvent::Scroll(change.factor.clone()));
+        }
+        for change in bms.speed.speed_factor_changes.values() {
+            let y = {
+                let mut y = Decimal::from(0);
+                for t in 0..change.time.track().0 {
+                    y += bms
+                        .section_len
+                        .section_len_changes
+                        .get(&Track(t))
+                        .map(|s| s.length.clone())
+                        .unwrap_or_else(|| Decimal::from(1));
+                }
+                let current_len = bms
+                    .section_len
+                    .section_len_changes
+                    .get(&change.time.track())
+                    .map(|s| s.length.clone())
+                    .unwrap_or_else(|| Decimal::from(1));
+                let fraction = if change.time.denominator().get() > 0 {
+                    Decimal::from(change.time.numerator())
+                        / Decimal::from(change.time.denominator().get())
+                } else {
+                    Default::default()
+                };
+                y + current_len * fraction
+            };
+            flow_events_by_y
+                .entry(y)
+                .or_default()
+                .push(FlowEvent::Speed(change.factor.clone()));
+        }
 
         Self {
             bms,
@@ -67,10 +162,11 @@ impl BmsProcessor {
             inbox: Vec::new(),
             all_events,
             preloaded_events: Vec::new(),
-            default_visible_y_length: YCoordinate::from(visible_y_length),
+            default_visible_y_length,
             current_bpm: init_bpm,
             current_speed: Decimal::from(1),
             current_scroll: Decimal::from(1),
+            flow_events_by_y,
         }
     }
 
@@ -441,6 +537,7 @@ impl BmsProcessor {
     }
 
     /// Get the length of specified Track (SectionLength), default 1.0
+    #[allow(dead_code)]
     fn section_length_of(&self, track: Track) -> Decimal {
         self.bms
             .section_len
@@ -451,6 +548,7 @@ impl BmsProcessor {
     }
 
     /// Convert `ObjTime` to cumulative displacement y (unit: measure, default 4/4 one measure equals 1; linearly converted by `#SECLEN`).
+    #[allow(dead_code)]
     fn y_of_time(&self, time: ObjTime) -> Decimal {
         let mut y = Decimal::from(0);
         // Accumulate complete measures
@@ -485,32 +583,11 @@ impl BmsProcessor {
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
     fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
-        // Collect three event sources, find the minimum item with y greater than threshold
-        let mut best: Option<(Decimal, FlowEvent)> = None;
-
-        for change in self.bms.bpm.bpm_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > y_from_exclusive {
-                let bpm = change.bpm.clone();
-                best = min_by_y_decimal(best, (y, FlowEvent::Bpm(bpm)));
-            }
-        }
-        for change in self.bms.scroll.scrolling_factor_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > y_from_exclusive {
-                let factor = change.factor.clone();
-                best = min_by_y_decimal(best, (y, FlowEvent::Scroll(factor)));
-            }
-        }
-        for change in self.bms.speed.speed_factor_changes.values() {
-            let y = self.y_of_time(change.time);
-            if y > y_from_exclusive {
-                let factor = change.factor.clone();
-                best = min_by_y_decimal(best, (y, FlowEvent::Speed(factor)));
-            }
-        }
-
-        best
+        use std::ops::Bound::{Excluded, Unbounded};
+        self.flow_events_by_y
+            .range((Excluded(y_from_exclusive), Unbounded))
+            .next()
+            .map(|(y, events)| (y.clone(), events[0].clone()))
     }
 
     /// Advance time to `now`, perform segmented integration of progress and speed by events.
@@ -578,11 +655,7 @@ impl BmsProcessor {
 
     /// Calculate visible window length (y units): based on current BPM and 600ms reaction time
     fn visible_window_y(&self) -> Decimal {
-        // Dynamically calculate visible window length based on current BPM and 600ms reaction time
-        // Formula: visible Y length = (current BPM / 120.0) * 0.6 seconds
-        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
-        let base_bpm = Decimal::from(120);
-        (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
+        compute_visible_window_y(self.current_bpm.clone())
     }
 
     fn lane_of_channel_id<T: KeyLayoutMapper>(
@@ -669,35 +742,36 @@ impl ChartProcessor for BmsProcessor {
         // Collect events within preload range
         let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // Get events from precomputed event Map
-        for (y_coord, events) in &self.all_events {
-            let y = y_coord.value();
-
-            // If event is triggered at current moment
-            if *y > prev_y && *y <= cur_y {
-                for (id, event) in events {
-                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
-                    triggered_events.push(evp);
-                }
-            }
-
-            // If event is within preload range
-            if *y > cur_y && *y <= preload_end_y {
-                for (id, event) in events {
-                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
-                    new_preloaded_events.push(evp);
-                }
+        use std::ops::Bound::{Excluded, Included};
+        // Triggered events: (prev_y, cur_y]
+        for (y_coord, events) in self.all_events.range((
+            Excluded(YCoordinate::from(prev_y.clone())),
+            Included(YCoordinate::from(cur_y.clone())),
+        )) {
+            for (id, event) in events {
+                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                triggered_events.push(evp);
             }
         }
 
-        // Sort events
+        // Preloaded events: (cur_y, preload_end_y]
+        for (y_coord, events) in self.all_events.range((
+            Excluded(YCoordinate::from(cur_y.clone())),
+            Included(YCoordinate::from(preload_end_y.clone())),
+        )) {
+            for (id, event) in events {
+                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                new_preloaded_events.push(evp);
+            }
+        }
+
+        // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
         triggered_events.sort_by(|a, b| {
             a.position()
                 .value()
                 .partial_cmp(b.position().value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-
         new_preloaded_events.sort_by(|a, b| {
             a.position()
                 .value()
@@ -732,13 +806,13 @@ impl ChartProcessor for BmsProcessor {
                 Default::default()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-            let ve = VisibleEvent::new(
+
+            VisibleEvent::new(
                 event_with_pos.id,
                 event_with_pos.position().clone(),
                 event_with_pos.event().clone(),
                 display_ratio,
-            );
-            ve
+            )
         })
     }
 }
@@ -750,13 +824,4 @@ enum FlowEvent {
     Scroll(Decimal),
 }
 
-fn min_by_y_decimal(
-    best: Option<(Decimal, FlowEvent)>,
-    candidate: (Decimal, FlowEvent),
-) -> Option<(Decimal, FlowEvent)> {
-    match best {
-        None => Some(candidate),
-        Some((y, _)) if candidate.0 < y => Some(candidate),
-        Some(other) => Some(other),
-    }
-}
+// min_by_y_decimal removed: flow events are now indexed by y for O(log n) lookup

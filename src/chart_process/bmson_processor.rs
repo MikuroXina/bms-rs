@@ -7,11 +7,12 @@ use std::time::SystemTime;
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
+use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
-use std::str::FromStr;
+// FromStr no longer needed after refactor
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -41,6 +42,9 @@ pub struct BmsonProcessor<'a> {
 
     /// Preprocessed all events mapping, sorted by y coordinate
     all_events: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+
+    /// Indexed flow events by y (BPM/Scroll) for efficient lookup
+    flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
 
 impl<'a> BmsonProcessor<'a> {
@@ -99,12 +103,32 @@ impl<'a> BmsonProcessor<'a> {
             next_bmp_id += 1;
         }
 
-        // Calculate visible Y length based on starting BPM and 600ms reaction time
-        // Formula: visible Y length = (BPM / 120.0) * 0.6 seconds
-        // Where 0.6 seconds = 600ms, 120.0 is the base BPM
-        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
-        let base_bpm = Decimal::from(120);
-        let visible_y_length = (init_bpm.clone() / base_bpm) * reaction_time_seconds;
+        // Compute default visible y length via shared helper
+        let default_visible_y_length = compute_default_visible_y_length(init_bpm.clone());
+
+        // Pre-index flow events by y for fast next_flow_event_after
+        let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
+        for ev in &bmson.bpm_events {
+            let y = {
+                // pulses_to_y without speed aligns with original semantics
+                let pulses = ev.y.0 as i64;
+                Decimal::from(pulses) / Decimal::from(4 * bmson.info.resolution.get())
+            };
+            flow_events_by_y
+                .entry(y)
+                .or_default()
+                .push(FlowEvent::Bpm(ev.bpm.as_f64().into()));
+        }
+        for ScrollEvent { y, rate } in &bmson.scroll_events {
+            let y = {
+                let pulses = y.0 as i64;
+                Decimal::from(pulses) / Decimal::from(4 * bmson.info.resolution.get())
+            };
+            flow_events_by_y
+                .entry(y)
+                .or_default()
+                .push(FlowEvent::Scroll(rate.as_f64().into()));
+        }
 
         let mut processor = Self {
             bmson,
@@ -116,9 +140,10 @@ impl<'a> BmsonProcessor<'a> {
             inbox: Vec::new(),
             preloaded_events: Vec::new(),
             all_events: BTreeMap::new(),
-            default_visible_y_length: YCoordinate::from(visible_y_length),
+            default_visible_y_length,
             current_bpm: init_bpm,
             current_scroll: Decimal::from(1),
+            flow_events_by_y,
         };
 
         processor.preprocess_events();
@@ -409,21 +434,11 @@ impl<'a> BmsonProcessor<'a> {
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL.
     fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
-        let mut best: Option<(Decimal, FlowEvent)> = None;
-
-        for ev in &self.bmson.bpm_events {
-            let y = self.pulses_to_y(ev.y.0);
-            if y > y_from_exclusive {
-                best = min_by_y_decimal(best, (y, FlowEvent::Bpm(ev.bpm.as_f64().into())));
-            }
-        }
-        for ScrollEvent { y, rate } in &self.bmson.scroll_events {
-            let y = self.pulses_to_y(y.0);
-            if y > y_from_exclusive {
-                best = min_by_y_decimal(best, (y, FlowEvent::Scroll(rate.as_f64().into())));
-            }
-        }
-        best
+        use std::ops::Bound::{Excluded, Unbounded};
+        self.flow_events_by_y
+            .range((Excluded(y_from_exclusive), Unbounded))
+            .next()
+            .map(|(y, events)| (y.clone(), events[0].clone()))
     }
 
     fn step_to(&mut self, now: SystemTime) {
@@ -481,11 +496,7 @@ impl<'a> BmsonProcessor<'a> {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        // Dynamically calculate visible window length based on current BPM and 600ms reaction time
-        // Formula: visible Y length = (current BPM / 120.0) * 0.6 seconds
-        let reaction_time_seconds = Decimal::from_str("0.6").unwrap(); // 600ms
-        let base_bpm = Decimal::from(120);
-        (self.current_bpm.clone() / base_bpm) * reaction_time_seconds
+        compute_visible_window_y(self.current_bpm.clone())
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -569,24 +580,26 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         // Collect events within preload range
         let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
 
-        // Get events from preprocessed event mapping
-        for (y_coord, events) in &self.all_events {
-            let y_value = y_coord.value();
-
-            // Check if it's an event triggered at current moment
-            if *y_value > prev_y && *y_value <= cur_y {
-                for (id, event) in events {
-                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
-                    triggered_events.push(evp);
-                }
+        use std::ops::Bound::{Excluded, Included};
+        // Triggered events: (prev_y, cur_y]
+        for (y_coord, events) in self.all_events.range((
+            Excluded(YCoordinate::from(prev_y.clone())),
+            Included(YCoordinate::from(cur_y.clone())),
+        )) {
+            for (id, event) in events {
+                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                triggered_events.push(evp);
             }
+        }
 
-            // Check if it's an event within preload range
-            if *y_value > cur_y && *y_value <= preload_end_y {
-                for (id, event) in events {
-                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
-                    new_preloaded_events.push(evp);
-                }
+        // Preloaded events: (cur_y, preload_end_y]
+        for (y_coord, events) in self.all_events.range((
+            Excluded(YCoordinate::from(cur_y.clone())),
+            Included(YCoordinate::from(preload_end_y.clone())),
+        )) {
+            for (id, event) in events {
+                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                new_preloaded_events.push(evp);
             }
         }
 
@@ -617,13 +630,13 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
                 Decimal::from(0)
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-            let ve = VisibleEvent::new(
+
+            VisibleEvent::new(
                 event_with_pos.id,
                 event_with_pos.position().clone(),
                 event_with_pos.event().clone(),
                 display_ratio,
-            );
-            ve
+            )
         })
     }
 }
@@ -634,13 +647,4 @@ enum FlowEvent {
     Scroll(Decimal),
 }
 
-fn min_by_y_decimal(
-    best: Option<(Decimal, FlowEvent)>,
-    candidate: (Decimal, FlowEvent),
-) -> Option<(Decimal, FlowEvent)> {
-    match best {
-        None => Some(candidate),
-        Some((y, _)) if candidate.0 < y => Some(candidate),
-        Some(o) => Some(o),
-    }
-}
+// min_by_y_decimal removed: flow events are now indexed by y for O(log n) lookup
