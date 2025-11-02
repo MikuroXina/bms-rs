@@ -340,7 +340,8 @@ fn parse_obj_ids<P: Prompter>(
         .tuples()
         .enumerate()
         .filter_map(move |(i, (c1, c2))| {
-            let buf = String::from_iter([c1, c2]);
+            let arr: [char; 2] = (c1, c2).into();
+            let buf = arr.into_iter().collect::<String>();
             match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
                 Ok(id) if id.is_null() => None,
                 Ok(id) => Some((
@@ -377,24 +378,27 @@ fn parse_hex_values<P: Prompter>(
         .tuples()
         .enumerate()
         .filter_map(move |(i, (c1, c2))| {
-            let buf = String::from_iter([c1, c2]);
-            match u8::from_str_radix(&buf, 16) {
-                Ok(value) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    value,
-                )),
-                Err(_) => {
+            let arr: [char; 2] = (c1, c2).into();
+            let buf = arr.into_iter().collect::<String>();
+            u8::from_str_radix(&buf, 16).map_or_else(
+                |_| {
                     prompter.warn(
                         ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
                             .into_wrapper(&message),
                     );
                     None
-                }
-            }
+                },
+                |value| {
+                    Some((
+                        ObjTime::new(
+                            track.0,
+                            i as u64,
+                            denom_opt.expect("len / 2 won't be zero on reading tuples"),
+                        ),
+                        value,
+                    ))
+                },
+            )
         })
 }
 

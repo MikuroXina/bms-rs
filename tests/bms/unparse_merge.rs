@@ -9,7 +9,7 @@ use std::borrow::Cow;
 #[test]
 fn test_scenario_1_no_merge() {
     // Create tokens with mixed track/channel combinations - some can be merged, others cannot
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -56,7 +56,7 @@ fn test_scenario_1_no_merge() {
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages with same track/channel are merged, others remain separate (based on actual unparse behavior)
-    let expected_tokens = vec![
+    let expected_tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -84,7 +84,7 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Use single assert_eq to compare entire token vectors
-    assert_eq!(unparsed_tokens, expected_tokens);
+    assert_eq!(unparsed_tokens.as_slice(), &expected_tokens);
 }
 
 /// Test scenario 2: Messages can be merged (same track/channel combinations)
@@ -93,7 +93,7 @@ fn test_scenario_1_no_merge() {
 #[test]
 fn test_scenario_2_can_merge() {
     // Create tokens where messages can be merged - same track and channel
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -132,7 +132,7 @@ fn test_scenario_2_can_merge() {
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages are merged as per actual unparse behavior
-    let expected_tokens = vec![
+    let expected_tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -150,7 +150,7 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Use single assert_eq to compare entire token vectors
-    assert_eq!(unparsed_tokens, expected_tokens);
+    assert_eq!(unparsed_tokens.as_slice(), &expected_tokens);
 }
 
 /// Test scenario 3: Cross-track isolation with intra-track merging
@@ -161,7 +161,7 @@ fn test_scenario_2_can_merge() {
 #[test]
 fn test_scenario_3_cross_track_no_merge() {
     // Create tokens with same channel (Bgm) but different tracks - demonstrating cross-track isolation
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -205,7 +205,7 @@ fn test_scenario_3_cross_track_no_merge() {
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - messages are merged as per actual unparse behavior
-    let expected_tokens = vec![
+    let expected_tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -223,7 +223,7 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Use single assert_eq to compare entire token vectors
-    assert_eq!(unparsed_tokens, expected_tokens);
+    assert_eq!(unparsed_tokens.as_slice(), &expected_tokens);
 }
 
 /// Test scenario 4: Input order preservation with message merging
@@ -233,7 +233,7 @@ fn test_scenario_3_cross_track_no_merge() {
 #[test]
 fn test_scenario_4_input_order_preservation() {
     // Create tokens where input order differs from potential ObjTime order
-    let tokens = vec![
+    let tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -273,7 +273,7 @@ fn test_scenario_4_input_order_preservation() {
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
 
     // Expected tokens - FF remains first, AA and BB are merged together (based on actual unparse behavior)
-    let expected_tokens = vec![
+    let expected_tokens = [
         Token::header("TITLE", "Test Song"),
         Token::header("ARTIST", "Test Artist"),
         Token::header("BPM", "120"),
@@ -291,5 +291,5 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Use single assert_eq to compare entire token vectors
-    assert_eq!(unparsed_tokens, expected_tokens);
+    assert_eq!(unparsed_tokens.as_slice(), &expected_tokens);
 }
