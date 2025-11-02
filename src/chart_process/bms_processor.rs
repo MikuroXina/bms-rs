@@ -9,7 +9,10 @@ use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
+        YCoordinate,
+    },
 };
 
 /// ChartProcessor of Bms files.
@@ -36,15 +39,23 @@ pub struct BmsProcessor {
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
+    /// Selected base BPM used for velocity and visible window calculations
+    base_bpm: Decimal,
+    /// Reaction time in seconds used to derive visible window length
+    reaction_time_seconds: Decimal,
 
     /// Indexed flow events by y (for fast lookup of next flow-affecting event)
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
 
 impl BmsProcessor {
-    /// Create processor, initialize default parameters
+    /// Create processor with explicit reaction time configuration, initialize default parameters
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(bms: Bms) -> Self {
+    pub fn new<T: KeyLayoutMapper>(
+        bms: Bms,
+        base_bpm_style: BaseBpmGenerateStyle,
+        reaction_time_seconds: Decimal,
+    ) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -53,8 +64,11 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
+        // Compute base BPM for visible window based on user-selected style
+        let base_bpm = Self::select_base_bpm_for_bms(&bms, base_bpm_style);
         // Compute default visible y length via shared helper
-        let default_visible_y_length = compute_default_visible_y_length(init_bpm.clone());
+        let default_visible_y_length =
+            compute_default_visible_y_length(base_bpm.clone(), reaction_time_seconds.clone());
 
         let all_events = Self::precompute_all_events::<T>(&bms);
 
@@ -166,7 +180,50 @@ impl BmsProcessor {
             current_bpm: init_bpm,
             current_speed: Decimal::from(1),
             current_scroll: Decimal::from(1),
+            base_bpm,
+            reaction_time_seconds,
             flow_events_by_y,
+        }
+    }
+
+    /// Select a base BPM from a BMS chart according to style.
+    fn select_base_bpm_for_bms(bms: &Bms, style: BaseBpmGenerateStyle) -> Decimal {
+        match style {
+            BaseBpmGenerateStyle::Manual(v) => v,
+            BaseBpmGenerateStyle::StartBpm => bms
+                .bpm
+                .bpm
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| Decimal::from(120)),
+            BaseBpmGenerateStyle::MinBpm => {
+                let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
+                for change in bms.bpm.bpm_changes.values() {
+                    min = match min {
+                        Some(curr) => Some(if change.bpm < curr {
+                            change.bpm.clone()
+                        } else {
+                            curr
+                        }),
+                        None => Some(change.bpm.clone()),
+                    };
+                }
+                min.unwrap_or_else(|| Decimal::from(120))
+            }
+            BaseBpmGenerateStyle::MaxBpm => {
+                let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
+                for change in bms.bpm.bpm_changes.values() {
+                    max = match max {
+                        Some(curr) => Some(if change.bpm > curr {
+                            change.bpm.clone()
+                        } else {
+                            curr
+                        }),
+                        None => Some(change.bpm.clone()),
+                    };
+                }
+                max.unwrap_or_else(|| Decimal::from(120))
+            }
         }
     }
 
@@ -537,18 +594,17 @@ impl BmsProcessor {
     }
 
     /// Current instantaneous displacement velocity (y units per second).
-    /// Model: v = (current_bpm / 120.0) * speed_factor (using fixed base BPM 120)
+    /// Model: v = (current_bpm / base_bpm) * speed_factor
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
-        let base_bpm = Decimal::from(120);
         let velocity = if self.current_bpm > Decimal::from(0) {
-            let velocity = self.current_bpm.clone() / base_bpm;
+            let velocity = self.current_bpm.clone() / self.base_bpm.clone();
             let speed_factor = self.current_speed.clone();
             velocity * speed_factor
         } else {
             Default::default()
         };
-        velocity.max(Decimal::from(f64::EPSILON)) // speed must be positive
+        velocity.max(Decimal::from(f64::EPSILON))
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
@@ -623,9 +679,13 @@ impl BmsProcessor {
         }
     }
 
-    /// Calculate visible window length (y units): based on current BPM and 600ms reaction time
+    /// Calculate visible window length (y units): based on current BPM, base BPM and configured reaction time
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(self.current_bpm.clone())
+        compute_visible_window_y(
+            self.current_bpm.clone(),
+            self.base_bpm.clone(),
+            self.reaction_time_seconds.clone(),
+        )
     }
 
     fn lane_of_channel_id<T: KeyLayoutMapper>(

@@ -2,6 +2,19 @@
 
 use crate::{bms::Decimal, chart_process::ChartEvent};
 
+/// Strategy for selecting the base BPM used to derive default visible window length.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BaseBpmGenerateStyle {
+    /// Use the chart's start/initial BPM.
+    StartBpm,
+    /// Use the minimum BPM across initial BPM and all BPM change events.
+    MinBpm,
+    /// Use the maximum BPM across initial BPM and all BPM change events.
+    MaxBpm,
+    /// Use a manually specified BPM value.
+    Manual(Decimal),
+}
+
 /// Y coordinate wrapper type, using arbitrary precision decimal numbers.
 ///
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.

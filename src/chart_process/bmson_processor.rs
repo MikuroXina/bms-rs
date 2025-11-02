@@ -10,7 +10,10 @@ use crate::bmson::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
+        YCoordinate,
+    },
 };
 
 /// ChartProcessor of Bmson files.
@@ -32,6 +35,10 @@ pub struct BmsonProcessor<'a> {
     default_visible_y_length: YCoordinate,
     current_bpm: Decimal,
     current_scroll: Decimal,
+    /// Selected base BPM used for velocity and visible window calculations
+    base_bpm: Decimal,
+    /// Reaction time in seconds used to derive visible window length
+    reaction_time_seconds: Decimal,
 
     /// Pending external events queue
     inbox: Vec<ControlEvent>,
@@ -47,9 +54,13 @@ pub struct BmsonProcessor<'a> {
 }
 
 impl<'a> BmsonProcessor<'a> {
-    /// Create BMSON processor and initialize playback state with default parameters.
+    /// Create BMSON processor with explicit reaction time configuration.
     #[must_use]
-    pub fn new(bmson: Bmson<'a>) -> Self {
+    pub fn new(
+        bmson: Bmson<'a>,
+        base_bpm_style: BaseBpmGenerateStyle,
+        reaction_time_seconds: Decimal,
+    ) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
         // Preprocessing: assign IDs to all audio and image resources
@@ -102,8 +113,11 @@ impl<'a> BmsonProcessor<'a> {
             next_bmp_id += 1;
         }
 
+        // Compute base BPM for visible window based on user-selected style
+        let base_bpm = Self::select_base_bpm_for_bmson(&bmson, base_bpm_style);
         // Compute default visible y length via shared helper
-        let default_visible_y_length = compute_default_visible_y_length(init_bpm.clone());
+        let default_visible_y_length =
+            compute_default_visible_y_length(base_bpm.clone(), reaction_time_seconds.clone());
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -142,11 +156,43 @@ impl<'a> BmsonProcessor<'a> {
             default_visible_y_length,
             current_bpm: init_bpm,
             current_scroll: Decimal::from(1),
+            base_bpm,
+            reaction_time_seconds,
             flow_events_by_y,
         };
 
         processor.preprocess_events();
         processor
+    }
+
+    /// Select a base BPM from a BMSON chart according to style.
+    fn select_base_bpm_for_bmson(bmson: &Bmson<'_>, style: BaseBpmGenerateStyle) -> Decimal {
+        match style {
+            BaseBpmGenerateStyle::Manual(v) => v,
+            BaseBpmGenerateStyle::StartBpm => bmson.info.init_bpm.as_f64().into(),
+            BaseBpmGenerateStyle::MinBpm => {
+                let mut min: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
+                for ev in &bmson.bpm_events {
+                    let val: Decimal = ev.bpm.as_f64().into();
+                    min = match min {
+                        Some(curr) => Some(if val < curr { val } else { curr }),
+                        None => Some(val),
+                    };
+                }
+                min.unwrap_or_else(|| Decimal::from(120))
+            }
+            BaseBpmGenerateStyle::MaxBpm => {
+                let mut max: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
+                for ev in &bmson.bpm_events {
+                    let val: Decimal = ev.bpm.as_f64().into();
+                    max = match max {
+                        Some(curr) => Some(if val > curr { val } else { curr }),
+                        None => Some(val),
+                    };
+                }
+                max.unwrap_or_else(|| Decimal::from(120))
+            }
+        }
     }
 
     /// Preprocess all events, create event mapping sorted by y coordinate
@@ -420,14 +466,13 @@ impl<'a> BmsonProcessor<'a> {
 
     /// Current instantaneous displacement velocity (y units per second).
     /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
-    /// Model: v = (current_bpm / 120.0) (using fixed base BPM 120)
+    /// Model: v = (current_bpm / base_bpm)
     /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
-        let base_bpm = Decimal::from(120);
         if self.current_bpm.is_sign_negative() {
             Decimal::from(0)
         } else {
-            (self.current_bpm.clone() / base_bpm).max(Decimal::from(0))
+            (self.current_bpm.clone() / self.base_bpm.clone()).max(Decimal::from(0))
         }
     }
 
@@ -495,7 +540,11 @@ impl<'a> BmsonProcessor<'a> {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(self.current_bpm.clone())
+        compute_visible_window_y(
+            self.current_bpm.clone(),
+            self.base_bpm.clone(),
+            self.reaction_time_seconds.clone(),
+        )
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {

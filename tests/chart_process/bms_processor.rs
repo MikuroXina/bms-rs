@@ -18,7 +18,11 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
 
-    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(
+        bms,
+        BaseBpmGenerateStyle::StartBpm,
+        Decimal::from_str("0.6").unwrap(),
+    );
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -88,7 +92,11 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
 
-    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(
+        bms,
+        BaseBpmGenerateStyle::StartBpm,
+        Decimal::from_str("0.6").unwrap(),
+    );
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -130,7 +138,11 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
 
-    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(
+        bms,
+        BaseBpmGenerateStyle::StartBpm,
+        Decimal::from_str("0.6").unwrap(),
+    );
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
