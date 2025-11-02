@@ -4,7 +4,9 @@
 //! allowing users to import all needed items in one go.
 
 // Re-export types
-pub use super::types::{BmpId, DisplayRatio, WavId, YCoordinate};
+pub use super::types::{
+    BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
+};
 
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};

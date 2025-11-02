@@ -1,9 +1,6 @@
 //! Type definition module
 
-use crate::bms::Decimal;
-use crate::chart_process::ChartEvent;
-use fraction::{BigUint, GenericDecimal};
-use std::str::FromStr;
+use crate::{bms::Decimal, chart_process::ChartEvent};
 
 /// Y coordinate wrapper type, using arbitrary precision decimal numbers.
 ///
@@ -39,13 +36,7 @@ impl From<Decimal> for YCoordinate {
 
 impl From<f64> for YCoordinate {
     fn from(value: f64) -> Self {
-        // Convert f64 to string then parse as Decimal
-        let decimal_str = value.to_string();
-        let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
-            // If parsing fails, use 0
-            GenericDecimal::from(BigUint::from(0u32))
-        });
-        Self(decimal)
+        Self(Decimal::from(value))
     }
 }
 
@@ -128,13 +119,7 @@ impl From<Decimal> for DisplayRatio {
 
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
-        // Convert f64 to string then parse as Decimal
-        let decimal_str = value.to_string();
-        let decimal = GenericDecimal::from_str(&decimal_str).unwrap_or_else(|_| {
-            // If parsing fails, use 0
-            GenericDecimal::from(BigUint::from(0u32))
-        });
-        Self(decimal)
+        Self(Decimal::from(value))
     }
 }
 
@@ -198,11 +183,71 @@ impl From<BmpId> for usize {
     }
 }
 
+/// Chart event unique identifier wrapper type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChartEventId(pub usize);
+
+impl ChartEventId {
+    /// Create a new ChartEventId
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// Get the internal usize value
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for ChartEventId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ChartEventId> for usize {
+    fn from(id: ChartEventId) -> Self {
+        id.0
+    }
+}
+
+/// Generator for sequential `ChartEventId`s
+#[derive(Debug, Clone, Default)]
+pub struct ChartEventIdGenerator {
+    next: usize,
+}
+
+impl ChartEventIdGenerator {
+    /// Create a new generator starting from `start`
+    #[must_use]
+    pub const fn new(start: usize) -> Self {
+        Self { next: start }
+    }
+
+    /// Allocate and return the next `ChartEventId`
+    #[must_use]
+    pub fn next_id(&mut self) -> ChartEventId {
+        let id = ChartEventId(self.next);
+        self.next += 1;
+        id
+    }
+
+    /// Return the next value that will be used
+    #[must_use]
+    pub const fn peek_next(&self) -> usize {
+        self.next
+    }
+}
+
 /// Timeline event and position wrapper type.
 ///
 /// Represents an event in chart playback and its position on the timeline.
 #[derive(Debug, Clone)]
 pub struct ChartEventWithPosition {
+    /// Event identifier
+    pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
     pub position: YCoordinate,
     /// Chart event
@@ -212,8 +257,18 @@ pub struct ChartEventWithPosition {
 impl ChartEventWithPosition {
     /// Create a new ChartEventWithPosition
     #[must_use]
-    pub const fn new(position: YCoordinate, event: ChartEvent) -> Self {
-        Self { position, event }
+    pub const fn new(id: ChartEventId, position: YCoordinate, event: ChartEvent) -> Self {
+        Self {
+            position,
+            event,
+            id,
+        }
+    }
+
+    /// Get event identifier
+    #[must_use]
+    pub const fn id(&self) -> &ChartEventId {
+        &self.id
     }
 
     /// Get event position
@@ -227,24 +282,6 @@ impl ChartEventWithPosition {
     pub const fn event(&self) -> &ChartEvent {
         &self.event
     }
-
-    /// Destructure into tuple
-    #[must_use]
-    pub fn into_tuple(self) -> (YCoordinate, ChartEvent) {
-        (self.position, self.event)
-    }
-}
-
-impl From<(YCoordinate, ChartEvent)> for ChartEventWithPosition {
-    fn from((position, event): (YCoordinate, ChartEvent)) -> Self {
-        Self::new(position, event)
-    }
-}
-
-impl From<ChartEventWithPosition> for (YCoordinate, ChartEvent) {
-    fn from(wrapper: ChartEventWithPosition) -> Self {
-        wrapper.into_tuple()
-    }
 }
 
 /// Visible area event and position and display ratio wrapper type.
@@ -252,6 +289,8 @@ impl From<ChartEventWithPosition> for (YCoordinate, ChartEvent) {
 /// Represents an event in the visible area, including its position, event content, and display ratio.
 #[derive(Debug, Clone)]
 pub struct VisibleEvent {
+    /// Event identifier
+    pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
     pub position: YCoordinate,
     /// Chart event
@@ -264,6 +303,7 @@ impl VisibleEvent {
     /// Create a new VisibleEvent
     #[must_use]
     pub const fn new(
+        id: ChartEventId,
         position: YCoordinate,
         event: ChartEvent,
         display_ratio: DisplayRatio,
@@ -272,7 +312,14 @@ impl VisibleEvent {
             position,
             event,
             display_ratio,
+            id,
         }
+    }
+
+    /// Get event identifier
+    #[must_use]
+    pub const fn id(&self) -> &ChartEventId {
+        &self.id
     }
 
     /// Get event position
@@ -291,23 +338,5 @@ impl VisibleEvent {
     #[must_use]
     pub const fn display_ratio(&self) -> &DisplayRatio {
         &self.display_ratio
-    }
-
-    /// Destructure into tuple
-    #[must_use]
-    pub fn into_tuple(self) -> (YCoordinate, ChartEvent, DisplayRatio) {
-        (self.position, self.event, self.display_ratio)
-    }
-}
-
-impl From<(YCoordinate, ChartEvent, DisplayRatio)> for VisibleEvent {
-    fn from((position, event, display_ratio): (YCoordinate, ChartEvent, DisplayRatio)) -> Self {
-        Self::new(position, event, display_ratio)
-    }
-}
-
-impl From<VisibleEvent> for (YCoordinate, ChartEvent, DisplayRatio) {
-    fn from(wrapper: VisibleEvent) -> Self {
-        wrapper.into_tuple()
     }
 }

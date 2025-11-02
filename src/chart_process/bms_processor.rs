@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use crate::bms::prelude::*;
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BmpId, DisplayRatio, WavId, YCoordinate},
+    types::{BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 use std::str::FromStr;
 
@@ -26,7 +26,7 @@ pub struct BmsProcessor {
     inbox: Vec<ControlEvent>,
 
     /// All events mapping (sorted by Y coordinate)
-    all_events: BTreeMap<YCoordinate, Vec<ChartEvent>>,
+    all_events: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
 
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<ChartEventWithPosition>,
@@ -78,8 +78,10 @@ impl BmsProcessor {
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn precompute_all_events<T: KeyLayoutMapper>(
         bms: &Bms,
-    ) -> BTreeMap<YCoordinate, Vec<ChartEvent>> {
-        let mut events_map: BTreeMap<YCoordinate, Vec<ChartEvent>> = BTreeMap::new();
+    ) -> BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>> {
+        let mut events_map: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>> =
+            BTreeMap::new();
+        let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
         // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
@@ -89,7 +91,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // BPM change events
@@ -102,7 +104,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Scroll change events
@@ -115,7 +117,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Speed change events
@@ -128,7 +130,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Stop events
@@ -141,7 +143,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // BGA change events
@@ -156,7 +158,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // BGA opacity change events (requires minor-command feature)
@@ -173,7 +175,7 @@ impl BmsProcessor {
                 events_map
                     .entry(YCoordinate::from(y))
                     .or_default()
-                    .push(event);
+                    .push((id_gen.next_id(), event));
             }
         }
 
@@ -194,7 +196,7 @@ impl BmsProcessor {
                 events_map
                     .entry(YCoordinate::from(y))
                     .or_default()
-                    .push(event);
+                    .push((id_gen.next_id(), event));
             }
         }
 
@@ -209,7 +211,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // KEY volume change events
@@ -223,7 +225,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Text display events
@@ -236,7 +238,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Judge level change events
@@ -249,7 +251,7 @@ impl BmsProcessor {
             events_map
                 .entry(YCoordinate::from(y))
                 .or_default()
-                .push(event);
+                .push((id_gen.next_id(), event));
         }
 
         // Minor-command feature events
@@ -265,7 +267,7 @@ impl BmsProcessor {
                 events_map
                     .entry(YCoordinate::from(y))
                     .or_default()
-                    .push(event);
+                    .push((id_gen.next_id(), event));
             }
 
             // BGA key binding events
@@ -282,7 +284,7 @@ impl BmsProcessor {
                 events_map
                     .entry(YCoordinate::from(y))
                     .or_default()
-                    .push(event);
+                    .push((id_gen.next_id(), event));
             }
 
             // Option change events
@@ -296,12 +298,12 @@ impl BmsProcessor {
                 events_map
                     .entry(YCoordinate::from(y))
                     .or_default()
-                    .push(event);
+                    .push((id_gen.next_id(), event));
             }
         }
 
         // Generate measure lines - generated last but not exceeding other objects
-        Self::generate_barlines_for_bms(bms, &mut events_map);
+        Self::generate_barlines_for_bms(bms, &mut events_map, &mut id_gen);
 
         events_map
     }
@@ -309,7 +311,8 @@ impl BmsProcessor {
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     fn generate_barlines_for_bms(
         bms: &Bms,
-        events_map: &mut BTreeMap<YCoordinate, Vec<ChartEvent>>,
+        events_map: &mut BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+        id_gen: &mut ChartEventIdGenerator,
     ) {
         // Find the maximum Y value of all events
         let max_y = events_map
@@ -347,7 +350,10 @@ impl BmsProcessor {
             if track_y <= max_y {
                 let y_coord = YCoordinate::from(track_y);
                 let event = ChartEvent::BarLine;
-                events_map.entry(y_coord).or_default().push(event);
+                events_map
+                    .entry(y_coord)
+                    .or_default()
+                    .push((id_gen.next_id(), event));
             }
         }
     }
@@ -669,17 +675,17 @@ impl ChartProcessor for BmsProcessor {
 
             // If event is triggered at current moment
             if *y > prev_y && *y <= cur_y {
-                for event in events {
-                    triggered_events
-                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
+                for (id, event) in events {
+                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                    triggered_events.push(evp);
                 }
             }
 
             // If event is within preload range
             if *y > cur_y && *y <= preload_end_y {
-                for event in events {
-                    new_preloaded_events
-                        .push(ChartEventWithPosition::new(y_coord.clone(), event.clone()));
+                for (id, event) in events {
+                    let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+                    new_preloaded_events.push(evp);
                 }
             }
         }
@@ -726,11 +732,13 @@ impl ChartProcessor for BmsProcessor {
                 Default::default()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-            VisibleEvent::new(
+            let ve = VisibleEvent::new(
+                event_with_pos.id,
                 event_with_pos.position().clone(),
                 event_with_pos.event().clone(),
                 display_ratio,
-            )
+            );
+            ve
         })
     }
 }
