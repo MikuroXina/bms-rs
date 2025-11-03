@@ -49,15 +49,10 @@ impl Bms {
             .process(&mut tokens_slice, &prompter)
             .map_err(|e: ParseErrorWithRange| e.content().clone());
         match res {
-            Ok((bms, parse_warnings)) => {
-                for w in &parse_warnings {
-                    prompter.warn(w.clone());
-                }
-                ParseOutput {
-                    bms: Ok(bms),
-                    parse_warnings,
-                }
-            }
+            Ok((bms, parse_warnings)) => ParseOutput {
+                bms: Ok(bms),
+                parse_warnings,
+            },
             Err(err) => ParseOutput {
                 bms: Err(err),
                 parse_warnings: Vec::new(),

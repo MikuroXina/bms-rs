@@ -16,7 +16,8 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
 
-    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(parse_output.parse_warnings, vec![]);
     let bms = parse_output.bms.unwrap();
 
     let base_bpm = StartBpmGenerator
@@ -91,7 +92,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
 
-    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(parse_output.parse_warnings, vec![]);
     let bms = parse_output.bms.unwrap();
 
     let base_bpm = StartBpmGenerator
@@ -138,7 +140,8 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
 
-    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(parse_output.parse_warnings, vec![]);
     let bms = parse_output.bms.unwrap();
 
     let base_bpm = StartBpmGenerator
