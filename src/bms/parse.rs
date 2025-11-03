@@ -63,6 +63,21 @@ pub enum ParseError {
 /// A parse error with position information.
 pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
 
+#[cfg(feature = "diagnostics")]
+impl ToAriadne for ParseErrorWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Error, (filename.clone(), start..end))
+            .with_message("parse error: ".to_string() + &self.content().to_string())
+            .with_label(Label::new((filename, start..end)).with_color(Color::Red))
+            .finish()
+    }
+}
+
 /// A warning occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -107,6 +122,7 @@ impl ToAriadne for ParseWarningWithRange {
 
 /// Type alias of `core::result::Result<T, ParseWarning>`
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
+
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
