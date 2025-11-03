@@ -13,8 +13,9 @@ fn test_atbga_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
     // Verify that #@BGA is parsed correctly
     assert!(
@@ -42,8 +43,9 @@ fn test_bga_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that #BGA is parsed correctly
@@ -72,8 +74,9 @@ fn test_exrank_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that #EXRANK is parsed correctly
@@ -99,8 +102,9 @@ fn test_exwav_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that #EXWAV is parsed correctly
@@ -129,8 +133,9 @@ fn test_changeoption_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that #CHANGEOPTION is parsed correctly
@@ -156,8 +161,9 @@ fn test_text_parsing() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that #TEXT is parsed correctly
@@ -187,8 +193,9 @@ fn test_notes_parse_extended_tokens() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that extended fields in Notes are parsed correctly
@@ -246,8 +253,9 @@ fn test_token_parsing_comprehensive() {
     assert_eq!(warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: _,
+        parse_warnings: warnings,
     } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
     // Verify that all new tokens are parsed correctly

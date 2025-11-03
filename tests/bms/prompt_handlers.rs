@@ -40,7 +40,11 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 /// Test AlwaysUseOlder behavior with various conflict types
 #[test]
 fn test_always_use_older() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
@@ -110,7 +114,11 @@ fn test_always_use_older() {
 /// Test AlwaysUseNewer behavior with various conflict types
 #[test]
 fn test_always_use_newer() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
@@ -180,7 +188,11 @@ fn test_always_use_newer() {
 /// Test AlwaysWarnAndUseOlder behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_older() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
         bms,
@@ -256,16 +268,21 @@ fn test_always_warn_and_use_older() {
 /// Test AlwaysWarnAndUseNewer behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_newer() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
-    let parse_output =
-        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
-    let bms = parse_output.bms.unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
+    let bms = bms.unwrap();
 
-    // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
+    // 应有重复定义类的警告（如 DuplicatingDef）
     assert!(
-        parse_output
-            .parse_warnings
+        parse_warnings
             .iter()
             .any(|w: &_| matches!(w.content(), ParseWarning::DuplicatingDef(_)))
     );
