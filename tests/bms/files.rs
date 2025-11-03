@@ -1,9 +1,10 @@
-use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
+use bms_rs::bms::prelude::*;
 
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config());
+    let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -28,7 +29,8 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config());
+    let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -59,7 +61,8 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config());
+    let bms = bms.unwrap();
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -96,12 +99,8 @@ fn test_blank() {
         vec![]
     );
 
-    let mut parse_warnings = vec![];
-    let _ = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(AlwaysUseNewer, &mut parse_warnings)),
-    )
-    .unwrap();
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    let parse_warnings = parse_output.parse_warnings;
     assert_eq!(
         parse_warnings
             .into_iter()
@@ -117,7 +116,8 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config()).unwrap();
+    let BmsOutput { bms, warnings, .. } = parse_bms(source, default_config());
+    let bms = bms.unwrap();
     assert_eq!(
         warnings,
         vec![

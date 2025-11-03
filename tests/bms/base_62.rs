@@ -17,6 +17,7 @@ fn test_not_base_62() {
         &tokens,
         default_config().prompter(PanicAndUseNewer),
     )
+    .bms
     .expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
@@ -44,6 +45,7 @@ fn test_base_62() {
         &tokens,
         default_config().prompter(PanicAndUseNewer),
     )
+    .bms
     .expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);

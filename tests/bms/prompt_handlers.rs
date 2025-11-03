@@ -42,7 +42,8 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 fn test_always_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder));
+    let bms = parse_output.bms.unwrap();
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -107,7 +108,8 @@ fn test_always_use_older() {
 fn test_always_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
+    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer));
+    let bms = parse_output.bms.unwrap();
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
@@ -173,14 +175,14 @@ fn test_always_warn_and_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let mut parse_warnings = vec![];
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens,
         default_config().prompter(warning_collector(
             AlwaysWarnAndUseOlder,
             &mut parse_warnings,
         )),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(parse_warnings.len(), 9);
@@ -253,14 +255,14 @@ fn test_always_warn_and_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
     let mut parse_warnings = vec![];
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens,
         default_config().prompter(warning_collector(
             AlwaysWarnAndUseNewer,
             &mut parse_warnings,
         )),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
     assert!(

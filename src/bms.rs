@@ -38,7 +38,7 @@ use ariadne::Report;
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
-    error::ParseErrorWithRange,
+    error::ParseError,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
@@ -233,7 +233,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
 pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     source: &str,
     config: ParseConfig<T, P, R>,
-) -> Result<BmsOutput, ParseErrorWithRange> {
+) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
         tokens,
@@ -243,29 +243,42 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    let bms = Bms::from_token_stream::<'_, T, _, _>(&tokens, config)?;
+    let parse_output = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
+    let bms_result = parse_output.bms;
+    // Convert parse warnings to BmsWarning
+    warnings.extend(
+        parse_output
+            .parse_warnings
+            .into_iter()
+            .map(BmsWarning::Parse),
+    );
 
-    let PlayingCheckOutput {
-        playing_warnings,
-        playing_errors,
-    } = bms.check_playing::<T>();
+    if let Ok(ref bms) = bms_result {
+        let PlayingCheckOutput {
+            playing_warnings,
+            playing_errors,
+        } = bms.check_playing::<T>();
 
-    // Convert playing warnings to BmsWarning
-    warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
+        // Convert playing warnings to BmsWarning
+        warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
 
-    // Convert playing errors to BmsWarning
-    warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
+        // Convert playing errors to BmsWarning
+        warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
+    }
 
-    Ok(BmsOutput { bms, warnings })
+    BmsOutput {
+        bms: bms_result,
+        warnings,
+    }
 }
 
 /// Output of parsing a BMS file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[must_use]
 pub struct BmsOutput {
     /// The parsed BMS data.
-    pub bms: Bms,
+    pub bms: Result<Bms, ParseError>,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
 }

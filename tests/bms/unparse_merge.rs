@@ -42,15 +42,15 @@ fn test_scenario_1_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -118,15 +118,15 @@ fn test_scenario_2_can_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -191,15 +191,15 @@ fn test_scenario_3_cross_track_no_merge() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -259,15 +259,15 @@ fn test_scenario_4_input_order_preservation() {
     ];
 
     // Convert tokens to Bms
-    let bms = Bms::from_token_stream(
+    let parse_output = Bms::from_token_stream(
         &tokens
             .iter()
             .cloned()
             .map(|t| SourceRangeMixin::new(t, 0..0))
             .collect::<Vec<_>>(),
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    let bms = parse_output.bms.unwrap();
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();

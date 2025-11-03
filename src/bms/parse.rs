@@ -21,17 +21,17 @@ use self::{prompt::Prompter, token_processor::TokenProcessor};
 
 use super::{
     ParseConfig,
-    error::{ParseErrorWithRange, ParseWarningWithRange},
+    error::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     rng::Rng,
 };
 
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[must_use]
 pub struct ParseOutput {
     /// The output Bms.
-    pub bms: Bms,
+    pub bms: Result<Bms, ParseError>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
@@ -41,12 +41,19 @@ impl Bms {
     pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter, R: Rng>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
         config: ParseConfig<T, P, R>,
-    ) -> core::result::Result<Self, ParseErrorWithRange> {
+    ) -> ParseOutput {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let bms = proc.process(&mut tokens_slice, &prompter)?;
-        Ok(bms)
+        let mut parse_warnings = Vec::new();
+        let prompter = crate::bms::parse::prompt::warning_collector(prompter, &mut parse_warnings);
+        let bms = proc
+            .process(&mut tokens_slice, &prompter)
+            .map_err(|e: ParseErrorWithRange| e.content().clone());
+        ParseOutput {
+            bms,
+            parse_warnings,
+        }
     }
 }
 
