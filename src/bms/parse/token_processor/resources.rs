@@ -26,7 +26,10 @@ impl TokenProcessor for ResourcesProcessor {
         _prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut resources = Resources::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
@@ -35,8 +38,14 @@ impl TokenProcessor for ResourcesProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(resources), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(resources),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

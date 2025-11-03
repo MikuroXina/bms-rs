@@ -39,7 +39,10 @@ impl TokenProcessor for RepresentationProcessor {
         _prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut repr = BmsSourceRepresentation::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut repr)
@@ -48,8 +51,14 @@ impl TokenProcessor for RepresentationProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(repr), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(repr),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

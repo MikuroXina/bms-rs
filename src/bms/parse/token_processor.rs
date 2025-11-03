@@ -35,7 +35,12 @@ mod volume;
 mod wav;
 
 /// Result of a token processor: parse result with collected warnings.
-pub type TokenProcessorOutput<T> = (Result<T, ParseErrorWithRange>, Vec<ParseWarningWithRange>);
+pub struct TokenProcessorOutput<T> {
+    /// Process result.
+    pub output: Result<T, ParseErrorWithRange>,
+    /// Warnings collected during the process.
+    pub warnings: Vec<ParseWarningWithRange>,
+}
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
@@ -106,15 +111,27 @@ where
         prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut cloned = *input;
-        let (first_res, mut first_warnings) = self.first.process(&mut cloned, prompter);
+        let TokenProcessorOutput {
+            output: first_res,
+            warnings: mut first_warnings,
+        } = self.first.process(&mut cloned, prompter);
         match first_res {
             Ok(first_output) => {
-                let (second_res, second_warnings) = self.second.process(input, prompter);
+                let TokenProcessorOutput {
+                    output: second_res,
+                    warnings: second_warnings,
+                } = self.second.process(input, prompter);
                 first_warnings.extend(second_warnings);
                 let combined = second_res.map(|second_output| (first_output, second_output));
-                (combined, first_warnings)
+                TokenProcessorOutput {
+                    output: combined,
+                    warnings: first_warnings,
+                }
             }
-            Err(err) => (Err(err), first_warnings),
+            Err(err) => TokenProcessorOutput {
+                output: Err(err),
+                warnings: first_warnings,
+            },
         }
     }
 }
@@ -138,8 +155,14 @@ where
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
-        let (res, warnings) = self.source.process(input, prompter);
-        (res.map(|v| (self.mapping)(v)), warnings)
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = self.source.process(input, prompter);
+        TokenProcessorOutput {
+            output: res.map(|v| (self.mapping)(v)),
+            warnings,
+        }
     }
 }
 
@@ -303,12 +326,18 @@ fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseE
             Ok(None) => {}
             Err(err) => {
                 *input = &[];
-                return (Err(err.into_wrapper(token)), warnings);
+                return TokenProcessorOutput {
+                    output: Err(err.into_wrapper(token)),
+                    warnings,
+                };
             }
         }
     }
     *input = &[];
-    (Ok(()), warnings)
+    TokenProcessorOutput {
+        output: Ok(()),
+        warnings,
+    }
 }
 
 fn all_tokens_with_range<
@@ -325,12 +354,18 @@ fn all_tokens_with_range<
             Ok(None) => {}
             Err(err) => {
                 *input = &[];
-                return (Err(err.into_wrapper(token)), warnings);
+                return TokenProcessorOutput {
+                    output: Err(err.into_wrapper(token)),
+                    warnings,
+                };
             }
         }
     }
     *input = &[];
-    (Ok(()), warnings)
+    TokenProcessorOutput {
+        output: Ok(()),
+        warnings,
+    }
 }
 
 fn parse_obj_ids(

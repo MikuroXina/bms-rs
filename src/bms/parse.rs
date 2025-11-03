@@ -13,6 +13,7 @@ use crate::diagnostics::{SimpleSource, ToAriadne};
 #[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind};
 
+use crate::bms::TokenProcessorOutput;
 use crate::bms::{
     command::channel::mapper::KeyLayoutMapper, lex::token::TokenWithRange, model::Bms,
 };
@@ -45,7 +46,10 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let (res, parse_warnings) = proc.process(&mut tokens_slice, &prompter);
+        let TokenProcessorOutput {
+            output: res,
+            warnings: parse_warnings,
+        } = proc.process(&mut tokens_slice, &prompter);
         ParseOutput {
             bms: res.map_err(|e| e.into_content()),
             parse_warnings,

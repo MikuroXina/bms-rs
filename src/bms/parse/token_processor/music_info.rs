@@ -27,7 +27,10 @@ impl TokenProcessor for MusicInfoProcessor {
         _prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut music_info = MusicInfo::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut music_info)
@@ -36,8 +39,14 @@ impl TokenProcessor for MusicInfoProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(music_info), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(music_info),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

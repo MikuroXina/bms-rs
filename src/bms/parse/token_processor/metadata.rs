@@ -31,7 +31,10 @@ impl TokenProcessor for MetadataProcessor {
         _prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut metadata = Metadata::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut metadata)
@@ -41,8 +44,14 @@ impl TokenProcessor for MetadataProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(metadata), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(metadata),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

@@ -28,7 +28,10 @@ impl TokenProcessor for SectionLenProcessor {
         prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut objects = SectionLenObjects::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Message {
                     track,
@@ -41,8 +44,14 @@ impl TokenProcessor for SectionLenProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(objects), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(objects),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

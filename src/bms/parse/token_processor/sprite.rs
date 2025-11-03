@@ -24,7 +24,10 @@ impl TokenProcessor for SpriteProcessor {
         _prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut sprites = Sprites::default();
-        let (res, warnings) = all_tokens(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            warnings,
+        } = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut sprites)
@@ -33,8 +36,14 @@ impl TokenProcessor for SpriteProcessor {
             })
         });
         match res {
-            Ok(()) => (Ok(sprites), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(sprites),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

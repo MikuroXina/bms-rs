@@ -46,7 +46,10 @@ impl TokenProcessor for BpmProcessor {
     ) -> TokenProcessorOutput<Self::Output> {
         let mut objects = BpmObjects::default();
         let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let (res, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+        let TokenProcessorOutput {
+            output: res,
+            mut warnings,
+        } = all_tokens_with_range(input, |token| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
                 .err()),
@@ -71,8 +74,14 @@ impl TokenProcessor for BpmProcessor {
         });
         warnings.extend(extra_warnings);
         match res {
-            Ok(()) => (Ok(objects), warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: Ok(objects),
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

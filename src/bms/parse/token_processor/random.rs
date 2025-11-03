@@ -580,7 +580,10 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         prompter: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         let mut activated = vec![];
-        let (res, mut warnings) = all_tokens_with_range(input, |token| {
+        let TokenProcessorOutput {
+            output: res,
+            mut warnings,
+        } = all_tokens_with_range(input, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -591,11 +594,20 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             }
             Ok(res)
         });
-        let (out_res, next_warnings) = self.next.process(&mut &activated[..], prompter);
+        let TokenProcessorOutput {
+            output: out_res,
+            warnings: next_warnings,
+        } = self.next.process(&mut &activated[..], prompter);
         warnings.extend(next_warnings);
         match res {
-            Ok(()) => (out_res, warnings),
-            Err(e) => (Err(e), warnings),
+            Ok(()) => TokenProcessorOutput {
+                output: out_res,
+                warnings,
+            },
+            Err(e) => TokenProcessorOutput {
+                output: Err(e),
+                warnings,
+            },
         }
     }
 }

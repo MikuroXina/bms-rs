@@ -17,6 +17,9 @@ impl TokenProcessor for IdentityTokenProcessor {
         _: &P,
     ) -> TokenProcessorOutput<Self::Output> {
         *input = &[];
-        (Ok(()), Vec::new())
+        TokenProcessorOutput {
+            output: Ok(()),
+            warnings: Vec::new(),
+        }
     }
 }
