@@ -14,8 +14,8 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
         model::stop::StopObjects,
+        parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,

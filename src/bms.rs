@@ -21,7 +21,7 @@ use fraction::GenericDecimal;
 use num::BigUint;
 
 pub mod command;
-pub mod error;
+
 pub mod lex;
 pub mod model;
 pub mod parse;
@@ -38,10 +38,10 @@ use ariadne::Report;
 use crate::diagnostics::{SimpleSource, ToAriadne};
 
 use self::{
-    error::ParseError,
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
+        ParseError, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{TokenProcessor, TokenProcessorOutput, common_preset, minor_preset},
     },

@@ -12,8 +12,8 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
         model::option::OptionObjects,
+        parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,

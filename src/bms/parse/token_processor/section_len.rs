@@ -10,8 +10,8 @@ use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens, filter_message,
 };
 use crate::bms::{
-    error::{ParseWarning, Result},
     model::section_len::SectionLenObjects,
+    parse::{ParseWarning, Result},
     prelude::*,
 };
 

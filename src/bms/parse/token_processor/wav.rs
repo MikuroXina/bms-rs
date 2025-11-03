@@ -24,7 +24,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{error::Result, model::wav::WavObjects, prelude::*},
+    bms::{model::wav::WavObjects, parse::Result, prelude::*},
     util::StrExtension,
 };
 

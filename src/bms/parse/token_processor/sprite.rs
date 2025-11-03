@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{error::Result, model::sprite::Sprites, prelude::*};
+use crate::bms::{model::sprite::Sprites, parse::Result, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

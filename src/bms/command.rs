@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::{error::Result, prelude::ParseWarning};
+use super::parse::{ParseWarning, Result};
 
 pub mod channel;
 pub mod graphics;

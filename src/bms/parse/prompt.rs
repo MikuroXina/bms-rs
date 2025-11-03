@@ -11,12 +11,12 @@ use crate::bms::{
         channel::Channel,
         time::{ObjTime, Track},
     },
-    error::{ParseWarning, Result},
     model::{
         bmp::{AtBgaDef, BgaDef, Bmp},
         judge::ExRankDef,
         wav::ExWavDef,
     },
+    parse::{ParseWarning, Result},
 };
 
 use crate::bms::model::obj::{

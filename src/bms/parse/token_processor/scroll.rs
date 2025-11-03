@@ -13,8 +13,8 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
         model::scroll::ScrollObjects,
+        parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,

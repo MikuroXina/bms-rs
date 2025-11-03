@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::bms::{error::Result, prelude::*};
+use crate::bms::{parse::Result, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

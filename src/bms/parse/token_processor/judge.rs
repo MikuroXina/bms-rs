@@ -15,7 +15,7 @@ use super::{
     parse_obj_ids,
 };
 use crate::{
-    bms::{error::Result, model::judge::JudgeObjects, prelude::*},
+    bms::{model::judge::JudgeObjects, parse::Result, prelude::*},
     util::StrExtension,
 };
 

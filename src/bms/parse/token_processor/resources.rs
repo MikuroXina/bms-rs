@@ -11,7 +11,7 @@ use std::{path::Path, str::FromStr};
 use num::BigUint;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{error::Result, model::resources::Resources, prelude::*};
+use crate::bms::{model::resources::Resources, parse::Result, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{error::Result, model::music_info::MusicInfo, prelude::*};
+use crate::bms::{model::music_info::MusicInfo, parse::Result, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

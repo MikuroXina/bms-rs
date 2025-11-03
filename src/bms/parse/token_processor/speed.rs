@@ -13,8 +13,8 @@ use super::{
 };
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
         model::speed::SpeedObjects,
+        parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,

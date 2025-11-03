@@ -16,7 +16,7 @@
 use std::{path::Path, str::FromStr};
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{error::Result, model::metadata::Metadata, prelude::*};
+use crate::bms::{model::metadata::Metadata, parse::Result, prelude::*};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

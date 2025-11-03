@@ -28,7 +28,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{error::Result, model::bmp::BmpObjects, prelude::*},
+    bms::{model::bmp::BmpObjects, parse::Result, prelude::*},
     util::StrExtension,
 };
 

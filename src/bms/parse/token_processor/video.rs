@@ -16,7 +16,7 @@ use num::BigUint;
 
 use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range};
 use crate::{
-    bms::{error::Result, model::video::Video, prelude::*},
+    bms::{model::video::Video, parse::Result, prelude::*},
     util::StrExtension,
 };
 

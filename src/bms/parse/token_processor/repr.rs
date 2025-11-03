@@ -11,8 +11,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
 use crate::bms::{
-    error::{ParseWarning, Result},
     model::repr::BmsSourceRepresentation,
+    parse::{ParseWarning, Result},
     prelude::*,
 };
 

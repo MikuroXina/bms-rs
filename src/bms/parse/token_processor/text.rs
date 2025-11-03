@@ -11,7 +11,7 @@ use super::{
     parse_obj_ids,
 };
 use crate::{
-    bms::{error::Result, model::text::TextObjects, prelude::*},
+    bms::{model::text::TextObjects, parse::Result, prelude::*},
     util::StrExtension,
 };
 

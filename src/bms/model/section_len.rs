@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use crate::bms::{error::Result, parse::prompt::TrackDuplication, prelude::*};
+use crate::bms::{parse::Result, parse::prompt::TrackDuplication, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -8,7 +8,7 @@ use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range,
     parse_hex_values,
 };
-use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
+use crate::bms::{model::volume::VolumeObjects, parse::Result, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

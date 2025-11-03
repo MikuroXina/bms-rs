@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 use itertools::Itertools;
 
 use crate::bms::{
-    error::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
+    parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
 
