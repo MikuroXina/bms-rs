@@ -5,7 +5,7 @@
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
 use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
+    super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range,
     parse_hex_values,
 };
 use crate::bms::{error::Result, model::volume::VolumeObjects, prelude::*};
@@ -21,10 +21,10 @@ impl TokenProcessor for VolumeProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> TokenProcessorOutput<Self::Output> {
         let mut objects = VolumeObjects::default();
         let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+        let (res, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), &mut objects)
                 .err()),
@@ -46,9 +46,12 @@ impl TokenProcessor for VolumeProcessor {
                 Err(warn) => Ok(Some(warn)),
             },
             Token::NotACommand(_) => Ok(None),
-        })?;
+        });
         warnings.extend(extra_warnings);
-        Ok((objects, warnings))
+        match res {
+            Ok(()) => (Ok(objects), warnings),
+            Err(e) => (Err(e), warnings),
+        }
     }
 }
 

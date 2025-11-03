@@ -21,7 +21,7 @@ use self::{prompt::Prompter, token_processor::TokenProcessor};
 
 use super::{
     ParseConfig,
-    error::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
+    error::{ParseError, ParseWarningWithRange},
     rng::Rng,
 };
 
@@ -45,18 +45,10 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let res = proc
-            .process(&mut tokens_slice, &prompter)
-            .map_err(|e: ParseErrorWithRange| e.content().clone());
-        match res {
-            Ok((bms, parse_warnings)) => ParseOutput {
-                bms: Ok(bms),
-                parse_warnings,
-            },
-            Err(err) => ParseOutput {
-                bms: Err(err),
-                parse_warnings: Vec::new(),
-            },
+        let (res, parse_warnings) = proc.process(&mut tokens_slice, &prompter);
+        ParseOutput {
+            bms: res.map_err(|e| e.into_content()),
+            parse_warnings,
         }
     }
 }

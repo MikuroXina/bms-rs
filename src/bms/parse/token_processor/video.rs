@@ -14,7 +14,7 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
-use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range};
+use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range};
 use crate::{
     bms::{error::Result, model::video::Video, prelude::*},
     util::StrExtension,
@@ -41,10 +41,10 @@ impl TokenProcessor for VideoProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> TokenProcessorOutput<Self::Output> {
         let mut video = Video::default();
         let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+        let (res, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
                 .err()),
@@ -66,9 +66,12 @@ impl TokenProcessor for VideoProcessor {
                 Err(warn) => Ok(Some(warn)),
             },
             Token::NotACommand(_) => Ok(None),
-        })?;
+        });
         warnings.extend(extra_warnings);
-        Ok((video, warnings))
+        match res {
+            Ok(()) => (Ok(video), warnings),
+            Err(e) => (Err(e), warnings),
+        }
     }
 }
 

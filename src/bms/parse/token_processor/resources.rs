@@ -10,7 +10,7 @@ use std::{path::Path, str::FromStr};
 
 use num::BigUint;
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
 use crate::bms::{error::Result, model::resources::Resources, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
@@ -24,17 +24,20 @@ impl TokenProcessor for ResourcesProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         _prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> TokenProcessorOutput<Self::Output> {
         let mut resources = Resources::default();
-        let (_, warnings) = all_tokens(input, |token| {
+        let (res, warnings) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
                     .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        })?;
-        Ok((resources, warnings))
+        });
+        match res {
+            Ok(()) => (Ok(resources), warnings),
+            Err(e) => (Err(e), warnings),
+        }
     }
 }
 

@@ -54,7 +54,7 @@ use crate::{
     util::StrExtension,
 };
 
-use super::{TokenProcessor, TokenProcessorResult};
+use super::{TokenProcessor, TokenProcessorOutput};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -578,9 +578,9 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> TokenProcessorOutput<Self::Output> {
         let mut activated = vec![];
-        let (_, mut warnings) = all_tokens_with_range(input, |token| {
+        let (res, mut warnings) = all_tokens_with_range(input, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -590,10 +590,13 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
                 activated.push(token);
             }
             Ok(res)
-        })?;
-        let (out, next_warnings) = self.next.process(&mut &activated[..], prompter)?;
+        });
+        let (out_res, next_warnings) = self.next.process(&mut &activated[..], prompter);
         warnings.extend(next_warnings);
-        Ok((out, warnings))
+        match res {
+            Ok(()) => (out_res, warnings),
+            Err(e) => (Err(e), warnings),
+        }
     }
 }
 

@@ -9,7 +9,7 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
     bms::{
@@ -41,10 +41,10 @@ impl TokenProcessor for SpeedProcessor {
         &self,
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+    ) -> TokenProcessorOutput<Self::Output> {
         let mut objects = SpeedObjects::default();
         let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+        let (res, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
                 .err()),
@@ -66,9 +66,12 @@ impl TokenProcessor for SpeedProcessor {
                 Err(warn) => Ok(Some(warn)),
             },
             Token::NotACommand(_) => Ok(None),
-        })?;
+        });
         warnings.extend(extra_warnings);
-        Ok((objects, warnings))
+        match res {
+            Ok(()) => (Ok(objects), warnings),
+            Err(e) => (Err(e), warnings),
+        }
     }
 }
 
