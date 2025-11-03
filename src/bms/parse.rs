@@ -20,14 +20,20 @@ use crate::diagnostics::{SimpleSource, ToAriadne};
 #[cfg(feature = "diagnostics")]
 use ariadne::{Color, Label, Report, ReportKind};
 
-use crate::bms::TokenProcessorOutput;
 use crate::bms::{
-    command::channel::mapper::KeyLayoutMapper, lex::token::TokenWithRange, model::Bms,
+    ParseConfig, TokenProcessorOutput,
+    command::{
+        ObjId,
+        channel::{Channel, mapper::KeyLayoutMapper},
+        mixin::SourceRangeMixin,
+        time::{ObjTime, Track},
+    },
+    lex::token::TokenWithRange,
+    model::Bms,
+    rng::Rng,
 };
 
 use self::{prompt::Prompter, token_processor::TokenProcessor};
-
-use super::{ParseConfig, command::ObjId, rng::Rng};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -55,7 +61,7 @@ pub enum ParseError {
 }
 
 /// A parse error with position information.
-pub type ParseErrorWithRange = super::command::mixin::SourceRangeMixin<ParseError>;
+pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
 
 /// A warning occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -72,27 +78,35 @@ pub enum ParseWarning {
     DuplicatingDef(ObjId),
     /// Has duplicated track object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
     #[error("duplicating track object: {0} {1}")]
-    DuplicatingTrackObj(
-        super::command::time::Track,
-        super::command::channel::Channel,
-    ),
+    DuplicatingTrackObj(Track, Channel),
     /// Has duplicated channel object, that `prompt_handler` returned [`DuplicationWorkaround::Warn`].
     #[error("duplicating channel object: {0} {1}")]
-    DuplicatingChannelObj(
-        super::command::time::ObjTime,
-        super::command::channel::Channel,
-    ),
+    DuplicatingChannelObj(ObjTime, Channel),
     /// Failed to convert a byte into a base-62 character `0-9A-Za-z`.
     #[error("expected id format is base 62 (`0-9A-Za-z`)")]
     OutOfBase62,
 }
 
+/// A parse warning with position information.
+pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
+
+#[cfg(feature = "diagnostics")]
+impl ToAriadne for ParseWarningWithRange {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        let (start, end) = self.as_span();
+        let filename = src.name().to_string();
+        Report::build(ReportKind::Warning, (filename.clone(), start..end))
+            .with_message("parse: ".to_string() + &self.content().to_string())
+            .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
+            .finish()
+    }
+}
+
 /// Type alias of `core::result::Result<T, ParseWarning>`
 pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
-
-/// A parse warning with position information.
-pub type ParseWarningWithRange = super::command::mixin::SourceRangeMixin<ParseWarning>;
-
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -121,20 +135,5 @@ impl Bms {
             bms: res,
             parse_warnings,
         }
-    }
-}
-
-#[cfg(feature = "diagnostics")]
-impl ToAriadne for ParseWarningWithRange {
-    fn to_report<'a>(
-        &self,
-        src: &SimpleSource<'a>,
-    ) -> Report<'a, (String, std::ops::Range<usize>)> {
-        let (start, end) = self.as_span();
-        let filename = src.name().to_string();
-        Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("parse: ".to_string() + &self.content().to_string())
-            .with_label(Label::new((filename, start..end)).with_color(Color::Blue))
-            .finish()
     }
 }
