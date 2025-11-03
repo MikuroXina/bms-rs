@@ -13,12 +13,15 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let parse_output = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_output.parse_warnings, vec![]);
-    let bms = parse_output.bms.expect("no errors");
+    assert_eq!(warnings, vec![]);
+    let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
     assert_eq!(
@@ -41,12 +44,15 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let parse_output = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
-    assert_eq!(parse_output.parse_warnings, vec![]);
-    let bms = parse_output.bms.expect("no errors");
+    assert_eq!(warnings, vec![]);
+    let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);
 }

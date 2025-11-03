@@ -48,11 +48,14 @@ fn nested_random() {
     } = TokenStream::parse_lex(SRC);
     assert_eq!(lex_warnings, vec![]);
 
-    let parse_output = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let ParseOutput {
+        bms,
+        parse_warnings: _,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
-    let bms = parse_output.bms.unwrap();
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -83,11 +86,14 @@ fn nested_random() {
         ]
     );
 
-    let parse_output = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: _,
+    } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(RngMock([BigUint::from(1u64), BigUint::from(2u64)])),
     );
-    let bms = parse_output.bms.unwrap();
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -122,11 +128,14 @@ fn nested_random() {
         ]
     );
 
-    let parse_output = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: _,
+    } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
     );
-    let bms = parse_output.bms.unwrap();
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![

@@ -42,9 +42,12 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 fn test_always_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
-    assert_eq!(parse_output.parse_warnings, vec![]);
-    let bms = parse_output.bms.unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -109,9 +112,12 @@ fn test_always_use_older() {
 fn test_always_use_newer() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let parse_output = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_output.parse_warnings, vec![]);
-    let bms = parse_output.bms.unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
@@ -176,13 +182,15 @@ fn test_always_use_newer() {
 fn test_always_warn_and_use_older() {
     let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
 
-    let parse_output =
-        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
-    let bms = parse_output.bms.unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
+    let bms = bms.unwrap();
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
-    assert_eq!(parse_output.parse_warnings.len(), 9);
-    assert!(parse_output.parse_warnings.iter().all(|w: &_| matches!(
+    assert_eq!(warnings.len(), 9);
+    assert!(warnings.iter().all(|w: &_| matches!(
         w.content(),
         ParseWarning::DuplicatingChannelObj(_, _) | ParseWarning::DuplicatingDef(_)
     )));
