@@ -43,15 +43,9 @@ impl TokenProcessor for SectionLenProcessor {
                 Token::Header { .. } | Token::NotACommand(_) => None,
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(objects),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| objects),
+            warnings,
         }
     }
 }

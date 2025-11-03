@@ -43,15 +43,9 @@ impl TokenProcessor for MetadataProcessor {
                 Token::NotACommand(line) => self.on_comment(line, &mut metadata).err(),
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(metadata),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| metadata),
+            warnings,
         }
     }
 }

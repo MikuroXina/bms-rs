@@ -70,15 +70,9 @@ impl TokenProcessor for OptionProcessor {
             Token::NotACommand(_) => Ok(None),
         });
         warnings.extend(extra_warnings);
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(objects),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| objects),
+            warnings,
         }
     }
 }

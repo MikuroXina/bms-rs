@@ -599,15 +599,9 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             warnings: next_warnings,
         } = self.next.process(&mut &activated[..], prompter);
         warnings.extend(next_warnings);
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: out_res,
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.and(out_res),
+            warnings,
         }
     }
 }

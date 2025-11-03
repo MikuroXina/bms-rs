@@ -37,15 +37,9 @@ impl TokenProcessor for ResourcesProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(resources),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| resources),
+            warnings,
         }
     }
 }

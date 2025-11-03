@@ -35,15 +35,9 @@ impl TokenProcessor for SpriteProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(sprites),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| sprites),
+            warnings,
         }
     }
 }

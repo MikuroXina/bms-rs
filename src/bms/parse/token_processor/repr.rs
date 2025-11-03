@@ -50,15 +50,9 @@ impl TokenProcessor for RepresentationProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(repr),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| repr),
+            warnings,
         }
     }
 }

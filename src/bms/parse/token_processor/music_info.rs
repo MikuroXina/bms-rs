@@ -38,15 +38,9 @@ impl TokenProcessor for MusicInfoProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         });
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(music_info),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| music_info),
+            warnings,
         }
     }
 }

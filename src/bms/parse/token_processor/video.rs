@@ -71,15 +71,9 @@ impl TokenProcessor for VideoProcessor {
             Token::NotACommand(_) => Ok(None),
         });
         warnings.extend(extra_warnings);
-        match res {
-            Ok(()) => TokenProcessorOutput {
-                output: Ok(video),
-                warnings,
-            },
-            Err(e) => TokenProcessorOutput {
-                output: Err(e),
-                warnings,
-            },
+        TokenProcessorOutput {
+            output: res.map(|_| video),
+            warnings,
         }
     }
 }
