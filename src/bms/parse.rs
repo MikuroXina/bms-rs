@@ -99,7 +99,7 @@ pub type ParseWarningWithRange = super::command::mixin::SourceRangeMixin<ParseWa
 #[must_use]
 pub struct ParseOutput {
     /// The output Bms.
-    pub bms: core::result::Result<Bms, ParseError>,
+    pub bms: core::result::Result<Bms, ParseErrorWithRange>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }
@@ -118,7 +118,7 @@ impl Bms {
             warnings: parse_warnings,
         } = proc.process(&mut tokens_slice, &prompter);
         ParseOutput {
-            bms: res.map_err(|e| e.into_content()),
+            bms: res,
             parse_warnings,
         }
     }

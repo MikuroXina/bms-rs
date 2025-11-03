@@ -41,7 +41,7 @@ use self::{
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseError, ParseWarningWithRange,
+        ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{TokenProcessor, TokenProcessorOutput, common_preset, minor_preset},
     },
@@ -278,7 +278,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
 #[must_use]
 pub struct BmsOutput {
     /// The parsed BMS data.
-    pub bms: Result<Bms, ParseError>,
+    pub bms: Result<Bms, ParseErrorWithRange>,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
 }
