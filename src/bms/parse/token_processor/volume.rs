@@ -23,28 +23,32 @@ impl TokenProcessor for VolumeProcessor {
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut objects = VolumeObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), &mut objects)
+                .err()),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => match self.on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut objects,
+            ) {
+                Ok(w) => {
+                    extra_warnings.extend(w);
+                    Ok(None)
+                }
+                Err(warn) => Ok(Some(warn)),
+            },
+            Token::NotACommand(_) => Ok(None),
         })?;
-        Ok(objects)
+        warnings.extend(extra_warnings);
+        Ok((objects, warnings))
     }
 }
 
@@ -69,10 +73,13 @@ impl VolumeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut VolumeObjects,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             Channel::BgmVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
+                let (pairs, mut w) = parse_hex_values(track, message);
+                warnings.append(&mut w);
+                for (time, volume_value) in pairs {
                     objects.push_bgm_volume_change(
                         BgmVolumeObj {
                             time,
@@ -83,7 +90,9 @@ impl VolumeProcessor {
                 }
             }
             Channel::KeyVolume => {
-                for (time, volume_value) in parse_hex_values(track, message, prompter) {
+                let (pairs, mut w) = parse_hex_values(track, message);
+                warnings.append(&mut w);
+                for (time, volume_value) in pairs {
                     objects.push_key_volume_change(
                         KeyVolumeObj {
                             time,
@@ -95,6 +104,6 @@ impl VolumeProcessor {
             }
             _ => {}
         }
-        Ok(())
+        Ok(warnings)
     }
 }

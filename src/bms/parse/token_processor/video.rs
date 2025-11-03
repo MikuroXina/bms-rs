@@ -43,28 +43,32 @@ impl TokenProcessor for VideoProcessor {
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut video = Video::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut video,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
+                .err()),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => match self.on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut video,
+            ) {
+                Ok(w) => {
+                    extra_warnings.extend(w);
+                    Ok(None)
+                }
+                Err(warn) => Ok(Some(warn)),
+            },
+            Token::NotACommand(_) => Ok(None),
         })?;
-        Ok(video)
+        warnings.extend(extra_warnings);
+        Ok((video, warnings))
     }
 }
 
@@ -134,13 +138,14 @@ impl VideoProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Seek {
             use super::parse_obj_ids;
 
-            for (time, seek_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.append(&mut w);
+            for (time, seek_id) in pairs {
                 let position = video
                     .seek_defs
                     .get(&seek_id)
@@ -149,6 +154,6 @@ impl VideoProcessor {
                 video.push_seek_event(SeekObj { time, position }, prompter)?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

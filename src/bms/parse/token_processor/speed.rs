@@ -43,28 +43,32 @@ impl TokenProcessor for SpeedProcessor {
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut objects = SpeedObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => match self.on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut objects,
+            ) {
+                Ok(w) => {
+                    extra_warnings.extend(w);
+                    Ok(None)
+                }
+                Err(warn) => Ok(Some(warn)),
+            },
+            Token::NotACommand(_) => Ok(None),
         })?;
-        Ok(objects)
+        warnings.extend(extra_warnings);
+        Ok((objects, warnings))
     }
 }
 
@@ -104,10 +108,12 @@ impl SpeedProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Speed {
-            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.append(&mut w);
+            for (time, obj) in pairs {
                 let factor = objects
                     .speed_defs
                     .get(&obj)
@@ -116,6 +122,6 @@ impl SpeedProcessor {
                 objects.push_speed_factor_change(SpeedObj { time, factor }, prompter)?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

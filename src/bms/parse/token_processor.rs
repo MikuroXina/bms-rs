@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 use itertools::Itertools;
 
 use crate::bms::{
-    error::{ParseError, ParseErrorWithRange},
+    error::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
 
@@ -34,8 +34,8 @@ mod video;
 mod volume;
 mod wav;
 
-/// A type alias of `Result<T, Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult<T> = Result<T, ParseErrorWithRange>;
+/// Result of a token processor: output value with collected warnings, or a parse error.
+pub type TokenProcessorResult<T> = Result<(T, Vec<ParseWarningWithRange>), ParseErrorWithRange>;
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
@@ -106,9 +106,10 @@ where
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut cloned = *input;
-        let first_output = self.first.process(&mut cloned, prompter)?;
-        let second_output = self.second.process(input, prompter)?;
-        Ok((first_output, second_output))
+        let (first_output, mut first_warnings) = self.first.process(&mut cloned, prompter)?;
+        let (second_output, second_warnings) = self.second.process(input, prompter)?;
+        first_warnings.extend(second_warnings);
+        Ok(((first_output, second_output), first_warnings))
     }
 }
 
@@ -131,8 +132,8 @@ where
         input: &mut &[&TokenWithRange<'_>],
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
-        let res = self.source.process(input, prompter)?;
-        Ok((self.mapping)(res))
+        let (res, warnings) = self.source.process(input, prompter)?;
+        Ok(((self.mapping)(res), warnings))
     }
 }
 
@@ -285,50 +286,45 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<
-    'a,
-    P: Prompter,
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
->(
+fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
     mut f: F,
 ) -> TokenProcessorResult<()> {
+    let mut warnings = Vec::new();
     for token in &**input {
         if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+            warnings.push(warning.into_wrapper(token));
         }
     }
     *input = &[];
-    Ok(())
+    Ok(((), warnings))
 }
 
 fn all_tokens_with_range<
     'a,
-    P: Prompter,
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 >(
     input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
     mut f: F,
 ) -> TokenProcessorResult<()> {
+    let mut warnings = Vec::new();
     for token in &**input {
         if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
+            warnings.push(warning.into_wrapper(token));
         }
     }
     *input = &[];
-    Ok(())
+    Ok(((), warnings))
 }
 
-fn parse_obj_ids<P: Prompter>(
+fn parse_obj_ids(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
-) -> impl Iterator<Item = (ObjTime, ObjId)> {
+) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
         );
     }
@@ -350,16 +346,18 @@ fn parse_obj_ids<P: Prompter>(
                     None
                 }
             }
-        })
+        }
+    }
+    (out, warnings)
 }
 
-fn parse_hex_values<P: Prompter>(
+fn parse_hex_values(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
-) -> impl Iterator<Item = (ObjTime, u8)> {
+) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
         );
     }

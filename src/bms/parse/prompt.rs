@@ -40,10 +40,8 @@ pub trait Prompter {
     fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround;
     /// Determines a [`DuplicationWorkaround`] for [`ChannelDuplication`].
     fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
-    /// Shows the user a [`ParseWarningWithRange`].
-    fn warn(&self, warning: ParseWarningWithRange) {
-        eprintln!("{warning:?}");
-    }
+    /// Reports a parse warning with source range.
+    fn warn(&self, warning: ParseWarningWithRange);
 }
 
 /// It represents that there is a duplicated definition on the BMS file.
@@ -428,6 +426,8 @@ impl Prompter for AlwaysUseOlder {
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseOlder
     }
+
+    fn warn(&self, _warning: ParseWarningWithRange) {}
 }
 
 /// The strategy that always using newer ones.
@@ -446,6 +446,8 @@ impl Prompter for AlwaysUseNewer {
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::UseNewer
     }
+
+    fn warn(&self, _warning: ParseWarningWithRange) {}
 }
 
 /// The strategy that always warns and uses older values.
@@ -464,6 +466,8 @@ impl Prompter for AlwaysWarnAndUseOlder {
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseOlder
     }
+
+    fn warn(&self, _warning: ParseWarningWithRange) {}
 }
 
 /// The strategy that always warns and uses newer values.
@@ -482,6 +486,8 @@ impl Prompter for AlwaysWarnAndUseNewer {
     fn handle_channel_duplication(&self, _: ChannelDuplication) -> DuplicationWorkaround {
         DuplicationWorkaround::WarnAndUseNewer
     }
+
+    fn warn(&self, _warning: ParseWarningWithRange) {}
 }
 
 /// The strategy that always panics on reported a warning and uses newer values.
@@ -502,7 +508,7 @@ impl Prompter for PanicAndUseNewer {
     }
 
     fn warn(&self, warning: ParseWarningWithRange) {
-        panic!("{warning:?}");
+        panic!("parse warning reported: {:?}", warning.content());
     }
 }
 
@@ -524,7 +530,7 @@ impl Prompter for PanicAndUseOlder {
     }
 
     fn warn(&self, warning: ParseWarningWithRange) {
-        panic!("{warning:?}");
+        panic!("parse warning reported: {:?}", warning.content());
     }
 }
 
@@ -535,14 +541,14 @@ pub fn warning_collector<P>(
 ) -> WarningCollector<'_, P> {
     WarningCollector {
         source: prompter,
-        dst: RefCell::from(dst),
+        _dst: RefCell::from(dst),
     }
 }
 
 /// A [`Prompter`] that collects warnings to a vec and delegates them another one.
 pub struct WarningCollector<'a, P> {
     source: P,
-    dst: RefCell<&'a mut Vec<ParseWarningWithRange>>,
+    _dst: RefCell<&'a mut Vec<ParseWarningWithRange>>,
 }
 
 impl<P: Prompter> Prompter for WarningCollector<'_, P> {
@@ -560,6 +566,6 @@ impl<P: Prompter> Prompter for WarningCollector<'_, P> {
 
     fn warn(&self, warning: ParseWarningWithRange) {
         self.source.warn(warning.clone());
-        self.dst.borrow_mut().push(warning);
+        self._dst.borrow_mut().push(warning);
     }
 }

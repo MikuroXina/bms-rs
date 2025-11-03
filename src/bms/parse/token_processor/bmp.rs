@@ -55,28 +55,32 @@ impl TokenProcessor for BmpProcessor {
         prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut objects = BmpObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let (_, mut warnings) = all_tokens_with_range(input, |token| match token.content() {
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()),
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => match self.on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut objects,
+            ) {
+                Ok(w) => {
+                    extra_warnings.extend(w);
+                    Ok(None)
+                }
+                Err(warn) => Ok(Some(warn)),
+            },
+            Token::NotACommand(_) => Ok(None),
         })?;
-        Ok(objects)
+        warnings.extend(extra_warnings);
+        Ok((objects, warnings))
     }
 }
 
@@ -400,15 +404,16 @@ impl BmpProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             channel @ (Channel::BgaBase
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
-                for (time, obj) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
+                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.append(&mut w);
+                for (time, obj) in pairs {
                     if !objects.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
@@ -430,7 +435,9 @@ impl BmpProcessor {
             | Channel::BgaLayer2Opacity
             | Channel::BgaPoorOpacity) => {
                 use super::parse_hex_values;
-                for (time, opacity_value) in parse_hex_values(track, message, prompter) {
+                let (pairs, mut w) = parse_hex_values(track, message);
+                warnings.append(&mut w);
+                for (time, opacity_value) in pairs {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     objects.push_bga_opacity_change(
@@ -449,9 +456,9 @@ impl BmpProcessor {
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
                 use super::parse_obj_ids;
-                for (time, argb_id) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
+                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.append(&mut w);
+                for (time, argb_id) in pairs {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
                     let argb = objects
@@ -468,9 +475,9 @@ impl BmpProcessor {
             }
             Channel::BgaKeybound => {
                 use super::parse_obj_ids;
-                for (time, keybound_id) in
-                    parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-                {
+                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.append(&mut w);
+                for (time, keybound_id) in pairs {
                     let event = objects
                         .swbga_events
                         .get(&keybound_id)
@@ -481,6 +488,6 @@ impl BmpProcessor {
             }
             _ => {}
         }
-        Ok(())
+        Ok(warnings)
     }
 }

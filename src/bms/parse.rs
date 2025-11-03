@@ -45,14 +45,23 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let mut parse_warnings = Vec::new();
-        let prompter = crate::bms::parse::prompt::warning_collector(prompter, &mut parse_warnings);
-        let bms = proc
+        let res = proc
             .process(&mut tokens_slice, &prompter)
             .map_err(|e: ParseErrorWithRange| e.content().clone());
-        ParseOutput {
-            bms,
-            parse_warnings,
+        match res {
+            Ok((bms, parse_warnings)) => {
+                for w in &parse_warnings {
+                    prompter.warn(w.clone());
+                }
+                ParseOutput {
+                    bms: Ok(bms),
+                    parse_warnings,
+                }
+            }
+            Err(err) => ParseOutput {
+                bms: Err(err),
+                parse_warnings: Vec::new(),
+            },
         }
     }
 }

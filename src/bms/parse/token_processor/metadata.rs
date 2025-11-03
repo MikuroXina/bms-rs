@@ -28,10 +28,10 @@ impl TokenProcessor for MetadataProcessor {
     fn process<P: Prompter>(
         &self,
         input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
+        _prompter: &P,
     ) -> TokenProcessorResult<Self::Output> {
         let mut metadata = Metadata::default();
-        all_tokens(input, prompter, |token| {
+        let (_, warnings) = all_tokens(input, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut metadata)
@@ -40,7 +40,7 @@ impl TokenProcessor for MetadataProcessor {
                 Token::NotACommand(line) => self.on_comment(line, &mut metadata).err(),
             })
         })?;
-        Ok(metadata)
+        Ok((metadata, warnings))
     }
 }
 
