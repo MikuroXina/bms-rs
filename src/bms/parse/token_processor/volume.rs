@@ -85,8 +85,8 @@ impl VolumeProcessor {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             Channel::BgmVolume => {
-                let (pairs, mut w) = parse_hex_values(track, message);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_hex_values(track, message);
+                warnings.extend(w);
                 for (time, volume_value) in pairs {
                     objects.push_bgm_volume_change(
                         BgmVolumeObj {
@@ -98,8 +98,8 @@ impl VolumeProcessor {
                 }
             }
             Channel::KeyVolume => {
-                let (pairs, mut w) = parse_hex_values(track, message);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_hex_values(track, message);
+                warnings.extend(w);
                 for (time, volume_value) in pairs {
                     objects.push_key_volume_change(
                         KeyVolumeObj {

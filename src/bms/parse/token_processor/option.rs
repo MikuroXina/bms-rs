@@ -120,8 +120,8 @@ impl OptionProcessor {
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::OptionChange {
-            let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
-            warnings.append(&mut w);
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
             for (time, option_id) in pairs {
                 let option = objects
                     .change_options

@@ -309,8 +309,8 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Bgm {
-            let (pairs, mut w) = parse_obj_ids(track, message.clone(), &self.case_sensitive_obj_id);
-            warnings.append(&mut w);
+            let (pairs, w) = parse_obj_ids(track, message.clone(), &self.case_sensitive_obj_id);
+            warnings.extend(w);
             for (time, obj) in pairs {
                 objects.notes.push_bgm::<T>(time, obj);
             }

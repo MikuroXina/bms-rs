@@ -419,8 +419,8 @@ impl BmpProcessor {
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
-                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.extend(w);
                 for (time, obj) in pairs {
                     if !objects.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
@@ -443,8 +443,8 @@ impl BmpProcessor {
             | Channel::BgaLayer2Opacity
             | Channel::BgaPoorOpacity) => {
                 use super::parse_hex_values;
-                let (pairs, mut w) = parse_hex_values(track, message);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_hex_values(track, message);
+                warnings.extend(w);
                 for (time, opacity_value) in pairs {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
@@ -464,8 +464,8 @@ impl BmpProcessor {
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
                 use super::parse_obj_ids;
-                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.extend(w);
                 for (time, argb_id) in pairs {
                     let layer = BgaLayer::from_channel(channel)
                         .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
@@ -483,8 +483,8 @@ impl BmpProcessor {
             }
             Channel::BgaKeybound => {
                 use super::parse_obj_ids;
-                let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
-                warnings.append(&mut w);
+                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                warnings.extend(w);
                 for (time, keybound_id) in pairs {
                     let event = objects
                         .swbga_events
