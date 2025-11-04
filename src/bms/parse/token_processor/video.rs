@@ -55,19 +55,21 @@ impl TokenProcessor for VideoProcessor {
                 track,
                 channel,
                 message,
-            } => match self.on_message(
-                *track,
-                *channel,
-                message.as_ref().into_wrapper(token),
-                prompter,
-                &mut video,
-            ) {
-                Ok(w) => {
-                    extra_warnings.extend(w);
-                    Ok(None)
-                }
-                Err(warn) => Ok(Some(warn)),
-            },
+            } => self
+                .on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut video,
+                )
+                .map_or_else(
+                    |warn| Ok(Some(warn)),
+                    |w| {
+                        extra_warnings.extend(w);
+                        Ok(None)
+                    },
+                ),
             Token::NotACommand(_) => Ok(None),
         });
         warnings.extend(extra_warnings);

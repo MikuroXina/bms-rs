@@ -65,19 +65,21 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
                 track,
                 channel,
                 message,
-            } => match self.on_message(
-                *track,
-                *channel,
-                message.as_ref().into_wrapper(token),
-                prompter,
-                &mut objects,
-            ) {
-                Ok(w) => {
-                    extra_warnings.extend(w);
-                    Ok(None)
-                }
-                Err(warn) => Ok(Some(warn)),
-            },
+            } => self
+                .on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                )
+                .map_or_else(
+                    |warn| Ok(Some(warn)),
+                    |w| {
+                        extra_warnings.extend(w);
+                        Ok(None)
+                    },
+                ),
             Token::NotACommand(_) => Ok(None),
         });
         warnings.extend(extra_warnings);
