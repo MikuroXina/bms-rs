@@ -7,7 +7,7 @@
 
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 
 use crate::bms::{
     parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
@@ -319,23 +319,28 @@ fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseE
     input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,
 ) -> TokenProcessorOutput<()> {
-    let mut warnings = Vec::new();
-    for token in &**input {
-        match f(token.content()) {
-            Ok(Some(warning)) => warnings.push(warning.into_wrapper(token)),
-            Ok(None) => {}
-            Err(err) => {
-                *input = &[];
-                return TokenProcessorOutput {
-                    output: Err(err.into_wrapper(token)),
-                    warnings,
-                };
+    // Accumulate warnings until an error occurs, using iterator-based control flow
+    let mut err: Option<ParseErrorWithRange> = None;
+    let warnings: Vec<ParseWarningWithRange> = input
+        .iter()
+        .scan((), |_, &token| {
+            if err.is_some() {
+                return None;
             }
-        }
-    }
+            match f(token.content()) {
+                Ok(Some(w)) => Some(Some(w.into_wrapper(token))),
+                Ok(None) => Some(None),
+                Err(e) => {
+                    err = Some(e.into_wrapper(token));
+                    None
+                }
+            }
+        })
+        .flatten()
+        .collect();
     *input = &[];
     TokenProcessorOutput {
-        output: Ok(()),
+        output: err.map_or(Ok(()), Err),
         warnings,
     }
 }
@@ -347,23 +352,28 @@ fn all_tokens_with_range<
     input: &mut &'a [&TokenWithRange<'_>],
     mut f: F,
 ) -> TokenProcessorOutput<()> {
-    let mut warnings = Vec::new();
-    for token in &**input {
-        match f(token) {
-            Ok(Some(warning)) => warnings.push(warning.into_wrapper(token)),
-            Ok(None) => {}
-            Err(err) => {
-                *input = &[];
-                return TokenProcessorOutput {
-                    output: Err(err.into_wrapper(token)),
-                    warnings,
-                };
+    // Iterator-based processing with early-stop and collected warnings
+    let mut err: Option<ParseErrorWithRange> = None;
+    let warnings: Vec<ParseWarningWithRange> = input
+        .iter()
+        .scan((), |_, &token| {
+            if err.is_some() {
+                return None;
             }
-        }
-    }
+            match f(token) {
+                Ok(Some(w)) => Some(Some(w.into_wrapper(token))),
+                Ok(None) => Some(None),
+                Err(e) => {
+                    err = Some(e.into_wrapper(token));
+                    None
+                }
+            }
+        })
+        .flatten()
+        .collect();
     *input = &[];
     TokenProcessorOutput {
-        output: Ok(()),
+        output: err.map_or(Ok(()), Err),
         warnings,
     }
 }
