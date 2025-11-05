@@ -49,6 +49,7 @@ pub use super::{
             BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
             SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
         },
+        random::{ControlFlowValue, If, IfChainEntry, Random},
         wav::ExWavDef,
     },
     parse::{
