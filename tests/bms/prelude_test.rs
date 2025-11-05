@@ -167,8 +167,9 @@ fn test_prelude_diagnostics_imports() {
     let source = SimpleSource::new("test.bms", source_text);
     let warnings = vec![BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)];
 
-    // Test that diagnostics functions can be called
-    emit_bms_warnings("test.bms", source_text, &warnings);
+    // Test that diagnostics reports can be generated without printing
+    let _reports = bms_rs::diagnostics::collect_bms_reports("test.bms", source_text, &warnings);
+    assert_eq!(_reports.len(), warnings.len());
 
     // Test ToAriadne trait
     let _report = _bms_warning.to_report(&source);
