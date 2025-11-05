@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::parse::{ParseWarning, Result};
+use super::parse::ParseWarning;
 
 pub mod channel;
 pub mod graphics;
@@ -180,7 +180,10 @@ impl ObjId {
     /// Parses the object id from the string `value`.
     ///
     /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
-    pub fn try_from(value: &str, case_sensitive_obj_id: bool) -> Result<Self> {
+    pub fn try_from(
+        value: &str,
+        case_sensitive_obj_id: bool,
+    ) -> core::result::Result<Self, ParseWarning> {
         if value.len() != 2 {
             return Err(ParseWarning::SyntaxError(format!(
                 "expected 2 digits as object id but found: {value}"

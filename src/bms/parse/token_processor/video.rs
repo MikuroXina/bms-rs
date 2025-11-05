@@ -16,7 +16,7 @@ use num::BigUint;
 
 use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range};
 use crate::{
-    bms::{model::video::Video, parse::Result, prelude::*},
+    bms::{model::video::Video, prelude::*},
     util::StrExtension,
 };
 
@@ -87,7 +87,7 @@ impl VideoProcessor {
         args: &str,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("VIDEOFILE") || name.eq_ignore_ascii_case("MOVIE") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected video filename".into()));
@@ -146,7 +146,7 @@ impl VideoProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Seek {
             use super::parse_obj_ids;

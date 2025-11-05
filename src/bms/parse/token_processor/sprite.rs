@@ -9,7 +9,7 @@
 use std::path::Path;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{model::sprite::Sprites, parse::Result, prelude::*};
+use crate::bms::{model::sprite::Sprites, prelude::*};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,7 +43,12 @@ impl TokenProcessor for SpriteProcessor {
 }
 
 impl SpriteProcessor {
-    fn on_header(&self, name: &str, args: &str, sprites: &mut Sprites) -> Result<()> {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        sprites: &mut Sprites,
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("BANNER") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected banner filename".into()));

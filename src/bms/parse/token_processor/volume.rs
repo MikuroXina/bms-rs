@@ -8,7 +8,7 @@ use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens_with_range,
     parse_hex_values,
 };
-use crate::bms::{model::volume::VolumeObjects, parse::Result, prelude::*};
+use crate::bms::{model::volume::VolumeObjects, prelude::*};
 
 /// It processes `#VOLWAV` definitions and objects on `BgmVolume` and `KeyVolume` channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -61,15 +61,20 @@ impl TokenProcessor for VolumeProcessor {
 }
 
 impl VolumeProcessor {
-    fn on_header(&self, name: &str, args: &str, objects: &mut VolumeObjects) -> Result<()> {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        volume: &mut VolumeObjects,
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("VOLWAV") {
-            let volume = args
+            let volume_value = args
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let volume = Volume {
-                relative_percent: volume,
+            let volume_obj = Volume {
+                relative_percent: volume_value,
             };
-            objects.volume = volume;
+            volume.volume = volume_obj;
         }
         Ok(())
     }
@@ -81,7 +86,7 @@ impl VolumeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut VolumeObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             Channel::BgmVolume => {

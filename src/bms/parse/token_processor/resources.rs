@@ -11,7 +11,7 @@ use std::{path::Path, str::FromStr};
 use num::BigUint;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{model::resources::Resources, parse::Result, prelude::*};
+use crate::bms::{model::resources::Resources, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,7 +45,12 @@ impl TokenProcessor for ResourcesProcessor {
 }
 
 impl ResourcesProcessor {
-    fn on_header(&self, name: &str, args: &str, resources: &mut Resources) -> Result<()> {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        resources: &mut Resources,
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("MIDIFILE") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected midi filename".into()));

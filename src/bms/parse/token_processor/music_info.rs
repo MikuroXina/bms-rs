@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
-use crate::bms::{model::music_info::MusicInfo, parse::Result, prelude::*};
+use crate::bms::{model::music_info::MusicInfo, prelude::*};
 
 /// It processes music information headers such as `#GENRE`, `#TITLE` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,7 +46,12 @@ impl TokenProcessor for MusicInfoProcessor {
 }
 
 impl MusicInfoProcessor {
-    fn on_header(&self, name: &str, args: &str, music_info: &mut MusicInfo) -> Result<()> {
+    fn on_header(
+        &self,
+        name: &str,
+        args: &str,
+        music_info: &mut MusicInfo,
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("GENRE") {
             music_info.genre = Some(args.to_string());
         }

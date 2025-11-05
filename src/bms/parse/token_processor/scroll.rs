@@ -12,11 +12,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{
-        model::scroll::ScrollObjects,
-        parse::{ParseWarning, Result},
-        prelude::*,
-    },
+    bms::{model::scroll::ScrollObjects, parse::ParseWarning, prelude::*},
     util::StrExtension,
 };
 
@@ -87,7 +83,7 @@ impl ScrollProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
             let factor =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
@@ -116,7 +112,7 @@ impl ScrollProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Scroll {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);

@@ -105,7 +105,7 @@ impl<R, N> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_random(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -150,7 +150,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_random(
+        &self,
+        args: &str,
+    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -187,7 +190,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = |generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -230,7 +233,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_else_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -276,7 +279,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_else(&self) -> Result<(), ParseError> {
+    fn visit_else(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -300,7 +303,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_end_if(&self) -> Result<(), ParseError> {
+    fn visit_end_if(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -318,7 +321,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_end_random(&self) -> Result<(), ParseError> {
+    fn visit_end_random(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -338,7 +341,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_switch(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -381,7 +384,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_switch(
+        &self,
+        args: &str,
+    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -416,7 +422,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_case(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_case(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let cond = match args
             .parse()
             .map_err(|_| ParseWarning::SyntaxError(format!("expected integer but got {args:?}")))
@@ -477,7 +483,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_skip(&self) -> Result<(), ParseError> {
+    fn visit_skip(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -501,7 +507,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_default(&self) -> Result<(), ParseError> {
+    fn visit_default(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()

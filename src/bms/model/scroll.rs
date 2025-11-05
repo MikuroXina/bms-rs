@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
-use crate::bms::{parse::Result, parse::prompt::ChannelDuplication, prelude::*};
+use crate::bms::{parse::prompt::ChannelDuplication, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,7 +20,7 @@ impl ScrollObjects {
         &mut self,
         scrolling_factor_change: ScrollingFactorObj,
         prompt_handler: &impl Prompter,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         match self
             .scrolling_factor_changes
             .entry(scrolling_factor_change.time)

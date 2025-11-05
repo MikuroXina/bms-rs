@@ -120,9 +120,6 @@ impl ToAriadne for ParseWarningWithRange {
     }
 }
 
-/// Type alias of `core::result::Result<T, ParseWarning>`
-pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
-
 /// Bms Parse Output
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]

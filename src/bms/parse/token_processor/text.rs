@@ -11,7 +11,7 @@ use super::{
     parse_obj_ids,
 };
 use crate::{
-    bms::{model::text::TextObjects, parse::Result, prelude::*},
+    bms::{model::text::TextObjects, prelude::*},
     util::StrExtension,
 };
 
@@ -82,7 +82,7 @@ impl TextProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if let Some(id) = name
             .strip_prefix_ignore_case("TEXT")
             .or_else(|| name.strip_prefix_ignore_case("SONG"))
@@ -111,7 +111,7 @@ impl TextProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Text {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);

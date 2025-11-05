@@ -24,7 +24,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{model::wav::WavObjects, parse::Result, prelude::*},
+    bms::{model::wav::WavObjects, prelude::*},
     util::StrExtension,
 };
 
@@ -97,7 +97,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut WavObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if let Some(id) = name.strip_prefix_ignore_case("WAV") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError(
@@ -306,7 +306,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         message: SourceRangeMixin<&str>,
         _prompter: &impl Prompter,
         objects: &mut WavObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Bgm {
             let (pairs, w) = parse_obj_ids(track, message.clone(), &self.case_sensitive_obj_id);

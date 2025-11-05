@@ -15,7 +15,7 @@ use super::{
     parse_obj_ids,
 };
 use crate::{
-    bms::{model::judge::JudgeObjects, parse::Result, prelude::*},
+    bms::{model::judge::JudgeObjects, prelude::*},
     util::StrExtension,
 };
 
@@ -86,7 +86,7 @@ impl JudgeProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("RANK") {
             objects.rank = Some(JudgeLevel::try_from(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))
@@ -142,7 +142,7 @@ impl JudgeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Judge {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);

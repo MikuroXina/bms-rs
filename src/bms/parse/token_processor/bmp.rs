@@ -28,7 +28,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{model::bmp::BmpObjects, parse::Result, prelude::*},
+    bms::{model::bmp::BmpObjects, prelude::*},
     util::StrExtension,
 };
 
@@ -99,7 +99,7 @@ impl BmpProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if let Some(id) = name.strip_prefix_ignore_case("BMP") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected image filename".into()));
@@ -412,7 +412,7 @@ impl BmpProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             channel @ (Channel::BgaBase

@@ -11,11 +11,7 @@ use super::{
     TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
 };
 use crate::{
-    bms::{
-        model::option::OptionObjects,
-        parse::{ParseWarning, Result},
-        prelude::*,
-    },
+    bms::{model::option::OptionObjects, parse::ParseWarning, prelude::*},
     util::StrExtension,
 };
 
@@ -86,7 +82,7 @@ impl OptionProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut OptionObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if name.eq_ignore_ascii_case("OPTION") {
             objects
                 .options
@@ -117,7 +113,7 @@ impl OptionProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut OptionObjects,
-    ) -> Result<Vec<ParseWarningWithRange>> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::OptionChange {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);

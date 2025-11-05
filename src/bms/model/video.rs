@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::bms::{parse::Result, prelude::*};
+use crate::bms::prelude::*;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -35,7 +35,7 @@ impl Video {
         &mut self,
         seek_obj: SeekObj,
         prompt_handler: &impl Prompter,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         use std::collections::btree_map::Entry;
 
         match self.seek_events.entry(seek_obj.time) {

@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, btree_map::Entry};
 
-use crate::bms::{parse::Result, parse::prompt::ChannelDuplication, prelude::*};
+use crate::bms::{parse::prompt::ChannelDuplication, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -49,7 +49,7 @@ impl BpmObjects {
         &mut self,
         bpm_change: BpmChangeObj,
         prompt_handler: &impl Prompter,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         match self.bpm_changes.entry(bpm_change.time) {
             Entry::Vacant(entry) => {
                 entry.insert(bpm_change);
@@ -80,7 +80,7 @@ impl BpmObjects {
         time: ObjTime,
         bpm_change: u8,
         prompt_handler: &impl Prompter,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         match self.bpm_changes_u8.entry(time) {
             Entry::Vacant(entry) => {
                 entry.insert(bpm_change);

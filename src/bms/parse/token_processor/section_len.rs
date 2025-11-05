@@ -9,11 +9,7 @@ use fraction::GenericFraction;
 use super::{
     super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens, filter_message,
 };
-use crate::bms::{
-    model::section_len::SectionLenObjects,
-    parse::{ParseWarning, Result},
-    prelude::*,
-};
+use crate::bms::{model::section_len::SectionLenObjects, parse::ParseWarning, prelude::*};
 
 /// It processes objects on `SectionLen` channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,7 +54,7 @@ impl SectionLenProcessor {
         message: &str,
         prompter: &impl Prompter,
         objects: &mut SectionLenObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<(), ParseWarning> {
         if channel == Channel::SectionLen {
             let message = filter_message(message);
             let message = message.as_ref();
