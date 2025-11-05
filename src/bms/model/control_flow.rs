@@ -47,11 +47,13 @@ impl<'a> IfChainEntry<'a> {
     }
 
     /// Returns the condition if present (None for `else`).
-    pub fn condition(&self) -> Option<&BigUint> {
+    #[must_use]
+    pub const fn condition(&self) -> Option<&BigUint> {
         self.condition.as_ref()
     }
 
     /// Returns a view of the non-control tokens contained in this branch.
+    #[must_use]
     pub fn tokens(&self) -> &[Token<'a>] {
         &self.tokens
     }
@@ -60,10 +62,8 @@ impl<'a> IfChainEntry<'a> {
     /// Returns the previous condition when this entry had a condition,
     /// or None if this is an `else` entry (no change is applied).
     pub fn set_condition(&mut self, new_condition: BigUint) -> Option<BigUint> {
-        match self.condition.as_mut() {
-            Some(cond) => Some(std::mem::replace(cond, new_condition)),
-            None => None, // else-branch keeps None
-        }
+        self.condition
+            .as_mut().map(|cond| std::mem::replace(cond, new_condition))
     }
 
     /// Replace tokens of this entry (control-flow tokens are filtered out).
@@ -120,6 +120,7 @@ impl<'a> If<'a> {
     }
 
     /// Get an entry by index.
+    #[must_use]
     pub fn at(&self, index: usize) -> Option<&IfChainEntry<'a>> {
         self.entries.get(index)
     }
@@ -164,16 +165,19 @@ impl<'a> Random<'a> {
     }
 
     /// Number of branches.
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.branches.len()
     }
 
     /// Returns true if there are no branches in this random block.
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.branches.is_empty()
     }
 
     /// Get branch by index.
+    #[must_use]
     pub fn at(&self, index: usize) -> Option<&If<'a>> {
         self.branches.get(index)
     }
@@ -184,6 +188,7 @@ impl<'a> Random<'a> {
     }
 
     /// Convert the model into lex tokens representing the random block.
+    #[must_use]
     pub fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
         match &self.value {
@@ -320,16 +325,18 @@ impl<'a> CaseEntry<'a> {
     }
 
     /// Set whether to emit `#SKIP` after tokens (default: true).
-    pub fn set_skip(&mut self, skip: bool) {
+    pub const fn set_skip(&mut self, skip: bool) {
         self.skip = skip;
     }
 
     /// Returns the condition if present (None for `default`).
-    pub fn condition(&self) -> Option<&BigUint> {
+    #[must_use]
+    pub const fn condition(&self) -> Option<&BigUint> {
         self.condition.as_ref()
     }
 
     /// Returns a view of the non-control tokens contained in this case.
+    #[must_use]
     pub fn tokens(&self) -> &[Token<'a>] {
         &self.tokens
     }
@@ -372,16 +379,19 @@ impl<'a> Switch<'a> {
     }
 
     /// Number of cases.
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.cases.len()
     }
 
     /// Returns true if there are no cases in this switch block.
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.cases.is_empty()
     }
 
     /// Get case by index.
+    #[must_use]
     pub fn at(&self, index: usize) -> Option<&CaseEntry<'a>> {
         self.cases.get(index)
     }
@@ -392,6 +402,7 @@ impl<'a> Switch<'a> {
     }
 
     /// Convert the model into lex tokens representing the switch block.
+    #[must_use]
     pub fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
         match &self.value {
@@ -476,7 +487,8 @@ pub struct SwitchBuilder<'a> {
 
 impl<'a> SwitchBuilder<'a> {
     /// Create a builder with provided control-flow value.
-    pub fn new(value: ControlFlowValue) -> Self {
+    #[must_use]
+    pub const fn new(value: ControlFlowValue) -> Self {
         Self {
             value,
             cases: Vec::new(),
@@ -524,12 +536,14 @@ impl<'a> SwitchBuilder<'a> {
     }
 
     /// Push a prepared `CaseEntry` into builder.
+    #[must_use]
     pub fn push_case(mut self, entry: CaseEntry<'a>) -> Self {
         self.cases.push(entry);
         self
     }
 
     /// Finalize builder into a `Switch` model.
+    #[must_use]
     pub fn build(self) -> Switch<'a> {
         Switch {
             value: self.value,
