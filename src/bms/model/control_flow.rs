@@ -63,7 +63,8 @@ impl<'a> IfChainEntry<'a> {
     /// or None if this is an `else` entry (no change is applied).
     pub fn set_condition(&mut self, new_condition: BigUint) -> Option<BigUint> {
         self.condition
-            .as_mut().map(|cond| std::mem::replace(cond, new_condition))
+            .as_mut()
+            .map(|cond| std::mem::replace(cond, new_condition))
     }
 
     /// Replace tokens of this entry (control-flow tokens are filtered out).
