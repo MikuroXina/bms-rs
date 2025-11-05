@@ -271,3 +271,269 @@ impl<'a> IndexMut<usize> for Random<'a> {
         &mut self.branches[index]
     }
 }
+
+/// One case in a switch block. `condition = None` means `#DEF`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CaseEntry<'a> {
+    condition: Option<BigUint>,
+    tokens: Vec<Token<'a>>, // exclude control-flow tokens
+    skip: bool,             // whether to emit `#SKIP` after tokens
+}
+
+impl<'a> CaseEntry<'a> {
+    /// Create a case entry with condition.
+    pub fn new<T>(cond: BigUint, tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let filtered = tokens
+            .into_iter()
+            .filter(|t| match t {
+                Token::Header { .. } => !t.is_control_flow_token(),
+                _ => true,
+            })
+            .collect();
+        Self {
+            condition: Some(cond),
+            tokens: filtered,
+            skip: true,
+        }
+    }
+
+    /// Create a default entry (`#DEF`).
+    pub fn default<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let filtered = tokens
+            .into_iter()
+            .filter(|t| match t {
+                Token::Header { .. } => !t.is_control_flow_token(),
+                _ => true,
+            })
+            .collect();
+        Self {
+            condition: None,
+            tokens: filtered,
+            skip: true,
+        }
+    }
+
+    /// Set whether to emit `#SKIP` after tokens (default: true).
+    pub fn set_skip(&mut self, skip: bool) {
+        self.skip = skip;
+    }
+
+    /// Returns the condition if present (None for `default`).
+    pub fn condition(&self) -> Option<&BigUint> {
+        self.condition.as_ref()
+    }
+
+    /// Returns a view of the non-control tokens contained in this case.
+    pub fn tokens(&self) -> &[Token<'a>] {
+        &self.tokens
+    }
+
+    /// Replace tokens of this entry (control-flow tokens are filtered out).
+    /// Returns the previous tokens.
+    pub fn set_tokens<T>(&mut self, new_tokens: T) -> Vec<Token<'a>>
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let mut filtered: Vec<Token<'a>> = new_tokens
+            .into_iter()
+            .filter(|t| match t {
+                Token::Header { .. } => !t.is_control_flow_token(),
+                _ => true,
+            })
+            .collect();
+        std::mem::swap(&mut filtered, &mut self.tokens);
+        filtered
+    }
+}
+
+/// A switch block (`#SWITCH` or `#SETSWITCH`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Switch<'a> {
+    value: ControlFlowValue,
+    cases: Vec<CaseEntry<'a>>,
+}
+
+impl<'a> Switch<'a> {
+    /// Create a switch block with unified constructor.
+    pub fn new<T>(value: ControlFlowValue, cases: T) -> Self
+    where
+        T: IntoIterator<Item = CaseEntry<'a>>,
+    {
+        Self {
+            value,
+            cases: cases.into_iter().collect(),
+        }
+    }
+
+    /// Number of cases.
+    pub fn len(&self) -> usize {
+        self.cases.len()
+    }
+
+    /// Returns true if there are no cases in this switch block.
+    pub fn is_empty(&self) -> bool {
+        self.cases.is_empty()
+    }
+
+    /// Get case by index.
+    pub fn at(&self, index: usize) -> Option<&CaseEntry<'a>> {
+        self.cases.get(index)
+    }
+
+    /// Get mutable case by index.
+    pub fn at_mut(&mut self, index: usize) -> Option<&mut CaseEntry<'a>> {
+        self.cases.get_mut(index)
+    }
+
+    /// Convert the model into lex tokens representing the switch block.
+    pub fn into_tokens(self) -> Vec<Token<'a>> {
+        let mut out = Vec::new();
+        match &self.value {
+            ControlFlowValue::GenMax(max) => out.push(Token::Header {
+                name: "SWITCH".into(),
+                args: max.to_string().into(),
+            }),
+            ControlFlowValue::Set(val) => out.push(Token::Header {
+                name: "SETSWITCH".into(),
+                args: val.to_string().into(),
+            }),
+        }
+
+        for case in self.cases {
+            match case.condition {
+                Some(cond) => out.push(Token::Header {
+                    name: "CASE".into(),
+                    args: cond.to_string().into(),
+                }),
+                None => out.push(Token::Header {
+                    name: "DEF".into(),
+                    args: "".into(),
+                }),
+            }
+
+            out.extend(case.tokens);
+            if case.skip {
+                out.push(Token::Header {
+                    name: "SKIP".into(),
+                    args: "".into(),
+                });
+            }
+        }
+
+        out.push(Token::Header {
+            name: "ENDSW".into(),
+            args: "".into(),
+        });
+
+        out
+    }
+}
+
+impl<'a> IntoIterator for Switch<'a> {
+    type Item = CaseEntry<'a>;
+    type IntoIter = std::vec::IntoIter<CaseEntry<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cases.into_iter()
+    }
+}
+
+impl<'b, 'a> IntoIterator for &'b Switch<'a> {
+    type Item = &'b CaseEntry<'a>;
+    type IntoIter = std::slice::Iter<'b, CaseEntry<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cases.iter()
+    }
+}
+
+impl<'a> Index<usize> for Switch<'a> {
+    type Output = CaseEntry<'a>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.cases[index]
+    }
+}
+
+impl<'a> IndexMut<usize> for Switch<'a> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.cases[index]
+    }
+}
+
+/// Builder for `Switch`, supporting chained `case`/`def` construction.
+#[derive(Debug, Clone)]
+pub struct SwitchBuilder<'a> {
+    value: ControlFlowValue,
+    cases: Vec<CaseEntry<'a>>,
+}
+
+impl<'a> SwitchBuilder<'a> {
+    /// Create a builder with provided control-flow value.
+    pub fn new(value: ControlFlowValue) -> Self {
+        Self {
+            value,
+            cases: Vec::new(),
+        }
+    }
+
+    /// Add a `#CASE <cond>` branch with tokens. `skip` defaults to true.
+    pub fn case<T>(mut self, cond: BigUint, tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        self.cases.push(CaseEntry::new(cond, tokens));
+        self
+    }
+
+    /// Add a `#CASE <cond>` branch with explicit `skip` control.
+    pub fn case_with_skip<T>(mut self, cond: BigUint, tokens: T, skip: bool) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let mut entry = CaseEntry::new(cond, tokens);
+        entry.set_skip(skip);
+        self.cases.push(entry);
+        self
+    }
+
+    /// Add a `#DEF` default branch. `skip` defaults to true.
+    pub fn def<T>(mut self, tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        self.cases.push(CaseEntry::default(tokens));
+        self
+    }
+
+    /// Add a `#DEF` default branch with explicit `skip` control.
+    pub fn def_with_skip<T>(mut self, tokens: T, skip: bool) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let mut entry = CaseEntry::default(tokens);
+        entry.set_skip(skip);
+        self.cases.push(entry);
+        self
+    }
+
+    /// Push a prepared `CaseEntry` into builder.
+    pub fn push_case(mut self, entry: CaseEntry<'a>) -> Self {
+        self.cases.push(entry);
+        self
+    }
+
+    /// Finalize builder into a `Switch` model.
+    pub fn build(self) -> Switch<'a> {
+        Switch {
+            value: self.value,
+            cases: self.cases,
+        }
+    }
+}

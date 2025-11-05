@@ -3,13 +3,13 @@
 
 pub mod bmp;
 pub mod bpm;
+pub mod control_flow;
 pub mod judge;
 pub mod metadata;
 pub mod music_info;
 mod notes;
 pub mod obj;
 pub mod option;
-pub mod random;
 pub mod repr;
 pub mod resources;
 pub mod scroll;

@@ -11,5 +11,6 @@ mod playing_conditions;
 mod prelude_test;
 mod prompt_handlers;
 mod random_model;
+mod switch_model;
 mod unparse_merge;
 mod unparse_roundtrip;

@@ -43,13 +43,15 @@ pub use super::{
     model::{
         Bms, Notes,
         bmp::{AtBgaDef, BgaDef, Bmp},
+        control_flow::{
+            CaseEntry, ControlFlowValue, If, IfChainEntry, Random, Switch, SwitchBuilder,
+        },
         judge::ExRankDef,
         obj::{
             BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
             BpmChangeObj, JudgeObj, KeyVolumeObj, OptionObj, ScrollingFactorObj,
             SectionLenChangeObj, SeekObj, SpeedObj, StopObj, TextObj, WavObj,
         },
-        random::{ControlFlowValue, If, IfChainEntry, Random},
         wav::ExWavDef,
     },
     parse::{
