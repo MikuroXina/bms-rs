@@ -9,10 +9,7 @@ use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{
-        BaseBpm, BaseBpmGenerateStyle, BmpId, ChartEventIdGenerator, DisplayRatio, WavId,
-        YCoordinate,
-    },
+    types::{BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 
 /// ChartProcessor of Bms files.
@@ -51,11 +48,7 @@ pub struct BmsProcessor {
 impl BmsProcessor {
     /// Create processor with explicit reaction time configuration, initialize default parameters
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(
-        bms: Bms,
-        base_bpm_style: BaseBpmGenerateStyle,
-        reaction_time: Duration,
-    ) -> Self {
+    pub fn new<T: KeyLayoutMapper>(bms: Bms, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -64,8 +57,6 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
-        // Compute base BPM for visible window based on user-selected style
-        let base_bpm = Self::select_base_bpm_for_bms(&bms, base_bpm_style);
         // Compute default visible y length via shared helper
         let default_visible_y_length =
             compute_default_visible_y_length(base_bpm.clone(), reaction_time);
@@ -183,52 +174,6 @@ impl BmsProcessor {
             base_bpm,
             reaction_time,
             flow_events_by_y,
-        }
-    }
-
-    /// Select a base BPM from a BMS chart according to style.
-    fn select_base_bpm_for_bms(bms: &Bms, style: BaseBpmGenerateStyle) -> BaseBpm {
-        match style {
-            BaseBpmGenerateStyle::Manual(v) => BaseBpm::new(v),
-            BaseBpmGenerateStyle::StartBpm => BaseBpm::new(
-                bms.bpm
-                    .bpm
-                    .as_ref()
-                    .cloned()
-                    .unwrap_or_else(|| Decimal::from(120)),
-            ),
-            BaseBpmGenerateStyle::MinBpm => {
-                let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
-                for change in bms.bpm.bpm_changes.values() {
-                    min = min.map_or_else(
-                        || Some(change.bpm.clone()),
-                        |curr| {
-                            Some(if change.bpm < curr {
-                                change.bpm.clone()
-                            } else {
-                                curr
-                            })
-                        },
-                    );
-                }
-                BaseBpm::new(min.unwrap_or_else(|| Decimal::from(120)))
-            }
-            BaseBpmGenerateStyle::MaxBpm => {
-                let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
-                for change in bms.bpm.bpm_changes.values() {
-                    max = max.map_or_else(
-                        || Some(change.bpm.clone()),
-                        |curr| {
-                            Some(if change.bpm > curr {
-                                change.bpm.clone()
-                            } else {
-                                curr
-                            })
-                        },
-                    );
-                }
-                BaseBpm::new(max.unwrap_or_else(|| Decimal::from(120)))
-            }
         }
     }
 

@@ -1,19 +1,32 @@
 //! Type definition module
 
+use crate::bms::prelude::Bms;
+#[cfg(feature = "bmson")]
+use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
 
-/// Strategy for selecting the base BPM used to derive default visible window length.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BaseBpmGenerateStyle {
-    /// Use the chart's start/initial BPM.
-    StartBpm,
-    /// Use the minimum BPM across initial BPM and all BPM change events.
-    MinBpm,
-    /// Use the maximum BPM across initial BPM and all BPM change events.
-    MaxBpm,
-    /// Use a manually specified BPM value.
-    Manual(Decimal),
+/// Trait for generating the base BPM used to derive default visible window length.
+pub trait BaseBpmGenerator<S> {
+    /// Generate a `BaseBpm` from the given source.
+    /// Returns `None` when the source lacks sufficient information to determine a base BPM.
+    fn generate(&self, source: &S) -> Option<BaseBpm>;
 }
+
+/// Generator that uses the chart's start/initial BPM.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct StartBpmGenerator;
+
+/// Generator that uses the minimum BPM across initial BPM and all BPM change events.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MinBpmGenerator;
+
+/// Generator that uses the maximum BPM across initial BPM and all BPM change events.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MaxBpmGenerator;
+
+/// Generator that uses a manually specified BPM value.
+#[derive(Debug, Clone)]
+pub struct ManualBpmGenerator(pub Decimal);
 
 /// Base BPM wrapper type, encapsulating a `Decimal` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +49,102 @@ impl BaseBpm {
 impl From<Decimal> for BaseBpm {
     fn from(value: Decimal) -> Self {
         Self(value)
+    }
+}
+
+// ---- Generators for BMS ----
+impl BaseBpmGenerator<Bms> for StartBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        bms.bpm.bpm.as_ref().cloned().map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MinBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
+        for change in bms.bpm.bpm_changes.values() {
+            min = min.map_or_else(
+                || Some(change.bpm.clone()),
+                |curr| {
+                    Some(if change.bpm < curr {
+                        change.bpm.clone()
+                    } else {
+                        curr
+                    })
+                },
+            );
+        }
+        min.map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
+    fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
+        let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
+        for change in bms.bpm.bpm_changes.values() {
+            max = max.map_or_else(
+                || Some(change.bpm.clone()),
+                |curr| {
+                    Some(if change.bpm > curr {
+                        change.bpm.clone()
+                    } else {
+                        curr
+                    })
+                },
+            );
+        }
+        max.map(BaseBpm::new)
+    }
+}
+
+impl BaseBpmGenerator<Bms> for ManualBpmGenerator {
+    fn generate(&self, _bms: &Bms) -> Option<BaseBpm> {
+        Some(BaseBpm::new(self.0.clone()))
+    }
+}
+
+// ---- Generators for BMSON ----
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(BaseBpm::new(Decimal::from(bmson.info.init_bpm.as_f64())))
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        let mut min: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
+        for ev in &bmson.bpm_events {
+            let val: Decimal = ev.bpm.as_f64().into();
+            min = match min {
+                Some(curr) => Some(if val < curr { val } else { curr }),
+                None => Some(val),
+            };
+        }
+        min.map(BaseBpm::new)
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
+    fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        let mut max: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
+        for ev in &bmson.bpm_events {
+            let val: Decimal = ev.bpm.as_f64().into();
+            max = match max {
+                Some(curr) => Some(if val > curr { val } else { curr }),
+                None => Some(val),
+            };
+        }
+        max.map(BaseBpm::new)
+    }
+}
+
+#[cfg(feature = "bmson")]
+impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
+    fn generate(&self, _bmson: &Bmson<'a>) -> Option<BaseBpm> {
+        Some(BaseBpm::new(self.0.clone()))
     }
 }
 
