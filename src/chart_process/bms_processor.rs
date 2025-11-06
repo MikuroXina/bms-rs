@@ -9,7 +9,10 @@ use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BaseBpmGenerateStyle, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        BaseBpm, BaseBpmGenerateStyle, BmpId, ChartEventIdGenerator, DisplayRatio, WavId,
+        YCoordinate,
+    },
 };
 
 /// ChartProcessor of Bms files.
@@ -37,7 +40,7 @@ pub struct BmsProcessor {
     current_speed: Decimal,
     current_scroll: Decimal,
     /// Selected base BPM used for velocity and visible window calculations
-    base_bpm: Decimal,
+    base_bpm: BaseBpm,
     /// Reaction time used to derive visible window length
     reaction_time: Duration,
 
@@ -184,15 +187,16 @@ impl BmsProcessor {
     }
 
     /// Select a base BPM from a BMS chart according to style.
-    fn select_base_bpm_for_bms(bms: &Bms, style: BaseBpmGenerateStyle) -> Decimal {
+    fn select_base_bpm_for_bms(bms: &Bms, style: BaseBpmGenerateStyle) -> BaseBpm {
         match style {
-            BaseBpmGenerateStyle::Manual(v) => v,
-            BaseBpmGenerateStyle::StartBpm => bms
-                .bpm
-                .bpm
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(|| Decimal::from(120)),
+            BaseBpmGenerateStyle::Manual(v) => BaseBpm::new(v),
+            BaseBpmGenerateStyle::StartBpm => BaseBpm::new(
+                bms.bpm
+                    .bpm
+                    .as_ref()
+                    .cloned()
+                    .unwrap_or_else(|| Decimal::from(120)),
+            ),
             BaseBpmGenerateStyle::MinBpm => {
                 let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
                 for change in bms.bpm.bpm_changes.values() {
@@ -207,7 +211,7 @@ impl BmsProcessor {
                         },
                     );
                 }
-                min.unwrap_or_else(|| Decimal::from(120))
+                BaseBpm::new(min.unwrap_or_else(|| Decimal::from(120)))
             }
             BaseBpmGenerateStyle::MaxBpm => {
                 let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
@@ -223,7 +227,7 @@ impl BmsProcessor {
                         },
                     );
                 }
-                max.unwrap_or_else(|| Decimal::from(120))
+                BaseBpm::new(max.unwrap_or_else(|| Decimal::from(120)))
             }
         }
     }
@@ -581,7 +585,7 @@ impl BmsProcessor {
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let velocity = if self.current_bpm > Decimal::from(0) {
-            let velocity = self.current_bpm.clone() / self.base_bpm.clone();
+            let velocity = self.current_bpm.clone() / self.base_bpm.value().clone();
             let speed_factor = self.current_speed.clone();
             velocity * speed_factor
         } else {

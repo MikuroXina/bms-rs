@@ -5,7 +5,7 @@
 
 // Re-export types
 pub use super::types::{
-    BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
+    BaseBpm, BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
     YCoordinate,
 };
 

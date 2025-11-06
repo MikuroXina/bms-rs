@@ -26,7 +26,7 @@ pub mod types;
 pub mod prelude;
 
 // Use types from prelude
-pub use prelude::{BmpId, DisplayRatio, WavId, YCoordinate};
+pub use prelude::{BaseBpm, BmpId, DisplayRatio, WavId, YCoordinate};
 
 // Use custom wrapper types
 pub use types::{ChartEventWithPosition, VisibleEvent};

@@ -15,6 +15,30 @@ pub enum BaseBpmGenerateStyle {
     Manual(Decimal),
 }
 
+/// Base BPM wrapper type, encapsulating a `Decimal` value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseBpm(pub Decimal);
+
+impl BaseBpm {
+    /// Create a new BaseBpm
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal Decimal value
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+}
+
+impl From<Decimal> for BaseBpm {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
 /// Y coordinate wrapper type, using arbitrary precision decimal numbers.
 ///
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)` to measure units.
