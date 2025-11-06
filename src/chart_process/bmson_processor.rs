@@ -631,7 +631,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
         for (y_coord, events) in self.all_events.range((
-            Excluded(YCoordinate::from(prev_y.clone())),
+            Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
             for (id, event) in events {
@@ -642,8 +642,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         // Preloaded events: (cur_y, preload_end_y]
         for (y_coord, events) in self.all_events.range((
-            Excluded(YCoordinate::from(cur_y.clone())),
-            Included(YCoordinate::from(preload_end_y.clone())),
+            Excluded(YCoordinate::from(cur_y)),
+            Included(YCoordinate::from(preload_end_y)),
         )) {
             for (id, event) in events {
                 let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());

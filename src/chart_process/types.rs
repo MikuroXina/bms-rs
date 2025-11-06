@@ -3,7 +3,7 @@
 use crate::{bms::Decimal, chart_process::ChartEvent};
 
 /// Strategy for selecting the base BPM used to derive default visible window length.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaseBpmGenerateStyle {
     /// Use the chart's start/initial BPM.
     StartBpm,
@@ -241,16 +241,16 @@ impl ChartEventIdGenerator {
 
     /// Allocate and return the next `ChartEventId`
     #[must_use]
-    pub fn next_id(&mut self) -> ChartEventId {
+    pub const fn next_id(&mut self) -> ChartEventId {
         let id = ChartEventId(self.next);
         self.next += 1;
         id
     }
 
-    /// Return the next value that will be used
+    /// Return the next `ChartEventId` that will be used
     #[must_use]
-    pub const fn peek_next(&self) -> usize {
-        self.next
+    pub const fn peek_next(&self) -> ChartEventId {
+        ChartEventId::new(self.next)
     }
 }
 

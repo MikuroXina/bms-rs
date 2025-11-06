@@ -199,28 +199,32 @@ impl BmsProcessor {
             BaseBpmGenerateStyle::MinBpm => {
                 let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
                 for change in bms.bpm.bpm_changes.values() {
-                    min = match min {
-                        Some(curr) => Some(if change.bpm < curr {
-                            change.bpm.clone()
-                        } else {
-                            curr
-                        }),
-                        None => Some(change.bpm.clone()),
-                    };
+                    min = min.map_or_else(
+                        || Some(change.bpm.clone()),
+                        |curr| {
+                            Some(if change.bpm < curr {
+                                change.bpm.clone()
+                            } else {
+                                curr
+                            })
+                        },
+                    );
                 }
                 min.unwrap_or_else(|| Decimal::from(120))
             }
             BaseBpmGenerateStyle::MaxBpm => {
                 let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
                 for change in bms.bpm.bpm_changes.values() {
-                    max = match max {
-                        Some(curr) => Some(if change.bpm > curr {
-                            change.bpm.clone()
-                        } else {
-                            curr
-                        }),
-                        None => Some(change.bpm.clone()),
-                    };
+                    max = max.map_or_else(
+                        || Some(change.bpm.clone()),
+                        |curr| {
+                            Some(if change.bpm > curr {
+                                change.bpm.clone()
+                            } else {
+                                curr
+                            })
+                        },
+                    );
                 }
                 max.unwrap_or_else(|| Decimal::from(120))
             }
@@ -775,7 +779,7 @@ impl ChartProcessor for BmsProcessor {
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
         for (y_coord, events) in self.all_events.range((
-            Excluded(YCoordinate::from(prev_y.clone())),
+            Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
             for (id, event) in events {
@@ -786,8 +790,8 @@ impl ChartProcessor for BmsProcessor {
 
         // Preloaded events: (cur_y, preload_end_y]
         for (y_coord, events) in self.all_events.range((
-            Excluded(YCoordinate::from(cur_y.clone())),
-            Included(YCoordinate::from(preload_end_y.clone())),
+            Excluded(YCoordinate::from(cur_y)),
+            Included(YCoordinate::from(preload_end_y)),
         )) {
             for (id, event) in events {
                 let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
