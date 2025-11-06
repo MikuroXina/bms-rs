@@ -10,10 +10,7 @@ use crate::bmson::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{
-        BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
-        YCoordinate,
-    },
+    types::{BaseBpmGenerateStyle, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 
 /// ChartProcessor of Bmson files.
@@ -47,7 +44,7 @@ pub struct BmsonProcessor<'a> {
     preloaded_events: Vec<ChartEventWithPosition>,
 
     /// Preprocessed all events mapping, sorted by y coordinate
-    all_events: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+    all_events: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
 
     /// Indexed flow events by y (BPM/Scroll) for efficient lookup
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
@@ -197,8 +194,7 @@ impl<'a> BmsonProcessor<'a> {
 
     /// Preprocess all events, create event mapping sorted by y coordinate
     fn preprocess_events(&mut self) {
-        let mut events_map: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>> =
-            BTreeMap::new();
+        let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
         // Process sound channel events
@@ -210,10 +206,8 @@ impl<'a> BmsonProcessor<'a> {
                 let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) else {
                     let wav_id = self.get_wav_id_for_name(name);
                     let event = ChartEvent::Bgm { wav_id };
-                    events_map
-                        .entry(y_coord)
-                        .or_default()
-                        .push((id_gen.next_id(), event));
+                    let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                    events_map.entry(y_coord).or_default().push(evp);
                     continue;
                 };
                 let wav_id = self.get_wav_id_for_name(name);
@@ -234,10 +228,8 @@ impl<'a> BmsonProcessor<'a> {
                     length,
                     continue_play: *c,
                 };
-                events_map
-                    .entry(y_coord)
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -248,10 +240,8 @@ impl<'a> BmsonProcessor<'a> {
             let event = ChartEvent::BpmChange {
                 bpm: ev.bpm.as_f64().into(),
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process Scroll events
@@ -261,10 +251,8 @@ impl<'a> BmsonProcessor<'a> {
             let event = ChartEvent::ScrollChange {
                 factor: rate.as_f64().into(),
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process Stop events
@@ -274,10 +262,8 @@ impl<'a> BmsonProcessor<'a> {
             let event = ChartEvent::Stop {
                 duration: (stop.duration as f64).into(),
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA base layer events
@@ -296,10 +282,8 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA overlay layer events
@@ -318,10 +302,8 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA poor layer events
@@ -340,10 +322,8 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process bar line events - generated last but not exceeding other objects
@@ -352,10 +332,8 @@ impl<'a> BmsonProcessor<'a> {
                 let y = self.pulses_to_y(bar_line.y.0);
                 let y_coord = YCoordinate::from(y);
                 let event = ChartEvent::BarLine;
-                events_map
-                    .entry(y_coord)
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         } else {
             // If barline is not defined, generate measure lines at each unit Y value, but not exceeding other objects' Y values
@@ -379,10 +357,8 @@ impl<'a> BmsonProcessor<'a> {
                     length: None,
                     continue_play: false,
                 };
-                events_map
-                    .entry(y_coord)
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -403,10 +379,8 @@ impl<'a> BmsonProcessor<'a> {
                     length: None,
                     continue_play: false,
                 };
-                events_map
-                    .entry(y_coord)
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -426,7 +400,7 @@ impl<'a> BmsonProcessor<'a> {
     /// Automatically generate measure lines for BMSON without defined barline (at each unit Y value, but not exceeding other objects' Y values)
     fn generate_auto_barlines(
         &self,
-        events_map: &mut BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+        events_map: &mut BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
         id_gen: &mut ChartEventIdGenerator,
     ) {
         // Find the maximum Y value of all events
@@ -446,10 +420,8 @@ impl<'a> BmsonProcessor<'a> {
         while current_y <= max_y {
             let y_coord = YCoordinate::from(current_y.clone());
             let event = ChartEvent::BarLine;
-            events_map
-                .entry(y_coord)
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
             current_y += Decimal::from(1);
         }
     }
@@ -634,8 +606,13 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
-            for (id, event) in events {
-                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+            for evp in events {
+                let ChartEventWithPosition {
+                    id,
+                    position: _,
+                    event,
+                } = evp.clone();
+                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
                 triggered_events.push(evp);
             }
         }
@@ -645,8 +622,13 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
         )) {
-            for (id, event) in events {
-                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+            for evp in events {
+                let ChartEventWithPosition {
+                    id,
+                    position: _,
+                    event,
+                } = evp.clone();
+                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
                 new_preloaded_events.push(evp);
             }
         }

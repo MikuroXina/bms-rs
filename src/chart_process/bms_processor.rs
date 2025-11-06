@@ -9,10 +9,7 @@ use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{
-        BaseBpmGenerateStyle, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, WavId,
-        YCoordinate,
-    },
+    types::{BaseBpmGenerateStyle, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 
 /// ChartProcessor of Bms files.
@@ -29,7 +26,7 @@ pub struct BmsProcessor {
     inbox: Vec<ControlEvent>,
 
     /// All events mapping (sorted by Y coordinate)
-    all_events: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+    all_events: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
 
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<ChartEventWithPosition>,
@@ -235,9 +232,8 @@ impl BmsProcessor {
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn precompute_all_events<T: KeyLayoutMapper>(
         bms: &Bms,
-    ) -> BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>> {
-        let mut events_map: BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>> =
-            BTreeMap::new();
+    ) -> BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> {
+        let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
         // Note / Wav arrival events
@@ -245,10 +241,9 @@ impl BmsProcessor {
             let y = Self::y_of_time_static(bms, obj.offset, &bms.speed.speed_factor_changes);
             let event = Self::event_for_note_static::<T>(bms, obj, y.clone());
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // BPM change events
@@ -258,10 +253,9 @@ impl BmsProcessor {
                 bpm: change.bpm.clone(),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Scroll change events
@@ -271,10 +265,9 @@ impl BmsProcessor {
                 factor: change.factor.clone(),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Speed change events
@@ -284,10 +277,9 @@ impl BmsProcessor {
                 factor: change.factor.clone(),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Stop events
@@ -297,10 +289,9 @@ impl BmsProcessor {
                 duration: stop.duration.clone(),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // BGA change events
@@ -312,10 +303,9 @@ impl BmsProcessor {
                 bmp_id: Some(BmpId::from(bmp_index)),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // BGA opacity change events (requires minor-command feature)
@@ -329,10 +319,9 @@ impl BmsProcessor {
                     opacity: opacity_obj.opacity,
                 };
 
-                events_map
-                    .entry(YCoordinate::from(y))
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let y_coord = YCoordinate::from(y);
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -350,10 +339,9 @@ impl BmsProcessor {
                     argb,
                 };
 
-                events_map
-                    .entry(YCoordinate::from(y))
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let y_coord = YCoordinate::from(y);
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -365,10 +353,9 @@ impl BmsProcessor {
                 volume: bgm_volume_obj.volume,
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // KEY volume change events
@@ -379,10 +366,9 @@ impl BmsProcessor {
                 volume: key_volume_obj.volume,
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Text display events
@@ -392,10 +378,9 @@ impl BmsProcessor {
                 text: text_obj.text.clone(),
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Judge level change events
@@ -405,10 +390,9 @@ impl BmsProcessor {
                 level: judge_obj.judge_level,
             };
 
-            events_map
-                .entry(YCoordinate::from(y))
-                .or_default()
-                .push((id_gen.next_id(), event));
+            let y_coord = YCoordinate::from(y);
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Minor-command feature events
@@ -421,10 +405,9 @@ impl BmsProcessor {
                     seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
                 };
 
-                events_map
-                    .entry(YCoordinate::from(y))
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let y_coord = YCoordinate::from(y);
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
 
             // BGA key binding events
@@ -438,10 +421,9 @@ impl BmsProcessor {
                     event: bga_keybound_obj.event.clone(),
                 };
 
-                events_map
-                    .entry(YCoordinate::from(y))
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let y_coord = YCoordinate::from(y);
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
 
             // Option change events
@@ -452,10 +434,9 @@ impl BmsProcessor {
                     option: option_obj.option.clone(),
                 };
 
-                events_map
-                    .entry(YCoordinate::from(y))
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let y_coord = YCoordinate::from(y);
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
 
@@ -468,7 +449,7 @@ impl BmsProcessor {
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     fn generate_barlines_for_bms(
         bms: &Bms,
-        events_map: &mut BTreeMap<YCoordinate, Vec<(ChartEventId, ChartEvent)>>,
+        events_map: &mut BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
         id_gen: &mut ChartEventIdGenerator,
     ) {
         // Find the maximum Y value of all events
@@ -507,10 +488,8 @@ impl BmsProcessor {
             if track_y <= max_y {
                 let y_coord = YCoordinate::from(track_y);
                 let event = ChartEvent::BarLine;
-                events_map
-                    .entry(y_coord)
-                    .or_default()
-                    .push((id_gen.next_id(), event));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                events_map.entry(y_coord).or_default().push(evp);
             }
         }
     }
@@ -782,8 +761,13 @@ impl ChartProcessor for BmsProcessor {
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
-            for (id, event) in events {
-                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+            for evp in events {
+                let ChartEventWithPosition {
+                    id,
+                    position: _,
+                    event,
+                } = evp.clone();
+                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
                 triggered_events.push(evp);
             }
         }
@@ -793,8 +777,13 @@ impl ChartProcessor for BmsProcessor {
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
         )) {
-            for (id, event) in events {
-                let evp = ChartEventWithPosition::new(*id, y_coord.clone(), event.clone());
+            for evp in events {
+                let ChartEventWithPosition {
+                    id,
+                    position: _,
+                    event,
+                } = evp.clone();
+                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
                 new_preloaded_events.push(evp);
             }
         }
