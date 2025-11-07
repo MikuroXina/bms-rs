@@ -61,39 +61,35 @@ impl BaseBpmGenerator<Bms> for StartBpmGenerator {
 
 impl BaseBpmGenerator<Bms> for MinBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        let mut min: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
-        for change in bms.bpm.bpm_changes.values() {
-            min = min.map_or_else(
-                || Some(change.bpm.clone()),
-                |curr| {
-                    Some(if change.bpm < curr {
-                        change.bpm.clone()
-                    } else {
-                        curr
-                    })
-                },
-            );
-        }
-        min.map(BaseBpm::new)
+        bms.bpm
+            .bpm
+            .iter()
+            .cloned()
+            .chain(
+                bms.bpm
+                    .bpm_changes
+                    .values()
+                    .map(|change| change.bpm.clone()),
+            )
+            .min()
+            .map(BaseBpm::new)
     }
 }
 
 impl BaseBpmGenerator<Bms> for MaxBpmGenerator {
     fn generate(&self, bms: &Bms) -> Option<BaseBpm> {
-        let mut max: Option<Decimal> = bms.bpm.bpm.as_ref().cloned();
-        for change in bms.bpm.bpm_changes.values() {
-            max = max.map_or_else(
-                || Some(change.bpm.clone()),
-                |curr| {
-                    Some(if change.bpm > curr {
-                        change.bpm.clone()
-                    } else {
-                        curr
-                    })
-                },
-            );
-        }
-        max.map(BaseBpm::new)
+        bms.bpm
+            .bpm
+            .iter()
+            .cloned()
+            .chain(
+                bms.bpm
+                    .bpm_changes
+                    .values()
+                    .map(|change| change.bpm.clone()),
+            )
+            .max()
+            .map(BaseBpm::new)
     }
 }
 
@@ -114,30 +110,30 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for StartBpmGenerator {
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MinBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        let mut min: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
-        for ev in &bmson.bpm_events {
-            let val: Decimal = ev.bpm.as_f64().into();
-            min = match min {
-                Some(curr) => Some(if val < curr { val } else { curr }),
-                None => Some(val),
-            };
-        }
-        min.map(BaseBpm::new)
+        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
+            .chain(
+                bmson
+                    .bpm_events
+                    .iter()
+                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
+            )
+            .min()
+            .map(BaseBpm::new)
     }
 }
 
 #[cfg(feature = "bmson")]
 impl<'a> BaseBpmGenerator<Bmson<'a>> for MaxBpmGenerator {
     fn generate(&self, bmson: &Bmson<'a>) -> Option<BaseBpm> {
-        let mut max: Option<Decimal> = Some(Decimal::from(bmson.info.init_bpm.as_f64()));
-        for ev in &bmson.bpm_events {
-            let val: Decimal = ev.bpm.as_f64().into();
-            max = match max {
-                Some(curr) => Some(if val > curr { val } else { curr }),
-                None => Some(val),
-            };
-        }
-        max.map(BaseBpm::new)
+        std::iter::once(Decimal::from(bmson.info.init_bpm.as_f64()))
+            .chain(
+                bmson
+                    .bpm_events
+                    .iter()
+                    .map(|ev| Decimal::from(ev.bpm.as_f64())),
+            )
+            .max()
+            .map(BaseBpm::new)
     }
 }
 
