@@ -20,7 +20,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or(BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let mut processor =
         BmsProcessor::new::<KeyLayoutBeat>(bms, base_bpm, Duration::from_millis(600));
     let start_time = SystemTime::now();
@@ -94,7 +94,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or(BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let mut processor =
         BmsProcessor::new::<KeyLayoutBeat>(bms, base_bpm, Duration::from_millis(600));
     let start_time = SystemTime::now();
@@ -140,7 +140,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
-        .unwrap_or(BaseBpm::new(Decimal::from(120)));
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let mut processor =
         BmsProcessor::new::<KeyLayoutBeat>(bms, base_bpm, Duration::from_millis(600));
     let start_time = SystemTime::now();

@@ -463,7 +463,7 @@ impl<'a> IndexMut<usize> for Random<'a> {
 
 /// One case in a switch block. `condition = None` means `#DEF`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CaseEntry<'a> {
+struct CaseEntry<'a> {
     condition: Option<BigUint>,
     units: Vec<TokenUnit<'a>>, // case content can be nested control flow or tokens
     skip: bool,                // whether to emit `#SKIP` after tokens
@@ -500,31 +500,6 @@ impl<'a> CaseEntry<'a> {
     pub const fn set_skip(&mut self, skip: bool) {
         self.skip = skip;
     }
-
-    /// Returns the condition if present (None for `default`).
-    #[must_use]
-    pub const fn condition(&self) -> Option<&BigUint> {
-        self.condition.as_ref()
-    }
-
-    /// Returns a view of the non-control tokens contained in this case.
-    #[must_use]
-    pub fn units(&self) -> &[TokenUnit<'a>] {
-        &self.units
-    }
-
-    // (removed token-based setter; use `set_units` instead)
-
-    /// Replace units for this case.
-    /// Returns the previous units.
-    pub fn set_units<U>(&mut self, new_units: U) -> Vec<TokenUnit<'a>>
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        let mut filtered: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
-        std::mem::swap(&mut filtered, &mut self.units);
-        filtered
-    }
 }
 
 /// A switch block (`#SWITCH` or `#SETSWITCH`).
@@ -535,15 +510,62 @@ pub struct Switch<'a> {
 }
 
 impl<'a> Switch<'a> {
-    /// Create a switch block with unified constructor.
-    pub fn new<T>(value: ControlFlowValue, cases: T) -> Self
-    where
-        T: IntoIterator<Item = CaseEntry<'a>>,
-    {
+    /// Start building a `Switch` with a control-flow value.
+    /// This returns an empty `Switch` to be populated via builder-style methods.
+    #[must_use]
+    pub const fn new(value: ControlFlowValue) -> Self {
         Self {
             value,
-            cases: cases.into_iter().collect(),
+            cases: Vec::new(),
         }
+    }
+
+    /// Add a `#CASE <cond>` branch and emit `#SKIP` after tokens.
+    pub fn case_with_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    where
+        U: IntoIterator<Item = TokenUnit<'a>>,
+    {
+        let mut entry = CaseEntry::new(cond, units);
+        entry.set_skip(true);
+        self.cases.push(entry);
+        self
+    }
+
+    /// Add a `#CASE <cond>` branch and do not emit `#SKIP` after tokens.
+    pub fn case_no_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    where
+        U: IntoIterator<Item = TokenUnit<'a>>,
+    {
+        let mut entry = CaseEntry::new(cond, units);
+        entry.set_skip(false);
+        self.cases.push(entry);
+        self
+    }
+
+    /// Add a `#DEF` default branch. `skip` defaults to true.
+    pub fn def<U>(mut self, units: U) -> Self
+    where
+        U: IntoIterator<Item = TokenUnit<'a>>,
+    {
+        self.cases.push(CaseEntry::default(units));
+        self
+    }
+
+    /// Add a `#DEF` default branch with explicit `skip` control.
+    pub fn def_with_skip<U>(mut self, units: U, skip: bool) -> Self
+    where
+        U: IntoIterator<Item = TokenUnit<'a>>,
+    {
+        let mut entry = CaseEntry::default(units);
+        entry.set_skip(skip);
+        self.cases.push(entry);
+        self
+    }
+
+    /// Finalize and return the built `Switch`. This is a no-op for chaining symmetry.
+    #[must_use]
+    pub const fn build(self) -> Self {
+        self
     }
 
     /// Number of cases.
@@ -556,17 +578,6 @@ impl<'a> Switch<'a> {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.cases.is_empty()
-    }
-
-    /// Get case by index.
-    #[must_use]
-    pub fn at(&self, index: usize) -> Option<&CaseEntry<'a>> {
-        self.cases.get(index)
-    }
-
-    /// Get mutable case by index.
-    pub fn at_mut(&mut self, index: usize) -> Option<&mut CaseEntry<'a>> {
-        self.cases.get_mut(index)
     }
 
     /// Convert the model into lex tokens representing the switch block.
@@ -610,115 +621,5 @@ impl<'a> Switch<'a> {
         });
 
         out
-    }
-}
-
-impl<'a> IntoIterator for Switch<'a> {
-    type Item = CaseEntry<'a>;
-    type IntoIter = std::vec::IntoIter<CaseEntry<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.cases.into_iter()
-    }
-}
-
-impl<'b, 'a> IntoIterator for &'b Switch<'a> {
-    type Item = &'b CaseEntry<'a>;
-    type IntoIter = std::slice::Iter<'b, CaseEntry<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.cases.iter()
-    }
-}
-
-impl<'a> Index<usize> for Switch<'a> {
-    type Output = CaseEntry<'a>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.cases[index]
-    }
-}
-
-impl<'a> IndexMut<usize> for Switch<'a> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.cases[index]
-    }
-}
-
-/// Builder for `Switch`, supporting chained `case`/`def` construction.
-#[derive(Debug, Clone)]
-pub struct SwitchBuilder<'a> {
-    value: ControlFlowValue,
-    cases: Vec<CaseEntry<'a>>,
-}
-
-impl<'a> SwitchBuilder<'a> {
-    /// Create a builder with provided control-flow value.
-    #[must_use]
-    pub const fn new(value: ControlFlowValue) -> Self {
-        Self {
-            value,
-            cases: Vec::new(),
-        }
-    }
-
-    /// Add a `#CASE <cond>` branch with units. `skip` defaults to true.
-    pub fn case<U>(mut self, cond: BigUint, units: U) -> Self
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        self.cases.push(CaseEntry::new(cond, units));
-        self
-    }
-
-    /// Add a `#CASE <cond>` branch with explicit `skip` control.
-    pub fn case_with_skip<U>(mut self, cond: BigUint, units: U, skip: bool) -> Self
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        let mut entry = CaseEntry::new(cond, units);
-        entry.set_skip(skip);
-        self.cases.push(entry);
-        self
-    }
-
-    // (removed token-based aliases; all case methods now accept units)
-
-    /// Add a `#DEF` default branch. `skip` defaults to true.
-    pub fn def<U>(mut self, units: U) -> Self
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        self.cases.push(CaseEntry::default(units));
-        self
-    }
-
-    /// Add a `#DEF` default branch with explicit `skip` control.
-    pub fn def_with_skip<U>(mut self, units: U, skip: bool) -> Self
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        let mut entry = CaseEntry::default(units);
-        entry.set_skip(skip);
-        self.cases.push(entry);
-        self
-    }
-
-    // (removed token-based aliases; all def methods now accept units)
-
-    /// Push a prepared `CaseEntry` into builder.
-    #[must_use]
-    pub fn push_case(mut self, entry: CaseEntry<'a>) -> Self {
-        self.cases.push(entry);
-        self
-    }
-
-    /// Finalize builder into a `Switch` model.
-    #[must_use]
-    pub fn build(self) -> Switch<'a> {
-        Switch {
-            value: self.value,
-            cases: self.cases,
-        }
     }
 }

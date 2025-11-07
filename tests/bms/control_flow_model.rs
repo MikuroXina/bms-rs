@@ -128,7 +128,7 @@ fn into_tokens_basic_random() {
     );
 
     // RNG = 2 -> branch cond 2
-    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.iter().cloned().collect();
+    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
     let bms = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
@@ -535,41 +535,38 @@ fn into_tokens_basic_switch() {
     )];
 
     // Build switch block: max=2, cond 1 -> Key2:22, cond 2 -> Key3:33
-    let switch = Switch::new(
-        ControlFlowValue::GenMax(BigUint::from(2u64)),
-        [
-            CaseEntry::new(
-                BigUint::from(1u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(2),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00220000",
-                )])],
-            ),
-            CaseEntry::new(
-                BigUint::from(2u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(3),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00003300",
-                )])],
-            ),
-        ],
-    );
+    let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
+        .case_with_skip(
+            BigUint::from(1u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2),
+                    )
+                    .to_channel_id(),
+                },
+                "00220000",
+            )])],
+        )
+        .case_with_skip(
+            BigUint::from(2u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3),
+                    )
+                    .to_channel_id(),
+                },
+                "00003300",
+            )])],
+        )
+        .build();
 
     tokens.extend(switch.into_tokens());
 
@@ -639,7 +636,7 @@ fn into_tokens_basic_switch() {
     );
 
     // RNG = 2 -> branch cond 2
-    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.iter().cloned().collect();
+    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
     let bms = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
@@ -698,41 +695,38 @@ fn into_tokens_basic_setswitch() {
     )];
 
     // Build setswitch block: value=2, same branches
-    let setswitch = Switch::new(
-        ControlFlowValue::Set(BigUint::from(2u64)),
-        [
-            CaseEntry::new(
-                BigUint::from(1u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(2),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00220000",
-                )])],
-            ),
-            CaseEntry::new(
-                BigUint::from(2u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(3),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00003300",
-                )])],
-            ),
-        ],
-    );
+    let setswitch = Switch::new(ControlFlowValue::Set(BigUint::from(2u64)))
+        .case_with_skip(
+            BigUint::from(1u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2),
+                    )
+                    .to_channel_id(),
+                },
+                "00220000",
+            )])],
+        )
+        .case_with_skip(
+            BigUint::from(2u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3),
+                    )
+                    .to_channel_id(),
+                },
+                "00003300",
+            )])],
+        )
+        .build();
 
     tokens.extend(setswitch.into_tokens());
     tokens.push(msg(
@@ -802,8 +796,8 @@ fn into_tokens_basic_setswitch() {
 #[test]
 fn builder_basic_switch() {
     // Build with builder: GenMax=3, case 1 -> Key2:22, default -> Key3:33
-    let switch = SwitchBuilder::new(ControlFlowValue::GenMax(BigUint::from(3u64)))
-        .case(
+    let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(3u64)))
+        .case_with_skip(
             BigUint::from(1u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
