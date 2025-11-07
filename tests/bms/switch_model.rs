@@ -29,7 +29,7 @@ fn into_tokens_basic_switch() {
         [
             CaseEntry::new(
                 BigUint::from(1u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -40,11 +40,11 @@ fn into_tokens_basic_switch() {
                         .to_channel_id(),
                     },
                     "00220000",
-                )],
+                )])],
             ),
             CaseEntry::new(
                 BigUint::from(2u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -55,7 +55,7 @@ fn into_tokens_basic_switch() {
                         .to_channel_id(),
                     },
                     "00003300",
-                )],
+                )])],
             ),
         ],
     );
@@ -192,7 +192,7 @@ fn into_tokens_basic_setswitch() {
         [
             CaseEntry::new(
                 BigUint::from(1u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -203,11 +203,11 @@ fn into_tokens_basic_setswitch() {
                         .to_channel_id(),
                     },
                     "00220000",
-                )],
+                )])],
             ),
             CaseEntry::new(
                 BigUint::from(2u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -218,7 +218,7 @@ fn into_tokens_basic_setswitch() {
                         .to_channel_id(),
                     },
                     "00003300",
-                )],
+                )])],
             ),
         ],
     );
@@ -294,7 +294,7 @@ fn builder_basic_switch() {
     let switch = SwitchBuilder::new(ControlFlowValue::GenMax(BigUint::from(3u64)))
         .case(
             BigUint::from(1u64),
-            vec![msg(
+            vec![TokenUnit::from_tokens(vec![msg(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -305,16 +305,16 @@ fn builder_basic_switch() {
                     .to_channel_id(),
                 },
                 "00220000",
-            )],
+            )])],
         )
-        .def(vec![msg(
+        .def(vec![TokenUnit::from_tokens(vec![msg(
             1,
             Channel::Note {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
             },
             "00003300",
-        )])
+        )])])
         .build();
 
     let mut tokens: Vec<Token<'static>> = vec![msg(

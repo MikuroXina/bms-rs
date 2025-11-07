@@ -29,7 +29,7 @@ fn into_tokens_basic_random() {
         [
             If::new(
                 BigUint::from(1u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -40,11 +40,11 @@ fn into_tokens_basic_random() {
                         .to_channel_id(),
                     },
                     "00220000",
-                )],
+                )])],
             ),
             If::new(
                 BigUint::from(2u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -55,7 +55,7 @@ fn into_tokens_basic_random() {
                         .to_channel_id(),
                     },
                     "00003300",
-                )],
+                )])],
             ),
         ],
     );
@@ -192,7 +192,7 @@ fn into_tokens_basic_setrandom() {
         [
             If::new(
                 BigUint::from(1u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -203,11 +203,11 @@ fn into_tokens_basic_setrandom() {
                         .to_channel_id(),
                     },
                     "00220000",
-                )],
+                )])],
             ),
             If::new(
                 BigUint::from(2u64),
-                vec![msg(
+                vec![TokenUnit::from_tokens(vec![msg(
                     1,
                     Channel::Note {
                         channel_id: KeyLayoutBeat::new(
@@ -218,7 +218,7 @@ fn into_tokens_basic_setrandom() {
                         .to_channel_id(),
                     },
                     "00003300",
-                )],
+                )])],
             ),
         ],
     );
@@ -295,7 +295,7 @@ fn builder_and_mutation() {
         ControlFlowValue::GenMax(BigUint::from(6u64)),
         [If::new(
             BigUint::from(4u64),
-            vec![msg(
+            vec![TokenUnit::from_tokens(vec![msg(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -306,11 +306,11 @@ fn builder_and_mutation() {
                     .to_channel_id(),
                 },
                 "00005500",
-            )],
+            )])],
         )
         .or_else_if(
             BigUint::from(5u64),
-            vec![msg(
+            vec![TokenUnit::from_tokens(vec![msg(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -321,16 +321,16 @@ fn builder_and_mutation() {
                     .to_channel_id(),
                 },
                 "00006600",
-            )],
+            )])],
         )
-        .or_else(vec![msg(
+        .or_else(vec![TokenUnit::from_tokens(vec![msg(
             1,
             Channel::Note {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
                     .to_channel_id(),
             },
             "00220000",
-        )])],
+        )])])],
     );
 
     // Mutate: change first cond 4 -> 3, change else-if tokens to Key3:33 (instead of scratch)
@@ -340,14 +340,14 @@ fn builder_and_mutation() {
         assert_eq!(prev, Some(BigUint::from(4u64)));
 
         let elif = random.at_mut(0).unwrap().at_mut(1).unwrap();
-        let _prev_tokens = elif.set_tokens(vec![msg(
+        let _prev_units = elif.set_units(vec![TokenUnit::from_tokens(vec![msg(
             1,
             Channel::Note {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
                     .to_channel_id(),
             },
             "00003300",
-        )]);
+        )])]);
     }
 
     // Compose full tokens (with a header before and after)

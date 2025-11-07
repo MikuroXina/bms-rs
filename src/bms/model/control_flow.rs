@@ -11,6 +11,109 @@ use num::BigUint;
 
 use crate::bms::lex::token::Token;
 
+/// A token guaranteed to be non-control-flow.
+///
+/// Wraps a regular `Token` but ensures it is not any of the control flow headers
+/// such as `#RANDOM`, `#IF`, `#SWITCH`, etc.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonControlToken<'a>(Token<'a>);
+
+impl<'a> NonControlToken<'a> {
+    /// Attempt to create a `NonControlToken` from a `Token`.
+    /// Returns `None` if the token is a control-flow token.
+    pub fn try_from_token(token: Token<'a>) -> Result<Self, Token<'a>> {
+        if token.is_control_flow_token() {
+            Err(token)
+        } else {
+            Ok(Self(token))
+        }
+    }
+
+    /// Borrow the inner `Token`.
+    #[must_use]
+    pub const fn as_token(&self) -> &Token<'a> {
+        &self.0
+    }
+
+    /// Consume and return the inner `Token`.
+    #[must_use]
+    pub fn into_token(self) -> Token<'a> {
+        self.0
+    }
+}
+
+impl<'a> From<NonControlToken<'a>> for Token<'a> {
+    fn from(value: NonControlToken<'a>) -> Self {
+        value.0
+    }
+}
+
+impl<'a> TryFrom<Token<'a>> for NonControlToken<'a> {
+    type Error = Token<'a>;
+
+    fn try_from(value: Token<'a>) -> Result<Self, Self::Error> {
+        Self::try_from_token(value)
+    }
+}
+
+/// Alias preferred by external APIs/tests.
+pub type NonControlFlowToken<'a> = NonControlToken<'a>;
+
+/// A unit of branch content that can represent nested control flow or plain non-control tokens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenUnit<'a> {
+    /// Nested random block content.
+    Random(Random<'a>),
+    /// Nested switch block content.
+    Switch(Switch<'a>),
+    /// Plain non-control-flow tokens for branch content.
+    Tokens(Vec<NonControlToken<'a>>),
+}
+
+impl<'a> TokenUnit<'a> {
+    /// Create a `Tokens` unit from an iterator of raw tokens, filtering out control-flow ones.
+    #[must_use]
+    pub fn from_tokens<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let v = tokens
+            .into_iter()
+            .map(NonControlToken::try_from_token)
+            .flat_map(Result::ok)
+            .collect();
+        Self::Tokens(v)
+    }
+
+    /// Convert this unit into lex tokens.
+    #[must_use]
+    pub fn into_tokens(self) -> Vec<Token<'a>> {
+        match self {
+            TokenUnit::Random(r) => r.into_tokens(),
+            TokenUnit::Switch(s) => s.into_tokens(),
+            TokenUnit::Tokens(v) => v.into_iter().map(Token::from).collect(),
+        }
+    }
+}
+
+impl<'a> From<Random<'a>> for TokenUnit<'a> {
+    fn from(value: Random<'a>) -> Self {
+        TokenUnit::Random(value)
+    }
+}
+
+impl<'a> From<Switch<'a>> for TokenUnit<'a> {
+    fn from(value: Switch<'a>) -> Self {
+        TokenUnit::Switch(value)
+    }
+}
+
+impl<'a> From<Vec<NonControlToken<'a>>> for TokenUnit<'a> {
+    fn from(value: Vec<NonControlToken<'a>>) -> Self {
+        TokenUnit::Tokens(value)
+    }
+}
+
 /// Indicates whether the random block generates a value (`#RANDOM`) or uses a set value (`#SETRANDOM`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ControlFlowValue {
@@ -24,25 +127,18 @@ pub enum ControlFlowValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfChainEntry<'a> {
     condition: Option<BigUint>,
-    tokens: Vec<Token<'a>>, // exclude control-flow tokens
+    units: Vec<TokenUnit<'a>>, // branch content can be nested control flow or tokens
 }
 
 impl<'a> IfChainEntry<'a> {
-    fn new<T>(condition: Option<BigUint>, tokens: T) -> Self
+    /// Create entry with explicit units (supports nested Random/Switch).
+    fn new<U>(condition: Option<BigUint>, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        // Filter out control-flow tokens defensively to keep model invariant.
-        let filtered = tokens
-            .into_iter()
-            .filter(|t| match t {
-                Token::Header { .. } => !t.is_control_flow_token(),
-                _ => true,
-            })
-            .collect();
         Self {
             condition,
-            tokens: filtered,
+            units: units.into_iter().collect(),
         }
     }
 
@@ -52,10 +148,10 @@ impl<'a> IfChainEntry<'a> {
         self.condition.as_ref()
     }
 
-    /// Returns a view of the non-control tokens contained in this branch.
+    /// Returns a view of the branch content units.
     #[must_use]
-    pub fn tokens(&self) -> &[Token<'a>] {
-        &self.tokens
+    pub fn units(&self) -> &[TokenUnit<'a>] {
+        &self.units
     }
 
     /// Set a new condition for this entry.
@@ -67,20 +163,14 @@ impl<'a> IfChainEntry<'a> {
             .map(|cond| std::mem::replace(cond, new_condition))
     }
 
-    /// Replace tokens of this entry (control-flow tokens are filtered out).
-    /// Returns the previous tokens.
-    pub fn set_tokens<T>(&mut self, new_tokens: T) -> Vec<Token<'a>>
+    /// Replace units for this entry.
+    /// Returns the previous units.
+    pub fn set_units<U>(&mut self, new_units: U) -> Vec<TokenUnit<'a>>
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut filtered: Vec<Token<'a>> = new_tokens
-            .into_iter()
-            .filter(|t| match t {
-                Token::Header { .. } => !t.is_control_flow_token(),
-                _ => true,
-            })
-            .collect();
-        std::mem::swap(&mut filtered, &mut self.tokens);
+        let mut filtered: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
+        std::mem::swap(&mut filtered, &mut self.units);
         filtered
     }
 }
@@ -92,31 +182,31 @@ pub struct If<'a> {
 }
 
 impl<'a> If<'a> {
-    /// Create a new if-chain with a single `if` entry.
-    pub fn new<T>(cond: BigUint, tokens: T) -> Self
+    /// Create a new if-chain with units in the first `if` entry.
+    pub fn new<U>(cond: BigUint, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            entries: vec![IfChainEntry::new(Some(cond), tokens)],
+            entries: vec![IfChainEntry::new(Some(cond), units)],
         }
     }
 
-    /// Add an `else if` entry to the chain.
-    pub fn or_else_if<T>(mut self, cond: BigUint, tokens: T) -> Self
+    /// Add an `else if` entry with units.
+    pub fn or_else_if<U>(mut self, cond: BigUint, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.entries.push(IfChainEntry::new(Some(cond), tokens));
+        self.entries.push(IfChainEntry::new(Some(cond), units));
         self
     }
 
-    /// Add an `else` entry to the chain.
-    pub fn or_else<T>(mut self, tokens: T) -> Self
+    /// Add an `else` entry with units.
+    pub fn or_else<U>(mut self, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.entries.push(IfChainEntry::new(None, tokens));
+        self.entries.push(IfChainEntry::new(None, units));
         self
     }
 
@@ -227,7 +317,9 @@ impl<'a> Random<'a> {
                     }
                 }
 
-                out.extend(entry.tokens);
+                for unit in entry.units {
+                    out.extend(unit.into_tokens());
+                }
                 is_first = false;
             }
 
@@ -282,48 +374,36 @@ impl<'a> IndexMut<usize> for Random<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseEntry<'a> {
     condition: Option<BigUint>,
-    tokens: Vec<Token<'a>>, // exclude control-flow tokens
-    skip: bool,             // whether to emit `#SKIP` after tokens
+    units: Vec<TokenUnit<'a>>, // case content can be nested control flow or tokens
+    skip: bool,                // whether to emit `#SKIP` after tokens
 }
 
 impl<'a> CaseEntry<'a> {
-    /// Create a case entry with condition.
-    pub fn new<T>(cond: BigUint, tokens: T) -> Self
+    /// Create a case entry with condition (units only).
+    pub fn new<U>(cond: BigUint, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let filtered = tokens
-            .into_iter()
-            .filter(|t| match t {
-                Token::Header { .. } => !t.is_control_flow_token(),
-                _ => true,
-            })
-            .collect();
         Self {
             condition: Some(cond),
-            tokens: filtered,
+            units: units.into_iter().collect(),
             skip: true,
         }
     }
 
     /// Create a default entry (`#DEF`).
-    pub fn default<T>(tokens: T) -> Self
+    pub fn default<U>(units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let filtered = tokens
-            .into_iter()
-            .filter(|t| match t {
-                Token::Header { .. } => !t.is_control_flow_token(),
-                _ => true,
-            })
-            .collect();
         Self {
             condition: None,
-            tokens: filtered,
+            units: units.into_iter().collect(),
             skip: true,
         }
     }
+
+    // (removed token-based constructors; units-only API is enforced)
 
     /// Set whether to emit `#SKIP` after tokens (default: true).
     pub const fn set_skip(&mut self, skip: bool) {
@@ -338,24 +418,20 @@ impl<'a> CaseEntry<'a> {
 
     /// Returns a view of the non-control tokens contained in this case.
     #[must_use]
-    pub fn tokens(&self) -> &[Token<'a>] {
-        &self.tokens
+    pub fn units(&self) -> &[TokenUnit<'a>] {
+        &self.units
     }
 
-    /// Replace tokens of this entry (control-flow tokens are filtered out).
-    /// Returns the previous tokens.
-    pub fn set_tokens<T>(&mut self, new_tokens: T) -> Vec<Token<'a>>
+    // (removed token-based setter; use `set_units` instead)
+
+    /// Replace units for this case.
+    /// Returns the previous units.
+    pub fn set_units<U>(&mut self, new_units: U) -> Vec<TokenUnit<'a>>
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut filtered: Vec<Token<'a>> = new_tokens
-            .into_iter()
-            .filter(|t| match t {
-                Token::Header { .. } => !t.is_control_flow_token(),
-                _ => true,
-            })
-            .collect();
-        std::mem::swap(&mut filtered, &mut self.tokens);
+        let mut filtered: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
+        std::mem::swap(&mut filtered, &mut self.units);
         filtered
     }
 }
@@ -429,7 +505,9 @@ impl<'a> Switch<'a> {
                 }),
             }
 
-            out.extend(case.tokens);
+            for unit in case.units {
+                out.extend(unit.into_tokens());
+            }
             if case.skip {
                 out.push(Token::Header {
                     name: "SKIP".into(),
@@ -496,45 +574,49 @@ impl<'a> SwitchBuilder<'a> {
         }
     }
 
-    /// Add a `#CASE <cond>` branch with tokens. `skip` defaults to true.
-    pub fn case<T>(mut self, cond: BigUint, tokens: T) -> Self
+    /// Add a `#CASE <cond>` branch with units. `skip` defaults to true.
+    pub fn case<U>(mut self, cond: BigUint, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.cases.push(CaseEntry::new(cond, tokens));
+        self.cases.push(CaseEntry::new(cond, units));
         self
     }
 
     /// Add a `#CASE <cond>` branch with explicit `skip` control.
-    pub fn case_with_skip<T>(mut self, cond: BigUint, tokens: T, skip: bool) -> Self
+    pub fn case_with_skip<U>(mut self, cond: BigUint, units: U, skip: bool) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::new(cond, tokens);
+        let mut entry = CaseEntry::new(cond, units);
         entry.set_skip(skip);
         self.cases.push(entry);
         self
     }
 
+    // (removed token-based aliases; all case methods now accept units)
+
     /// Add a `#DEF` default branch. `skip` defaults to true.
-    pub fn def<T>(mut self, tokens: T) -> Self
+    pub fn def<U>(mut self, units: U) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.cases.push(CaseEntry::default(tokens));
+        self.cases.push(CaseEntry::default(units));
         self
     }
 
     /// Add a `#DEF` default branch with explicit `skip` control.
-    pub fn def_with_skip<T>(mut self, tokens: T, skip: bool) -> Self
+    pub fn def_with_skip<U>(mut self, units: U, skip: bool) -> Self
     where
-        T: IntoIterator<Item = Token<'a>>,
+        U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::default(tokens);
+        let mut entry = CaseEntry::default(units);
         entry.set_skip(skip);
         self.cases.push(entry);
         self
     }
+
+    // (removed token-based aliases; all def methods now accept units)
 
     /// Push a prepared `CaseEntry` into builder.
     #[must_use]
