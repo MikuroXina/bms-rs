@@ -4,7 +4,7 @@
 
 use bms_rs::{
     bms::{BmsWarning, default_config, parse_bms},
-    diagnostics::{SimpleSource, emit_bms_warnings},
+    diagnostics::{SimpleSource, collect_bms_reports},
 };
 
 #[test]
@@ -37,12 +37,14 @@ fn test_emit_warnings_with_real_bms() {
     let output = parse_bms(bms_source, default_config()).unwrap();
 
     if !output.warnings.is_empty() {
-        // Note: here we just verify the function can be called normally
-        emit_bms_warnings("test.bms", bms_source, &output.warnings);
+        // Verify diagnostics can be generated without printing to terminal
+        let reports = collect_bms_reports("test.bms", bms_source, &output.warnings);
+        assert_eq!(reports.len(), output.warnings.len());
     } else {
-        // If no warnings, we also test the empty warnings case
+        // If no warnings, also test empty warnings case
         let empty_warnings: Vec<BmsWarning> = vec![];
-        emit_bms_warnings("test.bms", bms_source, &empty_warnings);
+        let reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
+        assert_eq!(reports.len(), 0);
     }
 }
 
@@ -51,8 +53,9 @@ fn test_empty_warnings() {
     let bms_source = "#TITLE test\n#ARTIST composer\n";
     let empty_warnings: Vec<BmsWarning> = vec![];
 
-    // Test empty warnings list case
-    emit_bms_warnings("test.bms", bms_source, &empty_warnings);
+    // Test empty warnings list case without printing
+    let reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
+    assert!(reports.is_empty());
 }
 
 #[test]

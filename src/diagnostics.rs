@@ -181,3 +181,18 @@ pub fn emit_bms_warnings<'a>(
         let _ = report.print((name.to_string(), ariadne_source.clone()));
     }
 }
+
+/// Collect `ariadne::Report` instances for a list of `BmsWarning` without printing.
+///
+/// This is useful in tests to verify diagnostics can be generated while keeping test output clean.
+/// Examples continue to use `emit_bms_warnings` to render reports to the terminal.
+#[cfg(feature = "diagnostics")]
+#[must_use]
+pub fn collect_bms_reports<'a>(
+    name: &'a str,
+    source: &'a str,
+    warnings: impl IntoIterator<Item = &'a crate::bms::BmsWarning>,
+) -> Vec<Report<'a, (String, std::ops::Range<usize>)>> {
+    let simple = SimpleSource::new(name, source);
+    warnings.into_iter().map(|w| w.to_report(&simple)).collect()
+}
