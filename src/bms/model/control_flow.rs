@@ -293,41 +293,37 @@ impl<'a> Random<'a> {
             }),
         }
 
-        for branch in self.branches {
-            let mut is_first = true;
-            for entry in branch.entries {
-                match (is_first, entry.condition) {
-                    (true, Some(cond)) => {
-                        out.push(Token::Header {
-                            name: "IF".into(),
-                            args: cond.to_string().into(),
-                        });
-                    }
-                    (false, Some(cond)) => {
-                        out.push(Token::Header {
-                            name: "ELSEIF".into(),
-                            args: cond.to_string().into(),
-                        });
-                    }
-                    (_, None) => {
-                        out.push(Token::Header {
-                            name: "ELSE".into(),
-                            args: "".into(),
-                        });
-                    }
-                }
+        self.branches.into_iter().for_each(|branch| {
+            out.extend(
+                branch
+                    .entries
+                    .into_iter()
+                    .enumerate()
+                    .flat_map(|(i, entry)| {
+                        let head = match (i == 0, entry.condition) {
+                            (true, Some(cond)) => Token::Header {
+                                name: "IF".into(),
+                                args: cond.to_string().into(),
+                            },
+                            (false, Some(cond)) => Token::Header {
+                                name: "ELSEIF".into(),
+                                args: cond.to_string().into(),
+                            },
+                            (_, None) => Token::Header {
+                                name: "ELSE".into(),
+                                args: "".into(),
+                            },
+                        };
 
-                for unit in entry.units {
-                    out.extend(unit.into_tokens());
-                }
-                is_first = false;
-            }
-
-            out.push(Token::Header {
-                name: "ENDIF".into(),
-                args: "".into(),
-            });
-        }
+                        std::iter::once(head)
+                            .chain(entry.units.into_iter().flat_map(TokenUnit::into_tokens))
+                    })
+                    .chain(std::iter::once(Token::Header {
+                        name: "ENDIF".into(),
+                        args: "".into(),
+                    })),
+            );
+        });
 
         out.push(Token::Header {
             name: "ENDRANDOM".into(),
@@ -493,28 +489,25 @@ impl<'a> Switch<'a> {
             }),
         }
 
-        for case in self.cases {
-            match case.condition {
-                Some(cond) => out.push(Token::Header {
-                    name: "CASE".into(),
-                    args: cond.to_string().into(),
-                }),
-                None => out.push(Token::Header {
-                    name: "DEF".into(),
-                    args: "".into(),
-                }),
-            }
-
-            for unit in case.units {
-                out.extend(unit.into_tokens());
-            }
-            if case.skip {
-                out.push(Token::Header {
+        self.cases.into_iter().for_each(|case| {
+            out.extend(
+                std::iter::once(case.condition.map_or_else(
+                    || Token::Header {
+                        name: "DEF".into(),
+                        args: "".into(),
+                    },
+                    |cond| Token::Header {
+                        name: "CASE".into(),
+                        args: cond.to_string().into(),
+                    },
+                ))
+                .chain(case.units.into_iter().flat_map(TokenUnit::into_tokens))
+                .chain(case.skip.then(|| Token::Header {
                     name: "SKIP".into(),
                     args: "".into(),
-                });
-            }
-        }
+                })),
+            );
+        });
 
         out.push(Token::Header {
             name: "ENDSW".into(),
