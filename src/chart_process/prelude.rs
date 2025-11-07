@@ -4,7 +4,10 @@
 //! allowing users to import all needed items in one go.
 
 // Re-export types
-pub use super::types::{BmpId, DisplayRatio, WavId, YCoordinate};
+pub use super::types::{
+    BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio,
+    ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator, WavId, YCoordinate,
+};
 
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};

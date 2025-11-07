@@ -15,6 +15,7 @@ use crate::bms::prelude::SwBgaEvent;
 
 pub mod bms_processor;
 pub mod bmson_processor;
+pub mod utils;
 
 use std::{collections::HashMap, path::Path, time::SystemTime};
 
@@ -25,7 +26,10 @@ pub mod types;
 pub mod prelude;
 
 // Use types from prelude
-pub use prelude::{BmpId, DisplayRatio, WavId, YCoordinate};
+pub use prelude::{
+    BaseBpm, BaseBpmGenerator, BmpId, DisplayRatio, ManualBpmGenerator, MaxBpmGenerator,
+    MinBpmGenerator, StartBpmGenerator, WavId, YCoordinate,
+};
 
 // Use custom wrapper types
 pub use types::{ChartEventWithPosition, VisibleEvent};
