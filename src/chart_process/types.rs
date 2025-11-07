@@ -426,6 +426,20 @@ impl ChartEventWithPosition {
     }
 }
 
+impl PartialEq for ChartEventWithPosition {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for ChartEventWithPosition {}
+
+impl std::hash::Hash for ChartEventWithPosition {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
 /// Visible area event and position and display ratio wrapper type.
 ///
 /// Represents an event in the visible area, including its position, event content, and display ratio.
@@ -480,5 +494,19 @@ impl VisibleEvent {
     #[must_use]
     pub const fn display_ratio(&self) -> &DisplayRatio {
         &self.display_ratio
+    }
+}
+
+impl PartialEq for VisibleEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for VisibleEvent {}
+
+impl std::hash::Hash for VisibleEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
