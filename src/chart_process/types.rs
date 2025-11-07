@@ -409,8 +409,8 @@ impl ChartEventWithPosition {
 
     /// Get event identifier
     #[must_use]
-    pub const fn id(&self) -> &ChartEventId {
-        &self.id
+    pub const fn id(&self) -> ChartEventId {
+        self.id
     }
 
     /// Get event position
@@ -474,8 +474,8 @@ impl VisibleEvent {
 
     /// Get event identifier
     #[must_use]
-    pub const fn id(&self) -> &ChartEventId {
-        &self.id
+    pub const fn id(&self) -> ChartEventId {
+        self.id
     }
 
     /// Get event position
