@@ -24,41 +24,37 @@ fn into_tokens_basic_random() {
     )];
 
     // Build random block: max=2, cond 1 -> Key2:22, cond 2 -> Key3:33
-    let random = Random::new(
-        ControlFlowValue::GenMax(BigUint::from(2u64)),
-        [
-            If::new(
-                BigUint::from(1u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(2),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00220000",
-                )])],
-            ),
-            If::new(
-                BigUint::from(2u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(3),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00003300",
-                )])],
-            ),
-        ],
-    );
+    let random = Random::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
+        .if_block(If::new(
+            BigUint::from(1u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2),
+                    )
+                    .to_channel_id(),
+                },
+                "00220000",
+            )])],
+        ))
+        .if_block(If::new(
+            BigUint::from(2u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3),
+                    )
+                    .to_channel_id(),
+                },
+                "00003300",
+            )])],
+        ));
 
     tokens.extend(random.into_tokens());
 
@@ -187,41 +183,37 @@ fn into_tokens_basic_setrandom() {
     )];
 
     // Build setrandom block: value=2, branches same as above
-    let setrandom = Random::new(
-        ControlFlowValue::Set(BigUint::from(2u64)),
-        [
-            If::new(
-                BigUint::from(1u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(2),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00220000",
-                )])],
-            ),
-            If::new(
-                BigUint::from(2u64),
-                vec![TokenUnit::from_tokens(vec![msg(
-                    1,
-                    Channel::Note {
-                        channel_id: KeyLayoutBeat::new(
-                            PlayerSide::Player1,
-                            NoteKind::Visible,
-                            Key::Key(3),
-                        )
-                        .to_channel_id(),
-                    },
-                    "00003300",
-                )])],
-            ),
-        ],
-    );
+    let setrandom = Random::new(ControlFlowValue::Set(BigUint::from(2u64)))
+        .if_block(If::new(
+            BigUint::from(1u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2),
+                    )
+                    .to_channel_id(),
+                },
+                "00220000",
+            )])],
+        ))
+        .if_block(If::new(
+            BigUint::from(2u64),
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3),
+                    )
+                    .to_channel_id(),
+                },
+                "00003300",
+            )])],
+        ));
 
     tokens.extend(setrandom.into_tokens());
     tokens.push(msg(
@@ -291,9 +283,8 @@ fn into_tokens_basic_setrandom() {
 #[test]
 fn builder_and_mutation() {
     // Random with 6; entries: 4 -> Key5:55, 5 -> Scratch1:66, else -> Key2:22
-    let mut random = Random::new(
-        ControlFlowValue::GenMax(BigUint::from(6u64)),
-        [If::new(
+    let mut random = Random::new(ControlFlowValue::GenMax(BigUint::from(6u64))).if_block(
+        If::new(
             BigUint::from(4u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
@@ -330,7 +321,7 @@ fn builder_and_mutation() {
                     .to_channel_id(),
             },
             "00220000",
-        )])])],
+        )])]),
     );
 
     // Mutate: change first cond 4 -> 3, change else-if tokens to Key3:33 (instead of scratch)

@@ -327,15 +327,20 @@ pub struct Random<'a> {
 }
 
 impl<'a> Random<'a> {
-    /// Create a random block (`#RANDOM` or `#SETRANDOM`) with unified constructor.
-    pub fn new<T>(value: ControlFlowValue, branches: T) -> Self
-    where
-        T: IntoIterator<Item = If<'a>>,
-    {
+    /// Create an empty random block (`#RANDOM` or `#SETRANDOM`).
+    #[must_use]
+    pub const fn new(value: ControlFlowValue) -> Self {
         Self {
             value,
-            branches: branches.into_iter().collect(),
+            branches: Vec::new(),
         }
+    }
+
+    /// Append an `If` branch for chained construction.
+    #[must_use]
+    pub fn if_block(mut self, branch: If<'a>) -> Self {
+        self.branches.push(branch);
+        self
     }
 
     /// Number of branches.
