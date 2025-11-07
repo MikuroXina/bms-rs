@@ -168,8 +168,8 @@ fn test_prelude_diagnostics_imports() {
     let warnings = vec![BmsWarning::PlayingWarning(PlayingWarning::TotalUndefined)];
 
     // Test that diagnostics reports can be generated without printing
-    let _reports = bms_rs::diagnostics::collect_bms_reports("test.bms", source_text, &warnings);
-    assert_eq!(_reports.len(), warnings.len());
+    let reports = bms_rs::diagnostics::collect_bms_reports("test.bms", source_text, &warnings);
+    assert_eq!(reports.len(), warnings.len());
 
     // Test ToAriadne trait
     let _report = _bms_warning.to_report(&source);

@@ -38,13 +38,13 @@ fn test_emit_warnings_with_real_bms() {
 
     if !output.warnings.is_empty() {
         // Verify diagnostics can be generated without printing to terminal
-        let _reports = collect_bms_reports("test.bms", bms_source, &output.warnings);
-        assert_eq!(_reports.len(), output.warnings.len());
+        let reports = collect_bms_reports("test.bms", bms_source, &output.warnings);
+        assert_eq!(reports.len(), output.warnings.len());
     } else {
         // If no warnings, also test empty warnings case
         let empty_warnings: Vec<BmsWarning> = vec![];
-        let _reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
-        assert_eq!(_reports.len(), 0);
+        let reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
+        assert_eq!(reports.len(), 0);
     }
 }
 
@@ -54,8 +54,8 @@ fn test_empty_warnings() {
     let empty_warnings: Vec<BmsWarning> = vec![];
 
     // Test empty warnings list case without printing
-    let _reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
-    assert!(_reports.is_empty());
+    let reports = collect_bms_reports("test.bms", bms_source, &empty_warnings);
+    assert!(reports.is_empty());
 }
 
 #[test]
