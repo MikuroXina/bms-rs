@@ -6,6 +6,11 @@ use crate::bms::command::channel::mapper::KeyLayoutMapper;
 
 use crate::bms::model::Bms;
 
+#[cfg(feature = "diagnostics")]
+use crate::diagnostics::{SimpleSource, ToAriadne, build_report};
+#[cfg(feature = "diagnostics")]
+use ariadne::{Color, Report, ReportKind};
+
 /// Simpifies the warnings for playing, which would not make this chart unplayable.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -39,6 +44,42 @@ pub enum PlayingError {
     /// There is no notes.
     #[error("There is no notes.")]
     NoNotes,
+}
+
+#[cfg(feature = "diagnostics")]
+impl ToAriadne for PlayingWarning {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        // Playing warnings lack precise source positions; anchor at file start.
+        build_report(
+            src,
+            ReportKind::Warning,
+            0..0,
+            "Playing warning",
+            self.to_string(),
+            Color::Yellow,
+        )
+    }
+}
+
+#[cfg(feature = "diagnostics")]
+impl ToAriadne for PlayingError {
+    fn to_report<'a>(
+        &self,
+        src: &SimpleSource<'a>,
+    ) -> Report<'a, (String, std::ops::Range<usize>)> {
+        // Playing errors lack precise source positions; anchor at file start.
+        build_report(
+            src,
+            ReportKind::Error,
+            0..0,
+            "Playing error",
+            self.to_string(),
+            Color::Red,
+        )
+    }
 }
 
 /// Output of checking for playing warnings and errors.

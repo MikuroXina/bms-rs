@@ -32,7 +32,7 @@ pub mod unparse;
 use thiserror::Error;
 
 #[cfg(feature = "diagnostics")]
-use ariadne::{Label, Report, ReportKind};
+use ariadne::Report;
 
 #[cfg(feature = "diagnostics")]
 use crate::diagnostics::{SimpleSource, ToAriadne};
@@ -280,21 +280,8 @@ impl ToAriadne for BmsWarning {
         match self {
             Lex(e) => e.to_report(src),
             Parse(e) => e.to_report(src),
-            // PlayingWarning / PlayingError have no position, locate to file start 0..0
-            PlayingWarning(w) => {
-                let filename = src.name().to_string();
-                Report::build(ReportKind::Warning, (filename.clone(), 0..0))
-                    .with_message(format!("playing warning: {w}"))
-                    .with_label(Label::new((filename, 0..0)))
-                    .finish()
-            }
-            PlayingError(e) => {
-                let filename = src.name().to_string();
-                Report::build(ReportKind::Error, (filename.clone(), 0..0))
-                    .with_message(format!("playing error: {e}"))
-                    .with_label(Label::new((filename, 0..0)))
-                    .finish()
-            }
+            PlayingWarning(w) => w.to_report(src),
+            PlayingError(e) => e.to_report(src),
         }
     }
 }
