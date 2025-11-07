@@ -1,4 +1,4 @@
-//! Random model: `If` and unified `Random` structure.
+//! Random model: `IfBlock` and unified `Random` structure.
 //!
 //! This module defines a lightweight model to build `#RANDOM`/`#SETRANDOM` blocks
 //! using regular BMS tokens. Branch entries accept tokens with any lifetime
@@ -217,15 +217,15 @@ impl<'a> IfChainEntry<'a> {
 
 /// If-chain used within a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct If<'a> {
+pub struct IfBlock<'a> {
     condition: BigUint,
     head_units: Vec<TokenUnit<'a>>, // units for the initial `#IF` branch
     chain: IfChainEntry<'a>,        // subsequent `ELSEIF`/`ELSE` nodes
 }
 
-impl<'a> If<'a> {
+impl<'a> IfBlock<'a> {
     /// Create a new if-chain with units in the first `#IF` entry.
-    pub fn new<U>(cond: BigUint, units: U) -> Self
+    pub fn new_if<U>(cond: BigUint, units: U) -> Self
     where
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
@@ -323,7 +323,7 @@ impl<'a> If<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Random<'a> {
     value: ControlFlowValue,
-    branches: Vec<If<'a>>,
+    branches: Vec<IfBlock<'a>>,
 }
 
 impl<'a> Random<'a> {
@@ -336,9 +336,9 @@ impl<'a> Random<'a> {
         }
     }
 
-    /// Append an `If` branch for chained construction.
+    /// Append an `IfBlock` branch for chained construction.
     #[must_use]
-    pub fn if_block(mut self, branch: If<'a>) -> Self {
+    pub fn if_block(mut self, branch: IfBlock<'a>) -> Self {
         self.branches.push(branch);
         self
     }
@@ -357,12 +357,12 @@ impl<'a> Random<'a> {
 
     /// Get branch by index.
     #[must_use]
-    pub fn at(&self, index: usize) -> Option<&If<'a>> {
+    pub fn at(&self, index: usize) -> Option<&IfBlock<'a>> {
         self.branches.get(index)
     }
 
     /// Get mutable branch by index.
-    pub fn at_mut(&mut self, index: usize) -> Option<&mut If<'a>> {
+    pub fn at_mut(&mut self, index: usize) -> Option<&mut IfBlock<'a>> {
         self.branches.get_mut(index)
     }
 
@@ -435,8 +435,8 @@ impl<'a> Random<'a> {
 }
 
 impl<'a> IntoIterator for Random<'a> {
-    type Item = If<'a>;
-    type IntoIter = std::vec::IntoIter<If<'a>>;
+    type Item = IfBlock<'a>;
+    type IntoIter = std::vec::IntoIter<IfBlock<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.branches.into_iter()
@@ -444,8 +444,8 @@ impl<'a> IntoIterator for Random<'a> {
 }
 
 impl<'b, 'a> IntoIterator for &'b Random<'a> {
-    type Item = &'b If<'a>;
-    type IntoIter = std::slice::Iter<'b, If<'a>>;
+    type Item = &'b IfBlock<'a>;
+    type IntoIter = std::slice::Iter<'b, IfBlock<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.branches.iter()
@@ -453,7 +453,7 @@ impl<'b, 'a> IntoIterator for &'b Random<'a> {
 }
 
 impl<'a> Index<usize> for Random<'a> {
-    type Output = If<'a>;
+    type Output = IfBlock<'a>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.branches[index]

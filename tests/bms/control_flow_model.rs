@@ -25,7 +25,7 @@ fn into_tokens_basic_random() {
 
     // Build random block: max=2, cond 1 -> Key2:22, cond 2 -> Key3:33
     let random = Random::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
-        .if_block(If::new(
+        .if_block(IfBlock::new_if(
             BigUint::from(1u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
@@ -40,7 +40,7 @@ fn into_tokens_basic_random() {
                 "00220000",
             )])],
         ))
-        .if_block(If::new(
+        .if_block(IfBlock::new_if(
             BigUint::from(2u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
@@ -184,7 +184,7 @@ fn into_tokens_basic_setrandom() {
 
     // Build setrandom block: value=2, branches same as above
     let setrandom = Random::new(ControlFlowValue::Set(BigUint::from(2u64)))
-        .if_block(If::new(
+        .if_block(IfBlock::new_if(
             BigUint::from(1u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
@@ -199,7 +199,7 @@ fn into_tokens_basic_setrandom() {
                 "00220000",
             )])],
         ))
-        .if_block(If::new(
+        .if_block(IfBlock::new_if(
             BigUint::from(2u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
@@ -284,7 +284,7 @@ fn into_tokens_basic_setrandom() {
 fn builder_and_mutation() {
     // Random with 6; entries: 4 -> Key5:55, 5 -> Scratch1:66, else -> Key2:22
     let mut random = Random::new(ControlFlowValue::GenMax(BigUint::from(6u64))).if_block(
-        If::new(
+        IfBlock::new_if(
             BigUint::from(4u64),
             vec![TokenUnit::from_tokens(vec![msg(
                 1,
