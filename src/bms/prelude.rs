@@ -44,8 +44,8 @@ pub use super::{
         Bms, Notes,
         bmp::{AtBgaDef, BgaDef, Bmp},
         control_flow::{
-            CaseEntry, ControlFlowValue, If, IfChainEntry, NonControlFlowToken, Random, Switch,
-            SwitchBuilder, TokenUnit,
+            CaseEntry, ControlFlowValue, If, NonControlFlowToken, Random, Switch, SwitchBuilder,
+            TokenUnit,
         },
         judge::ExRankDef,
         obj::{

@@ -125,7 +125,7 @@ pub enum ControlFlowValue {
 
 /// One branch node in an if-chain inside a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IfChainEntry<'a> {
+enum IfChainEntry<'a> {
     /// An `#ELSEIF <cond>` branch with its units and a pointer to the next entry.
     ElseIf {
         /// Condition value for `#ELSEIF <cond>`.
