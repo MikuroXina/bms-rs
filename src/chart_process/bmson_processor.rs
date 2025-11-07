@@ -396,15 +396,16 @@ impl<'a> BmsonProcessor<'a> {
     /// Get BPM value at a given y by scanning indexed BPM events.
     fn bpm_at_y(&self, y: Decimal) -> Decimal {
         use std::ops::Bound::{Included, Unbounded};
-        let mut bpm = Decimal::from(self.bmson.info.init_bpm.as_f64());
-        for (_ey, events) in self.flow_events_by_y.range((Unbounded, Included(y))) {
-            for evt in events {
-                if let FlowEvent::Bpm(b) = evt {
-                    bpm = b.clone();
-                }
-            }
-        }
-        bpm
+        let init_bpm = Decimal::from(self.bmson.info.init_bpm.as_f64());
+        self.flow_events_by_y
+            .range((Unbounded, Included(y)))
+            .flat_map(|(_ey, events)| events.iter())
+            .filter_map(|evt| match evt {
+                FlowEvent::Bpm(b) => Some(b.clone()),
+                _ => None,
+            })
+            .next_back()
+            .unwrap_or(init_bpm)
     }
 
     /// Compute seconds between two y positions, integrating per-segment BPM.
@@ -413,36 +414,29 @@ impl<'a> BmsonProcessor<'a> {
         if to_y <= from_y {
             return 0.0;
         }
-        let mut cur_y = from_y.clone();
-        let mut cur_bpm = self.bpm_at_y(from_y.clone());
-        let mut seconds = 0.0f64;
-        for (ey, events) in self
+        let init_bpm = self.bpm_at_y(from_y.clone());
+        let (last_y, last_bpm, seconds) = self
             .flow_events_by_y
-            .range((Excluded(from_y), Included(to_y.clone())))
-        {
-            // Only BPM events affect time mapping
-            let mut bpm_event: Option<Decimal> = None;
-            for evt in events {
-                if let FlowEvent::Bpm(b) = evt {
-                    bpm_event = Some(b.clone());
-                    break;
-                }
-            }
-            if let Some(next_bpm) = bpm_event {
-                let delta_y = ey.clone() - cur_y.clone();
-                let delta_y_f64 = delta_y.to_f64().unwrap_or(0.0);
-                let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-                seconds += delta_y_f64 * 240.0 / cur_bpm_f64;
-                cur_y = ey.clone();
-                cur_bpm = next_bpm;
-            }
-        }
-        // Final segment to to_y
-        let delta_y = to_y - cur_y;
-        let delta_y_f64 = delta_y.to_f64().unwrap_or(0.0);
-        let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-        seconds += delta_y_f64 * 240.0 / cur_bpm_f64;
-        seconds
+            .range((Excluded(from_y.clone()), Included(to_y.clone())))
+            .filter_map(|(ey, events)| {
+                events.iter().find_map(|evt| match evt {
+                    FlowEvent::Bpm(b) => Some((ey.clone(), b.clone())),
+                    _ => None,
+                })
+            })
+            .fold(
+                (from_y, init_bpm, 0.0f64),
+                |(cur_y, cur_bpm, acc), (ey, next_bpm)| {
+                    let delta_y_f64 = (ey.clone() - cur_y).to_f64().unwrap_or(0.0);
+                    let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+                    let seg_secs = delta_y_f64 * 240.0 / cur_bpm_f64;
+                    (ey, next_bpm, acc + seg_secs)
+                },
+            );
+
+        let final_delta_y_f64 = (to_y - last_y).to_f64().unwrap_or(0.0);
+        let final_bpm_f64 = last_bpm.to_f64().unwrap_or(120.0);
+        seconds + final_delta_y_f64 * 240.0 / final_bpm_f64
     }
 
     /// Automatically generate measure lines for BMSON without defined barline (at each unit Y value, but not exceeding other objects' Y values)
