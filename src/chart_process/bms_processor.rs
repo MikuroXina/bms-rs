@@ -521,7 +521,7 @@ impl BmsProcessor {
             kind,
             wav_id,
             length,
-            continue_play: false, // Fixed as false for BMS
+            continue_play: None, // Fixed as None for BMS
         }
     }
 

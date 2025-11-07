@@ -17,7 +17,11 @@ pub mod bms_processor;
 pub mod bmson_processor;
 pub mod utils;
 
-use std::{collections::HashMap, path::Path, time::SystemTime};
+use std::{
+    collections::HashMap,
+    path::Path,
+    time::{Duration, SystemTime},
+};
 
 // Type definition module
 pub mod types;
@@ -55,8 +59,8 @@ pub enum ChartEvent {
         wav_id: Option<WavId>,
         /// Note length (end position for long notes, None for regular notes)
         length: Option<YCoordinate>,
-        /// Note continue play flag (fixed as false for BMS, based on Note.c field for BMSON)
-        continue_play: bool,
+        /// Note continue play duration. None for BMS; in BMSON, Some(duration) when Note.c is true.
+        continue_play: Option<Duration>,
     },
     /// BGM and other non-key triggers (no valid side/key)
     Bgm {

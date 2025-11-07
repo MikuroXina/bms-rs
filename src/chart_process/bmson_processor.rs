@@ -12,6 +12,7 @@ use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
+use num::ToPrimitive;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -190,7 +191,11 @@ impl<'a> BmsonProcessor<'a> {
                     kind,
                     wav_id,
                     length,
-                    continue_play: *c,
+                    continue_play: if *c {
+                        self.continue_duration_for_y(yy.clone())
+                    } else {
+                        None
+                    },
                 };
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                 events_map.entry(y_coord).or_default().push(evp);
@@ -319,7 +324,7 @@ impl<'a> BmsonProcessor<'a> {
                     kind: NoteKind::Landmine,
                     wav_id,
                     length: None,
-                    continue_play: false,
+                    continue_play: None,
                 };
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                 events_map.entry(y_coord).or_default().push(evp);
@@ -341,7 +346,7 @@ impl<'a> BmsonProcessor<'a> {
                     kind: NoteKind::Invisible,
                     wav_id,
                     length: None,
-                    continue_play: false,
+                    continue_play: None,
                 };
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                 events_map.entry(y_coord).or_default().push(evp);
@@ -359,6 +364,85 @@ impl<'a> BmsonProcessor<'a> {
         } else {
             Decimal::from(pulses) / denom
         }
+    }
+
+    /// Compute continue-play duration for a note at given y, referencing BPM and Stop events.
+    /// Returns None if there is no subsequent stop event.
+    fn continue_duration_for_y(&self, y_start: Decimal) -> Option<Duration> {
+        // Find the next stop after this y
+        let next_stop = self
+            .bmson
+            .stop_events
+            .iter()
+            .map(|st| (self.pulses_to_y(st.y.0), st.duration))
+            .filter(|(sy, _)| sy.clone() > y_start.clone())
+            .min_by(|a, b| a.0.cmp(&b.0));
+
+        let (stop_y, stop_pulses) = next_stop?;
+
+        // Seconds from y_start to stop_y based on piecewise-constant BPM events
+        let secs_to_stop = self.seconds_between_y(y_start, stop_y.clone());
+        // Add stop duration converted from pulses using BPM at stop_y
+        let bpm_at_stop = self.bpm_at_y(stop_y);
+        let stop_y_len = self.pulses_to_y(stop_pulses);
+        let stop_y_len_f64 = stop_y_len.to_f64().unwrap_or(0.0);
+        let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
+        let secs_during_stop = stop_y_len_f64 * 240.0 / bpm_at_stop_f64;
+
+        let total_secs = secs_to_stop + secs_during_stop;
+        Some(Duration::from_secs_f64(total_secs))
+    }
+
+    /// Get BPM value at a given y by scanning indexed BPM events.
+    fn bpm_at_y(&self, y: Decimal) -> Decimal {
+        use std::ops::Bound::{Included, Unbounded};
+        let mut bpm = Decimal::from(self.bmson.info.init_bpm.as_f64());
+        for (_ey, events) in self.flow_events_by_y.range((Unbounded, Included(y))) {
+            for evt in events {
+                if let FlowEvent::Bpm(b) = evt {
+                    bpm = b.clone();
+                }
+            }
+        }
+        bpm
+    }
+
+    /// Compute seconds between two y positions, integrating per-segment BPM.
+    fn seconds_between_y(&self, from_y: Decimal, to_y: Decimal) -> f64 {
+        use std::ops::Bound::{Excluded, Included};
+        if to_y <= from_y {
+            return 0.0;
+        }
+        let mut cur_y = from_y.clone();
+        let mut cur_bpm = self.bpm_at_y(from_y.clone());
+        let mut seconds = 0.0f64;
+        for (ey, events) in self
+            .flow_events_by_y
+            .range((Excluded(from_y), Included(to_y.clone())))
+        {
+            // Only BPM events affect time mapping
+            let mut bpm_event: Option<Decimal> = None;
+            for evt in events {
+                if let FlowEvent::Bpm(b) = evt {
+                    bpm_event = Some(b.clone());
+                    break;
+                }
+            }
+            if let Some(next_bpm) = bpm_event {
+                let delta_y = ey.clone() - cur_y.clone();
+                let delta_y_f64 = delta_y.to_f64().unwrap_or(0.0);
+                let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+                seconds += delta_y_f64 * 240.0 / cur_bpm_f64;
+                cur_y = ey.clone();
+                cur_bpm = next_bpm;
+            }
+        }
+        // Final segment to to_y
+        let delta_y = to_y - cur_y;
+        let delta_y_f64 = delta_y.to_f64().unwrap_or(0.0);
+        let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+        seconds += delta_y_f64 * 240.0 / cur_bpm_f64;
+        seconds
     }
 
     /// Automatically generate measure lines for BMSON without defined barline (at each unit Y value, but not exceeding other objects' Y values)
