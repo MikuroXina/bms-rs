@@ -123,116 +123,199 @@ pub enum ControlFlowValue {
     GenMax(BigUint),
 }
 
-/// One branch in an if-chain inside a random block.
+/// One branch node in an if-chain inside a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfChainEntry<'a> {
-    condition: Option<BigUint>,
-    units: Vec<TokenUnit<'a>>, // branch content can be nested control flow or tokens
+pub enum IfChainEntry<'a> {
+    /// An `#ELSEIF <cond>` branch with its units and a pointer to the next entry.
+    ElseIf {
+        /// Condition value for `#ELSEIF <cond>`.
+        cond: BigUint,
+        /// Content units for this branch.
+        units: Vec<TokenUnit<'a>>,
+        /// Pointer to the next chain entry.
+        next: Box<IfChainEntry<'a>>,
+    },
+    /// An `#ELSE` branch with its units and a pointer to the next entry.
+    Else {
+        /// Content units for this branch.
+        units: Vec<TokenUnit<'a>>,
+        /// Pointer to the next chain entry.
+        next: Box<IfChainEntry<'a>>,
+    },
+    /// Terminator for an if-chain.
+    EndIf,
 }
 
 impl<'a> IfChainEntry<'a> {
-    /// Create entry with explicit units (supports nested Random/Switch).
-    fn new<U>(condition: Option<BigUint>, units: U) -> Self
-    where
-        U: IntoIterator<Item = TokenUnit<'a>>,
-    {
-        Self {
-            condition,
-            units: units.into_iter().collect(),
+    fn append_to_tail(&mut self, entry: Self) {
+        match self {
+            IfChainEntry::EndIf => {
+                *self = entry;
+            }
+            IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+                let mut cur = next.as_mut();
+                loop {
+                    match cur {
+                        IfChainEntry::EndIf => {
+                            *cur = entry;
+                            break;
+                        }
+                        IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+                            cur = next.as_mut();
+                        }
+                    }
+                }
+            }
         }
     }
 
-    /// Returns the condition if present (None for `else`).
-    #[must_use]
-    pub const fn condition(&self) -> Option<&BigUint> {
-        self.condition.as_ref()
+    fn units_at(&self, chain_index: usize) -> Option<&[TokenUnit<'a>]> {
+        // chain_index refers to entries after the head: 1 => first else-if/else
+        let mut idx = chain_index;
+        let mut cur = self;
+        while idx > 0 {
+            match cur {
+                IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+                    idx -= 1;
+                    cur = next.as_ref();
+                }
+                IfChainEntry::EndIf => return None,
+            }
+        }
+        match cur {
+            IfChainEntry::ElseIf { units, .. } | IfChainEntry::Else { units, .. } => Some(units),
+            IfChainEntry::EndIf => None,
+        }
     }
 
-    /// Returns a view of the branch content units.
-    #[must_use]
-    pub fn units(&self) -> &[TokenUnit<'a>] {
-        &self.units
-    }
-
-    /// Set a new condition for this entry.
-    /// Returns the previous condition when this entry had a condition,
-    /// or None if this is an `else` entry (no change is applied).
-    pub fn set_condition(&mut self, new_condition: BigUint) -> Option<BigUint> {
-        self.condition
-            .as_mut()
-            .map(|cond| std::mem::replace(cond, new_condition))
-    }
-
-    /// Replace units for this entry.
-    /// Returns the previous units.
-    pub fn set_units<U>(&mut self, new_units: U) -> Vec<TokenUnit<'a>>
+    fn set_units_at<U>(&mut self, chain_index: usize, new_units: U) -> Option<Vec<TokenUnit<'a>>>
     where
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut filtered: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
-        std::mem::swap(&mut filtered, &mut self.units);
-        filtered
+        let mut idx = chain_index;
+        let mut cur: *mut IfChainEntry<'a> = self as *mut _;
+        unsafe {
+            loop {
+                match &mut *cur {
+                    IfChainEntry::ElseIf { units, next, .. }
+                    | IfChainEntry::Else { units, next, .. } => {
+                        if idx == 0 {
+                            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
+                            std::mem::swap(&mut incoming, units);
+                            return Some(incoming);
+                        } else {
+                            idx -= 1;
+                            cur = next.as_mut() as *mut _;
+                        }
+                    }
+                    IfChainEntry::EndIf => return None,
+                }
+            }
+        }
     }
 }
 
 /// If-chain used within a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct If<'a> {
-    entries: Vec<IfChainEntry<'a>>,
+    condition: BigUint,
+    head_units: Vec<TokenUnit<'a>>, // units for the initial `#IF` branch
+    chain: IfChainEntry<'a>,        // subsequent `ELSEIF`/`ELSE` nodes
 }
 
 impl<'a> If<'a> {
-    /// Create a new if-chain with units in the first `if` entry.
+    /// Create a new if-chain with units in the first `#IF` entry.
     pub fn new<U>(cond: BigUint, units: U) -> Self
     where
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            entries: vec![IfChainEntry::new(Some(cond), units)],
+            condition: cond,
+            head_units: units.into_iter().collect(),
+            chain: IfChainEntry::EndIf,
         }
     }
 
-    /// Add an `else if` entry with units.
+    /// Add an `#ELSEIF <cond>` entry with units.
     pub fn or_else_if<U>(mut self, cond: BigUint, units: U) -> Self
     where
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.entries.push(IfChainEntry::new(Some(cond), units));
+        let entry = IfChainEntry::ElseIf {
+            cond,
+            units: units.into_iter().collect(),
+            next: Box::new(IfChainEntry::EndIf),
+        };
+        self.chain.append_to_tail(entry);
         self
     }
 
-    /// Add an `else` entry with units.
+    /// Add an `#ELSE` entry with units.
     pub fn or_else<U>(mut self, units: U) -> Self
     where
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        self.entries.push(IfChainEntry::new(None, units));
+        let entry = IfChainEntry::Else {
+            units: units.into_iter().collect(),
+            next: Box::new(IfChainEntry::EndIf),
+        };
+        self.chain.append_to_tail(entry);
         self
     }
 
-    /// Get an entry by index.
+    /// Returns a view of the head `#IF` units.
     #[must_use]
-    pub fn at(&self, index: usize) -> Option<&IfChainEntry<'a>> {
-        self.entries.get(index)
+    pub fn head_units(&self) -> &[TokenUnit<'a>] {
+        &self.head_units
     }
 
-    /// Get a mutable entry by index.
-    pub fn at_mut(&mut self, index: usize) -> Option<&mut IfChainEntry<'a>> {
-        self.entries.get_mut(index)
+    /// Replace units for the branch at `index`. `index=0` refers to the head `#IF` branch;
+    /// `index>=1` refers to the subsequent `ELSEIF`/`ELSE` nodes.
+    /// Returns previous units when the index exists.
+    pub fn set_units_at<U>(&mut self, index: usize, new_units: U) -> Option<Vec<TokenUnit<'a>>>
+    where
+        U: IntoIterator<Item = TokenUnit<'a>>,
+    {
+        if index == 0 {
+            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
+            std::mem::swap(&mut incoming, &mut self.head_units);
+            Some(incoming)
+        } else {
+            self.chain.set_units_at(index - 1, new_units)
+        }
     }
-}
 
-impl<'a> Index<usize> for If<'a> {
-    type Output = IfChainEntry<'a>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.entries[index]
+    /// Returns a view of the units for the branch at `index`.
+    #[must_use]
+    pub fn units_at(&self, index: usize) -> Option<&[TokenUnit<'a>]> {
+        if index == 0 {
+            Some(&self.head_units)
+        } else {
+            self.chain.units_at(index - 1)
+        }
     }
-}
 
-impl<'a> IndexMut<usize> for If<'a> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.entries[index]
+    /// Set a new condition for the head `#IF` entry, returning the previous value.
+    pub const fn set_condition(&mut self, new_condition: BigUint) -> BigUint {
+        std::mem::replace(&mut self.condition, new_condition)
+    }
+
+    /// Returns the number of branches in this if-chain (including head `#IF`).
+    #[must_use]
+    pub fn len(&self) -> usize {
+        let mut count = 1; // head if
+        let mut cur = &self.chain;
+        while let IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } = cur {
+            count += 1;
+            cur = next.as_ref();
+        }
+        count
+    }
+
+    /// An if-chain always has a head `#IF` branch, so it is never empty.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        false
     }
 }
 
@@ -294,35 +377,47 @@ impl<'a> Random<'a> {
         }
 
         self.branches.into_iter().for_each(|branch| {
+            // Emit head IF
+            out.push(Token::Header {
+                name: "IF".into(),
+                args: branch.condition.to_string().into(),
+            });
             out.extend(
                 branch
-                    .entries
+                    .head_units
                     .into_iter()
-                    .enumerate()
-                    .flat_map(|(i, entry)| {
-                        let head = match (i == 0, entry.condition) {
-                            (true, Some(cond)) => Token::Header {
-                                name: "IF".into(),
-                                args: cond.to_string().into(),
-                            },
-                            (false, Some(cond)) => Token::Header {
-                                name: "ELSEIF".into(),
-                                args: cond.to_string().into(),
-                            },
-                            (_, None) => Token::Header {
-                                name: "ELSE".into(),
-                                args: "".into(),
-                            },
-                        };
-
-                        std::iter::once(head)
-                            .chain(entry.units.into_iter().flat_map(TokenUnit::into_tokens))
-                    })
-                    .chain(std::iter::once(Token::Header {
-                        name: "ENDIF".into(),
-                        args: "".into(),
-                    })),
+                    .flat_map(TokenUnit::into_tokens),
             );
+
+            // Emit chained ELSEIF/ELSE entries
+            let mut node = branch.chain;
+            loop {
+                match node {
+                    IfChainEntry::ElseIf { cond, units, next } => {
+                        out.push(Token::Header {
+                            name: "ELSEIF".into(),
+                            args: cond.to_string().into(),
+                        });
+                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
+                        node = *next;
+                    }
+                    IfChainEntry::Else { units, next } => {
+                        out.push(Token::Header {
+                            name: "ELSE".into(),
+                            args: "".into(),
+                        });
+                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
+                        node = *next;
+                    }
+                    IfChainEntry::EndIf => break,
+                }
+            }
+
+            // Close the IF-chain
+            out.push(Token::Header {
+                name: "ENDIF".into(),
+                args: "".into(),
+            });
         });
 
         out.push(Token::Header {

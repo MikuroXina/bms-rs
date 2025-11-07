@@ -335,19 +335,25 @@ fn builder_and_mutation() {
 
     // Mutate: change first cond 4 -> 3, change else-if tokens to Key3:33 (instead of scratch)
     {
-        let first = random.at_mut(0).unwrap().at_mut(0).unwrap();
+        let first = random.at_mut(0).unwrap();
         let prev = first.set_condition(BigUint::from(3u64));
-        assert_eq!(prev, Some(BigUint::from(4u64)));
+        assert_eq!(prev, BigUint::from(4u64));
 
-        let elif = random.at_mut(0).unwrap().at_mut(1).unwrap();
-        let _prev_units = elif.set_units(vec![TokenUnit::from_tokens(vec![msg(
+        let _prev_units = first.set_units_at(
             1,
-            Channel::Note {
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+            vec![TokenUnit::from_tokens(vec![msg(
+                1,
+                Channel::Note {
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3),
+                    )
                     .to_channel_id(),
-            },
-            "00003300",
-        )])]);
+                },
+                "00003300",
+            )])],
+        );
     }
 
     // Compose full tokens (with a header before and after)
