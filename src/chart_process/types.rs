@@ -325,7 +325,7 @@ impl From<BmpId> for usize {
     }
 }
 
-/// Chart event unique identifier wrapper type
+/// Identifier type which is unique over all chart events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChartEventId(pub usize);
 
