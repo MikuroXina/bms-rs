@@ -362,21 +362,22 @@ fn all_tokens<'a, 't, P, F>(
 where
     F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
 {
-    let mut err: Option<ParseErrorWithRange> = None;
-    for &token in ctx.input.iter() {
-        if err.is_some() {
-            break;
-        }
-        match f(token.content()) {
-            Ok(Some(w)) => ctx.warn(w.into_wrapper(token)),
-            Ok(None) => {}
-            Err(e) => {
-                err = Some(e.into_wrapper(token));
+    // Avoid allocation: iterate a local input view and short-circuit on error.
+    let input_view = *ctx.input;
+    input_view
+        .iter()
+        .copied()
+        .try_for_each(|token| match f(token.content()) {
+            Ok(Some(w)) => {
+                ctx.warn(w.into_wrapper(token));
+                Ok(())
             }
-        }
-    }
+            Ok(None) => Ok(()),
+            Err(e) => Err(e.into_wrapper(token)),
+        })?;
+
     *ctx.input = &[];
-    err.map_or(Ok(()), Err)
+    Ok(())
 }
 
 fn all_tokens_with_range<'a, 't, F>(
@@ -386,21 +387,16 @@ fn all_tokens_with_range<'a, 't, F>(
 where
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 {
-    let mut err: Option<ParseErrorWithRange> = None;
-    let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
-    for &token in input.iter() {
-        if err.is_some() {
-            break;
-        }
-        match f(token) {
-            Ok(Some(w)) => warnings.push(w.into_wrapper(token)),
-            Ok(None) => {}
-            Err(e) => {
-                err = Some(e.into_wrapper(token));
-            }
-        }
-    }
-    err.map_or(Ok(warnings), Err)
+    input
+        .iter()
+        .copied()
+        .map(|token| match f(token) {
+            Ok(Some(w)) => Ok(Some(w.into_wrapper(token))),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e.into_wrapper(token)),
+        })
+        .collect::<Result<Vec<_>, ParseErrorWithRange>>()
+        .map(|v| v.into_iter().flatten().collect())
 }
 
 fn parse_obj_ids(
