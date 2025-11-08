@@ -184,31 +184,27 @@ impl<'a> IfChainEntry<'a> {
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         let mut idx = chain_index;
-        let mut cur: *mut IfChainEntry<'a> = self as *mut _;
-        unsafe {
-            loop {
-                match &mut *cur {
-                    IfChainEntry::ElseIf { units, next, .. } => {
-                        if idx == 0 {
-                            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
-                            std::mem::swap(&mut incoming, units);
-                            return Some(incoming);
-                        } else {
-                            idx -= 1;
-                            cur = next.as_mut() as *mut _;
-                        }
+        let mut cur = self;
+        loop {
+            match cur {
+                IfChainEntry::ElseIf { units, next, .. } => {
+                    if idx == 0 {
+                        let old = std::mem::replace(units, new_units.into_iter().collect());
+                        return Some(old);
+                    } else {
+                        idx -= 1;
+                        cur = next.as_mut();
                     }
-                    IfChainEntry::Else { units } => {
-                        if idx == 0 {
-                            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
-                            std::mem::swap(&mut incoming, units);
-                            return Some(incoming);
-                        } else {
-                            return None;
-                        }
-                    }
-                    IfChainEntry::EndIf => return None,
                 }
+                IfChainEntry::Else { units } => {
+                    if idx == 0 {
+                        let old = std::mem::replace(units, new_units.into_iter().collect());
+                        return Some(old);
+                    } else {
+                        return None;
+                    }
+                }
+                IfChainEntry::EndIf => return None,
             }
         }
     }
