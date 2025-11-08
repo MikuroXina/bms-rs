@@ -376,6 +376,7 @@ where
             Err(e) => Err(e.into_wrapper(token)),
         })?;
 
+    // Consume all tokens
     *ctx.input = &[];
     Ok(())
 }
