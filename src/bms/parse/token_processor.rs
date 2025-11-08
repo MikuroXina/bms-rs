@@ -5,7 +5,7 @@
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
 
-use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use itertools::Itertools;
 
