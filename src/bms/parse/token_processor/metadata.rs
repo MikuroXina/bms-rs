@@ -32,7 +32,7 @@ impl TokenProcessor for MetadataProcessor {
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
         all_tokens(ctx, |token| {
-            Ok(match token {
+            Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut metadata)
                     .err(),

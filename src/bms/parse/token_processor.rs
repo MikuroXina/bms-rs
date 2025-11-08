@@ -360,14 +360,14 @@ fn all_tokens<'a, 't, P, F>(
     mut f: F,
 ) -> Result<(), ParseErrorWithRange>
 where
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 {
     // Avoid allocation: iterate a local input view and short-circuit on error.
     let input_view = *ctx.input;
     input_view
         .iter()
         .copied()
-        .try_for_each(|token| match f(token.content()) {
+        .try_for_each(|token| match f(token) {
             Ok(Some(w)) => {
                 ctx.warn(w.into_wrapper(token));
                 Ok(())

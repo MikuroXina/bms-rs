@@ -28,7 +28,7 @@ impl TokenProcessor for MusicInfoProcessor {
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut music_info = MusicInfo::default();
         all_tokens(ctx, |token| {
-            Ok(match token {
+            Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut music_info)
                     .err(),

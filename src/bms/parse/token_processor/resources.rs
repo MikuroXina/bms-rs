@@ -27,7 +27,7 @@ impl TokenProcessor for ResourcesProcessor {
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut resources = Resources::default();
         all_tokens(ctx, |token| {
-            Ok(match token {
+            Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
                     .err(),
