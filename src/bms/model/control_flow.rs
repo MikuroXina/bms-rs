@@ -499,8 +499,6 @@ impl<'a> CaseEntry<'a> {
         }
     }
 
-    // (removed token-based constructors; units-only API is enforced)
-
     /// Set whether to emit `#SKIP` after tokens (default: true).
     pub const fn set_skip(&mut self, skip: bool) {
         self.skip = skip;
