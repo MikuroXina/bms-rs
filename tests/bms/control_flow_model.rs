@@ -70,11 +70,15 @@ fn into_tokens_basic_random() {
         .collect();
 
     // RNG = 1 -> branch cond 1
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -104,11 +108,15 @@ fn into_tokens_basic_random() {
 
     // RNG = 2 -> branch cond 2
     let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -202,11 +210,15 @@ fn into_tokens_basic_setrandom() {
         .collect();
 
     // Because SETRANDOM=2, cond 2 branch is selected regardless of RNG
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -333,11 +345,15 @@ fn builder_and_mutation() {
     let id55 = ObjId::try_from("55", false).unwrap();
 
     // RNG = 3 -> first branch (Key5:55)
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(3u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -366,11 +382,15 @@ fn builder_and_mutation() {
     );
 
     // RNG = 5 -> else-if branch (Key3:33) after mutation
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(5u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -399,11 +419,15 @@ fn builder_and_mutation() {
     );
 
     // RNG = 6 -> else branch (Key2:22)
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(6u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -501,11 +525,15 @@ fn into_tokens_basic_switch() {
         .collect();
 
     // RNG = 1 -> branch cond 1
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -535,11 +563,15 @@ fn into_tokens_basic_switch() {
 
     // RNG = 2 -> branch cond 2
     let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -634,11 +666,15 @@ fn into_tokens_basic_setswitch() {
         .collect();
 
     // Because SETSWITCH=2, cond 2 branch is selected regardless of RNG
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -725,11 +761,15 @@ fn builder_basic_switch() {
     let id44 = ObjId::try_from("44", false).unwrap();
 
     // RNG = 1 -> case branch
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -758,11 +798,15 @@ fn builder_basic_switch() {
     );
 
     // RNG = 3 -> default branch
-    let bms = Bms::from_token_stream(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(3u64)])),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![

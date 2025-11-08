@@ -3,10 +3,8 @@
 #![cfg(feature = "diagnostics")]
 
 use bms_rs::{
-    bms::{BmsWarning, default_config, parse_bms},
-    diagnostics::{SimpleSource, collect_bms_reports},
     bms::{BmsOutput, BmsWarning, default_config, parse_bms},
-    diagnostics::{SimpleSource, emit_bms_warnings},
+    diagnostics::{SimpleSource, collect_bms_reports},
 };
 
 #[test]
@@ -38,13 +36,10 @@ fn test_emit_warnings_with_real_bms() {
     // Parse BMS file, should produce warnings
     let BmsOutput { bms: _, warnings } = parse_bms(bms_source, default_config());
 
-    if !output.warnings.is_empty() {
-        // Verify diagnostics can be generated without printing to terminal
-        let reports = collect_bms_reports("test.bms", bms_source, &output.warnings);
-        assert_eq!(reports.len(), output.warnings.len());
     if !warnings.is_empty() {
-        // Note: here we just verify the function can be called normally
-        emit_bms_warnings("test.bms", bms_source, &warnings);
+        // Verify diagnostics can be generated without printing to terminal
+        let reports = collect_bms_reports("test.bms", bms_source, &warnings);
+        assert_eq!(reports.len(), warnings.len());
     } else {
         // If no warnings, also test empty warnings case
         let empty_warnings: Vec<BmsWarning> = vec![];
