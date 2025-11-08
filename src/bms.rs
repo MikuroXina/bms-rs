@@ -43,7 +43,7 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, TokenProcessorOutput, common_preset, minor_preset},
+        token_processor::{TokenProcessor, common_preset, minor_preset},
     },
     prelude::*,
 };
@@ -203,17 +203,14 @@ impl<T, P, R> ParseConfig<T, P, R> {
         impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
             type Output = Bms;
 
-            fn process<P: Prompter>(
+            fn process<'a, 't, P: Prompter>(
                 &self,
-                input: &mut &[&TokenWithRange<'_>],
-                prompter: &P,
-            ) -> TokenProcessorOutput<Self::Output> {
+                ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
+            ) -> Result<Self::Output, ParseErrorWithRange> {
                 if self.use_minor {
-                    minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
-                        .process(input, prompter)
+                    minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
                 } else {
-                    common_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed)
-                        .process(input, prompter)
+                    common_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
                 }
             }
         }

@@ -34,12 +34,50 @@ mod video;
 mod volume;
 mod wav;
 
-/// Result of a token processor: parse result with collected warnings.
-pub struct TokenProcessorOutput<T> {
-    /// Process result.
-    pub output: Result<T, ParseErrorWithRange>,
-    /// Warnings collected during the process.
-    pub warnings: Vec<ParseWarningWithRange>,
+/// A checkpoint of input position, allowing temporary rewinds/restores.
+pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
+
+/// Processing context passed through token processors.
+///
+/// Contains the current input view, the prompter, and collected warnings.
+pub struct ProcessContext<'a, 't, P> {
+    /// The mutable view of remaining tokens to be processed.
+    pub input: &'a mut &'a [&'t TokenWithRange<'t>],
+    /// The prompter used to handle duplications and user-facing prompts.
+    pub prompter: P,
+    /// Collected warnings (with source ranges) produced during processing.
+    pub reported: Vec<ParseWarningWithRange>,
+}
+
+impl<'a, 't, P> ProcessContext<'a, 't, P> {
+    /// Creates a new processing context from a token slice view and a prompter.
+    pub const fn new(input: &'a mut &'a [&'t TokenWithRange<'t>], prompter: P) -> Self {
+        Self {
+            input,
+            prompter,
+            reported: Vec::new(),
+        }
+    }
+
+    /// Saves the current input position to a checkpoint.
+    pub const fn save(&self) -> Checkpoint<'a, 't> {
+        Checkpoint(self.input)
+    }
+
+    /// Restores the input position from a previously saved checkpoint.
+    pub const fn restore(&mut self, checkpoint: Checkpoint<'a, 't>) {
+        *self.input = checkpoint.0;
+    }
+
+    /// Returns a shared reference to the prompter.
+    pub const fn prompter(&self) -> &P {
+        &self.prompter
+    }
+
+    /// Records a warning produced during token processing.
+    pub fn warn(&mut self, warning: ParseWarningWithRange) {
+        self.reported.push(warning);
+    }
 }
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
@@ -48,11 +86,10 @@ pub trait TokenProcessor {
     type Output;
 
     /// Processes commands by consuming all the stream `input`. It mutates `input`
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output>;
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -82,12 +119,11 @@ pub trait TokenProcessor {
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     type Output = <T as TokenProcessor>::Output;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
-        T::process(self, input, prompter)
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        T::process(self, ctx)
     }
 }
 
@@ -105,33 +141,44 @@ where
 {
     type Output = (F::Output, S::Output);
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
-        let mut cloned = *input;
-        let TokenProcessorOutput {
-            output: first_res,
-            warnings: mut first_warnings,
-        } = self.first.process(&mut cloned, prompter);
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        // Create isolated contexts that share the same input view, avoiding borrow conflicts.
+        let original_input = *ctx.input;
+
+        // First pass context borrows the same prompter to avoid cloning.
+        let mut first_input = original_input;
+        let mut first_ctx = ProcessContext {
+            input: &mut first_input,
+            prompter: ctx.prompter(),
+            reported: Vec::new(),
+        };
+        let first_res = self.first.process(&mut first_ctx);
+
         match first_res {
             Ok(first_output) => {
-                let TokenProcessorOutput {
-                    output: second_res,
-                    warnings: second_warnings,
-                } = self.second.process(input, prompter);
-                first_warnings.extend(second_warnings);
-                let combined = second_res.map(|second_output| (first_output, second_output));
-                TokenProcessorOutput {
-                    output: combined,
-                    warnings: first_warnings,
-                }
+                // Second pass context also starts from the original input view.
+                let mut second_input = original_input;
+                let mut second_ctx = ProcessContext {
+                    input: &mut second_input,
+                    prompter: ctx.prompter(),
+                    reported: Vec::new(),
+                };
+                let second_output = self.second.process(&mut second_ctx)?;
+                // Collect warnings locally first to end borrows to `ctx.prompter()`.
+                let mut merged_reported = core::mem::take(&mut first_ctx.reported);
+                let second_reported = core::mem::take(&mut second_ctx.reported);
+                // explicitly drop to end any borrows tied to `ctx`.
+                drop(first_ctx);
+                drop(second_ctx);
+                merged_reported.extend(second_reported);
+                // Now it is safe to mutate `ctx.reported`.
+                ctx.reported.extend(merged_reported);
+                Ok((first_output, second_output))
             }
-            Err(err) => TokenProcessorOutput {
-                output: Err(err),
-                warnings: first_warnings,
-            },
+            Err(err) => Err(err),
         }
     }
 }
@@ -150,19 +197,12 @@ where
 {
     type Output = O;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
-        let TokenProcessorOutput {
-            output: res,
-            warnings,
-        } = self.source.process(input, prompter);
-        TokenProcessorOutput {
-            output: res.map(|v| (self.mapping)(v)),
-            warnings,
-        }
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        let res = self.source.process(ctx)?;
+        Ok((self.mapping)(res))
     }
 }
 
@@ -315,67 +355,52 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<'a, F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>>(
-    input: &mut &'a [&TokenWithRange<'_>],
+fn all_tokens<'a, 't, P, F>(
+    ctx: &mut ProcessContext<'a, 't, P>,
     mut f: F,
-) -> TokenProcessorOutput<()> {
-    // Accumulate warnings until an error occurs, using iterator-based control flow
+) -> Result<(), ParseErrorWithRange>
+where
+    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
+{
     let mut err: Option<ParseErrorWithRange> = None;
-    let warnings: Vec<ParseWarningWithRange> = input
-        .iter()
-        .scan((), |_, &token| {
-            if err.is_some() {
-                return None;
+    for &token in ctx.input.iter() {
+        if err.is_some() {
+            break;
+        }
+        match f(token.content()) {
+            Ok(Some(w)) => ctx.warn(w.into_wrapper(token)),
+            Ok(None) => {}
+            Err(e) => {
+                err = Some(e.into_wrapper(token));
             }
-            match f(token.content()) {
-                Ok(Some(w)) => Some(Some(w.into_wrapper(token))),
-                Ok(None) => Some(None),
-                Err(e) => {
-                    err = Some(e.into_wrapper(token));
-                    None
-                }
-            }
-        })
-        .flatten()
-        .collect();
-    *input = &[];
-    TokenProcessorOutput {
-        output: err.map_or(Ok(()), Err),
-        warnings,
+        }
     }
+    *ctx.input = &[];
+    err.map_or(Ok(()), Err)
 }
 
-fn all_tokens_with_range<
-    'a,
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
->(
-    input: &mut &'a [&TokenWithRange<'_>],
+fn all_tokens_with_range<'a, 't, F>(
+    input: &'a [&'t TokenWithRange<'t>],
     mut f: F,
-) -> TokenProcessorOutput<()> {
-    // Iterator-based processing with early-stop and collected warnings
+) -> Result<Vec<ParseWarningWithRange>, ParseErrorWithRange>
+where
+    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+{
     let mut err: Option<ParseErrorWithRange> = None;
-    let warnings: Vec<ParseWarningWithRange> = input
-        .iter()
-        .scan((), |_, &token| {
-            if err.is_some() {
-                return None;
+    let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
+    for &token in input.iter() {
+        if err.is_some() {
+            break;
+        }
+        match f(token) {
+            Ok(Some(w)) => warnings.push(w.into_wrapper(token)),
+            Ok(None) => {}
+            Err(e) => {
+                err = Some(e.into_wrapper(token));
             }
-            match f(token) {
-                Ok(Some(w)) => Some(Some(w.into_wrapper(token))),
-                Ok(None) => Some(None),
-                Err(e) => {
-                    err = Some(e.into_wrapper(token));
-                    None
-                }
-            }
-        })
-        .flatten()
-        .collect();
-    *input = &[];
-    TokenProcessorOutput {
-        output: err.map_or(Ok(()), Err),
-        warnings,
+        }
     }
+    err.map_or(Ok(warnings), Err)
 }
 
 fn parse_obj_ids(

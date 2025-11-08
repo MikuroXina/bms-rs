@@ -10,7 +10,8 @@ use std::{path::Path, str::FromStr};
 
 use num::BigUint;
 
-use super::{TokenProcessor, TokenProcessorOutput, all_tokens};
+use super::{ProcessContext, TokenProcessor, all_tokens};
+use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::resources::Resources, prelude::*};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
@@ -20,27 +21,20 @@ pub struct ResourcesProcessor;
 impl TokenProcessor for ResourcesProcessor {
     type Output = Resources;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        _prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut resources = Resources::default();
-        let TokenProcessorOutput {
-            output: res,
-            warnings,
-        } = all_tokens(input, |token| {
+        all_tokens(ctx, |token| {
             Ok(match token {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
                     .err(),
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
-        });
-        TokenProcessorOutput {
-            output: res.map(|_| resources),
-            warnings,
-        }
+        })?;
+        Ok(resources)
     }
 }
 

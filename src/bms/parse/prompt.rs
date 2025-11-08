@@ -42,6 +42,19 @@ pub trait Prompter {
     fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
 }
 
+/// Blanket implementation to allow borrowing a prompter without cloning.
+impl<T: Prompter + ?Sized> Prompter for &T {
+    fn handle_def_duplication(&self, duplication: DefDuplication) -> DuplicationWorkaround {
+        (*self).handle_def_duplication(duplication)
+    }
+    fn handle_track_duplication(&self, duplication: TrackDuplication) -> DuplicationWorkaround {
+        (*self).handle_track_duplication(duplication)
+    }
+    fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround {
+        (*self).handle_channel_duplication(duplication)
+    }
+}
+
 /// It represents that there is a duplicated definition on the BMS file.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]

@@ -21,7 +21,7 @@ use crate::diagnostics::{SimpleSource, ToAriadne};
 use ariadne::{Color, Label, Report, ReportKind};
 
 use crate::bms::{
-    ParseConfig, TokenProcessorOutput,
+    ParseConfig,
     command::{
         ObjId,
         channel::{Channel, mapper::KeyLayoutMapper},
@@ -33,7 +33,10 @@ use crate::bms::{
     rng::Rng,
 };
 
-use self::{prompt::Prompter, token_processor::TokenProcessor};
+use self::{
+    prompt::Prompter,
+    token_processor::{ProcessContext, TokenProcessor},
+};
 
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
@@ -140,13 +143,11 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let TokenProcessorOutput {
-            output: res,
-            warnings: parse_warnings,
-        } = proc.process(&mut tokens_slice, &prompter);
+        let mut ctx = ProcessContext::new(&mut tokens_slice, prompter);
+        let res = proc.process(&mut ctx);
         ParseOutput {
             bms: res,
-            parse_warnings,
+            parse_warnings: ctx.reported,
         }
     }
 }

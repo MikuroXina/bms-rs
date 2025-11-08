@@ -7,8 +7,9 @@ use std::str::FromStr;
 use fraction::GenericFraction;
 
 use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorOutput, all_tokens, filter_message,
+    super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens_with_range, filter_message,
 };
+use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::section_len::SectionLenObjects, parse::ParseWarning, prelude::*};
 
 /// It processes objects on `SectionLen` channel.
@@ -18,31 +19,26 @@ pub struct SectionLenProcessor;
 impl TokenProcessor for SectionLenProcessor {
     type Output = SectionLenObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
-        let TokenProcessorOutput {
-            output: res,
-            warnings,
-        } = all_tokens(input, |token| {
-            Ok(match token {
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Header { .. } | Token::NotACommand(_) => None,
-            })
-        });
-        TokenProcessorOutput {
-            output: res.map(|_| objects),
-            warnings,
-        }
+        let prompter = ctx.prompter();
+        let tokens_view = *ctx.input;
+        let iter_warnings = all_tokens_with_range(tokens_view, |token| match token.content() {
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => Ok(self
+                .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
+                .err()),
+            Token::Header { .. } | Token::NotACommand(_) => Ok(None),
+        })?;
+        *ctx.input = &[];
+        ctx.reported.extend(iter_warnings);
+        Ok(objects)
     }
 }
 

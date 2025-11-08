@@ -54,7 +54,7 @@ use crate::{
     util::StrExtension,
 };
 
-use super::{TokenProcessor, TokenProcessorOutput};
+use super::{ProcessContext, TokenProcessor};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -580,16 +580,14 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     type Output = <N as TokenProcessor>::Output;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
         let mut activated = vec![];
-        let TokenProcessorOutput {
-            output: res,
-            mut warnings,
-        } = all_tokens_with_range(input, |token| {
+        // Use a view of the tokens to avoid borrowing `ctx` mutably within the callback.
+        let tokens_view = *ctx.input;
+        let res1 = all_tokens_with_range(tokens_view, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -600,14 +598,28 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             }
             Ok(res)
         });
-        let TokenProcessorOutput {
-            output: out_res,
-            warnings: next_warnings,
-        } = self.next.process(&mut &activated[..], prompter);
-        warnings.extend(next_warnings);
-        TokenProcessorOutput {
-            output: res.and(out_res),
-            warnings,
+
+        // Process activated tokens with the next processor using a temporary context.
+        let mut tmp = &activated[..];
+        let mut view_ctx = ProcessContext {
+            input: &mut tmp,
+            prompter: ctx.prompter(),
+            reported: Vec::new(),
+        };
+        let out_res = self.next.process(&mut view_ctx);
+        // Collect nested warnings locally first, then drop the borrowed context.
+        let nested_reported = core::mem::take(&mut view_ctx.reported);
+        drop(view_ctx);
+        // Merge warnings from iteration and nested processing back into the main context.
+        if let Ok(iter_warnings) = res1.as_ref() {
+            ctx.reported.extend(iter_warnings.clone());
+        }
+        ctx.reported.extend(nested_reported);
+
+        match (res1, out_res) {
+            (Ok(_), Ok(out)) => Ok(out),
+            (Err(e), _) => Err(e),
+            (Ok(_), Err(e)) => Err(e),
         }
     }
 }

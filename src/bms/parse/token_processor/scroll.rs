@@ -9,8 +9,9 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorOutput, all_tokens_with_range, parse_obj_ids,
+    ProcessContext, TokenProcessor, all_tokens_with_range, parse_obj_ids,
 };
+use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{model::scroll::ScrollObjects, parse::ParseWarning, prelude::*},
     util::StrExtension,
@@ -33,17 +34,15 @@ impl ScrollProcessor {
 impl TokenProcessor for ScrollProcessor {
     type Output = ScrollObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorOutput<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = ScrollObjects::default();
-        let mut extra_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let TokenProcessorOutput {
-            output: res,
-            mut warnings,
-        } = all_tokens_with_range(input, |token| match token.content() {
+        let prompter = ctx.prompter();
+        let mut buffered_warnings = Vec::new();
+        let tokens_view = *ctx.input;
+        let iter_warnings = all_tokens_with_range(tokens_view, |token| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
                 .err()),
@@ -61,18 +60,17 @@ impl TokenProcessor for ScrollProcessor {
                 )
                 .map_or_else(
                     |warn| Ok(Some(warn)),
-                    |w| {
-                        extra_warnings.extend(w);
+                    |ws| {
+                        buffered_warnings.extend(ws);
                         Ok(None)
                     },
                 ),
             Token::NotACommand(_) => Ok(None),
-        });
-        warnings.extend(extra_warnings);
-        TokenProcessorOutput {
-            output: res.map(|_| objects),
-            warnings,
-        }
+        })?;
+        *ctx.input = &[];
+        ctx.reported.extend(buffered_warnings);
+        ctx.reported.extend(iter_warnings);
+        Ok(objects)
     }
 }
 
