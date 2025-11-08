@@ -1,0 +1,368 @@
+#![cfg(feature = "bmson")]
+
+use std::time::{Duration, SystemTime};
+
+use bms_rs::bmson::parse_bmson;
+use bms_rs::chart_process::prelude::*;
+
+#[test]
+fn test_bmson_continue_duration_references_bpm_and_stop() {
+    // BMSON with init BPM 120, a single key note at y=0.5 measure (480 pulses), c=true,
+    // and a stop starting at y=1.0 measure (960 pulses) lasting 240 pulses (0.25 measure).
+    // New semantics (timepoint): this note's continue equals the timepoint
+    // from the last restart (none) to its y=0.5; the Stop is at 1.0 measure,
+    // which is not within (0.0, 0.5), so it is not included.
+    // At BPM 120, each measure is 2.0s ⇒ 0.5 * 2.0 = 1.0s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test.wav",
+                "notes": [
+                    { "x": 1, "y": 480, "l": 0, "c": true }
+                ]
+            }
+        ],
+        "stop_events": [
+            { "y": 960, "duration": 240 }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    // Default reaction time of 600ms is enough to cover the note at y=0.5
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    // Progress slightly so the note at y=0.5 is inside visible window (0.6 measure default)
+    // Advance slightly to ensure y=0.5 enters the visible window (default 0.6 measure)
+    let t = start_time + Duration::from_millis(100);
+    let _ = processor.update(t);
+
+    // Find the note and assert continue_play duration
+    let mut found = false;
+    for ev in processor.visible_events(t) {
+        if let ChartEvent::Note {
+            continue_play: Some(dur),
+            ..
+        } = ev.event()
+        {
+            let secs = dur.as_secs_f64();
+            assert!(
+                (secs - 1.0).abs() < 0.02,
+                "continue timepoint should be ~1.0s, got {:.6}",
+                secs
+            );
+            found = true;
+            break;
+        }
+    }
+    assert!(found, "Expected to find a note with continue duration");
+}
+
+#[test]
+fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
+    // BMSON with init BPM 120, a key note at y=0.25 measure (240 pulses), c=true.
+    // BPM changes to 180 at y=0.75 measure (720 pulses).
+    // A scroll event occurs at y=1.0 measure (960 pulses) but should not affect time.
+    // Stop starts at y=1.25 measure (1200 pulses) with duration 240 pulses (0.25 measure).
+    // New semantics (timepoint): note at y=0.25 is before BPM/Stop/Scroll events,
+    // so only the 0.25-measure timepoint is computed.
+    // At BPM 120, each measure is 2.0s ⇒ 0.25 * 2.0 = 0.5s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test2",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test2.wav",
+                "notes": [
+                    { "x": 1, "y": 240, "l": 0, "c": true }
+                ]
+            }
+        ],
+        "bpm_events": [
+            { "y": 720, "bpm": 180.0 }
+        ],
+        "scroll_events": [
+            { "y": 960, "rate": 2.0 }
+        ],
+        "stop_events": [
+            { "y": 1200, "duration": 240 }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    // Advance slightly to ensure y=0.25 enters the visible window (default 0.6 measure)
+    let t = start_time + Duration::from_millis(100);
+    let _ = processor.update(t);
+
+    let mut found = false;
+    for ev in processor.visible_events(t) {
+        if let ChartEvent::Note {
+            continue_play: Some(dur),
+            ..
+        } = ev.event()
+        {
+            let secs = dur.as_secs_f64();
+            assert!(
+                (secs - 0.5).abs() < 0.02,
+                "continue timepoint should be ~0.5s, got {:.6}",
+                secs
+            );
+            found = true;
+            break;
+        }
+    }
+    assert!(found, "Expected to find a note with continue duration");
+}
+
+#[test]
+fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
+    // Same sound_channel with mixed continue and non-continue notes.
+    // init BPM 120, resolution 240.
+    // Notes at pulses: 240(c=false), 360(c=true), 480(c=true), 600(c=false).
+    // New semantics (continue = audio playback time point since last restart):
+    //  - c=false notes have continue_play None and reset the timepoint
+    //  - c=true notes have continue_play Some(seconds) measured from last c=false at 240:
+    //    y=360 ⇒ Δy=0.125 measure ⇒ 0.125*(240/120) = 0.25s
+    //    y=480 ⇒ Δy=0.25  measure ⇒ 0.25 *(240/120) = 0.50s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "MixedContinue",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "mix.wav",
+                "notes": [
+                    { "x": 1, "y": 240, "l": 0, "c": false },
+                    { "x": 1, "y": 360, "l": 0, "c": true },
+                    { "x": 1, "y": 480, "l": 0, "c": true },
+                    { "x": 1, "y": 600, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    // Use longer reaction time to include all notes in visible window
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(5000));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    let t = start_time + Duration::from_millis(100);
+    let _ = processor.update(t);
+
+    let mut some_count = 0;
+    let mut none_count = 0;
+    let mut durations = Vec::new();
+    for ev in processor.visible_events(t) {
+        if let ChartEvent::Note { continue_play, .. } = ev.event() {
+            match continue_play {
+                Some(d) => {
+                    some_count += 1;
+                    durations.push(d.as_secs_f64());
+                }
+                None => none_count += 1,
+            }
+        }
+    }
+
+    assert_eq!(none_count, 2, "Expected two non-continue notes with None");
+    assert_eq!(some_count, 2, "Expected two continue notes with Some");
+    // Both c=true notes should be ~0.25s and ~0.50s (since last restart at y=240)
+    durations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let a = durations[0];
+    let b = durations[1];
+    assert!(
+        (a - 0.25).abs() < 0.02 && (b - 0.50).abs() < 0.02,
+        "continue timepoints should be ~0.25s and ~0.50s, got {:.6} and {:.6}",
+        a,
+        b
+    );
+}
+
+#[test]
+fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
+    // Single sound_channel with multiple Stops in between; verify total time accumulation:
+    // init BPM 120, res 240; note1 at 0.25 measure (240 pulses, c=true), note2 at 1.25 measure (1200 pulses)
+    // Stop1: at 0.5 measure (y=480, duration 240 pulses), Stop2: at 1.0 measure (y=960, duration 240 pulses)
+    // New semantics (timepoint): the second c=true note's timepoint equals base time from 0.0 -> 1.25,
+    // i.e., 1.25 measures = 2.5s.
+    // In the interval (0.0, 1.25), there are two Stops, each 0.25 measure = 0.5s,
+    // totaling 2.5 + 0.5 + 0.5 = 3.5s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "StopsAccumulation",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "stops.wav",
+                "notes": [
+                    { "x": 1, "y": 240, "l": 0, "c": true },
+                    { "x": 1, "y": 1200, "l": 0, "c": true }
+                ]
+            }
+        ],
+        "stop_events": [
+            { "y": 480, "duration": 240 },
+            { "y": 960, "duration": 240 }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    // Advance to 800ms to make the preload window cover the note at y=1.25
+    let t = start_time + Duration::from_millis(800);
+    let _ = processor.update(t);
+
+    let mut found = false;
+    for ev in processor.visible_events(t) {
+        if let ChartEvent::Note {
+            continue_play: Some(dur),
+            ..
+        } = ev.event()
+        {
+            let secs = dur.as_secs_f64();
+            if (secs - 3.5).abs() < 0.02 {
+                found = true;
+                break;
+            }
+        }
+    }
+    assert!(
+        found,
+        "Expected to find the note at y=1.25 with continue timepoint"
+    );
+}
+
+#[test]
+fn test_bmson_continue_independent_across_sound_channels() {
+    // Two sound_channels; their continue_time is independent:
+    // A: 0.25 -> 0.5 measure (240 -> 480 pulses), c=true until next note; expect ~0.5s.
+    // B: 0.375 -> 1.0 measure (360 -> 960 pulses), c=true until next note; expect ~1.25s.
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "ChannelsIndependent",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "A.wav",
+                "notes": [
+                    { "x": 1, "y": 240, "l": 0, "c": true },
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            },
+            {
+                "name": "B.wav",
+                "notes": [
+                    { "x": 2, "y": 360, "l": 0, "c": true },
+                    { "x": 2, "y": 960, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    // Ensure all notes in both channels are within the visible window
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(5000));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+    let t = start_time + Duration::from_millis(100);
+    let _ = processor.update(t);
+
+    let mut durations = Vec::new();
+    let mut none_count = 0;
+    for ev in processor.visible_events(t) {
+        if let ChartEvent::Note { continue_play, .. } = ev.event() {
+            match continue_play {
+                Some(d) => durations.push(d.as_secs_f64()),
+                None => none_count += 1,
+            }
+        }
+    }
+
+    // The two c=false notes should be None
+    assert_eq!(none_count, 2, "Expected two non-continue notes with None");
+    // The two c=true notes should each have a timepoint, independent from each other:
+    // there should be ~0.5s and ~0.75s values
+    assert_eq!(durations.len(), 2, "Expected two continue durations");
+    durations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let a = durations[0];
+    let b = durations[1];
+    assert!(
+        (a - 0.5).abs() < 0.02 && (b - 0.75).abs() < 0.02,
+        "Expected ~0.5s and ~0.75s timepoints, got {:.6} and {:.6}",
+        a,
+        b
+    );
+}

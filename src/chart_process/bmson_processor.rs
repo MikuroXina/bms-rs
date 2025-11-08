@@ -12,6 +12,7 @@ use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
     types::{BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
+use num::ToPrimitive;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -161,39 +162,55 @@ impl<'a> BmsonProcessor<'a> {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
-        // Process sound channel events
+        // Process sound channel events (continue_play = timepoint since last restart)
         for SoundChannel { name, notes } in &self.bmson.sound_channels {
+            // Track the last restart y (c=false) within this channel; default to 0.0 measure
+            let mut last_restart_y = Decimal::from(0);
             for Note { y, x, l, c, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
                 let y_coord = YCoordinate::from(yy.clone());
+                let wav_id = self.get_wav_id_for_name(name);
 
-                let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) else {
-                    let wav_id = self.get_wav_id_for_name(name);
+                // if note is on a lane, process as a note event
+                if let Some((side, key)) = Self::lane_from_x(x.as_ref().copied()) {
+                    let length = (*l > 0).then(|| {
+                        let end_y = self.pulses_to_y(y.0 + l);
+                        YCoordinate::from(end_y - yy.clone())
+                    });
+                    let kind = if *l > 0 {
+                        NoteKind::Long
+                    } else {
+                        NoteKind::Visible
+                    };
+
+                    // continue_play semantics: when c=true, provide audio timepoint since last restart; when c=false, None and update restart point
+                    let continue_play = c.then(|| {
+                        Duration::from_secs_f64(
+                            self.seconds_between_y(last_restart_y.clone(), yy.clone()),
+                        )
+                    });
+
+                    let event = ChartEvent::Note {
+                        side,
+                        key,
+                        kind,
+                        wav_id,
+                        length,
+                        continue_play,
+                    };
+                    let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                    events_map.entry(y_coord).or_default().push(evp);
+
+                    // Update last_restart_y if this note restarts audio (c=false)
+                    if !*c {
+                        last_restart_y = yy;
+                    }
+                // if note is not on a lane, process as a bgm event
+                } else {
                     let event = ChartEvent::Bgm { wav_id };
                     let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                     events_map.entry(y_coord).or_default().push(evp);
-                    continue;
-                };
-                let wav_id = self.get_wav_id_for_name(name);
-                let length = (*l > 0).then(|| {
-                    let end_y = self.pulses_to_y(y.0 + l);
-                    YCoordinate::from(end_y - yy.clone())
-                });
-                let kind = if *l > 0 {
-                    NoteKind::Long
-                } else {
-                    NoteKind::Visible
-                };
-                let event = ChartEvent::Note {
-                    side,
-                    key,
-                    kind,
-                    wav_id,
-                    length,
-                    continue_play: *c,
-                };
-                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
-                events_map.entry(y_coord).or_default().push(evp);
+                }
             }
         }
 
@@ -319,7 +336,7 @@ impl<'a> BmsonProcessor<'a> {
                     kind: NoteKind::Landmine,
                     wav_id,
                     length: None,
-                    continue_play: false,
+                    continue_play: None,
                 };
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                 events_map.entry(y_coord).or_default().push(evp);
@@ -341,7 +358,7 @@ impl<'a> BmsonProcessor<'a> {
                     kind: NoteKind::Invisible,
                     wav_id,
                     length: None,
-                    continue_play: false,
+                    continue_play: None,
                 };
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
                 events_map.entry(y_coord).or_default().push(evp);
@@ -359,6 +376,73 @@ impl<'a> BmsonProcessor<'a> {
         } else {
             Decimal::from(pulses) / denom
         }
+    }
+
+    /// Get BPM value at a given y by scanning indexed BPM events.
+    fn bpm_at_y(&self, y: Decimal) -> Decimal {
+        use std::ops::Bound::{Included, Unbounded};
+        let init_bpm = Decimal::from(self.bmson.info.init_bpm.as_f64());
+        self.flow_events_by_y
+            .range((Unbounded, Included(y)))
+            .flat_map(|(_ey, events)| events.iter())
+            .filter_map(|evt| match evt {
+                FlowEvent::Bpm(b) => Some(b.clone()),
+                _ => None,
+            })
+            .next_back()
+            .unwrap_or(init_bpm)
+    }
+
+    /// Compute seconds between two y positions, integrating per-segment BPM and including stop durations within the interval.
+    fn seconds_between_y(&self, from_y: Decimal, to_y: Decimal) -> f64 {
+        use std::ops::Bound::{Excluded, Included};
+        if to_y <= from_y {
+            return 0.0;
+        }
+        let init_bpm = self.bpm_at_y(from_y.clone());
+        let from_clone = from_y.clone();
+        let (last_y, last_bpm, seconds) = self
+            .flow_events_by_y
+            .range((Excluded(from_clone.clone()), Included(to_y.clone())))
+            .filter_map(|(ey, events)| {
+                events.iter().find_map(|evt| match evt {
+                    FlowEvent::Bpm(b) => Some((ey.clone(), b.clone())),
+                    _ => None,
+                })
+            })
+            .fold(
+                (from_clone, init_bpm, 0.0f64),
+                |(cur_y, cur_bpm, acc), (ey, next_bpm)| {
+                    let delta_y_f64 = (ey.clone() - cur_y).to_f64().unwrap_or(0.0);
+                    let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+                    let seg_secs = delta_y_f64 * 240.0 / cur_bpm_f64;
+                    (ey, next_bpm, acc + seg_secs)
+                },
+            );
+        let final_delta_y_f64 = (to_y.clone() - last_y).to_f64().unwrap_or(0.0);
+        let final_bpm_f64 = last_bpm.to_f64().unwrap_or(120.0);
+        let total = seconds + final_delta_y_f64 * 240.0 / final_bpm_f64;
+
+        // Add durations of Stops strictly inside (from_y, to_y)
+        let stops_secs = self
+            .bmson
+            .stop_events
+            .iter()
+            .map(|st| (self.pulses_to_y(st.y.0), st.duration))
+            .filter(|(sy, _)| *sy > from_y.clone() && *sy < to_y.clone())
+            .fold(0.0f64, |acc, (sy, dur)| {
+                acc + self.seconds_for_stop(sy, dur)
+            });
+        total + stops_secs
+    }
+
+    /// Convert a Stop (pulses) at given y into seconds according to BPM at that y.
+    fn seconds_for_stop(&self, stop_y: Decimal, stop_pulses: u64) -> f64 {
+        let bpm_at_stop = self.bpm_at_y(stop_y);
+        let stop_y_len = self.pulses_to_y(stop_pulses);
+        let stop_y_len_f64 = stop_y_len.to_f64().unwrap_or(0.0);
+        let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
+        stop_y_len_f64 * 240.0 / bpm_at_stop_f64
     }
 
     /// Automatically generate measure lines for BMSON without defined barline (at each unit Y value, but not exceeding other objects' Y values)
