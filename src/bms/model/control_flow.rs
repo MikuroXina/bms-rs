@@ -151,22 +151,7 @@ impl<'a> IfChainEntry<'a> {
                 *self = entry;
             }
             IfChainEntry::ElseIf { next, .. } => {
-                let mut cur = next.as_mut();
-                loop {
-                    match cur {
-                        IfChainEntry::EndIf => {
-                            *cur = entry;
-                            break;
-                        }
-                        IfChainEntry::ElseIf { next, .. } => {
-                            cur = next.as_mut();
-                        }
-                        IfChainEntry::Else { .. } => {
-                            // ELSE is terminal; do not append beyond it.
-                            break;
-                        }
-                    }
-                }
+                next.append_to_tail(entry);
             }
             IfChainEntry::Else { .. } => {
                 // Already terminal; do not append beyond ELSE.
