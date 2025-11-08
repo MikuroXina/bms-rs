@@ -135,12 +135,10 @@ enum IfChainEntry<'a> {
         /// Pointer to the next chain entry.
         next: Box<IfChainEntry<'a>>,
     },
-    /// An `#ELSE` branch with its units and a pointer to the next entry.
+    /// An `#ELSE` branch with its units. This is always terminal.
     Else {
         /// Content units for this branch.
         units: Vec<TokenUnit<'a>>,
-        /// Pointer to the next chain entry.
-        next: Box<IfChainEntry<'a>>,
     },
     /// Terminator for an if-chain.
     EndIf,
@@ -152,7 +150,7 @@ impl<'a> IfChainEntry<'a> {
             IfChainEntry::EndIf => {
                 *self = entry;
             }
-            IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+            IfChainEntry::ElseIf { next, .. } => {
                 let mut cur = next.as_mut();
                 loop {
                     match cur {
@@ -160,11 +158,18 @@ impl<'a> IfChainEntry<'a> {
                             *cur = entry;
                             break;
                         }
-                        IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+                        IfChainEntry::ElseIf { next, .. } => {
                             cur = next.as_mut();
+                        }
+                        IfChainEntry::Else { .. } => {
+                            // ELSE is terminal; do not append beyond it.
+                            break;
                         }
                     }
                 }
+            }
+            IfChainEntry::Else { .. } => {
+                // Already terminal; do not append beyond ELSE.
             }
         }
     }
@@ -175,15 +180,16 @@ impl<'a> IfChainEntry<'a> {
         let mut cur = self;
         while idx > 0 {
             match cur {
-                IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } => {
+                IfChainEntry::ElseIf { next, .. } => {
                     idx -= 1;
                     cur = next.as_ref();
                 }
+                IfChainEntry::Else { .. } => return None,
                 IfChainEntry::EndIf => return None,
             }
         }
         match cur {
-            IfChainEntry::ElseIf { units, .. } | IfChainEntry::Else { units, .. } => Some(units),
+            IfChainEntry::ElseIf { units, .. } | IfChainEntry::Else { units } => Some(units),
             IfChainEntry::EndIf => None,
         }
     }
@@ -197,8 +203,7 @@ impl<'a> IfChainEntry<'a> {
         unsafe {
             loop {
                 match &mut *cur {
-                    IfChainEntry::ElseIf { units, next, .. }
-                    | IfChainEntry::Else { units, next, .. } => {
+                    IfChainEntry::ElseIf { units, next, .. } => {
                         if idx == 0 {
                             let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
                             std::mem::swap(&mut incoming, units);
@@ -206,6 +211,15 @@ impl<'a> IfChainEntry<'a> {
                         } else {
                             idx -= 1;
                             cur = next.as_mut() as *mut _;
+                        }
+                    }
+                    IfChainEntry::Else { units } => {
+                        if idx == 0 {
+                            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
+                            std::mem::swap(&mut incoming, units);
+                            return Some(incoming);
+                        } else {
+                            return None;
                         }
                     }
                     IfChainEntry::EndIf => return None,
@@ -257,7 +271,6 @@ impl<'a> IfBlock<'a> {
     {
         let entry = IfChainEntry::Else {
             units: units.into_iter().collect(),
-            next: Box::new(IfChainEntry::EndIf),
         };
         self.chain.append_to_tail(entry);
         self
@@ -305,9 +318,18 @@ impl<'a> IfBlock<'a> {
     pub fn len(&self) -> usize {
         let mut count = 1; // head if
         let mut cur = &self.chain;
-        while let IfChainEntry::ElseIf { next, .. } | IfChainEntry::Else { next, .. } = cur {
-            count += 1;
-            cur = next.as_ref();
+        loop {
+            match cur {
+                IfChainEntry::ElseIf { next, .. } => {
+                    count += 1;
+                    cur = next.as_ref();
+                }
+                IfChainEntry::Else { .. } => {
+                    count += 1;
+                    break;
+                }
+                IfChainEntry::EndIf => break,
+            }
         }
         count
     }
@@ -406,13 +428,13 @@ impl<'a> Random<'a> {
                         out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
                         node = *next;
                     }
-                    IfChainEntry::Else { units, next } => {
+                    IfChainEntry::Else { units } => {
                         out.push(Token::Header {
                             name: "ELSE".into(),
                             args: "".into(),
                         });
                         out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
-                        node = *next;
+                        break;
                     }
                     IfChainEntry::EndIf => break,
                 }
