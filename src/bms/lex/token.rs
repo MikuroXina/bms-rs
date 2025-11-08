@@ -36,13 +36,27 @@ pub enum Token<'a> {
 /// A token with position information.
 pub type TokenWithRange<'a> = SourceRangeMixin<Token<'a>>;
 
-impl Token<'static> {
-    /// Creates a [`Token::Header`] token with string literals.
+impl<'a> Token<'a> {
+    /// Creates a [`Token::Header`] token.
     #[must_use]
-    pub fn header(name: &'static str, args: &'static str) -> Self {
+    pub fn header(name: impl Into<Cow<'a, str>>, args: impl Into<Cow<'a, str>>) -> Self {
         Self::Header {
             name: name.into(),
             args: args.into(),
+        }
+    }
+
+    /// Creates a [`Token::Message`] token.
+    #[must_use]
+    pub fn message(
+        track: impl Into<Track>,
+        channel: Channel,
+        message: impl Into<Cow<'a, str>>,
+    ) -> Self {
+        Self::Message {
+            track: track.into(),
+            channel,
+            message: message.into(),
         }
     }
 }

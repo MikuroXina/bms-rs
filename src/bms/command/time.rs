@@ -14,6 +14,18 @@ impl std::fmt::Display for Track {
     }
 }
 
+impl From<Track> for u64 {
+    fn from(track: Track) -> Self {
+        track.0
+    }
+}
+
+impl From<u64> for Track {
+    fn from(track: u64) -> Self {
+        Self(track)
+    }
+}
+
 /// A time of the object on the score.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
