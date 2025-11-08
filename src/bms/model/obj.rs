@@ -1,7 +1,5 @@
 //! Definitions of the note object.
 
-use std::num::NonZeroU64;
-
 use crate::bms::{
     Decimal,
     command::{
@@ -42,11 +40,7 @@ impl Ord for WavObj {
 impl WavObj {
     pub(crate) fn dangling() -> Self {
         Self {
-            offset: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64"),
-            ),
+            offset: ObjTime::new(1, 0, 1).expect("1 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::null(),
         }

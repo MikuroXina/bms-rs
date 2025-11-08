@@ -496,7 +496,6 @@ impl Notes {
 
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroU64;
 
     use super::Notes;
     use crate::bms::prelude::*;
@@ -505,11 +504,7 @@ mod tests {
     fn push_and_pop() {
         let mut notes = Notes::default();
         let note = WavObj {
-            offset: ObjTime::new(
-                1,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            ),
+            offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
         };
@@ -527,11 +522,7 @@ mod tests {
     fn change_note_channel() {
         let mut notes = Notes::default();
         let note = WavObj {
-            offset: ObjTime::new(
-                1,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            ),
+            offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
         };
@@ -548,11 +539,7 @@ mod tests {
         assert_eq!(
             notes.all_notes().next(),
             Some(&WavObj {
-                offset: ObjTime::new(
-                    1,
-                    2,
-                    NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-                ),
+                offset: ObjTime::new(1, 2, 4,).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: ObjId::try_from("01", false).unwrap(),
@@ -564,11 +551,7 @@ mod tests {
     fn change_note_time() {
         let mut notes = Notes::default();
         let note = WavObj {
-            offset: ObjTime::new(
-                1,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            ),
+            offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::try_from("01", false).unwrap(),
         };
@@ -579,21 +562,13 @@ mod tests {
         let (idx, _) = notes.all_entries().next().unwrap();
         notes.change_note_time(
             idx,
-            ObjTime::new(
-                1,
-                1,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            ),
+            ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
         );
 
         assert_eq!(
             notes.all_notes().next(),
             Some(&WavObj {
-                offset: ObjTime::new(
-                    1,
-                    1,
-                    NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-                ),
+                offset: ObjTime::new(1, 1, 4,).expect("4 should be a valid denominator"),
                 channel_id: NoteChannelId::bgm(),
                 wav_id: ObjId::try_from("01", false).unwrap(),
             })

@@ -316,8 +316,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjT
     let numerator = remaining_pulses;
     let denominator = pulses_per_measure;
 
-    let denominator = NonZeroU64::new(denominator).expect("resolution should be non-zero");
-    ObjTime::new(track, numerator, denominator)
+    ObjTime::new(track, numerator, denominator).expect("resolution should be non-zero")
 }
 
 /// Converts a lane number to [`Key`] and [`PlayerSide`]

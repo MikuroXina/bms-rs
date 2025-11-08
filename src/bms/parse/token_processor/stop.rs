@@ -99,7 +99,7 @@ impl StopProcessor {
         }
         if name.eq_ignore_ascii_case("STP") {
             // Parse xxx.yyy zzzz
-            use std::{num::NonZeroU64, time::Duration};
+            use std::time::Duration;
             let args: Vec<_> = args.split_whitespace().collect();
             if args.len() != 3 {
                 return Err(ParseWarning::SyntaxError(
@@ -117,11 +117,9 @@ impl StopProcessor {
             let ms: u64 = args[2]
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u64".into()))?;
-            let time = ObjTime::new(
-                measure as u64,
-                pos as u64,
-                NonZeroU64::new(1000).expect("1000 should be a valid NonZeroU64"),
-            );
+            let time = ObjTime::new(measure as u64, pos as u64, 1000).ok_or_else(|| {
+                ParseWarning::SyntaxError("denominator should be non-zero".into())
+            })?;
             let duration = Duration::from_millis(ms);
 
             // Store by ObjTime as key, handle duplication with prompt handler

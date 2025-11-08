@@ -1,7 +1,7 @@
 //! Bms Processor Module.
 
 use std::collections::{BTreeMap, HashMap};
-use std::num::NonZeroU64;
+
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
@@ -414,23 +414,15 @@ impl BmsProcessor {
         }
 
         // Get the track number of the last object
-        let last_obj_time = bms.last_obj_time().unwrap_or_else(|| {
-            ObjTime::new(
-                0,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            )
-        });
+        let last_obj_time = bms
+            .last_obj_time()
+            .unwrap_or_else(|| ObjTime::new(0, 0, 4).expect("4 should be a valid denominator"));
 
         // Generate measure lines for each track, but not exceeding maximum Y value
         for track in 0..=last_obj_time.track().0 {
             let track_y = Self::y_of_time_static(
                 bms,
-                ObjTime::new(
-                    track,
-                    0,
-                    NonZeroU64::new(1).expect("1 should be a valid NonZeroU64"),
-                ),
+                ObjTime::new(track, 0, 1).expect("1 should be a valid denominator"),
                 &bms.speed.speed_factor_changes,
             );
 

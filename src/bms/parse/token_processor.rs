@@ -348,8 +348,11 @@ fn parse_obj_ids<P: Prompter>(
                     ObjTime::new(
                         track.0,
                         i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
+                        denom_opt
+                            .expect("len / 2 won't be zero on reading tuples")
+                            .get(),
+                    )
+                    .expect("denominator should be non-zero"),
                     id,
                 )),
                 Err(warning) => {
@@ -393,8 +396,11 @@ fn parse_hex_values<P: Prompter>(
                         ObjTime::new(
                             track.0,
                             i as u64,
-                            denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                        ),
+                            denom_opt
+                                .expect("len / 2 won't be zero on reading tuples")
+                                .get(),
+                        )
+                        .expect("denominator should be non-zero"),
                         value,
                     ))
                 },

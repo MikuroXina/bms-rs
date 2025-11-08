@@ -88,8 +88,6 @@ impl PulseConverter {
 
 #[test]
 fn pulse_conversion() {
-    use std::num::NonZeroU64;
-
     use crate::bms::model::{obj::SectionLenChangeObj, section_len::SectionLenObjects};
 
     // Source BMS:
@@ -129,71 +127,43 @@ fn pulse_conversion() {
 
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                0,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(0, 0, 4).expect("4 should be a valid denominator"))
             .0,
         0
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                0,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(0, 2, 4).expect("4 should be a valid denominator"))
             .0,
         2
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"))
             .0,
         4
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                1,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"))
             .0,
         6
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                2,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(2, 0, 4).expect("4 should be a valid denominator"))
             .0,
         7
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                2,
-                2,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(2, 2, 4).expect("4 should be a valid denominator"))
             .0,
         9
     );
     assert_eq!(
         converter
-            .get_pulses_at(ObjTime::new(
-                3,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64")
-            ))
+            .get_pulses_at(ObjTime::new(3, 0, 4).expect("4 should be a valid denominator"))
             .0,
         12
     );
