@@ -379,22 +379,13 @@ impl<'a> Random<'a> {
     pub fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
         match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::Header {
-                name: "RANDOM".into(),
-                args: max.to_string().into(),
-            }),
-            ControlFlowValue::Set(val) => out.push(Token::Header {
-                name: "SETRANDOM".into(),
-                args: val.to_string().into(),
-            }),
+            ControlFlowValue::GenMax(max) => out.push(Token::header("RANDOM", max.to_string())),
+            ControlFlowValue::Set(val) => out.push(Token::header("SETRANDOM", val.to_string())),
         }
 
         self.branches.into_iter().for_each(|branch| {
             // Emit head IF
-            out.push(Token::Header {
-                name: "IF".into(),
-                args: branch.condition.to_string().into(),
-            });
+            out.push(Token::header("IF", branch.condition.to_string()));
             out.extend(
                 branch
                     .head_units
@@ -407,18 +398,12 @@ impl<'a> Random<'a> {
             loop {
                 match node {
                     IfChainEntry::ElseIf { cond, units, next } => {
-                        out.push(Token::Header {
-                            name: "ELSEIF".into(),
-                            args: cond.to_string().into(),
-                        });
+                        out.push(Token::header("ELSEIF", cond.to_string()));
                         out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
                         node = *next;
                     }
                     IfChainEntry::Else { units } => {
-                        out.push(Token::Header {
-                            name: "ELSE".into(),
-                            args: "".into(),
-                        });
+                        out.push(Token::header("ELSE", ""));
                         out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
                         break;
                     }
@@ -427,16 +412,10 @@ impl<'a> Random<'a> {
             }
 
             // Close the IF-chain
-            out.push(Token::Header {
-                name: "ENDIF".into(),
-                args: "".into(),
-            });
+            out.push(Token::header("ENDIF", ""));
         });
 
-        out.push(Token::Header {
-            name: "ENDRANDOM".into(),
-            args: "".into(),
-        });
+        out.push(Token::header("ENDRANDOM", ""));
 
         out
     }
@@ -596,40 +575,22 @@ impl<'a> Switch<'a> {
     pub fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
         match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::Header {
-                name: "SWITCH".into(),
-                args: max.to_string().into(),
-            }),
-            ControlFlowValue::Set(val) => out.push(Token::Header {
-                name: "SETSWITCH".into(),
-                args: val.to_string().into(),
-            }),
+            ControlFlowValue::GenMax(max) => out.push(Token::header("SWITCH", max.to_string())),
+            ControlFlowValue::Set(val) => out.push(Token::header("SETSWITCH", val.to_string())),
         }
 
         self.cases.into_iter().for_each(|case| {
             out.extend(
                 std::iter::once(case.condition.map_or_else(
-                    || Token::Header {
-                        name: "DEF".into(),
-                        args: "".into(),
-                    },
-                    |cond| Token::Header {
-                        name: "CASE".into(),
-                        args: cond.to_string().into(),
-                    },
+                    || Token::header("DEF", ""),
+                    |cond| Token::header("CASE", cond.to_string()),
                 ))
                 .chain(case.units.into_iter().flat_map(TokenUnit::into_tokens))
-                .chain(case.skip.then(|| Token::Header {
-                    name: "SKIP".into(),
-                    args: "".into(),
-                })),
+                .chain(case.skip.then(|| Token::header("SKIP", ""))),
             );
         });
 
-        out.push(Token::Header {
-            name: "ENDSW".into(),
-            args: "".into(),
-        });
+        out.push(Token::header("ENDSW", ""));
 
         out
     }

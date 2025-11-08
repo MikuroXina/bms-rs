@@ -3,18 +3,10 @@ use num::BigUint;
 use pretty_assertions::assert_eq;
 use std::num::NonZeroU64;
 
-fn msg(track: u64, channel: Channel, message: &'static str) -> Token<'static> {
-    Token::Message {
-        track: Track(track),
-        channel,
-        message: message.into(),
-    }
-}
-
 #[test]
 fn into_tokens_basic_random() {
     // Outside of random
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -27,7 +19,7 @@ fn into_tokens_basic_random() {
     let random = Random::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
         .if_block(IfBlock::new_if(
             BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -42,7 +34,7 @@ fn into_tokens_basic_random() {
         ))
         .if_block(IfBlock::new_if(
             BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -59,7 +51,7 @@ fn into_tokens_basic_random() {
     tokens.extend(random.into_tokens());
 
     // After random
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
@@ -173,7 +165,7 @@ fn into_tokens_basic_random() {
 #[test]
 fn into_tokens_basic_setrandom() {
     // Outside of setrandom
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -186,7 +178,7 @@ fn into_tokens_basic_setrandom() {
     let setrandom = Random::new(ControlFlowValue::Set(BigUint::from(2u64)))
         .if_block(IfBlock::new_if(
             BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -201,7 +193,7 @@ fn into_tokens_basic_setrandom() {
         ))
         .if_block(IfBlock::new_if(
             BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -216,7 +208,7 @@ fn into_tokens_basic_setrandom() {
         ));
 
     tokens.extend(setrandom.into_tokens());
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
@@ -286,7 +278,7 @@ fn builder_and_mutation() {
     let mut random = Random::new(ControlFlowValue::GenMax(BigUint::from(6u64))).if_block(
         IfBlock::new_if(
             BigUint::from(4u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -301,7 +293,7 @@ fn builder_and_mutation() {
         )
         .or_else_if(
             BigUint::from(5u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -314,7 +306,7 @@ fn builder_and_mutation() {
                 "00006600",
             )])],
         )
-        .or_else(vec![TokenUnit::from_tokens(vec![msg(
+        .or_else(vec![TokenUnit::from_tokens(vec![Token::message(
             1,
             Channel::Note {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
@@ -332,7 +324,7 @@ fn builder_and_mutation() {
 
         let _prev_units = first.set_units_at(
             1,
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -348,7 +340,7 @@ fn builder_and_mutation() {
     }
 
     // Compose full tokens (with a header before and after)
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -357,7 +349,7 @@ fn builder_and_mutation() {
         "11000000",
     )];
     tokens.extend(random.clone().into_tokens());
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
@@ -516,7 +508,7 @@ fn builder_and_mutation() {
 #[test]
 fn into_tokens_basic_switch() {
     // Outside of switch
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -529,7 +521,7 @@ fn into_tokens_basic_switch() {
     let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
         .case_with_skip(
             BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -544,7 +536,7 @@ fn into_tokens_basic_switch() {
         )
         .case_with_skip(
             BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -562,7 +554,7 @@ fn into_tokens_basic_switch() {
     tokens.extend(switch.into_tokens());
 
     // After switch
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
@@ -676,7 +668,7 @@ fn into_tokens_basic_switch() {
 #[test]
 fn into_tokens_basic_setswitch() {
     // Outside of setswitch
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -689,7 +681,7 @@ fn into_tokens_basic_setswitch() {
     let setswitch = Switch::new(ControlFlowValue::Set(BigUint::from(2u64)))
         .case_with_skip(
             BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -704,7 +696,7 @@ fn into_tokens_basic_setswitch() {
         )
         .case_with_skip(
             BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -720,7 +712,7 @@ fn into_tokens_basic_setswitch() {
         .build();
 
     tokens.extend(setswitch.into_tokens());
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
@@ -790,7 +782,7 @@ fn builder_basic_switch() {
     let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(3u64)))
         .case_with_skip(
             BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![msg(
+            vec![TokenUnit::from_tokens(vec![Token::message(
                 1,
                 Channel::Note {
                     channel_id: KeyLayoutBeat::new(
@@ -803,7 +795,7 @@ fn builder_basic_switch() {
                 "00220000",
             )])],
         )
-        .def(vec![TokenUnit::from_tokens(vec![msg(
+        .def(vec![TokenUnit::from_tokens(vec![Token::message(
             1,
             Channel::Note {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
@@ -813,7 +805,7 @@ fn builder_basic_switch() {
         )])])
         .build();
 
-    let mut tokens: Vec<Token<'static>> = vec![msg(
+    let mut tokens: Vec<Token<'static>> = vec![Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
@@ -822,7 +814,7 @@ fn builder_basic_switch() {
         "11000000",
     )];
     tokens.extend(switch.into_tokens());
-    tokens.push(msg(
+    tokens.push(Token::message(
         1,
         Channel::Note {
             channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
