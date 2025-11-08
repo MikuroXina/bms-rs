@@ -277,9 +277,8 @@ impl<'a> IfBlock<'a> {
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         if index == 0 {
-            let mut incoming: Vec<TokenUnit<'a>> = new_units.into_iter().collect();
-            std::mem::swap(&mut incoming, &mut self.head_units);
-            Some(incoming)
+            let old = std::mem::replace(&mut self.head_units, new_units.into_iter().collect());
+            Some(old)
         } else {
             self.chain.set_units_at(index - 1, new_units)
         }
