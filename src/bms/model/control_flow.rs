@@ -56,6 +56,12 @@ impl<'a> TryFrom<Token<'a>> for NonControlToken<'a> {
     }
 }
 
+impl<'a> AsRef<Token<'a>> for NonControlToken<'a> {
+    fn as_ref(&self) -> &Token<'a> {
+        self.as_token()
+    }
+}
+
 /// Alias preferred by external APIs/tests.
 pub type NonControlFlowToken<'a> = NonControlToken<'a>;
 
