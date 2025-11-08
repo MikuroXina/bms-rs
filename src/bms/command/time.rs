@@ -70,6 +70,16 @@ impl ObjTime {
         }
     }
 
+    /// Create a new time from a track.
+    #[must_use]
+    pub fn new_track(track: u64) -> Self {
+        Self {
+            track: Track(track),
+            numerator: 0,
+            denominator: NonZeroU64::new(1).expect("1 is not zero"),
+        }
+    }
+
     /// Get the track where the object is in.
     #[must_use]
     pub const fn track(&self) -> Track {
