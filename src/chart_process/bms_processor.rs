@@ -422,7 +422,7 @@ impl BmsProcessor {
         for track in 0..=last_obj_time.track().0 {
             let track_y = Self::y_of_time_static(
                 bms,
-                ObjTime::new(track, 0, 1).expect("1 should be a valid denominator"),
+                ObjTime::start_of(track.into()),
                 &bms.speed.speed_factor_changes,
             );
 
