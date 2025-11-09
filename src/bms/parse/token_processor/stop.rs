@@ -43,30 +43,33 @@ impl TokenProcessor for StopProcessor {
         let prompter = ctx.prompter();
         let mut buffered_warnings = Vec::new();
         let tokens_view = *ctx.input;
-        let iter_warnings = all_tokens_with_range(tokens_view, |token| match token.content() {
-            Token::Header { name, args } => Ok(self
-                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                .err()),
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => self
-                .on_message(
-                    *track,
-                    *channel,
-                    message.as_ref().into_wrapper(token),
-                    prompter,
-                    &mut objects,
-                )
-                .map_or_else(
-                    |warn| Ok(Some(warn)),
-                    |ws| {
-                        buffered_warnings.extend(ws);
-                        Ok(None)
-                    },
-                ),
-            Token::NotACommand(_) => Ok(None),
+        let mut iter_warnings = Vec::new();
+        all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
+            match token.content() {
+                Token::Header { name, args } => Ok(self
+                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                    .err()),
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => self
+                    .on_message(
+                        *track,
+                        *channel,
+                        message.as_ref().into_wrapper(token),
+                        prompter,
+                        &mut objects,
+                    )
+                    .map_or_else(
+                        |warn| Ok(Some(warn)),
+                        |ws| {
+                            buffered_warnings.extend(ws);
+                            Ok(None)
+                        },
+                    ),
+                Token::NotACommand(_) => Ok(None),
+            }
         })?;
         *ctx.input = &[];
         ctx.reported.extend(buffered_warnings);

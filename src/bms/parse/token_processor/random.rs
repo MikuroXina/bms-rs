@@ -587,7 +587,8 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         let mut activated = vec![];
         // Use a view of the tokens to avoid borrowing `ctx` mutably within the callback.
         let tokens_view = *ctx.input;
-        let res1 = all_tokens_with_range(tokens_view, |token| {
+        let mut iter_warnings = Vec::new();
+        let res1 = all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,
@@ -611,15 +612,13 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         let nested_reported = core::mem::take(&mut view_ctx.reported);
         drop(view_ctx);
         // Merge warnings from iteration and nested processing back into the main context.
-        if let Ok(iter_warnings) = res1.as_ref() {
-            ctx.reported.extend(iter_warnings.clone());
-        }
+        ctx.reported.extend(iter_warnings);
         ctx.reported.extend(nested_reported);
 
         match (res1, out_res) {
-            (Ok(_), Ok(out)) => Ok(out),
+            (Ok(()), Ok(out)) => Ok(out),
             (Err(e), _) => Err(e),
-            (Ok(_), Err(e)) => Err(e),
+            (Ok(()), Err(e)) => Err(e),
         }
     }
 }

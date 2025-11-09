@@ -26,15 +26,18 @@ impl TokenProcessor for SectionLenProcessor {
         let mut objects = SectionLenObjects::default();
         let prompter = ctx.prompter();
         let tokens_view = *ctx.input;
-        let iter_warnings = all_tokens_with_range(tokens_view, |token| match token.content() {
-            Token::Message {
-                track,
-                channel,
-                message,
-            } => Ok(self
-                .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                .err()),
-            Token::Header { .. } | Token::NotACommand(_) => Ok(None),
+        let mut iter_warnings = Vec::new();
+        all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
+            match token.content() {
+                Token::Message {
+                    track,
+                    channel,
+                    message,
+                } => Ok(self
+                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
+                    .err()),
+                Token::Header { .. } | Token::NotACommand(_) => Ok(None),
+            }
         })?;
         *ctx.input = &[];
         ctx.reported.extend(iter_warnings);

@@ -383,21 +383,20 @@ where
 
 fn all_tokens_with_range<'a, 't, F>(
     input: &'a [&'t TokenWithRange<'t>],
+    warnings: &mut Vec<ParseWarningWithRange>,
     mut f: F,
-) -> Result<Vec<ParseWarningWithRange>, ParseErrorWithRange>
+) -> Result<(), ParseErrorWithRange>
 where
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
 {
-    input
-        .iter()
-        .copied()
-        .map(|token| match f(token) {
-            Ok(Some(w)) => Ok(Some(w.into_wrapper(token))),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e.into_wrapper(token)),
-        })
-        .collect::<Result<Vec<_>, ParseErrorWithRange>>()
-        .map(|v| v.into_iter().flatten().collect())
+    input.iter().copied().try_for_each(|token| match f(token) {
+        Ok(Some(w)) => {
+            warnings.push(w.into_wrapper(token));
+            Ok(())
+        }
+        Ok(None) => Ok(()),
+        Err(e) => Err(e.into_wrapper(token)),
+    })
 }
 
 fn parse_obj_ids(
