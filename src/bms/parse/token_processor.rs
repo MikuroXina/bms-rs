@@ -355,17 +355,30 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<'a, 't, F>(
+/// A trait to collect parse warnings in a generic way.
+pub trait ParseWarningCollectior {
+    /// Collects a parse warning.
+    fn collect(&mut self, warning: ParseWarningWithRange);
+}
+
+impl ParseWarningCollectior for &mut Vec<ParseWarningWithRange> {
+    fn collect(&mut self, warning: ParseWarningWithRange) {
+        (*self).push(warning);
+    }
+}
+
+fn all_tokens<'a, 't, F, C>(
     input: &'a [&'t TokenWithRange<'t>],
-    warnings: &mut Vec<ParseWarningWithRange>,
+    mut collector: C,
     mut f: F,
 ) -> Result<(), ParseErrorWithRange>
 where
     F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
+    C: ParseWarningCollectior,
 {
     input.iter().copied().try_for_each(|token| match f(token) {
         Ok(Some(w)) => {
-            warnings.push(w.into_wrapper(token));
+            collector.collect(w.into_wrapper(token));
             Ok(())
         }
         Ok(None) => Ok(()),
