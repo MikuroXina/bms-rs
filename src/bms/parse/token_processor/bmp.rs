@@ -89,8 +89,8 @@ impl TokenProcessor for BmpProcessor {
         })?;
         {
             let mut wc = ctx.get_warning_collector();
-            wc.collect_multi(syntactic_warnings.into_iter());
-            wc.collect_multi(buffered_warnings.into_iter());
+            wc.collect(syntactic_warnings);
+            wc.collect(buffered_warnings);
         }
         Ok(objects)
     }

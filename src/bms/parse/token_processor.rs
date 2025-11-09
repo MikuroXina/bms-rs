@@ -199,9 +199,7 @@ where
                 // Now it is safe to collect warnings into the main context.
                 {
                     let mut wc = ctx.get_warning_collector();
-                    for w in merged_reported {
-                        wc.collect(w);
-                    }
+                    wc.collect(merged_reported);
                 }
                 Ok((first_output, second_output))
             }
@@ -384,18 +382,12 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
 
 /// A trait to collect parse warnings in a generic way.
 pub trait ParseWarningCollectior {
-    /// Collects a parse warning.
-    fn collect(&mut self, warning: ParseWarningWithRange);
-    /// Collects multiple parse warnings from an iterator.
-    fn collect_multi<I: Iterator<Item = ParseWarningWithRange>>(&mut self, iter: I);
+    /// Collects parse warnings from an iterator.
+    fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I);
 }
 
 impl ParseWarningCollectior for &mut Vec<ParseWarningWithRange> {
-    fn collect(&mut self, warning: ParseWarningWithRange) {
-        (*self).push(warning);
-    }
-
-    fn collect_multi<I: Iterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
+    fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
         self.extend(iter);
     }
 }
@@ -411,7 +403,7 @@ where
 {
     input.iter().copied().try_for_each(|token| match f(token) {
         Ok(Some(w)) => {
-            collector.collect(w.into_wrapper(token));
+            collector.collect(std::iter::once(w.into_wrapper(token)));
             Ok(())
         }
         Ok(None) => Ok(()),

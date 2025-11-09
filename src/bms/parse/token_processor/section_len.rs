@@ -41,7 +41,7 @@ impl TokenProcessor for SectionLenProcessor {
         })?;
         {
             let mut wc = ctx.get_warning_collector();
-            wc.collect_multi(warnings_buf.into_iter());
+            wc.collect(warnings_buf);
         }
         Ok(objects)
     }
