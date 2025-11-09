@@ -147,7 +147,7 @@ impl Bms {
         let res = proc.process(&mut ctx);
         ParseOutput {
             bms: res,
-            parse_warnings: ctx.reported,
+            parse_warnings: ctx.into_warnings(),
         }
     }
 }

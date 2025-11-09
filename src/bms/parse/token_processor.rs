@@ -42,11 +42,11 @@ pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
 /// Contains the current input view, the prompter, and collected warnings.
 pub struct ProcessContext<'a, 't, P> {
     /// The mutable view of remaining tokens to be processed.
-    pub input: &'a mut &'a [&'t TokenWithRange<'t>],
+    input: &'a mut &'a [&'t TokenWithRange<'t>],
     /// The prompter used to handle duplications and user-facing prompts.
-    pub prompter: P,
+    prompter: P,
     /// Collected warnings (with source ranges) produced during processing.
-    pub reported: Vec<ParseWarningWithRange>,
+    reported: Vec<ParseWarningWithRange>,
 }
 
 impl<'a, 't, P> ProcessContext<'a, 't, P> {
@@ -74,9 +74,31 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         &self.prompter
     }
 
+    /// Returns a mutable reference to the prompter.
+    pub const fn prompter_mut(&mut self) -> &mut P {
+        &mut self.prompter
+    }
+
+    /// Takes current input view and consumes it (resets to empty).
+    pub const fn take_input(&mut self) -> &'a [&'t TokenWithRange<'t>] {
+        let view = *self.input;
+        *self.input = &[];
+        view
+    }
+
+    /// Returns a warning collector that writes into the context.
+    pub fn get_warning_collector(&mut self) -> impl ParseWarningCollectior + '_ {
+        &mut self.reported
+    }
+
     /// Records a warning produced during token processing.
     pub fn warn(&mut self, warning: ParseWarningWithRange) {
         self.reported.push(warning);
+    }
+
+    /// Consumes the context and returns collected warnings.
+    pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
+        self.reported
     }
 }
 
@@ -174,8 +196,13 @@ where
                 drop(first_ctx);
                 drop(second_ctx);
                 merged_reported.extend(second_reported);
-                // Now it is safe to mutate `ctx.reported`.
-                ctx.reported.extend(merged_reported);
+                // Now it is safe to collect warnings into the main context.
+                {
+                    let mut wc = ctx.get_warning_collector();
+                    for w in merged_reported {
+                        wc.collect(w);
+                    }
+                }
                 Ok((first_output, second_output))
             }
             Err(err) => Err(err),
@@ -359,11 +386,17 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
 pub trait ParseWarningCollectior {
     /// Collects a parse warning.
     fn collect(&mut self, warning: ParseWarningWithRange);
+    /// Collects multiple parse warnings from an iterator.
+    fn collect_multi<I: Iterator<Item = ParseWarningWithRange>>(&mut self, iter: I);
 }
 
 impl ParseWarningCollectior for &mut Vec<ParseWarningWithRange> {
     fn collect(&mut self, warning: ParseWarningWithRange) {
         (*self).push(warning);
+    }
+
+    fn collect_multi<I: Iterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
+        self.extend(iter);
     }
 }
 

@@ -16,7 +16,7 @@ impl TokenProcessor for IdentityTokenProcessor {
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
-        *ctx.input = &[];
+        let _ = ctx.take_input();
         Ok(())
     }
 }

@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use fraction::GenericFraction;
 
+use super::ParseWarningCollectior;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens, filter_message};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::section_len::SectionLenObjects, parse::ParseWarning, prelude::*};
@@ -22,10 +23,11 @@ impl TokenProcessor for SectionLenProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
+        let tokens_view = ctx.take_input();
+        // Collect warnings locally to avoid borrowing ctx while also borrowing prompter.
+        let mut warnings_buf: Vec<ParseWarningWithRange> = Vec::new();
         let prompter = ctx.prompter();
-        let tokens_view = *ctx.input;
-        let mut iter_warnings = Vec::new();
-        all_tokens(tokens_view, &mut iter_warnings, |token| {
+        all_tokens(tokens_view, &mut warnings_buf, |token| {
             match token.content() {
                 Token::Message {
                     track,
@@ -37,8 +39,10 @@ impl TokenProcessor for SectionLenProcessor {
                 Token::Header { .. } | Token::NotACommand(_) => Ok(None),
             }
         })?;
-        *ctx.input = &[];
-        ctx.reported.extend(iter_warnings);
+        {
+            let mut wc = ctx.get_warning_collector();
+            wc.collect_multi(warnings_buf.into_iter());
+        }
         Ok(objects)
     }
 }

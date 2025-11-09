@@ -14,6 +14,7 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
+use super::ParseWarningCollectior;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens};
 use crate::bms::ParseErrorWithRange;
 use crate::{
@@ -43,11 +44,11 @@ impl TokenProcessor for VideoProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut video = Video::default();
-        let prompter = ctx.prompter();
         let mut buffered_warnings = Vec::new();
-        let tokens_view = *ctx.input;
-        let mut iter_warnings = Vec::new();
-        all_tokens(tokens_view, &mut iter_warnings, |token| {
+        let tokens_view = ctx.take_input();
+        let mut syntactic_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let prompter = ctx.prompter();
+        all_tokens(tokens_view, &mut syntactic_warnings, |token| {
             match token.content() {
                 Token::Header { name, args } => Ok(self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
@@ -74,9 +75,11 @@ impl TokenProcessor for VideoProcessor {
                 Token::NotACommand(_) => Ok(None),
             }
         })?;
-        *ctx.input = &[];
-        ctx.reported.extend(buffered_warnings);
-        ctx.reported.extend(iter_warnings);
+        {
+            let mut wc = ctx.get_warning_collector();
+            wc.collect_multi(syntactic_warnings.into_iter());
+            wc.collect_multi(buffered_warnings.into_iter());
+        }
         Ok(video)
     }
 }

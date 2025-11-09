@@ -19,6 +19,7 @@
 
 use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
+use super::ParseWarningCollectior;
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, all_tokens, parse_obj_ids,
@@ -53,11 +54,11 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = WavObjects::default();
-        let prompter = ctx.prompter();
         let mut buffered_warnings = Vec::new();
-        let tokens_view = *ctx.input;
-        let mut iter_warnings = Vec::new();
-        all_tokens(tokens_view, &mut iter_warnings, |token| {
+        let tokens_view = ctx.take_input();
+        let mut syntactic_warnings: Vec<ParseWarningWithRange> = Vec::new();
+        let prompter = ctx.prompter();
+        all_tokens(tokens_view, &mut syntactic_warnings, |token| {
             match token.content() {
                 Token::Header { name, args } => Ok(self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
@@ -84,9 +85,11 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
                 Token::NotACommand(_) => Ok(None),
             }
         })?;
-        *ctx.input = &[];
-        ctx.reported.extend(buffered_warnings);
-        ctx.reported.extend(iter_warnings);
+        {
+            let mut wc = ctx.get_warning_collector();
+            wc.collect_multi(syntactic_warnings.into_iter());
+            wc.collect_multi(buffered_warnings.into_iter());
+        }
         Ok(objects)
     }
 }

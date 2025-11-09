@@ -26,9 +26,9 @@ impl TokenProcessor for ResourcesProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut resources = Resources::default();
-        let tokens_view = *ctx.input;
-        let mut iter_warnings = Vec::new();
-        all_tokens(tokens_view, &mut iter_warnings, |token| {
+        let tokens_view = ctx.take_input();
+        let wc = ctx.get_warning_collector();
+        all_tokens(tokens_view, wc, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut resources)
@@ -36,8 +36,6 @@ impl TokenProcessor for ResourcesProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         })?;
-        *ctx.input = &[];
-        ctx.reported.extend(iter_warnings);
         Ok(resources)
     }
 }
