@@ -47,14 +47,13 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        parse::token_processor::all_tokens,
         parse::{ParseError, ParseWarning},
         prelude::*,
     },
     util::StrExtension,
 };
 
-use super::{ProcessContext, TokenProcessor};
+use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -584,21 +583,26 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
-        let mut activated = vec![];
-        // Use a view of the tokens to avoid borrowing `ctx` mutably within the callback.
-        let tokens_view = *ctx.input;
-        let mut iter_warnings = Vec::new();
-        let res1 = all_tokens(tokens_view, &mut iter_warnings, |token| {
-            let res = match token.content() {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
-                Token::Message { .. } => None,
-                Token::NotACommand(line) => self.on_comment(line)?,
-            };
+        let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
+        ctx.all_tokens(|token, _prompter, mut wc| {
+            match token.content() {
+                Token::Header { name, args } => {
+                    if let Some(w) = self.on_header(name.as_ref(), args.as_ref())? {
+                        wc.collect(std::iter::once(w.into_wrapper(token)))
+                    }
+                }
+                Token::Message { .. } => {}
+                Token::NotACommand(line) => {
+                    if let Some(w) = self.on_comment(line)? {
+                        wc.collect(std::iter::once(w.into_wrapper(token)))
+                    }
+                }
+            }
             if self.is_activated() {
                 activated.push(token);
             }
-            Ok(res)
-        });
+            Ok(())
+        })?;
 
         // Process activated tokens with the next processor using a temporary context.
         let mut tmp = &activated[..];
@@ -607,19 +611,17 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             prompter: ctx.prompter(),
             reported: Vec::new(),
         };
-        let out_res = self.next.process(&mut view_ctx);
+        let out = self.next.process(&mut view_ctx)?;
         // Collect nested warnings locally first, then drop the borrowed context.
         let nested_reported = core::mem::take(&mut view_ctx.reported);
         drop(view_ctx);
-        // Merge warnings from iteration and nested processing back into the main context.
-        ctx.reported.extend(iter_warnings);
-        ctx.reported.extend(nested_reported);
-
-        match (res1, out_res) {
-            (Ok(()), Ok(out)) => Ok(out),
-            (Err(e), _) => Err(e),
-            (Ok(()), Err(e)) => Err(e),
+        // Merge nested processing warnings back into the main context.
+        {
+            let mut wc = ctx.get_warning_collector();
+            wc.collect(nested_reported);
         }
+
+        Ok(out)
     }
 }
 

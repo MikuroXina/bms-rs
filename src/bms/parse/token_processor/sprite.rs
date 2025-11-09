@@ -8,7 +8,7 @@
 
 use std::path::Path;
 
-use super::{ProcessContext, TokenProcessor, all_tokens};
+use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::sprite::Sprites, prelude::*};
 
@@ -24,15 +24,14 @@ impl TokenProcessor for SpriteProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut sprites = Sprites::default();
-        let tokens_view = ctx.take_input();
-        let wc = ctx.get_warning_collector();
-        all_tokens(tokens_view, wc, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut sprites)
-                    .err(),
-                Token::Message { .. } | Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, _prompter, mut wc| match token.content() {
+            Token::Header { name, args } => {
+                if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut sprites) {
+                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                }
+                Ok(())
+            }
+            Token::Message { .. } | Token::NotACommand(_) => Ok(()),
         })?;
         Ok(sprites)
     }

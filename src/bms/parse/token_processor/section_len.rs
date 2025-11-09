@@ -6,8 +6,8 @@ use std::str::FromStr;
 
 use fraction::GenericFraction;
 
-use super::ParseWarningCollectior;
-use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens, filter_message};
+use super::ParseWarningCollector;
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, filter_message};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::section_len::SectionLenObjects, parse::ParseWarning, prelude::*};
 
@@ -23,26 +23,21 @@ impl TokenProcessor for SectionLenProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
-        let tokens_view = ctx.take_input();
-        // Collect warnings locally to avoid borrowing ctx while also borrowing prompter.
-        let mut warnings_buf: Vec<ParseWarningWithRange> = Vec::new();
-        let prompter = ctx.prompter();
-        all_tokens(tokens_view, &mut warnings_buf, |token| {
-            match token.content() {
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => Ok(self
-                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                    .err()),
-                Token::Header { .. } | Token::NotACommand(_) => Ok(None),
+        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                if let Err(warn) =
+                    self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
+                {
+                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                }
+                Ok(())
             }
+            Token::Header { .. } | Token::NotACommand(_) => Ok(()),
         })?;
-        {
-            let mut wc = ctx.get_warning_collector();
-            wc.collect(warnings_buf);
-        }
         Ok(objects)
     }
 }

@@ -15,7 +15,7 @@
 
 use std::{path::Path, str::FromStr};
 
-use super::{ProcessContext, TokenProcessor, all_tokens};
+use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::metadata::Metadata, prelude::*};
 
@@ -31,16 +31,20 @@ impl TokenProcessor for MetadataProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
-        let tokens_view = ctx.take_input();
-        let wc = ctx.get_warning_collector();
-        all_tokens(tokens_view, wc, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut metadata)
-                    .err(),
-                Token::Message { .. } => None,
-                Token::NotACommand(line) => self.on_comment(line, &mut metadata).err(),
-            })
+        ctx.all_tokens(|token, _prompter, mut wc| match token.content() {
+            Token::Header { name, args } => {
+                if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
+                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                }
+                Ok(())
+            }
+            Token::Message { .. } => Ok(()),
+            Token::NotACommand(line) => {
+                if let Err(warn) = self.on_comment(line, &mut metadata) {
+                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                }
+                Ok(())
+            }
         })?;
         Ok(metadata)
     }

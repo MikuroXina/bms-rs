@@ -87,7 +87,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Returns a warning collector that writes into the context.
-    pub fn get_warning_collector(&mut self) -> impl ParseWarningCollectior + '_ {
+    pub fn get_warning_collector(&mut self) -> impl ParseWarningCollector + '_ {
         &mut self.reported
     }
 
@@ -99,6 +99,36 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     /// Consumes the context and returns collected warnings.
     pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
         self.reported
+    }
+
+    /// Iterates over all remaining tokens in the context, passing each to the handler `f`.
+    ///
+    /// This consumes the current input view (like `take_input`) and directly provides
+    /// the context's `prompter` and `warning_collector` to the handler to avoid borrow conflicts.
+    ///
+    /// The handler should push any `ParseWarningWithRange` into the provided collector `C`
+    /// and only return `Err(ParseError)` for fatal errors. Any fatal error is automatically
+    /// wrapped with the current token's source range.
+    pub fn all_tokens<F>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
+    where
+        F: FnMut(
+            &'a TokenWithRange<'t>,
+            &P,
+            &mut Vec<ParseWarningWithRange>,
+        ) -> Result<(), ParseError>,
+    {
+        // Consume current input view and borrow prompter and warning collector.
+        let view = self.take_input();
+        let prompter = &self.prompter;
+        let reported = &mut self.reported;
+
+        view.iter().copied().try_for_each(|token| {
+            // Pass `&P` and the warning collector to the handler.
+            match f(token, prompter, reported) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(e.into_wrapper(token)),
+            }
+        })
     }
 }
 
@@ -381,34 +411,15 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
 }
 
 /// A trait to collect parse warnings in a generic way.
-pub trait ParseWarningCollectior {
+pub trait ParseWarningCollector {
     /// Collects parse warnings from an iterator.
     fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I);
 }
 
-impl ParseWarningCollectior for &mut Vec<ParseWarningWithRange> {
+impl ParseWarningCollector for &mut Vec<ParseWarningWithRange> {
     fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
         self.extend(iter);
     }
-}
-
-fn all_tokens<'a, 't, F, C>(
-    input: &'a [&'t TokenWithRange<'t>],
-    mut collector: C,
-    mut f: F,
-) -> Result<(), ParseErrorWithRange>
-where
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
-    C: ParseWarningCollectior,
-{
-    input.iter().copied().try_for_each(|token| match f(token) {
-        Ok(Some(w)) => {
-            collector.collect(std::iter::once(w.into_wrapper(token)));
-            Ok(())
-        }
-        Ok(None) => Ok(()),
-        Err(e) => Err(e.into_wrapper(token)),
-    })
 }
 
 fn parse_obj_ids(

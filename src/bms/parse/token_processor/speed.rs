@@ -7,10 +7,10 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::ParseWarningCollectior;
+use super::ParseWarningCollector;
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    ProcessContext, TokenProcessor, all_tokens, parse_obj_ids,
+    ProcessContext, TokenProcessor, parse_obj_ids,
 };
 use crate::bms::ParseErrorWithRange;
 use crate::{
@@ -40,42 +40,39 @@ impl TokenProcessor for SpeedProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SpeedObjects::default();
-        let mut buffered_warnings = Vec::new();
-        let tokens_view = ctx.take_input();
-        let mut syntactic_warnings: Vec<ParseWarningWithRange> = Vec::new();
-        let prompter = ctx.prompter();
-        all_tokens(tokens_view, &mut syntactic_warnings, |token| {
-            match token.content() {
-                Token::Header { name, args } => Ok(self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err()),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .map_or_else(
-                        |warn| Ok(Some(warn)),
-                        |ws| {
-                            buffered_warnings.extend(ws);
-                            Ok(None)
-                        },
-                    ),
-                Token::NotACommand(_) => Ok(None),
+        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+            Token::Header { name, args } => {
+                if let Err(warn) =
+                    self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                {
+                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                }
+                Ok(())
             }
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                ) {
+                    Ok(ws) => {
+                        wc.collect(ws);
+                        Ok(())
+                    }
+                    Err(warn) => {
+                        wc.collect(std::iter::once(warn.into_wrapper(token)));
+                        Ok(())
+                    }
+                }
+            }
+            Token::NotACommand(_) => Ok(()),
         })?;
-        {
-            let mut wc = ctx.get_warning_collector();
-            wc.collect(syntactic_warnings);
-            wc.collect(buffered_warnings);
-        }
         Ok(objects)
     }
 }
