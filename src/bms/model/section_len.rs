@@ -1,9 +1,6 @@
 //! This module introduces struct [`SectionLenObjects`], which manages events of section length change.
 
-use std::{
-    collections::{BTreeMap, btree_map::Entry},
-    num::NonZeroU64,
-};
+use std::collections::{BTreeMap, btree_map::Entry};
 
 use crate::bms::{error::Result, parse::prompt::TrackDuplication, prelude::*};
 
@@ -19,13 +16,9 @@ impl SectionLenObjects {
     /// Gets the time of the last section length change.
     #[must_use]
     pub fn last_obj_time(&self) -> Option<ObjTime> {
-        self.section_len_changes.last_key_value().map(|(&time, _)| {
-            ObjTime::new(
-                time.0,
-                0,
-                NonZeroU64::new(4).expect("4 should be a valid NonZeroU64"),
-            )
-        })
+        self.section_len_changes
+            .last_key_value()
+            .map(|(&time, _)| ObjTime::start_of(time))
     }
 }
 

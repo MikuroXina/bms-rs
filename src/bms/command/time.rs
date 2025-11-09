@@ -39,9 +39,17 @@ pub struct ObjTime {
 }
 
 impl ObjTime {
-    /// Create a new time.
+    /// Create a new time from raw u64 values.
+    /// Returns `None` if the denominator is zero.
     #[must_use]
-    pub fn new(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
+    pub fn new(track: u64, numerator: u64, denominator: u64) -> Option<Self> {
+        let denominator = NonZeroU64::new(denominator)?;
+        Some(Self::new_checked(track, numerator, denominator))
+    }
+
+    /// Create a new time from a guaranteed non-zero denominator.
+    #[must_use]
+    pub fn new_checked(track: u64, numerator: u64, denominator: NonZeroU64) -> Self {
         // If numerator is greater than denominator, add the integer part of numerator / denominator to track and set numerator to the remainder.
         let (track, numerator) = if numerator > denominator.get() {
             (
@@ -59,6 +67,16 @@ impl ObjTime {
             numerator: numerator / gcd,
             denominator: NonZeroU64::new(denominator.get() / gcd)
                 .expect("GCD should never make denominator zero"),
+        }
+    }
+
+    /// Create a new time from a track.
+    #[must_use]
+    pub const fn start_of(track: Track) -> Self {
+        Self {
+            track,
+            numerator: 0,
+            denominator: NonZeroU64::new(1).expect("1 is not zero"),
         }
     }
 

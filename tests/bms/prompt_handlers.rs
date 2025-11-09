@@ -1,6 +1,5 @@
 use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
 
-use std::num::NonZeroU64;
 use std::path::Path;
 
 // BMS source with various conflicts
@@ -98,14 +97,7 @@ fn test_always_use_older() {
     // Check that the older BPM change event is used (01, not 03)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(
-        bpm_changes[0].0,
-        &ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )
-    );
+    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
 }
@@ -170,14 +162,7 @@ fn test_always_use_newer() {
     // Check that the newer BPM change event is used (03, not 01)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(
-        bpm_changes[0].0,
-        &ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )
-    );
+    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(160));
 }
@@ -257,14 +242,7 @@ fn test_always_warn_and_use_older() {
     // Check that the older BPM change event is used (01, not 03)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(
-        bpm_changes[0].0,
-        &ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )
-    );
+    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
 }
@@ -344,14 +322,7 @@ fn test_always_warn_and_use_newer() {
     // Check that the newer BPM change event is used (03, not 01)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(
-        bpm_changes[0].0,
-        &ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )
-    );
+    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(160));
 }

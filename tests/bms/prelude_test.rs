@@ -29,7 +29,7 @@ fn test_prelude_imports() {
 
     // Test time types
     let _track = Track(1);
-    let _obj_time = ObjTime::new(1, 0, std::num::NonZeroU64::new(1).unwrap());
+    let _obj_time = ObjTime::start_of(1.into());
 
     // Test model types
     let _bms = Bms::default();
@@ -122,7 +122,7 @@ fn test_prelude_minor_command_imports() {
     let _ex_wav_volume = ExWavVolume::try_from(0).unwrap();
     let _ex_wav_frequency = ExWavFrequency::try_from(100).unwrap();
     let _stp_event = StpEvent {
-        time: ObjTime::new(1, 0, std::num::NonZeroU64::new(1).unwrap()),
+        time: ObjTime::start_of(1.into()),
         duration: std::time::Duration::from_secs(1),
     };
     let _wav_cmd_event = WavCmdEvent {

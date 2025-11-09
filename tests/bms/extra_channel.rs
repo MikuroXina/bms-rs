@@ -1,6 +1,5 @@
 use bms_rs::bms::prelude::*;
 use num::BigUint;
-use std::num::NonZeroU64;
 
 #[test]
 fn test_channel_volume() {
@@ -21,56 +20,36 @@ fn test_channel_volume() {
     assert_eq!(bms.volume.bgm_volume_changes.len(), 8);
     assert_eq!(bms.volume.key_volume_changes.len(), 4);
     assert_eq!(
-        bms.volume.bgm_volume_changes.get(&ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.volume
+            .bgm_volume_changes
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             volume: 1,
         })
     );
     assert_eq!(
-        bms.volume.key_volume_changes.get(&ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.volume
+            .key_volume_changes
+            .get(&ObjTime::start_of(1.into())),
         Some(&KeyVolumeObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             volume: 2 * 16 + 2,
         })
     );
     assert_eq!(
-        bms.volume.bgm_volume_changes.get(&ObjTime::new(
-            2,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.volume
+            .bgm_volume_changes
+            .get(&ObjTime::start_of(2.into())),
         Some(&BgmVolumeObj {
-            time: ObjTime::new(
-                2,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(2.into()),
             volume: 5,
         })
     );
     assert_eq!(
-        bms.volume.key_volume_changes.get(&ObjTime::new(
-            2,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.volume
+            .key_volume_changes
+            .get(&ObjTime::start_of(2.into())),
         None
     );
 }
@@ -95,32 +74,16 @@ fn test_channel_text() {
 
     assert_eq!(bms.text.text_events.len(), 4);
     assert_eq!(
-        bms.text.text_events.get(&ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.text.text_events.get(&ObjTime::start_of(1.into())),
         Some(&TextObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             text: "Hello World".to_string(),
         })
     );
     assert_eq!(
-        bms.text.text_events.get(&ObjTime::new(
-            2,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.text.text_events.get(&ObjTime::start_of(2.into())),
         Some(&TextObj {
-            time: ObjTime::new(
-                2,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(2.into()),
             text: "Test Message".to_string(),
         })
     );
@@ -154,47 +117,25 @@ fn test_channel_judge() {
 
     assert_eq!(bms.judge.judge_events.len(), 4);
     assert_eq!(
-        bms.judge.judge_events.get(&ObjTime::new(
-            1,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.judge.judge_events.get(&ObjTime::start_of(1.into())),
         Some(&JudgeObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             judge_level: JudgeLevel::Easy,
         })
     );
     assert_eq!(
-        bms.judge.judge_events.get(&ObjTime::new(
-            2,
-            0,
-            NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-        )),
+        bms.judge.judge_events.get(&ObjTime::start_of(2.into())),
         Some(&JudgeObj {
-            time: ObjTime::new(
-                2,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(2.into()),
             judge_level: JudgeLevel::Normal,
         })
     );
     assert_eq!(
-        bms.judge.judge_events.get(&ObjTime::new(
-            2,
-            1,
-            NonZeroU64::new(2).expect("2 should be a valid NonZeroU64")
-        )),
+        bms.judge
+            .judge_events
+            .get(&ObjTime::new(2, 1, 2).expect("2 should be a valid denominator")),
         Some(&JudgeObj {
-            time: ObjTime::new(
-                2,
-                1,
-                NonZeroU64::new(2).expect("2 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::new(2, 1, 2).expect("2 should be a valid denominator"),
             judge_level: JudgeLevel::Easy,
         })
     );
@@ -232,17 +173,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Base)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Base,
             opacity: 0x80, // 128
         })
@@ -254,17 +187,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay,
             opacity: 0x90, // 144
         })
@@ -276,17 +201,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay2,
             opacity: 0xA0, // 160
         })
@@ -298,17 +215,9 @@ fn test_bga_opacity_channels() {
             .bga_opacity_changes
             .get(&BgaLayer::Poor)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaOpacityObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Poor,
             opacity: 0xB0, // 176
         })
@@ -351,17 +260,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Base)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaArgbObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Base,
             argb: Argb {
                 alpha: 255,
@@ -378,17 +279,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Overlay)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaArgbObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay,
             argb: Argb {
                 alpha: 0,
@@ -405,17 +298,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Overlay2)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaArgbObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Overlay2,
             argb: Argb {
                 alpha: 0,
@@ -432,17 +317,9 @@ fn test_bga_argb_channels() {
             .bga_argb_changes
             .get(&BgaLayer::Poor)
             .unwrap()
-            .get(&ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            )),
+            .get(&ObjTime::start_of(1.into())),
         Some(&BgaArgbObj {
-            time: ObjTime::new(
-                1,
-                0,
-                NonZeroU64::new(1).expect("1 should be a valid NonZeroU64")
-            ),
+            time: ObjTime::start_of(1.into()),
             layer: BgaLayer::Poor,
             argb: Argb {
                 alpha: 255,

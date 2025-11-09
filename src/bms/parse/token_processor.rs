@@ -5,7 +5,7 @@
 //! - [`common_preset`] - Commonly used processors.
 //! - [`minor_preset`] - All of processors this crate provided.
 
-use std::{borrow::Cow, cell::RefCell, num::NonZeroU64, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use itertools::Itertools;
 
@@ -333,7 +333,7 @@ fn parse_obj_ids<P: Prompter>(
         );
     }
 
-    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
+    let denom = message.content().len() as u64 / 2;
     message
         .content()
         .chars()
@@ -344,14 +344,7 @@ fn parse_obj_ids<P: Prompter>(
             let buf = arr.into_iter().collect::<String>();
             match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
                 Ok(id) if id.is_null() => None,
-                Ok(id) => Some((
-                    ObjTime::new(
-                        track.0,
-                        i as u64,
-                        denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                    ),
-                    id,
-                )),
+                Ok(id) => ObjTime::new(track.0, i as u64, denom).map(|time| (time, id)),
                 Err(warning) => {
                     prompter.warn(warning.into_wrapper(&message));
                     None
@@ -371,7 +364,7 @@ fn parse_hex_values<P: Prompter>(
         );
     }
 
-    let denom_opt = NonZeroU64::new(message.content().len() as u64 / 2);
+    let denom = message.content().len() as u64 / 2;
     message
         .content()
         .chars()
@@ -388,16 +381,7 @@ fn parse_hex_values<P: Prompter>(
                     );
                     None
                 },
-                |value| {
-                    Some((
-                        ObjTime::new(
-                            track.0,
-                            i as u64,
-                            denom_opt.expect("len / 2 won't be zero on reading tuples"),
-                        ),
-                        value,
-                    ))
-                },
+                |value| ObjTime::new(track.0, i as u64, denom).map(|time| (time, value)),
             )
         })
 }
