@@ -7,7 +7,7 @@
 
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
-use itertools::{Either, Itertools};
+use itertools::Itertools;
 
 use crate::bms::{
     parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
@@ -413,25 +413,24 @@ fn parse_obj_ids(
     }
 
     let denom = message.content().len() as u64 / 2;
-    message
+    let messages = message
         .content()
         .chars()
         .tuples()
         .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
+        .filter_map(|(i, (c1, c2))| {
             let arr: [char; 2] = (c1, c2).into();
             let buf = arr.into_iter().collect::<String>();
             match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
                 Ok(id) if id.is_null() => None,
                 Ok(id) => ObjTime::new(track.0, i as u64, denom).map(|time| (time, id)),
                 Err(warning) => {
-                    prompter.warn(warning.into_wrapper(&message));
+                    warnings.push(warning.into_wrapper(&message));
                     None
                 }
             }
-        }
-    }
-    (out, warnings)
+        });
+    (messages.collect(), warnings)
 }
 
 fn parse_hex_values(
@@ -446,17 +445,17 @@ fn parse_hex_values(
     }
 
     let denom = message.content().len() as u64 / 2;
-    message
+    let message = message
         .content()
         .chars()
         .tuples()
         .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
+        .filter_map(|(i, (c1, c2))| {
             let arr: [char; 2] = (c1, c2).into();
             let buf = arr.into_iter().collect::<String>();
             u8::from_str_radix(&buf, 16).map_or_else(
                 |_| {
-                    prompter.warn(
+                    warnings.push(
                         ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
                             .into_wrapper(&message),
                     );
@@ -464,7 +463,8 @@ fn parse_hex_values(
                 },
                 |value| ObjTime::new(track.0, i as u64, denom).map(|time| (time, value)),
             )
-        })
+        });
+    (message.collect(), warnings)
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {
