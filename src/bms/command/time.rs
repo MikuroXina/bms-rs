@@ -72,9 +72,9 @@ impl ObjTime {
 
     /// Create a new time from a track.
     #[must_use]
-    pub fn start_of(track: Track) -> Self {
+    pub const fn start_of(track: Track) -> Self {
         Self {
-            track: track,
+            track,
             numerator: 0,
             denominator: NonZeroU64::new(1).expect("1 is not zero"),
         }

@@ -40,7 +40,7 @@ impl Ord for WavObj {
 impl WavObj {
     pub(crate) fn dangling() -> Self {
         Self {
-            offset: ObjTime::new(1, 0, 1).expect("1 should be a valid denominator"),
+            offset: ObjTime::start_of(1.into()),
             channel_id: NoteChannelId::bgm(),
             wav_id: ObjId::null(),
         }

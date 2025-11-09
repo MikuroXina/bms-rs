@@ -416,7 +416,7 @@ impl BmsProcessor {
         // Get the track number of the last object
         let last_obj_time = bms
             .last_obj_time()
-            .unwrap_or_else(|| ObjTime::new(0, 0, 4).expect("4 should be a valid denominator"));
+            .unwrap_or_else(|| ObjTime::start_of(0.into()));
 
         // Generate measure lines for each track, but not exceeding maximum Y value
         for track in 0..=last_obj_time.track().0 {

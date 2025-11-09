@@ -57,7 +57,7 @@ fn nested_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
@@ -92,7 +92,7 @@ fn nested_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,
@@ -131,7 +131,7 @@ fn nested_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
                     .to_channel_id(),
                 wav_id: id11,

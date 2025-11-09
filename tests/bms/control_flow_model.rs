@@ -79,7 +79,7 @@ fn into_tokens_basic_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4,).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -113,7 +113,7 @@ fn into_tokens_basic_random() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4,).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -211,7 +211,7 @@ fn into_tokens_basic_setrandom() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -342,7 +342,7 @@ fn builder_and_mutation() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -375,7 +375,7 @@ fn builder_and_mutation() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -408,7 +408,7 @@ fn builder_and_mutation() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -510,7 +510,7 @@ fn into_tokens_basic_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -544,7 +544,7 @@ fn into_tokens_basic_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -643,7 +643,7 @@ fn into_tokens_basic_setswitch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -734,7 +734,7 @@ fn builder_basic_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
@@ -767,7 +767,7 @@ fn builder_basic_switch() {
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
             WavObj {
-                offset: ObjTime::new(1, 0, 4).expect("4 should be a valid denominator"),
+                offset: ObjTime::start_of(1.into()),
                 channel_id:
                     KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
                         .to_channel_id(),
