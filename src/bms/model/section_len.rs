@@ -18,7 +18,7 @@ impl SectionLenObjects {
     pub fn last_obj_time(&self) -> Option<ObjTime> {
         self.section_len_changes
             .last_key_value()
-            .map(|(&time, _)| ObjTime::new(time.0, 0, 4).expect("4 should be a valid denominator"))
+            .map(|(&time, _)| ObjTime::start_of(time))
     }
 }
 
