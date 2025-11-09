@@ -27,7 +27,9 @@ impl TokenProcessor for MusicInfoProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut music_info = MusicInfo::default();
-        all_tokens(ctx, |token| {
+        let tokens_view = *ctx.input;
+        let mut iter_warnings = Vec::new();
+        all_tokens(tokens_view, &mut iter_warnings, |token| {
             Ok(match token.content() {
                 Token::Header { name, args } => self
                     .on_header(name.as_ref(), args.as_ref(), &mut music_info)
@@ -35,6 +37,8 @@ impl TokenProcessor for MusicInfoProcessor {
                 Token::Message { .. } | Token::NotACommand(_) => None,
             })
         })?;
+        *ctx.input = &[];
+        ctx.reported.extend(iter_warnings);
         Ok(music_info)
     }
 }

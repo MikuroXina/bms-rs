@@ -47,7 +47,7 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        parse::token_processor::all_tokens_with_range,
+        parse::token_processor::all_tokens,
         parse::{ParseError, ParseWarning},
         prelude::*,
     },
@@ -588,7 +588,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         // Use a view of the tokens to avoid borrowing `ctx` mutably within the callback.
         let tokens_view = *ctx.input;
         let mut iter_warnings = Vec::new();
-        let res1 = all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
+        let res1 = all_tokens(tokens_view, &mut iter_warnings, |token| {
             let res = match token.content() {
                 Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
                 Token::Message { .. } => None,

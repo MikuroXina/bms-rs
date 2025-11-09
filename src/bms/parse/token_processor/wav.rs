@@ -21,7 +21,7 @@ use std::{cell::RefCell, marker::PhantomData, path::Path, rc::Rc};
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    ProcessContext, TokenProcessor, all_tokens_with_range, parse_obj_ids,
+    ProcessContext, TokenProcessor, all_tokens, parse_obj_ids,
 };
 use crate::bms::parse::ParseErrorWithRange;
 use crate::{
@@ -57,7 +57,7 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
         let mut buffered_warnings = Vec::new();
         let tokens_view = *ctx.input;
         let mut iter_warnings = Vec::new();
-        all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
+        all_tokens(tokens_view, &mut iter_warnings, |token| {
             match token.content() {
                 Token::Header { name, args } => Ok(self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)

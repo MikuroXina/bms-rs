@@ -355,33 +355,7 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<'a, 't, P, F>(
-    ctx: &mut ProcessContext<'a, 't, P>,
-    mut f: F,
-) -> Result<(), ParseErrorWithRange>
-where
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
-{
-    // Avoid allocation: iterate a local input view and short-circuit on error.
-    let input_view = *ctx.input;
-    input_view
-        .iter()
-        .copied()
-        .try_for_each(|token| match f(token) {
-            Ok(Some(w)) => {
-                ctx.warn(w.into_wrapper(token));
-                Ok(())
-            }
-            Ok(None) => Ok(()),
-            Err(e) => Err(e.into_wrapper(token)),
-        })?;
-
-    // Consume all tokens
-    *ctx.input = &[];
-    Ok(())
-}
-
-fn all_tokens_with_range<'a, 't, F>(
+fn all_tokens<'a, 't, F>(
     input: &'a [&'t TokenWithRange<'t>],
     warnings: &mut Vec<ParseWarningWithRange>,
     mut f: F,

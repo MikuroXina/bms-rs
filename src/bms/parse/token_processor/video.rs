@@ -14,7 +14,7 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
-use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens_with_range};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, all_tokens};
 use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{model::video::Video, prelude::*},
@@ -47,7 +47,7 @@ impl TokenProcessor for VideoProcessor {
         let mut buffered_warnings = Vec::new();
         let tokens_view = *ctx.input;
         let mut iter_warnings = Vec::new();
-        all_tokens_with_range(tokens_view, &mut iter_warnings, |token| {
+        all_tokens(tokens_view, &mut iter_warnings, |token| {
             match token.content() {
                 Token::Header { name, args } => Ok(self
                     .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
