@@ -124,10 +124,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
 
         view.iter().copied().try_for_each(|token| {
             // Pass `&P` and the warning collector to the handler.
-            match f(token, prompter, reported) {
-                Ok(()) => Ok(()),
-                Err(e) => Err(e.into_wrapper(token)),
-            }
+            f(token, prompter, reported).map_err(|e| e.into_wrapper(token))
         })
     }
 }
