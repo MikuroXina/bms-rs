@@ -216,9 +216,14 @@ impl<'a> BmsonProcessor<'a> {
             Decimal::from(0),
             Decimal::from(self.bmson.info.init_bpm.as_f64()),
         );
-        for ev in &self.bmson.bpm_events {
-            bpm_map.insert(self.pulses_to_y(ev.y.0), ev.bpm.as_f64().into());
-        }
+        let bpm_pairs: Vec<(Decimal, Decimal)> = self
+            .bmson
+            .bpm_events
+            .iter()
+            .map(|ev| (self.pulses_to_y(ev.y.0), ev.bpm.as_f64().into()))
+            .collect();
+        bpm_map.extend(bpm_pairs.iter().cloned());
+        points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
 
         let mut stop_list: Vec<(Decimal, u64)> = self
             .bmson
@@ -229,6 +234,7 @@ impl<'a> BmsonProcessor<'a> {
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
+        let init_bpm = Decimal::from(self.bmson.info.init_bpm.as_f64());
         let mut total = 0.0f64;
         let mut prev = Decimal::from(0);
         cum_map.insert(prev.clone(), 0.0);
@@ -239,7 +245,7 @@ impl<'a> BmsonProcessor<'a> {
             ))
             .next_back()
             .map(|(_, b)| b.clone())
-            .unwrap_or_else(|| Decimal::from(self.bmson.info.init_bpm.as_f64()));
+            .unwrap_or_else(|| init_bpm.clone());
         let mut stop_idx = 0usize;
         for curr in points.into_iter() {
             if curr <= prev {
@@ -262,7 +268,7 @@ impl<'a> BmsonProcessor<'a> {
                 ))
                 .next_back()
                 .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| Decimal::from(self.bmson.info.init_bpm.as_f64()));
+                .unwrap_or_else(|| init_bpm.clone());
             cum_map.insert(curr.clone(), total);
             prev = curr;
         }

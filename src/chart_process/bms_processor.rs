@@ -701,9 +701,7 @@ impl BmsProcessor {
         use std::collections::{BTreeMap, BTreeSet};
         let mut points: BTreeSet<Decimal> = BTreeSet::new();
         points.insert(Decimal::from(0));
-        for y_coord in self.all_events.keys() {
-            points.insert(y_coord.value().clone());
-        }
+        points.extend(self.all_events.keys().map(|yc| yc.value().clone()));
 
         let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
         let init_bpm = self
@@ -714,15 +712,22 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
         bpm_map.insert(Decimal::from(0), init_bpm.clone());
-        for change in self.bms.bpm.bpm_changes.values() {
-            let y = Self::y_of_time_static(
-                &self.bms,
-                change.time,
-                &self.bms.speed.speed_factor_changes,
-            );
-            bpm_map.insert(y.clone(), change.bpm.clone());
-            points.insert(y);
-        }
+        let bpm_pairs: Vec<(Decimal, Decimal)> = self
+            .bms
+            .bpm
+            .bpm_changes
+            .values()
+            .map(|change| {
+                let y = Self::y_of_time_static(
+                    &self.bms,
+                    change.time,
+                    &self.bms.speed.speed_factor_changes,
+                );
+                (y, change.bpm.clone())
+            })
+            .collect();
+        bpm_map.extend(bpm_pairs.iter().cloned());
+        points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
 
         let mut stop_list: Vec<(Decimal, Decimal)> = self
             .bms
@@ -751,7 +756,7 @@ impl BmsProcessor {
             ))
             .next_back()
             .map(|(_, b)| b.clone())
-            .unwrap_or(init_bpm.clone());
+            .unwrap_or_else(|| init_bpm.clone());
         let mut stop_idx = 0usize;
         for curr in points.into_iter() {
             if curr <= prev {
@@ -777,18 +782,27 @@ impl BmsProcessor {
                 ))
                 .next_back()
                 .map(|(_, b)| b.clone())
-                .unwrap_or(init_bpm.clone());
+                .unwrap_or_else(|| init_bpm.clone());
             cum_map.insert(curr.clone(), total);
             prev = curr;
         }
 
-        for (y_coord, events) in self.all_events.iter_mut() {
-            let y = y_coord.value();
-            let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
-            for evp in events.iter_mut() {
-                evp.activate_time = at;
-            }
-        }
+        let all = std::mem::take(&mut self.all_events);
+        self.all_events = all
+            .into_iter()
+            .map(|(y_coord, events)| {
+                let y = y_coord.value();
+                let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
+                let new_events: Vec<_> = events
+                    .into_iter()
+                    .map(|mut evp| {
+                        evp.activate_time = at;
+                        evp
+                    })
+                    .collect();
+                (y_coord, new_events)
+            })
+            .collect();
     }
 
     /// Get BPM value at a given y by scanning indexed BPM events.
