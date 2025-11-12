@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
+use num::ToPrimitive;
+
 use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
@@ -696,15 +698,95 @@ impl BmsProcessor {
 
     /// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
     fn precompute_activate_times(&mut self) {
-        let keys: Vec<YCoordinate> = self.all_events.keys().cloned().collect();
-        for y_coord in keys {
-            let y = y_coord.value().clone();
-            let secs = self.seconds_between_y(Decimal::from(0), y);
-            let dur = Duration::from_secs_f64(secs);
-            if let Some(events) = self.all_events.get_mut(&y_coord) {
-                for evp in events.iter_mut() {
-                    evp.activate_time = dur;
+        use std::collections::{BTreeMap, BTreeSet};
+        let mut points: BTreeSet<Decimal> = BTreeSet::new();
+        points.insert(Decimal::from(0));
+        for y_coord in self.all_events.keys() {
+            points.insert(y_coord.value().clone());
+        }
+
+        let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
+        let init_bpm = self
+            .bms
+            .bpm
+            .bpm
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| Decimal::from(120));
+        bpm_map.insert(Decimal::from(0), init_bpm.clone());
+        for change in self.bms.bpm.bpm_changes.values() {
+            let y = Self::y_of_time_static(
+                &self.bms,
+                change.time,
+                &self.bms.speed.speed_factor_changes,
+            );
+            bpm_map.insert(y.clone(), change.bpm.clone());
+            points.insert(y);
+        }
+
+        let mut stop_list: Vec<(Decimal, Decimal)> = self
+            .bms
+            .stop
+            .stops
+            .values()
+            .map(|st| {
+                let sy = Self::y_of_time_static(
+                    &self.bms,
+                    st.time,
+                    &self.bms.speed.speed_factor_changes,
+                );
+                (sy, st.duration.clone())
+            })
+            .collect();
+        stop_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
+        let mut total = 0.0f64;
+        let mut prev = Decimal::from(0);
+        cum_map.insert(prev.clone(), 0.0);
+        let mut cur_bpm = bpm_map
+            .range((
+                std::ops::Bound::Unbounded,
+                std::ops::Bound::Included(prev.clone()),
+            ))
+            .next_back()
+            .map(|(_, b)| b.clone())
+            .unwrap_or(init_bpm.clone());
+        let mut stop_idx = 0usize;
+        for curr in points.into_iter() {
+            if curr <= prev {
+                continue;
+            }
+            let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
+            let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+            total += delta_y_f64 * 240.0 / cur_bpm_f64;
+            while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
+                let sy = stop_list[stop_idx].0.clone();
+                if sy > prev.clone() {
+                    let bpm_at_stop = self.bpm_at_y(sy.clone());
+                    let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
+                    let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
+                    total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
                 }
+                stop_idx += 1;
+            }
+            cur_bpm = bpm_map
+                .range((
+                    std::ops::Bound::Unbounded,
+                    std::ops::Bound::Included(curr.clone()),
+                ))
+                .next_back()
+                .map(|(_, b)| b.clone())
+                .unwrap_or(init_bpm.clone());
+            cum_map.insert(curr.clone(), total);
+            prev = curr;
+        }
+
+        for (y_coord, events) in self.all_events.iter_mut() {
+            let y = y_coord.value();
+            let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
+            for evp in events.iter_mut() {
+                evp.activate_time = at;
             }
         }
     }
@@ -728,67 +810,6 @@ impl BmsProcessor {
             })
             .next_back()
             .unwrap_or(init_bpm)
-    }
-
-    /// Compute seconds between two y positions, integrating per-segment BPM and including stop durations within the interval.
-    fn seconds_between_y(&self, from_y: Decimal, to_y: Decimal) -> f64 {
-        use std::ops::Bound::{Excluded, Included};
-        if to_y <= from_y {
-            return 0.0;
-        }
-        let init_bpm = self.bpm_at_y(from_y.clone());
-        let from_clone = from_y.clone();
-        let (last_y, last_bpm, seconds) = self
-            .flow_events_by_y
-            .range((Excluded(from_clone.clone()), Included(to_y.clone())))
-            .filter_map(|(ey, events)| {
-                events.iter().find_map(|evt| match evt {
-                    FlowEvent::Bpm(b) => Some((ey.clone(), b.clone())),
-                    _ => None,
-                })
-            })
-            .fold(
-                (from_clone, init_bpm, 0.0f64),
-                |(cur_y, cur_bpm, acc), (ey, next_bpm)| {
-                    let delta_y_f64 = (ey.clone() - cur_y)
-                        .to_string()
-                        .parse::<f64>()
-                        .unwrap_or(0.0);
-                    let cur_bpm_f64 = cur_bpm.to_string().parse::<f64>().unwrap_or(120.0);
-                    let seg_secs = delta_y_f64 * 240.0 / cur_bpm_f64;
-                    (ey, next_bpm, acc + seg_secs)
-                },
-            );
-        let final_delta_y_f64 = (to_y.clone() - last_y)
-            .to_string()
-            .parse::<f64>()
-            .unwrap_or(0.0);
-        let final_bpm_f64 = last_bpm.to_string().parse::<f64>().unwrap_or(120.0);
-        let mut total = seconds + final_delta_y_f64 * 240.0 / final_bpm_f64;
-
-        // Add durations of Stops strictly inside (from_y, to_y)
-        let stops_secs = self
-            .bms
-            .stop
-            .stops
-            .values()
-            .map(|st| {
-                let sy = Self::y_of_time_static(
-                    &self.bms,
-                    st.time,
-                    &self.bms.speed.speed_factor_changes,
-                );
-                (sy, st.duration.clone())
-            })
-            .filter(|(sy, _)| *sy > from_y.clone() && *sy < to_y.clone())
-            .fold(0.0f64, |acc, (sy, dur_y)| {
-                let bpm_at_stop = self.bpm_at_y(sy);
-                let dur_y_f64 = dur_y.to_string().parse::<f64>().unwrap_or(0.0);
-                let bpm_at_stop_f64 = bpm_at_stop.to_string().parse::<f64>().unwrap_or(120.0);
-                acc + dur_y_f64 * 240.0 / bpm_at_stop_f64
-            });
-        total += stops_secs;
-        total
     }
 
     fn lane_of_channel_id<T: KeyLayoutMapper>(
