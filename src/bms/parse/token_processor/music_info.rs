@@ -11,7 +11,7 @@
 
 use std::path::Path;
 
-use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
+use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::music_info::MusicInfo, prelude::*};
 
@@ -27,7 +27,7 @@ impl TokenProcessor for MusicInfoProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut music_info = MusicInfo::default();
-        ctx.all_tokens(|token, _prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, _prompter, wc| match token.content() {
             Token::Header { name, args } => {
                 if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut music_info) {
                     wc.collect(std::iter::once(warn.into_wrapper(token)));

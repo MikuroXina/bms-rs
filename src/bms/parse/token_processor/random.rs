@@ -53,7 +53,7 @@ use crate::{
     util::StrExtension,
 };
 
-use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
+use super::{ProcessContext, TokenProcessor};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -584,7 +584,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
         let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
-        ctx.all_tokens(|token, _prompter, mut wc| {
+        ctx.all_tokens(|token, _prompter, wc| {
             match token.content() {
                 Token::Header { name, args } => {
                     if let Some(w) = self.on_header(name.as_ref(), args.as_ref())? {

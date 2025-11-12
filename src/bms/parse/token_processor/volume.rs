@@ -4,7 +4,6 @@
 //! - `#xxx97:` - BGM volume change channel. It changes BGM notes volume at `[01-FF]`. Obsolete.
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
-use super::ParseWarningCollector;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_hex_values};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::volume::VolumeObjects, prelude::*};
@@ -21,7 +20,7 @@ impl TokenProcessor for VolumeProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = VolumeObjects::default();
-        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, prompter, wc| match token.content() {
             Token::Header { name, args } => {
                 if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut objects) {
                     wc.collect(std::iter::once(warn.into_wrapper(token)));

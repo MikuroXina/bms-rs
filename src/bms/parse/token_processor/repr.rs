@@ -9,7 +9,7 @@
 //! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
 use std::{cell::RefCell, rc::Rc};
 
-use super::{ParseWarningCollector, ProcessContext, TokenProcessor};
+use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::repr::BmsSourceRepresentation, parse::ParseWarning, prelude::*};
 
@@ -35,7 +35,7 @@ impl TokenProcessor for RepresentationProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut repr = BmsSourceRepresentation::default();
-        ctx.all_tokens(|token, _prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, _prompter, wc| match token.content() {
             Token::Header { name, args } => {
                 if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut repr) {
                     wc.collect(std::iter::once(warn.into_wrapper(token)));

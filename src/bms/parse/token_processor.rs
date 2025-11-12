@@ -37,6 +37,18 @@ mod wav;
 /// A checkpoint of input position, allowing temporary rewinds/restores.
 pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
 
+/// A wrapper that collects parse warnings into an underlying `&mut Vec<ParseWarningWithRange>`.
+pub struct ParseWarningCollector<'a> {
+    pub(crate) inner: &'a mut Vec<ParseWarningWithRange>,
+}
+
+impl<'a> ParseWarningCollector<'a> {
+    /// Collect warnings in iterator.
+    pub fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
+        self.inner.extend(iter);
+    }
+}
+
 /// Processing context passed through token processors.
 ///
 /// Contains the current input view, the prompter, and collected warnings.
@@ -87,8 +99,10 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Returns a warning collector that writes into the context.
-    pub fn get_warning_collector(&mut self) -> impl ParseWarningCollector + '_ {
-        &mut self.reported
+    pub const fn get_warning_collector(&mut self) -> ParseWarningCollector<'_> {
+        ParseWarningCollector {
+            inner: &mut self.reported,
+        }
     }
 
     /// Records a warning produced during token processing.
@@ -114,18 +128,18 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         F: FnMut(
             &'a TokenWithRange<'t>,
             &P,
-            &mut Vec<ParseWarningWithRange>,
+            &mut ParseWarningCollector<'_>,
         ) -> Result<(), ParseError>,
     {
-        // Consume current input view and borrow prompter and warning collector.
         let view = self.take_input();
         let prompter = &self.prompter;
-        let reported = &mut self.reported;
+        let mut wc = ParseWarningCollector {
+            inner: &mut self.reported,
+        };
 
-        view.iter().copied().try_for_each(|token| {
-            // Pass `&P` and the warning collector to the handler.
-            f(token, prompter, reported).map_err(|e| e.into_wrapper(token))
-        })
+        view.iter()
+            .copied()
+            .try_for_each(|token| f(token, prompter, &mut wc).map_err(|e| e.into_wrapper(token)))
     }
 }
 
@@ -405,18 +419,6 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
             wav,
         },
     )
-}
-
-/// A trait to collect parse warnings in a generic way.
-pub trait ParseWarningCollector {
-    /// Collects parse warnings from an iterator.
-    fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I);
-}
-
-impl ParseWarningCollector for &mut Vec<ParseWarningWithRange> {
-    fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
-        self.extend(iter);
-    }
 }
 
 fn parse_obj_ids(

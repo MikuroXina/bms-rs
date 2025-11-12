@@ -10,7 +10,6 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::ParseWarningCollector;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::bms::ParseErrorWithRange;
 use crate::{
@@ -40,7 +39,7 @@ impl TokenProcessor for JudgeProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = JudgeObjects::default();
-        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, prompter, wc| match token.content() {
             Token::Header { name, args } => {
                 if let Err(warn) =
                     self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)

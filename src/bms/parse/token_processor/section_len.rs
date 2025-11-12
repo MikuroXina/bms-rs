@@ -6,7 +6,6 @@ use std::str::FromStr;
 
 use fraction::GenericFraction;
 
-use super::ParseWarningCollector;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, filter_message};
 use crate::bms::ParseErrorWithRange;
 use crate::bms::{model::section_len::SectionLenObjects, parse::ParseWarning, prelude::*};
@@ -23,7 +22,7 @@ impl TokenProcessor for SectionLenProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
-        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, prompter, wc| match token.content() {
             Token::Message {
                 track,
                 channel,

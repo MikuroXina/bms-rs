@@ -6,7 +6,6 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use super::ParseWarningCollector;
 use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_obj_ids,
@@ -39,7 +38,7 @@ impl TokenProcessor for OptionProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = OptionObjects::default();
-        ctx.all_tokens(|token, prompter, mut wc| match token.content() {
+        ctx.all_tokens(|token, prompter, wc| match token.content() {
             Token::Header { name, args } => {
                 if let Err(warn) =
                     self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
