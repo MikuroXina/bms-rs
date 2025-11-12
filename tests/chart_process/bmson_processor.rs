@@ -366,3 +366,151 @@ fn test_bmson_continue_independent_across_sound_channels() {
         b
     );
 }
+#[test]
+fn test_bmson_visible_event_activate_time_prediction() {
+    // Simple BMSON: init BPM 120, resolution 240, one note at 0.25 measure (240 pulses)
+    // Expected activate_time at start is 0.25 * (240/120) = 0.5s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "AT",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            { "name": "a.wav", "notes": [ { "x": 1, "y": 240, "l": 0, "c": false } ] }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    let _ = processor.update(start_time);
+    let events: Vec<_> = processor.visible_events(start_time).collect();
+    assert!(!events.is_empty(), "Should have visible events at start");
+
+    let mut checked = false;
+    for ev in events {
+        if let ChartEvent::Note { .. } = ev.event() {
+            let secs = ev.activate_time().as_secs_f64();
+            assert!(
+                (secs - 0.5).abs() < 0.02,
+                "activate_time should be ~0.5s, got {:.6}",
+                secs
+            );
+            checked = true;
+            break;
+        }
+    }
+    assert!(checked, "Expected to find a note visible event");
+}
+
+#[test]
+fn test_bmson_visible_event_activate_time_with_bpm_change() {
+    // init BPM 120, one note at 1.0 measure; BPM changes to 240 at 0.5 measure
+    // Expected predicted activate_time at start: 0.5*2.0 + 0.5*1.0 = 1.5s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "AT-BPM",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            { "name": "a.wav", "notes": [ { "x": 1, "y": 960, "l": 0, "c": false } ] }
+        ],
+        "bpm_events": [ { "y": 480, "bpm": 240.0 } ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(2000));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+    let _ = processor.update(start_time);
+
+    let events: Vec<_> = processor.visible_events(start_time).collect();
+    assert!(!events.is_empty(), "Should have visible events at start");
+
+    let mut checked = false;
+    for ev in events {
+        if let ChartEvent::Note { .. } = ev.event() {
+            let secs = ev.activate_time().as_secs_f64();
+            assert!(
+                (secs - 1.5).abs() < 0.02,
+                "activate_time should be ~1.5s, got {:.6}",
+                secs
+            );
+            checked = true;
+            break;
+        }
+    }
+    assert!(checked, "Expected to find a note visible event");
+}
+
+#[test]
+fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
+    // init BPM 120, one note at 1.0 measure; Stop at 0.5 measure lasting 0.25 measure (240 pulses)
+    // Expected predicted activate_time at start: 1.0*2.0 + 0.5 = 2.5s
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "AT-STOP",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            { "name": "a.wav", "notes": [ { "x": 1, "y": 960, "l": 0, "c": false } ] }
+        ],
+        "stop_events": [ { "y": 480, "duration": 240 } ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(3000));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+    let _ = processor.update(start_time);
+
+    let events: Vec<_> = processor.visible_events(start_time).collect();
+    assert!(!events.is_empty(), "Should have visible events at start");
+
+    let mut checked = false;
+    for ev in events {
+        if let ChartEvent::Note { .. } = ev.event() {
+            let secs = ev.activate_time().as_secs_f64();
+            assert!(
+                (secs - 2.5).abs() < 0.02,
+                "activate_time should be ~2.5s, got {:.6}",
+                secs
+            );
+            checked = true;
+            break;
+        }
+    }
+    assert!(checked, "Expected to find a note visible event");
+}

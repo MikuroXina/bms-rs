@@ -198,7 +198,11 @@ impl<'a> BmsonProcessor<'a> {
                         length,
                         continue_play,
                     };
-                    let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                    let at = Duration::from_secs_f64(
+                        self.seconds_between_y(Decimal::from(0), yy.clone()),
+                    );
+                    let evp =
+                        ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
 
                     // Update last_restart_y if this note restarts audio (c=false)
@@ -208,7 +212,11 @@ impl<'a> BmsonProcessor<'a> {
                 // if note is not on a lane, process as a bgm event
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
-                    let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                    let at = Duration::from_secs_f64(
+                        self.seconds_between_y(Decimal::from(0), yy.clone()),
+                    );
+                    let evp =
+                        ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
             }
@@ -217,40 +225,43 @@ impl<'a> BmsonProcessor<'a> {
         // Process BPM events
         for ev in &self.bmson.bpm_events {
             let y = self.pulses_to_y(ev.y.0);
-            let y_coord = YCoordinate::from(y);
+            let y_coord = YCoordinate::from(y.clone());
             let event = ChartEvent::BpmChange {
                 bpm: ev.bpm.as_f64().into(),
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), y.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process Scroll events
         for ScrollEvent { y, rate } in &self.bmson.scroll_events {
             let y = self.pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(y);
+            let y_coord = YCoordinate::from(y.clone());
             let event = ChartEvent::ScrollChange {
                 factor: rate.as_f64().into(),
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), y.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process Stop events
         for stop in &self.bmson.stop_events {
             let y = self.pulses_to_y(stop.y.0);
-            let y_coord = YCoordinate::from(y);
+            let y_coord = YCoordinate::from(y.clone());
             let event = ChartEvent::Stop {
                 duration: (stop.duration as f64).into(),
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), y.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA base layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.bga_events {
             let yy = self.pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy);
+            let y_coord = YCoordinate::from(yy.clone());
             let bmp_name = self
                 .bmson
                 .bga
@@ -263,14 +274,15 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), yy.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA overlay layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.layer_events {
             let yy = self.pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy);
+            let y_coord = YCoordinate::from(yy.clone());
             let bmp_name = self
                 .bmson
                 .bga
@@ -283,14 +295,15 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), yy.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
         // Process BGA poor layer events
         for BgaEvent { y, id, .. } in &self.bmson.bga.poor_events {
             let yy = self.pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy);
+            let y_coord = YCoordinate::from(yy.clone());
             let bmp_name = self
                 .bmson
                 .bga
@@ -303,7 +316,8 @@ impl<'a> BmsonProcessor<'a> {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let at = Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), yy.clone()));
+            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -311,9 +325,11 @@ impl<'a> BmsonProcessor<'a> {
         if let Some(lines) = &self.bmson.lines {
             for bar_line in lines {
                 let y = self.pulses_to_y(bar_line.y.0);
-                let y_coord = YCoordinate::from(y);
+                let y_coord = YCoordinate::from(y.clone());
                 let event = ChartEvent::BarLine;
-                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                let at =
+                    Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), y.clone()));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         } else {
@@ -325,7 +341,7 @@ impl<'a> BmsonProcessor<'a> {
         for MineChannel { name, notes } in &self.bmson.mine_channels {
             for MineEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
-                let y_coord = YCoordinate::from(yy);
+                let y_coord = YCoordinate::from(yy.clone());
                 let Some((side, key)) = Self::lane_from_x(*x) else {
                     continue;
                 };
@@ -338,7 +354,9 @@ impl<'a> BmsonProcessor<'a> {
                     length: None,
                     continue_play: None,
                 };
-                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                let at =
+                    Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), yy.clone()));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -347,7 +365,7 @@ impl<'a> BmsonProcessor<'a> {
         for KeyChannel { name, notes } in &self.bmson.key_channels {
             for KeyEvent { x, y, .. } in notes {
                 let yy = self.pulses_to_y(y.0);
-                let y_coord = YCoordinate::from(yy);
+                let y_coord = YCoordinate::from(yy.clone());
                 let Some((side, key)) = Self::lane_from_x(*x) else {
                     continue;
                 };
@@ -360,7 +378,9 @@ impl<'a> BmsonProcessor<'a> {
                     length: None,
                     continue_play: None,
                 };
-                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+                let at =
+                    Duration::from_secs_f64(self.seconds_between_y(Decimal::from(0), yy.clone()));
+                let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -468,7 +488,12 @@ impl<'a> BmsonProcessor<'a> {
         while current_y <= max_y {
             let y_coord = YCoordinate::from(current_y.clone());
             let event = ChartEvent::BarLine;
-            let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event);
+            let evp = ChartEventWithPosition::new(
+                id_gen.next_id(),
+                y_coord.clone(),
+                event,
+                Duration::from_secs(0),
+            );
             events_map.entry(y_coord).or_default().push(evp);
             current_y += Decimal::from(1);
         }
@@ -650,34 +675,22 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
-        for (y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.range((
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
             for evp in events {
-                let ChartEventWithPosition {
-                    id,
-                    position: _,
-                    event,
-                } = evp.clone();
-                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
-                triggered_events.push(evp);
+                triggered_events.push(evp.clone());
             }
         }
 
         // Preloaded events: (cur_y, preload_end_y]
-        for (y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.range((
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
         )) {
             for evp in events {
-                let ChartEventWithPosition {
-                    id,
-                    position: _,
-                    event,
-                } = evp.clone();
-                let evp = ChartEventWithPosition::new(id, y_coord.clone(), event);
-                new_preloaded_events.push(evp);
+                new_preloaded_events.push(evp.clone());
             }
         }
 
@@ -697,7 +710,8 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let visible_window_y = self.visible_window_y();
         let scroll_factor = self.current_scroll.clone();
 
-        self.preloaded_events.iter().map(move |event_with_pos| {
+        let preloaded = self.preloaded_events.clone();
+        preloaded.into_iter().map(move |event_with_pos| {
             let event_y = event_with_pos.position().value();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
@@ -709,11 +723,14 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
 
+            let activate_time = event_with_pos.activate_time;
+
             VisibleEvent::new(
                 event_with_pos.id,
                 event_with_pos.position().clone(),
                 event_with_pos.event().clone(),
                 display_ratio,
+                activate_time,
             )
         })
     }
