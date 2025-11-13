@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use crate::bms::{parse::prompt::ChannelDuplication, prelude::*};
+use crate::bms::{
+    parse::{Result, prompt::ChannelDuplication},
+    prelude::*,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -22,7 +25,7 @@ impl VolumeObjects {
         &mut self,
         volume_obj: BgmVolumeObj,
         prompt_handler: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.bgm_volume_changes.entry(volume_obj.time) {
             Entry::Vacant(entry) => {
                 entry.insert(volume_obj);
@@ -52,7 +55,7 @@ impl VolumeObjects {
         &mut self,
         volume_obj: KeyVolumeObj,
         prompt_handler: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.key_volume_changes.entry(volume_obj.time) {
             Entry::Vacant(entry) => {
                 entry.insert(volume_obj);

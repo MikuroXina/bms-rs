@@ -1,6 +1,6 @@
 //! This module introduces struct [`OptionObjects`], which manages vendor-specific BMS player configuration and that events.
 
-use crate::bms::prelude::*;
+use crate::bms::{parse::Result, prelude::*};
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -21,7 +21,7 @@ impl OptionObjects {
         &mut self,
         option_obj: OptionObj,
         prompt_handler: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.option_events.entry(option_obj.time) {
             Entry::Vacant(entry) => {
                 entry.insert(option_obj);

@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::bms::{parse::prompt::ChannelDuplication, prelude::*};
+use crate::bms::{
+    parse::{Result, prompt::ChannelDuplication},
+    prelude::*,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -24,7 +27,7 @@ impl JudgeObjects {
         &mut self,
         judge_obj: JudgeObj,
         prompter: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.judge_events.entry(judge_obj.time) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(judge_obj);

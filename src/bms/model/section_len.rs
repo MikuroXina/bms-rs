@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use crate::bms::{parse::prompt::TrackDuplication, prelude::*};
+use crate::bms::{
+    parse::{Result, prompt::TrackDuplication},
+    prelude::*,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -28,7 +31,7 @@ impl SectionLenObjects {
         &mut self,
         section_len_change: SectionLenChangeObj,
         prompt_handler: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.section_len_changes.entry(section_len_change.track) {
             Entry::Vacant(entry) => {
                 entry.insert(section_len_change);

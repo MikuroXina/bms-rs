@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
-use crate::bms::{parse::prompt::ChannelDuplication, prelude::*};
+use crate::bms::{
+    parse::{Result, prompt::ChannelDuplication},
+    prelude::*,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,7 +23,7 @@ impl SpeedObjects {
         &mut self,
         speed_factor_change: SpeedObj,
         prompt_handler: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.speed_factor_changes.entry(speed_factor_change.time) {
             Entry::Vacant(entry) => {
                 entry.insert(speed_factor_change);

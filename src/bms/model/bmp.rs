@@ -7,7 +7,7 @@ use std::{
 
 use crate::bms::{
     command::graphics::{Argb, PixelPoint, PixelSize},
-    parse::prompt::ChannelDuplication,
+    parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
 
@@ -55,7 +55,7 @@ impl BmpObjects {
         bga: BgaObj,
         channel: Channel,
         prompter: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.bga_changes.entry(bga.time) {
             Entry::Vacant(entry) => {
                 entry.insert(bga);
@@ -81,7 +81,7 @@ impl BmpObjects {
         opacity_obj: BgaOpacityObj,
         channel: Channel,
         prompter: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         let this_layer_map = self
             .bga_opacity_changes
             .entry(opacity_obj.layer)
@@ -116,7 +116,7 @@ impl BmpObjects {
         argb_obj: BgaArgbObj,
         channel: Channel,
         prompter: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         let this_layer_map = self.bga_argb_changes.entry(argb_obj.layer).or_default();
         match this_layer_map.entry(argb_obj.time) {
             Entry::Vacant(entry) => {
@@ -142,7 +142,7 @@ impl BmpObjects {
         &mut self,
         keybound_obj: BgaKeyboundObj,
         prompter: &impl Prompter,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self.bga_keybound_events.entry(keybound_obj.time) {
             Entry::Vacant(entry) => {
                 entry.insert(keybound_obj);
