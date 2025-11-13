@@ -30,11 +30,11 @@ impl TokenProcessor for MusicInfoProcessor {
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
                 match self.on_header(name.as_ref(), args.as_ref(), &mut music_info) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
                 }
             }
-            Token::Message { .. } | Token::NotACommand(_) => Ok(Vec::new()),
+            Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(music_info)
     }

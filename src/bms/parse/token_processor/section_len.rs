@@ -29,11 +29,11 @@ impl TokenProcessor for SectionLenProcessor {
                 message,
             } => {
                 match self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
                 }
             }
-            Token::Header { .. } | Token::NotACommand(_) => Ok(Vec::new()),
+            Token::Header { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }

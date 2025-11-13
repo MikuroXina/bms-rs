@@ -585,24 +585,19 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
         let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
         ctx.all_tokens(|token, _prompter| {
-            let mut warnings = Vec::new();
-            match token.content() {
-                Token::Header { name, args } => {
-                    if let Some(w) = self.on_header(name.as_ref(), args.as_ref())? {
-                        warnings.push(w.into_wrapper(token));
-                    }
-                }
-                Token::Message { .. } => {}
-                Token::NotACommand(line) => {
-                    if let Some(w) = self.on_comment(line)? {
-                        warnings.push(w.into_wrapper(token));
-                    }
-                }
-            }
+            let warn = match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref())
+                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
+                Token::Message { .. } => None,
+                Token::NotACommand(line) => self
+                    .on_comment(line)
+                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
+            };
             if self.is_activated() {
                 activated.push(token);
             }
-            Ok(warnings)
+            Ok(warn)
         })?;
 
         // Process activated tokens with the next processor using a temporary context.
