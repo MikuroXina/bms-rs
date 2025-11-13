@@ -43,14 +43,12 @@ impl TokenProcessor for VideoProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut video = Video::default();
-        ctx.all_tokens(|token, prompter, wc| match token.content() {
+        ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
-                if let Err(warn) =
-                    self.on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
-                {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut video) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
-                Ok(())
             }
             Token::Message {
                 track,
@@ -64,17 +62,11 @@ impl TokenProcessor for VideoProcessor {
                     prompter,
                     &mut video,
                 ) {
-                    Ok(ws) => {
-                        wc.collect(ws);
-                        Ok(())
-                    }
-                    Err(warn) => {
-                        wc.collect(std::iter::once(warn.into_wrapper(token)));
-                        Ok(())
-                    }
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
             }
-            Token::NotACommand(_) => Ok(()),
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(video)
     }

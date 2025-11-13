@@ -41,14 +41,12 @@ impl TokenProcessor for BpmProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = BpmObjects::default();
-        ctx.all_tokens(|token, prompter, wc| match token.content() {
+        ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
-                if let Err(warn) =
-                    self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
-                Ok(())
             }
             Token::Message {
                 track,
@@ -62,17 +60,11 @@ impl TokenProcessor for BpmProcessor {
                     prompter,
                     &mut objects,
                 ) {
-                    Ok(ws) => {
-                        wc.collect(ws);
-                        Ok(())
-                    }
-                    Err(warn) => {
-                        wc.collect(std::iter::once(warn.into_wrapper(token)));
-                        Ok(())
-                    }
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
             }
-            Token::NotACommand(_) => Ok(()),
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
     }

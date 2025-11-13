@@ -22,20 +22,18 @@ impl TokenProcessor for SectionLenProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
-        ctx.all_tokens(|token, prompter, wc| match token.content() {
+        ctx.all_tokens(|token, prompter| match token.content() {
             Token::Message {
                 track,
                 channel,
                 message,
             } => {
-                if let Err(warn) =
-                    self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                match self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
-                Ok(())
             }
-            Token::Header { .. } | Token::NotACommand(_) => Ok(()),
+            Token::Header { .. } | Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
     }

@@ -584,24 +584,25 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
         let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
-        ctx.all_tokens(|token, _prompter, wc| {
+        ctx.all_tokens(|token, _prompter| {
+            let mut warnings = Vec::new();
             match token.content() {
                 Token::Header { name, args } => {
                     if let Some(w) = self.on_header(name.as_ref(), args.as_ref())? {
-                        wc.collect(std::iter::once(w.into_wrapper(token)))
+                        warnings.push(w.into_wrapper(token));
                     }
                 }
                 Token::Message { .. } => {}
                 Token::NotACommand(line) => {
                     if let Some(w) = self.on_comment(line)? {
-                        wc.collect(std::iter::once(w.into_wrapper(token)))
+                        warnings.push(w.into_wrapper(token));
                     }
                 }
             }
             if self.is_activated() {
                 activated.push(token);
             }
-            Ok(())
+            Ok(warnings)
         })?;
 
         // Process activated tokens with the next processor using a temporary context.
@@ -615,11 +616,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         // Collect nested warnings locally first, then drop the borrowed context.
         let nested_reported = core::mem::take(&mut view_ctx.reported);
         drop(view_ctx);
-        // Merge nested processing warnings back into the main context.
-        {
-            let mut wc = ctx.get_warning_collector();
-            wc.collect(nested_reported);
-        }
+        ctx.reported.extend(nested_reported);
 
         Ok(out)
     }

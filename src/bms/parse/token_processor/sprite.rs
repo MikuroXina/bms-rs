@@ -24,14 +24,14 @@ impl TokenProcessor for SpriteProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut sprites = Sprites::default();
-        ctx.all_tokens(|token, _prompter, wc| match token.content() {
+        ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
-                if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut sprites) {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                match self.on_header(name.as_ref(), args.as_ref(), &mut sprites) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
-                Ok(())
             }
-            Token::Message { .. } | Token::NotACommand(_) => Ok(()),
+            Token::Message { .. } | Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(sprites)
     }

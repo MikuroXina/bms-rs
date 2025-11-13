@@ -37,18 +37,6 @@ mod wav;
 /// A checkpoint of input position, allowing temporary rewinds/restores.
 pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
 
-/// A wrapper that collects parse warnings into an underlying `&mut Vec<ParseWarningWithRange>`.
-pub struct ParseWarningCollector<'a> {
-    pub(crate) inner: &'a mut Vec<ParseWarningWithRange>,
-}
-
-impl<'a> ParseWarningCollector<'a> {
-    /// Collect warnings in iterator.
-    pub fn collect<I: IntoIterator<Item = ParseWarningWithRange>>(&mut self, iter: I) {
-        self.inner.extend(iter);
-    }
-}
-
 /// Processing context passed through token processors.
 ///
 /// Contains the current input view, the prompter, and collected warnings.
@@ -98,13 +86,6 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         view
     }
 
-    /// Returns a warning collector that writes into the context.
-    pub const fn get_warning_collector(&mut self) -> ParseWarningCollector<'_> {
-        ParseWarningCollector {
-            inner: &mut self.reported,
-        }
-    }
-
     /// Records a warning produced during token processing.
     pub fn warn(&mut self, warning: ParseWarningWithRange) {
         self.reported.push(warning);
@@ -115,31 +96,19 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         self.reported
     }
 
-    /// Iterates over all remaining tokens in the context, passing each to the handler `f`.
-    ///
-    /// This consumes the current input view (like `take_input`) and directly provides
-    /// the context's `prompter` and `warning_collector` to the handler to avoid borrow conflicts.
-    ///
-    /// The handler should push any `ParseWarningWithRange` into the provided collector `C`
-    /// and only return `Err(ParseError)` for fatal errors. Any fatal error is automatically
-    /// wrapped with the current token's source range.
-    pub fn all_tokens<F>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
+    /// Iterates over all remaining tokens and collects warnings from the handler.
+    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
     where
-        F: FnMut(
-            &'a TokenWithRange<'t>,
-            &P,
-            &mut ParseWarningCollector<'_>,
-        ) -> Result<(), ParseError>,
+        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
+        I: IntoIterator<Item = ParseWarningWithRange>,
     {
         let view = self.take_input();
         let prompter = &self.prompter;
-        let mut wc = ParseWarningCollector {
-            inner: &mut self.reported,
-        };
-
-        view.iter()
-            .copied()
-            .try_for_each(|token| f(token, prompter, &mut wc).map_err(|e| e.into_wrapper(token)))
+        for token in view.iter().copied() {
+            let warns = f(token, prompter).map_err(|e| e.into_wrapper(token))?;
+            self.reported.extend(warns);
+        }
+        Ok(())
     }
 }
 
@@ -230,18 +199,12 @@ where
                     reported: Vec::new(),
                 };
                 let second_output = self.second.process(&mut second_ctx)?;
-                // Collect warnings locally first to end borrows to `ctx.prompter()`.
                 let mut merged_reported = core::mem::take(&mut first_ctx.reported);
                 let second_reported = core::mem::take(&mut second_ctx.reported);
-                // explicitly drop to end any borrows tied to `ctx`.
                 drop(first_ctx);
                 drop(second_ctx);
                 merged_reported.extend(second_reported);
-                // Now it is safe to collect warnings into the main context.
-                {
-                    let mut wc = ctx.get_warning_collector();
-                    wc.collect(merged_reported);
-                }
+                ctx.reported.extend(merged_reported);
                 Ok((first_output, second_output))
             }
             Err(err) => Err(err),

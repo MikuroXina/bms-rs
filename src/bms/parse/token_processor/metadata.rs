@@ -31,20 +31,18 @@ impl TokenProcessor for MetadataProcessor {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
-        ctx.all_tokens(|token, _prompter, wc| match token.content() {
+        ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
-                if let Err(warn) = self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
+                match self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
-                Ok(())
             }
-            Token::Message { .. } => Ok(()),
-            Token::NotACommand(line) => {
-                if let Err(warn) = self.on_comment(line, &mut metadata) {
-                    wc.collect(std::iter::once(warn.into_wrapper(token)));
-                }
-                Ok(())
-            }
+            Token::Message { .. } => Ok(Vec::new()),
+            Token::NotACommand(line) => match self.on_comment(line, &mut metadata) {
+                Ok(()) => Ok(Vec::new()),
+                Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+            },
         })?;
         Ok(metadata)
     }
