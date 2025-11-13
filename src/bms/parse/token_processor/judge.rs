@@ -13,7 +13,11 @@ use fraction::GenericFraction;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{model::judge::JudgeObjects, prelude::*},
+    bms::{
+        model::judge::JudgeObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -37,7 +41,7 @@ impl TokenProcessor for JudgeProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = JudgeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -75,7 +79,7 @@ impl JudgeProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if name.eq_ignore_ascii_case("RANK") {
             objects.rank = Some(JudgeLevel::try_from(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but found: {args:?}"))

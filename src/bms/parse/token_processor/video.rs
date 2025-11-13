@@ -17,7 +17,11 @@ use num::BigUint;
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{model::video::Video, prelude::*},
+    bms::{
+        model::video::Video,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -41,7 +45,7 @@ impl TokenProcessor for VideoProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut video = Video::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -79,7 +83,7 @@ impl VideoProcessor {
         args: &str,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if name.eq_ignore_ascii_case("VIDEOFILE") || name.eq_ignore_ascii_case("MOVIE") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected video filename".into()));

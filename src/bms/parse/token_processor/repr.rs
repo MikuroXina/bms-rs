@@ -11,7 +11,11 @@ use std::{cell::RefCell, rc::Rc};
 
 use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
-use crate::bms::{model::repr::BmsSourceRepresentation, parse::ParseWarning, prelude::*};
+use crate::bms::{
+    model::repr::BmsSourceRepresentation,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes representation of BMS source such as `#BASE`, `#LNMODE` and so on.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +37,7 @@ impl TokenProcessor for RepresentationProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut repr = BmsSourceRepresentation::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
@@ -49,12 +53,7 @@ impl TokenProcessor for RepresentationProcessor {
 }
 
 impl RepresentationProcessor {
-    fn on_header(
-        &self,
-        name: &str,
-        args: &str,
-        repr: &mut BmsSourceRepresentation,
-    ) -> core::result::Result<(), ParseWarning> {
+    fn on_header(&self, name: &str, args: &str, repr: &mut BmsSourceRepresentation) -> Result<()> {
         if args.is_empty() {
             repr.raw_command_lines.push(format!("#{name}"));
         } else {

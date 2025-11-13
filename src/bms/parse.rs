@@ -108,6 +108,9 @@ pub enum ParseWarning {
 /// A parse warning with position information.
 pub type ParseWarningWithRange = SourceRangeMixin<ParseWarning>;
 
+/// Result type for parse operations with ParseWarning.
+pub(crate) type Result<T> = core::result::Result<T, ParseWarning>;
+
 #[cfg(feature = "diagnostics")]
 impl ToAriadne for ParseWarningWithRange {
     fn to_report<'a>(

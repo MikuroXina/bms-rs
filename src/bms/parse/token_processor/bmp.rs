@@ -23,13 +23,17 @@
 
 use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 
-use super::{
-    super::prompt::{DefDuplication, Prompter},
-    ProcessContext, TokenProcessor, parse_obj_ids,
-};
-use crate::bms::ParseErrorWithRange;
+use super::{ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::{
-    bms::{model::bmp::BmpObjects, prelude::*},
+    bms::{
+        ParseErrorWithRange,
+        model::bmp::BmpObjects,
+        parse::{
+            Result,
+            prompt::{DefDuplication, Prompter},
+        },
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -53,7 +57,7 @@ impl TokenProcessor for BmpProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = BmpObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -91,7 +95,7 @@ impl BmpProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("BMP") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected image filename".into()));
@@ -404,7 +408,7 @@ impl BmpProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut BmpObjects,
-    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         match channel {
             channel @ (Channel::BgaBase

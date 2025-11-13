@@ -17,7 +17,11 @@ use std::{path::Path, str::FromStr};
 
 use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
-use crate::bms::{model::metadata::Metadata, prelude::*};
+use crate::bms::{
+    model::metadata::Metadata,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,7 +33,7 @@ impl TokenProcessor for MetadataProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
@@ -49,12 +53,7 @@ impl TokenProcessor for MetadataProcessor {
 }
 
 impl MetadataProcessor {
-    fn on_header(
-        &self,
-        name: &str,
-        args: &str,
-        metadata: &mut Metadata,
-    ) -> core::result::Result<(), ParseWarning> {
+    fn on_header(&self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
         if name.eq_ignore_ascii_case("PLAYER") {
             metadata.player = Some(PlayerMode::from_str(args)?);
         }
@@ -91,11 +90,7 @@ impl MetadataProcessor {
         Ok(())
     }
 
-    fn on_comment(
-        &self,
-        line: &str,
-        metadata: &mut Metadata,
-    ) -> core::result::Result<(), ParseWarning> {
+    fn on_comment(&self, line: &str, metadata: &mut Metadata) -> Result<()> {
         let line = line.trim();
         if line.starts_with("%EMAIL") {
             metadata.email = Some(line.trim_start_matches("%EMAIL").trim().to_string());

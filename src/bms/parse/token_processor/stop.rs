@@ -14,7 +14,11 @@ use super::{
 };
 use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{model::stop::StopObjects, parse::ParseWarning, prelude::*},
+    bms::{
+        model::stop::StopObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -38,7 +42,7 @@ impl TokenProcessor for StopProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = StopObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -76,7 +80,7 @@ impl StopProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut StopObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
             let len =
                 Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {

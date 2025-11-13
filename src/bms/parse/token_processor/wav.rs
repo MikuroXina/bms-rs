@@ -25,7 +25,11 @@ use super::{
 };
 use crate::bms::parse::ParseErrorWithRange;
 use crate::{
-    bms::{model::wav::WavObjects, prelude::*},
+    bms::{
+        model::wav::WavObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -51,7 +55,7 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = WavObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -89,7 +93,7 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut WavObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("WAV") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError(

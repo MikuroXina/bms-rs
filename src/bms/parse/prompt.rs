@@ -16,7 +16,7 @@ use crate::bms::{
         judge::ExRankDef,
         wav::ExWavDef,
     },
-    parse::ParseWarning,
+    parse::{ParseWarning, Result},
 };
 
 use crate::bms::model::obj::{
@@ -363,12 +363,7 @@ pub enum DuplicationWorkaround {
 }
 
 impl DuplicationWorkaround {
-    pub(crate) fn apply_def<T>(
-        self,
-        target: &mut T,
-        newer: T,
-        id: ObjId,
-    ) -> core::result::Result<(), ParseWarning> {
+    pub(crate) fn apply_def<T>(self, target: &mut T, newer: T, id: ObjId) -> Result<()> {
         match self {
             Self::UseOlder => Ok(()),
             Self::UseNewer => {
@@ -389,7 +384,7 @@ impl DuplicationWorkaround {
         newer: T,
         track: Track,
         channel: Channel,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self {
             Self::UseOlder => Ok(()),
             Self::UseNewer => {
@@ -410,7 +405,7 @@ impl DuplicationWorkaround {
         newer: T,
         time: ObjTime,
         channel: Channel,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         match self {
             Self::UseOlder => Ok(()),
             Self::UseNewer => {

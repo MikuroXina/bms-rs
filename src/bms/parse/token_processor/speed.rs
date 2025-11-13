@@ -13,7 +13,11 @@ use super::{
 };
 use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{model::speed::SpeedObjects, parse::ParseWarning, prelude::*},
+    bms::{
+        model::speed::SpeedObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -37,7 +41,7 @@ impl TokenProcessor for SpeedProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SpeedObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -75,7 +79,7 @@ impl SpeedProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
             let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
@@ -104,7 +108,7 @@ impl SpeedProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut SpeedObjects,
-    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Speed {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);

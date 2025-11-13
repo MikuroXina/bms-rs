@@ -10,7 +10,11 @@ use std::path::Path;
 
 use super::{ProcessContext, TokenProcessor};
 use crate::bms::ParseErrorWithRange;
-use crate::bms::{model::sprite::Sprites, prelude::*};
+use crate::bms::{
+    model::sprite::Sprites,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,7 +26,7 @@ impl TokenProcessor for SpriteProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut sprites = Sprites::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
@@ -38,12 +42,7 @@ impl TokenProcessor for SpriteProcessor {
 }
 
 impl SpriteProcessor {
-    fn on_header(
-        &self,
-        name: &str,
-        args: &str,
-        sprites: &mut Sprites,
-    ) -> core::result::Result<(), ParseWarning> {
+    fn on_header(&self, name: &str, args: &str, sprites: &mut Sprites) -> Result<()> {
         if name.eq_ignore_ascii_case("BANNER") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected banner filename".into()));

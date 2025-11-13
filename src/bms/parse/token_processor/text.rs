@@ -9,7 +9,11 @@ use std::{cell::RefCell, rc::Rc};
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::bms::parse::ParseErrorWithRange;
 use crate::{
-    bms::{model::text::TextObjects, prelude::*},
+    bms::{
+        model::text::TextObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -33,7 +37,7 @@ impl TokenProcessor for TextProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = TextObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
@@ -71,7 +75,7 @@ impl TextProcessor {
         args: &str,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> core::result::Result<(), ParseWarning> {
+    ) -> Result<()> {
         if let Some(id) = name
             .strip_prefix_ignore_case("TEXT")
             .or_else(|| name.strip_prefix_ignore_case("SONG"))
@@ -100,7 +104,7 @@ impl TextProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Text {
             let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
