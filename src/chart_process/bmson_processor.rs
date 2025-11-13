@@ -753,8 +753,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let visible_window_y = self.visible_window_y();
         let scroll_factor = self.current_scroll.clone();
 
-        let preloaded = self.preloaded_events.clone();
-        preloaded.into_iter().map(move |event_with_pos| {
+        self.preloaded_events.iter().map(move |event_with_pos| {
             let event_y = event_with_pos.position().value();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
