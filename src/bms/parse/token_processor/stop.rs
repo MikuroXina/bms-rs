@@ -60,7 +60,6 @@ impl TokenProcessor for StopProcessor {
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
-                    prompter,
                     &mut objects,
                 ) {
                     Ok(ws) => Ok(ws),
@@ -150,7 +149,6 @@ impl StopProcessor {
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,
-        _prompter: &impl Prompter,
         objects: &mut StopObjects,
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();

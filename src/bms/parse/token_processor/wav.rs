@@ -73,7 +73,6 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
-                    prompter,
                     &mut objects,
                 ) {
                     Ok(ws) => Ok(ws),
@@ -300,7 +299,6 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,
-        _prompter: &impl Prompter,
         objects: &mut WavObjects,
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
