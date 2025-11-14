@@ -6,12 +6,11 @@ use std::str::FromStr;
 
 use fraction::GenericFraction;
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens, filter_message,
-};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, filter_message};
+use crate::bms::ParseErrorWithRange;
 use crate::bms::{
-    error::{ParseWarning, Result},
     model::section_len::SectionLenObjects,
+    parse::{ParseWarning, Result},
     prelude::*,
 };
 
@@ -22,23 +21,23 @@ pub struct SectionLenProcessor;
 impl TokenProcessor for SectionLenProcessor {
     type Output = SectionLenObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = SectionLenObjects::default();
-        all_tokens(input, prompter, |token| {
-            Ok(match token {
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Header { .. } | Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
+                }
+            }
+            Token::Header { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }

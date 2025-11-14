@@ -10,12 +10,14 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 
 use fraction::GenericFraction;
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_obj_ids,
-};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
+use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{error::Result, model::judge::JudgeObjects, prelude::*},
+    bms::{
+        model::judge::JudgeObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -36,32 +38,35 @@ impl JudgeProcessor {
 impl TokenProcessor for JudgeProcessor {
     type Output = JudgeObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = JudgeObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                ) {
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
     }
@@ -130,11 +135,12 @@ impl JudgeProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut JudgeObjects,
-    ) -> Result<()> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Judge {
-            for (time, judge_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
+            for (time, judge_id) in pairs {
                 let exrank_def = objects
                     .exrank_defs
                     .get(&judge_id)
@@ -149,6 +155,6 @@ impl JudgeProcessor {
                 )?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

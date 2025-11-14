@@ -10,7 +10,7 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 use itertools::Itertools;
 
 use crate::bms::{
-    error::{ParseError, ParseErrorWithRange},
+    parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
 
@@ -34,8 +34,86 @@ mod video;
 mod volume;
 mod wav;
 
-/// A type alias of `Result<T, Vec<ParseWarningWithRange>`.
-pub type TokenProcessorResult<T> = Result<T, ParseErrorWithRange>;
+/// A checkpoint of input position, allowing temporary rewinds/restores.
+pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
+
+/// Processing context passed through token processors.
+///
+/// Contains the current input view, the prompter, and collected warnings.
+pub struct ProcessContext<'a, 't, P> {
+    /// The mutable view of remaining tokens to be processed.
+    input: &'a mut &'a [&'t TokenWithRange<'t>],
+    /// The prompter used to handle duplications and user-facing prompts.
+    prompter: &'a P,
+    /// Collected warnings (with source ranges) produced during processing.
+    reported: Vec<ParseWarningWithRange>,
+}
+
+impl<'a, 't, P> ProcessContext<'a, 't, P> {
+    /// Creates a new processing context from a token slice view and a prompter.
+    pub const fn new(input: &'a mut &'a [&'t TokenWithRange<'t>], prompter: &'a P) -> Self {
+        Self {
+            input,
+            prompter,
+            reported: Vec::new(),
+        }
+    }
+
+    /// Saves the current input position to a checkpoint.
+    #[must_use]
+    pub const fn save(&self) -> Checkpoint<'a, 't> {
+        Checkpoint(self.input)
+    }
+
+    /// Restores the input position from a previously saved checkpoint.
+    pub const fn restore(&mut self, checkpoint: Checkpoint<'a, 't>) {
+        *self.input = checkpoint.0;
+    }
+
+    /// Sets the current input view to the provided slice.
+    pub const fn set_input(&mut self, view: &'a [&'t TokenWithRange<'t>]) {
+        *self.input = view;
+    }
+
+    /// Returns a shared reference to the prompter.
+    #[must_use]
+    pub const fn prompter(&self) -> &P {
+        self.prompter
+    }
+
+    /// Takes current input view and consumes it (resets to empty).
+    pub const fn take_input(&mut self) -> &'a [&'t TokenWithRange<'t>] {
+        let view = *self.input;
+        *self.input = &[];
+        view
+    }
+
+    /// Records a warning produced during token processing.
+    pub fn warn(&mut self, warning: ParseWarningWithRange) {
+        self.reported.push(warning);
+    }
+
+    /// Consumes the context and returns collected warnings.
+    #[must_use]
+    pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
+        self.reported
+    }
+
+    /// Iterates over all remaining tokens and collects warnings from the handler.
+    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
+    where
+        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
+        I: IntoIterator<Item = ParseWarningWithRange>,
+    {
+        let view = self.take_input();
+        let prompter = self.prompter;
+        for token in view.iter().copied() {
+            let warns = f(token, prompter).map_err(|e| e.into_wrapper(token))?;
+            self.reported.extend(warns);
+        }
+        Ok(())
+    }
+}
 
 /// A processor of tokens in the BMS. An implementation takes control only one feature about definitions and placements such as `WAVxx` definition and its sound object.
 pub trait TokenProcessor {
@@ -43,11 +121,10 @@ pub trait TokenProcessor {
     type Output;
 
     /// Processes commands by consuming all the stream `input`. It mutates `input`
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output>;
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -77,12 +154,11 @@ pub trait TokenProcessor {
 impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     type Output = <T as TokenProcessor>::Output;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        T::process(self, input, prompter)
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        T::process(self, ctx)
     }
 }
 
@@ -100,14 +176,14 @@ where
 {
     type Output = (F::Output, S::Output);
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        let mut cloned = *input;
-        let first_output = self.first.process(&mut cloned, prompter)?;
-        let second_output = self.second.process(input, prompter)?;
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        let checkpoint = ctx.save();
+        let first_output = self.first.process(ctx)?;
+        ctx.restore(checkpoint);
+        let second_output = self.second.process(ctx)?;
         Ok((first_output, second_output))
     }
 }
@@ -126,12 +202,11 @@ where
 {
     type Output = O;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        let res = self.source.process(input, prompter)?;
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        let res = self.source.process(ctx)?;
         Ok((self.mapping)(res))
     }
 }
@@ -285,97 +360,62 @@ pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-fn all_tokens<
-    'a,
-    P: Prompter,
-    F: FnMut(&'a Token<'_>) -> Result<Option<ParseWarning>, ParseError>,
->(
-    input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
-    mut f: F,
-) -> TokenProcessorResult<()> {
-    for token in &**input {
-        if let Some(warning) = f(token.content()).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
-        }
-    }
-    *input = &[];
-    Ok(())
-}
-
-fn all_tokens_with_range<
-    'a,
-    P: Prompter,
-    F: FnMut(&'a TokenWithRange<'_>) -> Result<Option<ParseWarning>, ParseError>,
->(
-    input: &mut &'a [&TokenWithRange<'_>],
-    prompter: &P,
-    mut f: F,
-) -> TokenProcessorResult<()> {
-    for token in &**input {
-        if let Some(warning) = f(token).map_err(|err| err.into_wrapper(token))? {
-            prompter.warn(warning.into_wrapper(token));
-        }
-    }
-    *input = &[];
-    Ok(())
-}
-
-fn parse_obj_ids<P: Prompter>(
+fn parse_obj_ids(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
     case_sensitive_obj_id: &RefCell<bool>,
-) -> impl Iterator<Item = (ObjTime, ObjId)> {
+) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
         );
     }
 
     let denom = message.content().len() as u64 / 2;
-    message
+    let messages = message
         .content()
         .chars()
         .tuples()
         .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
+        .filter_map(|(i, (c1, c2))| {
             let arr: [char; 2] = (c1, c2).into();
             let buf = arr.into_iter().collect::<String>();
             match ObjId::try_from(&buf, *case_sensitive_obj_id.borrow()) {
                 Ok(id) if id.is_null() => None,
                 Ok(id) => ObjTime::new(track.0, i as u64, denom).map(|time| (time, id)),
                 Err(warning) => {
-                    prompter.warn(warning.into_wrapper(&message));
+                    warnings.push(warning.into_wrapper(&message));
                     None
                 }
             }
-        })
+        });
+    (messages.collect(), warnings)
 }
 
-fn parse_hex_values<P: Prompter>(
+fn parse_hex_values(
     track: Track,
     message: SourceRangeMixin<&str>,
-    prompter: &P,
-) -> impl Iterator<Item = (ObjTime, u8)> {
+) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
+    let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
-        prompter.warn(
+        warnings.push(
             ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
         );
     }
 
     let denom = message.content().len() as u64 / 2;
-    message
+    let message = message
         .content()
         .chars()
         .tuples()
         .enumerate()
-        .filter_map(move |(i, (c1, c2))| {
+        .filter_map(|(i, (c1, c2))| {
             let arr: [char; 2] = (c1, c2).into();
             let buf = arr.into_iter().collect::<String>();
             u8::from_str_radix(&buf, 16).map_or_else(
                 |_| {
-                    prompter.warn(
+                    warnings.push(
                         ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
                             .into_wrapper(&message),
                     );
@@ -383,7 +423,8 @@ fn parse_hex_values<P: Prompter>(
                 },
                 |value| ObjTime::new(track.0, i as u64, denom).map(|time| (time, value)),
             )
-        })
+        });
+    (message.collect(), warnings)
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {

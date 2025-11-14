@@ -73,12 +73,16 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         tokens,
         lex_warnings,
     } = TokenStream::parse_lex(source);
-    // Allow warnings for files with empty resource definitions
-    let _ = lex_warnings;
+    // 始终检查词法警告
+    assert_eq!(lex_warnings, vec![]);
 
     // tokens -> Bms
-    let bms1 =
-        Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder)).unwrap();
+    let ParseOutput {
+        bms: bms1,
+        parse_warnings: warnings1,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
+    assert_eq!(warnings1, vec![]);
+    let bms1 = bms1.unwrap();
 
     // Bms -> tokens (unparse)
     let tokens2 = bms1.unparse::<KeyLayoutBeat>();
@@ -88,11 +92,15 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         .collect();
 
     // tokens -> Bms
-    let bms2 = Bms::from_token_stream(
+    let ParseOutput {
+        bms: bms2,
+        parse_warnings: warnings2,
+    } = Bms::from_token_stream(
         &tokens2_wrapped,
         default_config().prompter(AlwaysWarnAndUseOlder),
-    )
-    .unwrap();
+    );
+    assert_eq!(warnings2, vec![]);
+    let bms2 = bms2.unwrap();
 
     // Compare individual parts first to provide better debugging information
     assert_eq!(bms2.repr, bms1.repr, "Representations don't match");

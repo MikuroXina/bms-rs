@@ -9,12 +9,13 @@ use fraction::GenericFraction;
 
 use super::{
     super::prompt::{DefDuplication, Prompter},
-    TokenProcessor, TokenProcessorResult, all_tokens_with_range, parse_obj_ids,
+    ProcessContext, TokenProcessor, parse_obj_ids,
 };
+use crate::bms::ParseErrorWithRange;
 use crate::{
     bms::{
-        error::{ParseWarning, Result},
         model::scroll::ScrollObjects,
+        parse::{ParseWarning, Result},
         prelude::*,
     },
     util::StrExtension,
@@ -37,32 +38,35 @@ impl ScrollProcessor {
 impl TokenProcessor for ScrollProcessor {
     type Output = ScrollObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = ScrollObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                ) {
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
     }
@@ -104,10 +108,12 @@ impl ScrollProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut ScrollObjects,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Scroll {
-            for (time, obj) in parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
+            for (time, obj) in pairs {
                 let factor = objects
                     .scroll_defs
                     .get(&obj)
@@ -117,6 +123,6 @@ impl ScrollProcessor {
                     .push_scrolling_factor_change(ScrollingFactorObj { time, factor }, prompter)?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

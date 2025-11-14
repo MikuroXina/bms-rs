@@ -15,8 +15,13 @@
 
 use std::{path::Path, str::FromStr};
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{error::Result, model::metadata::Metadata, prelude::*};
+use super::{ProcessContext, TokenProcessor};
+use crate::bms::ParseErrorWithRange;
+use crate::bms::{
+    model::metadata::Metadata,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes metadata headers such as `#PLAYER`, `#DIFFICULTY` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -25,20 +30,23 @@ pub struct MetadataProcessor;
 impl TokenProcessor for MetadataProcessor {
     type Output = Metadata;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
-        all_tokens(input, prompter, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut metadata)
-                    .err(),
-                Token::Message { .. } => None,
-                Token::NotACommand(line) => self.on_comment(line, &mut metadata).err(),
-            })
+        ctx.all_tokens(|token, _prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
+                }
+            }
+            Token::Message { .. } => Ok(None),
+            Token::NotACommand(line) => match self.on_comment(line, &mut metadata) {
+                Ok(()) => Ok(None),
+                Err(warn) => Ok(Some(warn.into_wrapper(token))),
+            },
         })?;
         Ok(metadata)
     }

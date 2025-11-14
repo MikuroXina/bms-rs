@@ -14,9 +14,14 @@ use fraction::GenericFraction;
 
 use num::BigUint;
 
-use super::{super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor};
+use crate::bms::ParseErrorWithRange;
 use crate::{
-    bms::{error::Result, model::video::Video, prelude::*},
+    bms::{
+        model::video::Video,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -37,32 +42,35 @@ impl VideoProcessor {
 impl TokenProcessor for VideoProcessor {
     type Output = Video;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut video = Video::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut video,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut video) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut video,
+                ) {
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(video)
     }
@@ -134,13 +142,14 @@ impl VideoProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         video: &mut Video,
-    ) -> Result<()> {
+    ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Seek {
             use super::parse_obj_ids;
 
-            for (time, seek_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
+            for (time, seek_id) in pairs {
                 let position = video
                     .seek_defs
                     .get(&seek_id)
@@ -149,6 +158,6 @@ impl VideoProcessor {
                 video.push_seek_event(SeekObj { time, position }, prompter)?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

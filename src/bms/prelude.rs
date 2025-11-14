@@ -34,7 +34,6 @@ pub use super::{
         time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,
-    error::{ParseWarning, ParseWarningWithRange},
     lex::{
         LexOutput, LexWarning, TokenRefStream, TokenStream,
         cursor::Cursor,
@@ -57,10 +56,11 @@ pub use super::{
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
-            DefDuplication, DuplicationWorkaround, PanicAndUseNewer, PanicAndUseOlder, Prompter,
+            DefDuplication, DuplicationWorkaround, Prompter,
         },
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
+    parse::{ParseWarning, ParseWarningWithRange},
     parse_bms,
     rng::{Rng, RngMock},
 };

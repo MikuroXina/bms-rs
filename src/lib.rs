@@ -21,9 +21,10 @@
 //!
 //! let source = std::fs::read_to_string("tests/bms/files/lilith_mx.bms").unwrap();
 //! #[cfg(feature = "rand")]
-//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config()).expect("must be parsed");
+//! let BmsOutput { bms, warnings, .. } = parse_bms(&source, default_config());
 //! #[cfg(not(feature = "rand"))]
-//! let BmsOutput { bms, warnings } = parse_bms(&source, default_config_with_rng(RngMock([BigUint::from(1u64)]))).expect("must be parsed");
+//! let BmsOutput { bms, warnings, .. } = parse_bms(&source, default_config_with_rng(RngMock([BigUint::from(1u64)])));
+//! let bms = bms.expect("must be parsed");
 //! assert_eq!(warnings, vec![]);
 //! println!("Title: {}", bms.music_info.title.as_deref().unwrap_or("Unknown"));
 //! println!("BPM: {}", bms.bpm.bpm.unwrap_or(120.into()));
@@ -48,13 +49,14 @@
 //! // You can modify the tokens before parsing.
 //!
 //! #[cfg(feature = "rand")]
-//! let bms = Bms::from_token_stream(
+//! let parse_output = Bms::from_token_stream(
 //!     &tokens, default_config_with_rng(RandRng(StdRng::seed_from_u64(42))),
-//! ).expect("must be parsed");
+//! );
 //! #[cfg(not(feature = "rand"))]
-//! let bms = Bms::from_token_stream(
+//! let parse_output = Bms::from_token_stream(
 //!     &tokens, default_config_with_rng(RngMock([BigUint::from(1u64)])),
-//! ).expect("must be parsed");
+//! );
+//! let bms = parse_output.bms.expect("must be parsed");
 //! // According to [BMS command memo#BEHAVIOR IN GENERAL IMPLEMENTATION](https://hitkey.bms.ms/cmds.htm#BEHAVIOR-IN-GENERAL-IMPLEMENTATION), the newer values are used for the duplicated objects.
 //! let PlayingCheckOutput { playing_warnings, playing_errors } = bms.check_playing::<KeyLayoutBeat>();
 //! assert_eq!(playing_warnings, vec![]);

@@ -7,8 +7,7 @@ use std::{
 
 use crate::bms::{
     command::graphics::{Argb, PixelPoint, PixelSize},
-    error::Result,
-    parse::prompt::ChannelDuplication,
+    parse::{Result, prompt::ChannelDuplication},
     prelude::*,
 };
 

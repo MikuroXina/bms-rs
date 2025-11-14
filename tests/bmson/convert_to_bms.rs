@@ -42,7 +42,12 @@ fn test_bmson_to_bms_conversion() {
     };
 
     // Convert to Bms
-    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput {
+        bms,
+        warnings: _,
+        playing_warnings: _,
+        playing_errors: _,
+    } = Bms::from_bmson(bmson);
 
     // Verify conversion
     assert_eq!(bms.music_info.title, Some("Test Song".to_string()));
@@ -131,7 +136,12 @@ fn test_bmson_to_bms_with_notes() {
     };
 
     // Convert to Bms
-    let BmsonToBmsOutput { bms, .. } = Bms::from_bmson(bmson);
+    let BmsonToBmsOutput {
+        bms,
+        warnings: _,
+        playing_warnings: _,
+        playing_errors: _,
+    } = Bms::from_bmson(bmson);
 
     // Verify that notes were converted
     assert_eq!(bms.wav.wav_files.len(), 1);

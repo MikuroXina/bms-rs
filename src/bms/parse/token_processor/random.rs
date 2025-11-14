@@ -47,14 +47,13 @@ use num::BigUint;
 
 use crate::{
     bms::{
-        error::{ParseError, ParseWarning},
-        parse::token_processor::all_tokens_with_range,
+        parse::{ParseError, ParseWarning},
         prelude::*,
     },
     util::StrExtension,
 };
 
-use super::{TokenProcessor, TokenProcessorResult};
+use super::{ProcessContext, TokenProcessor};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -105,7 +104,7 @@ impl<R, N> RandomTokenProcessor<R, N> {
 }
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn visit_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_random(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -150,7 +149,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_random(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_random(
+        &self,
+        args: &str,
+    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -187,7 +189,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = |generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -230,7 +232,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_else_if(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_else_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -276,7 +278,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_else(&self) -> Result<(), ParseError> {
+    fn visit_else(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -300,7 +302,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_end_if(&self) -> Result<(), ParseError> {
+    fn visit_end_if(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -318,7 +320,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_end_random(&self) -> Result<(), ParseError> {
+    fn visit_end_random(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -338,7 +340,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_switch(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let max: BigUint = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -381,7 +383,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_set_switch(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_set_switch(
+        &self,
+        args: &str,
+    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let push_new_one = || {
             let generated = match args.parse().map_err(|_| {
                 ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
@@ -416,7 +421,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_case(&self, args: &str) -> Result<Option<ParseWarning>, ParseError> {
+    fn visit_case(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
         let cond = match args
             .parse()
             .map_err(|_| ParseWarning::SyntaxError(format!("expected integer but got {args:?}")))
@@ -477,7 +482,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_skip(&self) -> Result<(), ParseError> {
+    fn visit_skip(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -501,7 +506,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
     }
 
-    fn visit_default(&self) -> Result<(), ParseError> {
+    fn visit_default(&self) -> core::result::Result<(), ParseError> {
         let top = self
             .state_stack
             .borrow()
@@ -574,24 +579,39 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
 impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     type Output = <N as TokenProcessor>::Output;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
-        let mut activated = vec![];
-        all_tokens_with_range(input, prompter, |token| {
-            let res = match token.content() {
-                Token::Header { name, args } => self.on_header(name.as_ref(), args.as_ref())?,
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
+        let checkpoint = ctx.save();
+        let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
+        ctx.all_tokens(|token, _prompter| {
+            let warn = match token.content() {
+                Token::Header { name, args } => self
+                    .on_header(name.as_ref(), args.as_ref())
+                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
                 Token::Message { .. } => None,
-                Token::NotACommand(line) => self.on_comment(line)?,
+                Token::NotACommand(line) => self
+                    .on_comment(line)
+                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
             };
             if self.is_activated() {
                 activated.push(token);
             }
-            Ok(res)
+            Ok(warn)
         })?;
-        self.next.process(&mut &activated[..], prompter)
+
+        // Process activated tokens with the next processor using a temporary context.
+        let mut tmp = &activated[..];
+        let mut view_ctx = ProcessContext {
+            input: &mut tmp,
+            prompter: ctx.prompter(),
+            reported: Vec::new(),
+        };
+        let out = self.next.process(&mut view_ctx)?;
+        ctx.reported.extend(view_ctx.into_warnings());
+        ctx.restore(checkpoint);
+        Ok(out)
     }
 }
 

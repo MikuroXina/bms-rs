@@ -6,12 +6,14 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use super::{
-    super::prompt::Prompter, TokenProcessor, TokenProcessorResult, all_tokens_with_range,
-    parse_obj_ids,
-};
+use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
+use crate::bms::parse::ParseErrorWithRange;
 use crate::{
-    bms::{error::Result, model::text::TextObjects, prelude::*},
+    bms::{
+        model::text::TextObjects,
+        parse::{ParseWarning, Result},
+        prelude::*,
+    },
     util::StrExtension,
 };
 
@@ -32,32 +34,35 @@ impl TextProcessor {
 impl TokenProcessor for TextProcessor {
     type Output = TextObjects;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = TextObjects::default();
-        all_tokens_with_range(input, prompter, |token| {
-            Ok(match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                    .err(),
-                Token::Message {
-                    track,
-                    channel,
-                    message,
-                } => self
-                    .on_message(
-                        *track,
-                        *channel,
-                        message.as_ref().into_wrapper(token),
-                        prompter,
-                        &mut objects,
-                    )
-                    .err(),
-                Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
+                    Ok(()) => Ok(Vec::new()),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::Message {
+                track,
+                channel,
+                message,
+            } => {
+                match self.on_message(
+                    *track,
+                    *channel,
+                    message.as_ref().into_wrapper(token),
+                    prompter,
+                    &mut objects,
+                ) {
+                    Ok(ws) => Ok(ws),
+                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
+                }
+            }
+            Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
     }
@@ -99,11 +104,12 @@ impl TextProcessor {
         message: SourceRangeMixin<&str>,
         prompter: &impl Prompter,
         objects: &mut TextObjects,
-    ) -> Result<()> {
+    ) -> Result<Vec<ParseWarningWithRange>> {
+        let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Text {
-            for (time, text_id) in
-                parse_obj_ids(track, message, prompter, &self.case_sensitive_obj_id)
-            {
+            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            warnings.extend(w);
+            for (time, text_id) in pairs {
                 let text = objects
                     .texts
                     .get(&text_id)
@@ -112,6 +118,6 @@ impl TextProcessor {
                 objects.push_text_event(TextObj { time, text }, prompter)?;
             }
         }
-        Ok(())
+        Ok(warnings)
     }
 }

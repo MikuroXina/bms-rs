@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse::prompt::warning_collector, prelude::*};
+use bms_rs::bms::prelude::*;
 
 use std::path::Path;
 
@@ -40,9 +40,18 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
 /// Test AlwaysUseOlder behavior with various conflict types
 #[test]
 fn test_always_use_older() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -105,9 +114,18 @@ fn test_always_use_older() {
 /// Test AlwaysUseNewer behavior with various conflict types
 #[test]
 fn test_always_use_newer() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseNewer)).unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
@@ -170,21 +188,21 @@ fn test_always_use_newer() {
 /// Test AlwaysWarnAndUseOlder behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_older() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
-    let mut parse_warnings = vec![];
-    let bms = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysWarnAndUseOlder,
-            &mut parse_warnings,
-        )),
-    )
-    .unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
+    let bms = bms.unwrap();
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
-    assert_eq!(parse_warnings.len(), 9);
-    assert!(parse_warnings.iter().all(|w: &_| matches!(
+    assert_eq!(warnings.len(), 9);
+    assert!(warnings.iter().all(|w: &_| matches!(
         w.content(),
         ParseWarning::DuplicatingChannelObj(_, _) | ParseWarning::DuplicatingDef(_)
     )));
@@ -250,19 +268,19 @@ fn test_always_warn_and_use_older() {
 /// Test AlwaysWarnAndUseNewer behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_newer() {
-    let LexOutput { tokens, .. } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SOURCE_WITH_CONFLICTS);
+    assert_eq!(lex_warnings, vec![]);
 
-    let mut parse_warnings = vec![];
-    let bms = Bms::from_token_stream(
-        &tokens,
-        default_config().prompter(warning_collector(
-            AlwaysWarnAndUseNewer,
-            &mut parse_warnings,
-        )),
-    )
-    .unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
+    let bms = bms.unwrap();
 
-    // Should have no warnings since AlwaysWarnAndUseNewer handles conflicts silently
+    // 应有重复定义类的警告（如 DuplicatingDef）
     assert!(
         parse_warnings
             .iter()

@@ -8,8 +8,13 @@
 
 use std::path::Path;
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{error::Result, model::sprite::Sprites, prelude::*};
+use super::{ProcessContext, TokenProcessor};
+use crate::bms::ParseErrorWithRange;
+use crate::bms::{
+    model::sprite::Sprites,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes sprite headers such as `#STAGEFILE`, `#BANNER` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,19 +23,19 @@ pub struct SpriteProcessor;
 impl TokenProcessor for SpriteProcessor {
     type Output = Sprites;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut sprites = Sprites::default();
-        all_tokens(input, prompter, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut sprites)
-                    .err(),
-                Token::Message { .. } | Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, _prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), &mut sprites) {
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
+                }
+            }
+            Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(sprites)
     }

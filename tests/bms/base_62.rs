@@ -1,4 +1,4 @@
-use bms_rs::bms::{parse::prompt::PanicAndUseNewer, prelude::*};
+use bms_rs::bms::prelude::*;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -13,11 +13,15 @@ fn test_not_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let bms = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_config().prompter(PanicAndUseNewer),
-    )
-    .expect("no errors");
+        default_config().prompter(AlwaysUseNewer),
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
     assert_eq!(
@@ -40,11 +44,15 @@ fn test_base_62() {
     ",
     );
     assert_eq!(warnings, vec![]);
-    let bms = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
         &tokens,
-        default_config().prompter(PanicAndUseNewer),
-    )
-    .expect("no errors");
+        default_config().prompter(AlwaysUseNewer),
+    );
+    assert_eq!(warnings, vec![]);
+    let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);
 }

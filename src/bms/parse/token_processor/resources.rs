@@ -10,8 +10,13 @@ use std::{path::Path, str::FromStr};
 
 use num::BigUint;
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
-use crate::bms::{error::Result, model::resources::Resources, prelude::*};
+use super::{ProcessContext, TokenProcessor};
+use crate::bms::ParseErrorWithRange;
+use crate::bms::{
+    model::resources::Resources,
+    parse::{ParseWarning, Result},
+    prelude::*,
+};
 
 /// It processes external resources such as `#MIDIFILE`, `#CDDA` and so on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,19 +25,19 @@ pub struct ResourcesProcessor;
 impl TokenProcessor for ResourcesProcessor {
     type Output = Resources;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut resources = Resources::default();
-        all_tokens(input, prompter, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut resources)
-                    .err(),
-                Token::Message { .. } | Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, _prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), &mut resources) {
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
+                }
+            }
+            Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(resources)
     }

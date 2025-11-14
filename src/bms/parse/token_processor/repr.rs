@@ -9,10 +9,11 @@
 //! Also [`RepresentationProcessor`] bears the responsibility of the first processor to record raw command lines.
 use std::{cell::RefCell, rc::Rc};
 
-use super::{TokenProcessor, TokenProcessorResult, all_tokens};
+use super::{ProcessContext, TokenProcessor};
+use crate::bms::ParseErrorWithRange;
 use crate::bms::{
-    error::{ParseWarning, Result},
     model::repr::BmsSourceRepresentation,
+    parse::{ParseWarning, Result},
     prelude::*,
 };
 
@@ -33,19 +34,19 @@ impl RepresentationProcessor {
 impl TokenProcessor for RepresentationProcessor {
     type Output = BmsSourceRepresentation;
 
-    fn process<P: Prompter>(
+    fn process<'a, 't, P: Prompter>(
         &self,
-        input: &mut &[&TokenWithRange<'_>],
-        prompter: &P,
-    ) -> TokenProcessorResult<Self::Output> {
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut repr = BmsSourceRepresentation::default();
-        all_tokens(input, prompter, |token| {
-            Ok(match token {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref(), &mut repr)
-                    .err(),
-                Token::Message { .. } | Token::NotACommand(_) => None,
-            })
+        ctx.all_tokens(|token, _prompter| match token.content() {
+            Token::Header { name, args } => {
+                match self.on_header(name.as_ref(), args.as_ref(), &mut repr) {
+                    Ok(()) => Ok(None),
+                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
+                }
+            }
+            Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(repr)
     }
