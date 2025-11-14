@@ -86,6 +86,50 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 }
 
 #[test]
+fn test_bms_visible_event_activate_time_within_reaction_window() {
+    let source = include_str!("../bms/files/bemuse_ext.bms");
+    let LexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = TokenStream::parse_lex(source);
+    assert_eq!(warnings, vec![]);
+
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let reaction = Duration::from_millis(600);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(bms, base_bpm, reaction);
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    let after = start_time + Duration::from_secs(1);
+    let _ = processor.update(after);
+    let events: Vec<_> = processor.visible_events(after).collect();
+    assert!(
+        !events.is_empty(),
+        "Should have visible events after advance"
+    );
+
+    for ev in events {
+        let secs = ev.activate_time().as_secs_f64();
+        let elapsed = after
+            .duration_since(start_time)
+            .unwrap_or_default()
+            .as_secs_f64();
+        assert!(secs >= elapsed, "activate_time should be >= elapsed");
+        assert!(secs.is_finite());
+    }
+}
+
+#[test]
 fn test_lilith_mx_bpm_changes_affect_visible_window() {
     // Test BPM changes' effect on visible window using lilith_mx.bms file
     let source = include_str!("../bms/files/lilith_mx.bms");
@@ -286,5 +330,50 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
                 );
             }
         }
+    }
+}
+#[test]
+fn test_bms_triggered_event_activate_time_equals_elapsed() {
+    let source = include_str!("../bms/files/bemuse_ext.bms");
+    let LexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = TokenStream::parse_lex(source);
+    assert_eq!(warnings, vec![]);
+
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let mut processor =
+        BmsProcessor::new::<KeyLayoutBeat>(bms, base_bpm, Duration::from_millis(600));
+
+    let start_time = SystemTime::now();
+    processor.start_play(start_time);
+
+    let elapsed = Duration::from_secs(3);
+    let now = start_time + elapsed;
+    let events: Vec<_> = processor.update(now).collect();
+    assert!(
+        !events.is_empty(),
+        "Expected triggered events after {:?} elapsed",
+        elapsed
+    );
+
+    for evp in events {
+        let secs_actual = evp.activate_time().as_secs_f64();
+        assert!(
+            secs_actual <= elapsed.as_secs_f64() + 1e-9,
+            "triggered event activate_time should be <= elapsed, got {:.6} > {:.6}",
+            secs_actual,
+            elapsed.as_secs_f64()
+        );
+        assert!(secs_actual >= 0.0);
     }
 }

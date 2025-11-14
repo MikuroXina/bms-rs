@@ -4,6 +4,7 @@ use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
+use std::time::Duration;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -394,16 +395,24 @@ pub struct ChartEventWithPosition {
     pub position: YCoordinate,
     /// Chart event
     pub event: ChartEvent,
+    /// Activate time since chart playback started
+    pub activate_time: Duration,
 }
 
 impl ChartEventWithPosition {
     /// Create a new ChartEventWithPosition
     #[must_use]
-    pub const fn new(id: ChartEventId, position: YCoordinate, event: ChartEvent) -> Self {
+    pub const fn new(
+        id: ChartEventId,
+        position: YCoordinate,
+        event: ChartEvent,
+        activate_time: Duration,
+    ) -> Self {
         Self {
             position,
             event,
             id,
+            activate_time,
         }
     }
 
@@ -423,6 +432,12 @@ impl ChartEventWithPosition {
     #[must_use]
     pub const fn event(&self) -> &ChartEvent {
         &self.event
+    }
+
+    /// Get activate time
+    #[must_use]
+    pub const fn activate_time(&self) -> &Duration {
+        &self.activate_time
     }
 }
 
@@ -453,6 +468,8 @@ pub struct VisibleEvent {
     pub event: ChartEvent,
     /// Display ratio
     pub display_ratio: DisplayRatio,
+    /// Activate time since chart playback started
+    pub activate_time: Duration,
 }
 
 impl VisibleEvent {
@@ -463,12 +480,14 @@ impl VisibleEvent {
         position: YCoordinate,
         event: ChartEvent,
         display_ratio: DisplayRatio,
+        activate_time: Duration,
     ) -> Self {
         Self {
             position,
             event,
             display_ratio,
             id,
+            activate_time,
         }
     }
 
@@ -494,6 +513,12 @@ impl VisibleEvent {
     #[must_use]
     pub const fn display_ratio(&self) -> &DisplayRatio {
         &self.display_ratio
+    }
+
+    /// Get activate time
+    #[must_use]
+    pub const fn activate_time(&self) -> &Duration {
+        &self.activate_time
     }
 }
 
