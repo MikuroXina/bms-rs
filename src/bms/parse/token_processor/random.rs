@@ -583,6 +583,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
+        let checkpoint = ctx.save();
         let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
         ctx.all_tokens(|token, _prompter| {
             let warn = match token.content() {
@@ -612,7 +613,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         let nested_reported = core::mem::take(&mut view_ctx.reported);
         drop(view_ctx);
         ctx.reported.extend(nested_reported);
-
+        ctx.restore(checkpoint);
         Ok(out)
     }
 }

@@ -70,6 +70,11 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         *self.input = checkpoint.0;
     }
 
+    /// Sets the current input view to the provided slice.
+    pub const fn set_input(&mut self, view: &'a [&'t TokenWithRange<'t>]) {
+        *self.input = view;
+    }
+
     /// Returns a shared reference to the prompter.
     #[must_use]
     pub const fn prompter(&self) -> &P {
@@ -175,38 +180,11 @@ where
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, ParseErrorWithRange> {
-        // Create isolated contexts that share the same input view, avoiding borrow conflicts.
-        let original_input = *ctx.input;
-
-        // First pass context borrows the same prompter to avoid cloning.
-        let mut first_input = original_input;
-        let mut first_ctx = ProcessContext {
-            input: &mut first_input,
-            prompter: ctx.prompter(),
-            reported: Vec::new(),
-        };
-        let first_res = self.first.process(&mut first_ctx);
-
-        match first_res {
-            Ok(first_output) => {
-                // Second pass context also starts from the original input view.
-                let mut second_input = original_input;
-                let mut second_ctx = ProcessContext {
-                    input: &mut second_input,
-                    prompter: ctx.prompter(),
-                    reported: Vec::new(),
-                };
-                let second_output = self.second.process(&mut second_ctx)?;
-                let mut merged_reported = core::mem::take(&mut first_ctx.reported);
-                let second_reported = core::mem::take(&mut second_ctx.reported);
-                drop(first_ctx);
-                drop(second_ctx);
-                merged_reported.extend(second_reported);
-                ctx.reported.extend(merged_reported);
-                Ok((first_output, second_output))
-            }
-            Err(err) => Err(err),
-        }
+        let checkpoint = ctx.save();
+        let first_output = self.first.process(ctx)?;
+        ctx.restore(checkpoint);
+        let second_output = self.second.process(ctx)?;
+        Ok((first_output, second_output))
     }
 }
 
