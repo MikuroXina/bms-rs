@@ -1,4 +1,4 @@
-//! This module introduces struct [`BmpObjects`], which manages definitions and events of background image and movie.
+//! This module introduces struct [`BmpObjects`], which manages definitions and events of background image animation (BGI).
 
 use std::{
     collections::{BTreeMap, HashMap, btree_map::Entry},
