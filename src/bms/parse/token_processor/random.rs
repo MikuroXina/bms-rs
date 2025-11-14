@@ -609,10 +609,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             reported: Vec::new(),
         };
         let out = self.next.process(&mut view_ctx)?;
-        // Collect nested warnings locally first, then drop the borrowed context.
-        let nested_reported = core::mem::take(&mut view_ctx.reported);
-        drop(view_ctx);
-        ctx.reported.extend(nested_reported);
+        ctx.reported.extend(view_ctx.into_warnings());
         ctx.restore(checkpoint);
         Ok(out)
     }
