@@ -146,7 +146,7 @@ impl Bms {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();
         let (proc, prompter) = config.build();
-        let mut ctx = ProcessContext::new(&mut tokens_slice, prompter);
+        let mut ctx = ProcessContext::new(&mut tokens_slice, &prompter);
         let res = proc.process(&mut ctx);
         ParseOutput {
             bms: res,
