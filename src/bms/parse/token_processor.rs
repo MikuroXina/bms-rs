@@ -60,7 +60,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Saves the current input position to a checkpoint.
-    #[must_use] 
+    #[must_use]
     pub const fn save(&self) -> Checkpoint<'a, 't> {
         Checkpoint(self.input)
     }
@@ -71,10 +71,10 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Returns a shared reference to the prompter.
-    #[must_use] 
-    pub const fn prompter(&self) -> &P { self.prompter }
-
-    
+    #[must_use]
+    pub const fn prompter(&self) -> &P {
+        self.prompter
+    }
 
     /// Takes current input view and consumes it (resets to empty).
     pub const fn take_input(&mut self) -> &'a [&'t TokenWithRange<'t>] {
@@ -89,7 +89,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Consumes the context and returns collected warnings.
-    #[must_use] 
+    #[must_use]
     pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
         self.reported
     }

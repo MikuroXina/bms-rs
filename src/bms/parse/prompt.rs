@@ -42,7 +42,6 @@ pub trait Prompter {
     fn handle_channel_duplication(&self, duplication: ChannelDuplication) -> DuplicationWorkaround;
 }
 
-
 /// It represents that there is a duplicated definition on the BMS file.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
