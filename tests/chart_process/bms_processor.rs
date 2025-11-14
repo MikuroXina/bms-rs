@@ -94,7 +94,13 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
@@ -335,7 +341,13 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     } = TokenStream::parse_lex(source);
     assert_eq!(warnings, vec![]);
 
-    let bms = Bms::from_token_stream(&tokens, default_config().prompter(PanicAndUseOlder)).unwrap();
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
