@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.0](https://github.com/MikuroXina/bms-rs/compare/v0.10.1...v1.0.0) (2025-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* use Result<Bms, ParseError> in BmsOutput/ParseOutput, functions return BmsOutput/ParseOutput again ([#251](https://github.com/MikuroXina/bms-rs/issues/251))
+* use id to sign different events, avoid duplicate calculation ([#249](https://github.com/MikuroXina/bms-rs/issues/249))
+
+### Features
+
+* add collect_bms_reports not to print extra diagnostic in tests ([#254](https://github.com/MikuroXina/bms-rs/issues/254)) ([56761b2](https://github.com/MikuroXina/bms-rs/commit/56761b2252c73dc3e6ca1584704eb52971e36468))
+* compute continue duration ([#255](https://github.com/MikuroXina/bms-rs/issues/255)) ([c6ed199](https://github.com/MikuroXina/bms-rs/commit/c6ed19985d5b353231bbcaa96e08e4b310cb47cd))
+* Random/Switch model ([#253](https://github.com/MikuroXina/bms-rs/issues/253)) ([060c1ae](https://github.com/MikuroXina/bms-rs/commit/060c1ae9f253d005070dd5d85e35090667b8dc22))
+* use id to sign different events, avoid duplicate calculation ([#249](https://github.com/MikuroXina/bms-rs/issues/249)) ([a3fad4a](https://github.com/MikuroXina/bms-rs/commit/a3fad4aba8499500ce881225486a721e1f496e20))
+* use Result&lt;Bms, ParseError&gt; in BmsOutput/ParseOutput, functions return BmsOutput/ParseOutput again ([#251](https://github.com/MikuroXina/bms-rs/issues/251)) ([228a5b5](https://github.com/MikuroXina/bms-rs/commit/228a5b5041880fd482c8b0cc752b7521993e3ba4))
+
+
+### Bug Fixes
+
+* clippy with nursery ([#250](https://github.com/MikuroXina/bms-rs/issues/250)) ([6811115](https://github.com/MikuroXina/bms-rs/commit/6811115b1ee3388e9ddedaf8cb7b1f5dda0201ec))
+* delete `crate::bms` pub use ([#245](https://github.com/MikuroXina/bms-rs/issues/245)) ([01f5ce5](https://github.com/MikuroXina/bms-rs/commit/01f5ce544a49828e09ae46427ddaacbb9acb0488))
+* fill feature gate for compile in different features ([#240](https://github.com/MikuroXina/bms-rs/issues/240)) ([c964d53](https://github.com/MikuroXina/bms-rs/commit/c964d537c686b495efa432aeb0e3e06a920b8989))
+* impl `ToAradine` for `PlayingWarning`/`PlayingError` ([#252](https://github.com/MikuroXina/bms-rs/issues/252)) ([879155e](https://github.com/MikuroXina/bms-rs/commit/879155ee75ff47fa803ae88bb100330a7da0c7cf))
+* refine `ObjTime` constructor ([#257](https://github.com/MikuroXina/bms-rs/issues/257)) ([9bc148c](https://github.com/MikuroXina/bms-rs/commit/9bc148cf2d870cc770398951cb3ae5bae73b6258))
+
 ## [0.10.1](https://github.com/MikuroXina/bms-rs/compare/v0.10.0...v0.10.1) (2025-10-25)
 
 
