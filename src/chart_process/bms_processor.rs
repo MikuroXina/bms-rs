@@ -65,10 +65,11 @@ impl BmsProcessor {
         let default_visible_y_length =
             compute_default_visible_y_length(base_bpm.clone(), reaction_time);
 
-        let all_events = {
+        let pre_index = {
             let bms: &Bms = &bms;
             BmsPrecomputer::precompute_all_events::<T>(bms)
         };
+        let all_events = BmsPrecomputer::precompute_activate_times(&bms, &pre_index);
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -166,13 +167,13 @@ impl BmsProcessor {
                 .push(FlowEvent::Speed(change.factor.clone()));
         }
 
-        let mut processor = Self {
+        Self {
             bms,
             started_at: None,
             last_poll_at: None,
             progressed_y: Decimal::from(0),
             inbox: Vec::new(),
-            all_events: AllEventsIndex::new(all_events),
+            all_events,
             preloaded_events: Vec::new(),
             default_visible_y_length,
             current_bpm: init_bpm,
@@ -181,12 +182,7 @@ impl BmsProcessor {
             base_bpm,
             reaction_time,
             flow_events_by_y,
-        };
-        {
-            let this = &mut processor;
-            BmsPrecomputer::precompute_activate_times(this)
-        };
-        processor
+        }
     }
 
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
@@ -411,27 +407,6 @@ impl BmsProcessor {
         )
     }
 
-    /// Get BPM value at a given y by scanning indexed BPM events.
-    fn bpm_at_y(&self, y: Decimal) -> Decimal {
-        use std::ops::Bound::{Included, Unbounded};
-        let init_bpm = self
-            .bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Decimal::from(120));
-        self.flow_events_by_y
-            .range((Unbounded, Included(y)))
-            .flat_map(|(_ey, events)| events.iter())
-            .filter_map(|evt| match evt {
-                FlowEvent::Bpm(b) => Some(b.clone()),
-                _ => None,
-            })
-            .next_back()
-            .unwrap_or(init_bpm)
-    }
-
     fn lane_of_channel_id<T: KeyLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
@@ -605,9 +580,7 @@ struct BmsPrecomputer;
 impl BmsPrecomputer {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    fn precompute_all_events<T: KeyLayoutMapper>(
-        bms: &Bms,
-    ) -> BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> {
+    fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms) -> AllEventsIndex {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
@@ -920,44 +893,34 @@ impl BmsPrecomputer {
             }
         }
 
-        // Generate measure lines - generated last but not exceeding other objects
         BmsProcessor::generate_barlines_for_bms(bms, &mut events_map, &mut id_gen);
-
-        events_map
+        AllEventsIndex::new(events_map)
     }
 
     /// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
-    fn precompute_activate_times(processor: &mut BmsProcessor) {
+    fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEventsIndex {
         use std::collections::{BTreeMap, BTreeSet};
         let mut points: BTreeSet<Decimal> = BTreeSet::new();
         points.insert(Decimal::from(0));
-        points.extend(
-            processor
-                .all_events
-                .as_map()
-                .keys()
-                .map(|yc| yc.value().clone()),
-        );
+        points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
 
         let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        let init_bpm = processor
-            .bms
+        let init_bpm = bms
             .bpm
             .bpm
             .as_ref()
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
         bpm_map.insert(Decimal::from(0), init_bpm.clone());
-        let bpm_pairs: Vec<(Decimal, Decimal)> = processor
-            .bms
+        let bpm_pairs: Vec<(Decimal, Decimal)> = bms
             .bpm
             .bpm_changes
             .values()
             .map(|change| {
                 let y = BmsProcessor::y_of_time_static(
-                    &processor.bms,
+                    bms,
                     change.time,
-                    &processor.bms.speed.speed_factor_changes,
+                    &bms.speed.speed_factor_changes,
                 );
                 (y, change.bpm.clone())
             })
@@ -965,17 +928,13 @@ impl BmsPrecomputer {
         bpm_map.extend(bpm_pairs.iter().cloned());
         points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
 
-        let mut stop_list: Vec<(Decimal, Decimal)> = processor
-            .bms
+        let mut stop_list: Vec<(Decimal, Decimal)> = bms
             .stop
             .stops
             .values()
             .map(|st| {
-                let sy = BmsProcessor::y_of_time_static(
-                    &processor.bms,
-                    st.time,
-                    &processor.bms.speed.speed_factor_changes,
-                );
+                let sy =
+                    BmsProcessor::y_of_time_static(bms, st.time, &bms.speed.speed_factor_changes);
                 (sy, st.duration.clone())
             })
             .collect();
@@ -1004,7 +963,14 @@ impl BmsPrecomputer {
             while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
                 let sy = stop_list[stop_idx].0.clone();
                 if sy > prev.clone() {
-                    let bpm_at_stop = processor.bpm_at_y(sy.clone());
+                    let bpm_at_stop = bpm_map
+                        .range((
+                            std::ops::Bound::Unbounded,
+                            std::ops::Bound::Included(sy.clone()),
+                        ))
+                        .next_back()
+                        .map(|(_, b)| b.clone())
+                        .unwrap_or_else(|| init_bpm.clone());
                     let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
                     let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
                     total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
@@ -1023,8 +989,7 @@ impl BmsPrecomputer {
             prev = curr;
         }
 
-        let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = processor
-            .all_events
+        let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = all_events
             .as_map()
             .iter()
             .map(|(y_coord, events)| {
@@ -1041,6 +1006,6 @@ impl BmsPrecomputer {
                 (y_coord.clone(), new_events)
             })
             .collect();
-        processor.all_events = AllEventsIndex::new(new_map);
+        AllEventsIndex::new(new_map)
     }
 }
