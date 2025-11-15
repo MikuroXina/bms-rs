@@ -65,11 +65,7 @@ impl BmsProcessor {
         let default_visible_y_length =
             compute_default_visible_y_length(base_bpm.clone(), reaction_time);
 
-        let pre_index = {
-            let bms: &Bms = &bms;
-            BmsPrecomputer::precompute_all_events::<T>(bms)
-        };
-        let all_events = BmsPrecomputer::precompute_activate_times(&bms, &pre_index);
+        let all_events = AllEventsIndex::precompute_all_events::<T>(&bms);
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -575,12 +571,10 @@ enum FlowEvent {
     Scroll(Decimal),
 }
 
-struct BmsPrecomputer;
-
-impl BmsPrecomputer {
+impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms) -> AllEventsIndex {
+    fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms) -> Self {
         let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
@@ -894,118 +888,115 @@ impl BmsPrecomputer {
         }
 
         BmsProcessor::generate_barlines_for_bms(bms, &mut events_map, &mut id_gen);
-        AllEventsIndex::new(events_map)
+        let pre_index = Self::new(events_map);
+        precompute_activate_times(bms, &pre_index)
     }
+}
 
-    /// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
-    fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEventsIndex {
-        use std::collections::{BTreeMap, BTreeSet};
-        let mut points: BTreeSet<Decimal> = BTreeSet::new();
-        points.insert(Decimal::from(0));
-        points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
+/// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
+fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEventsIndex {
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut points: BTreeSet<Decimal> = BTreeSet::new();
+    points.insert(Decimal::from(0));
+    points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
 
-        let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        let init_bpm = bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Decimal::from(120));
-        bpm_map.insert(Decimal::from(0), init_bpm.clone());
-        let bpm_pairs: Vec<(Decimal, Decimal)> = bms
-            .bpm
-            .bpm_changes
-            .values()
-            .map(|change| {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    change.time,
-                    &bms.speed.speed_factor_changes,
-                );
-                (y, change.bpm.clone())
-            })
-            .collect();
-        bpm_map.extend(bpm_pairs.iter().cloned());
-        points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
+    let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
+    let init_bpm = bms
+        .bpm
+        .bpm
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|| Decimal::from(120));
+    bpm_map.insert(Decimal::from(0), init_bpm.clone());
+    let bpm_pairs: Vec<(Decimal, Decimal)> = bms
+        .bpm
+        .bpm_changes
+        .values()
+        .map(|change| {
+            let y =
+                BmsProcessor::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
+            (y, change.bpm.clone())
+        })
+        .collect();
+    bpm_map.extend(bpm_pairs.iter().cloned());
+    points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
 
-        let mut stop_list: Vec<(Decimal, Decimal)> = bms
-            .stop
-            .stops
-            .values()
-            .map(|st| {
-                let sy =
-                    BmsProcessor::y_of_time_static(bms, st.time, &bms.speed.speed_factor_changes);
-                (sy, st.duration.clone())
-            })
-            .collect();
-        stop_list.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut stop_list: Vec<(Decimal, Decimal)> = bms
+        .stop
+        .stops
+        .values()
+        .map(|st| {
+            let sy = BmsProcessor::y_of_time_static(bms, st.time, &bms.speed.speed_factor_changes);
+            (sy, st.duration.clone())
+        })
+        .collect();
+    stop_list.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
-        let mut total = 0.0f64;
-        let mut prev = Decimal::from(0);
-        cum_map.insert(prev.clone(), 0.0);
-        let mut cur_bpm = bpm_map
+    let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
+    let mut total = 0.0f64;
+    let mut prev = Decimal::from(0);
+    cum_map.insert(prev.clone(), 0.0);
+    let mut cur_bpm = bpm_map
+        .range((
+            std::ops::Bound::Unbounded,
+            std::ops::Bound::Included(prev.clone()),
+        ))
+        .next_back()
+        .map(|(_, b)| b.clone())
+        .unwrap_or_else(|| init_bpm.clone());
+    let mut stop_idx = 0usize;
+    for curr in points.into_iter() {
+        if curr <= prev {
+            continue;
+        }
+        let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
+        let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
+        total += delta_y_f64 * 240.0 / cur_bpm_f64;
+        while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
+            let sy = stop_list[stop_idx].0.clone();
+            if sy > prev.clone() {
+                let bpm_at_stop = bpm_map
+                    .range((
+                        std::ops::Bound::Unbounded,
+                        std::ops::Bound::Included(sy.clone()),
+                    ))
+                    .next_back()
+                    .map(|(_, b)| b.clone())
+                    .unwrap_or_else(|| init_bpm.clone());
+                let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
+                let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
+                total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
+            }
+            stop_idx += 1;
+        }
+        cur_bpm = bpm_map
             .range((
                 std::ops::Bound::Unbounded,
-                std::ops::Bound::Included(prev.clone()),
+                std::ops::Bound::Included(curr.clone()),
             ))
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        let mut stop_idx = 0usize;
-        for curr in points.into_iter() {
-            if curr <= prev {
-                continue;
-            }
-            let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
-            let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-            total += delta_y_f64 * 240.0 / cur_bpm_f64;
-            while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
-                let sy = stop_list[stop_idx].0.clone();
-                if sy > prev.clone() {
-                    let bpm_at_stop = bpm_map
-                        .range((
-                            std::ops::Bound::Unbounded,
-                            std::ops::Bound::Included(sy.clone()),
-                        ))
-                        .next_back()
-                        .map(|(_, b)| b.clone())
-                        .unwrap_or_else(|| init_bpm.clone());
-                    let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
-                    let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-                    total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
-                }
-                stop_idx += 1;
-            }
-            cur_bpm = bpm_map
-                .range((
-                    std::ops::Bound::Unbounded,
-                    std::ops::Bound::Included(curr.clone()),
-                ))
-                .next_back()
-                .map(|(_, b)| b.clone())
-                .unwrap_or_else(|| init_bpm.clone());
-            cum_map.insert(curr.clone(), total);
-            prev = curr;
-        }
-
-        let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = all_events
-            .as_map()
-            .iter()
-            .map(|(y_coord, events)| {
-                let y = y_coord.value();
-                let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
-                let new_events: Vec<_> = events
-                    .iter()
-                    .cloned()
-                    .map(|mut evp| {
-                        evp.activate_time = at;
-                        evp
-                    })
-                    .collect();
-                (y_coord.clone(), new_events)
-            })
-            .collect();
-        AllEventsIndex::new(new_map)
+        cum_map.insert(curr.clone(), total);
+        prev = curr;
     }
+
+    let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = all_events
+        .as_map()
+        .iter()
+        .map(|(y_coord, events)| {
+            let y = y_coord.value();
+            let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
+            let new_events: Vec<_> = events
+                .iter()
+                .cloned()
+                .map(|mut evp| {
+                    evp.activate_time = at;
+                    evp
+                })
+                .collect();
+            (y_coord.clone(), new_events)
+        })
+        .collect();
+    AllEventsIndex::new(new_map)
 }

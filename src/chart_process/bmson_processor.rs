@@ -138,7 +138,7 @@ impl<'a> BmsonProcessor<'a> {
         }
 
         let all_events =
-            BmsonPrecomputer::precompute_events(&bmson, &audio_name_to_id, &bmp_name_to_id);
+            AllEventsIndex::precompute_events(&bmson, &audio_name_to_id, &bmp_name_to_id);
 
         Self {
             bmson,
@@ -391,14 +391,12 @@ enum FlowEvent {
     Scroll(Decimal),
 }
 
-struct BmsonPrecomputer;
-
-impl BmsonPrecomputer {
+impl AllEventsIndex {
     fn precompute_events<'a>(
         bmson: &Bmson<'a>,
         audio_name_to_id: &HashMap<String, WavId>,
         bmp_name_to_id: &HashMap<String, BmpId>,
-    ) -> AllEventsIndex {
+    ) -> Self {
         use std::collections::BTreeSet;
         let denom = Decimal::from(4 * bmson.info.resolution.get());
         let pulses_to_y = |pulses: u64| {
@@ -718,6 +716,6 @@ impl BmsonPrecomputer {
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
-        AllEventsIndex::new(events_map)
+        Self::new(events_map)
     }
 }
