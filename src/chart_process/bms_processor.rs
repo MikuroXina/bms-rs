@@ -11,7 +11,9 @@ use crate::bms::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
+    },
 };
 
 /// ChartProcessor of Bms files.
@@ -28,7 +30,7 @@ pub struct BmsProcessor {
     inbox: Vec<ControlEvent>,
 
     /// All events mapping (sorted by Y coordinate)
-    all_events: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
+    all_events: AllEventsIndex,
 
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<ChartEventWithPosition>,
@@ -167,7 +169,7 @@ impl BmsProcessor {
             last_poll_at: None,
             progressed_y: Decimal::from(0),
             inbox: Vec::new(),
-            all_events,
+            all_events: AllEventsIndex::new(all_events),
             preloaded_events: Vec::new(),
             default_visible_y_length,
             current_bpm: init_bpm,
@@ -701,7 +703,7 @@ impl BmsProcessor {
         use std::collections::{BTreeMap, BTreeSet};
         let mut points: BTreeSet<Decimal> = BTreeSet::new();
         points.insert(Decimal::from(0));
-        points.extend(self.all_events.keys().map(|yc| yc.value().clone()));
+        points.extend(self.all_events.as_map().keys().map(|yc| yc.value().clone()));
 
         let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
         let init_bpm = self
@@ -787,22 +789,25 @@ impl BmsProcessor {
             prev = curr;
         }
 
-        let all = std::mem::take(&mut self.all_events);
-        self.all_events = all
-            .into_iter()
+        let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = self
+            .all_events
+            .as_map()
+            .iter()
             .map(|(y_coord, events)| {
                 let y = y_coord.value();
                 let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
                 let new_events: Vec<_> = events
-                    .into_iter()
+                    .iter()
+                    .cloned()
                     .map(|mut evp| {
                         evp.activate_time = at;
                         evp
                     })
                     .collect();
-                (y_coord, new_events)
+                (y_coord.clone(), new_events)
             })
             .collect();
+        self.all_events = AllEventsIndex::new(new_map);
     }
 
     /// Get BPM value at a given y by scanning indexed BPM events.
@@ -912,7 +917,7 @@ impl ChartProcessor for BmsProcessor {
 
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.as_map().range((
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
@@ -922,7 +927,7 @@ impl ChartProcessor for BmsProcessor {
         }
 
         // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.as_map().range((
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
         )) {

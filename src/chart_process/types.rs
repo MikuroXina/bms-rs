@@ -4,6 +4,7 @@ use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// Trait for generating the base BPM used to derive default visible window length.
@@ -533,5 +534,22 @@ impl Eq for VisibleEvent {}
 impl std::hash::Hash for VisibleEvent {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AllEventsIndex {
+    map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
+}
+
+impl AllEventsIndex {
+    #[must_use]
+    pub const fn new(map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>) -> Self {
+        Self { map }
+    }
+
+    #[must_use]
+    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> {
+        &self.map
     }
 }

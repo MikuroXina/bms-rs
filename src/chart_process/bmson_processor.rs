@@ -10,7 +10,9 @@ use crate::bmson::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
     ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
+    },
 };
 use num::ToPrimitive;
 
@@ -45,7 +47,7 @@ pub struct BmsonProcessor<'a> {
     preloaded_events: Vec<ChartEventWithPosition>,
 
     /// Preprocessed all events mapping, sorted by y coordinate
-    all_events: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
+    all_events: AllEventsIndex,
 
     /// Indexed flow events by y (BPM/Scroll) for efficient lookup
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
@@ -144,7 +146,7 @@ impl<'a> BmsonProcessor<'a> {
             progressed_y: Decimal::from(0),
             inbox: Vec::new(),
             preloaded_events: Vec::new(),
-            all_events: BTreeMap::new(),
+            all_events: AllEventsIndex::new(BTreeMap::new()),
             default_visible_y_length,
             current_bpm: init_bpm,
             current_scroll: Decimal::from(1),
@@ -474,7 +476,7 @@ impl<'a> BmsonProcessor<'a> {
             }
         }
 
-        self.all_events = events_map;
+        self.all_events = AllEventsIndex::new(events_map);
     }
 
     /// Convert pulse count to unified y coordinate (unit: measure). One measure = 4*resolution pulses.
@@ -718,7 +720,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
 
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.as_map().range((
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
         )) {
@@ -728,7 +730,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         }
 
         // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.range((
+        for (_y_coord, events) in self.all_events.as_map().range((
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
         )) {
