@@ -110,8 +110,7 @@ impl<'a> BmsonProcessor<'a> {
         }
 
         // Compute default visible y length via shared helper
-        let default_visible_y_length =
-            compute_default_visible_y_length(base_bpm.clone(), reaction_time);
+        let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -235,11 +234,7 @@ impl<'a> BmsonProcessor<'a> {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(
-            self.current_bpm.clone(),
-            self.base_bpm.clone(),
-            self.reaction_time,
-        )
+        compute_visible_window_y(&self.current_bpm, &self.base_bpm, self.reaction_time)
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -399,13 +394,12 @@ impl AllEventsIndex {
     ) -> Self {
         use std::collections::BTreeSet;
         let denom = Decimal::from(4 * bmson.info.resolution.get());
-        let pulses_to_y = |pulses: u64| {
-            if denom == Decimal::from(0) {
-                Decimal::from(0)
-            } else {
-                Decimal::from(pulses) / denom.clone()
-            }
+        let denom_inv = if denom == Decimal::from(0) {
+            Decimal::from(0)
+        } else {
+            Decimal::from(1) / denom
         };
+        let pulses_to_y = |pulses: u64| Decimal::from(pulses) * denom_inv.clone();
         let mut points: BTreeSet<Decimal> = BTreeSet::new();
         points.insert(Decimal::from(0));
         for SoundChannel { notes, .. } in &bmson.sound_channels {
@@ -576,21 +570,21 @@ impl AllEventsIndex {
         }
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0);
-            let y_coord = YCoordinate::from(y.clone());
+            let y_coord = YCoordinate::from(y);
             let event = ChartEvent::BpmChange {
                 bpm: ev.bpm.as_f64().into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(&y).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
             let y = pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(y.clone());
+            let y_coord = YCoordinate::from(y);
             let event = ChartEvent::ScrollChange {
                 factor: rate.as_f64().into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(&y).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -600,46 +594,47 @@ impl AllEventsIndex {
         }
         for BgaEvent { y, id, .. } in &bmson.bga.bga_events {
             let yy = pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy.clone());
+            let y_coord = YCoordinate::from(yy);
             let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.layer_events {
             let yy = pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy.clone());
+            let y_coord = YCoordinate::from(yy);
             let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.poor_events {
             let yy = pulses_to_y(y.0);
-            let y_coord = YCoordinate::from(yy.clone());
+            let y_coord = YCoordinate::from(yy);
             let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         if let Some(lines) = &bmson.lines {
             for bar_line in lines {
                 let y = pulses_to_y(bar_line.y.0);
-                let y_coord = YCoordinate::from(y.clone());
+                let y_coord = YCoordinate::from(y);
                 let event = ChartEvent::BarLine;
-                let at = Duration::from_secs_f64(cum_map.get(&y).copied().unwrap_or(0.0));
+                let at =
+                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -655,8 +650,9 @@ impl AllEventsIndex {
                 while current_y <= max_y {
                     let y_coord = YCoordinate::from(current_y.clone());
                     let event = ChartEvent::BarLine;
-                    let at =
-                        Duration::from_secs_f64(cum_map.get(&current_y).copied().unwrap_or(0.0));
+                    let at = Duration::from_secs_f64(
+                        cum_map.get(y_coord.value()).copied().unwrap_or(0.0),
+                    );
                     let evp =
                         ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
@@ -666,11 +662,11 @@ impl AllEventsIndex {
         }
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
-            let y_coord = YCoordinate::from(y.clone());
+            let y_coord = YCoordinate::from(y);
             let event = ChartEvent::Stop {
                 duration: (stop.duration as f64).into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(&y).copied().unwrap_or(0.0));
+            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -690,7 +686,8 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                let at =
+                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -711,7 +708,8 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                let at =
+                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = ChartEventWithPosition::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }

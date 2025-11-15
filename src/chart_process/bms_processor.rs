@@ -62,8 +62,7 @@ impl BmsProcessor {
             .unwrap_or_else(|| Decimal::from(120));
 
         // Compute default visible y length via shared helper
-        let default_visible_y_length =
-            compute_default_visible_y_length(base_bpm.clone(), reaction_time);
+        let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(&bms);
 
@@ -294,7 +293,7 @@ impl BmsProcessor {
                             next_obj.offset,
                             &bms.speed.speed_factor_changes,
                         );
-                        YCoordinate::from(next_y - y.clone())
+                        YCoordinate::from(next_y - y)
                     })
             })
             .flatten();
@@ -396,11 +395,7 @@ impl BmsProcessor {
 
     /// Calculate visible window length (y units): based on current BPM, base BPM and configured reaction time
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(
-            self.current_bpm.clone(),
-            self.base_bpm.clone(),
-            self.reaction_time,
-        )
+        compute_visible_window_y(&self.current_bpm, &self.base_bpm, self.reaction_time)
     }
 
     fn lane_of_channel_id<T: KeyLayoutMapper>(

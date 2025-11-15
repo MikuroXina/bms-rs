@@ -8,20 +8,22 @@ use std::time::Duration;
 /// Formula: (current_bpm / base_bpm) * reaction_time_seconds (derived from `Duration`).
 #[must_use]
 pub fn compute_visible_window_y(
-    current_bpm: Decimal,
-    base_bpm: BaseBpm,
+    current_bpm: &Decimal,
+    base_bpm: &BaseBpm,
     reaction_time: Duration,
 ) -> Decimal {
     let seconds = Decimal::from(reaction_time.as_secs_f64());
-    (current_bpm / base_bpm.value().clone()) * seconds
+    (current_bpm.clone() / base_bpm.value().clone()) * seconds
 }
 
 /// Compute default visible y length (YCoordinate) from the selected base BPM and reaction time.
 #[must_use]
-pub fn compute_default_visible_y_length(base_bpm: BaseBpm, reaction_time: Duration) -> YCoordinate {
-    // When current BPM equals base BPM, visible window equals reaction time
+pub fn compute_default_visible_y_length(
+    base_bpm: &BaseBpm,
+    reaction_time: Duration,
+) -> YCoordinate {
     YCoordinate::from(compute_visible_window_y(
-        base_bpm.value().clone(),
+        base_bpm.value(),
         base_bpm,
         reaction_time,
     ))
