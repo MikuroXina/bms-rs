@@ -8,7 +8,7 @@
 
 use crate::bms::{
     Decimal,
-    prelude::{BgaLayer, Key, NoteKind, PlayerSide},
+    prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
 
 use crate::bms::prelude::SwBgaEvent;
@@ -113,7 +113,7 @@ pub enum ChartEvent {
         /// BGA layer
         layer: BgaLayer,
         /// ARGB color value (format: 0xAARRGGBB)
-        argb: u32,
+        argb: Argb,
     },
     /// BGM volume change event
     ///
