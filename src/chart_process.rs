@@ -36,7 +36,7 @@ pub use prelude::{
 };
 
 // Use custom wrapper types
-pub use types::{ChartEventWithPosition, VisibleEvent};
+pub use types::{NoticeableChartEvent, VisibleChartEvent};
 
 /// Events generated during playback (Elm style).
 ///
@@ -207,7 +207,7 @@ pub trait ChartProcessor {
     fn start_play(&mut self, now: SystemTime);
 
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition>;
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = NoticeableChartEvent>;
 
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
     ///
@@ -216,5 +216,5 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: &[ControlEvent]);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent>;
+    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent>;
 }

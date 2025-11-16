@@ -389,7 +389,7 @@ impl ChartEventIdGenerator {
 ///
 /// Represents an event in chart playback and its position on the timeline.
 #[derive(Debug, Clone)]
-pub struct ChartEventWithPosition {
+pub struct NoticeableChartEvent {
     /// Event identifier
     pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
@@ -400,7 +400,7 @@ pub struct ChartEventWithPosition {
     pub activate_time: Duration,
 }
 
-impl ChartEventWithPosition {
+impl NoticeableChartEvent {
     /// Create a new ChartEventWithPosition
     #[must_use]
     pub const fn new(
@@ -442,15 +442,15 @@ impl ChartEventWithPosition {
     }
 }
 
-impl PartialEq for ChartEventWithPosition {
+impl PartialEq for NoticeableChartEvent {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for ChartEventWithPosition {}
+impl Eq for NoticeableChartEvent {}
 
-impl std::hash::Hash for ChartEventWithPosition {
+impl std::hash::Hash for NoticeableChartEvent {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
@@ -460,7 +460,7 @@ impl std::hash::Hash for ChartEventWithPosition {
 ///
 /// Represents an event in the visible area, including its position, event content, and display ratio.
 #[derive(Debug, Clone)]
-pub struct VisibleEvent {
+pub struct VisibleChartEvent {
     /// Event identifier
     pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
@@ -473,7 +473,7 @@ pub struct VisibleEvent {
     pub activate_time: Duration,
 }
 
-impl VisibleEvent {
+impl VisibleChartEvent {
     /// Create a new VisibleEvent
     #[must_use]
     pub const fn new(
@@ -523,15 +523,15 @@ impl VisibleEvent {
     }
 }
 
-impl PartialEq for VisibleEvent {
+impl PartialEq for VisibleChartEvent {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for VisibleEvent {}
+impl Eq for VisibleChartEvent {}
 
-impl std::hash::Hash for VisibleEvent {
+impl std::hash::Hash for VisibleChartEvent {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
@@ -539,17 +539,17 @@ impl std::hash::Hash for VisibleEvent {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
-    map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
+    map: BTreeMap<YCoordinate, Vec<NoticeableChartEvent>>,
 }
 
 impl AllEventsIndex {
     #[must_use]
-    pub const fn new(map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>) -> Self {
+    pub const fn new(map: BTreeMap<YCoordinate, Vec<NoticeableChartEvent>>) -> Self {
         Self { map }
     }
 
     #[must_use]
-    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> {
+    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<NoticeableChartEvent>> {
         &self.map
     }
 }
