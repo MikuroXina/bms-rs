@@ -914,29 +914,27 @@ pub(crate) fn event_for_note_static<T: KeyLayoutMapper>(
     y: Decimal,
 ) -> ChartEvent {
     let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
-    if let Some((side, key, kind)) = lane {
-        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-        let length = (kind == NoteKind::Long)
-            .then(|| {
-                bms.notes()
-                    .next_obj_by_key(obj.channel_id, obj.offset)
-                    .map(|next_obj| {
-                        let next_y =
-                            y_of_time_static(bms, next_obj.offset, &bms.speed.speed_factor_changes);
-                        YCoordinate::from(next_y - y)
-                    })
-            })
-            .flatten();
-        ChartEvent::Note {
-            side,
-            key,
-            kind,
-            wav_id,
-            length,
-            continue_play: None,
-        }
-    } else {
-        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-        ChartEvent::Bgm { wav_id }
+    let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+    let Some((side, key, kind)) = lane else {
+        return ChartEvent::Bgm { wav_id };
+    };
+    let length = (kind == NoteKind::Long)
+        .then(|| {
+            bms.notes()
+                .next_obj_by_key(obj.channel_id, obj.offset)
+                .map(|next_obj| {
+                    let next_y =
+                        y_of_time_static(bms, next_obj.offset, &bms.speed.speed_factor_changes);
+                    YCoordinate::from(next_y - y)
+                })
+        })
+        .flatten();
+    ChartEvent::Note {
+        side,
+        key,
+        kind,
+        wav_id,
+        length,
+        continue_play: None,
     }
 }
