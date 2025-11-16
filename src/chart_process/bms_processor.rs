@@ -8,12 +8,11 @@ use std::time::{Duration, SystemTime};
 use num::ToPrimitive;
 
 use crate::bms::prelude::*;
-use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
-    ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent,
-    types::{
-        AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
-    },
+    BaseBpm, ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent, WavId,
+    YCoordinate,
+    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
+    utils::{compute_default_visible_y_length, compute_visible_window_y},
 };
 
 /// ChartProcessor of Bms files.
@@ -205,7 +204,7 @@ impl BmsProcessor {
 
         // Generate measure lines for each track, but not exceeding maximum Y value
         for track in 0..=last_obj_time.track().0 {
-            let track_y = Self::y_of_time_static(
+            let track_y = y_of_time_static(
                 bms,
                 ObjTime::start_of(track.into()),
                 &bms.speed.speed_factor_changes,
@@ -222,88 +221,6 @@ impl BmsProcessor {
                 );
                 events_map.entry(y_coord).or_default().push(evp);
             }
-        }
-    }
-
-    /// Static version of y_of_time, considers Speed effects (used for event position precomputation)
-    /// Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
-    fn y_of_time_static(
-        bms: &Bms,
-        time: ObjTime,
-        speed_changes: &std::collections::BTreeMap<ObjTime, crate::bms::model::obj::SpeedObj>,
-    ) -> Decimal {
-        let mut y = Decimal::from(0);
-        // Accumulate complete measures
-        for t in 0..time.track().0 {
-            let section_len = bms
-                .section_len
-                .section_len_changes
-                .get(&Track(t))
-                .map(|s| &s.length)
-                .cloned()
-                .unwrap_or_else(|| Decimal::from(1));
-            y += section_len;
-        }
-        // Accumulate proportionally within current measure
-        let current_len = bms
-            .section_len
-            .section_len_changes
-            .get(&time.track())
-            .map(|s| &s.length)
-            .cloned()
-            .unwrap_or_else(|| Decimal::from(1));
-        if time.denominator().get() > 0 {
-            let fraction =
-                Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
-            y += current_len * fraction;
-        }
-
-        // Find the last Speed change before current time point as the currently effective Speed factor
-        let mut current_speed_factor = Decimal::from(1);
-        for (change_time, change) in speed_changes {
-            if *change_time <= time {
-                current_speed_factor = change.factor.clone();
-            }
-        }
-
-        // Speed affects both y distance and progression speed, but must keep trigger time unchanged
-        // y_new = y_base * current_speed_factor
-        y * current_speed_factor
-    }
-
-    /// Static version of event_for_note, used for precomputation
-    fn event_for_note_static<T: KeyLayoutMapper>(
-        bms: &Bms,
-        obj: &WavObj,
-        y: Decimal,
-    ) -> ChartEvent {
-        let Some((side, key, kind)) = Self::lane_of_channel_id::<T>(obj.channel_id) else {
-            let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-            return ChartEvent::Bgm { wav_id };
-        };
-        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
-        let length = (kind == NoteKind::Long)
-            .then(|| {
-                // Long note: find the next note in the same channel to calculate length
-                bms.notes()
-                    .next_obj_by_key(obj.channel_id, obj.offset)
-                    .map(|next_obj| {
-                        let next_y = Self::y_of_time_static(
-                            bms,
-                            next_obj.offset,
-                            &bms.speed.speed_factor_changes,
-                        );
-                        YCoordinate::from(next_y - y)
-                    })
-            })
-            .flatten();
-        ChartEvent::Note {
-            side,
-            key,
-            kind,
-            wav_id,
-            length,
-            continue_play: None, // Fixed as None for BMS
         }
     }
 
@@ -398,7 +315,7 @@ impl BmsProcessor {
         compute_visible_window_y(&self.current_bpm, &self.base_bpm, self.reaction_time)
     }
 
-    fn lane_of_channel_id<T: KeyLayoutMapper>(
+    pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
         let map = channel_id.try_into_map::<T>()?;
@@ -574,9 +491,8 @@ impl AllEventsIndex {
 
         // Note / Wav arrival events
         for obj in bms.notes().all_notes() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, obj.offset, &bms.speed.speed_factor_changes);
-            let event = BmsProcessor::event_for_note_static::<T>(bms, obj, y.clone());
+            let y = y_of_time_static(bms, obj.offset, &bms.speed.speed_factor_changes);
+            let event = event_for_note_static::<T>(bms, obj, y.clone());
 
             let y_coord = YCoordinate::from(y);
             let evp = ChartEventWithPosition::new(
@@ -590,8 +506,7 @@ impl AllEventsIndex {
 
         // BPM change events
         for change in bms.bpm.bpm_changes.values() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::BpmChange {
                 bpm: change.bpm.clone(),
             };
@@ -608,8 +523,7 @@ impl AllEventsIndex {
 
         // Scroll change events
         for change in bms.scroll.scrolling_factor_changes.values() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::ScrollChange {
                 factor: change.factor.clone(),
             };
@@ -626,8 +540,7 @@ impl AllEventsIndex {
 
         // Speed change events
         for change in bms.speed.speed_factor_changes.values() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::SpeedChange {
                 factor: change.factor.clone(),
             };
@@ -644,7 +557,7 @@ impl AllEventsIndex {
 
         // Stop events
         for stop in bms.stop.stops.values() {
-            let y = BmsProcessor::y_of_time_static(bms, stop.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, stop.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::Stop {
                 duration: stop.duration.clone(),
             };
@@ -661,8 +574,7 @@ impl AllEventsIndex {
 
         // BGA change events
         for bga_obj in bms.bmp.bga_changes.values() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, bga_obj.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, bga_obj.time, &bms.speed.speed_factor_changes);
             let bmp_index = bga_obj.id.as_u16() as usize;
             let event = ChartEvent::BgaChange {
                 layer: bga_obj.layer,
@@ -683,11 +595,7 @@ impl AllEventsIndex {
 
         for (layer, opacity_changes) in &bms.bmp.bga_opacity_changes {
             for opacity_obj in opacity_changes.values() {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    opacity_obj.time,
-                    &bms.speed.speed_factor_changes,
-                );
+                let y = y_of_time_static(bms, opacity_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::BgaOpacityChange {
                     layer: *layer,
                     opacity: opacity_obj.opacity,
@@ -708,11 +616,7 @@ impl AllEventsIndex {
 
         for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    argb_obj.time,
-                    &bms.speed.speed_factor_changes,
-                );
+                let y = y_of_time_static(bms, argb_obj.time, &bms.speed.speed_factor_changes);
                 let argb = ((argb_obj.argb.alpha as u32) << 24)
                     | ((argb_obj.argb.red as u32) << 16)
                     | ((argb_obj.argb.green as u32) << 8)
@@ -735,11 +639,7 @@ impl AllEventsIndex {
 
         // BGM volume change events
         for bgm_volume_obj in bms.volume.bgm_volume_changes.values() {
-            let y = BmsProcessor::y_of_time_static(
-                bms,
-                bgm_volume_obj.time,
-                &bms.speed.speed_factor_changes,
-            );
+            let y = y_of_time_static(bms, bgm_volume_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::BgmVolumeChange {
                 volume: bgm_volume_obj.volume,
             };
@@ -756,11 +656,7 @@ impl AllEventsIndex {
 
         // KEY volume change events
         for key_volume_obj in bms.volume.key_volume_changes.values() {
-            let y = BmsProcessor::y_of_time_static(
-                bms,
-                key_volume_obj.time,
-                &bms.speed.speed_factor_changes,
-            );
+            let y = y_of_time_static(bms, key_volume_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::KeyVolumeChange {
                 volume: key_volume_obj.volume,
             };
@@ -777,8 +673,7 @@ impl AllEventsIndex {
 
         // Text display events
         for text_obj in bms.text.text_events.values() {
-            let y =
-                BmsProcessor::y_of_time_static(bms, text_obj.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, text_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::TextDisplay {
                 text: text_obj.text.clone(),
             };
@@ -795,11 +690,7 @@ impl AllEventsIndex {
 
         // Judge level change events
         for judge_obj in bms.judge.judge_events.values() {
-            let y = BmsProcessor::y_of_time_static(
-                bms,
-                judge_obj.time,
-                &bms.speed.speed_factor_changes,
-            );
+            let y = y_of_time_static(bms, judge_obj.time, &bms.speed.speed_factor_changes);
             let event = ChartEvent::JudgeLevelChange {
                 level: judge_obj.judge_level,
             };
@@ -819,11 +710,7 @@ impl AllEventsIndex {
         {
             // Video seek events
             for seek_obj in bms.video.seek_events.values() {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    seek_obj.time,
-                    &bms.speed.speed_factor_changes,
-                );
+                let y = y_of_time_static(bms, seek_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::VideoSeek {
                     seek_time: seek_obj.position.to_string().parse::<f64>().unwrap_or(0.0),
                 };
@@ -840,11 +727,8 @@ impl AllEventsIndex {
 
             // BGA key binding events
             for bga_keybound_obj in bms.bmp.bga_keybound_events.values() {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    bga_keybound_obj.time,
-                    &bms.speed.speed_factor_changes,
-                );
+                let y =
+                    y_of_time_static(bms, bga_keybound_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::BgaKeybound {
                     event: bga_keybound_obj.event.clone(),
                 };
@@ -861,11 +745,7 @@ impl AllEventsIndex {
 
             // Option change events
             for option_obj in bms.option.option_events.values() {
-                let y = BmsProcessor::y_of_time_static(
-                    bms,
-                    option_obj.time,
-                    &bms.speed.speed_factor_changes,
-                );
+                let y = y_of_time_static(bms, option_obj.time, &bms.speed.speed_factor_changes);
                 let event = ChartEvent::OptionChange {
                     option: option_obj.option.clone(),
                 };
@@ -907,8 +787,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .bpm_changes
         .values()
         .map(|change| {
-            let y =
-                BmsProcessor::y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
+            let y = y_of_time_static(bms, change.time, &bms.speed.speed_factor_changes);
             (y, change.bpm.clone())
         })
         .collect();
@@ -920,7 +799,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .stops
         .values()
         .map(|st| {
-            let sy = BmsProcessor::y_of_time_static(bms, st.time, &bms.speed.speed_factor_changes);
+            let sy = y_of_time_static(bms, st.time, &bms.speed.speed_factor_changes);
             (sy, st.duration.clone())
         })
         .collect();
@@ -993,4 +872,76 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         })
         .collect();
     AllEventsIndex::new(new_map)
+}
+
+#[must_use]
+pub(crate) fn y_of_time_static(
+    bms: &Bms,
+    time: ObjTime,
+    speed_changes: &BTreeMap<ObjTime, SpeedObj>,
+) -> Decimal {
+    let mut y = Decimal::from(0);
+    for t in 0..time.track().0 {
+        let section_len = bms
+            .section_len
+            .section_len_changes
+            .get(&Track(t))
+            .map(|s| &s.length)
+            .cloned()
+            .unwrap_or_else(|| Decimal::from(1));
+        y += section_len;
+    }
+    let current_len = bms
+        .section_len
+        .section_len_changes
+        .get(&time.track())
+        .map(|s| &s.length)
+        .cloned()
+        .unwrap_or_else(|| Decimal::from(1));
+    if time.denominator().get() > 0 {
+        let fraction = Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
+        y += current_len * fraction;
+    }
+
+    let mut current_speed_factor = Decimal::from(1);
+    for (change_time, change) in speed_changes {
+        if *change_time <= time {
+            current_speed_factor = change.factor.clone();
+        }
+    }
+    y * current_speed_factor
+}
+
+#[must_use]
+pub(crate) fn event_for_note_static<T: KeyLayoutMapper>(
+    bms: &Bms,
+    obj: &WavObj,
+    y: Decimal,
+) -> ChartEvent {
+    let lane = BmsProcessor::lane_of_channel_id::<T>(obj.channel_id);
+    if let Some((side, key, kind)) = lane {
+        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+        let length = (kind == NoteKind::Long)
+            .then(|| {
+                bms.notes()
+                    .next_obj_by_key(obj.channel_id, obj.offset)
+                    .map(|next_obj| {
+                        let next_y =
+                            y_of_time_static(bms, next_obj.offset, &bms.speed.speed_factor_changes);
+                        YCoordinate::from(next_y - y)
+                    })
+            })
+            .flatten();
+        ChartEvent::Note {
+            side,
+            key,
+            kind,
+            wav_id,
+            length,
+            continue_play: None,
+        }
+    } else {
+        let wav_id = Some(WavId::from(obj.wav_id.as_u16() as usize));
+        ChartEvent::Bgm { wav_id }
+    }
 }
