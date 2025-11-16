@@ -613,17 +613,12 @@ impl AllEventsIndex {
         }
 
         // BGA ARGB color change events (requires minor-command feature)
-
         for (layer, argb_changes) in &bms.bmp.bga_argb_changes {
             for argb_obj in argb_changes.values() {
                 let y = y_of_time_static(bms, argb_obj.time, &bms.speed.speed_factor_changes);
-                let argb = ((argb_obj.argb.alpha as u32) << 24)
-                    | ((argb_obj.argb.red as u32) << 16)
-                    | ((argb_obj.argb.green as u32) << 8)
-                    | (argb_obj.argb.blue as u32);
                 let event = ChartEvent::BgaArgbChange {
                     layer: *layer,
-                    argb,
+                    argb: argb_obj.argb,
                 };
 
                 let y_coord = YCoordinate::from(y);
