@@ -43,7 +43,7 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, common_preset, minor_preset},
+        token_processor::{TokenProcessor, common_preset, full_preset},
     },
     prelude::*,
 };
@@ -208,7 +208,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
             ) -> Result<Self::Output, ParseErrorWithRange> {
                 if self.use_minor {
-                    minor_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
+                    full_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
                 } else {
                     common_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
                 }

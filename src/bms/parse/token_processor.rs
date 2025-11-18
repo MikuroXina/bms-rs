@@ -276,7 +276,7 @@ pub(crate) fn common_preset<T: KeyLayoutMapper, R: Rng>(
 }
 
 /// Returns all of processors this crate provided.
-pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
+pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
     relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
