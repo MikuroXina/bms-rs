@@ -9,7 +9,7 @@ use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, NoticeableChartEvent, VisibleChartEvent,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent,
     types::{
         AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
     },
@@ -44,7 +44,7 @@ pub struct BmsonProcessor<'a> {
     inbox: Vec<ControlEvent>,
 
     /// Preloaded events list (all events in current visible area)
-    preloaded_events: Vec<NoticeableChartEvent>,
+    preloaded_events: Vec<PlayheadEvent>,
 
     /// Preprocessed all events mapping, sorted by y coordinate
     all_events: AllEventsIndex,
@@ -294,7 +294,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
     }
 
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = NoticeableChartEvent> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
@@ -313,10 +313,10 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // Collect events triggered at current moment
-        let mut triggered_events: Vec<NoticeableChartEvent> = Vec::new();
+        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
 
         // Collect events within preload range
-        let mut new_preloaded_events: Vec<NoticeableChartEvent> = Vec::new();
+        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
 
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
@@ -521,7 +521,7 @@ impl AllEventsIndex {
             cum_map.insert(curr.clone(), total);
             prev = curr;
         }
-        let mut events_map: BTreeMap<YCoordinate, Vec<NoticeableChartEvent>> = BTreeMap::new();
+        let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
             let mut last_restart_y = Decimal::from(0);
@@ -553,8 +553,7 @@ impl AllEventsIndex {
                         continue_play,
                     };
                     let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
-                    let evp =
-                        NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     if !*c {
                         last_restart_y = yy;
@@ -562,8 +561,7 @@ impl AllEventsIndex {
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
                     let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
-                    let evp =
-                        NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
             }
@@ -575,7 +573,7 @@ impl AllEventsIndex {
                 bpm: ev.bpm.as_f64().into(),
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
@@ -585,7 +583,7 @@ impl AllEventsIndex {
                 factor: rate.as_f64().into(),
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         let mut id_to_bmp: HashMap<u32, Option<BmpId>> = HashMap::new();
@@ -601,7 +599,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.layer_events {
@@ -613,7 +611,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.poor_events {
@@ -625,7 +623,7 @@ impl AllEventsIndex {
                 bmp_id,
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         if let Some(lines) = &bmson.lines {
@@ -635,7 +633,7 @@ impl AllEventsIndex {
                 let event = ChartEvent::BarLine;
                 let at =
                     Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-                let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         } else {
@@ -653,8 +651,7 @@ impl AllEventsIndex {
                     let at = Duration::from_secs_f64(
                         cum_map.get(y_coord.value()).copied().unwrap_or(0.0),
                     );
-                    let evp =
-                        NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                    let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     current_y += Decimal::from(1);
                 }
@@ -667,7 +664,7 @@ impl AllEventsIndex {
                 duration: (stop.duration as f64).into(),
             };
             let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-            let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for MineChannel { name, notes } in &bmson.mine_channels {
@@ -688,7 +685,7 @@ impl AllEventsIndex {
                 };
                 let at =
                     Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-                let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -710,7 +707,7 @@ impl AllEventsIndex {
                 };
                 let at =
                     Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
-                let evp = NoticeableChartEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
+                let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }

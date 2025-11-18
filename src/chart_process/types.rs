@@ -389,7 +389,7 @@ impl ChartEventIdGenerator {
 ///
 /// Represents an event in chart playback and its position on the timeline.
 #[derive(Debug, Clone)]
-pub struct NoticeableChartEvent {
+pub struct PlayheadEvent {
     /// Event identifier
     pub id: ChartEventId,
     /// Event position on timeline (y coordinate)
@@ -400,7 +400,7 @@ pub struct NoticeableChartEvent {
     pub activate_time: Duration,
 }
 
-impl NoticeableChartEvent {
+impl PlayheadEvent {
     /// Create a new ChartEventWithPosition
     #[must_use]
     pub const fn new(
@@ -442,15 +442,15 @@ impl NoticeableChartEvent {
     }
 }
 
-impl PartialEq for NoticeableChartEvent {
+impl PartialEq for PlayheadEvent {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for NoticeableChartEvent {}
+impl Eq for PlayheadEvent {}
 
-impl std::hash::Hash for NoticeableChartEvent {
+impl std::hash::Hash for PlayheadEvent {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
@@ -539,17 +539,17 @@ impl std::hash::Hash for VisibleChartEvent {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
-    map: BTreeMap<YCoordinate, Vec<NoticeableChartEvent>>,
+    map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
 }
 
 impl AllEventsIndex {
     #[must_use]
-    pub const fn new(map: BTreeMap<YCoordinate, Vec<NoticeableChartEvent>>) -> Self {
+    pub const fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         Self { map }
     }
 
     #[must_use]
-    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<NoticeableChartEvent>> {
+    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<PlayheadEvent>> {
         &self.map
     }
 }
