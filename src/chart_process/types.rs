@@ -4,6 +4,7 @@ use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
+use num::{One, Zero};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -245,13 +246,13 @@ impl DisplayRatio {
     /// Create a DisplayRatio representing the judgment line (value 0)
     #[must_use]
     pub fn at_judgment_line() -> Self {
-        Self(Decimal::from(0))
+        Self(Decimal::zero())
     }
 
     /// Create a DisplayRatio representing the position where note starts to appear (value 1)
     #[must_use]
     pub fn at_appearance() -> Self {
-        Self(Decimal::from(1))
+        Self(Decimal::one())
     }
 }
 

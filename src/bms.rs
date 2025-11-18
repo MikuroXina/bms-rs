@@ -17,9 +17,6 @@
 
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
-use fraction::GenericDecimal;
-use num::BigUint;
-
 pub mod command;
 
 pub mod lex;
@@ -52,7 +49,7 @@ use self::{
 ///
 /// This is a type alias for `GenericDecimal<BigUint, usize>` which provides
 /// arbitrary precision decimal arithmetic for BMS parsing.
-pub type Decimal = GenericDecimal<BigUint, usize>;
+pub type Decimal = fraction::BigDecimal;
 
 /// An error occurred when parsing the BMS format file.
 #[non_exhaustive]

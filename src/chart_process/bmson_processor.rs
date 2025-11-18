@@ -14,7 +14,7 @@ use crate::chart_process::{
         AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
     },
 };
-use num::ToPrimitive;
+use num::{One, ToPrimitive, Zero};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
@@ -145,13 +145,13 @@ impl<'a> BmsonProcessor<'a> {
             bmp_name_to_id,
             started_at: None,
             last_poll_at: None,
-            progressed_y: Decimal::from(0),
+            progressed_y: Decimal::zero(),
             inbox: Vec::new(),
             preloaded_events: Vec::new(),
             all_events,
             default_visible_y_length,
             current_bpm: init_bpm,
-            current_scroll: Decimal::from(1),
+            current_scroll: Decimal::one(),
             base_bpm,
             reaction_time,
             flow_events_by_y,
@@ -164,9 +164,9 @@ impl<'a> BmsonProcessor<'a> {
     /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         if self.current_bpm.is_sign_negative() {
-            Decimal::from(0)
+            Decimal::zero()
         } else {
-            (self.current_bpm.clone() / self.base_bpm.value().clone()).max(Decimal::from(0))
+            (self.current_bpm.clone() / self.base_bpm.value().clone()).max(Decimal::zero())
         }
     }
 
@@ -195,8 +195,8 @@ impl<'a> BmsonProcessor<'a> {
         loop {
             let next_event = self.next_flow_event_after(cur_y.clone());
             if next_event.is_none()
-                || cur_vel == Decimal::from(0)
-                || remaining_secs == Decimal::from(0)
+                || cur_vel == Decimal::zero()
+                || remaining_secs == Decimal::zero()
             {
                 cur_y += cur_vel * remaining_secs;
                 break;
@@ -208,7 +208,7 @@ impl<'a> BmsonProcessor<'a> {
                 continue;
             }
             let distance = event_y.clone() - cur_y.clone();
-            if cur_vel > Decimal::from(0) {
+            if cur_vel > Decimal::zero() {
                 let time_to_event_secs = distance / cur_vel.clone();
                 if time_to_event_secs <= remaining_secs {
                     cur_y = event_y;
@@ -280,7 +280,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.current_bpm.clone()
     }
     fn current_speed(&self) -> Decimal {
-        Decimal::from(1)
+        Decimal::one()
     }
     fn current_scroll(&self) -> Decimal {
         self.current_scroll.clone()
@@ -289,7 +289,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
     fn start_play(&mut self, now: SystemTime) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
-        self.progressed_y = Decimal::from(0);
+        self.progressed_y = Decimal::zero();
         self.preloaded_events.clear();
         self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
     }
@@ -359,11 +359,11 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
             let event_y = event_with_pos.position().value();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y > Decimal::from(0) {
+            let display_ratio_value = if visible_window_y > Decimal::zero() {
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()
             } else {
-                Decimal::from(0)
+                Decimal::zero()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
 
@@ -394,14 +394,14 @@ impl AllEventsIndex {
     ) -> Self {
         use std::collections::BTreeSet;
         let denom = Decimal::from(4 * bmson.info.resolution.get());
-        let denom_inv = if denom == Decimal::from(0) {
-            Decimal::from(0)
+        let denom_inv = if denom == Decimal::zero() {
+            Decimal::zero()
         } else {
-            Decimal::from(1) / denom
+            Decimal::one() / denom
         };
         let pulses_to_y = |pulses: u64| Decimal::from(pulses) * denom_inv.clone();
         let mut points: BTreeSet<Decimal> = BTreeSet::new();
-        points.insert(Decimal::from(0));
+        points.insert(Decimal::zero());
         for SoundChannel { notes, .. } in &bmson.sound_channels {
             for Note { y, .. } in notes {
                 points.insert(pulses_to_y(y.0));
@@ -440,21 +440,14 @@ impl AllEventsIndex {
                 points.insert(pulses_to_y(bar_line.y.0));
             }
         } else {
-            let max_y = points
-                .iter()
-                .cloned()
-                .max()
-                .unwrap_or_else(|| Decimal::from(0));
+            let max_y = points.iter().cloned().max().unwrap_or_else(Decimal::zero);
             let floor = max_y.to_i64().unwrap_or(0);
             for i in 0..=floor {
                 points.insert(Decimal::from(i));
             }
         }
         let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        bpm_map.insert(
-            Decimal::from(0),
-            Decimal::from(bmson.info.init_bpm.as_f64()),
-        );
+        bpm_map.insert(Decimal::zero(), Decimal::from(bmson.info.init_bpm.as_f64()));
         let bpm_pairs: Vec<(Decimal, Decimal)> = bmson
             .bpm_events
             .iter()
@@ -471,7 +464,7 @@ impl AllEventsIndex {
         let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
         let init_bpm = Decimal::from(bmson.info.init_bpm.as_f64());
         let mut total = 0.0f64;
-        let mut prev = Decimal::from(0);
+        let mut prev = Decimal::zero();
         cum_map.insert(prev.clone(), 0.0);
         let mut cur_bpm = bpm_map
             .range((
@@ -524,7 +517,7 @@ impl AllEventsIndex {
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
-            let mut last_restart_y = Decimal::from(0);
+            let mut last_restart_y = Decimal::zero();
             for Note { y, x, l, c, .. } in notes {
                 let yy = pulses_to_y(y.0);
                 let y_coord = YCoordinate::from(yy.clone());
@@ -642,9 +635,9 @@ impl AllEventsIndex {
                 .map(|y_coord| y_coord.value())
                 .max()
                 .cloned()
-                .unwrap_or_else(|| Decimal::from(0));
-            if max_y > Decimal::from(0) {
-                let mut current_y = Decimal::from(0);
+                .unwrap_or_else(Decimal::zero);
+            if max_y > Decimal::zero() {
+                let mut current_y = Decimal::zero();
                 while current_y <= max_y {
                     let y_coord = YCoordinate::from(current_y.clone());
                     let event = ChartEvent::BarLine;
@@ -653,7 +646,7 @@ impl AllEventsIndex {
                     );
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
-                    current_y += Decimal::from(1);
+                    current_y += Decimal::one();
                 }
             }
         }

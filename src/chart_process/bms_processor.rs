@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use num::ToPrimitive;
+use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
@@ -70,7 +70,7 @@ impl BmsProcessor {
         for change in bms.bpm.bpm_changes.values() {
             let y = {
                 // y_of_time only considers section length, matching original next_flow_event_after semantics
-                let mut y = Decimal::from(0);
+                let mut y = Decimal::zero();
                 // Accumulate complete measures
                 for t in 0..change.time.track().0 {
                     y += bms
@@ -78,7 +78,7 @@ impl BmsProcessor {
                         .section_len_changes
                         .get(&Track(t))
                         .map(|s| s.length.clone())
-                        .unwrap_or_else(|| Decimal::from(1));
+                        .unwrap_or_else(Decimal::one);
                 }
                 // Accumulate proportionally within current measure
                 let current_len = bms
@@ -86,7 +86,7 @@ impl BmsProcessor {
                     .section_len_changes
                     .get(&change.time.track())
                     .map(|s| s.length.clone())
-                    .unwrap_or_else(|| Decimal::from(1));
+                    .unwrap_or_else(Decimal::one);
                 let fraction = if change.time.denominator().get() > 0 {
                     Decimal::from(change.time.numerator())
                         / Decimal::from(change.time.denominator().get())
@@ -102,21 +102,21 @@ impl BmsProcessor {
         }
         for change in bms.scroll.scrolling_factor_changes.values() {
             let y = {
-                let mut y = Decimal::from(0);
+                let mut y = Decimal::zero();
                 for t in 0..change.time.track().0 {
                     y += bms
                         .section_len
                         .section_len_changes
                         .get(&Track(t))
                         .map(|s| s.length.clone())
-                        .unwrap_or_else(|| Decimal::from(1));
+                        .unwrap_or_else(Decimal::one);
                 }
                 let current_len = bms
                     .section_len
                     .section_len_changes
                     .get(&change.time.track())
                     .map(|s| s.length.clone())
-                    .unwrap_or_else(|| Decimal::from(1));
+                    .unwrap_or_else(Decimal::one);
                 let fraction = if change.time.denominator().get() > 0 {
                     Decimal::from(change.time.numerator())
                         / Decimal::from(change.time.denominator().get())
@@ -132,21 +132,21 @@ impl BmsProcessor {
         }
         for change in bms.speed.speed_factor_changes.values() {
             let y = {
-                let mut y = Decimal::from(0);
+                let mut y = Decimal::zero();
                 for t in 0..change.time.track().0 {
                     y += bms
                         .section_len
                         .section_len_changes
                         .get(&Track(t))
                         .map(|s| s.length.clone())
-                        .unwrap_or_else(|| Decimal::from(1));
+                        .unwrap_or_else(Decimal::one);
                 }
                 let current_len = bms
                     .section_len
                     .section_len_changes
                     .get(&change.time.track())
                     .map(|s| s.length.clone())
-                    .unwrap_or_else(|| Decimal::from(1));
+                    .unwrap_or_else(Decimal::one);
                 let fraction = if change.time.denominator().get() > 0 {
                     Decimal::from(change.time.numerator())
                         / Decimal::from(change.time.denominator().get())
@@ -165,14 +165,14 @@ impl BmsProcessor {
             bms,
             started_at: None,
             last_poll_at: None,
-            progressed_y: Decimal::from(0),
+            progressed_y: Decimal::zero(),
             inbox: Vec::new(),
             all_events,
             preloaded_events: Vec::new(),
             default_visible_y_length,
             current_bpm: init_bpm,
-            current_speed: Decimal::from(1),
-            current_scroll: Decimal::from(1),
+            current_speed: Decimal::one(),
+            current_scroll: Decimal::one(),
             base_bpm,
             reaction_time,
             flow_events_by_y,
@@ -191,9 +191,9 @@ impl BmsProcessor {
             .map(|y_coord| y_coord.value())
             .max()
             .cloned()
-            .unwrap_or_else(|| Decimal::from(0));
+            .unwrap_or_else(Decimal::zero);
 
-        if max_y <= Decimal::from(0) {
+        if max_y <= Decimal::zero() {
             return;
         }
 
@@ -228,7 +228,7 @@ impl BmsProcessor {
     /// Model: v = (current_bpm / base_bpm) * speed_factor
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
-        let velocity = if self.current_bpm > Decimal::from(0) {
+        let velocity = if self.current_bpm > Decimal::zero() {
             let velocity = self.current_bpm.clone() / self.base_bpm.value().clone();
             let speed_factor = self.current_speed.clone();
             velocity * speed_factor
@@ -266,8 +266,8 @@ impl BmsProcessor {
             // The next event that affects speed
             let next_event = self.next_flow_event_after(cur_y.clone());
             if next_event.is_none()
-                || cur_vel <= Decimal::from(0)
-                || remaining_secs <= Decimal::from(0)
+                || cur_vel <= Decimal::zero()
+                || remaining_secs <= Decimal::zero()
             {
                 // Advance directly to the end
                 cur_y += cur_vel * remaining_secs;
@@ -282,7 +282,7 @@ impl BmsProcessor {
             }
             // Time required to reach event
             let distance = event_y.clone() - cur_y.clone();
-            if cur_vel > Decimal::from(0) {
+            if cur_vel > Decimal::zero() {
                 let time_to_event_secs = distance / cur_vel.clone();
                 if time_to_event_secs <= remaining_secs {
                     // First advance to event point
@@ -362,7 +362,7 @@ impl ChartProcessor for BmsProcessor {
     fn start_play(&mut self, now: SystemTime) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
-        self.progressed_y = Decimal::from(0);
+        self.progressed_y = Decimal::zero();
         self.preloaded_events.clear();
         // Initialize current_bpm to header or default
         self.current_bpm = self
@@ -454,7 +454,7 @@ impl ChartProcessor for BmsProcessor {
             let event_y = event_with_pos.position().value();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y > Decimal::from(0) {
+            let display_ratio_value = if visible_window_y > Decimal::zero() {
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()
             } else {
@@ -766,7 +766,7 @@ impl AllEventsIndex {
 fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEventsIndex {
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<Decimal> = BTreeSet::new();
-    points.insert(Decimal::from(0));
+    points.insert(Decimal::zero());
     points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
 
     let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
@@ -776,7 +776,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .as_ref()
         .cloned()
         .unwrap_or_else(|| Decimal::from(120));
-    bpm_map.insert(Decimal::from(0), init_bpm.clone());
+    bpm_map.insert(Decimal::zero(), init_bpm.clone());
     let bpm_pairs: Vec<(Decimal, Decimal)> = bms
         .bpm
         .bpm_changes
@@ -802,7 +802,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
 
     let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
     let mut total = 0.0f64;
-    let mut prev = Decimal::from(0);
+    let mut prev = Decimal::zero();
     cum_map.insert(prev.clone(), 0.0);
     let mut cur_bpm = bpm_map
         .range((
@@ -875,7 +875,7 @@ pub(crate) fn y_of_time_static(
     time: ObjTime,
     speed_changes: &BTreeMap<ObjTime, SpeedObj>,
 ) -> Decimal {
-    let mut y = Decimal::from(0);
+    let mut y = Decimal::zero();
     for t in 0..time.track().0 {
         let section_len = bms
             .section_len
@@ -883,7 +883,7 @@ pub(crate) fn y_of_time_static(
             .get(&Track(t))
             .map(|s| &s.length)
             .cloned()
-            .unwrap_or_else(|| Decimal::from(1));
+            .unwrap_or_else(Decimal::one);
         y += section_len;
     }
     let current_len = bms
@@ -892,13 +892,13 @@ pub(crate) fn y_of_time_static(
         .get(&time.track())
         .map(|s| &s.length)
         .cloned()
-        .unwrap_or_else(|| Decimal::from(1));
+        .unwrap_or_else(|| Decimal::one());
     if time.denominator().get() > 0 {
         let fraction = Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
         y += current_len * fraction;
     }
 
-    let mut current_speed_factor = Decimal::from(1);
+    let mut current_speed_factor = Decimal::one();
     for (change_time, change) in speed_changes {
         if *change_time <= time {
             current_speed_factor = change.factor.clone();
