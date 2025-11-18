@@ -43,7 +43,7 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, common_preset, full_preset},
+        token_processor::{TokenProcessor, full_preset},
     },
     prelude::*,
 };
@@ -80,7 +80,6 @@ pub struct ParseConfig<T, P, R> {
     key_mapper: PhantomData<fn() -> T>,
     prompter: P,
     rng: R,
-    use_minor: bool,
     use_relaxed: bool,
 }
 
@@ -93,7 +92,6 @@ pub fn default_config()
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
-        use_minor: true,
         use_relaxed: true,
     }
 }
@@ -106,7 +104,6 @@ pub fn default_config() -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: rng::JavaRandom::default(),
-        use_minor: true,
         use_relaxed: true,
     }
 }
@@ -117,7 +114,6 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng,
-        use_minor: true,
         use_relaxed: true,
     }
 }
@@ -129,7 +125,6 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
-            use_minor: self.use_minor,
             use_relaxed: self.use_relaxed,
         }
     }
@@ -140,7 +135,6 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter,
             rng: self.rng,
-            use_minor: self.use_minor,
             use_relaxed: self.use_relaxed,
         }
     }
@@ -151,24 +145,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng,
-            use_minor: self.use_minor,
             use_relaxed: self.use_relaxed,
-        }
-    }
-
-    /// Change to use common token processors that don't try to parse minor commands.
-    pub fn use_common(self) -> Self {
-        Self {
-            use_minor: false,
-            ..self
-        }
-    }
-
-    /// Change to use minor token processors that try to parse minor commands. This is the default option.
-    pub fn use_minor(self) -> Self {
-        Self {
-            use_minor: true,
-            ..self
         }
     }
 
@@ -197,7 +174,6 @@ impl<T, P, R> ParseConfig<T, P, R> {
         struct AggregateTokenProcessor<T, R> {
             key_mapper: PhantomData<fn() -> T>,
             rng: Rc<RefCell<R>>,
-            use_minor: bool,
             use_relaxed: bool,
         }
         impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
@@ -207,18 +183,13 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 &self,
                 ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
             ) -> Result<Self::Output, ParseErrorWithRange> {
-                if self.use_minor {
-                    full_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
-                } else {
-                    common_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
-                }
+                full_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
             }
         }
         (
             AggregateTokenProcessor::<T, R> {
                 key_mapper: PhantomData,
                 rng: Rc::new(RefCell::new(self.rng)),
-                use_minor: self.use_minor,
                 use_relaxed: self.use_relaxed,
             },
             self.prompter,
