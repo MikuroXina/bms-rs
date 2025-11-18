@@ -9,7 +9,7 @@ use num::ToPrimitive;
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    BaseBpm, ChartEvent, ChartEventWithPosition, ChartProcessor, ControlEvent, VisibleEvent, WavId,
+    BaseBpm, ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, WavId,
     YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
     utils::{compute_default_visible_y_length, compute_visible_window_y},
@@ -32,7 +32,7 @@ pub struct BmsProcessor {
     all_events: AllEventsIndex,
 
     /// Preloaded events list (all events in current visible area)
-    preloaded_events: Vec<ChartEventWithPosition>,
+    preloaded_events: Vec<PlayheadEvent>,
 
     // Flow parameters
     default_visible_y_length: YCoordinate,
@@ -182,7 +182,7 @@ impl BmsProcessor {
     /// Generate measure lines for BMS (generated for each track, but not exceeding other objects' Y values)
     fn generate_barlines_for_bms(
         bms: &Bms,
-        events_map: &mut BTreeMap<YCoordinate, Vec<ChartEventWithPosition>>,
+        events_map: &mut BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
         id_gen: &mut ChartEventIdGenerator,
     ) {
         // Find the maximum Y value of all events
@@ -213,7 +213,7 @@ impl BmsProcessor {
             if track_y <= max_y {
                 let y_coord = YCoordinate::from(track_y);
                 let event = ChartEvent::BarLine;
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -374,7 +374,7 @@ impl ChartProcessor for BmsProcessor {
             .unwrap_or_else(|| Decimal::from(120));
     }
 
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = ChartEventWithPosition> {
+    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
         // Process external events delivered through post_events
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
@@ -394,10 +394,10 @@ impl ChartProcessor for BmsProcessor {
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // Collect events triggered at current moment
-        let mut triggered_events: Vec<ChartEventWithPosition> = Vec::new();
+        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
 
         // Collect events within preload range
-        let mut new_preloaded_events: Vec<ChartEventWithPosition> = Vec::new();
+        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
 
         use std::ops::Bound::{Excluded, Included};
         // Triggered events: (prev_y, cur_y]
@@ -444,7 +444,7 @@ impl ChartProcessor for BmsProcessor {
         self.inbox.extend_from_slice(events);
     }
 
-    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleEvent> {
+    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
@@ -464,7 +464,7 @@ impl ChartProcessor for BmsProcessor {
 
             let activate_time = event_with_pos.activate_time;
 
-            VisibleEvent::new(
+            VisibleChartEvent::new(
                 event_with_pos.id,
                 event_with_pos.position().clone(),
                 event_with_pos.event().clone(),
@@ -486,7 +486,7 @@ impl AllEventsIndex {
     /// Precompute all events, store grouped by Y coordinate
     /// Note: Speed effects are calculated into event positions during initialization, ensuring event trigger times remain unchanged
     fn precompute_all_events<T: KeyLayoutMapper>(bms: &Bms) -> Self {
-        let mut events_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = BTreeMap::new();
+        let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
 
         // Note / Wav arrival events
@@ -495,7 +495,7 @@ impl AllEventsIndex {
             let event = event_for_note_static::<T>(bms, obj, y.clone());
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -512,7 +512,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -529,7 +529,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -546,7 +546,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -563,7 +563,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -582,7 +582,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -602,7 +602,7 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -622,7 +622,7 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -640,7 +640,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -657,7 +657,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -674,7 +674,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -691,7 +691,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = ChartEventWithPosition::new(
+            let evp = PlayheadEvent::new(
                 id_gen.next_id(),
                 y_coord.clone(),
                 event,
@@ -711,7 +711,7 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -729,7 +729,7 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -746,7 +746,7 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = ChartEventWithPosition::new(
+                let evp = PlayheadEvent::new(
                     id_gen.next_id(),
                     y_coord.clone(),
                     event,
@@ -849,7 +849,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         prev = curr;
     }
 
-    let new_map: BTreeMap<YCoordinate, Vec<ChartEventWithPosition>> = all_events
+    let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
         .as_map()
         .iter()
         .map(|(y_coord, events)| {
