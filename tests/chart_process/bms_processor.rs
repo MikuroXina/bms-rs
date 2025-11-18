@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
 
-use num::ToPrimitive;
+use num::{One, ToPrimitive};
 
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
@@ -33,8 +33,8 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
 
     // Verify initial state
     assert_eq!(processor.current_bpm(), Decimal::from(120));
-    assert_eq!(processor.current_speed(), Decimal::from(1));
-    assert_eq!(processor.current_scroll(), Decimal::from(1));
+    assert_eq!(processor.current_speed(), Decimal::one());
+    assert_eq!(processor.current_scroll(), Decimal::one());
 
     // Advance to first change point
     let after_first_change = start_time + Duration::from_secs(1);
@@ -206,7 +206,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     processor.start_play(start_time);
 
     // Verify initial state：Scroll = 1.0
-    assert_eq!(processor.current_scroll(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
     let initial_events: Vec<_> = processor.visible_events(start_time).collect();
@@ -228,7 +228,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + Duration::from_secs(1);
     let _ = processor.update(after_first_scroll);
-    assert_eq!(processor.current_scroll(), Decimal::from(1));
+    assert_eq!(processor.current_scroll(), Decimal::one());
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events(after_first_scroll)

@@ -1,4 +1,5 @@
 use bms_rs::bms::prelude::*;
+use num::One;
 
 #[test]
 fn test_lal() {
@@ -142,7 +143,7 @@ fn test_bemuse_ext() {
         bms.scroll
             .scroll_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1))
+        Some(&Decimal::one())
     );
     assert_eq!(
         bms.scroll
@@ -154,7 +155,7 @@ fn test_bemuse_ext() {
         bms.speed
             .speed_defs
             .get(&ObjId::try_from("01", false).unwrap()),
-        Some(&Decimal::from(1))
+        Some(&Decimal::one())
     );
     assert_eq!(
         bms.speed

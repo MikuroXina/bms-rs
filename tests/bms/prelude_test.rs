@@ -1,5 +1,5 @@
 use bms_rs::bms::prelude::*;
-use num::BigUint;
+use num::{BigUint, One};
 
 #[test]
 fn test_prelude_imports() {
@@ -74,7 +74,7 @@ fn test_prelude_imports() {
     };
     let _stop_obj = StopObj {
         time: _obj_time,
-        duration: Decimal::from(1),
+        duration: Decimal::one(),
     };
     let _bga_obj = BgaObj {
         time: _obj_time,
@@ -83,11 +83,11 @@ fn test_prelude_imports() {
     };
     let _scrolling_factor_obj = ScrollingFactorObj {
         time: _obj_time,
-        factor: Decimal::from(1),
+        factor: Decimal::one(),
     };
     let _speed_obj = SpeedObj {
         time: _obj_time,
-        factor: Decimal::from(1),
+        factor: Decimal::one(),
     };
 
     // Test prompt types
