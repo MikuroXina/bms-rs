@@ -1,6 +1,6 @@
 //! This module provides [`TokenProcessor`] and its implementations, which reads [`Token`] and applies data to [`Bms`].
 //!
-//! Also it provides preset functions that returns a [`TokenProcessor`] trait object.
+//! Also it provides a preset function [`full_preset`], that returns an opaque object of [`TokenProcessor`] consisted all of processors.
 
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
