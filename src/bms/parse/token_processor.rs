@@ -10,6 +10,7 @@ use crate::bms::{
     parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
+use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
@@ -211,7 +212,6 @@ where
 /// Returns all of processors this crate provided.
 pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
-    relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));
     let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
@@ -234,7 +234,7 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, relaxed).map(
+    random::RandomTokenProcessor::new(rng, sub_processor).map(
         |(
             (
                 (
@@ -291,6 +291,66 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
             wav,
         },
     )
+}
+
+pub(crate) fn rewrite_relaxed_tokens<'a>(tokens: &mut TokenStream<'a>) {
+    for twr in tokens.tokens.iter_mut() {
+        match twr.content_mut() {
+            Token::Header { name, args } => {
+                let mut new_name: Option<String> = None;
+                let mut new_args: Option<String> = None;
+                let n_ref = name.as_ref();
+                let a_ref = args.as_ref();
+                if n_ref.eq_ignore_ascii_case("RONDAM") {
+                    new_name = Some("RANDOM".to_string());
+                }
+                if n_ref.eq_ignore_ascii_case("END") && a_ref.trim().eq_ignore_ascii_case("IF") {
+                    new_name = Some("ENDIF".to_string());
+                    new_args = Some(String::new());
+                }
+                if a_ref.is_empty() {
+                    if let Some(rest) = n_ref.strip_prefix_ignore_case("RANDOM") {
+                        let rest_trim = rest.trim();
+                        let digits = if rest_trim.starts_with('[') && rest_trim.ends_with(']') {
+                            &rest_trim[1..rest_trim.len() - 1]
+                        } else {
+                            rest_trim
+                        };
+                        if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+                            new_name = Some("RANDOM".to_string());
+                            new_args = Some(digits.to_string());
+                        }
+                    } else if let Some(rest) = n_ref.strip_prefix_ignore_case("IF") {
+                        let rest_trim = rest.trim();
+                        let digits = if rest_trim.starts_with('[') && rest_trim.ends_with(']') {
+                            &rest_trim[1..rest_trim.len() - 1]
+                        } else {
+                            rest_trim
+                        };
+                        if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+                            new_name = Some("IF".to_string());
+                            new_args = Some(digits.to_string());
+                        }
+                    }
+                }
+                if let Some(nn) = new_name {
+                    *name = nn.into();
+                }
+                if let Some(na) = new_args {
+                    *args = na.into();
+                }
+            }
+            Token::NotACommand(line) => {
+                if line.trim() == "＃ENDIF" {
+                    *twr.content_mut() = Token::Header {
+                        name: "ENDIF".to_string().into(),
+                        args: "".to_string().into(),
+                    };
+                }
+            }
+            Token::Message { .. } => {}
+        }
+    }
 }
 
 fn parse_obj_ids(

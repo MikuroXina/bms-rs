@@ -40,7 +40,7 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, full_preset},
+        token_processor::{TokenProcessor, full_preset, rewrite_relaxed_tokens},
     },
     prelude::*,
 };
@@ -171,7 +171,6 @@ impl<T, P, R> ParseConfig<T, P, R> {
         struct AggregateTokenProcessor<T, R> {
             key_mapper: PhantomData<fn() -> T>,
             rng: Rc<RefCell<R>>,
-            use_relaxed: bool,
         }
         impl<T: KeyLayoutMapper, R: Rng> TokenProcessor for AggregateTokenProcessor<T, R> {
             type Output = Bms;
@@ -180,14 +179,13 @@ impl<T, P, R> ParseConfig<T, P, R> {
                 &self,
                 ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
             ) -> Result<Self::Output, ParseErrorWithRange> {
-                full_preset::<T, R>(Rc::clone(&self.rng), self.use_relaxed).process(ctx)
+                full_preset::<T, R>(Rc::clone(&self.rng)).process(ctx)
             }
         }
         (
             AggregateTokenProcessor::<T, R> {
                 key_mapper: PhantomData,
                 rng: Rc::new(RefCell::new(self.rng)),
-                use_relaxed: self.use_relaxed,
             },
             self.prompter,
         )
@@ -201,13 +199,16 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
 ) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
-        tokens,
+        mut tokens,
         lex_warnings,
     } = lex::TokenStream::parse_lex(source);
 
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
+    if config.use_relaxed {
+        rewrite_relaxed_tokens(&mut tokens);
+    }
     let parse_output = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
     let bms_result = parse_output.bms;
     // Convert parse warnings to BmsWarning
