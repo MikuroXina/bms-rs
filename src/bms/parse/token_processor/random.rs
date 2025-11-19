@@ -45,12 +45,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use num::BigUint;
 
-use crate::{
-    bms::{
-        parse::{ParseError, ParseWarning},
-        prelude::*,
-    },
-    util::StrExtension,
+use crate::bms::{
+    parse::{ParseError, ParseWarning},
+    prelude::*,
 };
 
 use super::{ProcessContext, TokenProcessor};
@@ -62,7 +59,6 @@ pub struct RandomTokenProcessor<R, N> {
     /// It must not be empty.
     state_stack: RefCell<Vec<ProcessState>>,
     next: N,
-    relaxed: bool,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -93,12 +89,11 @@ enum ProcessState {
 }
 
 impl<R, N> RandomTokenProcessor<R, N> {
-    pub fn new(rng: Rc<RefCell<R>>, next: N, relaxed: bool) -> Self {
+    pub fn new(rng: Rc<RefCell<R>>, next: N) -> Self {
         Self {
             rng,
             state_stack: RefCell::new(vec![ProcessState::Root]),
             next,
-            relaxed,
         }
     }
 }
@@ -591,9 +586,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
                     .on_header(name.as_ref(), args.as_ref())
                     .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
                 Token::Message { .. } => None,
-                Token::NotACommand(line) => self
-                    .on_comment(line)
-                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
+                Token::NotACommand(_line) => None,
             };
             if self.is_activated() {
                 activated.push(token);
@@ -617,21 +610,6 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
 
 impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
-        if self.relaxed {
-            if name.eq_ignore_ascii_case("RONDAM") {
-                return self.visit_random(args);
-            }
-            if name.eq_ignore_ascii_case("END") && args.eq_ignore_ascii_case("IF") {
-                return self.visit_end_if().map(|_| None);
-            }
-            if let Some(wrong_arg) = name.strip_prefix_ignore_case("RANDOM") {
-                return self.visit_random(wrong_arg);
-            }
-            if let Some(wrong_arg) = name.strip_prefix_ignore_case("IF") {
-                return self.visit_if(wrong_arg);
-            }
-        }
-
         if name.eq_ignore_ascii_case("RANDOM") {
             return self.visit_random(args);
         }
@@ -670,13 +648,6 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         }
         if name.eq_ignore_ascii_case("ENDSW") {
             return self.visit_end_switch().map(|_| None);
-        }
-        Ok(None)
-    }
-
-    fn on_comment(&self, line: &str) -> Result<Option<ParseWarning>, ParseError> {
-        if self.relaxed && line.trim().eq_ignore_ascii_case("＃ENDIF") {
-            self.visit_end_if()?;
         }
         Ok(None)
     }

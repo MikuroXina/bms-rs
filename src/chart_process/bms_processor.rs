@@ -892,7 +892,7 @@ pub(crate) fn y_of_time_static(
         .get(&time.track())
         .map(|s| &s.length)
         .cloned()
-        .unwrap_or_else(|| Decimal::one());
+        .unwrap_or_else(Decimal::one);
     if time.denominator().get() > 0 {
         let fraction = Decimal::from(time.numerator()) / Decimal::from(time.denominator().get());
         y += current_len * fraction;
