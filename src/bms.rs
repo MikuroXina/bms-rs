@@ -40,7 +40,9 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{TokenProcessor, full_preset, rewrite_relaxed_tokens},
+        token_processor::{
+            NoopTokenModifier, RelaxedTokenModifier, TokenModifier, TokenProcessor, full_preset,
+        },
     },
     prelude::*,
 };
@@ -71,13 +73,12 @@ pub enum BmsWarning {
 }
 
 /// A configuration builder for [`parse_bms`]. Its methods can be chained to set parameters you want.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 #[must_use]
 pub struct ParseConfig<T, P, R> {
     key_mapper: PhantomData<fn() -> T>,
     prompter: P,
     rng: R,
-    use_relaxed: bool,
+    token_modifiers: Vec<Box<dyn TokenModifier>>,
 }
 
 /// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
@@ -89,7 +90,7 @@ pub fn default_config()
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
-        use_relaxed: true,
+        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
     }
 }
 
@@ -101,7 +102,7 @@ pub fn default_config() -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: rng::JavaRandom::default(),
-        use_relaxed: true,
+        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
     }
 }
 
@@ -111,7 +112,7 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng,
-        use_relaxed: true,
+        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
     }
 }
 
@@ -122,7 +123,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
-            use_relaxed: self.use_relaxed,
+            token_modifiers: self.token_modifiers,
         }
     }
 
@@ -132,7 +133,7 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter,
             rng: self.rng,
-            use_relaxed: self.use_relaxed,
+            token_modifiers: self.token_modifiers,
         }
     }
 
@@ -142,24 +143,40 @@ impl<T, P, R> ParseConfig<T, P, R> {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng,
-            use_relaxed: self.use_relaxed,
+            token_modifiers: self.token_modifiers,
         }
     }
 
-    /// Change to use pedantic token processors that don't recognize common mistakes.
+    /// Appends a token modifier to transform lex tokens before parsing.
+    pub fn token_modifier(self, token_modifier: impl TokenModifier + 'static) -> Self {
+        let mut mods = self.token_modifiers;
+        mods.push(Box::new(token_modifier));
+        Self {
+            key_mapper: PhantomData,
+            prompter: self.prompter,
+            rng: self.rng,
+            token_modifiers: mods,
+        }
+    }
+
+    /// Replaces token modifiers with the provided list.
+    pub fn override_token_modifiers(self, token_modifiers: Vec<Box<dyn TokenModifier>>) -> Self {
+        Self {
+            key_mapper: PhantomData,
+            prompter: self.prompter,
+            rng: self.rng,
+            token_modifiers,
+        }
+    }
+
+    /// Switch to pedantic mode by using a no-op token modifier.
     pub fn use_pedantic(self) -> Self {
-        Self {
-            use_relaxed: false,
-            ..self
-        }
+        self.override_token_modifiers(vec![Box::new(NoopTokenModifier)])
     }
 
-    /// Change to use relaxed token processors that recognize common mistakes. This is the default option.
+    /// Switch to relaxed mode that recognizes common mistakes.
     pub fn use_relaxed(self) -> Self {
-        Self {
-            use_relaxed: true,
-            ..self
-        }
+        self.override_token_modifiers(vec![Box::new(RelaxedTokenModifier)])
     }
 
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
@@ -206,8 +223,8 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    if config.use_relaxed {
-        rewrite_relaxed_tokens(&mut tokens);
+    for m in &config.token_modifiers {
+        m.modify(&mut tokens);
     }
     let parse_output = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
     let bms_result = parse_output.bms;

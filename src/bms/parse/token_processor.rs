@@ -6,6 +6,7 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use itertools::Itertools;
 
+use crate::bms::lex::TokenStream;
 use crate::bms::{
     parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
@@ -350,6 +351,36 @@ pub(crate) fn rewrite_relaxed_tokens<'a>(tokens: &mut TokenStream<'a>) {
             }
             Token::Message { .. } => {}
         }
+    }
+}
+
+/// Transforms lex tokens before semantic parsing.
+///
+/// Implementations can rewrite headers, normalize arguments, or fix common typos.
+/// Called before semantic token processors consume the stream.
+pub trait TokenModifier {
+    /// Applies in-place modifications to the provided token stream.
+    ///
+    /// Implementations should be deterministic and avoid altering source ranges.
+    fn modify(&self, tokens: &mut TokenStream<'_>);
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+/// A no-op modifier that leaves the token stream unchanged.
+pub struct NoopTokenModifier;
+
+impl TokenModifier for NoopTokenModifier {
+    fn modify(&self, _tokens: &mut TokenStream<'_>) {}
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+/// A relaxed modifier that normalizes common BMS typos and formats,
+/// delegating to `rewrite_relaxed_tokens`.
+pub struct RelaxedTokenModifier;
+
+impl TokenModifier for RelaxedTokenModifier {
+    fn modify(&self, tokens: &mut TokenStream<'_>) {
+        rewrite_relaxed_tokens(tokens);
     }
 }
 
