@@ -1,9 +1,6 @@
 //! This module provides [`TokenProcessor`] and its implementations, which reads [`Token`] and applies data to [`Bms`].
 //!
-//! Also it provides preset functions that returns a [`TokenProcessor`] trait object:
-//!
-//! - [`common_preset`] - Commonly used processors.
-//! - [`minor_preset`] - All of processors this crate provided.
+//! Also it provides a preset function [`full_preset`], that returns an opaque object of [`TokenProcessor`] consisted all of processors.
 
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
@@ -211,72 +208,8 @@ where
     }
 }
 
-/// Returns commonly used processors.
-pub(crate) fn common_preset<T: KeyLayoutMapper, R: Rng>(
-    rng: Rc<RefCell<R>>,
-    relaxed: bool,
-) -> impl TokenProcessor<Output = Bms> {
-    let case_sensitive_obj_id = Rc::new(RefCell::new(false));
-    let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
-        .then(bmp::BmpProcessor::new(&case_sensitive_obj_id))
-        .then(bpm::BpmProcessor::new(&case_sensitive_obj_id))
-        .then(judge::JudgeProcessor::new(&case_sensitive_obj_id))
-        .then(metadata::MetadataProcessor)
-        .then(music_info::MusicInfoProcessor)
-        .then(scroll::ScrollProcessor::new(&case_sensitive_obj_id))
-        .then(section_len::SectionLenProcessor)
-        .then(speed::SpeedProcessor::new(&case_sensitive_obj_id))
-        .then(sprite::SpriteProcessor)
-        .then(stop::StopProcessor::new(&case_sensitive_obj_id))
-        .then(video::VideoProcessor::new(&case_sensitive_obj_id))
-        .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, relaxed).map(
-        |(
-            (
-                (
-                    (
-                        (
-                            (
-                                ((((((repr, bmp), bpm), judge), metadata), music_info), scroll),
-                                section_len,
-                            ),
-                            speed,
-                        ),
-                        sprite,
-                    ),
-                    stop,
-                ),
-                video,
-            ),
-            wav,
-        )| {
-            Bms {
-                bmp,
-                bpm,
-                judge,
-                metadata,
-                music_info,
-
-                option: Default::default(),
-                repr,
-
-                resources: Default::default(),
-                scroll,
-                section_len,
-                speed,
-                sprite,
-                stop,
-                text: Default::default(),
-                video,
-                volume: Default::default(),
-                wav,
-            }
-        },
-    )
-}
-
 /// Returns all of processors this crate provided.
-pub(crate) fn minor_preset<T: KeyLayoutMapper, R: Rng>(
+pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
     relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
