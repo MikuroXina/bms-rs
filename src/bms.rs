@@ -40,9 +40,7 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{
-            NoopTokenModifier, RelaxedTokenModifier, TokenModifier, TokenProcessor, full_preset,
-        },
+        token_processor::{DefaultTokenRelaxer, TokenModifier, TokenProcessor, full_preset},
     },
     prelude::*,
 };
@@ -90,7 +88,7 @@ pub fn default_config()
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
-        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
+        token_modifiers: vec![Box::new(DefaultTokenRelaxer)],
     }
 }
 
@@ -112,7 +110,7 @@ pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWa
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng,
-        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
+        token_modifiers: vec![Box::new(DefaultTokenRelaxer)],
     }
 }
 
@@ -171,12 +169,12 @@ impl<T, P, R> ParseConfig<T, P, R> {
 
     /// Switch to pedantic mode by using a no-op token modifier.
     pub fn use_pedantic(self) -> Self {
-        self.override_token_modifiers(vec![Box::new(NoopTokenModifier)])
+        self.override_token_modifiers(vec![])
     }
 
     /// Switch to relaxed mode that recognizes common mistakes.
     pub fn use_relaxed(self) -> Self {
-        self.override_token_modifiers(vec![Box::new(RelaxedTokenModifier)])
+        self.override_token_modifiers(vec![Box::new(DefaultTokenRelaxer)])
     }
 
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)

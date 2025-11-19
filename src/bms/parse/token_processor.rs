@@ -294,7 +294,7 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
     )
 }
 
-pub(crate) fn rewrite_relaxed_tokens<'a>(tokens: &mut TokenStream<'a>) {
+pub(crate) fn relax_tokens_default<'a>(tokens: &mut TokenStream<'a>) {
     for twr in tokens.tokens.iter_mut() {
         match twr.content_mut() {
             Token::Header { name, args } => {
@@ -366,21 +366,13 @@ pub trait TokenModifier {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-/// A no-op modifier that leaves the token stream unchanged.
-pub struct NoopTokenModifier;
-
-impl TokenModifier for NoopTokenModifier {
-    fn modify(&self, _tokens: &mut TokenStream<'_>) {}
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 /// A relaxed modifier that normalizes common BMS typos and formats,
 /// delegating to `rewrite_relaxed_tokens`.
-pub struct RelaxedTokenModifier;
+pub struct DefaultTokenRelaxer;
 
-impl TokenModifier for RelaxedTokenModifier {
+impl TokenModifier for DefaultTokenRelaxer {
     fn modify(&self, tokens: &mut TokenStream<'_>) {
-        rewrite_relaxed_tokens(tokens);
+        relax_tokens_default(tokens);
     }
 }
 
