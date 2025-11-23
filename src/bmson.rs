@@ -514,11 +514,11 @@ pub struct BmsonParseOutput<'a> {
 #[must_use]
 pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     // First parse JSON using chumsky parser
-    let (value, parse_errors) = parser().parse(json.trim()).into_output_errors();
+    let (value, control_flow_errors) = parser().parse(json.trim()).into_output_errors();
 
     let had_output = value.is_some();
     // Split chumsky errors into warnings, recovered errors, and fatal errors
-    let (warnings, recovered, fatal) = split_chumsky_errors(parse_errors, had_output);
+    let (warnings, recovered, fatal) = split_chumsky_errors(control_flow_errors, had_output);
 
     // Collect JSON parsing diagnostics
     let mut errors: Vec<BmsonParseError<'a>> =

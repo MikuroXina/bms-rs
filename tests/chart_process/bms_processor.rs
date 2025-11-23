@@ -19,10 +19,10 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
@@ -98,10 +98,10 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
@@ -144,10 +144,10 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
@@ -196,10 +196,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
@@ -348,10 +348,10 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config());
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)

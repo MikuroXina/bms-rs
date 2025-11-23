@@ -49,10 +49,10 @@ fn test_always_use_older() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseOlder));
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check that older values are used for all scope_defines conflicts
     assert_eq!(
@@ -124,10 +124,10 @@ fn test_always_use_newer() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Check that newer values are used for all scope_defines conflicts
     assert_eq!(
@@ -199,9 +199,9 @@ fn test_always_warn_and_use_older() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // Should have warnings for each conflict (9 conflicts: 4 scope_defines + 3 others + 2 events)
     assert_eq!(warnings.len(), 9);
@@ -280,9 +280,9 @@ fn test_always_warn_and_use_newer() {
     let ParseOutput {
         bms,
         parse_warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseNewer));
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
 
     // 应有重复定义类的警告（如 DuplicatingDef）
     assert!(

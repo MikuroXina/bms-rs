@@ -73,13 +73,13 @@ fn into_tokens_basic_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -112,13 +112,13 @@ fn into_tokens_basic_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -215,13 +215,13 @@ fn into_tokens_basic_setrandom() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -351,13 +351,13 @@ fn builder_and_mutation() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(3u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -389,13 +389,13 @@ fn builder_and_mutation() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(5u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -427,13 +427,13 @@ fn builder_and_mutation() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(6u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -534,13 +534,13 @@ fn into_tokens_basic_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -573,13 +573,13 @@ fn into_tokens_basic_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped2,
         default_config_with_rng(RngMock([BigUint::from(2u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -677,13 +677,13 @@ fn into_tokens_basic_setswitch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -773,13 +773,13 @@ fn builder_basic_switch() {
     let ParseOutput {
         bms,
         parse_warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(parse_warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -811,13 +811,13 @@ fn builder_basic_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(
         &tokens_wrapped,
         default_config_with_rng(RngMock([BigUint::from(3u64)])),
     );
     assert_eq!(warnings, vec![]);
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![

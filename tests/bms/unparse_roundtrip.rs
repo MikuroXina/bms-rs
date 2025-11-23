@@ -80,7 +80,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     let ParseOutput {
         bms: bms1,
         parse_warnings: warnings1,
-        parse_errors: parse_errors1,
+        control_flow_errors: parse_errors1,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
     assert_eq!(warnings1, vec![]);
     assert_eq!(parse_errors1, vec![]);
@@ -96,7 +96,7 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
     let ParseOutput {
         bms: bms2,
         parse_warnings: warnings2,
-        parse_errors: parse_errors2,
+        control_flow_errors: parse_errors2,
     } = Bms::from_token_stream(
         &tokens2_wrapped,
         default_config().prompter(AlwaysWarnAndUseOlder),

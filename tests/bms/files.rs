@@ -112,9 +112,9 @@ fn test_blank() {
     let ParseOutput {
         bms: _,
         parse_warnings,
-        parse_errors,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
-    assert_eq!(parse_errors, vec![]);
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         parse_warnings
             .into_iter()
