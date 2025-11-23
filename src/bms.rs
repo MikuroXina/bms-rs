@@ -187,6 +187,23 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
         }
     }
 
+    /// Map the current token modifier using a closure.
+    ///
+    /// Accepts a closure `f` that takes the current modifier `M` and returns a new
+    /// modifier `M2`. This is useful for wrapping, decorating, or transforming the
+    /// modifier while keeping static dispatch.
+    pub fn map_token_modifier<F, M2>(self, f: F) -> ParseConfig<T, P, R, M2>
+    where
+        F: FnOnce(M) -> M2,
+    {
+        ParseConfig {
+            key_mapper: PhantomData,
+            prompter: self.prompter,
+            rng: self.rng,
+            token_modifier: f(self.token_modifier),
+        }
+    }
+
     /// Clean all token modifiers by switching to a no-op modifier.
     pub fn clean_token_modifier(self) -> ParseConfig<T, P, R, NoopTokenModifier> {
         self.override_token_modifier(NoopTokenModifier)
