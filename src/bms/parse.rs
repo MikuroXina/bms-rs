@@ -35,7 +35,7 @@ use crate::bms::{
 
 use self::{
     prompt::Prompter,
-    token_processor::{ProcessContext, TokenProcessor},
+    token_processor::{ProcessContext, TokenModifier, TokenProcessor},
 };
 
 /// An error occurred when parsing the [`TokenStream`].
@@ -139,9 +139,9 @@ pub struct ParseOutput {
 
 impl Bms {
     /// Parses a token stream into [`Bms`] without AST.
-    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter, R: Rng>(
+    pub fn from_token_stream<'a, T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
         token_iter: impl IntoIterator<Item = &'a TokenWithRange<'a>>,
-        config: ParseConfig<T, P, R>,
+        config: ParseConfig<T, P, R, M>,
     ) -> ParseOutput {
         let tokens: Vec<_> = token_iter.into_iter().collect();
         let mut tokens_slice = tokens.as_slice();

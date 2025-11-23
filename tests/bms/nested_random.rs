@@ -51,7 +51,7 @@ fn nested_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _>(
+    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
         &tokens,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );

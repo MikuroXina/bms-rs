@@ -6,10 +6,12 @@ use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use itertools::Itertools;
 
+use crate::bms::lex::TokenStream;
 use crate::bms::{
     parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
+use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
@@ -211,7 +213,6 @@ where
 /// Returns all of processors this crate provided.
 pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
     rng: Rc<RefCell<R>>,
-    relaxed: bool,
 ) -> impl TokenProcessor<Output = Bms> {
     let case_sensitive_obj_id = Rc::new(RefCell::new(false));
     let sub_processor = repr::RepresentationProcessor::new(&case_sensitive_obj_id)
@@ -234,7 +235,7 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor, relaxed).map(
+    random::RandomTokenProcessor::new(rng, sub_processor).map(
         |(
             (
                 (
@@ -291,6 +292,120 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
             wav,
         },
     )
+}
+
+pub(crate) fn relax_tokens_default<'a>(tokens: &mut TokenStream<'a>) {
+    for twr in tokens.tokens.iter_mut() {
+        match twr.content_mut() {
+            Token::Header { name, args } => {
+                let n_ref = name.as_ref();
+                let a_ref = args.as_ref();
+                let mut new_name: Option<String> = None;
+                let mut new_args: Option<String> = None;
+
+                if n_ref.eq_ignore_ascii_case("RONDAM") {
+                    new_name = Some("RANDOM".to_string());
+                } else if n_ref.eq_ignore_ascii_case("END")
+                    && a_ref.trim().eq_ignore_ascii_case("IF")
+                {
+                    new_name = Some("ENDIF".to_string());
+                    new_args = Some(String::new());
+                } else if a_ref.is_empty()
+                    && let Some((kw, rest_trim)) = ["RANDOM", "IF"]
+                        .iter()
+                        .find_map(|kw| n_ref.strip_prefix_ignore_case(kw).map(|r| (*kw, r.trim())))
+                {
+                    let digits = if rest_trim.starts_with('[') && rest_trim.ends_with(']') {
+                        &rest_trim[1..rest_trim.len() - 1]
+                    } else {
+                        rest_trim
+                    };
+                    if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+                        new_name = Some(kw.to_string());
+                        new_args = Some(digits.to_string());
+                    }
+                }
+
+                if let Some(nn) = new_name {
+                    *name = nn.into();
+                }
+                if let Some(na) = new_args {
+                    *args = na.into();
+                }
+            }
+            Token::NotACommand(line) => {
+                if line.trim() == "＃ENDIF" {
+                    *twr.content_mut() = Token::Header {
+                        name: "ENDIF".to_string().into(),
+                        args: String::new().into(),
+                    };
+                }
+            }
+            Token::Message { .. } => {}
+        }
+    }
+}
+
+/// A pre-parse transformer for lex tokens.
+///
+/// Implementations can rewrite headers, normalize arguments, or fix common typos.
+/// The modifier runs before semantic token processors consume the stream.
+pub trait TokenModifier {
+    /// Apply in-place modifications to the provided token stream.
+    ///
+    /// Implementations should be deterministic and avoid altering source ranges.
+    fn modify(&self, tokens: &mut TokenStream<'_>);
+
+    /// Compose this modifier with another, applying `self` first and `second` after.
+    ///
+    /// The returned modifier preserves order and uses static dispatch.
+    fn then<S>(self, second: S) -> SequentialTokenModifier<Self, S>
+    where
+        Self: Sized,
+        S: TokenModifier,
+    {
+        SequentialTokenModifier {
+            first: self,
+            second,
+        }
+    }
+}
+
+/// A token modifier that sequentially applies two modifiers in order.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SequentialTokenModifier<F, S> {
+    first: F,
+    second: S,
+}
+
+impl<F, S> TokenModifier for SequentialTokenModifier<F, S>
+where
+    F: TokenModifier,
+    S: TokenModifier,
+{
+    fn modify(&self, tokens: &mut TokenStream<'_>) {
+        self.first.modify(tokens);
+        self.second.modify(tokens);
+    }
+}
+
+/// A no-op token modifier used for strict parsing.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoopTokenModifier;
+
+impl TokenModifier for NoopTokenModifier {
+    fn modify(&self, _tokens: &mut TokenStream<'_>) {}
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+/// A relaxed modifier that normalizes common BMS typos and formats,
+/// delegating to `rewrite_relaxed_tokens`.
+pub struct DefaultTokenRelaxer;
+
+impl TokenModifier for DefaultTokenRelaxer {
+    fn modify(&self, tokens: &mut TokenStream<'_>) {
+        relax_tokens_default(tokens);
+    }
 }
 
 fn parse_obj_ids(
