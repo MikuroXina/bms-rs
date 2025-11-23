@@ -255,7 +255,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
 
     config.token_modifier.modify(&mut tokens);
     let parse_output = Bms::from_token_stream::<'_, T, _, _, _>(&tokens, config);
-    let bms_result = parse_output.bms;
+    let bms = parse_output.bms;
     // Convert parse warnings to BmsWarning
     warnings.extend(
         parse_output
@@ -264,22 +264,18 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
             .map(BmsWarning::Parse),
     );
 
-    if let Ok(ref bms) = bms_result {
-        let PlayingCheckOutput {
-            playing_warnings,
-            playing_errors,
-        } = bms.check_playing::<T>();
+    let PlayingCheckOutput {
+        playing_warnings,
+        playing_errors,
+    } = bms.check_playing::<T>();
 
-        // Convert playing warnings to BmsWarning
-        warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
-
-        // Convert playing errors to BmsWarning
-        warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
-    }
+    warnings.extend(playing_warnings.into_iter().map(BmsWarning::PlayingWarning));
+    warnings.extend(playing_errors.into_iter().map(BmsWarning::PlayingError));
 
     BmsOutput {
-        bms: bms_result,
+        bms,
         warnings,
+        errors: parse_output.parse_errors,
     }
 }
 
@@ -289,9 +285,11 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
 #[must_use]
 pub struct BmsOutput {
     /// The parsed BMS data.
-    pub bms: Result<Bms, ParseErrorWithRange>,
+    pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
+    /// All parse errors collected without stopping at first failure.
+    pub errors: Vec<ParseErrorWithRange>,
 }
 
 #[cfg(feature = "diagnostics")]

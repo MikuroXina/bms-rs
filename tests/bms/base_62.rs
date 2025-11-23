@@ -16,12 +16,13 @@ fn test_not_base_62() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors,
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
-    let bms = bms.expect("no errors");
+    assert!(parse_errors.is_empty());
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
     assert_eq!(
@@ -47,12 +48,13 @@ fn test_base_62() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors,
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
-    let bms = bms.expect("no errors");
+    assert!(parse_errors.is_empty());
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);
 }

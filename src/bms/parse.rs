@@ -132,9 +132,11 @@ impl ToAriadne for ParseWarningWithRange {
 #[must_use]
 pub struct ParseOutput {
     /// The output Bms.
-    pub bms: core::result::Result<Bms, ParseErrorWithRange>,
+    pub bms: Bms,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
+    /// Errors that occurred during parsing.
+    pub parse_errors: Vec<ParseErrorWithRange>,
 }
 
 impl Bms {
@@ -148,9 +150,18 @@ impl Bms {
         let (proc, prompter) = config.build();
         let mut ctx = ProcessContext::new(&mut tokens_slice, &prompter);
         let res = proc.process(&mut ctx);
+        let bms = match res {
+            Ok(b) => b,
+            Err(e) => {
+                ctx.error(e);
+                Bms::default()
+            }
+        };
+        let (parse_warnings, parse_errors) = ctx.drain();
         ParseOutput {
-            bms: res,
-            parse_warnings: ctx.into_warnings(),
+            bms,
+            parse_warnings,
+            parse_errors,
         }
     }
 }

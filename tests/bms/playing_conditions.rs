@@ -13,9 +13,9 @@ fn test_playing_conditions_empty_bms() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors: _,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -43,9 +43,9 @@ fn test_playing_conditions_with_bpm_and_notes() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors: _,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -81,9 +81,9 @@ fn test_playing_conditions_with_bpm_change_only() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors: _,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,
@@ -112,9 +112,9 @@ fn test_playing_conditions_invisible_notes_only() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
+        parse_errors: _,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
     assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
 
     let PlayingCheckOutput {
         playing_warnings,

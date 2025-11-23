@@ -34,7 +34,11 @@ fn test_emit_warnings_with_real_bms() {
     let bms_source = "#TITLE Test Song\n#ARTIST Composer\n#INVALID_COMMAND test\n";
 
     // Parse BMS file, should produce warnings
-    let BmsOutput { bms: _, warnings } = parse_bms(bms_source, default_config());
+    let BmsOutput {
+        bms: _,
+        warnings,
+        errors: _,
+    } = parse_bms(bms_source, default_config());
 
     if !warnings.is_empty() {
         // Verify diagnostics can be generated without printing to terminal

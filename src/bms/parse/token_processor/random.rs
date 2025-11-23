@@ -571,7 +571,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
     }
 }
 
-impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
+impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N>
+where
+    <N as TokenProcessor>::Output: Default,
+{
     type Output = <N as TokenProcessor>::Output;
 
     fn process<'a, 't, P: Prompter>(
@@ -600,9 +603,20 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             input: &mut tmp,
             prompter: ctx.prompter(),
             reported: Vec::new(),
+            reported_errors: Vec::new(),
         };
-        let out = self.next.process(&mut view_ctx)?;
-        ctx.reported.extend(view_ctx.into_warnings());
+        let out_res = self.next.process(&mut view_ctx);
+        let (ws, es) = view_ctx.drain();
+        ctx.reported.extend(ws);
+        ctx.reported_errors.extend(es);
+        let out = match out_res {
+            Ok(o) => o,
+            Err(e) => {
+                // Accumulate error and continue with default output
+                ctx.error(e);
+                Default::default()
+            }
+        };
         ctx.restore(checkpoint);
         Ok(out)
     }

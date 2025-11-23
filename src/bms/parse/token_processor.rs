@@ -46,6 +46,8 @@ pub struct ProcessContext<'a, 't, P> {
     prompter: &'a P,
     /// Collected warnings (with source ranges) produced during processing.
     reported: Vec<ParseWarningWithRange>,
+    /// Collected errors (with source ranges) produced during processing.
+    reported_errors: Vec<ParseErrorWithRange>,
 }
 
 impl<'a, 't, P> ProcessContext<'a, 't, P> {
@@ -55,6 +57,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
             input,
             prompter,
             reported: Vec::new(),
+            reported_errors: Vec::new(),
         }
     }
 
@@ -92,10 +95,27 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         self.reported.push(warning);
     }
 
+    /// Records an error produced during token processing.
+    pub fn error(&mut self, error: ParseErrorWithRange) {
+        self.reported_errors.push(error);
+    }
+
     /// Consumes the context and returns collected warnings.
     #[must_use]
     pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
         self.reported
+    }
+
+    /// Consumes the context and returns collected errors.
+    #[must_use]
+    pub fn into_errors(self) -> Vec<ParseErrorWithRange> {
+        self.reported_errors
+    }
+
+    /// Consumes the context and returns both warnings and errors.
+    #[must_use]
+    pub fn drain(self) -> (Vec<ParseWarningWithRange>, Vec<ParseErrorWithRange>) {
+        (self.reported, self.reported_errors)
     }
 
     /// Iterates over all remaining tokens and collects warnings from the handler.
@@ -107,8 +127,16 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         let view = self.take_input();
         let prompter = self.prompter;
         for token in view.iter().copied() {
-            let warns = f(token, prompter).map_err(|e| e.into_wrapper(token))?;
-            self.reported.extend(warns);
+            match f(token, prompter) {
+                Ok(warns) => {
+                    self.reported.extend(warns);
+                }
+                Err(e) => {
+                    self.reported_errors.push(e.into_wrapper(token));
+                    // continue processing subsequent tokens
+                    continue;
+                }
+            }
         }
         Ok(())
     }
