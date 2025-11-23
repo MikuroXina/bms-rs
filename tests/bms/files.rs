@@ -4,8 +4,11 @@ use num::One;
 #[test]
 fn test_lal() {
     let source = include_str!("files/lilith_mx.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
-    let bms = bms.unwrap();
+    let BmsOutput {
+        bms,
+        warnings,
+        errors: _,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -30,8 +33,11 @@ fn test_lal() {
 #[test]
 fn test_nc() {
     let source = include_str!("files/nc_mx.bme");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
-    let bms = bms.unwrap();
+    let BmsOutput {
+        bms,
+        warnings,
+        errors: _,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -62,8 +68,11 @@ fn test_nc() {
 #[test]
 fn test_j219() {
     let source = include_str!("files/J219_7key.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
-    let bms = bms.unwrap();
+    let BmsOutput {
+        bms,
+        warnings,
+        errors: _,
+    } = parse_bms(source, default_config());
     assert_eq!(warnings, vec![]);
 
     // Check header content
@@ -103,7 +112,9 @@ fn test_blank() {
     let ParseOutput {
         bms: _,
         parse_warnings,
+        control_flow_errors,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysUseNewer));
+    assert_eq!(control_flow_errors, vec![]);
     assert_eq!(
         parse_warnings
             .into_iter()
@@ -119,8 +130,11 @@ fn test_blank() {
 #[test]
 fn test_bemuse_ext() {
     let source = include_str!("files/bemuse_ext.bms");
-    let BmsOutput { bms, warnings } = parse_bms(source, default_config());
-    let bms = bms.unwrap();
+    let BmsOutput {
+        bms,
+        warnings,
+        errors: _,
+    } = parse_bms(source, default_config());
     assert_eq!(
         warnings,
         vec![

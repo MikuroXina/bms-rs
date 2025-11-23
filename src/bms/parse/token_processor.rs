@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 use crate::bms::lex::TokenStream;
 use crate::bms::{
-    parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
+    parse::{ControlFlowError, ControlFlowErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
 use crate::util::StrExtension;
@@ -46,6 +46,8 @@ pub struct ProcessContext<'a, 't, P> {
     prompter: &'a P,
     /// Collected warnings (with source ranges) produced during processing.
     reported: Vec<ParseWarningWithRange>,
+    /// Collected errors (with source ranges) produced during processing.
+    reported_errors: Vec<ControlFlowErrorWithRange>,
 }
 
 impl<'a, 't, P> ProcessContext<'a, 't, P> {
@@ -55,6 +57,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
             input,
             prompter,
             reported: Vec::new(),
+            reported_errors: Vec::new(),
         }
     }
 
@@ -92,23 +95,48 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
         self.reported.push(warning);
     }
 
+    /// Records an error produced during token processing.
+    pub fn error(&mut self, error: ControlFlowErrorWithRange) {
+        self.reported_errors.push(error);
+    }
+
     /// Consumes the context and returns collected warnings.
     #[must_use]
     pub fn into_warnings(self) -> Vec<ParseWarningWithRange> {
         self.reported
     }
 
+    /// Consumes the context and returns collected errors.
+    #[must_use]
+    pub fn into_errors(self) -> Vec<ControlFlowErrorWithRange> {
+        self.reported_errors
+    }
+
+    /// Consumes the context and returns both warnings and errors.
+    #[must_use]
+    pub fn drain(self) -> (Vec<ParseWarningWithRange>, Vec<ControlFlowErrorWithRange>) {
+        (self.reported, self.reported_errors)
+    }
+
     /// Iterates over all remaining tokens and collects warnings from the handler.
-    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
+    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ControlFlowErrorWithRange>
     where
-        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
+        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ControlFlowError>,
         I: IntoIterator<Item = ParseWarningWithRange>,
     {
         let view = self.take_input();
         let prompter = self.prompter;
         for token in view.iter().copied() {
-            let warns = f(token, prompter).map_err(|e| e.into_wrapper(token))?;
-            self.reported.extend(warns);
+            match f(token, prompter) {
+                Ok(warns) => {
+                    self.reported.extend(warns);
+                }
+                Err(e) => {
+                    self.reported_errors.push(e.into_wrapper(token));
+                    // continue processing subsequent tokens
+                    continue;
+                }
+            }
         }
         Ok(())
     }
@@ -123,7 +151,7 @@ pub trait TokenProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange>;
+    ) -> Result<Self::Output, ControlFlowErrorWithRange>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -156,7 +184,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         T::process(self, ctx)
     }
 }
@@ -178,7 +206,7 @@ where
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         let checkpoint = ctx.save();
         let first_output = self.first.process(ctx)?;
         ctx.restore(checkpoint);
@@ -204,7 +232,7 @@ where
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         let res = self.source.process(ctx)?;
         Ok((self.mapping)(res))
     }

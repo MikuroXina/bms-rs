@@ -11,7 +11,7 @@ use std::{cell::RefCell, rc::Rc, str::FromStr};
 use fraction::GenericFraction;
 
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_obj_ids};
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::{
     bms::{
         model::judge::JudgeObjects,
@@ -41,7 +41,7 @@ impl TokenProcessor for JudgeProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut objects = JudgeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {

@@ -16,7 +16,7 @@
 use std::{path::Path, str::FromStr};
 
 use super::{ProcessContext, TokenProcessor};
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::bms::{
     model::metadata::Metadata,
     parse::{ParseWarning, Result},
@@ -33,7 +33,7 @@ impl TokenProcessor for MetadataProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut metadata = Metadata::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {

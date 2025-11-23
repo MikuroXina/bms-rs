@@ -26,7 +26,7 @@ use std::{cell::RefCell, path::Path, rc::Rc, str::FromStr};
 use super::{ProcessContext, TokenProcessor, parse_obj_ids};
 use crate::{
     bms::{
-        ParseErrorWithRange,
+        ControlFlowErrorWithRange,
         model::bmp::BmpObjects,
         parse::{
             Result,
@@ -57,7 +57,7 @@ impl TokenProcessor for BmpProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut objects = BmpObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
