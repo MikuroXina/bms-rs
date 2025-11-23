@@ -30,12 +30,13 @@ fn switch() {
     let ParseOutput {
         bms: _,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 }
 
 #[test]
@@ -70,12 +71,13 @@ fn nested_switch_simpler() {
     let ParseOutput {
         bms: _,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 }
 
 #[test]
@@ -127,13 +129,14 @@ fn nested_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
 
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -168,13 +171,14 @@ fn nested_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
 
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -213,13 +217,14 @@ fn nested_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
 
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -292,12 +297,13 @@ fn nested_random_in_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -333,12 +339,13 @@ fn nested_random_in_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -378,12 +385,13 @@ fn nested_random_in_switch() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -457,12 +465,13 @@ fn nested_switch_in_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -498,12 +507,13 @@ fn nested_switch_in_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
@@ -543,12 +553,13 @@ fn nested_switch_in_random() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
     assert_eq!(
         bms.notes().all_notes().cloned().collect::<Vec<_>>(),
         vec![
@@ -630,12 +641,13 @@ fn test_switch_insane() {
         let ParseOutput {
             bms,
             parse_warnings: warnings,
-            parse_errors: _,
+            parse_errors,
         } = Bms::from_token_stream(
             &tokens,
             default_config_with_rng(rng).prompter(AlwaysUseNewer),
         );
         assert_eq!(warnings, vec![]);
+        assert_eq!(parse_errors, vec![]);
         assert_eq!(
             bms.notes().all_notes().cloned().collect::<Vec<_>>(),
             expected

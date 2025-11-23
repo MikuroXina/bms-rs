@@ -22,7 +22,7 @@ fn test_not_base_62() {
         default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
-    assert!(parse_errors.is_empty());
+    assert_eq!(parse_errors, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
     assert_eq!(
@@ -54,7 +54,7 @@ fn test_base_62() {
         default_config().prompter(AlwaysUseNewer),
     );
     assert_eq!(warnings, vec![]);
-    assert!(parse_errors.is_empty());
+    assert_eq!(parse_errors, vec![]);
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);
 }

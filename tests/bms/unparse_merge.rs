@@ -45,7 +45,7 @@ fn test_scenario_1_no_merge() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens
             .iter()
@@ -55,6 +55,7 @@ fn test_scenario_1_no_merge() {
         default_config().prompter(AlwaysWarnAndUseOlder),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -125,7 +126,7 @@ fn test_scenario_2_can_merge() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens
             .iter()
@@ -135,6 +136,7 @@ fn test_scenario_2_can_merge() {
         default_config().prompter(AlwaysWarnAndUseOlder),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -202,7 +204,7 @@ fn test_scenario_3_cross_track_no_merge() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens
             .iter()
@@ -212,6 +214,7 @@ fn test_scenario_3_cross_track_no_merge() {
         default_config().prompter(AlwaysWarnAndUseOlder),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
@@ -274,7 +277,7 @@ fn test_scenario_4_input_order_preservation() {
     let ParseOutput {
         bms,
         parse_warnings: warnings,
-        parse_errors: _,
+        parse_errors,
     } = Bms::from_token_stream(
         &tokens
             .iter()
@@ -284,6 +287,7 @@ fn test_scenario_4_input_order_preservation() {
         default_config().prompter(AlwaysWarnAndUseOlder),
     );
     assert_eq!(warnings, vec![]);
+    assert_eq!(parse_errors, vec![]);
 
     // Unparse back to tokens
     let unparsed_tokens = bms.unparse::<KeyLayoutBeat>();
