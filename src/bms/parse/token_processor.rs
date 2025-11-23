@@ -346,15 +346,55 @@ pub(crate) fn relax_tokens_default<'a>(tokens: &mut TokenStream<'a>) {
     }
 }
 
-/// Transforms lex tokens before semantic parsing.
+/// A pre-parse transformer for lex tokens.
 ///
 /// Implementations can rewrite headers, normalize arguments, or fix common typos.
-/// Called before semantic token processors consume the stream.
+/// The modifier runs before semantic token processors consume the stream.
 pub trait TokenModifier {
-    /// Applies in-place modifications to the provided token stream.
+    /// Apply in-place modifications to the provided token stream.
     ///
     /// Implementations should be deterministic and avoid altering source ranges.
     fn modify(&self, tokens: &mut TokenStream<'_>);
+
+    /// Compose this modifier with another, applying `self` first and `second` after.
+    ///
+    /// The returned modifier preserves order and uses static dispatch.
+    fn then<S>(self, second: S) -> SequentialTokenModifier<Self, S>
+    where
+        Self: Sized,
+        S: TokenModifier,
+    {
+        SequentialTokenModifier {
+            first: self,
+            second,
+        }
+    }
+}
+
+/// A token modifier that sequentially applies two modifiers in order.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SequentialTokenModifier<F, S> {
+    first: F,
+    second: S,
+}
+
+impl<F, S> TokenModifier for SequentialTokenModifier<F, S>
+where
+    F: TokenModifier,
+    S: TokenModifier,
+{
+    fn modify(&self, tokens: &mut TokenStream<'_>) {
+        self.first.modify(tokens);
+        self.second.modify(tokens);
+    }
+}
+
+/// A no-op token modifier used for strict parsing.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoopTokenModifier;
+
+impl TokenModifier for NoopTokenModifier {
+    fn modify(&self, _tokens: &mut TokenStream<'_>) {}
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]

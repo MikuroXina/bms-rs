@@ -40,7 +40,10 @@ use self::{
     parse::{
         ParseErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
-        token_processor::{DefaultTokenRelaxer, TokenModifier, TokenProcessor, full_preset},
+        token_processor::{
+            DefaultTokenRelaxer, NoopTokenModifier, SequentialTokenModifier, TokenModifier,
+            TokenProcessor, full_preset,
+        },
     },
     prelude::*,
 };
@@ -72,109 +75,121 @@ pub enum BmsWarning {
 
 /// A configuration builder for [`parse_bms`]. Its methods can be chained to set parameters you want.
 #[must_use]
-pub struct ParseConfig<T, P, R> {
+pub struct ParseConfig<T, P, R, M> {
     key_mapper: PhantomData<fn() -> T>,
     prompter: P,
     rng: R,
-    token_modifiers: Vec<Box<dyn TokenModifier>>,
+    token_modifier: M,
 }
 
 /// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the standard RNG [`rand::rngs::StdRng`].
 #[cfg(feature = "rand")]
-pub fn default_config()
--> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, RandRng<rand::rngs::StdRng>> {
+pub fn default_config() -> ParseConfig<
+    KeyLayoutBeat,
+    AlwaysWarnAndUseNewer,
+    RandRng<rand::rngs::StdRng>,
+    DefaultTokenRelaxer,
+> {
     use rand::{SeedableRng as _, rngs::StdRng};
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: RandRng(StdRng::from_os_rng()),
-        token_modifiers: vec![Box::new(DefaultTokenRelaxer)],
+        token_modifier: DefaultTokenRelaxer,
     }
 }
 
 /// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and the Java-compatible RNG.
 /// This version is available when the `rand` feature is not enabled.
 #[cfg(not(feature = "rand"))]
-pub fn default_config() -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom> {
+pub fn default_config()
+-> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, rng::JavaRandom, DefaultTokenRelaxer> {
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng: rng::JavaRandom::default(),
-        token_modifiers: vec![Box::new(RelaxedTokenModifier)],
+        token_modifier: DefaultTokenRelaxer,
     }
 }
 
 /// Creates the default configuration builder with the basic key layout [`KeyLayoutBeat`], the prompter [`AlwaysWarnAndUseNewer`] and your RNG.
-pub fn default_config_with_rng<R>(rng: R) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R> {
+pub fn default_config_with_rng<R>(
+    rng: R,
+) -> ParseConfig<KeyLayoutBeat, AlwaysWarnAndUseNewer, R, DefaultTokenRelaxer> {
     ParseConfig {
         key_mapper: PhantomData,
         prompter: AlwaysWarnAndUseNewer,
         rng,
-        token_modifiers: vec![Box::new(DefaultTokenRelaxer)],
+        token_modifier: DefaultTokenRelaxer,
     }
 }
 
-impl<T, P, R> ParseConfig<T, P, R> {
+impl<T, P, R, M> ParseConfig<T, P, R, M> {
     /// Sets the key mapper to the `T2` one.
-    pub fn key_mapper<T2: KeyLayoutMapper>(self) -> ParseConfig<T2, P, R> {
+    pub fn key_mapper<T2: KeyLayoutMapper>(self) -> ParseConfig<T2, P, R, M> {
         ParseConfig {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
-            token_modifiers: self.token_modifiers,
+            token_modifier: self.token_modifier,
         }
     }
 
     /// Sets the prompter to `prompter`.
-    pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R> {
+    pub fn prompter<P2: Prompter>(self, prompter: P2) -> ParseConfig<T, P2, R, M> {
         ParseConfig {
             key_mapper: PhantomData,
             prompter,
             rng: self.rng,
-            token_modifiers: self.token_modifiers,
+            token_modifier: self.token_modifier,
         }
     }
 
     /// Sets the RNG to `rng`.
-    pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<T, P, R2> {
+    pub fn rng<R2: Rng>(self, rng: R2) -> ParseConfig<T, P, R2, M> {
         ParseConfig {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng,
-            token_modifiers: self.token_modifiers,
+            token_modifier: self.token_modifier,
         }
     }
 
-    /// Appends a token modifier to transform lex tokens before parsing.
-    pub fn token_modifier(self, token_modifier: impl TokenModifier + 'static) -> Self {
-        let mut mods = self.token_modifiers;
-        mods.push(Box::new(token_modifier));
-        Self {
+    /// Append a token modifier by sequentially composing it after the current one.
+    ///
+    /// This preserves the existing modifier and runs the new modifier afterward, enabling
+    /// static dispatch without heap allocations.
+    pub fn append_token_modifier<M2: TokenModifier>(
+        self,
+        token_modifier: M2,
+    ) -> ParseConfig<T, P, R, SequentialTokenModifier<M, M2>>
+    where
+        M: TokenModifier,
+    {
+        ParseConfig {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
-            token_modifiers: mods,
+            token_modifier: self.token_modifier.then(token_modifier),
         }
     }
 
-    /// Replaces token modifiers with the provided list.
-    pub fn override_token_modifiers(self, token_modifiers: Vec<Box<dyn TokenModifier>>) -> Self {
-        Self {
+    /// Override and replace the current token modifier with the provided one.
+    pub fn override_token_modifier<M2: TokenModifier>(
+        self,
+        token_modifier: M2,
+    ) -> ParseConfig<T, P, R, M2> {
+        ParseConfig {
             key_mapper: PhantomData,
             prompter: self.prompter,
             rng: self.rng,
-            token_modifiers,
+            token_modifier,
         }
     }
 
-    /// Switch to pedantic mode by using a no-op token modifier.
-    pub fn use_pedantic(self) -> Self {
-        self.override_token_modifiers(vec![])
-    }
-
-    /// Switch to relaxed mode that recognizes common mistakes.
-    pub fn use_relaxed(self) -> Self {
-        self.override_token_modifiers(vec![Box::new(DefaultTokenRelaxer)])
+    /// Clean all token modifiers by switching to a no-op modifier.
+    pub fn clean_token_modifier(self) -> ParseConfig<T, P, R, NoopTokenModifier> {
+        self.override_token_modifier(NoopTokenModifier)
     }
 
     pub(crate) fn build(self) -> (impl TokenProcessor<Output = Bms>, P)
@@ -208,9 +223,9 @@ impl<T, P, R> ParseConfig<T, P, R> {
 }
 
 /// Parse a BMS file from source text with the specified command preset.
-pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
+pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
     source: &str,
-    config: ParseConfig<T, P, R>,
+    config: ParseConfig<T, P, R, M>,
 ) -> BmsOutput {
     // Parse tokens using default channel parser
     let LexOutput {
@@ -221,10 +236,8 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng>(
     // Convert lex warnings to BmsWarning
     let mut warnings: Vec<BmsWarning> = lex_warnings.into_iter().map(BmsWarning::Lex).collect();
 
-    for m in &config.token_modifiers {
-        m.modify(&mut tokens);
-    }
-    let parse_output = Bms::from_token_stream::<'_, T, _, _>(&tokens, config);
+    config.token_modifier.modify(&mut tokens);
+    let parse_output = Bms::from_token_stream::<'_, T, _, _, _>(&tokens, config);
     let bms_result = parse_output.bms;
     // Convert parse warnings to BmsWarning
     warnings.extend(
