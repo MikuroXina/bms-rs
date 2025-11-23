@@ -52,15 +52,18 @@ pub use super::{
         wav::ExWavDef,
     },
     parse::{
-        ParseOutput,
+        ParseError, ParseErrorWithRange, ParseOutput, ParseWarning, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,
             DefDuplication, DuplicationWorkaround, Prompter,
         },
+        token_processor::{
+            DefaultTokenRelaxer, NoopTokenModifier, SequentialTokenModifier, TokenModifier,
+            TokenProcessor,
+        },
         validity::{ValidityCheckOutput, ValidityInvalid, ValidityMissing},
     },
-    parse::{ParseWarning, ParseWarningWithRange},
     parse_bms,
     rng::{Rng, RngMock},
 };
