@@ -5,6 +5,7 @@
 //! (`Token<'a>`), so you can construct random blocks from borrowed strings
 //! without requiring `'static` data.
 pub mod activate;
+pub mod build;
 pub mod into_tokens;
 
 use std::ops::{Index, IndexMut};
