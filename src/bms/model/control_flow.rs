@@ -4,6 +4,7 @@
 //! using regular BMS tokens. Branch entries accept tokens with any lifetime
 //! (`Token<'a>`), so you can construct random blocks from borrowed strings
 //! without requiring `'static` data.
+pub mod activate;
 pub mod into_tokens;
 
 use std::ops::{Index, IndexMut};
