@@ -4,6 +4,7 @@
 //! using regular BMS tokens. Branch entries accept tokens with any lifetime
 //! (`Token<'a>`), so you can construct random blocks from borrowed strings
 //! without requiring `'static` data.
+pub mod into_tokens;
 
 use std::ops::{Index, IndexMut};
 
@@ -89,16 +90,6 @@ impl<'a> TokenUnit<'a> {
             .flat_map(Result::ok)
             .collect();
         Self::Tokens(v)
-    }
-
-    /// Convert this unit into lex tokens.
-    #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        match self {
-            TokenUnit::Random(r) => r.into_tokens(),
-            TokenUnit::Switch(s) => s.into_tokens(),
-            TokenUnit::Tokens(v) => v.into_iter().map(Token::from).collect(),
-        }
     }
 }
 
@@ -373,52 +364,6 @@ impl<'a> Random<'a> {
     pub fn at_mut(&mut self, index: usize) -> Option<&mut IfBlock<'a>> {
         self.branches.get_mut(index)
     }
-
-    /// Convert the model into lex tokens representing the random block.
-    #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        let mut out = Vec::new();
-        match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::header("RANDOM", max.to_string())),
-            ControlFlowValue::Set(val) => out.push(Token::header("SETRANDOM", val.to_string())),
-        }
-
-        self.branches.into_iter().for_each(|branch| {
-            // Emit head IF
-            out.push(Token::header("IF", branch.condition.to_string()));
-            out.extend(
-                branch
-                    .head_units
-                    .into_iter()
-                    .flat_map(TokenUnit::into_tokens),
-            );
-
-            // Emit chained ELSEIF/ELSE entries
-            let mut node = branch.chain;
-            loop {
-                match node {
-                    IfChainEntry::ElseIf { cond, units, next } => {
-                        out.push(Token::header("ELSEIF", cond.to_string()));
-                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
-                        node = *next;
-                    }
-                    IfChainEntry::Else { units } => {
-                        out.push(Token::header("ELSE", ""));
-                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
-                        break;
-                    }
-                    IfChainEntry::EndIf => break,
-                }
-            }
-
-            // Close the IF-chain
-            out.push(Token::header("ENDIF", ""));
-        });
-
-        out.push(Token::header("ENDRANDOM", ""));
-
-        out
-    }
 }
 
 impl<'a> IntoIterator for Random<'a> {
@@ -568,30 +513,5 @@ impl<'a> Switch<'a> {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.cases.is_empty()
-    }
-
-    /// Convert the model into lex tokens representing the switch block.
-    #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        let mut out = Vec::new();
-        match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::header("SWITCH", max.to_string())),
-            ControlFlowValue::Set(val) => out.push(Token::header("SETSWITCH", val.to_string())),
-        }
-
-        self.cases.into_iter().for_each(|case| {
-            out.extend(
-                std::iter::once(case.condition.map_or_else(
-                    || Token::header("DEF", ""),
-                    |cond| Token::header("CASE", cond.to_string()),
-                ))
-                .chain(case.units.into_iter().flat_map(TokenUnit::into_tokens))
-                .chain(case.skip.then(|| Token::header("SKIP", ""))),
-            );
-        });
-
-        out.push(Token::header("ENDSW", ""));
-
-        out
     }
 }

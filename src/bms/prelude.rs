@@ -42,7 +42,10 @@ pub use super::{
     model::{
         Bms, Notes,
         bmp::{AtBgaDef, BgaDef, Bmp},
-        control_flow::{ControlFlowValue, IfBlock, NonControlFlowToken, Random, Switch, TokenUnit},
+        control_flow::{
+            ControlFlowValue, IfBlock, NonControlFlowToken, Random, Switch, TokenUnit,
+            into_tokens::IntoTokens,
+        },
         judge::ExRankDef,
         obj::{
             BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
