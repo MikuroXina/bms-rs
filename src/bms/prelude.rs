@@ -44,7 +44,7 @@ pub use super::{
         bmp::{AtBgaDef, BgaDef, Bmp},
         control_flow::{
             ControlFlowValue, IfBlock, NonControlFlowToken, Random, Switch, TokenUnit,
-            into_tokens::IntoTokens,
+            activate::Activate, construct::BuildFromStream, into_tokens::IntoTokens,
         },
         judge::ExRankDef,
         obj::{
