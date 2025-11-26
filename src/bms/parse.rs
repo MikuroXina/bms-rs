@@ -41,7 +41,7 @@ use self::{
 /// An error occurred when parsing the [`TokenStream`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ParseError {
+pub enum ControlFlowError {
     /// Unexpected control flow.
     #[error("unexpected control flow {0}")]
     UnexpectedControlFlow(&'static str),
@@ -64,10 +64,10 @@ pub enum ParseError {
 }
 
 /// A parse error with position information.
-pub type ParseErrorWithRange = SourceRangeMixin<ParseError>;
+pub type ControlFlowErrorWithRange = SourceRangeMixin<ControlFlowError>;
 
 #[cfg(feature = "diagnostics")]
-impl ToAriadne for ParseErrorWithRange {
+impl ToAriadne for ControlFlowErrorWithRange {
     fn to_report<'a>(
         &self,
         src: &SimpleSource<'a>,
@@ -132,7 +132,7 @@ impl ToAriadne for ParseWarningWithRange {
 #[must_use]
 pub struct ParseOutput {
     /// The output Bms.
-    pub bms: core::result::Result<Bms, ParseErrorWithRange>,
+    pub bms: core::result::Result<Bms, ControlFlowErrorWithRange>,
     /// Warnings that occurred during parsing.
     pub parse_warnings: Vec<ParseWarningWithRange>,
 }

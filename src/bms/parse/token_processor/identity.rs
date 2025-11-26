@@ -1,6 +1,6 @@
 //! This module provides an identity token processor which does nothing. It is convenient for us to compose token processors on compilation else branch.
 
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::bms::prelude::*;
 
 use super::{ProcessContext, TokenProcessor};
@@ -15,7 +15,7 @@ impl TokenProcessor for IdentityTokenProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         let _ = ctx.take_input();
         Ok(())
     }

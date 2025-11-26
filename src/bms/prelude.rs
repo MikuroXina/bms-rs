@@ -55,7 +55,8 @@ pub use super::{
         wav::ExWavDef,
     },
     parse::{
-        ParseError, ParseErrorWithRange, ParseOutput, ParseWarning, ParseWarningWithRange,
+        ControlFlowError, ControlFlowErrorWithRange, ParseOutput, ParseWarning,
+        ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,

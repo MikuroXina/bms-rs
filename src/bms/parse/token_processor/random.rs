@@ -66,7 +66,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
+    ) -> Result<Self::Output, crate::bms::parse::ControlFlowErrorWithRange> {
         let checkpoint = ctx.save();
         let mut owned: Vec<TokenWithRange<'t>> = Vec::new();
         ctx.all_tokens(|token, _| {

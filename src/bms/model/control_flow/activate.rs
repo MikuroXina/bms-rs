@@ -12,7 +12,7 @@ use crate::bms::lex::token::{Token, TokenWithRange};
 use crate::bms::rng::Rng;
 
 use crate::bms::command::mixin::SourceRangeMixin;
-use crate::bms::parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange};
+use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange, ParseWarningWithRange};
 
 use super::{ControlFlowValue, IfChainEntry, Random, Switch, TokenUnit};
 
@@ -22,14 +22,15 @@ pub trait Activate<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange>;
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>;
 }
 
 impl<'a> Activate<'a> for TokenUnit<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
+    {
         match self {
             TokenUnit::Random(r) => Activate::activate(r, rng),
             TokenUnit::Switch(s) => Activate::activate(s, rng),
@@ -48,14 +49,15 @@ impl<'a> Activate<'a> for Random<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
+    {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
                 if !range.contains(&g) {
                     return Err(SourceRangeMixin::new(
-                        ParseError::RandomGeneratedValueOutOfRange {
+                        ControlFlowError::RandomGeneratedValueOutOfRange {
                             expected: range,
                             actual: g,
                         },
@@ -109,14 +111,15 @@ impl<'a> Activate<'a> for Switch<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
+    {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
                 if !range.contains(&g) {
                     return Err(SourceRangeMixin::new(
-                        ParseError::SwitchGeneratedValueOutOfRange {
+                        ControlFlowError::SwitchGeneratedValueOutOfRange {
                             expected: range,
                             actual: g,
                         },

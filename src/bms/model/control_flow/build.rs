@@ -5,22 +5,24 @@ use crate::bms::lex::{
     TokenStream,
     token::{Token, TokenWithRange},
 };
-use crate::bms::parse::{ParseError, ParseErrorWithRange, ParseWarning, ParseWarningWithRange};
+use crate::bms::parse::{
+    ControlFlowError, ControlFlowErrorWithRange, ParseWarning, ParseWarningWithRange,
+};
 
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
 /// 解析并构建控制流模型，返回构建结果、下一游标与警告。
 ///
 /// 当出现语法错误（如整数解析失败）时返回 `ParseWarning`，并跳过该块的构建；
-/// 当出现结构错误（如不期望的控制流位置）时返回 `ParseError`。
+/// 当出现结构错误（如不期望的控制流位置）时返回 `ControlFlowError`。
 pub trait BuildFromStream<'a>: Sized {
     /// 从 `tokens[start]` 开始解析，返回 `(Some(value), next_index, warnings)`；
     /// 若无法构建（例如语法错误），返回 `(None, next_index, warnings)`；
-    /// 结构错误则返回 `Err(ParseErrorWithRange)`。
+    /// 结构错误则返回 `Err(ControlFlowErrorWithRange)`。
     fn build_from_stream(
         tokens: &[TokenWithRange<'a>],
         start: usize,
-    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ParseErrorWithRange>;
+    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>;
 }
 
 fn collect_units<'a>(
@@ -28,7 +30,7 @@ fn collect_units<'a>(
     i: &mut usize,
     stop: &[&str],
     warns: &mut Vec<ParseWarningWithRange>,
-) -> Result<Vec<TokenUnit<'a>>, ParseErrorWithRange> {
+) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
     let mut out: Vec<TokenUnit<'a>> = Vec::new();
     let mut acc: Vec<NonControlToken<'a>> = Vec::new();
     loop {
@@ -91,7 +93,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
     fn build_from_stream(
         tokens: &[TokenWithRange<'a>],
         start: usize,
-    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange> {
         let t0 = &tokens[start];
         let mut warns: Vec<ParseWarningWithRange> = Vec::new();
         let (value, mut i) = match t0.content() {
@@ -240,19 +242,19 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     branches.push(branch);
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSEIF") => {
-                    return Err(ParseError::UnexpectedControlFlow(
+                    return Err(ControlFlowError::UnexpectedControlFlow(
                         "#ELSEIF must come after of a #IF",
                     )
                     .into_wrapper(cur));
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
-                    return Err(ParseError::UnexpectedControlFlow(
+                    return Err(ControlFlowError::UnexpectedControlFlow(
                         "#ELSE must come after #IF or #ELSEIF",
                     )
                     .into_wrapper(cur));
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
-                    return Err(ParseError::UnexpectedControlFlow(
+                    return Err(ControlFlowError::UnexpectedControlFlow(
                         "#ENDIF must come after #IF, #ELSEIF or #ELSE",
                     )
                     .into_wrapper(cur));
@@ -275,7 +277,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
     fn build_from_stream(
         tokens: &[TokenWithRange<'a>],
         start: usize,
-    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+    ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange> {
         let t0 = &tokens[start];
         let mut warns: Vec<ParseWarningWithRange> = Vec::new();
         let (value, mut i) = match t0.content() {
@@ -404,7 +406,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
 /// into `TokenUnit`s. Non-control tokens outside these blocks are ignored.
 pub fn build_blocks<'a>(
     tokens: &TokenStream<'a>,
-) -> Result<(Vec<TokenUnit<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
+) -> Result<(Vec<TokenUnit<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange> {
     let mut i = 0usize;
     let mut out: Vec<TokenUnit<'a>> = Vec::new();
     let mut warns: Vec<ParseWarningWithRange> = Vec::new();

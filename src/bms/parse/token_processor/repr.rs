@@ -10,7 +10,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use super::{ProcessContext, TokenProcessor};
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::bms::{
     model::repr::BmsSourceRepresentation,
     parse::{ParseWarning, Result},
@@ -37,7 +37,7 @@ impl TokenProcessor for RepresentationProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut repr = BmsSourceRepresentation::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
