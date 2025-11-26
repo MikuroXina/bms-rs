@@ -75,7 +75,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         })?;
 
         let stream = TokenStream { tokens: owned };
-        let (units, warns) = crate::bms::model::control_flow::build::build_blocks(&stream)?;
+        let (units, warns) = crate::bms::model::control_flow::construct::build_blocks(&stream)?;
         let mut activated_owned: Vec<TokenWithRange<'t>> = Vec::new();
         {
             let mut rng = self.rng.borrow_mut();
