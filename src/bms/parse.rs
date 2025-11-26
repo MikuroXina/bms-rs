@@ -42,9 +42,33 @@ use self::{
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Error)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ControlFlowError {
-    /// Unexpected control flow.
-    #[error("unexpected control flow {0}")]
-    UnexpectedControlFlow(&'static str),
+    /// `#ELSEIF` appears without a preceding `#IF`.
+    #[error("#ELSEIF must come after #IF")]
+    ElseIfWithoutIf,
+    /// `#ELSE` appears without a preceding `#IF` or `#ELSEIF`.
+    #[error("#ELSE must come after #IF or #ELSEIF")]
+    ElseWithoutIfOrElseIf,
+    /// `#ENDIF` appears without a preceding `#IF`, `#ELSEIF` or `#ELSE`.
+    #[error("#ENDIF must come after #IF, #ELSEIF or #ELSE")]
+    EndIfWithoutIfElseIfOrElse,
+    /// `#IF` appears outside of a `#RANDOM`/`#SETRANDOM` block.
+    #[error("#IF must come after #RANDOM or #SETRANDOM")]
+    IfWithoutRandom,
+    /// `#ENDRANDOM` appears without a preceding `#RANDOM`/`#SETRANDOM`.
+    #[error("#ENDRANDOM must come after #RANDOM or #SETRANDOM")]
+    EndRandomWithoutRandom,
+    /// `#CASE` appears without a preceding `#SWITCH`/`#SETSWITCH`.
+    #[error("#CASE must come after #SWITCH or #SETSWITCH")]
+    CaseWithoutSwitch,
+    /// `#DEF` appears without a preceding `#SWITCH`/`#SETSWITCH`.
+    #[error("#DEF must come after #SWITCH or #SETSWITCH")]
+    DefWithoutSwitch,
+    /// `#SKIP` appears outside of `#CASE`/`#DEF` within a switch block.
+    #[error("#SKIP must come after #CASE or #DEF")]
+    SkipOutsideCaseOrDef,
+    /// `#ENDSW`/`#ENDSWITCH` appears without a preceding `#SWITCH`/`#SETSWITCH`.
+    #[error("#ENDSW or #ENDSWITCH must come after #SWITCH or #SETSWITCH")]
+    EndSwitchWithoutSwitch,
     /// [`Rng`] generated a value outside the required [`RangeInclusive`] for a random block.
     #[error("random generated value out of range: expected {expected:?}, got {actual}")]
     RandomGeneratedValueOutOfRange {

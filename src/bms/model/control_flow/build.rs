@@ -242,22 +242,13 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     branches.push(branch);
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSEIF") => {
-                    return Err(ControlFlowError::UnexpectedControlFlow(
-                        "#ELSEIF must come after of a #IF",
-                    )
-                    .into_wrapper(cur));
+                    return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
-                    return Err(ControlFlowError::UnexpectedControlFlow(
-                        "#ELSE must come after #IF or #ELSEIF",
-                    )
-                    .into_wrapper(cur));
+                    return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
-                    return Err(ControlFlowError::UnexpectedControlFlow(
-                        "#ENDIF must come after #IF, #ELSEIF or #ELSE",
-                    )
-                    .into_wrapper(cur));
+                    return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDRANDOM") => {
                     i += 1;
@@ -412,7 +403,8 @@ pub fn build_blocks<'a>(
     let mut warns: Vec<ParseWarningWithRange> = Vec::new();
     let mut acc: Vec<NonControlToken<'a>> = Vec::new();
     while i < tokens.tokens.len() {
-        match tokens.tokens[i].content() {
+        let cur = &tokens.tokens[i];
+        match cur.content() {
             Token::Header { name, .. }
                 if name.eq_ignore_ascii_case("RANDOM")
                     || name.eq_ignore_ascii_case("SETRANDOM") =>
@@ -441,8 +433,37 @@ pub fn build_blocks<'a>(
                 }
                 i = next;
             }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("IF") => {
+                return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSEIF") => {
+                return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
+                return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
+                return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDRANDOM") => {
+                return Err(ControlFlowError::EndRandomWithoutRandom.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("CASE") => {
+                return Err(ControlFlowError::CaseWithoutSwitch.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("DEF") => {
+                return Err(ControlFlowError::DefWithoutSwitch.into_wrapper(cur));
+            }
+            Token::Header { name, .. } if name.eq_ignore_ascii_case("SKIP") => {
+                return Err(ControlFlowError::SkipOutsideCaseOrDef.into_wrapper(cur));
+            }
+            Token::Header { name, .. }
+                if name.eq_ignore_ascii_case("ENDSW") || name.eq_ignore_ascii_case("ENDSWITCH") =>
+            {
+                return Err(ControlFlowError::EndSwitchWithoutSwitch.into_wrapper(cur));
+            }
             _ => {
-                let t = tokens.tokens[i].content().clone();
+                let t = cur.content().clone();
                 if let Ok(nc) = NonControlToken::try_from_token(t) {
                     acc.push(nc);
                 }
