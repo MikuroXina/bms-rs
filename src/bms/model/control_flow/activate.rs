@@ -12,35 +12,32 @@ use crate::bms::lex::token::{Token, TokenWithRange};
 use crate::bms::rng::Rng;
 
 use crate::bms::command::mixin::SourceRangeMixin;
-use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange, ParseWarningWithRange};
+use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange};
 
 use super::{ControlFlowValue, IfChainEntry, Random, Switch, TokenUnit};
 
-/// Activates control-flow structures using an RNG, returning tokens and warnings.
+/// Activates control-flow structures using an RNG, returning activated tokens.
 pub trait Activate<'a> {
-    /// Evaluate control-flow and return `(tokens, warnings)` or an error.
+    /// Evaluate control-flow and return activated `TokenWithRange`s or an error.
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>;
+    ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange>;
 }
 
 impl<'a> Activate<'a> for TokenUnit<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
-    {
+    ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange> {
         match self {
             TokenUnit::Random(r) => Activate::activate(r, rng),
             TokenUnit::Switch(s) => Activate::activate(s, rng),
-            TokenUnit::Tokens(v) => Ok((
-                v.into_iter()
-                    .map(Token::from)
-                    .map(|t| SourceRangeMixin::new(t, 0..0))
-                    .collect(),
-                Vec::new(),
-            )),
+            TokenUnit::Tokens(v) => Ok(v
+                .into_iter()
+                .map(Token::from)
+                .map(|t| SourceRangeMixin::new(t, 0..0))
+                .collect()),
         }
     }
 }
@@ -49,8 +46,7 @@ impl<'a> Activate<'a> for Random<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
-    {
+    ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange> {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
@@ -73,7 +69,7 @@ impl<'a> Activate<'a> for Random<'a> {
         for branch in self.branches.into_iter() {
             if branch.condition == generated {
                 for u in branch.head_units.into_iter() {
-                    let (tokens, _warns) = Activate::activate(u, rng)?;
+                    let tokens = Activate::activate(u, rng)?;
                     out.extend(tokens);
                 }
                 continue;
@@ -85,7 +81,7 @@ impl<'a> Activate<'a> for Random<'a> {
                     IfChainEntry::ElseIf { cond, units, next } => {
                         if cond == generated {
                             for u in units.into_iter() {
-                                let (tokens, _warns) = Activate::activate(u, rng)?;
+                                let tokens = Activate::activate(u, rng)?;
                                 out.extend(tokens);
                             }
                             break;
@@ -94,7 +90,7 @@ impl<'a> Activate<'a> for Random<'a> {
                     }
                     IfChainEntry::Else { units } => {
                         for u in units.into_iter() {
-                            let (tokens, _warns) = Activate::activate(u, rng)?;
+                            let tokens = Activate::activate(u, rng)?;
                             out.extend(tokens);
                         }
                         break;
@@ -103,7 +99,7 @@ impl<'a> Activate<'a> for Random<'a> {
                 }
             }
         }
-        Ok((out, Vec::new()))
+        Ok(out)
     }
 }
 
@@ -111,8 +107,7 @@ impl<'a> Activate<'a> for Switch<'a> {
     fn activate<R: Rng>(
         self,
         rng: &mut R,
-    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange>
-    {
+    ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange> {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
@@ -157,10 +152,10 @@ impl<'a> Activate<'a> for Switch<'a> {
 
         if let Some(i) = first_default_before_any_case {
             for u in cases[i].units.clone().into_iter() {
-                let (tokens, _warns) = Activate::activate(u, rng)?;
+                let tokens = Activate::activate(u, rng)?;
                 out.extend(tokens);
             }
-            return Ok((out, Vec::new()));
+            return Ok(out);
         }
 
         if let Some(i) = matched_index {
@@ -168,7 +163,7 @@ impl<'a> Activate<'a> for Switch<'a> {
             while j < cases.len() {
                 let case = &cases[j];
                 for u in case.units.clone().into_iter() {
-                    let (tokens, _warns) = Activate::activate(u, rng)?;
+                    let tokens = Activate::activate(u, rng)?;
                     out.extend(tokens);
                 }
                 if case.skip {
@@ -176,16 +171,16 @@ impl<'a> Activate<'a> for Switch<'a> {
                 }
                 j += 1;
             }
-            return Ok((out, Vec::new()));
+            return Ok(out);
         }
 
         if let Some(i) = last_default_index {
             let case = &cases[i];
             for u in case.units.clone().into_iter() {
-                let (tokens, _warns) = Activate::activate(u, rng)?;
+                let tokens = Activate::activate(u, rng)?;
                 out.extend(tokens);
             }
         }
-        Ok((out, Vec::new()))
+        Ok(out)
     }
 }
