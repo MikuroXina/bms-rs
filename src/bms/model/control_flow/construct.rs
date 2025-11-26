@@ -10,14 +10,16 @@ use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange};
 use super::header;
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
-/// 解析并构建控制流模型，返回构建结果、下一游标与警告。
+/// Builders that construct control-flow models from token slices.
 ///
-/// 当出现语法错误（如整数解析失败）时返回 `ParseWarning`，并跳过该块的构建；
-/// 当出现结构错误（如不期望的控制流位置）时返回 `ControlFlowError`。
+/// Parses control-flow blocks (`#RANDOM`/`#SWITCH`) and produces typed models.
+/// Returns the constructed value and the next cursor position, or `None` when
+/// construction cannot proceed (e.g., cursor out of bounds). Any syntax or
+/// structural errors return `Err(ControlFlowErrorWithRange)`.
 pub trait BuildFromStream<'a>: Sized {
-    /// 从 `tokens[start]` 开始解析，返回 `(Some(value), next_index)`；
-    /// 若无法构建（例如游标越界），返回 `(None, next_index)`；
-    /// 任何语法或结构错误返回 `Err(ControlFlowErrorWithRange)`。
+    /// Parse from `tokens[start]` and return `(Some(value), next_index)`;
+    /// return `(None, next_index)` when construction cannot proceed;
+    /// on any syntax or structural error, return `Err(ControlFlowErrorWithRange)`.
     fn build_from_stream(
         tokens: &[TokenWithRange<'a>],
         start: usize,
