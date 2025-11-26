@@ -124,12 +124,12 @@ impl<'a> Activate<'a> for Switch<'a> {
             ControlFlowValue::Set(val) => val,
         };
 
-        let mut out: Vec<TokenWithRange<'a>> = Vec::new();
         let cases = self.cases;
         let mut matched_index: Option<usize> = None;
         let mut last_default_index: Option<usize> = None;
         let mut seen_case = false;
         let mut first_default_before_any_case: Option<usize> = None;
+
         for (idx, case) in cases.iter().enumerate() {
             match case.condition {
                 Some(ref cond) => {
@@ -148,37 +148,41 @@ impl<'a> Activate<'a> for Switch<'a> {
             }
         }
 
+        let mut target_index: Option<usize> = None;
+        let mut is_fallthrough = false;
+
         if let Some(i) = first_default_before_any_case {
-            for u in cases[i].units.clone().into_iter() {
-                let tokens = Activate::activate(u, rng)?;
-                out.extend(tokens);
-            }
-            return Ok(out);
+            target_index = Some(i);
+        } else if let Some(i) = matched_index {
+            target_index = Some(i);
+            is_fallthrough = true;
+        } else if let Some(i) = last_default_index {
+            target_index = Some(i);
         }
 
-        if let Some(i) = matched_index {
-            let mut j = i;
-            while j < cases.len() {
-                let case = &cases[j];
-                for u in case.units.clone().into_iter() {
+        let mut out: Vec<TokenWithRange<'a>> = Vec::new();
+
+        if let Some(start_idx) = target_index {
+            let iter = cases.into_iter().skip(start_idx);
+
+            if is_fallthrough {
+                for case in iter {
+                    for u in case.units {
+                        let tokens = Activate::activate(u, rng)?;
+                        out.extend(tokens);
+                    }
+                    if case.skip {
+                        break;
+                    }
+                }
+            } else if let Some(case) = iter.into_iter().next() {
+                for u in case.units {
                     let tokens = Activate::activate(u, rng)?;
                     out.extend(tokens);
                 }
-                if case.skip {
-                    break;
-                }
-                j += 1;
             }
-            return Ok(out);
         }
 
-        if let Some(i) = last_default_index {
-            let case = &cases[i];
-            for u in case.units.clone().into_iter() {
-                let tokens = Activate::activate(u, rng)?;
-                out.extend(tokens);
-            }
-        }
         Ok(out)
     }
 }
