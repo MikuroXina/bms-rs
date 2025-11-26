@@ -12,108 +12,160 @@ use crate::bms::lex::token::{Token, TokenWithRange};
 use crate::bms::rng::Rng;
 
 use crate::bms::command::mixin::SourceRangeMixin;
+use crate::bms::parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange};
 
 use super::{ControlFlowValue, IfChainEntry, Random, Switch, TokenUnit};
 
-/// Activates control-flow structures into a vector of `TokenWithRange` using an RNG.
+/// Activates control-flow structures using an RNG, returning tokens and warnings.
 pub trait Activate<'a> {
-    /// Evaluate control-flow and return the activated tokens.
-    fn activate<R: Rng>(self, rng: &mut R) -> Vec<TokenWithRange<'a>>;
+    /// Evaluate control-flow and return `(tokens, warnings)` or an error.
+    fn activate<R: Rng>(
+        self,
+        rng: &mut R,
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange>;
 }
 
 impl<'a> Activate<'a> for TokenUnit<'a> {
-    fn activate<R: Rng>(self, rng: &mut R) -> Vec<TokenWithRange<'a>> {
+    fn activate<R: Rng>(
+        self,
+        rng: &mut R,
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
         match self {
             TokenUnit::Random(r) => Activate::activate(r, rng),
             TokenUnit::Switch(s) => Activate::activate(s, rng),
-            TokenUnit::Tokens(v) => v
-                .into_iter()
-                .map(Token::from)
-                .map(|t| SourceRangeMixin::new(t, 0..0))
-                .collect(),
+            TokenUnit::Tokens(v) => Ok((
+                v.into_iter()
+                    .map(Token::from)
+                    .map(|t| SourceRangeMixin::new(t, 0..0))
+                    .collect(),
+                Vec::new(),
+            )),
         }
     }
 }
 
 impl<'a> Activate<'a> for Random<'a> {
-    fn activate<R: Rng>(self, rng: &mut R) -> Vec<TokenWithRange<'a>> {
+    fn activate<R: Rng>(
+        self,
+        rng: &mut R,
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
-                rng.generate(range)
+                let g = rng.generate(range.clone());
+                if !range.contains(&g) {
+                    return Err(SourceRangeMixin::new(
+                        ParseError::RandomGeneratedValueOutOfRange {
+                            expected: range,
+                            actual: g,
+                        },
+                        0..0,
+                    ));
+                }
+                g
             }
             ControlFlowValue::Set(val) => val,
         };
 
         let mut out: Vec<TokenWithRange<'a>> = Vec::new();
         for branch in self.branches.into_iter() {
-            // head if
             if branch.condition == generated {
-                out.extend(
-                    branch
-                        .head_units
-                        .into_iter()
-                        .flat_map(|u| Activate::activate(u, rng)),
-                );
+                for u in branch.head_units.into_iter() {
+                    let (tokens, _warns) = Activate::activate(u, rng)?;
+                    out.extend(tokens);
+                }
                 continue;
             }
 
-            // chain else-if / else
             let mut node = branch.chain;
             loop {
                 match node {
                     IfChainEntry::ElseIf { cond, units, next } => {
                         if cond == generated {
-                            out.extend(units.into_iter().flat_map(|u| Activate::activate(u, rng)));
+                            for u in units.into_iter() {
+                                let (tokens, _warns) = Activate::activate(u, rng)?;
+                                out.extend(tokens);
+                            }
                             break;
                         }
                         node = *next;
                     }
                     IfChainEntry::Else { units } => {
-                        out.extend(units.into_iter().flat_map(|u| Activate::activate(u, rng)));
+                        for u in units.into_iter() {
+                            let (tokens, _warns) = Activate::activate(u, rng)?;
+                            out.extend(tokens);
+                        }
                         break;
                     }
                     IfChainEntry::EndIf => break,
                 }
             }
         }
-        out
+        Ok((out, Vec::new()))
     }
 }
 
 impl<'a> Activate<'a> for Switch<'a> {
-    fn activate<R: Rng>(self, rng: &mut R) -> Vec<TokenWithRange<'a>> {
+    fn activate<R: Rng>(
+        self,
+        rng: &mut R,
+    ) -> Result<(Vec<TokenWithRange<'a>>, Vec<ParseWarningWithRange>), ParseErrorWithRange> {
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
-                rng.generate(range)
+                let g = rng.generate(range.clone());
+                if !range.contains(&g) {
+                    return Err(SourceRangeMixin::new(
+                        ParseError::SwitchGeneratedValueOutOfRange {
+                            expected: range,
+                            actual: g,
+                        },
+                        0..0,
+                    ));
+                }
+                g
             }
             ControlFlowValue::Set(val) => val,
         };
 
-        // Prefer matched case; otherwise, use the last default.
         let mut out: Vec<TokenWithRange<'a>> = Vec::new();
-        let mut default_units: Option<Vec<TokenUnit<'a>>> = None;
-        for case in self.cases.into_iter() {
+        let cases = self.cases;
+        let mut matched_index: Option<usize> = None;
+        let mut last_default_index: Option<usize> = None;
+        for (idx, case) in cases.iter().enumerate() {
             match case.condition {
-                Some(cond) if cond == generated => {
-                    out.extend(
-                        case.units
-                            .into_iter()
-                            .flat_map(|u| Activate::activate(u, rng)),
-                    );
-                    return out;
+                Some(ref cond) if *cond == generated => {
+                    matched_index = Some(idx);
+                    break;
                 }
-                None => {
-                    default_units = Some(case.units);
-                }
+                None => last_default_index = Some(idx),
                 _ => {}
             }
         }
 
-        if let Some(units) = default_units {
-            out.extend(units.into_iter().flat_map(|u| Activate::activate(u, rng)));
+        if let Some(i) = matched_index {
+            let mut j = i;
+            while j < cases.len() {
+                let case = &cases[j];
+                for u in case.units.clone().into_iter() {
+                    let (tokens, _warns) = Activate::activate(u, rng)?;
+                    out.extend(tokens);
+                }
+                if case.skip {
+                    break;
+                }
+                j += 1;
+            }
+            return Ok((out, Vec::new()));
         }
-        out
+
+        if let Some(i) = last_default_index {
+            let case = &cases[i];
+            for u in case.units.clone().into_iter() {
+                let (tokens, _warns) = Activate::activate(u, rng)?;
+                out.extend(tokens);
+            }
+        }
+        Ok((out, Vec::new()))
     }
 }
