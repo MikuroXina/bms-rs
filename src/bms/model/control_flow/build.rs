@@ -33,19 +33,15 @@ fn collect_units<'a>(
 ) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
     let mut out: Vec<TokenUnit<'a>> = Vec::new();
     let mut acc: Vec<NonControlToken<'a>> = Vec::new();
-    loop {
-        if *i >= tokens.len() {
-            break;
-        }
-        match tokens[*i].content() {
+    while let Some(tok) = tokens.get(*i) {
+        match tok.content() {
             Token::Header { name, .. } => {
                 if stop.iter().any(|s| name.eq_ignore_ascii_case(s)) {
                     break;
                 }
                 if name.eq_ignore_ascii_case("RANDOM") || name.eq_ignore_ascii_case("SETRANDOM") {
                     if !acc.is_empty() {
-                        out.push(TokenUnit::from(acc));
-                        acc = Vec::new();
+                        out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
                     let (r_opt, next, w) = Random::build_from_stream(tokens, *i)?;
                     warns.extend(w);
@@ -57,8 +53,7 @@ fn collect_units<'a>(
                 }
                 if name.eq_ignore_ascii_case("SWITCH") || name.eq_ignore_ascii_case("SETSWITCH") {
                     if !acc.is_empty() {
-                        out.push(TokenUnit::from(acc));
-                        acc = Vec::new();
+                        out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
                     let (s_opt, next, w) = Switch::build_from_stream(tokens, *i)?;
                     warns.extend(w);
@@ -68,14 +63,14 @@ fn collect_units<'a>(
                     *i = next;
                     continue;
                 }
-                let t = tokens[*i].content().clone();
+                let t = tok.content().clone();
                 if let Ok(nc) = NonControlToken::try_from_token(t) {
                     acc.push(nc);
                 }
                 *i += 1;
             }
             _ => {
-                let t = tokens[*i].content().clone();
+                let t = tok.content().clone();
                 if let Ok(nc) = NonControlToken::try_from_token(t) {
                     acc.push(nc);
                 }
@@ -94,8 +89,11 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
         tokens: &[TokenWithRange<'a>],
         start: usize,
     ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange> {
-        let t0 = &tokens[start];
         let mut warns: Vec<ParseWarningWithRange> = Vec::new();
+        let t0 = match tokens.get(start) {
+            Some(t) => t,
+            None => return Ok((None, start, warns)),
+        };
         let (value, mut i) = match t0.content() {
             Token::Header { name, args } if name.eq_ignore_ascii_case("RANDOM") => {
                 match args.parse() {
@@ -125,8 +123,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
         };
 
         let mut branches: Vec<IfBlock<'a>> = Vec::new();
-        while i < tokens.len() {
-            let cur = &tokens[i];
+        while let Some(cur) = tokens.get(i) {
             match cur.content() {
                 Token::Header { name, args } if name.eq_ignore_ascii_case("IF") => {
                     let head_cond = match args.parse() {
@@ -269,8 +266,11 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
         tokens: &[TokenWithRange<'a>],
         start: usize,
     ) -> Result<(Option<Self>, usize, Vec<ParseWarningWithRange>), ControlFlowErrorWithRange> {
-        let t0 = &tokens[start];
         let mut warns: Vec<ParseWarningWithRange> = Vec::new();
+        let t0 = match tokens.get(start) {
+            Some(t) => t,
+            None => return Ok((None, start, warns)),
+        };
         let (value, mut i) = match t0.content() {
             Token::Header { name, args } if name.eq_ignore_ascii_case("SWITCH") => {
                 match args.parse() {
@@ -300,8 +300,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
         };
 
         let mut sw = Switch::new(value);
-        while i < tokens.len() {
-            let cur = &tokens[i];
+        while let Some(cur) = tokens.get(i) {
             match cur.content() {
                 Token::Header { name, args } if name.eq_ignore_ascii_case("CASE") => {
                     let cond = match args.parse() {
@@ -322,8 +321,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                                 &mut warns,
                             )?;
                             i = u_i;
-                            if i < tokens.len()
-                                && let Token::Header { name, .. } = tokens[i].content()
+                            if let Some(tok) = tokens.get(i)
+                                && let Token::Header { name, .. } = tok.content()
                                 && name.eq_ignore_ascii_case("SKIP")
                             {
                                 i += 1;
@@ -341,8 +340,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     )?;
                     i = u_i;
                     let mut skip = false;
-                    if i < tokens.len()
-                        && let Token::Header { name, .. } = tokens[i].content()
+                    if let Some(tok) = tokens.get(i)
+                        && let Token::Header { name, .. } = tok.content()
                         && name.eq_ignore_ascii_case("SKIP")
                     {
                         skip = true;
@@ -365,8 +364,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     )?;
                     i = u_i;
                     let mut skip = false;
-                    if i < tokens.len()
-                        && let Token::Header { name, .. } = tokens[i].content()
+                    if let Some(tok) = tokens.get(i)
+                        && let Token::Header { name, .. } = tok.content()
                         && name.eq_ignore_ascii_case("SKIP")
                     {
                         skip = true;
@@ -402,8 +401,7 @@ pub fn build_blocks<'a>(
     let mut out: Vec<TokenUnit<'a>> = Vec::new();
     let mut warns: Vec<ParseWarningWithRange> = Vec::new();
     let mut acc: Vec<NonControlToken<'a>> = Vec::new();
-    while i < tokens.tokens.len() {
-        let cur = &tokens.tokens[i];
+    while let Some(cur) = tokens.tokens.get(i) {
         match cur.content() {
             Token::Header { name, .. }
                 if name.eq_ignore_ascii_case("RANDOM")
