@@ -47,6 +47,7 @@ impl<'a> Activate<'a> for Random<'a> {
         self,
         rng: &mut R,
     ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange> {
+        // Generate or use the provided value, validating RNG output range.
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
@@ -64,13 +65,20 @@ impl<'a> Activate<'a> for Random<'a> {
             ControlFlowValue::Set(val) => val,
         };
 
+        // Helper to activate nested units and append results, keeping code flat.
         let mut out: Vec<TokenWithRange<'a>> = Vec::new();
-        for branch in self.branches.into_iter() {
+        let mut emit_units = |units: Vec<TokenUnit<'a>>| -> Result<(), ControlFlowErrorWithRange> {
+            for u in units {
+                let tokens = Activate::activate(u, rng)?;
+                out.extend(tokens);
+            }
+            Ok(())
+        };
+
+        // Evaluate IF/ELSEIF/ELSE chains, emitting matching blocks.
+        for branch in self.branches {
             if branch.condition == generated {
-                for u in branch.head_units.into_iter() {
-                    let tokens = Activate::activate(u, rng)?;
-                    out.extend(tokens);
-                }
+                emit_units(branch.head_units)?;
                 continue;
             }
 
@@ -79,19 +87,13 @@ impl<'a> Activate<'a> for Random<'a> {
                 match node {
                     IfChainEntry::ElseIf { cond, units, next } => {
                         if cond == generated {
-                            for u in units.into_iter() {
-                                let tokens = Activate::activate(u, rng)?;
-                                out.extend(tokens);
-                            }
+                            emit_units(units)?;
                             break;
                         }
                         node = *next;
                     }
                     IfChainEntry::Else { units } => {
-                        for u in units.into_iter() {
-                            let tokens = Activate::activate(u, rng)?;
-                            out.extend(tokens);
-                        }
+                        emit_units(units)?;
                         break;
                     }
                     IfChainEntry::EndIf => break,
@@ -107,6 +109,7 @@ impl<'a> Activate<'a> for Switch<'a> {
         self,
         rng: &mut R,
     ) -> Result<Vec<TokenWithRange<'a>>, ControlFlowErrorWithRange> {
+        // Generate or use the provided value, validating RNG output range.
         let generated = match self.value {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
@@ -124,6 +127,8 @@ impl<'a> Activate<'a> for Switch<'a> {
             ControlFlowValue::Set(val) => val,
         };
 
+        // Determine target case index: prefer default-before-first-case,
+        // otherwise the matched case (with fallthrough), else last default.
         let cases = self.cases;
         let mut matched_index: Option<usize> = None;
         let mut last_default_index: Option<usize> = None;
@@ -160,26 +165,29 @@ impl<'a> Activate<'a> for Switch<'a> {
             target_index = Some(i);
         }
 
+        // Helper to activate nested units and append results.
         let mut out: Vec<TokenWithRange<'a>> = Vec::new();
+        let mut emit_units = |units: Vec<TokenUnit<'a>>| -> Result<(), ControlFlowErrorWithRange> {
+            for u in units {
+                let tokens = Activate::activate(u, rng)?;
+                out.extend(tokens);
+            }
+            Ok(())
+        };
 
+        // Execute selected case(s), respecting SKIP-based fallthrough stop.
         if let Some(start_idx) = target_index {
             let iter = cases.into_iter().skip(start_idx);
 
             if is_fallthrough {
                 for case in iter {
-                    for u in case.units {
-                        let tokens = Activate::activate(u, rng)?;
-                        out.extend(tokens);
-                    }
+                    emit_units(case.units)?;
                     if case.skip {
                         break;
                     }
                 }
             } else if let Some(case) = iter.into_iter().next() {
-                for u in case.units {
-                    let tokens = Activate::activate(u, rng)?;
-                    out.extend(tokens);
-                }
+                emit_units(case.units)?;
             }
         }
 
