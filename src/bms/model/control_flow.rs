@@ -14,6 +14,40 @@ use num::BigUint;
 
 use crate::bms::lex::token::Token;
 
+pub mod header {
+    //! Header names for control-flow commands in the BMS format.
+    //! These constants unify token strings used during parsing and unparsing.
+
+    /// Starts a random block with a maximum value: `#RANDOM <max>`.
+    pub const RANDOM: &str = "RANDOM";
+    /// Sets a fixed random value for the block: `#SETRANDOM <value>`.
+    pub const SET_RANDOM: &str = "SETRANDOM";
+    /// First branch in a random block: `#IF <cond>`.
+    pub const IF: &str = "IF";
+    /// Additional branch in a random block: `#ELSEIF <cond>`.
+    pub const ELSEIF: &str = "ELSEIF";
+    /// Default branch in a random block: `#ELSE`.
+    pub const ELSE: &str = "ELSE";
+    /// Terminates an if-chain inside a random block: `#ENDIF`.
+    pub const ENDIF: &str = "ENDIF";
+    /// Terminates a random block: `#ENDRANDOM`.
+    pub const ENDRANDOM: &str = "ENDRANDOM";
+    /// Starts a switch block with a maximum value: `#SWITCH <max>`.
+    pub const SWITCH: &str = "SWITCH";
+    /// Sets a fixed switch value for the block: `#SETSWITCH <value>`.
+    pub const SET_SWITCH: &str = "SETSWITCH";
+    /// Default case in a switch block: `#DEF`.
+    pub const DEF: &str = "DEF";
+    /// Conditional case in a switch block: `#CASE <cond>`.
+    pub const CASE: &str = "CASE";
+    /// Prevents fall-through after a case: `#SKIP`.
+    pub const SKIP: &str = "SKIP";
+    /// Terminates a switch block: `#ENDSW`.
+    pub const ENDSW: &str = "ENDSW";
+    /// Alternate terminator for a switch block: `#ENDSWITCH`.
+    pub const ENDSWITCH: &str = "ENDSWITCH";
+}
+
 /// A token guaranteed to be non-control-flow.
 ///
 /// Wraps a regular `Token` but ensures it is not any of the control flow headers

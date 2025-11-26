@@ -9,6 +9,7 @@ use crate::bms::parse::{
     ControlFlowError, ControlFlowErrorWithRange, ParseWarning, ParseWarningWithRange,
 };
 
+use super::header;
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
 /// 解析并构建控制流模型，返回构建结果、下一游标与警告。
@@ -39,7 +40,9 @@ fn collect_units<'a>(
                 if stop.iter().any(|s| name.eq_ignore_ascii_case(s)) {
                     break;
                 }
-                if name.eq_ignore_ascii_case("RANDOM") || name.eq_ignore_ascii_case("SETRANDOM") {
+                if name.eq_ignore_ascii_case(header::RANDOM)
+                    || name.eq_ignore_ascii_case(header::SET_RANDOM)
+                {
                     if !acc.is_empty() {
                         out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
@@ -51,7 +54,9 @@ fn collect_units<'a>(
                     *i = next;
                     continue;
                 }
-                if name.eq_ignore_ascii_case("SWITCH") || name.eq_ignore_ascii_case("SETSWITCH") {
+                if name.eq_ignore_ascii_case(header::SWITCH)
+                    || name.eq_ignore_ascii_case(header::SET_SWITCH)
+                {
                     if !acc.is_empty() {
                         out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
@@ -95,7 +100,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
             None => return Ok((None, start, warns)),
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case("RANDOM") => {
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::RANDOM) => {
                 match args.parse() {
                     Ok(max) => (ControlFlowValue::GenMax(max), start + 1),
                     Err(_) => {
@@ -107,7 +112,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     }
                 }
             }
-            Token::Header { name, args } if name.eq_ignore_ascii_case("SETRANDOM") => {
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_RANDOM) => {
                 match args.parse() {
                     Ok(val) => (ControlFlowValue::Set(val), start + 1),
                     Err(_) => {
@@ -125,7 +130,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
         let mut branches: Vec<IfBlock<'a>> = Vec::new();
         while let Some(cur) = tokens.get(i) {
             match cur.content() {
-                Token::Header { name, args } if name.eq_ignore_ascii_case("IF") => {
+                Token::Header { name, args } if name.eq_ignore_ascii_case(header::IF) => {
                     let head_cond = match args.parse() {
                         Ok(v) => v,
                         Err(_) => {
@@ -140,7 +145,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                             let _ = collect_units(
                                 tokens,
                                 &mut units_i,
-                                &["ELSEIF", "ELSE", "ENDIF"],
+                                &[header::ELSEIF, header::ELSE, header::ENDIF],
                                 &mut warns,
                             )?;
                             i = units_i;
@@ -149,21 +154,21 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                                     break;
                                 }
                                 if let Token::Header { name, .. } = tokens[i].content() {
-                                    if name.eq_ignore_ascii_case("ELSEIF")
-                                        || name.eq_ignore_ascii_case("ELSE")
+                                    if name.eq_ignore_ascii_case(header::ELSEIF)
+                                        || name.eq_ignore_ascii_case(header::ELSE)
                                     {
                                         i += 1;
                                         let mut tmp = i;
                                         let _ = collect_units(
                                             tokens,
                                             &mut tmp,
-                                            &["ENDIF"],
+                                            &[header::ENDIF],
                                             &mut warns,
                                         )?;
                                         i = tmp;
                                         continue;
                                     }
-                                    if name.eq_ignore_ascii_case("ENDIF") {
+                                    if name.eq_ignore_ascii_case(header::ENDIF) {
                                         i += 1;
                                     }
                                 }
@@ -177,7 +182,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     let head_units = collect_units(
                         tokens,
                         &mut units_i,
-                        &["ELSEIF", "ELSE", "ENDIF"],
+                        &[header::ELSEIF, header::ELSE, header::ENDIF],
                         &mut warns,
                     )?;
                     i = units_i;
@@ -188,7 +193,9 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                         }
                         let cur = &tokens[i];
                         match cur.content() {
-                            Token::Header { name, args } if name.eq_ignore_ascii_case("ELSEIF") => {
+                            Token::Header { name, args }
+                                if name.eq_ignore_ascii_case(header::ELSEIF) =>
+                            {
                                 let cond = match args.parse() {
                                     Ok(v) => v,
                                     Err(_) => {
@@ -203,7 +210,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                                         let _units = collect_units(
                                             tokens,
                                             &mut u_i,
-                                            &["ELSEIF", "ELSE", "ENDIF"],
+                                            &[header::ELSEIF, header::ELSE, header::ENDIF],
                                             &mut warns,
                                         )?;
                                         i = u_i;
@@ -215,21 +222,25 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                                 let units = collect_units(
                                     tokens,
                                     &mut u_i,
-                                    &["ELSEIF", "ELSE", "ENDIF"],
+                                    &[header::ELSEIF, header::ELSE, header::ENDIF],
                                     &mut warns,
                                 )?;
                                 i = u_i;
                                 branch = branch.or_else_if(cond, units);
                             }
-                            Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
+                            Token::Header { name, .. }
+                                if name.eq_ignore_ascii_case(header::ELSE) =>
+                            {
                                 i += 1;
                                 let mut u_i = i;
                                 let units =
-                                    collect_units(tokens, &mut u_i, &["ENDIF"], &mut warns)?;
+                                    collect_units(tokens, &mut u_i, &[header::ENDIF], &mut warns)?;
                                 i = u_i;
                                 branch = branch.or_else(units);
                             }
-                            Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
+                            Token::Header { name, .. }
+                                if name.eq_ignore_ascii_case(header::ENDIF) =>
+                            {
                                 i += 1;
                                 break;
                             }
@@ -238,16 +249,16 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     }
                     branches.push(branch);
                 }
-                Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSEIF") => {
+                Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSEIF) => {
                     return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
                 }
-                Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
+                Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSE) => {
                     return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
                 }
-                Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
+                Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDIF) => {
                     return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
                 }
-                Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDRANDOM") => {
+                Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDRANDOM) => {
                     i += 1;
                     break;
                 }
@@ -272,7 +283,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
             None => return Ok((None, start, warns)),
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case("SWITCH") => {
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SWITCH) => {
                 match args.parse() {
                     Ok(max) => (ControlFlowValue::GenMax(max), start + 1),
                     Err(_) => {
@@ -284,7 +295,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     }
                 }
             }
-            Token::Header { name, args } if name.eq_ignore_ascii_case("SETSWITCH") => {
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_SWITCH) => {
                 match args.parse() {
                     Ok(val) => (ControlFlowValue::Set(val), start + 1),
                     Err(_) => {
@@ -302,7 +313,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
         let mut sw = Switch::new(value);
         while let Some(cur) = tokens.get(i) {
             match cur.content() {
-                Token::Header { name, args } if name.eq_ignore_ascii_case("CASE") => {
+                Token::Header { name, args } if name.eq_ignore_ascii_case(header::CASE) => {
                     let cond = match args.parse() {
                         Ok(v) => v,
                         Err(_) => {
@@ -317,13 +328,19 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                             let _ = collect_units(
                                 tokens,
                                 &mut u_i,
-                                &["CASE", "DEF", "ENDSW", "ENDSWITCH", "SKIP"],
+                                &[
+                                    header::CASE,
+                                    header::DEF,
+                                    header::ENDSW,
+                                    header::ENDSWITCH,
+                                    header::SKIP,
+                                ],
                                 &mut warns,
                             )?;
                             i = u_i;
                             if let Some(tok) = tokens.get(i)
                                 && let Token::Header { name, .. } = tok.content()
-                                && name.eq_ignore_ascii_case("SKIP")
+                                && name.eq_ignore_ascii_case(header::SKIP)
                             {
                                 i += 1;
                             }
@@ -335,14 +352,20 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     let units = collect_units(
                         tokens,
                         &mut u_i,
-                        &["CASE", "DEF", "ENDSW", "ENDSWITCH", "SKIP"],
+                        &[
+                            header::CASE,
+                            header::DEF,
+                            header::ENDSW,
+                            header::ENDSWITCH,
+                            header::SKIP,
+                        ],
                         &mut warns,
                     )?;
                     i = u_i;
                     let mut skip = false;
                     if let Some(tok) = tokens.get(i)
                         && let Token::Header { name, .. } = tok.content()
-                        && name.eq_ignore_ascii_case("SKIP")
+                        && name.eq_ignore_ascii_case(header::SKIP)
                     {
                         skip = true;
                         i += 1;
@@ -353,20 +376,26 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                         sw.case_no_skip(cond, units)
                     };
                 }
-                Token::Header { name, .. } if name.eq_ignore_ascii_case("DEF") => {
+                Token::Header { name, .. } if name.eq_ignore_ascii_case(header::DEF) => {
                     i += 1;
                     let mut u_i = i;
                     let units = collect_units(
                         tokens,
                         &mut u_i,
-                        &["CASE", "DEF", "ENDSW", "ENDSWITCH", "SKIP"],
+                        &[
+                            header::CASE,
+                            header::DEF,
+                            header::ENDSW,
+                            header::ENDSWITCH,
+                            header::SKIP,
+                        ],
                         &mut warns,
                     )?;
                     i = u_i;
                     let mut skip = false;
                     if let Some(tok) = tokens.get(i)
                         && let Token::Header { name, .. } = tok.content()
-                        && name.eq_ignore_ascii_case("SKIP")
+                        && name.eq_ignore_ascii_case(header::SKIP)
                     {
                         skip = true;
                         i += 1;
@@ -374,8 +403,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     sw = sw.def_with_skip(units, skip);
                 }
                 Token::Header { name, .. }
-                    if name.eq_ignore_ascii_case("ENDSW")
-                        || name.eq_ignore_ascii_case("ENDSWITCH") =>
+                    if name.eq_ignore_ascii_case(header::ENDSW)
+                        || name.eq_ignore_ascii_case(header::ENDSWITCH) =>
                 {
                     i += 1;
                     break;
@@ -404,8 +433,8 @@ pub fn build_blocks<'a>(
     while let Some(cur) = tokens.tokens.get(i) {
         match cur.content() {
             Token::Header { name, .. }
-                if name.eq_ignore_ascii_case("RANDOM")
-                    || name.eq_ignore_ascii_case("SETRANDOM") =>
+                if name.eq_ignore_ascii_case(header::RANDOM)
+                    || name.eq_ignore_ascii_case(header::SET_RANDOM) =>
             {
                 if !acc.is_empty() {
                     out.push(TokenUnit::from(std::mem::take(&mut acc)));
@@ -418,8 +447,8 @@ pub fn build_blocks<'a>(
                 i = next;
             }
             Token::Header { name, .. }
-                if name.eq_ignore_ascii_case("SWITCH")
-                    || name.eq_ignore_ascii_case("SETSWITCH") =>
+                if name.eq_ignore_ascii_case(header::SWITCH)
+                    || name.eq_ignore_ascii_case(header::SET_SWITCH) =>
             {
                 if !acc.is_empty() {
                     out.push(TokenUnit::from(std::mem::take(&mut acc)));
@@ -431,32 +460,33 @@ pub fn build_blocks<'a>(
                 }
                 i = next;
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("IF") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::IF) => {
                 return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSEIF") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSEIF) => {
                 return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("ELSE") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSE) => {
                 return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDIF") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDIF) => {
                 return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("ENDRANDOM") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDRANDOM) => {
                 return Err(ControlFlowError::EndRandomWithoutRandom.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("CASE") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::CASE) => {
                 return Err(ControlFlowError::CaseWithoutSwitch.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("DEF") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::DEF) => {
                 return Err(ControlFlowError::DefWithoutSwitch.into_wrapper(cur));
             }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case("SKIP") => {
+            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::SKIP) => {
                 return Err(ControlFlowError::SkipOutsideCaseOrDef.into_wrapper(cur));
             }
             Token::Header { name, .. }
-                if name.eq_ignore_ascii_case("ENDSW") || name.eq_ignore_ascii_case("ENDSWITCH") =>
+                if name.eq_ignore_ascii_case(header::ENDSW)
+                    || name.eq_ignore_ascii_case(header::ENDSWITCH) =>
             {
                 return Err(ControlFlowError::EndSwitchWithoutSwitch.into_wrapper(cur));
             }
