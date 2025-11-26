@@ -66,16 +66,12 @@ fn collect_units<'a>(
                     continue;
                 }
                 let t = tok.content().clone();
-                if let Ok(nc) = NonControlToken::try_from_token(t) {
-                    acc.push(nc);
-                }
+                acc.extend(NonControlToken::try_from_token(t).ok());
                 *i += 1;
             }
             _ => {
                 let t = tok.content().clone();
-                if let Ok(nc) = NonControlToken::try_from_token(t) {
-                    acc.push(nc);
-                }
+                acc.extend(NonControlToken::try_from_token(t).ok());
                 *i += 1;
             }
         }
@@ -96,30 +92,26 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
             None => return Ok((None, start)),
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::RANDOM) => {
-                match args.parse() {
-                    Ok(max) => (ControlFlowValue::GenMax(max), start + 1),
-                    Err(_) => {
-                        return Err(ControlFlowError::InvalidIntegerArgument {
-                            header: "RANDOM".to_string(),
-                            args: args.to_string(),
-                        }
-                        .into_wrapper(t0));
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::RANDOM) => args
+                .parse()
+                .map(|max| (ControlFlowValue::GenMax(max), start + 1))
+                .map_err(|_| {
+                    ControlFlowError::InvalidIntegerArgument {
+                        header: "RANDOM".to_string(),
+                        args: args.to_string(),
                     }
-                }
-            }
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_RANDOM) => {
-                match args.parse() {
-                    Ok(val) => (ControlFlowValue::Set(val), start + 1),
-                    Err(_) => {
-                        return Err(ControlFlowError::InvalidIntegerArgument {
-                            header: "SETRANDOM".to_string(),
-                            args: args.to_string(),
-                        }
-                        .into_wrapper(t0));
+                    .into_wrapper(t0)
+                })?,
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_RANDOM) => args
+                .parse()
+                .map(|val| (ControlFlowValue::Set(val), start + 1))
+                .map_err(|_| {
+                    ControlFlowError::InvalidIntegerArgument {
+                        header: "SETRANDOM".to_string(),
+                        args: args.to_string(),
                     }
-                }
-            }
+                    .into_wrapper(t0)
+                })?,
             _ => unreachable!(),
         };
 
@@ -127,16 +119,13 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
         while let Some(cur) = tokens.get(i) {
             match cur.content() {
                 Token::Header { name, args } if name.eq_ignore_ascii_case(header::IF) => {
-                    let head_cond = match args.parse() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            return Err(ControlFlowError::InvalidIntegerArgument {
-                                header: "IF".to_string(),
-                                args: args.to_string(),
-                            }
-                            .into_wrapper(cur));
+                    let head_cond = args.parse().map_err(|_| {
+                        ControlFlowError::InvalidIntegerArgument {
+                            header: "IF".to_string(),
+                            args: args.to_string(),
                         }
-                    };
+                        .into_wrapper(cur)
+                    })?;
                     i += 1;
                     let mut units_i = i;
                     let head_units = collect_units(
@@ -155,16 +144,13 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                             Token::Header { name, args }
                                 if name.eq_ignore_ascii_case(header::ELSEIF) =>
                             {
-                                let cond = match args.parse() {
-                                    Ok(v) => v,
-                                    Err(_) => {
-                                        return Err(ControlFlowError::InvalidIntegerArgument {
-                                            header: "ELSEIF".to_string(),
-                                            args: args.to_string(),
-                                        }
-                                        .into_wrapper(cur));
+                                let cond = args.parse().map_err(|_| {
+                                    ControlFlowError::InvalidIntegerArgument {
+                                        header: "ELSEIF".to_string(),
+                                        args: args.to_string(),
                                     }
-                                };
+                                    .into_wrapper(cur)
+                                })?;
                                 i += 1;
                                 let mut u_i = i;
                                 let units = collect_units(
@@ -228,30 +214,26 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
             None => return Ok((None, start)),
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SWITCH) => {
-                match args.parse() {
-                    Ok(max) => (ControlFlowValue::GenMax(max), start + 1),
-                    Err(_) => {
-                        return Err(ControlFlowError::InvalidIntegerArgument {
-                            header: "SWITCH".to_string(),
-                            args: args.to_string(),
-                        }
-                        .into_wrapper(t0));
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SWITCH) => args
+                .parse()
+                .map(|max| (ControlFlowValue::GenMax(max), start + 1))
+                .map_err(|_| {
+                    ControlFlowError::InvalidIntegerArgument {
+                        header: "SWITCH".to_string(),
+                        args: args.to_string(),
                     }
-                }
-            }
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_SWITCH) => {
-                match args.parse() {
-                    Ok(val) => (ControlFlowValue::Set(val), start + 1),
-                    Err(_) => {
-                        return Err(ControlFlowError::InvalidIntegerArgument {
-                            header: "SETSWITCH".to_string(),
-                            args: args.to_string(),
-                        }
-                        .into_wrapper(t0));
+                    .into_wrapper(t0)
+                })?,
+            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_SWITCH) => args
+                .parse()
+                .map(|val| (ControlFlowValue::Set(val), start + 1))
+                .map_err(|_| {
+                    ControlFlowError::InvalidIntegerArgument {
+                        header: "SETSWITCH".to_string(),
+                        args: args.to_string(),
                     }
-                }
-            }
+                    .into_wrapper(t0)
+                })?,
             _ => unreachable!(),
         };
 
@@ -259,16 +241,13 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
         while let Some(cur) = tokens.get(i) {
             match cur.content() {
                 Token::Header { name, args } if name.eq_ignore_ascii_case(header::CASE) => {
-                    let cond = match args.parse() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            return Err(ControlFlowError::InvalidIntegerArgument {
-                                header: "CASE".to_string(),
-                                args: args.to_string(),
-                            }
-                            .into_wrapper(cur));
+                    let cond = args.parse().map_err(|_| {
+                        ControlFlowError::InvalidIntegerArgument {
+                            header: "CASE".to_string(),
+                            args: args.to_string(),
                         }
-                    };
+                        .into_wrapper(cur)
+                    })?;
                     i += 1;
                     let mut u_i = i;
                     let units = collect_units(
@@ -409,9 +388,7 @@ pub fn build_blocks<'a>(
             }
             _ => {
                 let t = cur.content().clone();
-                if let Ok(nc) = NonControlToken::try_from_token(t) {
-                    acc.push(nc);
-                }
+                acc.extend(NonControlToken::try_from_token(t).ok());
                 i += 1;
             }
         }

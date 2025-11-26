@@ -51,16 +51,15 @@ impl<'a> Activate<'a> for Random<'a> {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
-                if !range.contains(&g) {
-                    return Err(SourceRangeMixin::new(
+                range.contains(&g).then_some(g.clone()).ok_or_else(|| {
+                    SourceRangeMixin::new(
                         ControlFlowError::RandomGeneratedValueOutOfRange {
                             expected: range,
                             actual: g,
                         },
                         0..0,
-                    ));
-                }
-                g
+                    )
+                })?
             }
             ControlFlowValue::Set(val) => val,
         };
@@ -112,16 +111,15 @@ impl<'a> Activate<'a> for Switch<'a> {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
-                if !range.contains(&g) {
-                    return Err(SourceRangeMixin::new(
+                range.contains(&g).then_some(g.clone()).ok_or_else(|| {
+                    SourceRangeMixin::new(
                         ControlFlowError::SwitchGeneratedValueOutOfRange {
                             expected: range,
                             actual: g,
                         },
                         0..0,
-                    ));
-                }
-                g
+                    )
+                })?
             }
             ControlFlowValue::Set(val) => val,
         };
