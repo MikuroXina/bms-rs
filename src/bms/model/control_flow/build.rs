@@ -408,12 +408,16 @@ pub fn build_blocks<'a>(
     let mut i = 0usize;
     let mut out: Vec<TokenUnit<'a>> = Vec::new();
     let mut warns: Vec<ParseWarningWithRange> = Vec::new();
+    let mut acc: Vec<NonControlToken<'a>> = Vec::new();
     while i < tokens.tokens.len() {
         match tokens.tokens[i].content() {
             Token::Header { name, .. }
                 if name.eq_ignore_ascii_case("RANDOM")
                     || name.eq_ignore_ascii_case("SETRANDOM") =>
             {
+                if !acc.is_empty() {
+                    out.push(TokenUnit::from(std::mem::take(&mut acc)));
+                }
                 let (r_opt, next, w) = Random::build_from_stream(&tokens.tokens, i)?;
                 warns.extend(w);
                 if let Some(r) = r_opt {
@@ -425,6 +429,9 @@ pub fn build_blocks<'a>(
                 if name.eq_ignore_ascii_case("SWITCH")
                     || name.eq_ignore_ascii_case("SETSWITCH") =>
             {
+                if !acc.is_empty() {
+                    out.push(TokenUnit::from(std::mem::take(&mut acc)));
+                }
                 let (s_opt, next, w) = Switch::build_from_stream(&tokens.tokens, i)?;
                 warns.extend(w);
                 if let Some(s) = s_opt {
@@ -433,9 +440,16 @@ pub fn build_blocks<'a>(
                 i = next;
             }
             _ => {
+                let t = tokens.tokens[i].content().clone();
+                if let Ok(nc) = NonControlToken::try_from_token(t) {
+                    acc.push(nc);
+                }
                 i += 1;
             }
         }
+    }
+    if !acc.is_empty() {
+        out.push(TokenUnit::from(acc));
     }
     Ok((out, warns))
 }

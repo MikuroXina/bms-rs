@@ -132,15 +132,32 @@ impl<'a> Activate<'a> for Switch<'a> {
         let cases = self.cases;
         let mut matched_index: Option<usize> = None;
         let mut last_default_index: Option<usize> = None;
+        let mut seen_case = false;
+        let mut first_default_before_any_case: Option<usize> = None;
         for (idx, case) in cases.iter().enumerate() {
             match case.condition {
-                Some(ref cond) if *cond == generated => {
-                    matched_index = Some(idx);
-                    break;
+                Some(ref cond) => {
+                    seen_case = true;
+                    if *cond == generated {
+                        matched_index = Some(idx);
+                        break;
+                    }
                 }
-                None => last_default_index = Some(idx),
-                _ => {}
+                None => {
+                    last_default_index = Some(idx);
+                    if !seen_case && first_default_before_any_case.is_none() {
+                        first_default_before_any_case = Some(idx);
+                    }
+                }
             }
+        }
+
+        if let Some(i) = first_default_before_any_case {
+            for u in cases[i].units.clone().into_iter() {
+                let (tokens, _warns) = Activate::activate(u, rng)?;
+                out.extend(tokens);
+            }
+            return Ok((out, Vec::new()));
         }
 
         if let Some(i) = matched_index {
