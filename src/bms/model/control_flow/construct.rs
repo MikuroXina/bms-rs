@@ -26,60 +26,112 @@ pub trait BuildFromStream<'a>: Sized {
     ) -> Result<(Option<Self>, usize), ControlFlowErrorWithRange>;
 }
 
-fn collect_units<'a>(
-    tokens: &[TokenWithRange<'a>],
-    i: &mut usize,
-    stop: &[&str],
-) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
-    let mut out: Vec<TokenUnit<'a>> = Vec::new();
-    let mut acc: Vec<NonControlToken<'a>> = Vec::new();
-    while let Some(tok) = tokens.get(*i) {
-        match tok.content() {
-            Token::Header { name, .. } => {
-                if stop.iter().any(|s| name.eq_ignore_ascii_case(s)) {
-                    break;
+/// Internal parser helper for processing a sequence of tokens into `TokenUnit`s.
+///
+/// This struct holds references to the token slice and a mutable cursor, enabling
+/// stateful parsing that can consume tokens and advance the position. It handles
+/// the common logic of identifying control flow structures (`#RANDOM`, `#SWITCH`)
+/// and collecting regular tokens into `TokenUnit::Tokens`.
+struct ControlFlowParser<'a, 'b> {
+    /// The full slice of tokens being parsed.
+    tokens: &'b [TokenWithRange<'a>],
+    /// Mutable reference to the current parsing position (index in `tokens`).
+    cursor: &'b mut usize,
+}
+
+impl<'a, 'b> ControlFlowParser<'a, 'b> {
+    /// Creates a new `ControlFlowParser`.
+    ///
+    /// # Arguments
+    ///
+    /// * `tokens` - The slice of tokens to parse.
+    /// * `cursor` - A mutable reference to the current index in `tokens`.
+    fn new(tokens: &'b [TokenWithRange<'a>], cursor: &'b mut usize) -> Self {
+        Self { tokens, cursor }
+    }
+
+    /// Parses tokens starting from the current cursor position until a stop token is encountered
+    /// or the end of the stream is reached.
+    ///
+    /// # Arguments
+    ///
+    /// * `stop` - A list of header names (e.g., `["ENDIF", "ELSE"]`) that should stop the parsing loop
+    ///            when encountered. These tokens are *not* consumed; the cursor will point to them.
+    /// * `check_header` - A callback function invoked for headers that are not standard control flow
+    ///                    beginnings (`#RANDOM`, `#SWITCH`) or in the `stop` list. This allows
+    ///                    custom validation (e.g., checking for misplaced `#ELSE` or `#CASE`).
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<TokenUnit<'a>>)` - The collected units (nested blocks or token groups).
+    /// * `Err(ControlFlowErrorWithRange)` - If a parsing error occurs (propagated from sub-parsers or `check_header`).
+    fn parse<F>(
+        &mut self,
+        stop: &[&str],
+        mut check_header: F,
+    ) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange>
+    where
+        F: FnMut(&TokenWithRange<'a>, &str) -> Result<(), ControlFlowErrorWithRange>,
+    {
+        let mut out = Vec::new();
+        let mut acc = Vec::new();
+        while let Some(tok) = self.tokens.get(*self.cursor) {
+            match tok.content() {
+                Token::Header { name, .. } => {
+                    // check if we hit a stop token
+                    if stop.iter().any(|s| name.eq_ignore_ascii_case(s)) {
+                        break;
+                    }
+                    // Handle nested #RANDOM
+                    if name.eq_ignore_ascii_case(header::RANDOM)
+                        || name.eq_ignore_ascii_case(header::SET_RANDOM)
+                    {
+                        if !acc.is_empty() {
+                            out.push(TokenUnit::from(std::mem::take(&mut acc)));
+                        }
+                        let (r_opt, next) = Random::build_from_stream(self.tokens, *self.cursor)?;
+                        if let Some(r) = r_opt {
+                            out.push(TokenUnit::from(r));
+                        }
+                        *self.cursor = next;
+                        continue;
+                    }
+                    // Handle nested #SWITCH
+                    if name.eq_ignore_ascii_case(header::SWITCH)
+                        || name.eq_ignore_ascii_case(header::SET_SWITCH)
+                    {
+                        if !acc.is_empty() {
+                            out.push(TokenUnit::from(std::mem::take(&mut acc)));
+                        }
+                        let (s_opt, next) = Switch::build_from_stream(self.tokens, *self.cursor)?;
+                        if let Some(s) = s_opt {
+                            out.push(TokenUnit::from(s));
+                        }
+                        *self.cursor = next;
+                        continue;
+                    }
+
+                    // Custom check for other headers (e.g. error on orphan #ELSE)
+                    check_header(tok, name)?;
+
+                    // Treat as a normal token if not handled above
+                    let t = tok.content().clone();
+                    acc.extend(NonControlToken::try_from_token(t).ok());
+                    *self.cursor += 1;
                 }
-                if name.eq_ignore_ascii_case(header::RANDOM)
-                    || name.eq_ignore_ascii_case(header::SET_RANDOM)
-                {
-                    if !acc.is_empty() {
-                        out.push(TokenUnit::from(std::mem::take(&mut acc)));
-                    }
-                    let (r_opt, next) = Random::build_from_stream(tokens, *i)?;
-                    if let Some(r) = r_opt {
-                        out.push(TokenUnit::from(r));
-                    }
-                    *i = next;
-                    continue;
+                _ => {
+                    // Non-header token
+                    let t = tok.content().clone();
+                    acc.extend(NonControlToken::try_from_token(t).ok());
+                    *self.cursor += 1;
                 }
-                if name.eq_ignore_ascii_case(header::SWITCH)
-                    || name.eq_ignore_ascii_case(header::SET_SWITCH)
-                {
-                    if !acc.is_empty() {
-                        out.push(TokenUnit::from(std::mem::take(&mut acc)));
-                    }
-                    let (s_opt, next) = Switch::build_from_stream(tokens, *i)?;
-                    if let Some(s) = s_opt {
-                        out.push(TokenUnit::from(s));
-                    }
-                    *i = next;
-                    continue;
-                }
-                let t = tok.content().clone();
-                acc.extend(NonControlToken::try_from_token(t).ok());
-                *i += 1;
-            }
-            _ => {
-                let t = tok.content().clone();
-                acc.extend(NonControlToken::try_from_token(t).ok());
-                *i += 1;
             }
         }
+        if !acc.is_empty() {
+            out.push(TokenUnit::from(acc));
+        }
+        Ok(out)
     }
-    if !acc.is_empty() {
-        out.push(TokenUnit::from(acc));
-    }
-    Ok(out)
 }
 
 impl<'a> BuildFromStream<'a> for Random<'a> {
@@ -127,13 +179,10 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                         .into_wrapper(cur)
                     })?;
                     i += 1;
-                    let mut units_i = i;
-                    let head_units = collect_units(
-                        tokens,
-                        &mut units_i,
+                    let head_units = ControlFlowParser::new(tokens, &mut i).parse(
                         &[header::ELSEIF, header::ELSE, header::ENDIF],
+                        |_, _| Ok(()),
                     )?;
-                    i = units_i;
                     let mut branch = IfBlock::new_if(head_cond, head_units);
                     loop {
                         if i >= tokens.len() {
@@ -152,22 +201,18 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                                     .into_wrapper(cur)
                                 })?;
                                 i += 1;
-                                let mut u_i = i;
-                                let units = collect_units(
-                                    tokens,
-                                    &mut u_i,
+                                let units = ControlFlowParser::new(tokens, &mut i).parse(
                                     &[header::ELSEIF, header::ELSE, header::ENDIF],
+                                    |_, _| Ok(()),
                                 )?;
-                                i = u_i;
                                 branch = branch.or_else_if(cond, units);
                             }
                             Token::Header { name, .. }
                                 if name.eq_ignore_ascii_case(header::ELSE) =>
                             {
                                 i += 1;
-                                let mut u_i = i;
-                                let units = collect_units(tokens, &mut u_i, &[header::ENDIF])?;
-                                i = u_i;
+                                let units = ControlFlowParser::new(tokens, &mut i)
+                                    .parse(&[header::ENDIF], |_, _| Ok(()))?;
                                 branch = branch.or_else(units);
                             }
                             Token::Header { name, .. }
@@ -249,10 +294,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                         .into_wrapper(cur)
                     })?;
                     i += 1;
-                    let mut u_i = i;
-                    let units = collect_units(
-                        tokens,
-                        &mut u_i,
+                    let units = ControlFlowParser::new(tokens, &mut i).parse(
                         &[
                             header::CASE,
                             header::DEF,
@@ -260,8 +302,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                             header::ENDSWITCH,
                             header::SKIP,
                         ],
+                        |_, _| Ok(()),
                     )?;
-                    i = u_i;
                     let mut skip = false;
                     if let Some(tok) = tokens.get(i)
                         && let Token::Header { name, .. } = tok.content()
@@ -278,10 +320,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 }
                 Token::Header { name, .. } if name.eq_ignore_ascii_case(header::DEF) => {
                     i += 1;
-                    let mut u_i = i;
-                    let units = collect_units(
-                        tokens,
-                        &mut u_i,
+                    let units = ControlFlowParser::new(tokens, &mut i).parse(
                         &[
                             header::CASE,
                             header::DEF,
@@ -289,8 +328,8 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                             header::ENDSWITCH,
                             header::SKIP,
                         ],
+                        |_, _| Ok(()),
                     )?;
-                    i = u_i;
                     let mut skip = false;
                     if let Some(tok) = tokens.get(i)
                         && let Token::Header { name, .. } = tok.content()
@@ -326,75 +365,35 @@ pub fn build_blocks<'a>(
     tokens: &TokenStream<'a>,
 ) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
     let mut i = 0usize;
-    let mut out: Vec<TokenUnit<'a>> = Vec::new();
-    let mut acc: Vec<NonControlToken<'a>> = Vec::new();
-    while let Some(cur) = tokens.tokens.get(i) {
-        match cur.content() {
-            Token::Header { name, .. }
-                if name.eq_ignore_ascii_case(header::RANDOM)
-                    || name.eq_ignore_ascii_case(header::SET_RANDOM) =>
-            {
-                if !acc.is_empty() {
-                    out.push(TokenUnit::from(std::mem::take(&mut acc)));
-                }
-                let (r_opt, next) = Random::build_from_stream(&tokens.tokens, i)?;
-                if let Some(r) = r_opt {
-                    out.push(TokenUnit::from(r));
-                }
-                i = next;
-            }
-            Token::Header { name, .. }
-                if name.eq_ignore_ascii_case(header::SWITCH)
-                    || name.eq_ignore_ascii_case(header::SET_SWITCH) =>
-            {
-                if !acc.is_empty() {
-                    out.push(TokenUnit::from(std::mem::take(&mut acc)));
-                }
-                let (s_opt, next) = Switch::build_from_stream(&tokens.tokens, i)?;
-                if let Some(s) = s_opt {
-                    out.push(TokenUnit::from(s));
-                }
-                i = next;
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::IF) => {
-                return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSEIF) => {
-                return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ELSE) => {
-                return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDIF) => {
-                return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::ENDRANDOM) => {
-                return Err(ControlFlowError::EndRandomWithoutRandom.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::CASE) => {
-                return Err(ControlFlowError::CaseWithoutSwitch.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::DEF) => {
-                return Err(ControlFlowError::DefWithoutSwitch.into_wrapper(cur));
-            }
-            Token::Header { name, .. } if name.eq_ignore_ascii_case(header::SKIP) => {
-                return Err(ControlFlowError::SkipOutsideCaseOrDef.into_wrapper(cur));
-            }
-            Token::Header { name, .. }
-                if name.eq_ignore_ascii_case(header::ENDSW)
-                    || name.eq_ignore_ascii_case(header::ENDSWITCH) =>
-            {
-                return Err(ControlFlowError::EndSwitchWithoutSwitch.into_wrapper(cur));
-            }
-            _ => {
-                let t = cur.content().clone();
-                acc.extend(NonControlToken::try_from_token(t).ok());
-                i += 1;
-            }
+    ControlFlowParser::new(&tokens.tokens, &mut i).parse(&[], |cur, name| {
+        if name.eq_ignore_ascii_case(header::IF) {
+            return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
         }
-    }
-    if !acc.is_empty() {
-        out.push(TokenUnit::from(acc));
-    }
-    Ok(out)
+        if name.eq_ignore_ascii_case(header::ELSEIF) {
+            return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::ELSE) {
+            return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::ENDIF) {
+            return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::ENDRANDOM) {
+            return Err(ControlFlowError::EndRandomWithoutRandom.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::CASE) {
+            return Err(ControlFlowError::CaseWithoutSwitch.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::DEF) {
+            return Err(ControlFlowError::DefWithoutSwitch.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::SKIP) {
+            return Err(ControlFlowError::SkipOutsideCaseOrDef.into_wrapper(cur));
+        }
+        if name.eq_ignore_ascii_case(header::ENDSW) || name.eq_ignore_ascii_case(header::ENDSWITCH)
+        {
+            return Err(ControlFlowError::EndSwitchWithoutSwitch.into_wrapper(cur));
+        }
+        Ok(())
+    })
 }
