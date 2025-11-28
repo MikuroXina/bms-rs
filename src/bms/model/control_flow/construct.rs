@@ -1,11 +1,12 @@
 //! Builders for control flow structures from `TokenStream`.
 
-use crate::bms::command::mixin::SourceRangeMixinExt;
+use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixinExt};
 use crate::bms::lex::{
     TokenStream,
     token::{Token, TokenWithRange},
 };
 use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange};
+use num::BigUint;
 
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
@@ -141,7 +142,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
         let Some(t0) = tokens.get(start) else {
             return Ok((None, start));
         };
-        let (value, mut i) = match t0.content() {
+        let (value_inner, mut i) = match t0.content() {
             Token::Header { name, args } if name.eq_ignore_ascii_case("RANDOM") => args
                 .parse()
                 .map(|max| (ControlFlowValue::GenMax(max), start + 1))
@@ -164,6 +165,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                 })?,
             _ => unreachable!(),
         };
+        let value = MaybeWithRange::wrapped(value_inner.into_wrapper(t0));
 
         // Parse IF/ELSEIF/ELSE chains inside a RANDOM block using guard clauses
         // to avoid deep nesting. Errors are raised for orphaned headers.
@@ -175,7 +177,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
             };
 
             if name.eq_ignore_ascii_case("IF") {
-                let head_cond = args.parse().map_err(|_| {
+                let head_cond: BigUint = args.parse().map_err(|_| {
                     ControlFlowError::InvalidIntegerArgument {
                         header: "IF".to_string(),
                         args: args.to_string(),
@@ -185,7 +187,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                 i += 1;
                 let head_units = ControlFlowParser::new(tokens, &mut i)
                     .parse(&["ELSEIF", "ELSE", "ENDIF"], |_, _| Ok(()))?;
-                let mut branch = IfBlock::new_if(head_cond, head_units);
+                let mut branch = IfBlock::new_if(head_cond.into_wrapper(cur), head_units);
 
                 // Consume chained ELSEIF/ELSE until ENDIF.
                 loop {
@@ -198,7 +200,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     };
 
                     if name.eq_ignore_ascii_case("ELSEIF") {
-                        let cond = args.parse().map_err(|_| {
+                        let cond: BigUint = args.parse().map_err(|_| {
                             ControlFlowError::InvalidIntegerArgument {
                                 header: "ELSEIF".to_string(),
                                 args: args.to_string(),
@@ -208,7 +210,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                         i += 1;
                         let units = ControlFlowParser::new(tokens, &mut i)
                             .parse(&["ELSEIF", "ELSE", "ENDIF"], |_, _| Ok(()))?;
-                        branch = branch.or_else_if(cond, units);
+                        branch = branch.or_else_if(cond.into_wrapper(cur), units);
                         continue;
                     }
 
@@ -262,7 +264,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
         let Some(t0) = tokens.get(start) else {
             return Ok((None, start));
         };
-        let (value, mut i) = match t0.content() {
+        let (value_inner, mut i) = match t0.content() {
             Token::Header { name, args } if name.eq_ignore_ascii_case("SWITCH") => args
                 .parse()
                 .map(|max| (ControlFlowValue::GenMax(max), start + 1))
@@ -285,6 +287,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 })?,
             _ => unreachable!(),
         };
+        let value = MaybeWithRange::wrapped(value_inner.into_wrapper(t0));
 
         // Parse CASE/DEF blocks inside a SWITCH, using early-continue to keep code flat.
         let mut sw = Switch::new(value);
@@ -295,7 +298,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
             };
 
             if name.eq_ignore_ascii_case("CASE") {
-                let cond = args.parse().map_err(|_| {
+                let cond: BigUint = args.parse().map_err(|_| {
                     ControlFlowError::InvalidIntegerArgument {
                         header: "CASE".to_string(),
                         args: args.to_string(),
@@ -316,9 +319,9 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     i += 1;
                 }
                 sw = if skip {
-                    sw.case_with_skip(cond, units)
+                    sw.case_with_skip(cond.into_wrapper(cur), units)
                 } else {
-                    sw.case_no_skip(cond, units)
+                    sw.case_no_skip(cond.into_wrapper(cur), units)
                 };
                 continue;
             }

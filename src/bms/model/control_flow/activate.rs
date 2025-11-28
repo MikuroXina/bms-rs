@@ -45,7 +45,9 @@ impl<'a> Activate<'a> for Random<'a> {
         rng: &mut R,
     ) -> Result<Vec<MaybeWithRange<Token<'a>>>, ControlFlowErrorWithRange> {
         // Generate or use the provided value, validating RNG output range.
-        let generated = match self.value {
+        let value_wr = self.value.into_wrapped_or(0..0);
+        let value_range = value_wr.range().clone();
+        let generated = match value_wr.into_content() {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
@@ -55,7 +57,7 @@ impl<'a> Activate<'a> for Random<'a> {
                             expected: range,
                             actual: g,
                         },
-                        0..0,
+                        value_range.clone(),
                     )
                 })?
             }
@@ -74,7 +76,7 @@ impl<'a> Activate<'a> for Random<'a> {
 
         // Evaluate IF/ELSEIF/ELSE chains, emitting matching blocks.
         for branch in self.branches {
-            if branch.condition == generated {
+            if *branch.condition.content() == generated {
                 emit_units(branch.head_units)?;
                 continue;
             }
@@ -83,7 +85,7 @@ impl<'a> Activate<'a> for Random<'a> {
             loop {
                 match node {
                     IfChainEntry::ElseIf { cond, units, next } => {
-                        if cond == generated {
+                        if *cond.content() == generated {
                             emit_units(units)?;
                             break;
                         }
@@ -107,7 +109,9 @@ impl<'a> Activate<'a> for Switch<'a> {
         rng: &mut R,
     ) -> Result<Vec<MaybeWithRange<Token<'a>>>, ControlFlowErrorWithRange> {
         // Generate or use the provided value, validating RNG output range.
-        let generated = match self.value {
+        let value_wr = self.value.into_wrapped_or(0..0);
+        let value_range = value_wr.range().clone();
+        let generated = match value_wr.into_content() {
             ControlFlowValue::GenMax(max) => {
                 let range: RangeInclusive<BigUint> = BigUint::from(1u64)..=max;
                 let g = rng.generate(range.clone());
@@ -117,7 +121,7 @@ impl<'a> Activate<'a> for Switch<'a> {
                             expected: range,
                             actual: g,
                         },
-                        0..0,
+                        value_range.clone(),
                     )
                 })?
             }
@@ -136,7 +140,7 @@ impl<'a> Activate<'a> for Switch<'a> {
             match case.condition {
                 Some(ref cond) => {
                     seen_case = true;
-                    if *cond == generated {
+                    if *cond.content() == generated {
                         matched_index = Some(idx);
                         break;
                     }

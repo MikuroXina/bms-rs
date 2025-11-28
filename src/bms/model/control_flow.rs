@@ -148,7 +148,7 @@ enum IfChainEntry<'a> {
     /// An `#ELSEIF <cond>` branch with its units and a pointer to the next entry.
     ElseIf {
         /// Condition value for `#ELSEIF <cond>`.
-        cond: BigUint,
+        cond: MaybeWithRange<BigUint>,
         /// Content units for this branch.
         units: Vec<TokenUnit<'a>>,
         /// Pointer to the next chain entry.
@@ -232,31 +232,33 @@ impl<'a> IfChainEntry<'a> {
 /// If-chain used within a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
-    condition: BigUint,
+    condition: MaybeWithRange<BigUint>,
     head_units: Vec<TokenUnit<'a>>, // units for the initial `#IF` branch
     chain: IfChainEntry<'a>,        // subsequent `ELSEIF`/`ELSE` nodes
 }
 
 impl<'a> IfBlock<'a> {
     /// Create a new if-chain with units in the first `#IF` entry.
-    pub fn new_if<U>(cond: BigUint, units: U) -> Self
+    pub fn new_if<C, U>(cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            condition: cond,
+            condition: cond.into(),
             head_units: units.into_iter().collect(),
             chain: IfChainEntry::EndIf,
         }
     }
 
     /// Add an `#ELSEIF <cond>` entry with units.
-    pub fn or_else_if<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn or_else_if<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         let entry = IfChainEntry::ElseIf {
-            cond,
+            cond: cond.into(),
             units: units.into_iter().collect(),
             next: Box::new(IfChainEntry::EndIf),
         };
@@ -308,8 +310,12 @@ impl<'a> IfBlock<'a> {
     }
 
     /// Set a new condition for the head `#IF` entry, returning the previous value.
-    pub const fn set_condition(&mut self, new_condition: BigUint) -> BigUint {
-        std::mem::replace(&mut self.condition, new_condition)
+    pub fn set_condition<C>(&mut self, new_condition: C) -> BigUint
+    where
+        C: Into<MaybeWithRange<BigUint>>,
+    {
+        let prev = std::mem::replace(&mut self.condition, new_condition.into());
+        prev.into_content()
     }
 
     /// Returns the number of branches in this if-chain (including head `#IF`).
@@ -343,16 +349,19 @@ impl<'a> IfBlock<'a> {
 /// A random block (`#RANDOM` or `#SETRANDOM`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Random<'a> {
-    value: ControlFlowValue,
+    value: MaybeWithRange<ControlFlowValue>,
     branches: Vec<IfBlock<'a>>,
 }
 
 impl<'a> Random<'a> {
     /// Create an empty random block (`#RANDOM` or `#SETRANDOM`).
     #[must_use]
-    pub const fn new(value: ControlFlowValue) -> Self {
+    pub fn new<V>(value: V) -> Self
+    where
+        V: Into<MaybeWithRange<ControlFlowValue>>,
+    {
         Self {
-            value,
+            value: value.into(),
             branches: Vec::new(),
         }
     }
@@ -423,19 +432,20 @@ impl<'a> IndexMut<usize> for Random<'a> {
 /// One case in a switch block. `condition = None` means `#DEF`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CaseEntry<'a> {
-    condition: Option<BigUint>,
+    condition: Option<MaybeWithRange<BigUint>>,
     units: Vec<TokenUnit<'a>>, // case content can be nested control flow or tokens
     skip: bool,                // whether to emit `#SKIP` after tokens
 }
 
 impl<'a> CaseEntry<'a> {
     /// Create a case entry with condition (units only).
-    pub fn new<U>(cond: BigUint, units: U) -> Self
+    pub fn new<C, U>(cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            condition: Some(cond),
+            condition: Some(cond.into()),
             units: units.into_iter().collect(),
             skip: true,
         }
@@ -462,7 +472,7 @@ impl<'a> CaseEntry<'a> {
 /// A switch block (`#SWITCH` or `#SETSWITCH`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Switch<'a> {
-    value: ControlFlowValue,
+    value: MaybeWithRange<ControlFlowValue>,
     cases: Vec<CaseEntry<'a>>,
 }
 
@@ -470,30 +480,35 @@ impl<'a> Switch<'a> {
     /// Start building a `Switch` with a control-flow value.
     /// This returns an empty `Switch` to be populated via builder-style methods.
     #[must_use]
-    pub const fn new(value: ControlFlowValue) -> Self {
+    pub fn new<V>(value: V) -> Self
+    where
+        V: Into<MaybeWithRange<ControlFlowValue>>,
+    {
         Self {
-            value,
+            value: value.into(),
             cases: Vec::new(),
         }
     }
 
     /// Add a `#CASE <cond>` branch and emit `#SKIP` after tokens.
-    pub fn case_with_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn case_with_skip<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::new(cond, units);
+        let mut entry = CaseEntry::new(cond.into(), units);
         entry.set_skip(true);
         self.cases.push(entry);
         self
     }
 
     /// Add a `#CASE <cond>` branch and do not emit `#SKIP` after tokens.
-    pub fn case_no_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn case_no_skip<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::new(cond, units);
+        let mut entry = CaseEntry::new(cond.into(), units);
         entry.set_skip(false);
         self.cases.push(entry);
         self

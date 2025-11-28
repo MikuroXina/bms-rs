@@ -29,13 +29,13 @@ impl<'a> IntoTokens<'a> for TokenUnit<'a> {
 impl<'a> IntoTokens<'a> for Random<'a> {
     fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
-        match &self.value {
+        match self.value.content() {
             ControlFlowValue::GenMax(max) => out.push(Token::header("RANDOM", max.to_string())),
             ControlFlowValue::Set(val) => out.push(Token::header("SETRANDOM", val.to_string())),
         }
 
         self.branches.into_iter().for_each(|branch| {
-            out.push(Token::header("IF", branch.condition.to_string()));
+            out.push(Token::header("IF", branch.condition.content().to_string()));
             out.extend(
                 branch
                     .head_units
@@ -47,7 +47,7 @@ impl<'a> IntoTokens<'a> for Random<'a> {
             loop {
                 match node {
                     IfChainEntry::ElseIf { cond, units, next } => {
-                        out.push(Token::header("ELSEIF", cond.to_string()));
+                        out.push(Token::header("ELSEIF", cond.content().to_string()));
                         out.extend(units.into_iter().flat_map(IntoTokens::into_tokens));
                         node = *next;
                     }
@@ -72,7 +72,7 @@ impl<'a> IntoTokens<'a> for Random<'a> {
 impl<'a> IntoTokens<'a> for Switch<'a> {
     fn into_tokens(self) -> Vec<Token<'a>> {
         let mut out = Vec::new();
-        match &self.value {
+        match self.value.content() {
             ControlFlowValue::GenMax(max) => out.push(Token::header("SWITCH", max.to_string())),
             ControlFlowValue::Set(val) => out.push(Token::header("SETSWITCH", val.to_string())),
         }
@@ -81,7 +81,7 @@ impl<'a> IntoTokens<'a> for Switch<'a> {
             out.extend(
                 std::iter::once(case.condition.map_or_else(
                     || Token::header("DEF", ""),
-                    |cond| Token::header("CASE", cond.to_string()),
+                    |cond| Token::header("CASE", cond.content().to_string()),
                 ))
                 .chain(case.units.into_iter().flat_map(IntoTokens::into_tokens))
                 .chain(case.skip.then(|| Token::header("SKIP", ""))),
