@@ -5,7 +5,7 @@
 //! - `#xxx98:` - Key volume change channel. It changes key notes volume at `[01-FF]`. Obsolete.
 
 use super::{super::prompt::Prompter, ProcessContext, TokenProcessor, parse_hex_values};
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::bms::{
     model::volume::VolumeObjects,
     parse::{ParseWarning, Result},
@@ -22,7 +22,7 @@ impl TokenProcessor for VolumeProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {

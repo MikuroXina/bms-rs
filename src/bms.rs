@@ -38,7 +38,7 @@ use self::{
     lex::{LexOutput, LexWarningWithRange},
     model::Bms,
     parse::{
-        ParseErrorWithRange, ParseWarningWithRange,
+        ControlFlowErrorWithRange, ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         token_processor::{
             DefaultTokenRelaxer, NoopTokenModifier, SequentialTokenModifier, TokenModifier,
@@ -225,7 +225,7 @@ impl<T, P, R, M> ParseConfig<T, P, R, M> {
             fn process<'a, 't, P: Prompter>(
                 &self,
                 ctx: &mut parse::token_processor::ProcessContext<'a, 't, P>,
-            ) -> Result<Self::Output, ParseErrorWithRange> {
+            ) -> Result<Self::Output, ControlFlowErrorWithRange> {
                 full_preset::<T, R>(Rc::clone(&self.rng)).process(ctx)
             }
         }
@@ -289,7 +289,7 @@ pub fn parse_bms<T: KeyLayoutMapper, P: Prompter, R: Rng, M: TokenModifier>(
 #[must_use]
 pub struct BmsOutput {
     /// The parsed BMS data.
-    pub bms: Result<Bms, ParseErrorWithRange>,
+    pub bms: Result<Bms, ControlFlowErrorWithRange>,
     /// Warnings that occurred during parsing.
     pub warnings: Vec<BmsWarning>,
 }

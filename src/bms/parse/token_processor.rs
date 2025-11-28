@@ -8,19 +8,19 @@ use itertools::Itertools;
 
 use crate::bms::lex::TokenStream;
 use crate::bms::{
-    parse::{ParseError, ParseErrorWithRange, ParseWarningWithRange},
+    parse::{ControlFlowError, ControlFlowErrorWithRange, ParseWarningWithRange},
     prelude::*,
 };
 use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
+mod control_flow;
 mod identity;
 mod judge;
 mod metadata;
 mod music_info;
 mod option;
-mod random;
 mod repr;
 mod resources;
 mod scroll;
@@ -99,9 +99,9 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Iterates over all remaining tokens and collects warnings from the handler.
-    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
+    pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ControlFlowErrorWithRange>
     where
-        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
+        F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ControlFlowError>,
         I: IntoIterator<Item = ParseWarningWithRange>,
     {
         let view = self.take_input();
@@ -123,7 +123,7 @@ pub trait TokenProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange>;
+    ) -> Result<Self::Output, ControlFlowErrorWithRange>;
 
     /// Creates a processor [`SequentialProcessor`] which does `self` then `second`.
     fn then<S>(self, second: S) -> SequentialProcessor<Self, S>
@@ -156,7 +156,7 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         T::process(self, ctx)
     }
 }
@@ -178,7 +178,7 @@ where
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         let checkpoint = ctx.save();
         let first_output = self.first.process(ctx)?;
         ctx.restore(checkpoint);
@@ -204,7 +204,7 @@ where
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> Result<Self::Output, ParseErrorWithRange> {
+    ) -> Result<Self::Output, ControlFlowErrorWithRange> {
         let res = self.source.process(ctx)?;
         Ok((self.mapping)(res))
     }
@@ -235,7 +235,7 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor).map(
+    control_flow::RandomTokenProcessor::new(rng, sub_processor).map(
         |(
             (
                 (

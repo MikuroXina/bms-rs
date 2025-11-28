@@ -23,7 +23,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_obj_ids,
 };
-use crate::bms::parse::ParseErrorWithRange;
+use crate::bms::parse::ControlFlowErrorWithRange;
 use crate::{
     bms::{
         model::wav::WavObjects,
@@ -55,7 +55,7 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut objects = WavObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
