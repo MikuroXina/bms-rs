@@ -15,12 +15,12 @@ use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
+mod control_flow;
 mod identity;
 mod judge;
 mod metadata;
 mod music_info;
 mod option;
-mod random;
 mod repr;
 mod resources;
 mod scroll;
@@ -235,7 +235,7 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor).map(
+    control_flow::RandomTokenProcessor::new(rng, sub_processor).map(
         |(
             (
                 (
