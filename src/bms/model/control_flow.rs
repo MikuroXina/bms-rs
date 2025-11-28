@@ -12,6 +12,7 @@ use std::ops::{Index, IndexMut};
 
 use num::BigUint;
 
+use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixin};
 use crate::bms::lex::token::Token;
 
 /// A token guaranteed to be non-control-flow.
@@ -19,7 +20,7 @@ use crate::bms::lex::token::Token;
 /// Wraps a regular `Token` but ensures it is not any of the control flow headers
 /// such as `#RANDOM`, `#IF`, `#SWITCH`, etc.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonControlToken<'a>(Token<'a>);
+pub struct NonControlToken<'a>(MaybeWithRange<Token<'a>>);
 
 impl<'a> NonControlToken<'a> {
     /// Attempt to create a `NonControlToken` from a `Token`.
@@ -28,24 +29,43 @@ impl<'a> NonControlToken<'a> {
         if token.is_control_flow_token() {
             Err(token)
         } else {
-            Ok(Self(token))
+            Ok(Self(MaybeWithRange::plain(token)))
+        }
+    }
+
+    /// Attempt to create from a `TokenWithRange`, preserving range when non-control.
+    pub fn try_from_token_with_range(
+        token: &SourceRangeMixin<Token<'a>>,
+    ) -> Result<Self, Token<'a>> {
+        let content = token.content().clone();
+        if content.is_control_flow_token() {
+            Err(content)
+        } else {
+            let wrapped = token.inner_ref().map(Clone::clone);
+            Ok(Self(MaybeWithRange::wrapped(wrapped)))
         }
     }
 
     /// Borrow the inner `Token`.
     #[must_use]
-    pub const fn as_token(&self) -> &Token<'a> {
-        &self.0
+    pub fn as_token(&self) -> &Token<'a> {
+        self.0.content()
     }
 
     /// Consume and return the inner `Token`.
     #[must_use]
     pub fn into_token(self) -> Token<'a> {
-        self.0
+        self.0.into_content()
     }
 }
 
 impl<'a> From<NonControlToken<'a>> for Token<'a> {
+    fn from(value: NonControlToken<'a>) -> Self {
+        value.into_token()
+    }
+}
+
+impl<'a> From<NonControlToken<'a>> for MaybeWithRange<Token<'a>> {
     fn from(value: NonControlToken<'a>) -> Self {
         value.0
     }

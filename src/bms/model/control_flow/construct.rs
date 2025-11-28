@@ -115,15 +115,13 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
                 check_header(tok, name)?;
 
                 // Treat as non-control token.
-                let t = content.clone();
-                acc.extend(NonControlToken::try_from_token(t).ok());
+                acc.extend(NonControlToken::try_from_token_with_range(tok).ok());
                 *self.cursor += 1;
                 continue;
             }
 
             // Non-header token path.
-            let t = content.clone();
-            acc.extend(NonControlToken::try_from_token(t).ok());
+            acc.extend(NonControlToken::try_from_token_with_range(tok).ok());
             *self.cursor += 1;
         }
 

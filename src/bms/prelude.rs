@@ -30,7 +30,7 @@ pub use super::{
             ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
             WavCmdParam,
         },
-        mixin::{SourceRangeMixin, SourceRangeMixinExt},
+        mixin::{MaybeWithRange, SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,

@@ -82,7 +82,10 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
             for u in units {
                 let tokens =
                     crate::bms::model::control_flow::activate::Activate::activate(u, &mut *rng)?;
-                activated_owned.extend(tokens);
+                activated_owned.extend(tokens.into_iter().map(|m| match m {
+                    MaybeWithRange::Plain(t) => SourceRangeMixin::new(t, 0..0),
+                    MaybeWithRange::Wrapped(w) => w,
+                }));
             }
         }
 
