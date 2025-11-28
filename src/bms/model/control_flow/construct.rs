@@ -7,7 +7,6 @@ use crate::bms::lex::{
 };
 use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange};
 
-use super::header;
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
 /// Builders that construct control-flow models from token slices.
@@ -87,9 +86,7 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
                 }
 
                 // Handle nested RANDOM/SETRANDOM.
-                if name.eq_ignore_ascii_case(header::RANDOM)
-                    || name.eq_ignore_ascii_case(header::SET_RANDOM)
-                {
+                if name.eq_ignore_ascii_case("RANDOM") || name.eq_ignore_ascii_case("SETRANDOM") {
                     if !acc.is_empty() {
                         out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
@@ -102,9 +99,7 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
                 }
 
                 // Handle nested SWITCH/SETSWITCH.
-                if name.eq_ignore_ascii_case(header::SWITCH)
-                    || name.eq_ignore_ascii_case(header::SET_SWITCH)
-                {
+                if name.eq_ignore_ascii_case("SWITCH") || name.eq_ignore_ascii_case("SETSWITCH") {
                     if !acc.is_empty() {
                         out.push(TokenUnit::from(std::mem::take(&mut acc)));
                     }
@@ -149,7 +144,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
             return Ok((None, start));
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::RANDOM) => args
+            Token::Header { name, args } if name.eq_ignore_ascii_case("RANDOM") => args
                 .parse()
                 .map(|max| (ControlFlowValue::GenMax(max), start + 1))
                 .map_err(|_| {
@@ -159,7 +154,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     }
                     .into_wrapper(t0)
                 })?,
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_RANDOM) => args
+            Token::Header { name, args } if name.eq_ignore_ascii_case("SETRANDOM") => args
                 .parse()
                 .map(|val| (ControlFlowValue::Set(val), start + 1))
                 .map_err(|_| {
@@ -181,7 +176,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                 continue;
             };
 
-            if name.eq_ignore_ascii_case(header::IF) {
+            if name.eq_ignore_ascii_case("IF") {
                 let head_cond = args.parse().map_err(|_| {
                     ControlFlowError::InvalidIntegerArgument {
                         header: "IF".to_string(),
@@ -190,10 +185,8 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                     .into_wrapper(cur)
                 })?;
                 i += 1;
-                let head_units = ControlFlowParser::new(tokens, &mut i).parse(
-                    &[header::ELSEIF, header::ELSE, header::ENDIF],
-                    |_, _| Ok(()),
-                )?;
+                let head_units = ControlFlowParser::new(tokens, &mut i)
+                    .parse(&["ELSEIF", "ELSE", "ENDIF"], |_, _| Ok(()))?;
                 let mut branch = IfBlock::new_if(head_cond, head_units);
 
                 // Consume chained ELSEIF/ELSE until ENDIF.
@@ -206,7 +199,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                         break;
                     };
 
-                    if name.eq_ignore_ascii_case(header::ELSEIF) {
+                    if name.eq_ignore_ascii_case("ELSEIF") {
                         let cond = args.parse().map_err(|_| {
                             ControlFlowError::InvalidIntegerArgument {
                                 header: "ELSEIF".to_string(),
@@ -215,24 +208,21 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                             .into_wrapper(cur)
                         })?;
                         i += 1;
-                        let units =
-                            ControlFlowParser::new(tokens, &mut i)
-                                .parse(&[header::ELSEIF, header::ELSE, header::ENDIF], |_, _| {
-                                    Ok(())
-                                })?;
+                        let units = ControlFlowParser::new(tokens, &mut i)
+                            .parse(&["ELSEIF", "ELSE", "ENDIF"], |_, _| Ok(()))?;
                         branch = branch.or_else_if(cond, units);
                         continue;
                     }
 
-                    if name.eq_ignore_ascii_case(header::ELSE) {
+                    if name.eq_ignore_ascii_case("ELSE") {
                         i += 1;
                         let units = ControlFlowParser::new(tokens, &mut i)
-                            .parse(&[header::ENDIF], |_, _| Ok(()))?;
+                            .parse(&["ENDIF"], |_, _| Ok(()))?;
                         branch = branch.or_else(units);
                         continue;
                     }
 
-                    if name.eq_ignore_ascii_case(header::ENDIF) {
+                    if name.eq_ignore_ascii_case("ENDIF") {
                         i += 1;
                         break;
                     }
@@ -244,16 +234,16 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
                 continue;
             }
 
-            if name.eq_ignore_ascii_case(header::ELSEIF) {
+            if name.eq_ignore_ascii_case("ELSEIF") {
                 return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
             }
-            if name.eq_ignore_ascii_case(header::ELSE) {
+            if name.eq_ignore_ascii_case("ELSE") {
                 return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
             }
-            if name.eq_ignore_ascii_case(header::ENDIF) {
+            if name.eq_ignore_ascii_case("ENDIF") {
                 return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
             }
-            if name.eq_ignore_ascii_case(header::ENDRANDOM) {
+            if name.eq_ignore_ascii_case("ENDRANDOM") {
                 i += 1;
                 break;
             }
@@ -275,7 +265,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
             return Ok((None, start));
         };
         let (value, mut i) = match t0.content() {
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SWITCH) => args
+            Token::Header { name, args } if name.eq_ignore_ascii_case("SWITCH") => args
                 .parse()
                 .map(|max| (ControlFlowValue::GenMax(max), start + 1))
                 .map_err(|_| {
@@ -285,7 +275,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                     }
                     .into_wrapper(t0)
                 })?,
-            Token::Header { name, args } if name.eq_ignore_ascii_case(header::SET_SWITCH) => args
+            Token::Header { name, args } if name.eq_ignore_ascii_case("SETSWITCH") => args
                 .parse()
                 .map(|val| (ControlFlowValue::Set(val), start + 1))
                 .map_err(|_| {
@@ -306,7 +296,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 continue;
             };
 
-            if name.eq_ignore_ascii_case(header::CASE) {
+            if name.eq_ignore_ascii_case("CASE") {
                 let cond = args.parse().map_err(|_| {
                     ControlFlowError::InvalidIntegerArgument {
                         header: "CASE".to_string(),
@@ -316,19 +306,13 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 })?;
                 i += 1;
                 let units = ControlFlowParser::new(tokens, &mut i).parse(
-                    &[
-                        header::CASE,
-                        header::DEF,
-                        header::ENDSW,
-                        header::ENDSWITCH,
-                        header::SKIP,
-                    ],
+                    &["CASE", "DEF", "ENDSW", "ENDSWITCH", "SKIP"],
                     |_, _| Ok(()),
                 )?;
                 let mut skip = false;
                 if let Some(tok) = tokens.get(i)
                     && let Token::Header { name, .. } = tok.content()
-                    && name.eq_ignore_ascii_case(header::SKIP)
+                    && name.eq_ignore_ascii_case("SKIP")
                 {
                     skip = true;
                     i += 1;
@@ -341,22 +325,16 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 continue;
             }
 
-            if name.eq_ignore_ascii_case(header::DEF) {
+            if name.eq_ignore_ascii_case("DEF") {
                 i += 1;
                 let units = ControlFlowParser::new(tokens, &mut i).parse(
-                    &[
-                        header::CASE,
-                        header::DEF,
-                        header::ENDSW,
-                        header::ENDSWITCH,
-                        header::SKIP,
-                    ],
+                    &["CASE", "DEF", "ENDSW", "ENDSWITCH", "SKIP"],
                     |_, _| Ok(()),
                 )?;
                 let mut skip = false;
                 if let Some(tok) = tokens.get(i)
                     && let Token::Header { name, .. } = tok.content()
-                    && name.eq_ignore_ascii_case(header::SKIP)
+                    && name.eq_ignore_ascii_case("SKIP")
                 {
                     skip = true;
                     i += 1;
@@ -365,9 +343,7 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
                 continue;
             }
 
-            if name.eq_ignore_ascii_case(header::ENDSW)
-                || name.eq_ignore_ascii_case(header::ENDSWITCH)
-            {
+            if name.eq_ignore_ascii_case("ENDSW") || name.eq_ignore_ascii_case("ENDSWITCH") {
                 i += 1;
                 break;
             }
@@ -388,32 +364,31 @@ pub fn build_blocks<'a>(
 ) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
     let mut i = 0usize;
     ControlFlowParser::new(&tokens.tokens, &mut i).parse(&[], |cur, name| {
-        if name.eq_ignore_ascii_case(header::IF) {
+        if name.eq_ignore_ascii_case("IF") {
             return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::ELSEIF) {
+        if name.eq_ignore_ascii_case("ELSEIF") {
             return Err(ControlFlowError::ElseIfWithoutIf.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::ELSE) {
+        if name.eq_ignore_ascii_case("ELSE") {
             return Err(ControlFlowError::ElseWithoutIfOrElseIf.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::ENDIF) {
+        if name.eq_ignore_ascii_case("ENDIF") {
             return Err(ControlFlowError::EndIfWithoutIfElseIfOrElse.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::ENDRANDOM) {
+        if name.eq_ignore_ascii_case("ENDRANDOM") {
             return Err(ControlFlowError::EndRandomWithoutRandom.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::CASE) {
+        if name.eq_ignore_ascii_case("CASE") {
             return Err(ControlFlowError::CaseWithoutSwitch.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::DEF) {
+        if name.eq_ignore_ascii_case("DEF") {
             return Err(ControlFlowError::DefWithoutSwitch.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::SKIP) {
+        if name.eq_ignore_ascii_case("SKIP") {
             return Err(ControlFlowError::SkipOutsideCaseOrDef.into_wrapper(cur));
         }
-        if name.eq_ignore_ascii_case(header::ENDSW) || name.eq_ignore_ascii_case(header::ENDSWITCH)
-        {
+        if name.eq_ignore_ascii_case("ENDSW") || name.eq_ignore_ascii_case("ENDSWITCH") {
             return Err(ControlFlowError::EndSwitchWithoutSwitch.into_wrapper(cur));
         }
         Ok(())
