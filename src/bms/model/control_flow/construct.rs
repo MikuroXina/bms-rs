@@ -1,8 +1,9 @@
-//! Builders for control flow structures from `TokenStream`.
+//! Builders for control flow structures from token reference stream.
 
 use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixinExt};
+
 use crate::bms::lex::{
-    TokenStream,
+    TokenRefStream,
     token::{Token, TokenWithRange},
 };
 use crate::bms::parse::{ControlFlowError, ControlFlowErrorWithRange};
@@ -10,7 +11,7 @@ use num::BigUint;
 
 use super::{ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit};
 
-/// Builders that construct control-flow models from token slices.
+/// Builders that construct control-flow models from token reference slices.
 ///
 /// Parses control-flow blocks (`#RANDOM`/`#SWITCH`) and produces typed models.
 /// Returns the constructed value and the next cursor position, or `None` when
@@ -21,7 +22,7 @@ pub trait BuildFromStream<'a>: Sized {
     /// return `(None, next_index)` when construction cannot proceed;
     /// on any syntax or structural error, return `Err(ControlFlowErrorWithRange)`.
     fn build_from_stream(
-        tokens: &[TokenWithRange<'a>],
+        tokens: &[&'a TokenWithRange<'a>],
         start: usize,
     ) -> Result<(Option<Self>, usize), ControlFlowErrorWithRange>;
 }
@@ -34,7 +35,7 @@ pub trait BuildFromStream<'a>: Sized {
 /// and collecting regular tokens into `TokenUnit::Tokens`.
 struct ControlFlowParser<'a, 'b> {
     /// The full slice of tokens being parsed.
-    tokens: &'b [TokenWithRange<'a>],
+    tokens: &'b [&'a TokenWithRange<'a>],
     /// Mutable reference to the current parsing position (index in `tokens`).
     cursor: &'b mut usize,
 }
@@ -46,7 +47,7 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
     ///
     /// * `tokens` - The slice of tokens to parse.
     /// * `cursor` - A mutable reference to the current index in `tokens`.
-    fn new(tokens: &'b [TokenWithRange<'a>], cursor: &'b mut usize) -> Self {
+    fn new(tokens: &'b [&'a TokenWithRange<'a>], cursor: &'b mut usize) -> Self {
         Self { tokens, cursor }
     }
 
@@ -76,7 +77,7 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
         // Parse stream into `TokenUnit`s, flattening nested control blocks
         // and avoiding deep indentation via early-continue and guard clauses.
         let mut out = Vec::new();
-        let mut acc = Vec::new();
+        let mut acc: Vec<NonControlToken<'a>> = Vec::new();
 
         while let Some(tok) = self.tokens.get(*self.cursor) {
             let content = tok.content();
@@ -135,7 +136,7 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
 
 impl<'a> BuildFromStream<'a> for Random<'a> {
     fn build_from_stream(
-        tokens: &[TokenWithRange<'a>],
+        tokens: &[&'a TokenWithRange<'a>],
         start: usize,
     ) -> Result<(Option<Self>, usize), ControlFlowErrorWithRange> {
         // Guard: out-of-bounds start yields None with unchanged cursor.
@@ -257,7 +258,7 @@ impl<'a> BuildFromStream<'a> for Random<'a> {
 
 impl<'a> BuildFromStream<'a> for Switch<'a> {
     fn build_from_stream(
-        tokens: &[TokenWithRange<'a>],
+        tokens: &[&'a TokenWithRange<'a>],
         start: usize,
     ) -> Result<(Option<Self>, usize), ControlFlowErrorWithRange> {
         // Guard: out-of-bounds start yields None with unchanged cursor.
@@ -361,10 +362,10 @@ impl<'a> BuildFromStream<'a> for Switch<'a> {
 /// This function walks the token list, building `Random` and `Switch` blocks
 /// into `TokenUnit`s. Non-control tokens outside these blocks are ignored.
 pub fn build_blocks<'a>(
-    tokens: &TokenStream<'a>,
+    tokens: &TokenRefStream<'a>,
 ) -> Result<Vec<TokenUnit<'a>>, ControlFlowErrorWithRange> {
     let mut i = 0usize;
-    ControlFlowParser::new(&tokens.tokens, &mut i).parse(&[], |cur, name| {
+    ControlFlowParser::new(&tokens.token_refs, &mut i).parse(&[], |cur, name| {
         if name.eq_ignore_ascii_case("IF") {
             return Err(ControlFlowError::IfWithoutRandom.into_wrapper(cur));
         }

@@ -21,7 +21,18 @@ impl<'a> IntoTokens<'a> for TokenUnit<'a> {
         match self {
             TokenUnit::Random(r) => IntoTokens::into_tokens(r),
             TokenUnit::Switch(s) => IntoTokens::into_tokens(s),
-            TokenUnit::Tokens(v) => v.into_iter().map(Token::from).collect(),
+            TokenUnit::Tokens(v) => v
+                .into_iter()
+                .map(|nc| match nc {
+                    super::NonControlToken::Borrowed(view) => match view {
+                        crate::bms::command::mixin::MaybeWithRange::Plain(t) => t.clone(),
+                        crate::bms::command::mixin::MaybeWithRange::Wrapped(wr) => {
+                            (*wr.content()).clone()
+                        }
+                    },
+                    super::NonControlToken::Owned(mw) => mw.into_content(),
+                })
+                .collect(),
         }
     }
 }

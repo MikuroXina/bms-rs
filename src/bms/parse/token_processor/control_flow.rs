@@ -46,6 +46,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::bms::prelude::*;
 
 use super::{ProcessContext, TokenProcessor};
+use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixin};
 
 /// It processes `#RANDOM` and `#SWITCH` control commands.
 #[derive(Debug)]
@@ -68,28 +69,33 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         ctx: &mut ProcessContext<'a, 't, P>,
     ) -> Result<Self::Output, crate::bms::parse::ControlFlowErrorWithRange> {
         let checkpoint = ctx.save();
-        let mut owned: Vec<TokenWithRange<'t>> = Vec::new();
-        ctx.all_tokens(|token, _| {
-            owned.push(token.clone());
-            Ok(None)
-        })?;
 
-        let stream = TokenStream { tokens: owned };
+        let refs: Vec<_> = ctx.take_input().to_vec();
+
+        let stream = TokenRefStream { token_refs: refs };
         let units = crate::bms::model::control_flow::construct::build_blocks(&stream)?;
-        let mut activated_owned: Vec<TokenWithRange<'t>> = Vec::new();
-        {
-            let mut rng = self.rng.borrow_mut();
-            for u in units {
-                let tokens =
-                    crate::bms::model::control_flow::activate::Activate::activate(u, &mut *rng)?;
-                activated_owned.extend(tokens.into_iter().map(|m| match m {
-                    MaybeWithRange::Plain(t) => SourceRangeMixin::new(t, 0..0),
-                    MaybeWithRange::Wrapped(w) => w,
-                }));
-            }
-        }
 
-        let activated_refs: Vec<&TokenWithRange<'t>> = activated_owned.iter().collect();
+        let activated_owned: Vec<_> = {
+            let mut rng = self.rng.borrow_mut();
+            let views = units.into_iter().try_fold(Vec::new(), |mut acc, u| {
+                let v =
+                    crate::bms::model::control_flow::activate::Activate::activate(u, &mut *rng)?;
+                acc.extend(v.into_iter());
+                Ok::<_, crate::bms::parse::ControlFlowErrorWithRange>(acc)
+            })?;
+
+            views
+                .into_iter()
+                .map(|v| match v {
+                    MaybeWithRange::Plain(t) => SourceRangeMixin::new(t.clone(), 0..0),
+                    MaybeWithRange::Wrapped(w) => {
+                        SourceRangeMixin::new((*w.content()).clone(), w.range().clone())
+                    }
+                })
+                .collect()
+        };
+
+        let activated_refs: Vec<_> = activated_owned.iter().collect();
         let mut tmp = &activated_refs[..];
         let mut view_ctx = ProcessContext {
             input: &mut tmp,

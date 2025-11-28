@@ -15,73 +15,48 @@ use num::BigUint;
 use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixin};
 use crate::bms::lex::token::Token;
 
-/// A token guaranteed to be non-control-flow.
+/// A non-control-flow token unit used inside branch contents.
 ///
-/// Wraps a regular `Token` but ensures it is not any of the control flow headers
-/// such as `#RANDOM`, `#IF`, `#SWITCH`, etc.
+/// This type carries either a borrowed view of a token with optional range metadata
+/// or an owned token value (typically used in tests or synthetic scenarios).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonControlToken<'a>(MaybeWithRange<Token<'a>>);
+pub enum NonControlToken<'a> {
+    /// Borrowed view of a token with optional source range.
+    ///
+    /// - `Plain(&Token)` when no range is attached.
+    /// - `Wrapped(SourceRangeMixin<&Token>)` when the original token had a range; this is
+    ///   constructed using `SourceRangeMixin::inner_ref()`.
+    Borrowed(MaybeWithRange<&'a Token<'a>>),
+    /// Owned token value with optional source range.
+    Owned(MaybeWithRange<Token<'a>>),
+}
 
 impl<'a> NonControlToken<'a> {
-    /// Attempt to create a `NonControlToken` from a `Token`.
-    /// Returns `None` if the token is a control-flow token.
+    /// Attempts to create an owned non-control token from a plain `Token`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
     pub fn try_from_token(token: Token<'a>) -> Result<Self, Token<'a>> {
         if token.is_control_flow_token() {
             Err(token)
         } else {
-            Ok(Self(MaybeWithRange::plain(token)))
+            Ok(Self::Owned(MaybeWithRange::plain(token)))
         }
     }
 
-    /// Attempt to create from a `TokenWithRange`, preserving range when non-control.
+    /// Attempts to create a borrowed non-control token from a `TokenWithRange`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
+    /// Attempts to create a borrowed non-control token from a `TokenWithRange`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
     pub fn try_from_token_with_range(
-        token: &SourceRangeMixin<Token<'a>>,
+        token: &'a SourceRangeMixin<Token<'a>>,
     ) -> Result<Self, Token<'a>> {
-        let content = token.content().clone();
-        if content.is_control_flow_token() {
-            Err(content)
+        if token.content().is_control_flow_token() {
+            Err(token.content().clone())
         } else {
-            let wrapped = token.inner_ref().map(Clone::clone);
-            Ok(Self(MaybeWithRange::wrapped(wrapped)))
+            Ok(Self::Borrowed(MaybeWithRange::wrapped(token.inner_ref())))
         }
-    }
-
-    /// Borrow the inner `Token`.
-    #[must_use]
-    pub fn as_token(&self) -> &Token<'a> {
-        self.0.content()
-    }
-
-    /// Consume and return the inner `Token`.
-    #[must_use]
-    pub fn into_token(self) -> Token<'a> {
-        self.0.into_content()
-    }
-}
-
-impl<'a> From<NonControlToken<'a>> for Token<'a> {
-    fn from(value: NonControlToken<'a>) -> Self {
-        value.into_token()
-    }
-}
-
-impl<'a> From<NonControlToken<'a>> for MaybeWithRange<Token<'a>> {
-    fn from(value: NonControlToken<'a>) -> Self {
-        value.0
-    }
-}
-
-impl<'a> TryFrom<Token<'a>> for NonControlToken<'a> {
-    type Error = Token<'a>;
-
-    fn try_from(value: Token<'a>) -> Result<Self, Self::Error> {
-        Self::try_from_token(value)
-    }
-}
-
-impl<'a> AsRef<Token<'a>> for NonControlToken<'a> {
-    fn as_ref(&self) -> &Token<'a> {
-        self.as_token()
     }
 }
 
@@ -94,22 +69,6 @@ pub enum TokenUnit<'a> {
     Switch(Switch<'a>),
     /// Plain non-control-flow tokens for branch content.
     Tokens(Vec<NonControlToken<'a>>),
-}
-
-impl<'a> TokenUnit<'a> {
-    /// Create a `Tokens` unit from an iterator of raw tokens, filtering out control-flow ones.
-    #[must_use]
-    pub fn from_tokens<T>(tokens: T) -> Self
-    where
-        T: IntoIterator<Item = Token<'a>>,
-    {
-        let v = tokens
-            .into_iter()
-            .map(NonControlToken::try_from_token)
-            .flat_map(Result::ok)
-            .collect();
-        Self::Tokens(v)
-    }
 }
 
 impl<'a> From<Random<'a>> for TokenUnit<'a> {
@@ -547,5 +506,22 @@ impl<'a> Switch<'a> {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.cases.is_empty()
+    }
+}
+impl<'a> TokenUnit<'a> {
+    /// Constructs a `Tokens` unit from an iterator of owned tokens.
+    ///
+    /// Control-flow headers are filtered out; only non-control tokens remain.
+    #[must_use]
+    pub fn from_tokens<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let v = tokens
+            .into_iter()
+            .map(NonControlToken::try_from_token)
+            .flat_map(Result::ok)
+            .collect();
+        Self::Tokens(v)
     }
 }

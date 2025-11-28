@@ -43,8 +43,8 @@ pub use super::{
         Bms, Notes,
         bmp::{AtBgaDef, BgaDef, Bmp},
         control_flow::{
-            ControlFlowValue, IfBlock, NonControlToken, Random, Switch, TokenUnit,
-            activate::Activate, construct::BuildFromStream, into_tokens::IntoTokens,
+            ControlFlowValue, IfBlock, Random, Switch, TokenUnit, activate::Activate,
+            construct::BuildFromStream, into_tokens::IntoTokens,
         },
         judge::ExRankDef,
         obj::{
