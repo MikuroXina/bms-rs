@@ -85,9 +85,6 @@ impl<'a> AsRef<Token<'a>> for NonControlToken<'a> {
     }
 }
 
-/// Alias preferred by external APIs/tests.
-pub type NonControlFlowToken<'a> = NonControlToken<'a>;
-
 /// A unit of branch content that can represent nested control flow or plain non-control tokens.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenUnit<'a> {
