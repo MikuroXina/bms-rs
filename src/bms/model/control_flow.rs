@@ -8,38 +8,35 @@ pub mod activate;
 pub mod construct;
 pub mod into_tokens;
 
+use std::borrow::Cow;
 use std::ops::{Index, IndexMut};
 
 use num::BigUint;
 
 use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixin};
-use crate::bms::lex::token::Token;
+use crate::bms::lex::token::{Token, TokenWithRange};
 
-/// A non-control-flow token unit used inside branch contents.
+/// A non-control-flow token view used inside branch contents.
 ///
-/// This type carries either a borrowed view of a token with optional range metadata
-/// or an owned token value (typically used in tests or synthetic scenarios).
+/// Wraps `Cow<Token>` optionally with range metadata using `MaybeWithRange`.
+/// This preserves source positions when available and avoids cloning when
+/// borrowing is sufficient.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NonControlToken<'a> {
-    /// Borrowed view of a token with optional source range.
-    ///
-    /// - `Plain(&Token)` when no range is attached.
-    /// - `Wrapped(SourceRangeMixin<&Token>)` when the original token had a range; this is
-    ///   constructed using `SourceRangeMixin::inner_ref()`.
-    Borrowed(MaybeWithRange<&'a Token<'a>>),
-    /// Owned token value with optional source range.
-    Owned(MaybeWithRange<Token<'a>>),
-}
+pub struct NonControlToken<'a>(MaybeWithRange<Cow<'a, Token<'a>>>);
 
 impl<'a> NonControlToken<'a> {
     /// Attempts to create an owned non-control token from a plain `Token`.
     ///
     /// Returns `Err(Token)` if the token is a control-flow header.
-    pub fn try_from_token(token: Token<'a>) -> Result<Self, Token<'a>> {
-        if token.is_control_flow_token() {
-            Err(token)
+    pub fn try_from_token<C>(c: C) -> Result<Self, Cow<'a, Token<'a>>>
+    where
+        C: Into<Cow<'a, Token<'a>>>,
+    {
+        let cow = c.into();
+        if cow.is_control_flow_token() {
+            Err(cow)
         } else {
-            Ok(Self::Owned(MaybeWithRange::plain(token)))
+            Ok(Self(MaybeWithRange::plain(cow)))
         }
     }
 
@@ -49,13 +46,27 @@ impl<'a> NonControlToken<'a> {
     /// Attempts to create a borrowed non-control token from a `TokenWithRange`.
     ///
     /// Returns `Err(Token)` if the token is a control-flow header.
-    pub fn try_from_token_with_range(
-        token: &'a SourceRangeMixin<Token<'a>>,
-    ) -> Result<Self, Token<'a>> {
-        if token.content().is_control_flow_token() {
-            Err(token.content().clone())
+    pub fn try_from_token_with_range<C>(c: C) -> Result<Self, Cow<'a, TokenWithRange<'a>>>
+    where
+        C: Into<Cow<'a, TokenWithRange<'a>>>,
+    {
+        let cow = c.into();
+        if cow.as_ref().content().is_control_flow_token() {
+            Err(cow)
         } else {
-            Ok(Self::Borrowed(MaybeWithRange::wrapped(token.inner_ref())))
+            match cow {
+                Cow::Borrowed(wr) => Ok(Self(MaybeWithRange::wrapped(SourceRangeMixin::new(
+                    Cow::Borrowed(wr.content()),
+                    wr.range().clone(),
+                )))),
+                Cow::Owned(wr) => {
+                    let (tok, range) = wr.into();
+                    Ok(Self(MaybeWithRange::wrapped(SourceRangeMixin::new(
+                        Cow::Owned(tok),
+                        range,
+                    ))))
+                }
+            }
         }
     }
 }
@@ -519,7 +530,7 @@ impl<'a> TokenUnit<'a> {
     {
         let v = tokens
             .into_iter()
-            .map(NonControlToken::try_from_token)
+            .map(|t| NonControlToken::try_from_token(Cow::Owned(t)))
             .flat_map(Result::ok)
             .collect();
         Self::Tokens(v)

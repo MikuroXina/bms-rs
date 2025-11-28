@@ -5,6 +5,7 @@
 //! (`MaybeWithRange<&Token>`). Downstream processors that require
 //! `TokenWithRange` can rewrap these views on demand.
 
+use std::borrow::Cow;
 use std::ops::RangeInclusive;
 
 use num::BigUint;
@@ -37,13 +38,22 @@ impl<'a> Activate<'a> for TokenUnit<'a> {
         match self {
             TokenUnit::Random(r) => Activate::activate(r, rng),
             TokenUnit::Switch(s) => Activate::activate(s, rng),
-            TokenUnit::Tokens(v) => Ok(v
-                .into_iter()
-                .filter_map(|nc| match nc {
-                    super::NonControlToken::Borrowed(view) => Some(view),
-                    super::NonControlToken::Owned(_) => None,
-                })
-                .collect()),
+            TokenUnit::Tokens(v) => {
+                Ok(v.into_iter()
+                    .filter_map(|nc| match nc.0 {
+                        MaybeWithRange::Plain(cow) => match cow {
+                            Cow::Borrowed(t) => Some(MaybeWithRange::Plain(t)),
+                            Cow::Owned(_) => None,
+                        },
+                        MaybeWithRange::Wrapped(wr) => match wr.content() {
+                            Cow::Borrowed(t) => Some(MaybeWithRange::Wrapped(
+                                SourceRangeMixin::new(t, wr.range().clone()),
+                            )),
+                            Cow::Owned(_) => None,
+                        },
+                    })
+                    .collect())
+            }
         }
     }
 }

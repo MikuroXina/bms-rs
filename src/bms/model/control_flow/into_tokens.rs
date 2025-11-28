@@ -23,14 +23,11 @@ impl<'a> IntoTokens<'a> for TokenUnit<'a> {
             TokenUnit::Switch(s) => IntoTokens::into_tokens(s),
             TokenUnit::Tokens(v) => v
                 .into_iter()
-                .map(|nc| match nc {
-                    super::NonControlToken::Borrowed(view) => match view {
-                        crate::bms::command::mixin::MaybeWithRange::Plain(t) => t.clone(),
-                        crate::bms::command::mixin::MaybeWithRange::Wrapped(wr) => {
-                            (*wr.content()).clone()
-                        }
-                    },
-                    super::NonControlToken::Owned(mw) => mw.into_content(),
+                .map(|nc| match nc.0 {
+                    crate::bms::command::mixin::MaybeWithRange::Plain(cow) => cow.into_owned(),
+                    crate::bms::command::mixin::MaybeWithRange::Wrapped(wr) => {
+                        wr.into_content().into_owned()
+                    }
                 })
                 .collect(),
         }

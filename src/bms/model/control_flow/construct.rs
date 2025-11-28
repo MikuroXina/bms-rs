@@ -117,13 +117,18 @@ impl<'a, 'b> ControlFlowParser<'a, 'b> {
                 check_header(tok, name)?;
 
                 // Treat as non-control token.
-                acc.extend(NonControlToken::try_from_token_with_range(tok).ok());
+                acc.extend(
+                    NonControlToken::try_from_token_with_range(std::borrow::Cow::Borrowed(*tok))
+                        .ok(),
+                );
                 *self.cursor += 1;
                 continue;
             }
 
             // Non-header token path.
-            acc.extend(NonControlToken::try_from_token_with_range(tok).ok());
+            acc.extend(
+                NonControlToken::try_from_token_with_range(std::borrow::Cow::Borrowed(*tok)).ok(),
+            );
             *self.cursor += 1;
         }
 

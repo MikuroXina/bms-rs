@@ -3,6 +3,7 @@
 //! - `SourcePosMixin` is a generic wrapper that attaches position information (index span) to a value.
 //! - `SourcePosMixinExt` is a trait that provides extension methods for `SourcePosMixin`, providing more convenient methods to create `SourcePosMixin` instances.
 
+use std::borrow::Cow;
 use std::ops::Range;
 
 /// A generic wrapper that attaches position information (index span) to a value.
@@ -77,6 +78,35 @@ impl<'a, T> SourceRangeMixin<T> {
     pub fn inner_ref(&'a self) -> SourceRangeMixin<&'a T> {
         let content = &self.content;
         SourceRangeMixin::new(content, self.range.clone())
+    }
+}
+
+/// Extension trait that converts `SourceRangeMixin<T>` into a `SourceRangeMixin<Cow<T>>`.
+///
+/// This is useful when downstream code wants to carry either borrowed or owned
+/// inner values while preserving the original source range metadata.
+pub trait SourceRangeCowExt<'a, T> {
+    /// Produces a `Cow`-wrapped view preserving the source range.
+    fn inner_cow(self) -> SourceRangeMixin<Cow<'a, T>>
+    where
+        T: ToOwned;
+}
+
+impl<'a, T> SourceRangeCowExt<'a, T> for SourceRangeMixin<T>
+where
+    T: ToOwned<Owned = T> + 'a,
+{
+    fn inner_cow(self) -> SourceRangeMixin<Cow<'a, T>> {
+        SourceRangeMixin::new(Cow::Owned(self.content), self.range)
+    }
+}
+
+impl<'a, T> SourceRangeCowExt<'a, T> for SourceRangeMixin<&'a T>
+where
+    T: ToOwned,
+{
+    fn inner_cow(self) -> SourceRangeMixin<Cow<'a, T>> {
+        SourceRangeMixin::new(Cow::Borrowed(self.content), self.range)
     }
 }
 
