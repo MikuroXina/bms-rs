@@ -13,7 +13,7 @@ use super::{
     super::prompt::{DefDuplication, Prompter},
     ProcessContext, TokenProcessor, parse_hex_values, parse_obj_ids,
 };
-use crate::bms::ParseErrorWithRange;
+use crate::bms::ControlFlowErrorWithRange;
 use crate::{
     bms::{
         model::bpm::BpmObjects,
@@ -43,7 +43,7 @@ impl TokenProcessor for BpmProcessor {
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
-    ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
+    ) -> core::result::Result<Self::Output, ControlFlowErrorWithRange> {
         let mut objects = BpmObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {

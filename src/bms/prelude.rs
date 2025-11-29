@@ -30,7 +30,7 @@ pub use super::{
             ExWavFrequency, ExWavPan, ExWavVolume, ExtChrEvent, StpEvent, SwBgaEvent, WavCmdEvent,
             WavCmdParam,
         },
-        mixin::{SourceRangeMixin, SourceRangeMixinExt},
+        mixin::{MaybeWithRange, SourceRangeMixin, SourceRangeMixinExt},
         time::{ObjTime, Track},
     },
     default_config, default_config_with_rng,
@@ -42,7 +42,10 @@ pub use super::{
     model::{
         Bms, Notes,
         bmp::{AtBgaDef, BgaDef, Bmp},
-        control_flow::{ControlFlowValue, IfBlock, NonControlFlowToken, Random, Switch, TokenUnit},
+        control_flow::{
+            ControlFlowValue, IfBlock, Random, Switch, TokenUnit, activate::Activate,
+            construct::BuildFromStream, into_tokens::IntoTokens,
+        },
         judge::ExRankDef,
         obj::{
             BgaArgbObj, BgaKeyboundObj, BgaLayer, BgaObj, BgaOpacityObj, BgmVolumeObj,
@@ -52,7 +55,8 @@ pub use super::{
         wav::ExWavDef,
     },
     parse::{
-        ParseError, ParseErrorWithRange, ParseOutput, ParseWarning, ParseWarningWithRange,
+        ControlFlowError, ControlFlowErrorWithRange, ParseOutput, ParseWarning,
+        ParseWarningWithRange,
         check_playing::{PlayingCheckOutput, PlayingError, PlayingWarning},
         prompt::{
             AlwaysUseNewer, AlwaysUseOlder, AlwaysWarnAndUseNewer, AlwaysWarnAndUseOlder,

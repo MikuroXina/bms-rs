@@ -4,66 +4,72 @@
 //! using regular BMS tokens. Branch entries accept tokens with any lifetime
 //! (`Token<'a>`), so you can construct random blocks from borrowed strings
 //! without requiring `'static` data.
+pub mod activate;
+pub mod construct;
+pub mod into_tokens;
 
+use std::borrow::Cow;
 use std::ops::{Index, IndexMut};
 
 use num::BigUint;
 
-use crate::bms::lex::token::Token;
+use crate::bms::command::mixin::{MaybeWithRange, SourceRangeMixin};
+use crate::bms::lex::token::{Token, TokenWithRange};
 
-/// A token guaranteed to be non-control-flow.
+/// A non-control-flow token view used inside branch contents.
 ///
-/// Wraps a regular `Token` but ensures it is not any of the control flow headers
-/// such as `#RANDOM`, `#IF`, `#SWITCH`, etc.
+/// Wraps `Cow<Token>` optionally with range metadata using `MaybeWithRange`.
+/// This preserves source positions when available and avoids cloning when
+/// borrowing is sufficient.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonControlToken<'a>(Token<'a>);
+pub struct NonControlToken<'a>(MaybeWithRange<Cow<'a, Token<'a>>>);
 
 impl<'a> NonControlToken<'a> {
-    /// Attempt to create a `NonControlToken` from a `Token`.
-    /// Returns `None` if the token is a control-flow token.
-    pub fn try_from_token(token: Token<'a>) -> Result<Self, Token<'a>> {
-        if token.is_control_flow_token() {
-            Err(token)
+    /// Attempts to create an owned non-control token from a plain `Token`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
+    pub fn try_from_token<C>(c: C) -> Result<Self, Cow<'a, Token<'a>>>
+    where
+        C: Into<Cow<'a, Token<'a>>>,
+    {
+        let cow = c.into();
+        if cow.is_control_flow_token() {
+            Err(cow)
         } else {
-            Ok(Self(token))
+            Ok(Self(MaybeWithRange::plain(cow)))
         }
     }
 
-    /// Borrow the inner `Token`.
-    #[must_use]
-    pub const fn as_token(&self) -> &Token<'a> {
-        &self.0
-    }
-
-    /// Consume and return the inner `Token`.
-    #[must_use]
-    pub fn into_token(self) -> Token<'a> {
-        self.0
-    }
-}
-
-impl<'a> From<NonControlToken<'a>> for Token<'a> {
-    fn from(value: NonControlToken<'a>) -> Self {
-        value.0
-    }
-}
-
-impl<'a> TryFrom<Token<'a>> for NonControlToken<'a> {
-    type Error = Token<'a>;
-
-    fn try_from(value: Token<'a>) -> Result<Self, Self::Error> {
-        Self::try_from_token(value)
-    }
-}
-
-impl<'a> AsRef<Token<'a>> for NonControlToken<'a> {
-    fn as_ref(&self) -> &Token<'a> {
-        self.as_token()
+    /// Attempts to create a borrowed non-control token from a `TokenWithRange`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
+    /// Attempts to create a borrowed non-control token from a `TokenWithRange`.
+    ///
+    /// Returns `Err(Token)` if the token is a control-flow header.
+    pub fn try_from_token_with_range<C>(c: C) -> Result<Self, Cow<'a, TokenWithRange<'a>>>
+    where
+        C: Into<Cow<'a, TokenWithRange<'a>>>,
+    {
+        let cow = c.into();
+        if cow.as_ref().content().is_control_flow_token() {
+            Err(cow)
+        } else {
+            match cow {
+                Cow::Borrowed(wr) => Ok(Self(MaybeWithRange::wrapped(SourceRangeMixin::new(
+                    Cow::Borrowed(wr.content()),
+                    wr.range().clone(),
+                )))),
+                Cow::Owned(wr) => {
+                    let (tok, range) = wr.into();
+                    Ok(Self(MaybeWithRange::wrapped(SourceRangeMixin::new(
+                        Cow::Owned(tok),
+                        range,
+                    ))))
+                }
+            }
+        }
     }
 }
-
-/// Alias preferred by external APIs/tests.
-pub type NonControlFlowToken<'a> = NonControlToken<'a>;
 
 /// A unit of branch content that can represent nested control flow or plain non-control tokens.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,32 +80,6 @@ pub enum TokenUnit<'a> {
     Switch(Switch<'a>),
     /// Plain non-control-flow tokens for branch content.
     Tokens(Vec<NonControlToken<'a>>),
-}
-
-impl<'a> TokenUnit<'a> {
-    /// Create a `Tokens` unit from an iterator of raw tokens, filtering out control-flow ones.
-    #[must_use]
-    pub fn from_tokens<T>(tokens: T) -> Self
-    where
-        T: IntoIterator<Item = Token<'a>>,
-    {
-        let v = tokens
-            .into_iter()
-            .map(NonControlToken::try_from_token)
-            .flat_map(Result::ok)
-            .collect();
-        Self::Tokens(v)
-    }
-
-    /// Convert this unit into lex tokens.
-    #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        match self {
-            TokenUnit::Random(r) => r.into_tokens(),
-            TokenUnit::Switch(s) => s.into_tokens(),
-            TokenUnit::Tokens(v) => v.into_iter().map(Token::from).collect(),
-        }
-    }
 }
 
 impl<'a> From<Random<'a>> for TokenUnit<'a> {
@@ -135,7 +115,7 @@ enum IfChainEntry<'a> {
     /// An `#ELSEIF <cond>` branch with its units and a pointer to the next entry.
     ElseIf {
         /// Condition value for `#ELSEIF <cond>`.
-        cond: BigUint,
+        cond: MaybeWithRange<BigUint>,
         /// Content units for this branch.
         units: Vec<TokenUnit<'a>>,
         /// Pointer to the next chain entry.
@@ -219,31 +199,33 @@ impl<'a> IfChainEntry<'a> {
 /// If-chain used within a random block.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfBlock<'a> {
-    condition: BigUint,
+    condition: MaybeWithRange<BigUint>,
     head_units: Vec<TokenUnit<'a>>, // units for the initial `#IF` branch
     chain: IfChainEntry<'a>,        // subsequent `ELSEIF`/`ELSE` nodes
 }
 
 impl<'a> IfBlock<'a> {
     /// Create a new if-chain with units in the first `#IF` entry.
-    pub fn new_if<U>(cond: BigUint, units: U) -> Self
+    pub fn new_if<C, U>(cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            condition: cond,
+            condition: cond.into(),
             head_units: units.into_iter().collect(),
             chain: IfChainEntry::EndIf,
         }
     }
 
     /// Add an `#ELSEIF <cond>` entry with units.
-    pub fn or_else_if<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn or_else_if<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         let entry = IfChainEntry::ElseIf {
-            cond,
+            cond: cond.into(),
             units: units.into_iter().collect(),
             next: Box::new(IfChainEntry::EndIf),
         };
@@ -295,8 +277,12 @@ impl<'a> IfBlock<'a> {
     }
 
     /// Set a new condition for the head `#IF` entry, returning the previous value.
-    pub const fn set_condition(&mut self, new_condition: BigUint) -> BigUint {
-        std::mem::replace(&mut self.condition, new_condition)
+    pub fn set_condition<C>(&mut self, new_condition: C) -> BigUint
+    where
+        C: Into<MaybeWithRange<BigUint>>,
+    {
+        let prev = std::mem::replace(&mut self.condition, new_condition.into());
+        prev.into_content()
     }
 
     /// Returns the number of branches in this if-chain (including head `#IF`).
@@ -330,16 +316,19 @@ impl<'a> IfBlock<'a> {
 /// A random block (`#RANDOM` or `#SETRANDOM`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Random<'a> {
-    value: ControlFlowValue,
+    value: MaybeWithRange<ControlFlowValue>,
     branches: Vec<IfBlock<'a>>,
 }
 
 impl<'a> Random<'a> {
     /// Create an empty random block (`#RANDOM` or `#SETRANDOM`).
     #[must_use]
-    pub const fn new(value: ControlFlowValue) -> Self {
+    pub fn new<V>(value: V) -> Self
+    where
+        V: Into<MaybeWithRange<ControlFlowValue>>,
+    {
         Self {
-            value,
+            value: value.into(),
             branches: Vec::new(),
         }
     }
@@ -372,52 +361,6 @@ impl<'a> Random<'a> {
     /// Get mutable branch by index.
     pub fn at_mut(&mut self, index: usize) -> Option<&mut IfBlock<'a>> {
         self.branches.get_mut(index)
-    }
-
-    /// Convert the model into lex tokens representing the random block.
-    #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        let mut out = Vec::new();
-        match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::header("RANDOM", max.to_string())),
-            ControlFlowValue::Set(val) => out.push(Token::header("SETRANDOM", val.to_string())),
-        }
-
-        self.branches.into_iter().for_each(|branch| {
-            // Emit head IF
-            out.push(Token::header("IF", branch.condition.to_string()));
-            out.extend(
-                branch
-                    .head_units
-                    .into_iter()
-                    .flat_map(TokenUnit::into_tokens),
-            );
-
-            // Emit chained ELSEIF/ELSE entries
-            let mut node = branch.chain;
-            loop {
-                match node {
-                    IfChainEntry::ElseIf { cond, units, next } => {
-                        out.push(Token::header("ELSEIF", cond.to_string()));
-                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
-                        node = *next;
-                    }
-                    IfChainEntry::Else { units } => {
-                        out.push(Token::header("ELSE", ""));
-                        out.extend(units.into_iter().flat_map(TokenUnit::into_tokens));
-                        break;
-                    }
-                    IfChainEntry::EndIf => break,
-                }
-            }
-
-            // Close the IF-chain
-            out.push(Token::header("ENDIF", ""));
-        });
-
-        out.push(Token::header("ENDRANDOM", ""));
-
-        out
     }
 }
 
@@ -456,19 +399,20 @@ impl<'a> IndexMut<usize> for Random<'a> {
 /// One case in a switch block. `condition = None` means `#DEF`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CaseEntry<'a> {
-    condition: Option<BigUint>,
+    condition: Option<MaybeWithRange<BigUint>>,
     units: Vec<TokenUnit<'a>>, // case content can be nested control flow or tokens
     skip: bool,                // whether to emit `#SKIP` after tokens
 }
 
 impl<'a> CaseEntry<'a> {
     /// Create a case entry with condition (units only).
-    pub fn new<U>(cond: BigUint, units: U) -> Self
+    pub fn new<C, U>(cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
         Self {
-            condition: Some(cond),
+            condition: Some(cond.into()),
             units: units.into_iter().collect(),
             skip: true,
         }
@@ -495,7 +439,7 @@ impl<'a> CaseEntry<'a> {
 /// A switch block (`#SWITCH` or `#SETSWITCH`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Switch<'a> {
-    value: ControlFlowValue,
+    value: MaybeWithRange<ControlFlowValue>,
     cases: Vec<CaseEntry<'a>>,
 }
 
@@ -503,30 +447,35 @@ impl<'a> Switch<'a> {
     /// Start building a `Switch` with a control-flow value.
     /// This returns an empty `Switch` to be populated via builder-style methods.
     #[must_use]
-    pub const fn new(value: ControlFlowValue) -> Self {
+    pub fn new<V>(value: V) -> Self
+    where
+        V: Into<MaybeWithRange<ControlFlowValue>>,
+    {
         Self {
-            value,
+            value: value.into(),
             cases: Vec::new(),
         }
     }
 
     /// Add a `#CASE <cond>` branch and emit `#SKIP` after tokens.
-    pub fn case_with_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn case_with_skip<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::new(cond, units);
+        let mut entry = CaseEntry::new(cond.into(), units);
         entry.set_skip(true);
         self.cases.push(entry);
         self
     }
 
     /// Add a `#CASE <cond>` branch and do not emit `#SKIP` after tokens.
-    pub fn case_no_skip<U>(mut self, cond: BigUint, units: U) -> Self
+    pub fn case_no_skip<C, U>(mut self, cond: C, units: U) -> Self
     where
+        C: Into<MaybeWithRange<BigUint>>,
         U: IntoIterator<Item = TokenUnit<'a>>,
     {
-        let mut entry = CaseEntry::new(cond, units);
+        let mut entry = CaseEntry::new(cond.into(), units);
         entry.set_skip(false);
         self.cases.push(entry);
         self
@@ -569,29 +518,21 @@ impl<'a> Switch<'a> {
     pub const fn is_empty(&self) -> bool {
         self.cases.is_empty()
     }
-
-    /// Convert the model into lex tokens representing the switch block.
+}
+impl<'a> TokenUnit<'a> {
+    /// Constructs a `Tokens` unit from an iterator of owned tokens.
+    ///
+    /// Control-flow headers are filtered out; only non-control tokens remain.
     #[must_use]
-    pub fn into_tokens(self) -> Vec<Token<'a>> {
-        let mut out = Vec::new();
-        match &self.value {
-            ControlFlowValue::GenMax(max) => out.push(Token::header("SWITCH", max.to_string())),
-            ControlFlowValue::Set(val) => out.push(Token::header("SETSWITCH", val.to_string())),
-        }
-
-        self.cases.into_iter().for_each(|case| {
-            out.extend(
-                std::iter::once(case.condition.map_or_else(
-                    || Token::header("DEF", ""),
-                    |cond| Token::header("CASE", cond.to_string()),
-                ))
-                .chain(case.units.into_iter().flat_map(TokenUnit::into_tokens))
-                .chain(case.skip.then(|| Token::header("SKIP", ""))),
-            );
-        });
-
-        out.push(Token::header("ENDSW", ""));
-
-        out
+    pub fn from_tokens<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<Item = Token<'a>>,
+    {
+        let v = tokens
+            .into_iter()
+            .map(|t| NonControlToken::try_from_token(Cow::Owned(t)))
+            .flat_map(Result::ok)
+            .collect();
+        Self::Tokens(v)
     }
 }
