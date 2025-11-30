@@ -1,836 +1,956 @@
 use bms_rs::bms::prelude::*;
 use num::BigUint;
-use pretty_assertions::assert_eq;
 
 #[test]
-fn into_tokens_basic_random() {
-    // Outside of random
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
+fn test_nested_random_structure() {
+    const SRC: &str = r"
+        #00111:11000000
 
-    // Build random block: max=2, cond 1 -> Key2:22, cond 2 -> Key3:33
-    let random = Random::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
-        .if_block(IfBlock::new_if(
-            BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(2),
-                    )
-                    .to_channel_id(),
-                },
-                "00220000",
-            )])],
-        ))
-        .if_block(IfBlock::new_if(
-            BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(3),
-                    )
-                    .to_channel_id(),
-                },
-                "00003300",
-            )])],
-        ));
+        #RANDOM 2
 
-    tokens.extend(random.into_tokens());
+        #IF 1
+            #00112:00220000
 
-    // After random
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
+            #RANDOM 2
 
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
+            #IF 1
+                #00115:00550000
+            #ENDIF
 
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
+            #IF 2
+                #00116:00006600
+            #ENDIF
 
-    // RNG = 1 -> branch cond 1
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4,).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2),)
-                        .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4,).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
+            #ENDRANDOM
 
-    // RNG = 2 -> branch cond 2
-    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped2,
-        default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4,).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4,).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-}
+        #ENDIF
 
-#[test]
-fn into_tokens_basic_setrandom() {
-    // Outside of setrandom
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
+        #IF 2
+            #00113:00003300
+        #ENDIF
 
-    // Build setrandom block: value=2, branches same as above
-    let setrandom = Random::new(ControlFlowValue::Set(BigUint::from(2u64)))
-        .if_block(IfBlock::new_if(
-            BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(2),
-                    )
-                    .to_channel_id(),
-                },
-                "00220000",
-            )])],
-        ))
-        .if_block(IfBlock::new_if(
-            BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(3),
-                    )
-                    .to_channel_id(),
-                },
-                "00003300",
-            )])],
-        ));
+        #ENDRANDOM
 
-    tokens.extend(setrandom.into_tokens());
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
+        #00114:00000044
+    ";
 
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
-
-    // Because SETRANDOM=2, cond 2 branch is selected regardless of RNG
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-}
-
-#[test]
-fn builder_and_mutation() {
-    // Random with 6; entries: 4 -> Key5:55, 5 -> Scratch1:66, else -> Key2:22
-    let mut random = Random::new(ControlFlowValue::GenMax(BigUint::from(6u64))).if_block(
-        IfBlock::new_if(
-            BigUint::from(4u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(5),
-                    )
-                    .to_channel_id(),
-                },
-                "00005500",
-            )])],
-        )
-        .or_else_if(
-            BigUint::from(5u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Scratch(1),
-                    )
-                    .to_channel_id(),
-                },
-                "00006600",
-            )])],
-        )
-        .or_else(vec![TokenUnit::from_tokens(vec![Token::message(
-            1,
-            Channel::Note {
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
-                    .to_channel_id(),
-            },
-            "00220000",
-        )])]),
-    );
-
-    // Mutate: change first cond 4 -> 3, change else-if tokens to Key3:33 (instead of scratch)
-    {
-        let first = random.at_mut(0).unwrap();
-        let prev = first.set_condition(BigUint::from(3u64));
-        assert_eq!(prev, BigUint::from(4u64));
-
-        let _prev_units = first.set_units_at(
-            1,
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(3),
-                    )
-                    .to_channel_id(),
-                },
-                "00003300",
-            )])],
-        );
-    }
-
-    // Compose full tokens (with a header before and after)
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
-    tokens.extend(random.clone().into_tokens());
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
-
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
-
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-    let id55 = ObjId::try_from("55", false).unwrap();
-
-    // RNG = 3 -> first branch (Key5:55)
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(3u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5),)
-                        .to_channel_id(),
-                wav_id: id55,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-
-    // RNG = 5 -> else-if branch (Key3:33) after mutation
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(5u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-
-    // RNG = 6 -> else branch (Key2:22)
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(6u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2),)
-                        .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-}
-
-#[test]
-fn into_tokens_basic_switch() {
-    // Outside of switch
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
-
-    // Build switch block: max=2, cond 1 -> Key2:22, cond 2 -> Key3:33
-    let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(2u64)))
-        .case_with_skip(
-            BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(2),
-                    )
-                    .to_channel_id(),
-                },
-                "00220000",
-            )])],
-        )
-        .case_with_skip(
-            BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(3),
-                    )
-                    .to_channel_id(),
-                },
-                "00003300",
-            )])],
-        )
-        .build();
-
-    tokens.extend(switch.into_tokens());
-
-    // After switch
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
-
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
-
-    // RNG = 1 -> branch cond 1
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2),)
-                        .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-
-    // RNG = 2 -> branch cond 2
-    let tokens_wrapped2: Vec<TokenWithRange<'static>> = tokens_wrapped.to_vec();
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped2,
-        default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-}
-
-#[test]
-fn into_tokens_basic_setswitch() {
-    // Outside of setswitch
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
-
-    // Build setswitch block: value=2, same branches
-    let setswitch = Switch::new(ControlFlowValue::Set(BigUint::from(2u64)))
-        .case_with_skip(
-            BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(2),
-                    )
-                    .to_channel_id(),
-                },
-                "00220000",
-            )])],
-        )
-        .case_with_skip(
-            BigUint::from(2u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(3),
-                    )
-                    .to_channel_id(),
-                },
-                "00003300",
-            )])],
-        )
-        .build();
-
-    tokens.extend(setswitch.into_tokens());
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
-
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
-
-    // Because SETSWITCH=2, cond 2 branch is selected regardless of RNG
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
-        ]
-    );
-}
-
-#[test]
-fn builder_basic_switch() {
-    // Build with builder: GenMax=3, case 1 -> Key2:22, default -> Key3:33
-    let switch = Switch::new(ControlFlowValue::GenMax(BigUint::from(3u64)))
-        .case_with_skip(
-            BigUint::from(1u64),
-            vec![TokenUnit::from_tokens(vec![Token::message(
-                1,
-                Channel::Note {
-                    channel_id: KeyLayoutBeat::new(
-                        PlayerSide::Player1,
-                        NoteKind::Visible,
-                        Key::Key(2),
-                    )
-                    .to_channel_id(),
-                },
-                "00220000",
-            )])],
-        )
-        .def(vec![TokenUnit::from_tokens(vec![Token::message(
-            1,
-            Channel::Note {
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
-                    .to_channel_id(),
-            },
-            "00003300",
-        )])])
-        .build();
-
-    let mut tokens: Vec<Token<'static>> = vec![Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
-                .to_channel_id(),
-        },
-        "11000000",
-    )];
-    tokens.extend(switch.into_tokens());
-    tokens.push(Token::message(
-        1,
-        Channel::Note {
-            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
-                .to_channel_id(),
-        },
-        "00000044",
-    ));
-
-    let tokens_wrapped: Vec<TokenWithRange<'static>> = tokens
-        .into_iter()
-        .map(|t| SourceRangeMixin::new(t, 0..0))
-        .collect();
-
-    let id11 = ObjId::try_from("11", false).unwrap();
-    let id22 = ObjId::try_from("22", false).unwrap();
-    let id33 = ObjId::try_from("33", false).unwrap();
-    let id44 = ObjId::try_from("44", false).unwrap();
-
-    // RNG = 1 -> case branch
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
     let ParseOutput {
         bms,
         parse_warnings,
     } = Bms::from_token_stream(
-        &tokens_wrapped,
+        &tokens,
         default_config_with_rng(RngMock([BigUint::from(1u64)])),
     );
     assert_eq!(parse_warnings, vec![]);
     let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let random_obj = &bms.randomized[0];
+
+    // Check generating
     assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+        random_obj.generating,
+        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+    );
+
+    // Check branches
+    assert_eq!(random_obj.branches.len(), 2);
+
+    // Branch 1
+    let branch1 = &random_obj.branches[&BigUint::from(1u64)];
+    assert_eq!(branch1.condition, BigUint::from(1u64));
+    // Check content of branch 1 (should have note 112 and a nested random)
+    assert_eq!(
+        branch1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+    assert_eq!(branch1.sub.randomized.len(), 1);
+
+    // Nested Random
+    let nested_random = &branch1.sub.randomized[0];
+    assert_eq!(
+        nested_random.generating,
+        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+    );
+    assert_eq!(nested_random.branches.len(), 2);
+
+    // Nested Branch 1
+    let nested_branch1 = &nested_random.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        nested_branch1
+            .sub
+            .notes()
+            .all_notes()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("55", false).unwrap(),
+        }]
+    );
+
+    // Nested Branch 2
+    let nested_branch2 = &nested_random.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        nested_branch2
+            .sub
+            .notes()
+            .all_notes()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
+            wav_id: ObjId::try_from("66", false).unwrap(),
+        }]
+    );
+
+    // Branch 2 of outer random
+    let branch2 = &random_obj.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        branch2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let rnd_strings_outer = random_obj
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_outer,
         vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2),)
-                        .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
         ]
     );
 
-    // RNG = 3 -> default branch
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens_wrapped,
-        default_config_with_rng(RngMock([BigUint::from(3u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
+    let sw_strings_outer = random_obj
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
     assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+        sw_strings_outer,
         vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1),)
-                        .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3),)
-                        .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id:
-                    KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4),)
-                        .to_channel_id(),
-                wav_id: id44,
-            },
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
         ]
     );
+
+    let rnd_strings_nested = nested_random
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_nested,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_strings_nested = nested_random
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings_nested,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00115:00550000",
+            "#SKIP",
+            "#CASE 2",
+            "#00116:0066",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+}
+
+#[test]
+fn test_nested_switch_structure() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+
+            #SWITCH 2
+
+            #CASE 1
+                #00115:00550000
+            #SKIP
+
+            #CASE 2
+                #00116:00006600
+            #SKIP
+
+            #ENDSW
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let switch_obj = &bms.randomized[0];
+
+    assert_eq!(
+        switch_obj.generating,
+        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+    );
+    assert_eq!(switch_obj.branches.len(), 2);
+
+    // Case 1
+    let case1 = &switch_obj.branches[&BigUint::from(1u64)];
+    assert_eq!(case1.sub.randomized.len(), 1);
+    assert_eq!(
+        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+
+    // Nested Switch
+    let nested_switch = &case1.sub.randomized[0];
+    assert_eq!(
+        nested_switch.generating,
+        Some(ControlFlowValue::GenMax(BigUint::from(2u64)))
+    );
+    assert_eq!(nested_switch.branches.len(), 2);
+
+    // Nested Case 1
+    let nested_case1 = &nested_switch.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        nested_case1
+            .sub
+            .notes()
+            .all_notes()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("55", false).unwrap(),
+        }]
+    );
+
+    // Nested Case 2
+    let nested_case2 = &nested_switch.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        nested_case2
+            .sub
+            .notes()
+            .all_notes()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: NoteChannelId::try_from(['1', '6']).unwrap(),
+            wav_id: ObjId::try_from("66", false).unwrap(),
+        }]
+    );
+
+    // Case 2
+    let case2 = &switch_obj.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let sw_strings_outer = switch_obj
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings_outer,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings_outer = switch_obj
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_outer,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let nested_switch_strings = nested_switch
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nested_switch_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00115:00550000",
+            "#SKIP",
+            "#CASE 2",
+            "#00116:0066",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let nested_rnd_strings = nested_switch
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nested_rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_export_as_random_tokens() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #RANDOM 2
+
+        #IF 1
+            #00112:00220000
+
+            #RANDOM 2
+
+            #IF 1
+                #00115:00550000
+            #ENDIF
+
+            #IF 2
+                #00116:00006600
+            #ENDIF
+
+            #ENDRANDOM
+
+        #ENDIF
+
+        #IF 2
+            #00113:00003300
+        #ENDIF
+
+        #ENDRANDOM
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let rnd = &bms.randomized[0];
+    let tokens = rnd.export_as_random::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_strings = rnd
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+}
+
+#[test]
+fn test_export_as_switch_tokens() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let sw = &bms.randomized[0];
+    let tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_switch_fallthrough_one_skip() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let sw = &bms.randomized[0];
+    assert_eq!(sw.branches.len(), 2);
+
+    let case1 = &sw.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+
+    let case2 = &sw.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_switch_default_then_case_override() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #DEF
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(2u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let sw = &bms.randomized[0];
+    assert_eq!(sw.branches.len(), 2);
+
+    let case1 = &sw.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+
+    let case2 = &sw.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_export_both_and_compare() {
+    const SRC: &str = r"
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #RANDOM 2
+
+        #IF 1
+            #00112:00220000
+
+        #ELSEIF 2
+            #00113:00003300
+
+        #ENDIF
+
+        #ENDRANDOM
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert!(bms.randomized.len() >= 2);
+    let sw = &bms.randomized[0];
+    let rnd = &bms.randomized[1];
+
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let sw_strings = sw_tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_tokens = rnd.export_as_random::<KeyLayoutBeat>();
+    let rnd_strings = rnd_tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_contents: Vec<_> = sw_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    let rnd_contents: Vec<_> = rnd_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    assert_eq!(sw_contents, rnd_contents);
+}
+
+#[test]
+fn test_export_both_and_compare_different_contents() {
+    const SRC: &str = r"
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #RANDOM 2
+
+        #IF 1
+            #00115:00550000
+
+        #ELSEIF 2
+            #00116:00006600
+
+        #ENDIF
+
+        #ENDRANDOM
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert!(bms.randomized.len() >= 2);
+    let sw = &bms.randomized[0];
+    let rnd = &bms.randomized[1];
+
+    let sw_strings = sw
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = rnd
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_contents: Vec<_> = sw_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    let rnd_contents: Vec<_> = rnd_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    assert!(!sw_contents.is_empty());
+    assert!(!rnd_contents.is_empty());
+    assert_ne!(sw_contents, rnd_contents);
 }
