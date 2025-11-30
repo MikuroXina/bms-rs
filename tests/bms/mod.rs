@@ -1,6 +1,5 @@
 mod base_62;
 mod comment;
-mod control_flow_model;
 mod cursor_with_edges;
 mod diagnostics_test;
 mod extra_channel;

@@ -21,32 +21,19 @@
 //! - `#END IF` - Type of `#ENDIF`.
 //! - `#RANDOM[n]` - `#RANDOM` and args without spaces.
 //! - `#IF[n]` - `#IF` and args without spaces.
-//!
-//! ## Development note
-//!
-//! The state transition table about transiting from stack top state and token to the operation here:
-//!
-//! | token \ state | `Root` | `Random` | `IfBlock` | `ElseBlock` | `SwitchBeforeActive` | `SwitchActive` | `SwitchAfterActive` | `SwitchSkipping` |
-//! | --: | -- | -- | -- | -- | -- | -- | -- | -- |
-//! | `RANDOM`, `SETRANDOM` | push `Random` | pop -> push `Random` | push `Random` | push `Random` | push `Random` | push `Random` | push `Random` | push `Random` |
-//! | `IF` | error | push `IfBlock` | pop -> push `IfBlock` | pop -> push `IfBlock` | error | error | error | error |
-//! | `ELSEIF` | error | error | pop -> push `IfBlock` | error | error | error | error | error |
-//! | `ELSE` | error | error | pop -> push `ElseBlock` | error | error | error | error | error |
-//! | `ENDIF` | error | error | pop | pop | error | error | error | error |
-//! | `ENDRANDOM` | error | pop | pop | pop | error | error | error | error |
-//! | `SWITCH`, `SETSWITCH` | push `SwitchBeforeActive` | pop -> push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` | push `SwitchBeforeActive` |
-//! | `CASE` | error | pop until `RandomBlock`, `IfBlock`, or `ElseBlock` -> parse again | same to left | same to left | same to left | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | pop -> push `SwitchActive` if matches generated else `SwitchAfterActive` | ignore |
-//! | `SKIP` | error | error | error | error | ignore | pop -> push `SwitchSkipping` | ignore | ignore |
-//! | `DEF` | error | error | error | error | pop -> push `SwitchActive` | pop -> push `SwitchAfterActive` | ignore | ignore |
-//! | `ENDSW` | error | error | error | error | pop | pop | pop | pop |
-//! | others | call next | error | call next if activated | call next if activated | ignore | call next | ignore | ignore |
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 use num::BigUint;
 
 use crate::bms::{
-    parse::{ParseError, ParseWarning},
+    command::mixin::SourceRangeMixin,
+    lex::token::{Token, TokenWithRange},
+    parse::{ParseError, ParseErrorWithRange, ParseWarning, ParseWarningWithRange},
     prelude::*,
 };
 
@@ -88,6 +75,84 @@ enum ProcessState {
     SwitchSkipping,
 }
 
+struct BranchBuffer<'t> {
+    conditions: Vec<BigUint>,
+    tokens: Vec<TokenWithRange<'t>>,
+    nested_objects: Vec<RandomizedObjects>,
+}
+
+struct RandomScope<'t> {
+    generating: Option<ControlFlowValue>,
+    max_value: Option<BigUint>,
+    branches: BTreeMap<BigUint, RandomizedBranch>,
+    covered_values: BTreeSet<BigUint>,
+    current_branch: Option<BranchBuffer<'t>>,
+}
+
+struct Collector<'t> {
+    stack: Vec<RandomScope<'t>>,
+    finished_objects: Vec<RandomizedObjects>,
+}
+
+impl<'t> Collector<'t> {
+    fn new() -> Self {
+        Self {
+            stack: Vec::new(),
+            finished_objects: Vec::new(),
+        }
+    }
+
+    fn push_random(&mut self, generating: ControlFlowValue) {
+        let max_value = match &generating {
+            ControlFlowValue::GenMax(m) => Some(m.clone()),
+            ControlFlowValue::Set(_) => None, // Explicit value, cannot infer range for ELSE
+        };
+        self.stack.push(RandomScope {
+            generating: Some(generating),
+            max_value,
+            branches: BTreeMap::new(),
+            covered_values: BTreeSet::new(),
+            current_branch: None,
+        });
+    }
+
+    fn current_scope_mut(&mut self) -> Option<&mut RandomScope<'t>> {
+        self.stack.last_mut()
+    }
+
+    fn start_branch(&mut self, condition: BigUint) {
+        if let Some(scope) = self.current_scope_mut() {
+            scope.covered_values.insert(condition.clone());
+            scope.current_branch = Some(BranchBuffer {
+                conditions: vec![condition],
+                tokens: Vec::new(),
+                nested_objects: Vec::new(),
+            });
+        }
+    }
+
+    fn add_token(&mut self, token: TokenWithRange<'t>) {
+        // Add to the top-most branch buffer
+        // Also, if we are nested, we only add to the immediate parent's buffer.
+        if let Some(scope) = self.current_scope_mut()
+            && let Some(branch) = &mut scope.current_branch
+        {
+            branch.tokens.push(token);
+        }
+    }
+
+    fn add_nested_object(&mut self, obj: RandomizedObjects) {
+        if let Some(scope) = self.current_scope_mut() {
+            if let Some(branch) = &mut scope.current_branch {
+                branch.nested_objects.push(obj);
+            }
+        } else {
+            // Root level
+            self.finished_objects.push(obj);
+        }
+    }
+}
+
 impl<R, N> RandomTokenProcessor<R, N> {
     pub fn new(rng: Rc<RefCell<R>>, next: N) -> Self {
         Self {
@@ -98,30 +163,87 @@ impl<R, N> RandomTokenProcessor<R, N> {
     }
 }
 
-impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn visit_random(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let push_new_one = || {
+impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N> {
+    // Helper to process a branch buffer into a Bms
+    fn process_branch_buffer<'t>(
+        &self,
+        buffer: &BranchBuffer<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+    ) -> Result<Bms, crate::bms::parse::ParseErrorWithRange> {
+        // Create a new processor for recursion
+        let sub_processor = RandomTokenProcessor::new(self.rng.clone(), self.next.clone());
+
+        let tokens_vec = buffer.tokens.iter().collect::<Vec<_>>();
+        let mut tokens_slice = tokens_vec.as_slice();
+        let mut ctx = ProcessContext::new(&mut tokens_slice, prompter);
+
+        let (bms, nested) = sub_processor.process(&mut ctx)?;
+
+        let mut final_bms = bms;
+        final_bms.randomized.extend(nested);
+        final_bms.randomized.extend(buffer.nested_objects.clone());
+
+        Ok(final_bms)
+    }
+
+    fn finish_current_branch<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+    ) -> Result<(), crate::bms::parse::ParseErrorWithRange> {
+        if let Some(scope) = collector.current_scope_mut()
+            && let Some(buffer) = scope.current_branch.take()
+        {
+            let bms = self.process_branch_buffer(&buffer, prompter)?;
+            for cond in buffer.conditions.iter() {
+                scope.branches.insert(
+                    cond.clone(),
+                    RandomizedBranch::new(cond.clone(), bms.clone()),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    fn visit_random<'t>(
+        &self,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let push_new_one = |collector: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                SourceRangeMixin::new(
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                    token.range().clone(),
+                )
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            let range = BigUint::from(1u64)..=max;
+            let range = BigUint::from(1u64)..=max.clone();
             let generated = self.rng.borrow_mut().generate(range.clone());
             let activated = self.is_activated();
             if activated && !range.contains(&generated) {
-                return Err(ParseError::RandomGeneratedValueOutOfRange {
-                    expected: range,
-                    actual: generated,
-                });
+                return Err(SourceRangeMixin::new(
+                    ParseError::RandomGeneratedValueOutOfRange {
+                        expected: range,
+                        actual: generated,
+                    },
+                    token.range().clone(),
+                ));
             }
             self.state_stack.borrow_mut().push(ProcessState::Random {
-                generated,
+                generated: generated.clone(),
                 activated,
             });
+
+            collector.push_random(ControlFlowValue::GenMax(max));
+
             Ok(None)
         };
+
         let top = self
             .state_stack
             .borrow()
@@ -135,31 +257,37 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchActive { .. }
             | ProcessState::SwitchAfterActive { .. }
-            | ProcessState::SwitchSkipping => push_new_one(),
+            | ProcessState::SwitchSkipping => push_new_one(collector),
             ProcessState::Random { .. } => {
-                // close this scope and start new one
-                self.state_stack.borrow_mut().pop();
-                push_new_one()
+                self.visit_end_random(collector, prompter, token)?;
+                push_new_one(collector)
             }
         }
     }
 
-    fn visit_set_random(
+    fn visit_set_random<'t>(
         &self,
         args: &str,
-    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let push_new_one = || {
-            let generated = match args.parse().map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let push_new_one = |collector: &mut Collector<'t>| {
+            let generated: BigUint = match args.parse().map_err(|_| {
+                SourceRangeMixin::new(
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                    token.range().clone(),
+                )
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
             let activated = self.is_activated();
             self.state_stack.borrow_mut().push(ProcessState::Random {
-                generated,
+                generated: generated.clone(),
                 activated,
             });
+            collector.push_random(ControlFlowValue::Set(generated));
             Ok(None)
         };
         let top = self
@@ -175,19 +303,27 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchActive { .. }
             | ProcessState::SwitchAfterActive { .. }
-            | ProcessState::SwitchSkipping => push_new_one(),
+            | ProcessState::SwitchSkipping => push_new_one(collector),
             ProcessState::Random { .. } => {
-                // close this scope and start new one
-                self.state_stack.borrow_mut().pop();
-                push_new_one()
+                self.visit_end_random(collector, prompter, token)?;
+                push_new_one(collector)
             }
         }
     }
 
-    fn visit_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let push_new_one = |generated: BigUint| {
+    fn visit_if<'t>(
+        &self,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let push_new_one = |collector: &mut Collector<'t>, generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                SourceRangeMixin::new(
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                    token.range().clone(),
+                )
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -197,6 +333,10 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 if_chain_has_been_activated: activated,
                 activated,
             });
+
+            self.finish_current_branch(collector, prompter)?;
+            collector.start_branch(cond);
+
             Ok(None)
         };
         let top = self
@@ -206,10 +346,9 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             .cloned()
             .expect("state_stack should not be empty in visit_if");
         match top {
-            ProcessState::Random { generated, .. } => push_new_one(generated),
+            ProcessState::Random { generated, .. } => push_new_one(collector, generated),
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
-                // close this scope and start new one
-                self.state_stack.borrow_mut().pop();
+                self.visit_end_if(collector, prompter, token)?;
                 let ProcessState::Random { generated, .. } = self
                     .state_stack
                     .borrow()
@@ -219,15 +358,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 else {
                     panic!("ElseBlock is not on Random");
                 };
-                push_new_one(generated)
+                push_new_one(collector, generated)
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#IF must be on a random scope",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_else_if(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
+    fn visit_else_if<'t>(
+        &self,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -247,33 +393,49 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 else {
                     panic!("IfBlock is not on Random");
                 };
+
+                self.finish_current_branch(collector, prompter)?;
+
+                let cond = match args.parse().map_err(|_| {
+                    SourceRangeMixin::new(
+                        ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                        token.range().clone(),
+                    )
+                }) {
+                    Ok(max) => max,
+                    Err(warning) => return Ok(Some(warning)),
+                };
+
                 if if_chain_has_been_activated {
                     self.state_stack.borrow_mut().push(ProcessState::IfBlock {
                         if_chain_has_been_activated,
                         activated: false,
                     });
                 } else {
-                    let cond = match args.parse().map_err(|_| {
-                        ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
-                    }) {
-                        Ok(max) => max,
-                        Err(warning) => return Ok(Some(warning)),
-                    };
                     let activated = generated == cond;
                     self.state_stack.borrow_mut().push(ProcessState::IfBlock {
                         if_chain_has_been_activated: activated,
                         activated,
                     });
                 }
+
+                collector.start_branch(cond);
+
                 Ok(None)
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#ELSEIF must come after of a #IF",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#ELSEIF must come after of a #IF"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_else(&self) -> core::result::Result<(), ParseError> {
+    fn visit_else<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<(), ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -289,15 +451,45 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 self.state_stack.borrow_mut().push(ProcessState::ElseBlock {
                     activated: !if_chain_has_been_activated,
                 });
+
+                self.finish_current_branch(collector, prompter)?;
+
+                if let Some(scope) = collector.current_scope_mut()
+                    && let Some(max) = &scope.max_value
+                {
+                    let mut conditions = Vec::new();
+                    let one = BigUint::from(1u64);
+                    let mut current = one.clone();
+                    while current <= *max {
+                        if !scope.covered_values.contains(&current) {
+                            conditions.push(current.clone());
+                            scope.covered_values.insert(current.clone());
+                        }
+                        current += 1u64;
+                    }
+
+                    scope.current_branch = Some(BranchBuffer {
+                        conditions,
+                        tokens: Vec::new(),
+                        nested_objects: Vec::new(),
+                    });
+                }
+
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#ELSE must come after #IF or #ELSEIF",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#ELSE must come after #IF or #ELSEIF"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_end_if(&self) -> core::result::Result<(), ParseError> {
+    fn visit_end_if<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<(), ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -307,15 +499,22 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         match top {
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.state_stack.borrow_mut().pop();
+                self.finish_current_branch(collector, prompter)?;
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDIF must come after #IF, #ELSEIF or #ELSE",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#ENDIF must come after #IF, #ELSEIF or #ELSE"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_end_random(&self) -> core::result::Result<(), ParseError> {
+    fn visit_end_random<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<(), ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -327,40 +526,71 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::IfBlock { .. }
             | ProcessState::ElseBlock { .. } => {
                 self.state_stack.borrow_mut().pop();
+
+                self.finish_current_branch(collector, prompter)?;
+
+                if let Some(scope) = collector.stack.pop() {
+                    let obj = RandomizedObjects {
+                        generating: scope.generating,
+                        branches: scope.branches,
+                    };
+                    collector.add_nested_object(obj);
+                }
+
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDRANDOM must come after #RANDOM",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#ENDRANDOM must come after #RANDOM"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_switch(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let push_new_one = || {
+    fn visit_switch<'t>(
+        &self,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let push_new_one = |collector: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+                SourceRangeMixin::new(
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                    token.range().clone(),
+                )
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
             };
-            let range = BigUint::from(1u64)..=max;
+            let range = BigUint::from(1u64)..=max.clone();
             let generated = self.rng.borrow_mut().generate(range.clone());
             let activated = self.is_activated();
             if activated {
                 if !range.contains(&generated) {
-                    return Err(ParseError::SwitchGeneratedValueOutOfRange {
-                        expected: range,
-                        actual: generated,
-                    });
+                    return Err(SourceRangeMixin::new(
+                        ParseError::SwitchGeneratedValueOutOfRange {
+                            expected: range,
+                            actual: generated,
+                        },
+                        token.range().clone(),
+                    ));
                 }
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchBeforeActive { generated });
+                    .push(ProcessState::SwitchBeforeActive {
+                        generated: generated.clone(),
+                    });
             } else {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive { generated });
+                    .push(ProcessState::SwitchAfterActive {
+                        generated: generated.clone(),
+                    });
             }
+
+            collector.push_random(ControlFlowValue::GenMax(max));
+
             Ok(None)
         };
         let top = self
@@ -372,19 +602,26 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
-                push_new_one()
+                self.visit_end_random(collector, prompter, token)?;
+                push_new_one(collector)
             }
-            _ => push_new_one(),
+            _ => push_new_one(collector),
         }
     }
 
-    fn visit_set_switch(
+    fn visit_set_switch<'t>(
         &self,
         args: &str,
-    ) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let push_new_one = || {
-            let generated = match args.parse().map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected integer but got {args:?}"))
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let push_new_one = |collector: &mut Collector<'t>| {
+            let generated: BigUint = match args.parse().map_err(|_| {
+                SourceRangeMixin::new(
+                    ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                    token.range().clone(),
+                )
             }) {
                 Ok(max) => max,
                 Err(warning) => return Ok(Some(warning)),
@@ -393,12 +630,17 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             if activated {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchBeforeActive { generated });
+                    .push(ProcessState::SwitchBeforeActive {
+                        generated: generated.clone(),
+                    });
             } else {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive { generated });
+                    .push(ProcessState::SwitchAfterActive {
+                        generated: generated.clone(),
+                    });
             }
+            collector.push_random(ControlFlowValue::Set(generated));
             Ok(None)
         };
         let top = self
@@ -410,20 +652,30 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
-                push_new_one()
+                self.visit_end_random(collector, prompter, token)?;
+                push_new_one(collector)
             }
-            _ => push_new_one(),
+            _ => push_new_one(collector),
         }
     }
 
-    fn visit_case(&self, args: &str) -> core::result::Result<Option<ParseWarning>, ParseError> {
-        let cond = match args
-            .parse()
-            .map_err(|_| ParseWarning::SyntaxError(format!("expected integer but got {args:?}")))
-        {
+    fn visit_case<'t>(
+        &self,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        let cond = match args.parse().map_err(|_| {
+            SourceRangeMixin::new(
+                ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
+                token.range().clone(),
+            )
+        }) {
             Ok(max) => max,
             Err(warning) => return Ok(Some(warning)),
         };
+
         loop {
             let top = self
                 .state_stack
@@ -436,10 +688,24 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::ElseBlock { .. } = top
             {
                 self.state_stack.borrow_mut().pop();
+                // Close scopes implicitly
+                self.finish_current_branch(collector, prompter)?;
+                if let ProcessState::Random { .. } = top
+                    && let Some(scope) = collector.stack.pop()
+                {
+                    let obj = RandomizedObjects {
+                        generating: scope.generating,
+                        branches: scope.branches,
+                    };
+                    collector.add_nested_object(obj);
+                }
             } else {
                 break;
             }
         }
+
+        self.finish_current_branch(collector, prompter)?;
+
         let top = self
             .state_stack
             .borrow()
@@ -454,6 +720,7 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                         .borrow_mut()
                         .push(ProcessState::SwitchActive { generated });
                 }
+                collector.start_branch(cond);
                 Ok(None)
             }
             ProcessState::SwitchActive { generated }
@@ -468,16 +735,26 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                         .borrow_mut()
                         .push(ProcessState::SwitchAfterActive { generated });
                 }
+                collector.start_branch(cond);
                 Ok(None)
             }
-            ProcessState::SwitchSkipping => Ok(None),
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#CASE must be on a switch block",
+            ProcessState::SwitchSkipping => {
+                collector.start_branch(cond);
+                Ok(None)
+            }
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#CASE must be on a switch block"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_skip(&self) -> core::result::Result<(), ParseError> {
+    fn visit_skip<'t>(
+        &self,
+        _collector: &mut Collector<'t>,
+        _prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<(), ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -495,13 +772,21 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#SKIP must be on a switch block",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#SKIP must be on a switch block"),
+                token.range().clone(),
             )),
         }
     }
 
-    fn visit_default(&self) -> core::result::Result<(), ParseError> {
+    fn visit_default<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> core::result::Result<(), ParseErrorWithRange> {
+        self.finish_current_branch(collector, prompter)?;
+
         let top = self
             .state_stack
             .borrow()
@@ -524,13 +809,41 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
                 Ok(())
             }
             ProcessState::SwitchAfterActive { .. } | ProcessState::SwitchSkipping => Ok(()),
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#DEF must be on a switch block",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#DEF must be on a switch block"),
+                token.range().clone(),
             )),
         }
+        .map(|_| {
+            if let Some(scope) = collector.current_scope_mut()
+                && let Some(max) = &scope.max_value
+            {
+                let mut conditions = Vec::new();
+                let one = BigUint::from(1u64);
+                let mut current = one.clone();
+                while current <= *max {
+                    if !scope.covered_values.contains(&current) {
+                        conditions.push(current.clone());
+                        scope.covered_values.insert(current.clone());
+                    }
+                    current += 1u64;
+                }
+
+                scope.current_branch = Some(BranchBuffer {
+                    conditions,
+                    tokens: Vec::new(),
+                    nested_objects: Vec::new(),
+                });
+            }
+        })
     }
 
-    fn visit_end_switch(&self) -> Result<(), ParseError> {
+    fn visit_end_switch<'t>(
+        &self,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> Result<(), ParseErrorWithRange> {
         let top = self
             .state_stack
             .borrow()
@@ -543,10 +856,20 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             | ProcessState::SwitchAfterActive { .. }
             | ProcessState::SwitchSkipping => {
                 self.state_stack.borrow_mut().pop();
+                self.finish_current_branch(collector, prompter)?;
+
+                if let Some(scope) = collector.stack.pop() {
+                    let obj = RandomizedObjects {
+                        generating: scope.generating,
+                        branches: scope.branches,
+                    };
+                    collector.add_nested_object(obj);
+                }
                 Ok(())
             }
-            _ => Err(ParseError::UnexpectedControlFlow(
-                "#ENDSWITCH must come after #SWITCH",
+            _ => Err(SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("#ENDSWITCH must come after #SWITCH"),
+                token.range().clone(),
             )),
         }
     }
@@ -569,10 +892,66 @@ impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
             )
         })
     }
+
+    fn on_header<'t>(
+        &self,
+        name: &str,
+        args: &str,
+        collector: &mut Collector<'t>,
+        prompter: &impl crate::bms::parse::Prompter,
+        token: &TokenWithRange<'t>,
+    ) -> Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
+        if name.eq_ignore_ascii_case("RANDOM") {
+            return self.visit_random(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("SETRANDOM") {
+            return self.visit_set_random(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("IF") {
+            return self.visit_if(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("ELSEIF") {
+            return self.visit_else_if(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("ELSE") {
+            return self.visit_else(collector, prompter, token).map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDIF") {
+            return self.visit_end_if(collector, prompter, token).map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDRANDOM") {
+            return self
+                .visit_end_random(collector, prompter, token)
+                .map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("SWITCH") {
+            return self.visit_switch(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("SETSWITCH") {
+            return self.visit_set_switch(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("CASE") {
+            return self.visit_case(args, collector, prompter, token);
+        }
+        if name.eq_ignore_ascii_case("SKIP") {
+            return self.visit_skip(collector, prompter, token).map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("DEF") {
+            return self.visit_default(collector, prompter, token).map(|_| None);
+        }
+        if name.eq_ignore_ascii_case("ENDSW") {
+            return self
+                .visit_end_switch(collector, prompter, token)
+                .map(|_| None);
+        }
+        Ok(None)
+    }
 }
 
-impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
-    type Output = <N as TokenProcessor>::Output;
+impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> TokenProcessor
+    for RandomTokenProcessor<R, N>
+{
+    type Output = (N::Output, Vec<RandomizedObjects>);
 
     fn process<'a, 't, P: Prompter>(
         &self,
@@ -580,21 +959,42 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
     ) -> Result<Self::Output, crate::bms::parse::ParseErrorWithRange> {
         let checkpoint = ctx.save();
         let mut activated: Vec<&'a TokenWithRange<'t>> = Vec::new();
-        ctx.all_tokens(|token, _prompter| {
+        let mut collector = Collector::new();
+
+        let view = ctx.take_input();
+        let prompter = ctx.prompter();
+
+        for token in view.iter().copied() {
             let warn = match token.content() {
-                Token::Header { name, args } => self
-                    .on_header(name.as_ref(), args.as_ref())
-                    .map(|ow| ow.map(|w| w.into_wrapper(token)))?,
+                Token::Header { name, args } => self.on_header(
+                    name.as_ref(),
+                    args.as_ref(),
+                    &mut collector,
+                    prompter,
+                    token,
+                )?,
                 Token::Message { .. } => None,
                 Token::NotACommand(_line) => None,
             };
+
+            if let Some(w) = warn {
+                ctx.warn(w);
+            }
+
+            let is_control = matches!(token.content(), Token::Header { name, .. } if
+                ["RANDOM", "SETRANDOM", "IF", "ELSEIF", "ELSE", "ENDIF", "ENDRANDOM",
+                 "SWITCH", "SETSWITCH", "CASE", "SKIP", "DEF", "ENDSW"].iter().any(|&k| name.eq_ignore_ascii_case(k))
+            );
+
+            if !is_control {
+                collector.add_token(token.clone());
+            }
+
             if self.is_activated() {
                 activated.push(token);
             }
-            Ok(warn)
-        })?;
+        }
 
-        // Process activated tokens with the next processor using a temporary context.
         let mut tmp = &activated[..];
         let mut view_ctx = ProcessContext {
             input: &mut tmp,
@@ -604,51 +1004,7 @@ impl<R: Rng, N: TokenProcessor> TokenProcessor for RandomTokenProcessor<R, N> {
         let out = self.next.process(&mut view_ctx)?;
         ctx.reported.extend(view_ctx.into_warnings());
         ctx.restore(checkpoint);
-        Ok(out)
-    }
-}
 
-impl<R: Rng, N: TokenProcessor> RandomTokenProcessor<R, N> {
-    fn on_header(&self, name: &str, args: &str) -> Result<Option<ParseWarning>, ParseError> {
-        if name.eq_ignore_ascii_case("RANDOM") {
-            return self.visit_random(args);
-        }
-        if name.eq_ignore_ascii_case("SETRANDOM") {
-            return self.visit_set_random(args);
-        }
-        if name.eq_ignore_ascii_case("IF") {
-            return self.visit_if(args);
-        }
-        if name.eq_ignore_ascii_case("ELSEIF") {
-            return self.visit_else_if(args);
-        }
-        if name.eq_ignore_ascii_case("ELSE") {
-            return self.visit_else().map(|_| None);
-        }
-        if name.eq_ignore_ascii_case("ENDIF") {
-            return self.visit_end_if().map(|_| None);
-        }
-        if name.eq_ignore_ascii_case("ENDRANDOM") {
-            return self.visit_end_random().map(|_| None);
-        }
-        if name.eq_ignore_ascii_case("SWITCH") {
-            return self.visit_switch(args);
-        }
-        if name.eq_ignore_ascii_case("SETSWITCH") {
-            return self.visit_set_switch(args);
-        }
-        if name.eq_ignore_ascii_case("CASE") {
-            return self.visit_case(args);
-        }
-        if name.eq_ignore_ascii_case("SKIP") {
-            return self.visit_skip().map(|_| None);
-        }
-        if name.eq_ignore_ascii_case("DEF") {
-            return self.visit_default().map(|_| None);
-        }
-        if name.eq_ignore_ascii_case("ENDSW") {
-            return self.visit_end_switch().map(|_| None);
-        }
-        Ok(None)
+        Ok((out, collector.finished_objects))
     }
 }
