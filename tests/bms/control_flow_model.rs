@@ -128,6 +128,80 @@ fn test_nested_random_structure() {
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
+
+    let rnd_strings_outer = random_obj
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_outer,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_strings_outer = random_obj
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings_outer,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings_nested = nested_random
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_nested,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_strings_nested = nested_random
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings_nested,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00115:00550000",
+            "#SKIP",
+            "#CASE 2",
+            "#00116:0066",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
 }
 
 #[test]
@@ -251,6 +325,80 @@ fn test_nested_switch_structure() {
             wav_id: ObjId::try_from("33", false).unwrap(),
         }]
     );
+
+    let sw_strings_outer = switch_obj
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings_outer,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings_outer = switch_obj
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings_outer,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let nested_switch_strings = nested_switch
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nested_switch_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00115:00550000",
+            "#SKIP",
+            "#CASE 2",
+            "#00116:0066",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let nested_rnd_strings = nested_switch
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nested_rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
 }
 
 #[test]
@@ -319,6 +467,25 @@ fn test_export_as_random_tokens() {
             "#ENDRANDOM",
         ]
     );
+
+    let sw_strings = rnd
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
 }
 
 #[test]
@@ -376,4 +543,414 @@ fn test_export_as_switch_tokens() {
             "#ENDSW",
         ]
     );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_switch_fallthrough_one_skip() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let sw = &bms.randomized[0];
+    assert_eq!(sw.branches.len(), 2);
+
+    let case1 = &sw.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+
+    let case2 = &sw.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_switch_default_then_case_override() {
+    const SRC: &str = r"
+        #00111:11000000
+
+        #SWITCH 2
+
+        #DEF
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+
+        #ENDSW
+
+        #00114:00000044
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(2u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert_eq!(bms.randomized.len(), 1);
+    let sw = &bms.randomized[0];
+    assert_eq!(sw.branches.len(), 2);
+
+    let case1 = &sw.branches[&BigUint::from(1u64)];
+    assert_eq!(
+        case1.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 1, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("22", false).unwrap(),
+        }]
+    );
+
+    let case2 = &sw.branches[&BigUint::from(2u64)];
+    assert_eq!(
+        case2.sub.notes().all_notes().cloned().collect::<Vec<_>>(),
+        vec![WavObj {
+            offset: ObjTime::new(1, 2, 4).unwrap(),
+            channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                .to_channel_id(),
+            wav_id: ObjId::try_from("33", false).unwrap(),
+        }]
+    );
+
+    let tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let strings = tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = sw
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+}
+
+#[test]
+fn test_export_both_and_compare() {
+    const SRC: &str = r"
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #RANDOM 2
+
+        #IF 1
+            #00112:00220000
+
+        #ELSEIF 2
+            #00113:00003300
+
+        #ENDIF
+
+        #ENDRANDOM
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert!(bms.randomized.len() >= 2);
+    let sw = &bms.randomized[0];
+    let rnd = &bms.randomized[1];
+
+    let sw_tokens = sw.export_as_switch::<KeyLayoutBeat>();
+    let sw_strings = sw_tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_tokens = rnd.export_as_random::<KeyLayoutBeat>();
+    let rnd_strings = rnd_tokens
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00112:00220000",
+            "#ELSEIF 2",
+            "#00113:0033",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_contents: Vec<_> = sw_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    let rnd_contents: Vec<_> = rnd_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    assert_eq!(sw_contents, rnd_contents);
+}
+
+#[test]
+fn test_export_both_and_compare_different_contents() {
+    const SRC: &str = r"
+        #SWITCH 2
+
+        #CASE 1
+            #00112:00220000
+        #SKIP
+
+        #CASE 2
+            #00113:00003300
+        #SKIP
+
+        #ENDSW
+
+        #RANDOM 2
+
+        #IF 1
+            #00115:00550000
+
+        #ELSEIF 2
+            #00116:00006600
+
+        #ENDIF
+
+        #ENDRANDOM
+    ";
+
+    let LexOutput {
+        tokens,
+        lex_warnings,
+    } = TokenStream::parse_lex(SRC);
+    assert_eq!(lex_warnings, vec![]);
+    let ParseOutput {
+        bms,
+        parse_warnings,
+    } = Bms::from_token_stream(
+        &tokens,
+        default_config_with_rng(RngMock([BigUint::from(1u64)])),
+    );
+    assert_eq!(parse_warnings, vec![]);
+    let bms = bms.unwrap();
+
+    assert!(bms.randomized.len() >= 2);
+    let sw = &bms.randomized[0];
+    let rnd = &bms.randomized[1];
+
+    let sw_strings = sw
+        .export_as_switch::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sw_strings,
+        vec![
+            "#SWITCH 2",
+            "#CASE 1",
+            "#00112:00220000",
+            "#SKIP",
+            "#CASE 2",
+            "#00113:0033",
+            "#SKIP",
+            "#ENDSW",
+        ]
+    );
+
+    let rnd_strings = rnd
+        .export_as_random::<KeyLayoutBeat>()
+        .into_iter()
+        .map(|t| t.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rnd_strings,
+        vec![
+            "#RANDOM 2",
+            "#IF 1",
+            "#00115:00550000",
+            "#ELSEIF 2",
+            "#00116:0066",
+            "#ENDIF",
+            "#ENDRANDOM",
+        ]
+    );
+
+    let sw_contents: Vec<_> = sw_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    let rnd_contents: Vec<_> = rnd_strings
+        .iter()
+        .filter(|s| s.starts_with("#00"))
+        .cloned()
+        .collect();
+    assert!(!sw_contents.is_empty());
+    assert!(!rnd_contents.is_empty());
+    assert_ne!(sw_contents, rnd_contents);
 }
