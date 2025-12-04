@@ -43,7 +43,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     // Default reaction time of 600ms is enough to cover the note at y=0.5
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -118,7 +118,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -187,7 +187,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     // Use longer reaction time to include all notes in visible window
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(5000));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(5000));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -264,7 +264,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -333,7 +333,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     // Ensure all notes in both channels are within the visible window
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(5000));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(5000));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -390,7 +390,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(600));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -440,7 +440,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(2000));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(2000));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -490,7 +490,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(bmson, base_bpm, Duration::from_millis(3000));
+    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(3000));
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
