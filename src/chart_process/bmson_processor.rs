@@ -18,7 +18,7 @@ use num::{One, ToPrimitive, Zero};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor<'a> {
-    bmson: Bmson<'a>,
+    bmson: &'a Bmson<'a>,
 
     // Resource ID mappings
     /// Audio filename to WavId mapping
@@ -56,7 +56,7 @@ pub struct BmsonProcessor<'a> {
 impl<'a> BmsonProcessor<'a> {
     /// Create BMSON processor with explicit reaction time configuration.
     #[must_use]
-    pub fn new(bmson: Bmson<'a>, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new(bmson: &'a Bmson<'a>, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
         // Preprocessing: assign IDs to all audio and image resources
@@ -137,7 +137,7 @@ impl<'a> BmsonProcessor<'a> {
         }
 
         let all_events =
-            AllEventsIndex::precompute_events(&bmson, &audio_name_to_id, &bmp_name_to_id);
+            AllEventsIndex::precompute_events(bmson, &audio_name_to_id, &bmp_name_to_id);
 
         Self {
             bmson,

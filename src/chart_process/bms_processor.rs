@@ -16,8 +16,8 @@ use crate::chart_process::{
 };
 
 /// ChartProcessor of Bms files.
-pub struct BmsProcessor {
-    bms: Bms,
+pub struct BmsProcessor<'a> {
+    bms: &'a Bms,
 
     // Playback state
     started_at: Option<SystemTime>,
@@ -48,10 +48,14 @@ pub struct BmsProcessor {
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
 
-impl BmsProcessor {
+impl<'a> BmsProcessor<'a> {
     /// Create processor with explicit reaction time configuration, initialize default parameters
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(bms: Bms, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new<T: KeyLayoutMapper>(
+        bms: &'a Bms,
+        base_bpm: BaseBpm,
+        reaction_time: Duration,
+    ) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -63,7 +67,7 @@ impl BmsProcessor {
         // Compute default visible y length via shared helper
         let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
 
-        let all_events = AllEventsIndex::precompute_all_events::<T>(&bms);
+        let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -326,7 +330,7 @@ impl BmsProcessor {
     }
 }
 
-impl ChartProcessor for BmsProcessor {
+impl<'a> ChartProcessor for BmsProcessor<'a> {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
         self.bms
             .wav
