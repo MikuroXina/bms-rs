@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use num::{One, ToPrimitive, Zero};
@@ -16,8 +16,11 @@ use crate::chart_process::{
 };
 
 /// ChartProcessor of Bms files.
-pub struct BmsProcessor<'a> {
-    bms: &'a Bms,
+pub struct BmsProcessor {
+    /// Precomputed WAV id to path mapping
+    wav_paths: HashMap<WavId, PathBuf>,
+    /// Precomputed BMP id to path mapping
+    bmp_paths: HashMap<BmpId, PathBuf>,
 
     // Playback state
     started_at: Option<SystemTime>,
@@ -46,16 +49,14 @@ pub struct BmsProcessor<'a> {
 
     /// Indexed flow events by y (for fast lookup of next flow-affecting event)
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
+    /// Initial BPM at start (header or default)
+    init_bpm: Decimal,
 }
 
-impl<'a> BmsProcessor<'a> {
+impl BmsProcessor {
     /// Create processor with explicit reaction time configuration, initialize default parameters
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(
-        bms: &'a Bms,
-        base_bpm: BaseBpm,
-        reaction_time: Duration,
-    ) -> Self {
+    pub fn new<T: KeyLayoutMapper>(bms: &Bms, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -68,6 +69,20 @@ impl<'a> BmsProcessor<'a> {
         let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
+
+        // Precompute resource maps
+        let wav_paths: HashMap<WavId, PathBuf> = bms
+            .wav
+            .wav_files
+            .iter()
+            .map(|(obj_id, path)| (WavId::from(obj_id.as_u16() as usize), path.clone()))
+            .collect();
+        let bmp_paths: HashMap<BmpId, PathBuf> = bms
+            .bmp
+            .bmp_files
+            .iter()
+            .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.clone()))
+            .collect();
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -166,7 +181,8 @@ impl<'a> BmsProcessor<'a> {
         }
 
         Self {
-            bms,
+            wav_paths,
+            bmp_paths,
             started_at: None,
             last_poll_at: None,
             progressed_y: Decimal::zero(),
@@ -174,12 +190,13 @@ impl<'a> BmsProcessor<'a> {
             all_events,
             preloaded_events: Vec::new(),
             default_visible_y_length,
-            current_bpm: init_bpm,
+            current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
             current_scroll: Decimal::one(),
             base_bpm,
             reaction_time,
             flow_events_by_y,
+            init_bpm: init_bpm.clone(),
         }
     }
 
@@ -330,22 +347,18 @@ impl<'a> BmsProcessor<'a> {
     }
 }
 
-impl<'a> ChartProcessor for BmsProcessor<'a> {
+impl ChartProcessor for BmsProcessor {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
-        self.bms
-            .wav
-            .wav_files
+        self.wav_paths
             .iter()
-            .map(|(obj_id, path)| (WavId::from(obj_id.as_u16() as usize), path.as_path()))
+            .map(|(id, path)| (*id, path.as_path()))
             .collect()
     }
 
     fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        self.bms
-            .bmp
-            .bmp_files
+        self.bmp_paths
             .iter()
-            .map(|(obj_id, bmp)| (BmpId::from(obj_id.as_u16() as usize), bmp.file.as_path()))
+            .map(|(id, path)| (*id, path.as_path()))
             .collect()
     }
 
@@ -368,14 +381,8 @@ impl<'a> ChartProcessor for BmsProcessor<'a> {
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
         self.preloaded_events.clear();
-        // Initialize current_bpm to header or default
-        self.current_bpm = self
-            .bms
-            .bpm
-            .bpm
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| Decimal::from(120));
+        // Initialize current_bpm to header or default cached value
+        self.current_bpm = self.init_bpm.clone();
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {

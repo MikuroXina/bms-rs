@@ -17,9 +17,7 @@ use crate::chart_process::{
 use num::{One, ToPrimitive, Zero};
 
 /// ChartProcessor of Bmson files.
-pub struct BmsonProcessor<'a> {
-    bmson: &'a Bmson<'a>,
-
+pub struct BmsonProcessor {
     // Resource ID mappings
     /// Audio filename to WavId mapping
     audio_name_to_id: HashMap<String, WavId>,
@@ -39,6 +37,8 @@ pub struct BmsonProcessor<'a> {
     base_bpm: BaseBpm,
     /// Reaction time used to derive visible window length
     reaction_time: Duration,
+    /// Initial BPM at start
+    init_bpm: Decimal,
 
     /// Pending external events queue
     inbox: Vec<ControlEvent>,
@@ -53,10 +53,10 @@ pub struct BmsonProcessor<'a> {
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
 
-impl<'a> BmsonProcessor<'a> {
+impl BmsonProcessor {
     /// Create BMSON processor with explicit reaction time configuration.
     #[must_use]
-    pub fn new(bmson: &'a Bmson<'a>, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new(bmson: &Bmson<'_>, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
         // Preprocessing: assign IDs to all audio and image resources
@@ -140,7 +140,6 @@ impl<'a> BmsonProcessor<'a> {
             AllEventsIndex::precompute_events(bmson, &audio_name_to_id, &bmp_name_to_id);
 
         Self {
-            bmson,
             audio_name_to_id,
             bmp_name_to_id,
             started_at: None,
@@ -150,11 +149,12 @@ impl<'a> BmsonProcessor<'a> {
             preloaded_events: Vec::new(),
             all_events,
             default_visible_y_length,
-            current_bpm: init_bpm,
+            current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
             base_bpm,
             reaction_time,
             flow_events_by_y,
+            init_bpm: init_bpm.clone(),
         }
     }
 
@@ -253,7 +253,7 @@ impl<'a> BmsonProcessor<'a> {
     }
 }
 
-impl<'a> ChartProcessor for BmsonProcessor<'a> {
+impl ChartProcessor for BmsonProcessor {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
         // Note: Audio file paths in BMSON are relative to the chart file, here returning virtual paths
         // When actually used, these paths need to be resolved based on the chart file location
@@ -291,7 +291,7 @@ impl<'a> ChartProcessor for BmsonProcessor<'a> {
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
         self.preloaded_events.clear();
-        self.current_bpm = self.bmson.info.init_bpm.as_f64().into();
+        self.current_bpm = self.init_bpm.clone();
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
