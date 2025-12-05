@@ -194,15 +194,15 @@ pub trait ChartProcessor {
     /// Read: BGA/BMP image resources (id to path mapping).
     fn bmp_files(&self) -> HashMap<BmpId, &Path>;
 
-    /// Read: default visible Y range length (distance from when note appears in visible area to judgment line, unit: y coordinate).
-    fn default_visible_y_length(&self) -> YCoordinate;
+    /// Read: visible range per BPM (controls the relationship between BPM and visible Y range).
+    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
 
     /// Read: current BPM (changes with events).
-    fn current_bpm(&self) -> Decimal;
+    fn current_bpm(&self) -> &Decimal;
     /// Read: current Speed factor (changes with events).
-    fn current_speed(&self) -> Decimal;
+    fn current_speed(&self) -> &Decimal;
     /// Read: current Scroll factor (changes with events).
-    fn current_scroll(&self) -> Decimal;
+    fn current_scroll(&self) -> &Decimal;
 
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: SystemTime);
