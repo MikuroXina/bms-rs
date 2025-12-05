@@ -95,10 +95,16 @@ impl From<Decimal> for PointerSpeed {
 pub struct VisibleRangePerBpm(pub Decimal);
 
 impl VisibleRangePerBpm {
-    /// Create a new VisibleRangePerBpm
+    /// Create a new VisibleRangePerBpm from base BPM and reaction time
+    /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
-        Self(value)
+    pub fn new(base_bpm: &BaseBpm, reaction_time: Duration) -> Self {
+        if base_bpm.value().is_zero() {
+            Self(Decimal::zero())
+        } else {
+            let seconds = Decimal::from(reaction_time.as_secs_f64());
+            Self(seconds / base_bpm.value().clone())
+        }
     }
 
     /// Get the internal Decimal value
@@ -120,11 +126,17 @@ impl VisibleRangePerBpm {
             Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
         }
     }
+
+    /// Create from Decimal value (for internal use)
+    #[must_use]
+    pub(crate) const fn from_decimal(value: Decimal) -> Self {
+        Self(value)
+    }
 }
 
 impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
-        Self(value)
+        Self::from_decimal(value)
     }
 }
 

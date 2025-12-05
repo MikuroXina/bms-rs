@@ -2,7 +2,6 @@
 
 use std::time::{Duration, SystemTime};
 
-use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
@@ -45,9 +44,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(600);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -125,9 +122,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(600);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -198,9 +193,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(5000);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -280,9 +273,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(600);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -356,9 +347,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(5000);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -418,9 +407,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(600);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -473,9 +460,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(2000);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
@@ -528,9 +513,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
         .generate(&bmson)
         .expect("Failed to generate base BPM");
     let reaction_time = Duration::from_millis(3000);
-    let visible_range_per_bpm = VisibleRangePerBpm::new(
-        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
-    );
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
