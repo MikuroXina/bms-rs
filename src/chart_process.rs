@@ -176,13 +176,14 @@ pub enum ChartEvent {
 /// Separated from chart playback related events (such as notes, BGM, BPM changes, etc.) to provide a clearer API.
 #[derive(Debug, Clone)]
 pub enum ControlEvent {
-    /// Set: default visible Y range length
+    /// Set: visible range per BPM
     ///
-    /// The visible Y range length is the distance from when a note appears in the visible area to when it reaches the judgment line.
-    /// This length affects the visible window size calculation.
-    SetDefaultVisibleYLength {
-        /// Visible Y range length (y coordinate units, >0)
-        length: YCoordinate,
+    /// The visible range per BPM controls the relationship between BPM and visible Y range.
+    /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
+    /// This replaces the old SetDefaultVisibleYLength event.
+    SetVisibleRangePerBpm {
+        /// Visible range per BPM (y coordinate units per BPM, >0)
+        visible_range_per_bpm: VisibleRangePerBpm,
     },
 }
 
