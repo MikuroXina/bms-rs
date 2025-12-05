@@ -206,6 +206,11 @@ pub trait ChartProcessor {
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: SystemTime);
 
+    /// Check: whether playback has started.
+    ///
+    /// Returns `true` if `start_play` has been called and playback is active.
+    fn is_started(&self) -> bool;
+
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent>;
 
