@@ -1,7 +1,6 @@
 //! Bms Processor Module.
 
 use std::collections::{BTreeMap, HashMap};
-
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -360,20 +359,18 @@ impl ChartProcessor for BmsProcessor {
             .collect()
     }
 
-    fn default_visible_y_length(&self) -> YCoordinate {
-        // Default visible y length is simply the visible range per BPM value
-        // (which corresponds to visible window at 1 BPM)
-        YCoordinate::from(self.visible_range_per_bpm.value().clone())
+    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
+        &self.visible_range_per_bpm
     }
 
-    fn current_bpm(&self) -> Decimal {
-        self.current_bpm.clone()
+    fn current_bpm(&self) -> &Decimal {
+        &self.current_bpm
     }
-    fn current_speed(&self) -> Decimal {
-        self.current_speed.clone()
+    fn current_speed(&self) -> &Decimal {
+        &self.current_speed
     }
-    fn current_scroll(&self) -> Decimal {
-        self.current_scroll.clone()
+    fn current_scroll(&self) -> &Decimal {
+        &self.current_scroll
     }
 
     fn start_play(&mut self, now: SystemTime) {

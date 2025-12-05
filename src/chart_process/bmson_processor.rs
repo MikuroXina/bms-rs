@@ -3,6 +3,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
@@ -16,6 +17,9 @@ use crate::chart_process::{
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 use num::{One, ToPrimitive, Zero};
+
+/// Static OnceLock for Decimal::one() to avoid repeated allocations
+static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
@@ -271,20 +275,18 @@ impl ChartProcessor for BmsonProcessor {
             .collect()
     }
 
-    fn default_visible_y_length(&self) -> YCoordinate {
-        // Default visible y length is simply the visible range per BPM value
-        // (which corresponds to visible window at 1 BPM)
-        YCoordinate::from(self.visible_range_per_bpm.value().clone())
+    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
+        &self.visible_range_per_bpm
     }
 
-    fn current_bpm(&self) -> Decimal {
-        self.current_bpm.clone()
+    fn current_bpm(&self) -> &Decimal {
+        &self.current_bpm
     }
-    fn current_speed(&self) -> Decimal {
-        Decimal::one()
+    fn current_speed(&self) -> &Decimal {
+        DECIMAL_ONE.get_or_init(|| Decimal::one())
     }
-    fn current_scroll(&self) -> Decimal {
-        self.current_scroll.clone()
+    fn current_scroll(&self) -> &Decimal {
+        &self.current_scroll
     }
 
     fn start_play(&mut self, now: SystemTime) {
