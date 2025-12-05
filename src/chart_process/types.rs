@@ -71,6 +71,13 @@ impl PointerSpeed {
         }
     }
 
+    /// Calculate instantaneous displacement velocity in y units per second.
+    /// Formula: `velocity = current_bpm * pointer_speed`.
+    #[must_use]
+    pub fn velocity(&self, current_bpm: &Decimal) -> Decimal {
+        current_bpm.clone() * self.value().clone()
+    }
+
     /// Get the internal Decimal value
     #[must_use]
     pub const fn value(&self) -> &Decimal {
@@ -109,6 +116,13 @@ impl VisibleRangePerBpm {
             let seconds = Decimal::from(reaction_time.as_secs_f64());
             Self(seconds / base_bpm.value().clone())
         }
+    }
+
+    /// Calculate visible window length in y units based on current BPM.
+    /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
+    #[must_use]
+    pub fn window_y(&self, current_bpm: &Decimal) -> Decimal {
+        current_bpm.clone() * self.value().clone()
     }
 
     /// Get the internal Decimal value

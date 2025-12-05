@@ -8,9 +8,6 @@ use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
-use crate::chart_process::utils::{
-    compute_pointer_velocity, compute_visible_window_y_from_visible_range,
-};
 use crate::chart_process::{
     ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
     VisibleRangePerBpm,
@@ -169,7 +166,9 @@ impl BmsonProcessor {
         if self.current_bpm.is_sign_negative() {
             Decimal::zero()
         } else {
-            compute_pointer_velocity(&self.current_bpm, &self.pointer_speed).max(Decimal::zero())
+            self.pointer_speed
+                .velocity(&self.current_bpm)
+                .max(Decimal::zero())
         }
     }
 
@@ -237,7 +236,7 @@ impl BmsonProcessor {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y_from_visible_range(&self.current_bpm, &self.visible_range_per_bpm)
+        self.visible_range_per_bpm.window_y(&self.current_bpm)
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {

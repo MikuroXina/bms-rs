@@ -11,7 +11,6 @@ use crate::chart_process::{
     ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
     VisibleRangePerBpm, WavId, YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
-    utils::{compute_pointer_velocity, compute_visible_window_y_from_visible_range},
 };
 
 /// ChartProcessor of Bms files.
@@ -247,7 +246,7 @@ impl BmsProcessor {
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let velocity = if self.current_bpm > Decimal::zero() {
-            let base_velocity = compute_pointer_velocity(&self.current_bpm, &self.pointer_speed);
+            let base_velocity = self.pointer_speed.velocity(&self.current_bpm);
             let speed_factor = self.current_speed.clone();
             base_velocity * speed_factor
         } else {
@@ -330,7 +329,7 @@ impl BmsProcessor {
 
     /// Calculate visible window length (y units): based on current BPM and visible range per BPM
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y_from_visible_range(&self.current_bpm, &self.visible_range_per_bpm)
+        self.visible_range_per_bpm.window_y(&self.current_bpm)
     }
 
     pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
