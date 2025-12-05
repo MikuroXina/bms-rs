@@ -12,10 +12,7 @@ use crate::chart_process::{
     ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
     VisibleRangePerBpm, WavId, YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
-    utils::{
-        compute_default_visible_y_length_from_visible_range, compute_pointer_velocity,
-        compute_visible_window_y_from_visible_range,
-    },
+    utils::{compute_pointer_velocity, compute_visible_window_y_from_visible_range},
 };
 
 /// ChartProcessor of Bms files.
@@ -41,7 +38,6 @@ pub struct BmsProcessor {
     preloaded_events: Vec<PlayheadEvent>,
 
     // Flow parameters
-    default_visible_y_length: YCoordinate,
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
@@ -67,10 +63,6 @@ impl BmsProcessor {
             .as_ref()
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
-
-        // Compute default visible y length via shared helper
-        let default_visible_y_length =
-            compute_default_visible_y_length_from_visible_range(&visible_range_per_bpm);
 
         // Use standard pointer speed
         let pointer_speed = PointerSpeed::standard();
@@ -196,7 +188,6 @@ impl BmsProcessor {
             inbox: Vec::new(),
             all_events,
             preloaded_events: Vec::new(),
-            default_visible_y_length,
             current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
             current_scroll: Decimal::one(),
@@ -370,7 +361,9 @@ impl ChartProcessor for BmsProcessor {
     }
 
     fn default_visible_y_length(&self) -> YCoordinate {
-        self.default_visible_y_length.clone()
+        // Default visible y length is simply the visible range per BPM value
+        // (which corresponds to visible window at 1 BPM)
+        YCoordinate::from(self.visible_range_per_bpm.value().clone())
     }
 
     fn current_bpm(&self) -> Decimal {
@@ -405,11 +398,6 @@ impl ChartProcessor for BmsProcessor {
                     visible_range_per_bpm,
                 } => {
                     self.visible_range_per_bpm = visible_range_per_bpm.clone();
-                    // Recalculate default visible y length based on new visible range per BPM
-                    self.default_visible_y_length =
-                        compute_default_visible_y_length_from_visible_range(
-                            &self.visible_range_per_bpm,
-                        );
                 }
             }
         }

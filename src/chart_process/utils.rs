@@ -45,12 +45,3 @@ pub fn compute_default_visible_y_length(
         reaction_time,
     ))
 }
-
-/// Compute default visible y length (YCoordinate) from the selected visible range per BPM.
-#[must_use]
-pub fn compute_default_visible_y_length_from_visible_range(
-    visible_range_per_bpm: &VisibleRangePerBpm,
-) -> YCoordinate {
-    // For default visible length, we use 1 BPM as reference
-    YCoordinate::from(visible_range_per_bpm.value().clone())
-}
