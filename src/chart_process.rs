@@ -32,7 +32,7 @@ pub mod prelude;
 // Use types from prelude
 pub use prelude::{
     BaseBpm, BaseBpmGenerator, BmpId, DisplayRatio, ManualBpmGenerator, MaxBpmGenerator,
-    MinBpmGenerator, StartBpmGenerator, WavId, YCoordinate,
+    MinBpmGenerator, PointerSpeed, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 // Use custom wrapper types

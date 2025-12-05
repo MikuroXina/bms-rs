@@ -3,6 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use num::{One, ToPrimitive};
 
+use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
@@ -23,11 +24,15 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(
+        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
+    );
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -101,11 +106,14 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let reaction = Duration::from_millis(600);
-    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, reaction);
+    let visible_range_per_bpm =
+        VisibleRangePerBpm::new(Decimal::from(reaction.as_secs_f64()) / base_bpm.value().clone());
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -146,11 +154,15 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(
+        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
+    );
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -158,7 +170,9 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(processor.current_bpm(), Decimal::from(151));
 
     // Advance to first BPM change point
-    let after_first_change = start_time + Duration::from_secs(1);
+    // Note: With new pointer speed (1/240), speed is half of original (1/120)
+    // So need twice the time to reach the same Y position
+    let after_first_change = start_time + Duration::from_secs(2);
     let _ = processor.update(after_first_change);
     assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
@@ -197,11 +211,15 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(
+        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
+    );
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
@@ -348,11 +366,15 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(
+        Decimal::from(reaction_time.as_secs_f64()) / base_bpm.value().clone(),
+    );
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);

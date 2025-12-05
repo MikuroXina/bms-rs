@@ -4,7 +4,7 @@ use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
-use num::{One, Zero};
+use num::{One, ToPrimitive, Zero};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -50,6 +50,79 @@ impl BaseBpm {
 }
 
 impl From<Decimal> for BaseBpm {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+/// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM.
+/// Formula: (Y/sec)/bpm
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PointerSpeed(pub Decimal);
+
+impl PointerSpeed {
+    /// Create a new PointerSpeed
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal Decimal value
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Get the standard pointer speed based on Y coordinate definition
+    /// In default 4/4 time signature, one measure equals 1 Y unit
+    /// 1 BPM = 1 beat per minute = 1/4 measure per minute = 1/240 measure per second
+    /// So pointer speed = 1/240 Y/sec per BPM
+    #[must_use]
+    pub fn standard() -> Self {
+        Self(Decimal::one() / Decimal::from(240))
+    }
+}
+
+impl From<Decimal> for PointerSpeed {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+/// Visible range per BPM, representing the relationship between BPM and visible Y range.
+/// Formula: visible_y_range = current_bpm * visible_range_per_bpm
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisibleRangePerBpm(pub Decimal);
+
+impl VisibleRangePerBpm {
+    /// Create a new VisibleRangePerBpm
+    #[must_use]
+    pub const fn new(value: Decimal) -> Self {
+        Self(value)
+    }
+
+    /// Get the internal Decimal value
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Calculate reaction time from visible range per BPM
+    /// Formula: reaction_time = visible_range_per_bpm / pointer_speed
+    /// where pointer_speed = 1/240 (Y/sec per BPM)
+    #[must_use]
+    pub fn to_reaction_time(&self) -> Duration {
+        let pointer_speed = PointerSpeed::standard();
+        if pointer_speed.value().is_zero() || self.0.is_zero() {
+            Duration::from_secs(0)
+        } else {
+            let seconds = self.0.clone() / pointer_speed.value().clone();
+            Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
+        }
+    }
+}
+
+impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
         Self(value)
     }

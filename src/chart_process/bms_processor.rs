@@ -9,10 +9,13 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    BaseBpm, ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, WavId,
-    YCoordinate,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
+    VisibleRangePerBpm, WavId, YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
-    utils::{compute_default_visible_y_length, compute_visible_window_y},
+    utils::{
+        compute_default_visible_y_length_from_visible_range, compute_pointer_velocity,
+        compute_visible_window_y_from_visible_range,
+    },
 };
 
 /// ChartProcessor of Bms files.
@@ -42,10 +45,10 @@ pub struct BmsProcessor {
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
-    /// Selected base BPM used for velocity and visible window calculations
-    base_bpm: BaseBpm,
-    /// Reaction time used to derive visible window length
-    reaction_time: Duration,
+    /// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
+    pointer_speed: PointerSpeed,
+    /// Visible range per BPM, representing the relationship between BPM and visible Y range
+    visible_range_per_bpm: VisibleRangePerBpm,
 
     /// Indexed flow events by y (for fast lookup of next flow-affecting event)
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
@@ -54,9 +57,9 @@ pub struct BmsProcessor {
 }
 
 impl BmsProcessor {
-    /// Create processor with explicit reaction time configuration, initialize default parameters
+    /// Create processor with visible range per BPM configuration
     #[must_use]
-    pub fn new<T: KeyLayoutMapper>(bms: &Bms, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new<T: KeyLayoutMapper>(bms: &Bms, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
         // Initialize BPM: prefer chart initial BPM, otherwise 120
         let init_bpm = bms
             .bpm
@@ -66,7 +69,11 @@ impl BmsProcessor {
             .unwrap_or_else(|| Decimal::from(120));
 
         // Compute default visible y length via shared helper
-        let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
+        let default_visible_y_length =
+            compute_default_visible_y_length_from_visible_range(&visible_range_per_bpm);
+
+        // Use standard pointer speed
+        let pointer_speed = PointerSpeed::standard();
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
 
@@ -193,8 +200,8 @@ impl BmsProcessor {
             current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
             current_scroll: Decimal::one(),
-            base_bpm,
-            reaction_time,
+            pointer_speed,
+            visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
         }
@@ -246,13 +253,13 @@ impl BmsProcessor {
     }
 
     /// Current instantaneous displacement velocity (y units per second).
-    /// Model: v = (current_bpm / base_bpm) * speed_factor
+    /// Model: v = current_bpm * pointer_speed * speed_factor
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let velocity = if self.current_bpm > Decimal::zero() {
-            let velocity = self.current_bpm.clone() / self.base_bpm.value().clone();
+            let base_velocity = compute_pointer_velocity(&self.current_bpm, &self.pointer_speed);
             let speed_factor = self.current_speed.clone();
-            velocity * speed_factor
+            base_velocity * speed_factor
         } else {
             Default::default()
         };
@@ -331,9 +338,9 @@ impl BmsProcessor {
         }
     }
 
-    /// Calculate visible window length (y units): based on current BPM, base BPM and configured reaction time
+    /// Calculate visible window length (y units): based on current BPM and visible range per BPM
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(&self.current_bpm, &self.base_bpm, self.reaction_time)
+        compute_visible_window_y_from_visible_range(&self.current_bpm, &self.visible_range_per_bpm)
     }
 
     pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
