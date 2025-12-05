@@ -401,8 +401,15 @@ impl ChartProcessor for BmsProcessor {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {
             match evt {
-                ControlEvent::SetDefaultVisibleYLength { length } => {
-                    self.default_visible_y_length = length.clone();
+                ControlEvent::SetVisibleRangePerBpm {
+                    visible_range_per_bpm,
+                } => {
+                    self.visible_range_per_bpm = visible_range_per_bpm.clone();
+                    // Recalculate default visible y length based on new visible range per BPM
+                    self.default_visible_y_length =
+                        compute_default_visible_y_length_from_visible_range(
+                            &self.visible_range_per_bpm,
+                        );
                 }
             }
         }
