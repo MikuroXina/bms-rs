@@ -58,13 +58,17 @@ impl From<Decimal> for BaseBpm {
 /// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM.
 /// Formula: (Y/sec)/bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PointerSpeed(pub Decimal);
+pub struct PointerSpeed(Decimal);
 
 impl PointerSpeed {
-    /// Create a new PointerSpeed
+    /// Create a new `PointerSpeed` from `Y/sec` and `bpm`
     #[must_use]
-    pub const fn new(value: Decimal) -> Self {
-        Self(value)
+    pub fn new(y_per_sec: Decimal, bpm: Decimal) -> Self {
+        if bpm.is_zero() {
+            Self(Decimal::zero())
+        } else {
+            Self(y_per_sec / bpm)
+        }
     }
 
     /// Get the internal Decimal value
@@ -92,7 +96,7 @@ impl From<Decimal> for PointerSpeed {
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VisibleRangePerBpm(pub Decimal);
+pub struct VisibleRangePerBpm(Decimal);
 
 impl VisibleRangePerBpm {
     /// Create a new VisibleRangePerBpm from base BPM and reaction time

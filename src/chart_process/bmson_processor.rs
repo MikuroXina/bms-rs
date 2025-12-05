@@ -283,7 +283,7 @@ impl ChartProcessor for BmsonProcessor {
         &self.current_bpm
     }
     fn current_speed(&self) -> &Decimal {
-        DECIMAL_ONE.get_or_init(|| Decimal::one())
+        DECIMAL_ONE.get_or_init(Decimal::one)
     }
     fn current_scroll(&self) -> &Decimal {
         &self.current_scroll
