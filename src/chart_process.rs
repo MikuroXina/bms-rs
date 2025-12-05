@@ -15,7 +15,6 @@ use crate::bms::prelude::SwBgaEvent;
 
 pub mod bms_processor;
 pub mod bmson_processor;
-pub mod utils;
 
 use std::{
     collections::HashMap,
