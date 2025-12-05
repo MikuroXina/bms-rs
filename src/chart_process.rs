@@ -208,7 +208,7 @@ pub trait ChartProcessor {
 
     /// Get: playback start time.
     ///
-    /// Returns `Some(&SystemTime)` if `start_play` has been called and playback is active,
+    /// Returns `Some(SystemTime)` if `start_play` has been called and playback is active,
     /// otherwise returns `None`.
     fn started_at(&self) -> Option<SystemTime>;
 
