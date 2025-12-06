@@ -55,13 +55,13 @@ impl From<Decimal> for BaseBpm {
     }
 }
 
-/// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM.
+/// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM.
 /// Formula: (Y/sec)/bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PointerSpeed(Decimal);
+pub struct PlayheadSpeed(Decimal);
 
-impl PointerSpeed {
-    /// Create a new `PointerSpeed` from `Y/sec` and `bpm`
+impl PlayheadSpeed {
+    /// Create a new `PlayheadSpeed` from `Y/sec` and `bpm`
     #[must_use]
     pub fn new(y_per_sec: Decimal, bpm: Decimal) -> Self {
         if bpm.is_zero() {
@@ -72,7 +72,7 @@ impl PointerSpeed {
     }
 
     /// Calculate instantaneous displacement velocity in y units per second.
-    /// Formula: `velocity = current_bpm * pointer_speed`.
+    /// Formula: `velocity = current_bpm * playhead_speed`.
     #[must_use]
     pub fn velocity(&self, current_bpm: &Decimal) -> Decimal {
         current_bpm.clone() * self.value().clone()
@@ -84,17 +84,17 @@ impl PointerSpeed {
         &self.0
     }
 
-    /// Get the standard pointer speed based on Y coordinate definition
+    /// Get the standard playhead speed based on Y coordinate definition
     /// In default 4/4 time signature, one measure equals 1 Y unit
     /// 1 BPM = 1 beat per minute = 1/4 measure per minute = 1/240 measure per second
-    /// So pointer speed = 1/240 Y/sec per BPM
+    /// So playhead speed = 1/240 Y/sec per BPM
     #[must_use]
     pub fn standard() -> Self {
         Self(Decimal::one() / Decimal::from(240))
     }
 }
 
-impl From<Decimal> for PointerSpeed {
+impl From<Decimal> for PlayheadSpeed {
     fn from(value: Decimal) -> Self {
         Self(value)
     }
@@ -132,15 +132,15 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate reaction time from visible range per BPM
-    /// Formula: reaction_time = visible_range_per_bpm / pointer_speed
-    /// where pointer_speed = 1/240 (Y/sec per BPM)
+    /// Formula: reaction_time = visible_range_per_bpm / playhead_speed
+    /// where playhead_speed = 1/240 (Y/sec per BPM)
     #[must_use]
     pub fn to_reaction_time(&self) -> Duration {
-        let pointer_speed = PointerSpeed::standard();
-        if pointer_speed.value().is_zero() || self.0.is_zero() {
+        let playhead_speed = PlayheadSpeed::standard();
+        if playhead_speed.value().is_zero() || self.0.is_zero() {
             Duration::from_secs(0)
         } else {
-            let seconds = self.0.clone() / pointer_speed.value().clone();
+            let seconds = self.0.clone() / playhead_speed.value().clone();
             Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
         }
     }

@@ -165,7 +165,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(*processor.current_bpm(), Decimal::from(151));
 
     // Advance to first BPM change point
-    // Note: With new pointer speed (1/240), speed is half of original (1/120)
+    // Note: With new playhead speed (1/240), speed is half of original (1/120)
     // So need twice the time to reach the same Y position
     let after_first_change = start_time + Duration::from_secs(2);
     let _ = processor.update(after_first_change);

@@ -280,7 +280,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     processor.start_play(start_time);
 
     // Advance to make the preload window cover the note at y=1.25
-    // Note: With new pointer speed (1/240), speed is half of original (1/120)
+    // Note: With new playhead speed (1/240), speed is half of original (1/120)
     // So need more time to reach the same Y position
     // Also reaction time is now 1.2s instead of 0.6s
     let t = start_time + Duration::from_millis(2400);
