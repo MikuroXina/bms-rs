@@ -372,6 +372,10 @@ impl ChartProcessor for BmsProcessor {
         &self.current_scroll
     }
 
+    fn playhead_speed(&self) -> &PlayheadSpeed {
+        &self.playhead_speed
+    }
+
     fn start_play(&mut self, now: SystemTime) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);

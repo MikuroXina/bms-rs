@@ -202,6 +202,8 @@ pub trait ChartProcessor {
     fn current_speed(&self) -> &Decimal;
     /// Read: current Scroll factor (changes with events).
     fn current_scroll(&self) -> &Decimal;
+    /// Read: current Playhead speed (usually [`PlayheadSpeed::standard`], only changes with self modification).
+    fn playhead_speed(&self) -> &PlayheadSpeed;
 
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: SystemTime);
