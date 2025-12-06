@@ -399,6 +399,9 @@ impl ChartProcessor for BmsProcessor {
                 } => {
                     self.visible_range_per_bpm = visible_range_per_bpm.clone();
                 }
+                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
+                    self.playhead_speed = playhead_speed.clone();
+                }
             }
         }
 
@@ -457,8 +460,10 @@ impl ChartProcessor for BmsProcessor {
         triggered_events.into_iter()
     }
 
-    fn post_events(&mut self, events: &[ControlEvent]) {
-        self.inbox.extend_from_slice(events);
+    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
+        for evt in events {
+            self.inbox.push(evt);
+        }
     }
 
     fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent> {

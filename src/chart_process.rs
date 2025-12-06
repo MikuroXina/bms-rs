@@ -184,6 +184,14 @@ pub enum ControlEvent {
         /// Visible range per BPM (y coordinate units per BPM, >0)
         visible_range_per_bpm: VisibleRangePerBpm,
     },
+    /// Set: playhead speed per BPM
+    ///
+    /// Controls how fast the playhead advances per BPM in `y` units.
+    /// Useful for runtime tuning or custom chart mechanics.
+    SetPlayheadSpeed {
+        /// Playhead speed value
+        playhead_speed: PlayheadSpeed,
+    },
 }
 
 /// Unified y unit description: In default 4/4 time, one measure equals 1; BMS uses `#SECLEN` for linear conversion, BMSON normalizes via `pulses / (4*resolution)`.
@@ -221,7 +229,7 @@ pub trait ChartProcessor {
     ///
     /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)
     /// are returned by the [`update`] method, not posted through this method.
-    fn post_events(&mut self, events: &[ControlEvent]);
+    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
     fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent>;
