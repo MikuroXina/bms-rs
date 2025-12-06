@@ -41,9 +41,6 @@ pub struct BmsonProcessor {
     /// Initial BPM at start
     init_bpm: Decimal,
 
-    /// Pending external events queue
-    inbox: Vec<ControlEvent>,
-
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<PlayheadEvent>,
 
@@ -146,7 +143,6 @@ impl BmsonProcessor {
             started_at: None,
             last_poll_at: None,
             progressed_y: Decimal::zero(),
-            inbox: Vec::new(),
             preloaded_events: Vec::new(),
             all_events,
             current_bpm: init_bpm.clone(),
@@ -301,20 +297,6 @@ impl ChartProcessor for BmsonProcessor {
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
-        let incoming = std::mem::take(&mut self.inbox);
-        for evt in &incoming {
-            match evt {
-                ControlEvent::SetVisibleRangePerBpm {
-                    visible_range_per_bpm,
-                } => {
-                    self.visible_range_per_bpm = visible_range_per_bpm.clone();
-                }
-                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
-                    self.playhead_speed = playhead_speed.clone();
-                }
-            }
-        }
-
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -358,7 +340,16 @@ impl ChartProcessor for BmsonProcessor {
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
         for evt in events {
-            self.inbox.push(evt);
+            match evt {
+                ControlEvent::SetVisibleRangePerBpm {
+                    visible_range_per_bpm,
+                } => {
+                    self.visible_range_per_bpm = visible_range_per_bpm;
+                }
+                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
+                    self.playhead_speed = playhead_speed;
+                }
+            }
         }
     }
 

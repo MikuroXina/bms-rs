@@ -26,9 +26,6 @@ pub struct BmsProcessor {
     /// Accumulated displacement progressed (y, actual movement distance unit)
     progressed_y: Decimal,
 
-    /// Pending external events queue
-    inbox: Vec<ControlEvent>,
-
     /// All events mapping (sorted by Y coordinate)
     all_events: AllEventsIndex,
 
@@ -183,7 +180,6 @@ impl BmsProcessor {
             started_at: None,
             last_poll_at: None,
             progressed_y: Decimal::zero(),
-            inbox: Vec::new(),
             all_events,
             preloaded_events: Vec::new(),
             current_bpm: init_bpm.clone(),
@@ -390,21 +386,6 @@ impl ChartProcessor for BmsProcessor {
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
-        // Process external events delivered through post_events
-        let incoming = std::mem::take(&mut self.inbox);
-        for evt in &incoming {
-            match evt {
-                ControlEvent::SetVisibleRangePerBpm {
-                    visible_range_per_bpm,
-                } => {
-                    self.visible_range_per_bpm = visible_range_per_bpm.clone();
-                }
-                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
-                    self.playhead_speed = playhead_speed.clone();
-                }
-            }
-        }
-
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -462,7 +443,16 @@ impl ChartProcessor for BmsProcessor {
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
         for evt in events {
-            self.inbox.push(evt);
+            match evt {
+                ControlEvent::SetVisibleRangePerBpm {
+                    visible_range_per_bpm,
+                } => {
+                    self.visible_range_per_bpm = visible_range_per_bpm;
+                }
+                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
+                    self.playhead_speed = playhead_speed;
+                }
+            }
         }
     }
 
