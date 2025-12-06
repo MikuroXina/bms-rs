@@ -15,7 +15,6 @@ use crate::bms::prelude::SwBgaEvent;
 
 pub mod bms_processor;
 pub mod bmson_processor;
-pub mod utils;
 
 use std::{
     collections::HashMap,
@@ -32,7 +31,7 @@ pub mod prelude;
 // Use types from prelude
 pub use prelude::{
     BaseBpm, BaseBpmGenerator, BmpId, DisplayRatio, ManualBpmGenerator, MaxBpmGenerator,
-    MinBpmGenerator, StartBpmGenerator, WavId, YCoordinate,
+    MinBpmGenerator, PlayheadSpeed, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 // Use custom wrapper types
@@ -176,13 +175,22 @@ pub enum ChartEvent {
 /// Separated from chart playback related events (such as notes, BGM, BPM changes, etc.) to provide a clearer API.
 #[derive(Debug, Clone)]
 pub enum ControlEvent {
-    /// Set: default visible Y range length
+    /// Set: visible range per BPM
     ///
-    /// The visible Y range length is the distance from when a note appears in the visible area to when it reaches the judgment line.
-    /// This length affects the visible window size calculation.
-    SetDefaultVisibleYLength {
-        /// Visible Y range length (y coordinate units, >0)
-        length: YCoordinate,
+    /// The visible range per BPM controls the relationship between BPM and visible Y range.
+    /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
+    /// This replaces the old SetDefaultVisibleYLength event.
+    SetVisibleRangePerBpm {
+        /// Visible range per BPM (y coordinate units per BPM, >0)
+        visible_range_per_bpm: VisibleRangePerBpm,
+    },
+    /// Set: playhead speed per BPM
+    ///
+    /// Controls how fast the playhead advances per BPM in `y` units.
+    /// Useful for runtime tuning or custom chart mechanics.
+    SetPlayheadSpeed {
+        /// Playhead speed value
+        playhead_speed: PlayheadSpeed,
     },
 }
 
@@ -193,15 +201,17 @@ pub trait ChartProcessor {
     /// Read: BGA/BMP image resources (id to path mapping).
     fn bmp_files(&self) -> HashMap<BmpId, &Path>;
 
-    /// Read: default visible Y range length (distance from when note appears in visible area to judgment line, unit: y coordinate).
-    fn default_visible_y_length(&self) -> YCoordinate;
+    /// Read: visible range per BPM (controls the relationship between BPM and visible Y range).
+    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
 
     /// Read: current BPM (changes with events).
-    fn current_bpm(&self) -> Decimal;
+    fn current_bpm(&self) -> &Decimal;
     /// Read: current Speed factor (changes with events).
-    fn current_speed(&self) -> Decimal;
+    fn current_speed(&self) -> &Decimal;
     /// Read: current Scroll factor (changes with events).
-    fn current_scroll(&self) -> Decimal;
+    fn current_scroll(&self) -> &Decimal;
+    /// Read: current Playhead speed (usually [`PlayheadSpeed::standard`], only changes with self modification).
+    fn playhead_speed(&self) -> &PlayheadSpeed;
 
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: SystemTime);
@@ -219,7 +229,7 @@ pub trait ChartProcessor {
     ///
     /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)
     /// are returned by the [`update`] method, not posted through this method.
-    fn post_events(&mut self, events: &[ControlEvent]);
+    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
     fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent>;

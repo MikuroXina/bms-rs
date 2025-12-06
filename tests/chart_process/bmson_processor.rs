@@ -39,11 +39,13 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    // Default reaction time of 600ms is enough to cover the note at y=0.5
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -115,10 +117,13 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -183,11 +188,13 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    // Use longer reaction time to include all notes in visible window
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(5000));
+    let reaction_time = Duration::from_millis(5000);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -261,16 +268,22 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
 
-    // Advance to 800ms to make the preload window cover the note at y=1.25
-    let t = start_time + Duration::from_millis(800);
+    // Advance to make the preload window cover the note at y=1.25
+    // Note: With new playhead speed (1/240), speed is half of original (1/120)
+    // So need more time to reach the same Y position
+    // Also reaction time is now 1.2s instead of 0.6s
+    let t = start_time + Duration::from_millis(2400);
     let _ = processor.update(t);
 
     let mut found = false;
@@ -329,11 +342,13 @@ fn test_bmson_continue_independent_across_sound_channels() {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    // Ensure all notes in both channels are within the visible window
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(5000));
+    let reaction_time = Duration::from_millis(5000);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -387,10 +402,13 @@ fn test_bmson_visible_event_activate_time_prediction() {
 
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -437,10 +455,13 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
 
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(2000));
+    let reaction_time = Duration::from_millis(2000);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);
@@ -487,10 +508,13 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
 
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bmson)
         .expect("Failed to generate base BPM");
-    let mut processor = BmsonProcessor::new(&bmson, base_bpm, Duration::from_millis(3000));
+    let reaction_time = Duration::from_millis(3000);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
     let start_time = SystemTime::now();
     processor.start_play(start_time);

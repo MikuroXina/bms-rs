@@ -3,18 +3,20 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
-use crate::chart_process::utils::{compute_default_visible_y_length, compute_visible_window_y};
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent,
-    types::{
-        AllEventsIndex, BaseBpm, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate,
-    },
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PlayheadSpeed, VisibleChartEvent,
+    VisibleRangePerBpm,
+    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 use num::{One, ToPrimitive, Zero};
+
+/// Static OnceLock for Decimal::one() to avoid repeated allocations
+static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
@@ -30,18 +32,14 @@ pub struct BmsonProcessor {
     progressed_y: Decimal,
 
     // Flow parameters
-    default_visible_y_length: YCoordinate,
     current_bpm: Decimal,
     current_scroll: Decimal,
-    /// Selected base BPM used for velocity and visible window calculations
-    base_bpm: BaseBpm,
-    /// Reaction time used to derive visible window length
-    reaction_time: Duration,
+    /// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
+    playhead_speed: PlayheadSpeed,
+    /// Visible range per BPM, representing the relationship between BPM and visible Y range
+    visible_range_per_bpm: VisibleRangePerBpm,
     /// Initial BPM at start
     init_bpm: Decimal,
-
-    /// Pending external events queue
-    inbox: Vec<ControlEvent>,
 
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<PlayheadEvent>,
@@ -54,9 +52,9 @@ pub struct BmsonProcessor {
 }
 
 impl BmsonProcessor {
-    /// Create BMSON processor with explicit reaction time configuration.
+    /// Create BMSON processor with visible range per BPM configuration.
     #[must_use]
-    pub fn new(bmson: &Bmson<'_>, base_bpm: BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new(bmson: &Bmson<'_>, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
 
         // Preprocessing: assign IDs to all audio and image resources
@@ -109,8 +107,8 @@ impl BmsonProcessor {
             next_bmp_id += 1;
         }
 
-        // Compute default visible y length via shared helper
-        let default_visible_y_length = compute_default_visible_y_length(&base_bpm, reaction_time);
+        // Use standard playhead speed
+        let playhead_speed = PlayheadSpeed::standard();
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -145,14 +143,12 @@ impl BmsonProcessor {
             started_at: None,
             last_poll_at: None,
             progressed_y: Decimal::zero(),
-            inbox: Vec::new(),
             preloaded_events: Vec::new(),
             all_events,
-            default_visible_y_length,
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
-            base_bpm,
-            reaction_time,
+            playhead_speed,
+            visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
         }
@@ -160,13 +156,15 @@ impl BmsonProcessor {
 
     /// Current instantaneous displacement velocity (y units per second).
     /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
-    /// Model: v = (current_bpm / base_bpm)
+    /// Model: v = current_bpm * playhead_speed, where playhead_speed = 1/240 (Y/sec per BPM)
     /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         if self.current_bpm.is_sign_negative() {
             Decimal::zero()
         } else {
-            (self.current_bpm.clone() / self.base_bpm.value().clone()).max(Decimal::zero())
+            self.playhead_speed
+                .velocity(&self.current_bpm)
+                .max(Decimal::zero())
         }
     }
 
@@ -234,7 +232,7 @@ impl BmsonProcessor {
     }
 
     fn visible_window_y(&self) -> Decimal {
-        compute_visible_window_y(&self.current_bpm, &self.base_bpm, self.reaction_time)
+        self.visible_range_per_bpm.window_y(&self.current_bpm)
     }
 
     fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
@@ -272,18 +270,18 @@ impl ChartProcessor for BmsonProcessor {
             .collect()
     }
 
-    fn default_visible_y_length(&self) -> YCoordinate {
-        self.default_visible_y_length.clone()
+    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
+        &self.visible_range_per_bpm
     }
 
-    fn current_bpm(&self) -> Decimal {
-        self.current_bpm.clone()
+    fn current_bpm(&self) -> &Decimal {
+        &self.current_bpm
     }
-    fn current_speed(&self) -> Decimal {
-        Decimal::one()
+    fn current_speed(&self) -> &Decimal {
+        DECIMAL_ONE.get_or_init(Decimal::one)
     }
-    fn current_scroll(&self) -> Decimal {
-        self.current_scroll.clone()
+    fn current_scroll(&self) -> &Decimal {
+        &self.current_scroll
     }
 
     fn start_play(&mut self, now: SystemTime) {
@@ -299,15 +297,6 @@ impl ChartProcessor for BmsonProcessor {
     }
 
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
-        let incoming = std::mem::take(&mut self.inbox);
-        for evt in &incoming {
-            match evt {
-                ControlEvent::SetDefaultVisibleYLength { length } => {
-                    self.default_visible_y_length = length.clone();
-                }
-            }
-        }
-
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -349,8 +338,19 @@ impl ChartProcessor for BmsonProcessor {
         triggered_events.into_iter()
     }
 
-    fn post_events(&mut self, events: &[ControlEvent]) {
-        self.inbox.extend_from_slice(events);
+    fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
+        for evt in events {
+            match evt {
+                ControlEvent::SetVisibleRangePerBpm {
+                    visible_range_per_bpm,
+                } => {
+                    self.visible_range_per_bpm = visible_range_per_bpm;
+                }
+                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
+                    self.playhead_speed = playhead_speed;
+                }
+            }
+        }
     }
 
     fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent> {
@@ -381,6 +381,10 @@ impl ChartProcessor for BmsonProcessor {
                 activate_time,
             )
         })
+    }
+
+    fn playhead_speed(&self) -> &PlayheadSpeed {
+        &self.playhead_speed
     }
 }
 
