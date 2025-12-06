@@ -92,6 +92,13 @@ impl PlayheadSpeed {
     pub fn standard() -> Self {
         Self(Decimal::one() / Decimal::from(240))
     }
+
+    /// Create a new `PlayheadSpeed` by scaling current speed with a ratio.
+    /// Useful for runtime adjustments relative to the current speed.
+    #[must_use]
+    pub fn with_ratio(&self, ratio: Decimal) -> Self {
+        Self(self.0.clone() * ratio)
+    }
 }
 
 impl From<Decimal> for PlayheadSpeed {
