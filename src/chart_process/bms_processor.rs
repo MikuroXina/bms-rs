@@ -8,7 +8,7 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PlayheadSpeed, VisibleChartEvent,
     VisibleRangePerBpm, WavId, YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
 };
@@ -39,8 +39,8 @@ pub struct BmsProcessor {
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
-    /// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
-    pointer_speed: PointerSpeed,
+    /// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
+    playhead_speed: PlayheadSpeed,
     /// Visible range per BPM, representing the relationship between BPM and visible Y range
     visible_range_per_bpm: VisibleRangePerBpm,
 
@@ -62,8 +62,8 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
-        // Use standard pointer speed
-        let pointer_speed = PointerSpeed::standard();
+        // Use standard playhead speed
+        let playhead_speed = PlayheadSpeed::standard();
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
 
@@ -189,7 +189,7 @@ impl BmsProcessor {
             current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
             current_scroll: Decimal::one(),
-            pointer_speed,
+            playhead_speed,
             visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
@@ -242,11 +242,11 @@ impl BmsProcessor {
     }
 
     /// Current instantaneous displacement velocity (y units per second).
-    /// Model: v = current_bpm * pointer_speed * speed_factor
+    /// Model: v = current_bpm * playhead_speed * speed_factor
     /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         let velocity = if self.current_bpm > Decimal::zero() {
-            let base_velocity = self.pointer_speed.velocity(&self.current_bpm);
+            let base_velocity = self.playhead_speed.velocity(&self.current_bpm);
             let speed_factor = self.current_speed.clone();
             base_velocity * speed_factor
         } else {

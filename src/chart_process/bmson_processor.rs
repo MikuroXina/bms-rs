@@ -9,7 +9,7 @@ use std::time::{Duration, SystemTime};
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PointerSpeed, VisibleChartEvent,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PlayheadSpeed, VisibleChartEvent,
     VisibleRangePerBpm,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
@@ -34,8 +34,8 @@ pub struct BmsonProcessor {
     // Flow parameters
     current_bpm: Decimal,
     current_scroll: Decimal,
-    /// Pointer speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
-    pointer_speed: PointerSpeed,
+    /// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
+    playhead_speed: PlayheadSpeed,
     /// Visible range per BPM, representing the relationship between BPM and visible Y range
     visible_range_per_bpm: VisibleRangePerBpm,
     /// Initial BPM at start
@@ -110,8 +110,8 @@ impl BmsonProcessor {
             next_bmp_id += 1;
         }
 
-        // Use standard pointer speed
-        let pointer_speed = PointerSpeed::standard();
+        // Use standard playhead speed
+        let playhead_speed = PlayheadSpeed::standard();
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -151,7 +151,7 @@ impl BmsonProcessor {
             all_events,
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
-            pointer_speed,
+            playhead_speed,
             visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
@@ -160,13 +160,13 @@ impl BmsonProcessor {
 
     /// Current instantaneous displacement velocity (y units per second).
     /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
-    /// Model: v = current_bpm * pointer_speed, where pointer_speed = 1/240 (Y/sec per BPM)
+    /// Model: v = current_bpm * playhead_speed, where playhead_speed = 1/240 (Y/sec per BPM)
     /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         if self.current_bpm.is_sign_negative() {
             Decimal::zero()
         } else {
-            self.pointer_speed
+            self.playhead_speed
                 .velocity(&self.current_bpm)
                 .max(Decimal::zero())
         }
