@@ -294,6 +294,10 @@ impl ChartProcessor for BmsonProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
+    fn started_at(&self) -> Option<SystemTime> {
+        self.started_at
+    }
+
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
         let incoming = std::mem::take(&mut self.inbox);
         for evt in &incoming {

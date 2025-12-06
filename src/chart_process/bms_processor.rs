@@ -385,6 +385,10 @@ impl ChartProcessor for BmsProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
+    fn started_at(&self) -> Option<SystemTime> {
+        self.started_at
+    }
+
     fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
         // Process external events delivered through post_events
         let incoming = std::mem::take(&mut self.inbox);
