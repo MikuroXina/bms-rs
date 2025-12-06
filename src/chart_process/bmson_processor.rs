@@ -386,6 +386,10 @@ impl ChartProcessor for BmsonProcessor {
             )
         })
     }
+
+    fn playhead_speed(&self) -> &PlayheadSpeed {
+        &self.playhead_speed
+    }
 }
 
 #[derive(Debug, Clone)]
