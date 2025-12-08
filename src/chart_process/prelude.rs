@@ -6,8 +6,8 @@
 // Re-export types
 pub use super::types::{
     BaseBpm, BaseBpmGenerator, BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio,
-    ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, PlayheadSpeed, StartBpmGenerator,
-    VisibleRangePerBpm, WavId, YCoordinate,
+    ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator, StartBpmGenerator, VisibleRangePerBpm,
+    WavId, YCoordinate,
 };
 
 // Re-export event types

@@ -31,7 +31,7 @@ pub mod prelude;
 // Use types from prelude
 pub use prelude::{
     BaseBpm, BaseBpmGenerator, BmpId, DisplayRatio, ManualBpmGenerator, MaxBpmGenerator,
-    MinBpmGenerator, PlayheadSpeed, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
+    MinBpmGenerator, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 // Use custom wrapper types
@@ -184,13 +184,13 @@ pub enum ControlEvent {
         /// Visible range per BPM (y coordinate units per BPM, >0)
         visible_range_per_bpm: VisibleRangePerBpm,
     },
-    /// Set: playhead speed per BPM
+    /// Set: playback ratio
     ///
-    /// Controls how fast the playhead advances per BPM in `y` units.
-    /// Useful for runtime tuning or custom chart mechanics.
-    SetPlayheadSpeed {
-        /// Playhead speed value
-        playhead_speed: PlayheadSpeed,
+    /// Controls how fast the playback advances relative to real time.
+    /// Default is 1.
+    SetPlaybackRatio {
+        /// Playback ratio (>= 0)
+        ratio: Decimal,
     },
 }
 
@@ -210,17 +210,17 @@ pub trait ChartProcessor {
     fn current_speed(&self) -> &Decimal;
     /// Read: current Scroll factor (changes with events).
     fn current_scroll(&self) -> &Decimal;
-    /// Read: current Playhead speed (usually [`PlayheadSpeed::standard`], only changes with self modification).
-    fn playhead_speed(&self) -> &PlayheadSpeed;
+    /// Read: current playback ratio (default 1).
+    fn playback_ratio(&self) -> &Decimal;
 
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: Instant);
 
     /// Get: playback start time.
     ///
-    /// Returns `Some(SystemTime)` if `start_play` has been called and playback is active,
+    /// Returns `Some(Instant)` if `start_play` has been called and playback is active,
     /// otherwise returns `None`.
-    fn started_at(&self) -> Option<SystemTime>;
+    fn started_at(&self) -> Option<Instant>;
 
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
     fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent>;

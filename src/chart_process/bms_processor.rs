@@ -8,8 +8,8 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PlayheadSpeed, VisibleChartEvent,
-    VisibleRangePerBpm, WavId, YCoordinate,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
+    WavId, YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
 };
 
@@ -36,8 +36,8 @@ pub struct BmsProcessor {
     current_bpm: Decimal,
     current_speed: Decimal,
     current_scroll: Decimal,
-    /// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
-    playhead_speed: PlayheadSpeed,
+    /// Playback ratio
+    playback_ratio: Decimal,
     /// Visible range per BPM, representing the relationship between BPM and visible Y range
     visible_range_per_bpm: VisibleRangePerBpm,
 
@@ -59,8 +59,7 @@ impl BmsProcessor {
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
 
-        // Use standard playhead speed
-        let playhead_speed = PlayheadSpeed::standard();
+        let playback_ratio = Decimal::one();
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
 
@@ -185,7 +184,7 @@ impl BmsProcessor {
             current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
             current_scroll: Decimal::one(),
-            playhead_speed,
+            playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
@@ -237,18 +236,15 @@ impl BmsProcessor {
         }
     }
 
-    /// Current instantaneous displacement velocity (y units per second).
-    /// Model: v = current_bpm * playhead_speed * speed_factor
-    /// Note: Speed affects y progression speed, but does not change actual time progression; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
-        let velocity = if self.current_bpm > Decimal::zero() {
-            let base_velocity = self.playhead_speed.velocity(&self.current_bpm);
-            let speed_factor = self.current_speed.clone();
-            base_velocity * speed_factor
+        if self.current_bpm <= Decimal::zero() {
+            Decimal::from(f64::EPSILON)
         } else {
-            Default::default()
-        };
-        velocity.max(Decimal::from(f64::EPSILON))
+            let denom = Decimal::from(240);
+            let base = self.current_bpm.clone() / denom;
+            let v = base * self.current_speed.clone() * self.playback_ratio.clone();
+            v.max(Decimal::from(f64::EPSILON))
+        }
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
@@ -367,8 +363,8 @@ impl ChartProcessor for BmsProcessor {
         &self.current_scroll
     }
 
-    fn playhead_speed(&self) -> &PlayheadSpeed {
-        &self.playhead_speed
+    fn playback_ratio(&self) -> &Decimal {
+        &self.playback_ratio
     }
 
     fn start_play(&mut self, now: Instant) {
@@ -378,6 +374,10 @@ impl ChartProcessor for BmsProcessor {
         self.preloaded_events.clear();
         // Initialize current_bpm to header or default cached value
         self.current_bpm = self.init_bpm.clone();
+    }
+
+    fn started_at(&self) -> Option<Instant> {
+        self.started_at
     }
 
     fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
@@ -444,8 +444,8 @@ impl ChartProcessor for BmsProcessor {
                 } => {
                     self.visible_range_per_bpm = visible_range_per_bpm;
                 }
-                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
-                    self.playhead_speed = playhead_speed;
+                ControlEvent::SetPlaybackRatio { ratio } => {
+                    self.playback_ratio = ratio;
                 }
             }
         }

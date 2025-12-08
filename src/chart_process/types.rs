@@ -55,58 +55,6 @@ impl From<Decimal> for BaseBpm {
     }
 }
 
-/// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM.
-/// Formula: (Y/sec)/bpm
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PlayheadSpeed(Decimal);
-
-impl PlayheadSpeed {
-    /// Create a new `PlayheadSpeed` from `Y/sec` and `bpm`
-    #[must_use]
-    pub fn new(y_per_sec: Decimal, bpm: Decimal) -> Self {
-        if bpm.is_zero() {
-            Self(Decimal::zero())
-        } else {
-            Self(y_per_sec / bpm)
-        }
-    }
-
-    /// Calculate instantaneous displacement velocity in y units per second.
-    /// Formula: `velocity = current_bpm * playhead_speed`.
-    #[must_use]
-    pub fn velocity(&self, current_bpm: &Decimal) -> Decimal {
-        current_bpm.clone() * self.value().clone()
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
-    }
-
-    /// Get the standard playhead speed based on Y coordinate definition
-    /// In default 4/4 time signature, one measure equals 1 Y unit
-    /// 1 BPM = 1 beat per minute = 1/4 measure per minute = 1/240 measure per second
-    /// So playhead speed = 1/240 Y/sec per BPM
-    #[must_use]
-    pub fn standard() -> Self {
-        Self(Decimal::one() / Decimal::from(240))
-    }
-
-    /// Create a new `PlayheadSpeed` by scaling current speed with a ratio.
-    /// Useful for runtime adjustments relative to the current speed.
-    #[must_use]
-    pub fn with_ratio(&self, ratio: Decimal) -> Self {
-        Self(self.0.clone() * ratio)
-    }
-}
-
-impl From<Decimal> for PlayheadSpeed {
-    fn from(value: Decimal) -> Self {
-        Self(value)
-    }
-}
-
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,11 +91,10 @@ impl VisibleRangePerBpm {
     /// where playhead_speed = 1/240 (Y/sec per BPM)
     #[must_use]
     pub fn to_reaction_time(&self) -> Duration {
-        let playhead_speed = PlayheadSpeed::standard();
-        if playhead_speed.value().is_zero() || self.0.is_zero() {
+        if self.0.is_zero() {
             Duration::from_secs(0)
         } else {
-            let seconds = self.0.clone() / playhead_speed.value().clone();
+            let seconds = self.0.clone() * Decimal::from(240);
             Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
         }
     }

@@ -9,8 +9,7 @@ use std::time::{Duration, Instant};
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, PlayheadSpeed, VisibleChartEvent,
-    VisibleRangePerBpm,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
 use num::{One, ToPrimitive, Zero};
@@ -34,8 +33,8 @@ pub struct BmsonProcessor {
     // Flow parameters
     current_bpm: Decimal,
     current_scroll: Decimal,
-    /// Playhead speed per BPM, representing the movement speed of the playhead in Y units per second per BPM
-    playhead_speed: PlayheadSpeed,
+    /// Playback ratio
+    playback_ratio: Decimal,
     /// Visible range per BPM, representing the relationship between BPM and visible Y range
     visible_range_per_bpm: VisibleRangePerBpm,
     /// Initial BPM at start
@@ -107,8 +106,7 @@ impl BmsonProcessor {
             next_bmp_id += 1;
         }
 
-        // Use standard playhead speed
-        let playhead_speed = PlayheadSpeed::standard();
+        let playback_ratio = Decimal::one();
 
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
@@ -147,7 +145,7 @@ impl BmsonProcessor {
             all_events,
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
-            playhead_speed,
+            playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
             init_bpm: init_bpm.clone(),
@@ -156,15 +154,12 @@ impl BmsonProcessor {
 
     /// Current instantaneous displacement velocity (y units per second).
     /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
-    /// Model: v = current_bpm * playhead_speed, where playhead_speed = 1/240 (Y/sec per BPM)
-    /// Note: BPM only affects y progression speed, does not change event positions; Scroll only affects display positions.
     fn current_velocity(&self) -> Decimal {
         if self.current_bpm.is_sign_negative() {
             Decimal::zero()
         } else {
-            self.playhead_speed
-                .velocity(&self.current_bpm)
-                .max(Decimal::zero())
+            let denom = Decimal::from(240);
+            (self.current_bpm.clone() / denom * self.playback_ratio.clone()).max(Decimal::zero())
         }
     }
 
@@ -291,6 +286,10 @@ impl ChartProcessor for BmsonProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
+    fn started_at(&self) -> Option<Instant> {
+        self.started_at
+    }
+
     fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
@@ -341,8 +340,8 @@ impl ChartProcessor for BmsonProcessor {
                 } => {
                     self.visible_range_per_bpm = visible_range_per_bpm;
                 }
-                ControlEvent::SetPlayheadSpeed { playhead_speed } => {
-                    self.playhead_speed = playhead_speed;
+                ControlEvent::SetPlaybackRatio { ratio } => {
+                    self.playback_ratio = ratio;
                 }
             }
         }
@@ -378,8 +377,8 @@ impl ChartProcessor for BmsonProcessor {
         })
     }
 
-    fn playhead_speed(&self) -> &PlayheadSpeed {
-        &self.playhead_speed
+    fn playback_ratio(&self) -> &Decimal {
+        &self.playback_ratio
     }
 }
 
