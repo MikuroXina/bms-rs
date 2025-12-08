@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::OnceLock;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
@@ -27,8 +27,8 @@ pub struct BmsonProcessor {
     bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
-    started_at: Option<SystemTime>,
-    last_poll_at: Option<SystemTime>,
+    started_at: Option<Instant>,
+    last_poll_at: Option<Instant>,
     progressed_y: Decimal,
 
     // Flow parameters
@@ -177,17 +177,16 @@ impl BmsonProcessor {
             .map(|(y, events)| (y.clone(), events[0].clone()))
     }
 
-    fn step_to(&mut self, now: SystemTime) {
+    fn step_to(&mut self, now: Instant) {
         let Some(started) = self.started_at else {
             return;
         };
         let last = self.last_poll_at.unwrap_or(started);
-        if now.duration_since(last).unwrap_or_default().is_zero() {
+        if now <= last {
             return;
         }
 
-        let mut remaining_secs =
-            Decimal::from(now.duration_since(last).unwrap_or_default().as_secs_f64());
+        let mut remaining_secs = Decimal::from(now.duration_since(last).as_secs_f64());
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
         loop {
@@ -284,7 +283,7 @@ impl ChartProcessor for BmsonProcessor {
         &self.current_scroll
     }
 
-    fn start_play(&mut self, now: SystemTime) {
+    fn start_play(&mut self, now: Instant) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
@@ -292,11 +291,7 @@ impl ChartProcessor for BmsonProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
-    fn started_at(&self) -> Option<SystemTime> {
-        self.started_at
-    }
-
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent> {
+    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -353,7 +348,7 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent> {
+    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();

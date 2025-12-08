@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use num::{One, ToPrimitive};
 
@@ -31,7 +31,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let reaction_time = Duration::from_millis(600);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Verify initial state
@@ -112,7 +112,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction);
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let after = start_time + Duration::from_secs(1);
@@ -125,10 +125,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     for ev in events {
         let secs = ev.activate_time().as_secs_f64();
-        let elapsed = after
-            .duration_since(start_time)
-            .unwrap_or_default()
-            .as_secs_f64();
+        let elapsed = after.duration_since(start_time).as_secs_f64();
         assert!(secs >= elapsed, "activate_time should be >= elapsed");
         assert!(secs.is_finite());
     }
@@ -158,7 +155,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     let reaction_time = Duration::from_millis(600);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Initial state: BPM = 151
@@ -213,7 +210,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let reaction_time = Duration::from_millis(600);
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Verify initial state：Scroll = 1.0
@@ -367,7 +364,7 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let elapsed = Duration::from_secs(3);

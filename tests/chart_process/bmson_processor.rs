@@ -1,6 +1,6 @@
 #![cfg(feature = "bmson")]
 
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
@@ -47,7 +47,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Progress slightly so the note at y=0.5 is inside visible window (0.6 measure default)
@@ -125,7 +125,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Advance slightly to ensure y=0.25 enters the visible window (default 0.6 measure)
@@ -196,7 +196,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let t = start_time + Duration::from_millis(100);
@@ -276,7 +276,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Advance to make the preload window cover the note at y=1.25
@@ -350,7 +350,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
     let t = start_time + Duration::from_millis(100);
     let _ = processor.update(t);
@@ -410,7 +410,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let _ = processor.update(start_time);
@@ -463,7 +463,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
@@ -516,7 +516,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 

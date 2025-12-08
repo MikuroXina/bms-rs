@@ -19,7 +19,7 @@ pub mod bmson_processor;
 use std::{
     collections::HashMap,
     path::Path,
-    time::{Duration, SystemTime},
+    time::{Duration, Instant},
 };
 
 // Type definition module
@@ -214,7 +214,7 @@ pub trait ChartProcessor {
     fn playhead_speed(&self) -> &PlayheadSpeed;
 
     /// Notify: start playback, record starting absolute time.
-    fn start_play(&mut self, now: SystemTime);
+    fn start_play(&mut self, now: Instant);
 
     /// Get: playback start time.
     ///
@@ -223,7 +223,7 @@ pub trait ChartProcessor {
     fn started_at(&self) -> Option<SystemTime>;
 
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
-    fn update(&mut self, now: SystemTime) -> impl Iterator<Item = PlayheadEvent>;
+    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent>;
 
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
     ///
@@ -232,5 +232,5 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self, now: SystemTime) -> impl Iterator<Item = VisibleChartEvent>;
+    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent>;
 }
