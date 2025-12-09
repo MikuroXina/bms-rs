@@ -4,7 +4,7 @@ use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
-use num::{One, Zero};
+use num::{One, ToPrimitive, Zero};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -52,6 +52,63 @@ impl BaseBpm {
 impl From<Decimal> for BaseBpm {
     fn from(value: Decimal) -> Self {
         Self(value)
+    }
+}
+
+/// Visible range per BPM, representing the relationship between BPM and visible Y range.
+/// Formula: visible_y_range = current_bpm * visible_range_per_bpm
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VisibleRangePerBpm(Decimal);
+
+impl VisibleRangePerBpm {
+    /// Create a new VisibleRangePerBpm from base BPM and reaction time
+    /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
+    #[must_use]
+    pub fn new(base_bpm: &BaseBpm, reaction_time: Duration) -> Self {
+        if base_bpm.value().is_zero() {
+            Self(Decimal::zero())
+        } else {
+            let seconds = Decimal::from(reaction_time.as_secs_f64());
+            Self(seconds / base_bpm.value().clone())
+        }
+    }
+
+    /// Calculate visible window length in y units based on current BPM.
+    /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
+    #[must_use]
+    pub fn window_y(&self, current_bpm: &Decimal) -> Decimal {
+        current_bpm.clone() * self.value().clone()
+    }
+
+    /// Get the internal Decimal value
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Calculate reaction time from visible range per BPM
+    /// Formula: reaction_time = visible_range_per_bpm / playhead_speed
+    /// where playhead_speed = 1/240 (Y/sec per BPM)
+    #[must_use]
+    pub fn to_reaction_time(&self) -> Duration {
+        if self.0.is_zero() {
+            Duration::from_secs(0)
+        } else {
+            let seconds = self.0.clone() * Decimal::from(240);
+            Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
+        }
+    }
+
+    /// Create from Decimal value (for internal use)
+    #[must_use]
+    pub(crate) const fn from_decimal(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Decimal> for VisibleRangePerBpm {
+    fn from(value: Decimal) -> Self {
+        Self::from_decimal(value)
     }
 }
 

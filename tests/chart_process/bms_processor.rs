@@ -1,8 +1,9 @@
 use std::str::FromStr;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use num::{One, ToPrimitive};
 
+use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
@@ -23,18 +24,20 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
-    let start_time = SystemTime::now();
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Verify initial state
-    assert_eq!(processor.current_bpm(), Decimal::from(120));
-    assert_eq!(processor.current_speed(), Decimal::one());
-    assert_eq!(processor.current_scroll(), Decimal::one());
+    assert_eq!(*processor.current_bpm(), Decimal::from(120));
+    assert_eq!(*processor.current_speed(), Decimal::one());
+    assert_eq!(*processor.current_scroll(), Decimal::one());
 
     // Advance to first change point
     let after_first_change = start_time + Duration::from_secs(1);
@@ -101,13 +104,15 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let reaction = Duration::from_millis(600);
-    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, reaction);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let after = start_time + Duration::from_secs(1);
@@ -120,10 +125,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     for ev in events {
         let secs = ev.activate_time().as_secs_f64();
-        let elapsed = after
-            .duration_since(start_time)
-            .unwrap_or_default()
-            .as_secs_f64();
+        let elapsed = after.duration_since(start_time).as_secs_f64();
         assert!(secs >= elapsed, "activate_time should be >= elapsed");
         assert!(secs.is_finite());
     }
@@ -146,21 +148,25 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
-    let start_time = SystemTime::now();
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Initial state: BPM = 151
-    assert_eq!(processor.current_bpm(), Decimal::from(151));
+    assert_eq!(*processor.current_bpm(), Decimal::from(151));
 
     // Advance to first BPM change point
-    let after_first_change = start_time + Duration::from_secs(1);
+    // Note: With new playhead speed (1/240), speed is half of original (1/120)
+    // So need twice the time to reach the same Y position
+    let after_first_change = start_time + Duration::from_secs(2);
     let _ = processor.update(after_first_change);
-    assert_eq!(processor.current_bpm(), Decimal::from_str("75.5").unwrap());
+    assert_eq!(*processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // Get visible events after BPM change
     let after_bpm_events: Vec<_> = processor.visible_events(after_first_change).collect();
@@ -197,16 +203,18 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
-    let start_time = SystemTime::now();
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     // Verify initial state：Scroll = 1.0
-    assert_eq!(processor.current_scroll(), Decimal::one());
+    assert_eq!(*processor.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
     let initial_events: Vec<_> = processor.visible_events(start_time).collect();
@@ -228,7 +236,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Advance to first Scroll change point (still 1.0)
     let after_first_scroll = start_time + Duration::from_secs(1);
     let _ = processor.update(after_first_scroll);
-    assert_eq!(processor.current_scroll(), Decimal::one());
+    assert_eq!(*processor.current_scroll(), Decimal::one());
 
     let after_first_ratios: Vec<f64> = processor
         .visible_events(after_first_scroll)
@@ -262,7 +270,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let after_scroll_half = after_first_scroll + Duration::from_secs(2);
     let _ = processor.update(after_scroll_half);
     assert_eq!(
-        processor.current_scroll(),
+        *processor.current_scroll(),
         Decimal::from_str("0.5").unwrap()
     );
 
@@ -348,13 +356,15 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
     assert_eq!(warnings, vec![]);
     let bms = bms.unwrap();
 
+    // Calculate visible range per BPM from base BPM and reaction time
     let base_bpm = StartBpmGenerator
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
-    let mut processor =
-        BmsProcessor::new::<KeyLayoutBeat>(&bms, base_bpm, Duration::from_millis(600));
+    let reaction_time = Duration::from_millis(600);
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
-    let start_time = SystemTime::now();
+    let start_time = Instant::now();
     processor.start_play(start_time);
 
     let elapsed = Duration::from_secs(3);
