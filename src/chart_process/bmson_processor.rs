@@ -14,9 +14,6 @@ use crate::chart_process::{
 };
 use num::{One, ToPrimitive, Zero};
 
-/// Static OnceLock for Decimal::one() to avoid repeated allocations
-static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
     // Resource ID mappings
@@ -272,6 +269,8 @@ impl ChartProcessor for BmsonProcessor {
         &self.current_bpm
     }
     fn current_speed(&self) -> &Decimal {
+        // to avoid repeated allocations
+        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
         DECIMAL_ONE.get_or_init(Decimal::one)
     }
     fn current_scroll(&self) -> &Decimal {
