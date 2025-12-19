@@ -325,39 +325,12 @@ impl ChartProcessor for BmsonProcessor {
         R: RangeBounds<MaybeNeg<Duration>>,
     {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
-            use std::ops::Bound;
-
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
             let center = Duration::from_secs_f64(
                 (Instant::now().duration_since(started).as_secs_f64() * ratio_f64).max(0.0),
             );
-            let mut start_bound: Bound<Duration> = match range.start_bound() {
-                Bound::Unbounded => Bound::Unbounded,
-                Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
-                Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
-            };
-            let mut end_bound: Bound<Duration> = match range.end_bound() {
-                Bound::Unbounded => Bound::Unbounded,
-                Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
-                Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
-            };
-
-            let start_value = match &start_bound {
-                Bound::Unbounded => None,
-                Bound::Included(v) | Bound::Excluded(v) => Some(v),
-            };
-            let end_value = match &end_bound {
-                Bound::Unbounded => None,
-                Bound::Included(v) | Bound::Excluded(v) => Some(v),
-            };
-            if let (Some(start), Some(end)) = (start_value, end_value)
-                && start > end
-            {
-                std::mem::swap(&mut start_bound, &mut end_bound);
-            }
-
             self.all_events
-                .events_in_time_range((start_bound, end_bound))
+                .events_in_time_range_from_center(center, range)
         });
 
         events.into_iter()

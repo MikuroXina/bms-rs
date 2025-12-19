@@ -738,24 +738,49 @@ impl AllEventsIndex {
     where
         R: RangeBounds<Duration>,
     {
-        let start_idx = match range.start_bound() {
+        let mut start_bound: Bound<Duration> = match range.start_bound() {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(start) => Bound::Included(*start),
+            Bound::Excluded(start) => Bound::Excluded(*start),
+        };
+        let mut end_bound: Bound<Duration> = match range.end_bound() {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(end) => Bound::Included(*end),
+            Bound::Excluded(end) => Bound::Excluded(*end),
+        };
+
+        let start_value = match &start_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        let end_value = match &end_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        if let (Some(start), Some(end)) = (start_value, end_value)
+            && start > end
+        {
+            std::mem::swap(&mut start_bound, &mut end_bound);
+        }
+
+        let start_idx = match start_bound {
             Bound::Unbounded => 0,
             Bound::Included(start) => self
                 .by_time
-                .partition_point(|&idx| self.events[idx].activate_time < *start),
+                .partition_point(|&idx| self.events[idx].activate_time < start),
             Bound::Excluded(start) => self
                 .by_time
-                .partition_point(|&idx| self.events[idx].activate_time <= *start),
+                .partition_point(|&idx| self.events[idx].activate_time <= start),
         };
 
-        let end_idx = match range.end_bound() {
+        let end_idx = match end_bound {
             Bound::Unbounded => self.by_time.len(),
             Bound::Included(end) => self
                 .by_time
-                .partition_point(|&idx| self.events[idx].activate_time <= *end),
+                .partition_point(|&idx| self.events[idx].activate_time <= end),
             Bound::Excluded(end) => self
                 .by_time
-                .partition_point(|&idx| self.events[idx].activate_time < *end),
+                .partition_point(|&idx| self.events[idx].activate_time < end),
         };
 
         self.by_time[start_idx..end_idx]
@@ -763,5 +788,27 @@ impl AllEventsIndex {
             .copied()
             .map(|idx| self.events[idx].clone())
             .collect()
+    }
+
+    pub fn events_in_time_range_from_center<R>(
+        &self,
+        center: Duration,
+        range: R,
+    ) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<MaybeNeg<Duration>>,
+    {
+        let start_bound: Bound<Duration> = match range.start_bound() {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
+            Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
+        };
+        let end_bound: Bound<Duration> = match range.end_bound() {
+            Bound::Unbounded => Bound::Unbounded,
+            Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
+            Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
+        };
+
+        self.events_in_time_range((start_bound, end_bound))
     }
 }
