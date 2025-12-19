@@ -874,14 +874,15 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .map(|(y_coord, indices)| {
             let y = y_coord.value();
             let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
-            let new_events: Vec<_> = indices
-                .iter()
-                .copied()
-                .filter_map(|idx| {
-                    all_events.as_events().get(idx).cloned().map(|mut evp| {
-                        evp.activate_time = at;
-                        evp
-                    })
+            let new_events: Vec<_> = all_events
+                .as_events()
+                .get(indices.clone())
+                .into_iter()
+                .flatten()
+                .cloned()
+                .map(|mut evp| {
+                    evp.activate_time = at;
+                    evp
                 })
                 .collect();
             (y_coord.clone(), new_events)

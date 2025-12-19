@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::ops::{Bound, RangeBounds};
+use std::ops::{Bound, Range, RangeBounds};
 use std::time::Duration;
 
 use num::{One, ToPrimitive, Zero};
@@ -688,40 +688,40 @@ impl MaybeNeg<Duration> {
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
-    by_y: BTreeMap<YCoordinate, Vec<usize>>,
-    by_time: Vec<usize>,
+    by_y: BTreeMap<YCoordinate, Range<usize>>,
+    by_time: BTreeMap<Duration, Vec<usize>>,
 }
 
 impl AllEventsIndex {
     #[must_use]
     pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
-        let mut by_y: BTreeMap<YCoordinate, Vec<usize>> = BTreeMap::new();
+        let mut by_y: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
 
         for (y_coord, y_events) in map {
-            let mut indices: Vec<usize> = Vec::with_capacity(y_events.len());
-            for ev in y_events {
-                let idx = events.len();
-                events.push(ev);
-                indices.push(idx);
-            }
-            by_y.insert(y_coord, indices);
+            let start = events.len();
+            events.extend(y_events);
+            let end = events.len();
+            by_y.insert(y_coord, start..end);
         }
 
-        let mut by_time: Vec<usize> = (0..events.len()).collect();
-        by_time.sort_by(|&a, &b| {
-            let Some(a_ev) = events.get(a) else {
-                return Ordering::Equal;
-            };
-            let Some(b_ev) = events.get(b) else {
-                return Ordering::Equal;
-            };
-
-            a_ev.activate_time
-                .cmp(&b_ev.activate_time)
-                .then_with(|| a_ev.position.cmp(&b_ev.position))
-                .then_with(|| a_ev.id.cmp(&b_ev.id))
-        });
+        let mut by_time: BTreeMap<Duration, Vec<usize>> = BTreeMap::new();
+        for (idx, ev) in events.iter().enumerate() {
+            by_time.entry(ev.activate_time).or_default().push(idx);
+        }
+        for indices in by_time.values_mut() {
+            indices.sort_by(|&a, &b| {
+                let Some(a_ev) = events.get(a) else {
+                    return Ordering::Equal;
+                };
+                let Some(b_ev) = events.get(b) else {
+                    return Ordering::Equal;
+                };
+                a_ev.position
+                    .cmp(&b_ev.position)
+                    .then_with(|| a_ev.id.cmp(&b_ev.id))
+            });
+        }
 
         Self {
             events,
@@ -736,7 +736,7 @@ impl AllEventsIndex {
     }
 
     #[must_use]
-    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Vec<usize>> {
+    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
         &self.by_y
     }
 
@@ -747,8 +747,8 @@ impl AllEventsIndex {
     {
         self.by_y
             .range(range)
-            .flat_map(|(_, indices)| indices.iter().copied())
-            .filter_map(|idx| self.events.get(idx).cloned())
+            .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
+            .cloned()
             .collect()
     }
 
@@ -781,39 +781,9 @@ impl AllEventsIndex {
             std::mem::swap(&mut start_bound, &mut end_bound);
         }
 
-        let start_idx = match start_bound {
-            Bound::Unbounded => 0,
-            Bound::Included(start) => self.by_time.partition_point(|&idx| {
-                self.events
-                    .get(idx)
-                    .is_some_and(|ev| ev.activate_time < start)
-            }),
-            Bound::Excluded(start) => self.by_time.partition_point(|&idx| {
-                self.events
-                    .get(idx)
-                    .is_some_and(|ev| ev.activate_time <= start)
-            }),
-        };
-
-        let end_idx = match end_bound {
-            Bound::Unbounded => self.by_time.len(),
-            Bound::Included(end) => self.by_time.partition_point(|&idx| {
-                self.events
-                    .get(idx)
-                    .is_some_and(|ev| ev.activate_time <= end)
-            }),
-            Bound::Excluded(end) => self.by_time.partition_point(|&idx| {
-                self.events
-                    .get(idx)
-                    .is_some_and(|ev| ev.activate_time < end)
-            }),
-        };
-
         self.by_time
-            .get(start_idx..end_idx)
-            .into_iter()
-            .flatten()
-            .copied()
+            .range((start_bound, end_bound))
+            .flat_map(|(_, indices)| indices.iter().copied())
             .filter_map(|idx| self.events.get(idx).cloned())
             .collect()
     }
@@ -838,5 +808,96 @@ impl AllEventsIndex {
         };
 
         self.events_in_time_range((start_bound, end_bound))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::time::Duration;
+
+    use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, YCoordinate};
+
+    fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
+        let y_coord = YCoordinate::from(y);
+        PlayheadEvent::new(
+            ChartEventId::new(id),
+            y_coord,
+            ChartEvent::BarLine,
+            Duration::from_secs(time_secs),
+        )
+    }
+
+    #[test]
+    fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
+        let y0 = YCoordinate::from(0.0);
+        let y1 = YCoordinate::from(1.0);
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            y0.clone(),
+            vec![
+                mk_event(2, 0.0, 1),
+                mk_event(1, 0.0, 1),
+                mk_event(3, 0.0, 2),
+            ],
+        );
+        map.insert(y1.clone(), vec![mk_event(4, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((std::ops::Bound::Included(y0), std::ops::Bound::Included(y1)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![2, 1, 3, 4]);
+    }
+
+    #[test]
+    fn events_in_time_range_respects_bounds_and_orders_within_same_time() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(0.0),
+            vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
+        );
+        map.insert(YCoordinate::from(1.0), vec![mk_event(3, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range(Duration::from_secs(1)..Duration::from_secs(2))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn events_in_time_range_swaps_reversed_bounds() {
+        use std::ops::Bound::{Included, Unbounded};
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 1)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range((
+                Included(Duration::from_secs(2)),
+                Included(Duration::from_secs(1)),
+            ))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range((Unbounded, Included(Duration::from_secs(1))))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1]);
     }
 }
