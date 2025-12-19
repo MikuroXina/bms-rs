@@ -193,7 +193,10 @@ impl BmsonProcessor {
                 cur_y += cur_vel * remaining_secs;
                 break;
             }
-            let (event_y, evt) = next_event.unwrap();
+            let Some((event_y, evt)) = next_event else {
+                cur_y += cur_vel * remaining_secs;
+                break;
+            };
             if event_y.clone() <= cur_y.clone() {
                 self.apply_flow_event(evt);
                 cur_vel = self.current_velocity();
@@ -327,7 +330,11 @@ impl ChartProcessor for BmsonProcessor {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
             let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
-            let center_secs = (last.duration_since(started).as_secs_f64() * ratio_f64).max(0.0);
+            let elapsed_secs = last
+                .checked_duration_since(started)
+                .unwrap_or_default()
+                .as_secs_f64();
+            let center_secs = (elapsed_secs * ratio_f64).max(0.0);
             let center = Duration::from_secs_f64(center_secs);
             self.all_events
                 .events_in_time_range_from_center(center, range)
@@ -502,12 +509,11 @@ impl AllEventsIndex {
             let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
             let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
             total += delta_y_f64 * 240.0 / cur_bpm_f64;
-            while stop_list.get(stop_idx).is_some_and(|(sy, _)| sy <= &curr) {
-                let Some((sy, stop_pulses)) = stop_list.get(stop_idx) else {
+            while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
+                if sy > &curr {
                     break;
-                };
-                let sy = sy.clone();
-                if sy > prev.clone() {
+                }
+                if sy > &prev {
                     total += seconds_for_stop(sy.clone(), *stop_pulses);
                 }
                 stop_idx += 1;
