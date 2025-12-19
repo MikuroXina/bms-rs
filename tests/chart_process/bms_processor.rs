@@ -421,7 +421,9 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
     processor.start_play(start_time);
 
     let events: Vec<_> = processor
-        .events_in_time_range(Duration::from_millis(300), Duration::from_millis(300))
+        .events_in_time_range(
+            MaybeNeg::neg(Duration::from_millis(300))..=MaybeNeg::pos(Duration::from_millis(300)),
+        )
         .collect();
     assert!(
         events
@@ -469,7 +471,9 @@ fn test_bms_events_in_time_range_empty_before_start() {
     let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
 
     let events: Vec<_> = processor
-        .events_in_time_range(Duration::from_millis(100), Duration::from_millis(100))
+        .events_in_time_range(
+            MaybeNeg::neg(Duration::from_millis(100))..=MaybeNeg::pos(Duration::from_millis(100)),
+        )
         .collect();
     assert!(events.is_empty());
 }

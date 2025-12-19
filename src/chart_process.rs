@@ -18,6 +18,7 @@ pub mod bmson_processor;
 
 use std::{
     collections::HashMap,
+    ops::RangeBounds,
     path::Path,
     time::{Duration, Instant},
 };
@@ -35,7 +36,7 @@ pub use prelude::{
 };
 
 // Use custom wrapper types
-pub use types::{PlayheadEvent, VisibleChartEvent};
+pub use types::{MaybeNeg, PlayheadEvent, VisibleChartEvent};
 
 /// Events generated during playback (Elm style).
 ///
@@ -227,13 +228,11 @@ pub trait ChartProcessor {
 
     /// Query: events in a time window centered at current moment.
     ///
-    /// The window is \[`now - negative`, `now + positive`\], where `now` is the current playhead time
+    /// The window is `now + range`, where `now` is the current playhead time
     /// since [`start_play`] (scaled by [`playback_ratio`]).
-    fn events_in_time_range(
-        &mut self,
-        negative: Duration,
-        positive: Duration,
-    ) -> impl Iterator<Item = PlayheadEvent>;
+    fn events_in_time_range<R>(&mut self, range: R) -> impl Iterator<Item = PlayheadEvent>
+    where
+        R: RangeBounds<MaybeNeg<Duration>>;
 
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
     ///

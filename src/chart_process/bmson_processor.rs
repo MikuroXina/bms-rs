@@ -2,6 +2,7 @@
 #![cfg(feature = "bmson")]
 
 use std::collections::{BTreeMap, HashMap};
+use std::ops::RangeBounds;
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -10,7 +11,9 @@ use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::{
     ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+    types::{
+        AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, MaybeNeg, WavId, YCoordinate,
+    },
 };
 use num::{One, ToPrimitive, Zero};
 
@@ -298,14 +301,18 @@ impl ChartProcessor for BmsonProcessor {
         let visible_y_length = self.visible_window_y();
         let preload_end_y = cur_y.clone() + visible_y_length;
 
-        // Collect events triggered at current moment
-        let triggered_events = self
-            .all_events
-            .events_in_y_range(YCoordinate::from(prev_y), YCoordinate::from(cur_y.clone()));
+        use std::ops::Bound::{Excluded, Included};
 
-        let new_preloaded_events = self
-            .all_events
-            .events_in_y_range(YCoordinate::from(cur_y), YCoordinate::from(preload_end_y));
+        // Collect events triggered at current moment
+        let triggered_events = self.all_events.events_in_y_range((
+            Excluded(YCoordinate::from(prev_y)),
+            Included(YCoordinate::from(cur_y.clone())),
+        ));
+
+        let new_preloaded_events = self.all_events.events_in_y_range((
+            Excluded(YCoordinate::from(cur_y)),
+            Included(YCoordinate::from(preload_end_y)),
+        ));
 
         // Update preloaded events list
         self.preloaded_events = new_preloaded_events;
@@ -313,20 +320,44 @@ impl ChartProcessor for BmsonProcessor {
         triggered_events.into_iter()
     }
 
-    fn events_in_time_range(
-        &mut self,
-        negative: Duration,
-        positive: Duration,
-    ) -> impl Iterator<Item = PlayheadEvent> {
+    fn events_in_time_range<R>(&mut self, range: R) -> impl Iterator<Item = PlayheadEvent>
+    where
+        R: RangeBounds<MaybeNeg<Duration>>,
+    {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
+            use std::ops::Bound;
+
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
             let center = Duration::from_secs_f64(
                 (Instant::now().duration_since(started).as_secs_f64() * ratio_f64).max(0.0),
             );
-            let start = center.saturating_sub(negative);
-            let end = center + positive;
+            let mut start_bound: Bound<Duration> = match range.start_bound() {
+                Bound::Unbounded => Bound::Unbounded,
+                Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
+                Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
+            };
+            let mut end_bound: Bound<Duration> = match range.end_bound() {
+                Bound::Unbounded => Bound::Unbounded,
+                Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
+                Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
+            };
 
-            self.all_events.events_in_time_range(start, end)
+            let start_value = match &start_bound {
+                Bound::Unbounded => None,
+                Bound::Included(v) | Bound::Excluded(v) => Some(v),
+            };
+            let end_value = match &end_bound {
+                Bound::Unbounded => None,
+                Bound::Included(v) | Bound::Excluded(v) => Some(v),
+            };
+            if let (Some(start), Some(end)) = (start_value, end_value)
+                && start > end
+            {
+                std::mem::swap(&mut start_bound, &mut end_bound);
+            }
+
+            self.all_events
+                .events_in_time_range((start_bound, end_bound))
         });
 
         events.into_iter()

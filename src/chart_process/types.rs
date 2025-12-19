@@ -1,12 +1,16 @@
 //! Type definition module
 
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::ops::{Bound, RangeBounds};
+use std::time::Duration;
+
+use num::{One, ToPrimitive, Zero};
+
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
-use num::{One, ToPrimitive, Zero};
-use std::collections::BTreeMap;
-use std::time::Duration;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -595,6 +599,80 @@ impl std::hash::Hash for VisibleChartEvent {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Signed wrapper type for values that are naturally non-negative (e.g. `Duration`).
+pub struct MaybeNeg<T> {
+    negative: bool,
+    value: T,
+}
+
+impl<T> MaybeNeg<T> {
+    #[must_use]
+    /// Create a non-negative value.
+    pub const fn pos(value: T) -> Self {
+        Self {
+            negative: false,
+            value,
+        }
+    }
+
+    #[must_use]
+    /// Create a negative value.
+    pub const fn neg(value: T) -> Self {
+        Self {
+            negative: true,
+            value,
+        }
+    }
+
+    #[must_use]
+    /// Returns whether the value is negative.
+    pub const fn is_negative(&self) -> bool {
+        self.negative
+    }
+
+    #[must_use]
+    /// Returns the absolute (unsigned) part of the value.
+    pub const fn abs(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T: Ord> Ord for MaybeNeg<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.negative, other.negative) {
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => self.value.cmp(&other.value),
+            (true, true) => other.value.cmp(&self.value),
+        }
+    }
+}
+
+impl<T: Ord> PartialOrd for MaybeNeg<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> From<T> for MaybeNeg<T> {
+    fn from(value: T) -> Self {
+        Self::pos(value)
+    }
+}
+
+impl MaybeNeg<Duration> {
+    #[must_use]
+    /// Apply this signed offset to a base duration, saturating at zero for negative results.
+    pub fn offset_from(self, base: Duration) -> Duration {
+        if self.negative {
+            base.saturating_sub(self.value)
+        } else {
+            base + self.value
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
@@ -645,27 +723,40 @@ impl AllEventsIndex {
     }
 
     #[must_use]
-    pub fn events_in_y_range(
-        &self,
-        start_exclusive: YCoordinate,
-        end_inclusive: YCoordinate,
-    ) -> Vec<PlayheadEvent> {
-        use std::ops::Bound::{Excluded, Included};
-
+    pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<YCoordinate>,
+    {
         self.by_y
-            .range((Excluded(start_exclusive), Included(end_inclusive)))
+            .range(range)
             .flat_map(|(_, indices)| indices.iter().copied())
             .map(|idx| self.events[idx].clone())
             .collect()
     }
 
-    pub fn events_in_time_range(&self, start: Duration, end: Duration) -> Vec<PlayheadEvent> {
-        let start_idx = self
-            .by_time
-            .partition_point(|&idx| self.events[idx].activate_time < start);
-        let end_idx = self
-            .by_time
-            .partition_point(|&idx| self.events[idx].activate_time <= end);
+    pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<Duration>,
+    {
+        let start_idx = match range.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Included(start) => self
+                .by_time
+                .partition_point(|&idx| self.events[idx].activate_time < *start),
+            Bound::Excluded(start) => self
+                .by_time
+                .partition_point(|&idx| self.events[idx].activate_time <= *start),
+        };
+
+        let end_idx = match range.end_bound() {
+            Bound::Unbounded => self.by_time.len(),
+            Bound::Included(end) => self
+                .by_time
+                .partition_point(|&idx| self.events[idx].activate_time <= *end),
+            Bound::Excluded(end) => self
+                .by_time
+                .partition_point(|&idx| self.events[idx].activate_time < *end),
+        };
 
         self.by_time[start_idx..end_idx]
             .iter()
