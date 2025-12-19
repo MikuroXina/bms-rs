@@ -77,6 +77,59 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
 }
 
 #[test]
+fn test_bmson_events_in_time_range_returns_note_near_center() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test.wav",
+                "notes": [
+                    { "x": 1, "y": 960, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let output = parse_bmson(json);
+    let bmson = output.bmson.expect("Failed to parse BMSON");
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bmson)
+        .expect("Failed to generate base BPM");
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, Duration::from_millis(600));
+    let mut processor = BmsonProcessor::new(&bmson, visible_range_per_bpm);
+
+    let start_time = Instant::now() - Duration::from_secs(2);
+    processor.start_play(start_time);
+
+    let events: Vec<_> = processor
+        .events_in_time_range(Duration::from_millis(300), Duration::from_millis(300))
+        .collect();
+    assert!(
+        events
+            .iter()
+            .any(|ev| matches!(ev.event(), ChartEvent::Note { .. })),
+        "Expected to find a note event around 2.0s"
+    );
+    for ev in events {
+        assert!(
+            *ev.activate_time() >= Duration::from_secs(1)
+                && *ev.activate_time() <= Duration::from_secs(3),
+            "activate_time should be within the query window: {:?}",
+            ev.activate_time()
+        );
+    }
+}
+
+#[test]
 fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     // BMSON with init BPM 120, a key note at y=0.25 measure (240 pulses), c=true.
     // BPM changes to 180 at y=0.75 measure (720 pulses).

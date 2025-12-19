@@ -387,3 +387,89 @@ fn test_bms_triggered_event_activate_time_equals_elapsed() {
         assert!(secs_actual >= 0.0);
     }
 }
+
+#[test]
+fn test_bms_events_in_time_range_returns_note_near_center() {
+    let source = r#"
+#TITLE Time Range Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+#00111:01
+"#;
+    let LexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = TokenStream::parse_lex(source);
+    assert_eq!(warnings, vec![]);
+
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, Duration::from_millis(600));
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
+
+    let start_time = Instant::now() - Duration::from_secs(2);
+    processor.start_play(start_time);
+
+    let events: Vec<_> = processor
+        .events_in_time_range(Duration::from_millis(300), Duration::from_millis(300))
+        .collect();
+    assert!(
+        events
+            .iter()
+            .any(|ev| matches!(ev.event(), ChartEvent::Note { .. })),
+        "Expected to find a note event around 2.0s"
+    );
+    for ev in events {
+        assert!(
+            *ev.activate_time() >= Duration::from_secs(1)
+                && *ev.activate_time() <= Duration::from_secs(3),
+            "activate_time should be within the query window: {:?}",
+            ev.activate_time()
+        );
+    }
+}
+
+#[test]
+fn test_bms_events_in_time_range_empty_before_start() {
+    let source = r#"
+#TITLE Time Range Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+#WAV01 test.wav
+#00111:01
+"#;
+    let LexOutput {
+        tokens,
+        lex_warnings: warnings,
+    } = TokenStream::parse_lex(source);
+    assert_eq!(warnings, vec![]);
+
+    let ParseOutput {
+        bms,
+        parse_warnings: warnings,
+    } = Bms::from_token_stream(&tokens, default_config());
+    assert_eq!(warnings, vec![]);
+    let bms = bms.unwrap();
+
+    let base_bpm = StartBpmGenerator
+        .generate(&bms)
+        .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, Duration::from_millis(600));
+    let mut processor = BmsProcessor::new::<KeyLayoutBeat>(&bms, visible_range_per_bpm);
+
+    let events: Vec<_> = processor
+        .events_in_time_range(Duration::from_millis(100), Duration::from_millis(100))
+        .collect();
+    assert!(events.is_empty());
+}

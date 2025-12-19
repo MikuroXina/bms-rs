@@ -225,6 +225,16 @@ pub trait ChartProcessor {
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
     fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent>;
 
+    /// Query: events in a time window centered at current moment.
+    ///
+    /// The window is \[`now - negative`, `now + positive`\], where `now` is the current playhead time
+    /// since [`start_play`] (scaled by [`playback_ratio`]).
+    fn events_in_time_range(
+        &mut self,
+        negative: Duration,
+        positive: Duration,
+    ) -> impl Iterator<Item = PlayheadEvent>;
+
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
     ///
     /// These events are used to dynamically adjust player configuration parameters. Chart playback related events (such as notes, BGM, etc.)

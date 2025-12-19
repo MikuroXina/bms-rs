@@ -43,6 +43,8 @@ pub struct BmsonProcessor {
     /// Preprocessed all events mapping, sorted by y coordinate
     all_events: AllEventsIndex,
 
+    events_by_time: Vec<PlayheadEvent>,
+
     /// Indexed flow events by y (BPM/Scroll) for efficient lookup
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
@@ -131,6 +133,17 @@ impl BmsonProcessor {
 
         let all_events =
             AllEventsIndex::precompute_events(bmson, &audio_name_to_id, &bmp_name_to_id);
+        let mut events_by_time: Vec<PlayheadEvent> = all_events
+            .as_map()
+            .values()
+            .flat_map(|events| events.iter().cloned())
+            .collect();
+        events_by_time.sort_by(|a, b| {
+            a.activate_time
+                .cmp(&b.activate_time)
+                .then_with(|| a.position.cmp(&b.position))
+                .then_with(|| a.id.cmp(&b.id))
+        });
 
         Self {
             audio_name_to_id,
@@ -140,6 +153,7 @@ impl BmsonProcessor {
             progressed_y: Decimal::zero(),
             preloaded_events: Vec::new(),
             all_events,
+            events_by_time,
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
             playback_ratio,
@@ -329,6 +343,32 @@ impl ChartProcessor for BmsonProcessor {
         self.preloaded_events = new_preloaded_events;
 
         triggered_events.into_iter()
+    }
+
+    fn events_in_time_range(
+        &mut self,
+        negative: Duration,
+        positive: Duration,
+    ) -> impl Iterator<Item = PlayheadEvent> {
+        let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
+            let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
+            let center = Duration::from_secs_f64(
+                (Instant::now().duration_since(started).as_secs_f64() * ratio_f64).max(0.0),
+            );
+            let start = center.saturating_sub(negative);
+            let end = center + positive;
+
+            let start_idx = self
+                .events_by_time
+                .partition_point(|ev| ev.activate_time < start);
+            let end_idx = self
+                .events_by_time
+                .partition_point(|ev| ev.activate_time <= end);
+
+            self.events_by_time[start_idx..end_idx].to_vec()
+        });
+
+        events.into_iter()
     }
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
