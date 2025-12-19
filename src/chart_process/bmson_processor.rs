@@ -43,8 +43,6 @@ pub struct BmsonProcessor {
     /// Preprocessed all events mapping, sorted by y coordinate
     all_events: AllEventsIndex,
 
-    events_by_time: Vec<PlayheadEvent>,
-
     /// Indexed flow events by y (BPM/Scroll) for efficient lookup
     flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
 }
@@ -133,17 +131,6 @@ impl BmsonProcessor {
 
         let all_events =
             AllEventsIndex::precompute_events(bmson, &audio_name_to_id, &bmp_name_to_id);
-        let mut events_by_time: Vec<PlayheadEvent> = all_events
-            .as_map()
-            .values()
-            .flat_map(|events| events.iter().cloned())
-            .collect();
-        events_by_time.sort_by(|a, b| {
-            a.activate_time
-                .cmp(&b.activate_time)
-                .then_with(|| a.position.cmp(&b.position))
-                .then_with(|| a.id.cmp(&b.id))
-        });
 
         Self {
             audio_name_to_id,
@@ -153,7 +140,6 @@ impl BmsonProcessor {
             progressed_y: Decimal::zero(),
             preloaded_events: Vec::new(),
             all_events,
-            events_by_time,
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
             playback_ratio,
@@ -313,31 +299,13 @@ impl ChartProcessor for BmsonProcessor {
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // Collect events triggered at current moment
-        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
+        let triggered_events = self
+            .all_events
+            .events_in_y_range(YCoordinate::from(prev_y), YCoordinate::from(cur_y.clone()));
 
-        // Collect events within preload range
-        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
-
-        use std::ops::Bound::{Excluded, Included};
-        // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
-            Excluded(YCoordinate::from(prev_y)),
-            Included(YCoordinate::from(cur_y.clone())),
-        )) {
-            for evp in events {
-                triggered_events.push(evp.clone());
-            }
-        }
-
-        // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
-            Excluded(YCoordinate::from(cur_y)),
-            Included(YCoordinate::from(preload_end_y)),
-        )) {
-            for evp in events {
-                new_preloaded_events.push(evp.clone());
-            }
-        }
+        let new_preloaded_events = self
+            .all_events
+            .events_in_y_range(YCoordinate::from(cur_y), YCoordinate::from(preload_end_y));
 
         // Update preloaded events list
         self.preloaded_events = new_preloaded_events;
@@ -358,14 +326,7 @@ impl ChartProcessor for BmsonProcessor {
             let start = center.saturating_sub(negative);
             let end = center + positive;
 
-            let start_idx = self
-                .events_by_time
-                .partition_point(|ev| ev.activate_time < start);
-            let end_idx = self
-                .events_by_time
-                .partition_point(|ev| ev.activate_time <= end);
-
-            self.events_by_time[start_idx..end_idx].to_vec()
+            self.all_events.events_in_time_range(start, end)
         });
 
         events.into_iter()

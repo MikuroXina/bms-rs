@@ -597,17 +597,80 @@ impl std::hash::Hash for VisibleChartEvent {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
-    map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
+    events: Vec<PlayheadEvent>,
+    by_y: BTreeMap<YCoordinate, Vec<usize>>,
+    by_time: Vec<usize>,
 }
 
 impl AllEventsIndex {
     #[must_use]
-    pub const fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
-        Self { map }
+    pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
+        let mut events: Vec<PlayheadEvent> = Vec::new();
+        let mut by_y: BTreeMap<YCoordinate, Vec<usize>> = BTreeMap::new();
+
+        for (y_coord, y_events) in map {
+            let mut indices: Vec<usize> = Vec::with_capacity(y_events.len());
+            for ev in y_events {
+                let idx = events.len();
+                events.push(ev);
+                indices.push(idx);
+            }
+            by_y.insert(y_coord, indices);
+        }
+
+        let mut by_time: Vec<usize> = (0..events.len()).collect();
+        by_time.sort_by(|&a, &b| {
+            events[a]
+                .activate_time
+                .cmp(&events[b].activate_time)
+                .then_with(|| events[a].position.cmp(&events[b].position))
+                .then_with(|| events[a].id.cmp(&events[b].id))
+        });
+
+        Self {
+            events,
+            by_y,
+            by_time,
+        }
     }
 
     #[must_use]
-    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<PlayheadEvent>> {
-        &self.map
+    pub const fn as_events(&self) -> &Vec<PlayheadEvent> {
+        &self.events
+    }
+
+    #[must_use]
+    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Vec<usize>> {
+        &self.by_y
+    }
+
+    #[must_use]
+    pub fn events_in_y_range(
+        &self,
+        start_exclusive: YCoordinate,
+        end_inclusive: YCoordinate,
+    ) -> Vec<PlayheadEvent> {
+        use std::ops::Bound::{Excluded, Included};
+
+        self.by_y
+            .range((Excluded(start_exclusive), Included(end_inclusive)))
+            .flat_map(|(_, indices)| indices.iter().copied())
+            .map(|idx| self.events[idx].clone())
+            .collect()
+    }
+
+    pub fn events_in_time_range(&self, start: Duration, end: Duration) -> Vec<PlayheadEvent> {
+        let start_idx = self
+            .by_time
+            .partition_point(|&idx| self.events[idx].activate_time < start);
+        let end_idx = self
+            .by_time
+            .partition_point(|&idx| self.events[idx].activate_time <= end);
+
+        self.by_time[start_idx..end_idx]
+            .iter()
+            .copied()
+            .map(|idx| self.events[idx].clone())
+            .collect()
     }
 }

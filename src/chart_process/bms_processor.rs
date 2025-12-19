@@ -29,8 +29,6 @@ pub struct BmsProcessor {
     /// All events mapping (sorted by Y coordinate)
     all_events: AllEventsIndex,
 
-    events_by_time: Vec<PlayheadEvent>,
-
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<PlayheadEvent>,
 
@@ -64,17 +62,6 @@ impl BmsProcessor {
         let playback_ratio = Decimal::one();
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms);
-        let mut events_by_time: Vec<PlayheadEvent> = all_events
-            .as_map()
-            .values()
-            .flat_map(|events| events.iter().cloned())
-            .collect();
-        events_by_time.sort_by(|a, b| {
-            a.activate_time
-                .cmp(&b.activate_time)
-                .then_with(|| a.position.cmp(&b.position))
-                .then_with(|| a.id.cmp(&b.id))
-        });
 
         // Precompute resource maps
         let wav_paths: HashMap<WavId, PathBuf> = bms
@@ -193,7 +180,6 @@ impl BmsProcessor {
             last_poll_at: None,
             progressed_y: Decimal::zero(),
             all_events,
-            events_by_time,
             preloaded_events: Vec::new(),
             current_bpm: init_bpm.clone(),
             current_speed: Decimal::one(),
@@ -404,31 +390,13 @@ impl ChartProcessor for BmsProcessor {
         let preload_end_y = cur_y.clone() + visible_y_length;
 
         // Collect events triggered at current moment
-        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
+        let mut triggered_events = self
+            .all_events
+            .events_in_y_range(YCoordinate::from(prev_y), YCoordinate::from(cur_y.clone()));
 
-        // Collect events within preload range
-        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
-
-        use std::ops::Bound::{Excluded, Included};
-        // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
-            Excluded(YCoordinate::from(prev_y)),
-            Included(YCoordinate::from(cur_y.clone())),
-        )) {
-            for evp in events {
-                triggered_events.push(evp.clone());
-            }
-        }
-
-        // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
-            Excluded(YCoordinate::from(cur_y)),
-            Included(YCoordinate::from(preload_end_y)),
-        )) {
-            for evp in events {
-                new_preloaded_events.push(evp.clone());
-            }
-        }
+        let mut new_preloaded_events = self
+            .all_events
+            .events_in_y_range(YCoordinate::from(cur_y), YCoordinate::from(preload_end_y));
 
         // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
         triggered_events.sort_by(|a, b| {
@@ -463,14 +431,7 @@ impl ChartProcessor for BmsProcessor {
             let start = center.saturating_sub(negative);
             let end = center + positive;
 
-            let start_idx = self
-                .events_by_time
-                .partition_point(|ev| ev.activate_time < start);
-            let end_idx = self
-                .events_by_time
-                .partition_point(|ev| ev.activate_time <= end);
-
-            self.events_by_time[start_idx..end_idx].to_vec()
+            self.all_events.events_in_time_range(start, end)
         });
 
         events.into_iter()
@@ -814,7 +775,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<Decimal> = BTreeSet::new();
     points.insert(Decimal::zero());
-    points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
+    points.extend(all_events.as_by_y().keys().map(|yc| yc.value().clone()));
 
     let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
     let init_bpm = bms
@@ -897,15 +858,16 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
     }
 
     let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
-        .as_map()
+        .as_by_y()
         .iter()
-        .map(|(y_coord, events)| {
+        .map(|(y_coord, indices)| {
             let y = y_coord.value();
             let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
-            let new_events: Vec<_> = events
+            let new_events: Vec<_> = indices
                 .iter()
-                .cloned()
-                .map(|mut evp| {
+                .copied()
+                .map(|idx| {
+                    let mut evp = all_events.as_events()[idx].clone();
                     evp.activate_time = at;
                     evp
                 })
