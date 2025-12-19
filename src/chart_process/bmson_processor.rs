@@ -169,7 +169,7 @@ impl BmsonProcessor {
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .map(|(y, events)| (y.clone(), events[0].clone()))
+            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
     }
 
     fn step_to(&mut self, now: Instant) {
@@ -325,10 +325,10 @@ impl ChartProcessor for BmsonProcessor {
         R: RangeBounds<MaybeNeg<Duration>>,
     {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
+            let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
-            let center = Duration::from_secs_f64(
-                (Instant::now().duration_since(started).as_secs_f64() * ratio_f64).max(0.0),
-            );
+            let center_secs = (last.duration_since(started).as_secs_f64() * ratio_f64).max(0.0);
+            let center = Duration::from_secs_f64(center_secs);
             self.all_events
                 .events_in_time_range_from_center(center, range)
         });
@@ -502,10 +502,13 @@ impl AllEventsIndex {
             let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
             let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
             total += delta_y_f64 * 240.0 / cur_bpm_f64;
-            while stop_idx < stop_list.len() && stop_list[stop_idx].0 <= curr.clone() {
-                let sy = stop_list[stop_idx].0.clone();
+            while stop_list.get(stop_idx).is_some_and(|(sy, _)| sy <= &curr) {
+                let Some((sy, stop_pulses)) = stop_list.get(stop_idx) else {
+                    break;
+                };
+                let sy = sy.clone();
                 if sy > prev.clone() {
-                    total += seconds_for_stop(sy.clone(), stop_list[stop_idx].1);
+                    total += seconds_for_stop(sy.clone(), *stop_pulses);
                 }
                 stop_idx += 1;
             }

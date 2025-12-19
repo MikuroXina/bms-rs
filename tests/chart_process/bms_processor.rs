@@ -419,6 +419,9 @@ fn test_bms_events_in_time_range_returns_note_near_center() {
 
     let start_time = Instant::now() - Duration::from_secs(2);
     processor.start_play(start_time);
+    let _events: Vec<_> = processor
+        .update(start_time + Duration::from_secs(2))
+        .collect();
 
     let events: Vec<_> = processor
         .events_in_time_range(

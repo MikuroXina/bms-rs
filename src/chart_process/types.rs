@@ -698,11 +698,17 @@ impl AllEventsIndex {
 
         let mut by_time: Vec<usize> = (0..events.len()).collect();
         by_time.sort_by(|&a, &b| {
-            events[a]
-                .activate_time
-                .cmp(&events[b].activate_time)
-                .then_with(|| events[a].position.cmp(&events[b].position))
-                .then_with(|| events[a].id.cmp(&events[b].id))
+            let Some(a_ev) = events.get(a) else {
+                return Ordering::Equal;
+            };
+            let Some(b_ev) = events.get(b) else {
+                return Ordering::Equal;
+            };
+
+            a_ev.activate_time
+                .cmp(&b_ev.activate_time)
+                .then_with(|| a_ev.position.cmp(&b_ev.position))
+                .then_with(|| a_ev.id.cmp(&b_ev.id))
         });
 
         Self {
@@ -730,7 +736,7 @@ impl AllEventsIndex {
         self.by_y
             .range(range)
             .flat_map(|(_, indices)| indices.iter().copied())
-            .map(|idx| self.events[idx].clone())
+            .filter_map(|idx| self.events.get(idx).cloned())
             .collect()
     }
 
@@ -765,28 +771,38 @@ impl AllEventsIndex {
 
         let start_idx = match start_bound {
             Bound::Unbounded => 0,
-            Bound::Included(start) => self
-                .by_time
-                .partition_point(|&idx| self.events[idx].activate_time < start),
-            Bound::Excluded(start) => self
-                .by_time
-                .partition_point(|&idx| self.events[idx].activate_time <= start),
+            Bound::Included(start) => self.by_time.partition_point(|&idx| {
+                self.events
+                    .get(idx)
+                    .is_some_and(|ev| ev.activate_time < start)
+            }),
+            Bound::Excluded(start) => self.by_time.partition_point(|&idx| {
+                self.events
+                    .get(idx)
+                    .is_some_and(|ev| ev.activate_time <= start)
+            }),
         };
 
         let end_idx = match end_bound {
             Bound::Unbounded => self.by_time.len(),
-            Bound::Included(end) => self
-                .by_time
-                .partition_point(|&idx| self.events[idx].activate_time <= end),
-            Bound::Excluded(end) => self
-                .by_time
-                .partition_point(|&idx| self.events[idx].activate_time < end),
+            Bound::Included(end) => self.by_time.partition_point(|&idx| {
+                self.events
+                    .get(idx)
+                    .is_some_and(|ev| ev.activate_time <= end)
+            }),
+            Bound::Excluded(end) => self.by_time.partition_point(|&idx| {
+                self.events
+                    .get(idx)
+                    .is_some_and(|ev| ev.activate_time < end)
+            }),
         };
 
-        self.by_time[start_idx..end_idx]
-            .iter()
+        self.by_time
+            .get(start_idx..end_idx)
+            .into_iter()
+            .flatten()
             .copied()
-            .map(|idx| self.events[idx].clone())
+            .filter_map(|idx| self.events.get(idx).cloned())
             .collect()
     }
 

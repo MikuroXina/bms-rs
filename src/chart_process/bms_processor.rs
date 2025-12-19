@@ -254,7 +254,7 @@ impl BmsProcessor {
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .map(|(y, events)| (y.clone(), events[0].clone()))
+            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
     }
 
     /// Advance time to `now`, perform segmented integration of progress and speed by events.
@@ -428,10 +428,10 @@ impl ChartProcessor for BmsProcessor {
         R: RangeBounds<MaybeNeg<Duration>>,
     {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
+            let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
-            let center = Duration::from_secs_f64(
-                (Instant::now().duration_since(started).as_secs_f64() * ratio_f64).max(0.0),
-            );
+            let center_secs = (last.duration_since(started).as_secs_f64() * ratio_f64).max(0.0);
+            let center = Duration::from_secs_f64(center_secs);
             self.all_events
                 .events_in_time_range_from_center(center, range)
         });
@@ -830,8 +830,11 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
         let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
         total += delta_y_f64 * 240.0 / cur_bpm_f64;
-        while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
-            let sy = stop_list[stop_idx].0.clone();
+        while stop_list.get(stop_idx).is_some_and(|(sy, _)| sy < &curr) {
+            let Some((sy, dur_y)) = stop_list.get(stop_idx) else {
+                break;
+            };
+            let sy = sy.clone();
             if sy > prev.clone() {
                 let bpm_at_stop = bpm_map
                     .range((
@@ -841,7 +844,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
-                let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
+                let dur_y_f64 = dur_y.to_f64().unwrap_or(0.0);
                 let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
                 total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
             }
@@ -868,10 +871,11 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
             let new_events: Vec<_> = indices
                 .iter()
                 .copied()
-                .map(|idx| {
-                    let mut evp = all_events.as_events()[idx].clone();
-                    evp.activate_time = at;
-                    evp
+                .filter_map(|idx| {
+                    all_events.as_events().get(idx).cloned().map(|mut evp| {
+                        evp.activate_time = at;
+                        evp
+                    })
                 })
                 .collect();
             (y_coord.clone(), new_events)
