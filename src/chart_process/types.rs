@@ -661,6 +661,18 @@ impl<T> From<T> for MaybeNeg<T> {
     }
 }
 
+impl<T> std::ops::Neg for MaybeNeg<T> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        if self.negative {
+            Self::pos(self.value)
+        } else {
+            Self::neg(self.value)
+        }
+    }
+}
+
 impl MaybeNeg<Duration> {
     #[must_use]
     /// Apply this signed offset to a base duration, saturating at zero for negative results.
