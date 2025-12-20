@@ -756,16 +756,8 @@ impl AllEventsIndex {
     where
         R: RangeBounds<Duration>,
     {
-        let mut start_bound: Bound<Duration> = match range.start_bound() {
-            Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(start) => Bound::Included(*start),
-            Bound::Excluded(start) => Bound::Excluded(*start),
-        };
-        let mut end_bound: Bound<Duration> = match range.end_bound() {
-            Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(end) => Bound::Included(*end),
-            Bound::Excluded(end) => Bound::Excluded(*end),
-        };
+        let mut start_bound = range.start_bound().cloned();
+        let mut end_bound = range.end_bound().cloned();
 
         let start_value = match &start_bound {
             Bound::Unbounded => None,
