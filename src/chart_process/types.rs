@@ -599,92 +599,6 @@ impl std::hash::Hash for VisibleChartEvent {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// Signed wrapper type for values that are naturally non-negative (e.g. `Duration`).
-pub struct MaybeNeg<T> {
-    negative: bool,
-    value: T,
-}
-
-impl<T> MaybeNeg<T> {
-    #[must_use]
-    /// Create a non-negative value.
-    pub const fn pos(value: T) -> Self {
-        Self {
-            negative: false,
-            value,
-        }
-    }
-
-    #[must_use]
-    /// Create a negative value.
-    pub const fn neg(value: T) -> Self {
-        Self {
-            negative: true,
-            value,
-        }
-    }
-
-    #[must_use]
-    /// Returns whether the value is negative.
-    pub const fn is_negative(&self) -> bool {
-        self.negative
-    }
-
-    #[must_use]
-    /// Returns the absolute (unsigned) part of the value.
-    pub const fn abs(&self) -> &T {
-        &self.value
-    }
-}
-
-impl<T: Ord> Ord for MaybeNeg<T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self.negative, other.negative) {
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
-            (false, false) => self.value.cmp(&other.value),
-            (true, true) => other.value.cmp(&self.value),
-        }
-    }
-}
-
-impl<T: Ord> PartialOrd for MaybeNeg<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> From<T> for MaybeNeg<T> {
-    fn from(value: T) -> Self {
-        Self::pos(value)
-    }
-}
-
-impl<T> std::ops::Neg for MaybeNeg<T> {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        if self.negative {
-            Self::pos(self.value)
-        } else {
-            Self::neg(self.value)
-        }
-    }
-}
-
-impl MaybeNeg<Duration> {
-    #[must_use]
-    /// Apply this signed offset to a base duration, saturating at zero for negative results.
-    pub fn offset_from(self, base: Duration) -> Duration {
-        if self.negative {
-            base.saturating_sub(self.value)
-        } else {
-            base + self.value
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
@@ -780,26 +694,15 @@ impl AllEventsIndex {
             .collect()
     }
 
-    pub fn events_in_time_range_from_center<R>(
+    pub fn events_in_time_range_from_center(
         &self,
         center: Duration,
-        range: R,
-    ) -> Vec<PlayheadEvent>
-    where
-        R: RangeBounds<MaybeNeg<Duration>>,
-    {
-        let start_bound: Bound<Duration> = match range.start_bound() {
-            Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
-            Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
-        };
-        let end_bound: Bound<Duration> = match range.end_bound() {
-            Bound::Unbounded => Bound::Unbounded,
-            Bound::Included(offset) => Bound::Included((*offset).offset_from(center)),
-            Bound::Excluded(offset) => Bound::Excluded((*offset).offset_from(center)),
-        };
-
-        self.events_in_time_range((start_bound, end_bound))
+        backward: Duration,
+        forward: Duration,
+    ) -> Vec<PlayheadEvent> {
+        let start = center.saturating_sub(backward);
+        let end = center + forward;
+        self.events_in_time_range(start..=end)
     }
 }
 

@@ -109,9 +109,7 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
         .collect();
 
     let events: Vec<_> = processor
-        .events_in_time_range(
-            MaybeNeg::neg(Duration::from_millis(300))..=MaybeNeg::pos(Duration::from_millis(300)),
-        )
+        .events_in_time_range(Duration::from_millis(300), Duration::from_millis(300))
         .collect();
     assert!(
         events

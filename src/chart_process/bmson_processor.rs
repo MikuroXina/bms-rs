@@ -1,21 +1,21 @@
 //! Bmson Processor Module.
 #![cfg(feature = "bmson")]
 
-use std::collections::{BTreeMap, HashMap};
-use std::ops::RangeBounds;
-use std::path::Path;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::Path,
+    sync::OnceLock,
+    time::{Duration, Instant},
+};
+
+use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::{
     ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    types::{
-        AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, MaybeNeg, WavId, YCoordinate,
-    },
+    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
 };
-use num::{One, ToPrimitive, Zero};
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
@@ -323,10 +323,11 @@ impl ChartProcessor for BmsonProcessor {
         triggered_events.into_iter()
     }
 
-    fn events_in_time_range<R>(&mut self, range: R) -> impl Iterator<Item = PlayheadEvent>
-    where
-        R: RangeBounds<MaybeNeg<Duration>>,
-    {
+    fn events_in_time_range(
+        &mut self,
+        backward: Duration,
+        forward: Duration,
+    ) -> impl Iterator<Item = PlayheadEvent> {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
             let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
@@ -337,7 +338,7 @@ impl ChartProcessor for BmsonProcessor {
             let center_secs = (elapsed_secs * ratio_f64).max(0.0);
             let center = Duration::from_secs_f64(center_secs);
             self.all_events
-                .events_in_time_range_from_center(center, range)
+                .events_in_time_range_from_center(center, backward, forward)
         });
 
         events.into_iter()
