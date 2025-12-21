@@ -425,10 +425,9 @@ impl ChartProcessor for BmsProcessor {
 
     fn events_in_time_range(
         &mut self,
-        backward: TimeSpan,
-        forward: TimeSpan,
+        range: impl std::ops::RangeBounds<TimeSpan>,
     ) -> impl Iterator<Item = PlayheadEvent> {
-        let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
+        let events: Vec<PlayheadEvent> = if let Some(started) = self.started_at {
             let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
             let elapsed_secs = last
@@ -438,8 +437,10 @@ impl ChartProcessor for BmsProcessor {
             let center_secs = (elapsed_secs * ratio_f64).max(0.0);
             let center = time_span_from_secs_f64(center_secs);
             self.all_events
-                .events_in_time_range_from_center(center, backward, forward)
-        });
+                .events_in_time_range_offset_from(center, range)
+        } else {
+            Vec::new()
+        };
 
         events.into_iter()
     }

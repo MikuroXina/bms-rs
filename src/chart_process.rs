@@ -6,7 +6,7 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, ops::RangeBounds, path::Path};
 
 use gametime::{TimeSpan, TimeStamp};
 
@@ -218,12 +218,11 @@ pub trait ChartProcessor {
 
     /// Query: events in a time window centered at current moment.
     ///
-    /// The window is `[now - backward, now + forward]`, where `now` is the current playhead time
-    /// since [`start_play`] (scaled by [`playback_ratio`]).
+    /// The window is `range + now`, where `now` is the current playhead time since [`start_play`]
+    /// (scaled by [`playback_ratio`]) and `range` is a `TimeSpan` offset range.
     fn events_in_time_range(
         &mut self,
-        backward: TimeSpan,
-        forward: TimeSpan,
+        range: impl RangeBounds<TimeSpan>,
     ) -> impl Iterator<Item = PlayheadEvent>;
 
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.

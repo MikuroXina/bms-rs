@@ -671,6 +671,7 @@ impl AllEventsIndex {
     where
         R: RangeBounds<TimeSpan>,
     {
+        // To avoid panic when `start > end` or the range is empty.
         let mut start_bound = range.start_bound().cloned();
         let mut end_bound = range.end_bound().cloned();
 
@@ -695,15 +696,25 @@ impl AllEventsIndex {
             .collect()
     }
 
-    pub fn events_in_time_range_from_center(
+    pub fn events_in_time_range_offset_from<R>(
         &self,
         center: TimeSpan,
-        backward: TimeSpan,
-        forward: TimeSpan,
-    ) -> Vec<PlayheadEvent> {
-        let start = (center - backward).max(TimeSpan::ZERO);
-        let end = center + forward;
-        self.events_in_time_range(start..=end)
+        range: R,
+    ) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<TimeSpan>,
+    {
+        let start_bound = match range.start_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        let end_bound = match range.end_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        self.events_in_time_range((start_bound, end_bound))
     }
 }
 
@@ -787,6 +798,59 @@ mod tests {
 
         let got_ids: Vec<usize> = idx
             .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1]);
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
+            )
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert!(got_ids.is_empty());
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_excludes_zero_when_end_is_excluded() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert!(got_ids.is_empty());
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                (TimeSpan::ZERO - TimeSpan::MILLISECOND * 200)..=TimeSpan::ZERO,
+            )
             .into_iter()
             .map(|ev| ev.id.value())
             .collect();

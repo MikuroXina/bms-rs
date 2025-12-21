@@ -109,7 +109,9 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
         .collect();
 
     let events: Vec<_> = processor
-        .events_in_time_range(TimeSpan::MILLISECOND * 300, TimeSpan::MILLISECOND * 300)
+        .events_in_time_range(
+            (TimeSpan::ZERO - TimeSpan::MILLISECOND * 300)..=(TimeSpan::MILLISECOND * 300),
+        )
         .collect();
     assert!(
         events
