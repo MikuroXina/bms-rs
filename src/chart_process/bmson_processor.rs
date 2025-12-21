@@ -183,20 +183,20 @@ impl BmsonProcessor {
             return;
         }
 
-        let mut remaining_secs = Decimal::from((now - last).as_secs_f64());
+        let mut remaining_time = now - last;
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
         loop {
             let next_event = self.next_flow_event_after(cur_y.clone());
             if next_event.is_none()
                 || cur_vel == Decimal::zero()
-                || remaining_secs == Decimal::zero()
+                || remaining_time <= TimeSpan::ZERO
             {
-                cur_y += cur_vel * remaining_secs;
+                cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
                 break;
             }
             let Some((event_y, evt)) = next_event else {
-                cur_y += cur_vel * remaining_secs;
+                cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
                 break;
             };
             if event_y.clone() <= cur_y.clone() {
@@ -207,15 +207,19 @@ impl BmsonProcessor {
             let distance = event_y.clone() - cur_y.clone();
             if cur_vel > Decimal::zero() {
                 let time_to_event_secs = distance / cur_vel.clone();
-                if time_to_event_secs <= remaining_secs {
+                // Convert Decimal seconds to TimeSpan
+                let time_to_event = TimeSpan::from_duration(Duration::from_secs_f64(
+                    time_to_event_secs.to_f64().unwrap_or(0.0),
+                ));
+                if time_to_event <= remaining_time {
                     cur_y = event_y;
-                    remaining_secs -= time_to_event_secs;
+                    remaining_time -= time_to_event;
                     self.apply_flow_event(evt);
                     cur_vel = self.current_velocity();
                     continue;
                 }
             }
-            cur_y += cur_vel * remaining_secs;
+            cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
             break;
         }
 
@@ -331,18 +335,20 @@ impl ChartProcessor for BmsonProcessor {
     ) -> impl Iterator<Item = PlayheadEvent> {
         let events: Vec<PlayheadEvent> = if let Some(started) = self.started_at {
             let last = self.last_poll_at.unwrap_or(started);
-            let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
-            let elapsed_secs = last
+            // Calculate center time: elapsed time scaled by playback ratio
+            let elapsed = last
                 .checked_elapsed_since(started)
-                .unwrap_or(TimeSpan::ZERO)
-                .as_secs_f64();
-            let center_secs = (elapsed_secs * ratio_f64).max(0.0);
-            let center_secs = if center_secs.is_finite() {
-                center_secs
+                .unwrap_or(TimeSpan::ZERO);
+            // Convert to Decimal for multiplication with Decimal ratio, then back to TimeSpan
+            let elapsed_seconds = Decimal::from(elapsed.as_secs_f64());
+            let center_seconds = elapsed_seconds * self.playback_ratio.clone();
+            let center_secs_f64 = center_seconds.to_f64().unwrap_or(0.0).max(0.0);
+            let center_secs_f64 = if center_secs_f64.is_finite() {
+                center_secs_f64
             } else {
                 0.0
             };
-            let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
+            let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs_f64));
             self.all_events
                 .events_in_time_range_offset_from(center, range)
         } else {

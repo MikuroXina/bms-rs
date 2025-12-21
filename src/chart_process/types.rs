@@ -74,6 +74,8 @@ impl VisibleRangePerBpm {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
+            // Convert TimeSpan to Decimal seconds for calculation with Decimal BPM
+            // Note: Uses f64 intermediate due to gametime API limitations
             let seconds = Decimal::from(reaction_time.as_secs_f64());
             Self(seconds / base_bpm.value().clone())
         }
@@ -100,6 +102,8 @@ impl VisibleRangePerBpm {
         if self.0.is_zero() {
             TimeSpan::ZERO
         } else {
+            // Convert Decimal to seconds, then to TimeSpan
+            // Note: Uses f64 intermediate due to gametime API limitations
             let seconds = self.0.clone() * Decimal::from(240);
             let secs = seconds.to_f64().unwrap_or(0.0).max(0.0);
             let secs = if secs.is_finite() { secs } else { 0.0 };
