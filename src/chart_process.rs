@@ -6,36 +6,27 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
+use std::{collections::HashMap, path::Path};
+
+use gametime::{TimeSpan, TimeStamp};
+
+use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-
-use crate::bms::prelude::SwBgaEvent;
+use crate::chart_process::types::{
+    BmpId, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm, WavId, YCoordinate,
+};
 
 pub mod bms_processor;
 pub mod bmson_processor;
-
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Duration, Instant},
-};
 
 // Type definition module
 pub mod types;
 
 // Prelude module
 pub mod prelude;
-
-// Use types from prelude
-pub use prelude::{
-    BaseBpm, BaseBpmGenerator, BmpId, DisplayRatio, ManualBpmGenerator, MaxBpmGenerator,
-    MinBpmGenerator, StartBpmGenerator, VisibleRangePerBpm, WavId, YCoordinate,
-};
-
-// Use custom wrapper types
-pub use types::{PlayheadEvent, VisibleChartEvent};
 
 /// Events generated during playback (Elm style).
 ///
@@ -58,8 +49,8 @@ pub enum ChartEvent {
         wav_id: Option<WavId>,
         /// Note length (end position for long notes, None for regular notes)
         length: Option<YCoordinate>,
-        /// Note continue play duration. None for BMS; in BMSON, Some(duration) when Note.c is true.
-        continue_play: Option<Duration>,
+        /// Note continue play span. None for BMS; in BMSON, Some(span) when Note.c is true.
+        continue_play: Option<TimeSpan>,
     },
     /// BGM and other non-key triggers (no valid side/key)
     Bgm {
@@ -214,16 +205,16 @@ pub trait ChartProcessor {
     fn playback_ratio(&self) -> &Decimal;
 
     /// Notify: start playback, record starting absolute time.
-    fn start_play(&mut self, now: Instant);
+    fn start_play(&mut self, now: TimeStamp);
 
     /// Get: playback start time.
     ///
     /// Returns `Some(Instant)` if `start_play` has been called and playback is active,
     /// otherwise returns `None`.
-    fn started_at(&self) -> Option<Instant>;
+    fn started_at(&self) -> Option<TimeStamp>;
 
     /// Update: advance internal timeline, return timeline events generated since last call (Elm style).
-    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent>;
+    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent>;
 
     /// Query: events in a time window centered at current moment.
     ///
@@ -231,8 +222,8 @@ pub trait ChartProcessor {
     /// since [`start_play`] (scaled by [`playback_ratio`]).
     fn events_in_time_range(
         &mut self,
-        backward: Duration,
-        forward: Duration,
+        backward: TimeSpan,
+        forward: TimeSpan,
     ) -> impl Iterator<Item = PlayheadEvent>;
 
     /// Post external control events (such as setting default reaction time/default BPM), will be consumed before next `update`.
@@ -242,5 +233,5 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent>;
+    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent>;
 }

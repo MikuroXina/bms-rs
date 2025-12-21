@@ -3,17 +3,17 @@
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
-    time::{Duration, Instant},
 };
 
+use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
-    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
+use crate::chart_process::types::{
+    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleChartEvent,
+    VisibleRangePerBpm, WavId, YCoordinate,
 };
+use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
 /// ChartProcessor of Bms files.
 pub struct BmsProcessor {
@@ -23,8 +23,8 @@ pub struct BmsProcessor {
     bmp_paths: HashMap<BmpId, PathBuf>,
 
     // Playback state
-    started_at: Option<Instant>,
-    last_poll_at: Option<Instant>,
+    started_at: Option<TimeStamp>,
+    last_poll_at: Option<TimeStamp>,
     /// Accumulated displacement progressed (y, actual movement distance unit)
     progressed_y: Decimal,
 
@@ -227,12 +227,8 @@ impl BmsProcessor {
             if track_y <= max_y {
                 let y_coord = YCoordinate::from(track_y);
                 let event = ChartEvent::BarLine;
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -259,7 +255,7 @@ impl BmsProcessor {
     }
 
     /// Advance time to `now`, perform segmented integration of progress and speed by events.
-    fn step_to(&mut self, now: Instant) {
+    fn step_to(&mut self, now: TimeStamp) {
         let Some(started) = self.started_at else {
             return;
         };
@@ -268,7 +264,7 @@ impl BmsProcessor {
             return;
         }
 
-        let mut remaining_secs = Decimal::from(now.duration_since(last).as_secs_f64());
+        let mut remaining_secs = Decimal::from((now - last).as_secs_f64());
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
         // Advance in segments until time slice is used up
@@ -372,7 +368,7 @@ impl ChartProcessor for BmsProcessor {
         &self.playback_ratio
     }
 
-    fn start_play(&mut self, now: Instant) {
+    fn start_play(&mut self, now: TimeStamp) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
@@ -381,11 +377,11 @@ impl ChartProcessor for BmsProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
-    fn started_at(&self) -> Option<Instant> {
+    fn started_at(&self) -> Option<TimeStamp> {
         self.started_at
     }
 
-    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
+    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -429,18 +425,18 @@ impl ChartProcessor for BmsProcessor {
 
     fn events_in_time_range(
         &mut self,
-        backward: Duration,
-        forward: Duration,
+        backward: TimeSpan,
+        forward: TimeSpan,
     ) -> impl Iterator<Item = PlayheadEvent> {
         let events: Vec<PlayheadEvent> = self.started_at.map_or_else(Vec::new, |started| {
             let last = self.last_poll_at.unwrap_or(started);
             let ratio_f64 = self.playback_ratio.to_f64().unwrap_or(1.0).max(0.0);
             let elapsed_secs = last
-                .checked_duration_since(started)
-                .unwrap_or_default()
+                .checked_elapsed_since(started)
+                .unwrap_or(TimeSpan::ZERO)
                 .as_secs_f64();
             let center_secs = (elapsed_secs * ratio_f64).max(0.0);
-            let center = Duration::from_secs_f64(center_secs);
+            let center = time_span_from_secs_f64(center_secs);
             self.all_events
                 .events_in_time_range_from_center(center, backward, forward)
         });
@@ -463,7 +459,7 @@ impl ChartProcessor for BmsProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent> {
+    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
@@ -514,12 +510,7 @@ impl AllEventsIndex {
             let event = event_for_note_static::<T>(bms, obj, y.clone());
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -531,12 +522,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -548,12 +534,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -565,12 +546,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -582,12 +558,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -601,12 +572,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -621,12 +587,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -641,12 +603,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -659,12 +617,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -676,12 +629,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -693,12 +641,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -710,12 +653,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -730,12 +668,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
 
@@ -748,12 +682,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
 
@@ -765,12 +695,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -875,7 +801,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .iter()
         .map(|(y_coord, indices)| {
             let y = y_coord.value();
-            let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
+            let at = time_span_from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())
@@ -891,6 +817,10 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         })
         .collect();
     AllEventsIndex::new(new_map)
+}
+
+fn time_span_from_secs_f64(secs: f64) -> TimeSpan {
+    TimeSpan::new((secs.max(0.0) * 1_000_000_000.0) as i64)
 }
 
 #[must_use]

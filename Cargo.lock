@@ -40,6 +40,7 @@ dependencies = [
  "ariadne",
  "chumsky",
  "fraction",
+ "gametime",
  "itertools",
  "num",
  "pretty_assertions",
@@ -121,6 +122,12 @@ dependencies = [
  "serde",
  "serde_derive",
 ]
+
+[[package]]
+name = "gametime"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3c7d70f467c15f7957c730f4e85cc48405072e3317e6997ac80974c682896a4"
 
 [[package]]
 name = "getrandom"

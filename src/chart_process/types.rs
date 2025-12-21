@@ -3,9 +3,10 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::ops::{Bound, Range, RangeBounds};
-use std::time::Duration;
 
 use num::{One, ToPrimitive, Zero};
+
+use super::TimeSpan;
 
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
@@ -68,7 +69,7 @@ impl VisibleRangePerBpm {
     /// Create a new VisibleRangePerBpm from base BPM and reaction time
     /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
     #[must_use]
-    pub fn new(base_bpm: &BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
@@ -94,12 +95,12 @@ impl VisibleRangePerBpm {
     /// Formula: reaction_time = visible_range_per_bpm / playhead_speed
     /// where playhead_speed = 1/240 (Y/sec per BPM)
     #[must_use]
-    pub fn to_reaction_time(&self) -> Duration {
+    pub fn to_reaction_time(&self) -> TimeSpan {
         if self.0.is_zero() {
-            Duration::from_secs(0)
+            TimeSpan::ZERO
         } else {
             let seconds = self.0.clone() * Decimal::from(240);
-            Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
+            TimeSpan::new((seconds.to_f64().unwrap_or(0.0).max(0.0) * 1_000_000_000.0) as i64)
         }
     }
 
@@ -459,7 +460,7 @@ pub struct PlayheadEvent {
     /// Chart event
     pub event: ChartEvent,
     /// Activate time since chart playback started
-    pub activate_time: Duration,
+    pub activate_time: TimeSpan,
 }
 
 impl PlayheadEvent {
@@ -469,7 +470,7 @@ impl PlayheadEvent {
         id: ChartEventId,
         position: YCoordinate,
         event: ChartEvent,
-        activate_time: Duration,
+        activate_time: TimeSpan,
     ) -> Self {
         Self {
             position,
@@ -499,7 +500,7 @@ impl PlayheadEvent {
 
     /// Get activate time
     #[must_use]
-    pub const fn activate_time(&self) -> &Duration {
+    pub const fn activate_time(&self) -> &TimeSpan {
         &self.activate_time
     }
 }
@@ -532,7 +533,7 @@ pub struct VisibleChartEvent {
     /// Display ratio
     pub display_ratio: DisplayRatio,
     /// Activate time since chart playback started
-    pub activate_time: Duration,
+    pub activate_time: TimeSpan,
 }
 
 impl VisibleChartEvent {
@@ -543,7 +544,7 @@ impl VisibleChartEvent {
         position: YCoordinate,
         event: ChartEvent,
         display_ratio: DisplayRatio,
-        activate_time: Duration,
+        activate_time: TimeSpan,
     ) -> Self {
         Self {
             position,
@@ -580,7 +581,7 @@ impl VisibleChartEvent {
 
     /// Get activate time
     #[must_use]
-    pub const fn activate_time(&self) -> &Duration {
+    pub const fn activate_time(&self) -> &TimeSpan {
         &self.activate_time
     }
 }
@@ -603,7 +604,7 @@ impl std::hash::Hash for VisibleChartEvent {
 pub(crate) struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
-    by_time: BTreeMap<Duration, Vec<usize>>,
+    by_time: BTreeMap<TimeSpan, Vec<usize>>,
 }
 
 impl AllEventsIndex {
@@ -619,7 +620,7 @@ impl AllEventsIndex {
             by_y.insert(y_coord, start..end);
         }
 
-        let mut by_time: BTreeMap<Duration, Vec<usize>> = BTreeMap::new();
+        let mut by_time: BTreeMap<TimeSpan, Vec<usize>> = BTreeMap::new();
         for (idx, ev) in events.iter().enumerate() {
             by_time.entry(ev.activate_time).or_default().push(idx);
         }
@@ -668,7 +669,7 @@ impl AllEventsIndex {
 
     pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
-        R: RangeBounds<Duration>,
+        R: RangeBounds<TimeSpan>,
     {
         let mut start_bound = range.start_bound().cloned();
         let mut end_bound = range.end_bound().cloned();
@@ -696,11 +697,11 @@ impl AllEventsIndex {
 
     pub fn events_in_time_range_from_center(
         &self,
-        center: Duration,
-        backward: Duration,
-        forward: Duration,
+        center: TimeSpan,
+        backward: TimeSpan,
+        forward: TimeSpan,
     ) -> Vec<PlayheadEvent> {
-        let start = center.saturating_sub(backward);
+        let start = (center - backward).max(TimeSpan::ZERO);
         let end = center + forward;
         self.events_in_time_range(start..=end)
     }
@@ -709,9 +710,8 @@ impl AllEventsIndex {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::time::Duration;
 
-    use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, YCoordinate};
+    use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, TimeSpan, YCoordinate};
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
         let y_coord = YCoordinate::from(y);
@@ -719,7 +719,7 @@ mod tests {
             ChartEventId::new(id),
             y_coord,
             ChartEvent::BarLine,
-            Duration::from_secs(time_secs),
+            TimeSpan::SECOND * time_secs as i64,
         )
     }
 
@@ -761,7 +761,7 @@ mod tests {
         let idx = AllEventsIndex::new(map);
 
         let got_ids: Vec<usize> = idx
-            .events_in_time_range(Duration::from_secs(1)..Duration::from_secs(2))
+            .events_in_time_range(TimeSpan::SECOND..TimeSpan::SECOND * 2)
             .into_iter()
             .map(|ev| ev.id.value())
             .collect();
@@ -779,17 +779,14 @@ mod tests {
         let idx = AllEventsIndex::new(map);
 
         let got_ids: Vec<usize> = idx
-            .events_in_time_range((
-                Included(Duration::from_secs(2)),
-                Included(Duration::from_secs(1)),
-            ))
+            .events_in_time_range((Included(TimeSpan::SECOND * 2), Included(TimeSpan::SECOND)))
             .into_iter()
             .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
 
         let got_ids: Vec<usize> = idx
-            .events_in_time_range((Unbounded, Included(Duration::from_secs(1))))
+            .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
             .into_iter()
             .map(|ev| ev.id.value())
             .collect();

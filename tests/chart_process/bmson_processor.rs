@@ -1,12 +1,12 @@
 #![cfg(feature = "bmson")]
 
-use std::time::{Duration, Instant};
+use gametime::{TimeSpan, TimeStamp};
 
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
 /// Setup a BMSON processor for testing (without calling start_play)
-fn setup_bmson_processor(json: &str, reaction_time: Duration) -> BmsonProcessor {
+fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");
 
@@ -48,14 +48,14 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
 
     // Progress slightly so the note at y=0.5 is inside visible window (0.6 measure default)
     // Advance slightly to ensure y=0.5 enters the visible window (default 0.6 measure)
-    let t = start_time + Duration::from_millis(100);
+    let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     // Find the note and assert continue_play duration
@@ -101,15 +101,15 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
         ]
     }"#;
 
-    let mut processor = setup_bmson_processor(json, Duration::from_millis(600));
-    let start_time = Instant::now() - Duration::from_secs(2);
+    let mut processor = setup_bmson_processor(json, TimeSpan::MILLISECOND * 600);
+    let start_time = TimeStamp::start();
     processor.start_play(start_time);
     let _events: Vec<_> = processor
-        .update(start_time + Duration::from_secs(2))
+        .update(start_time + TimeSpan::SECOND * 2)
         .collect();
 
     let events: Vec<_> = processor
-        .events_in_time_range(Duration::from_millis(300), Duration::from_millis(300))
+        .events_in_time_range(TimeSpan::MILLISECOND * 300, TimeSpan::MILLISECOND * 300)
         .collect();
     assert!(
         events
@@ -119,8 +119,7 @@ fn test_bmson_events_in_time_range_returns_note_near_center() {
     );
     for ev in events {
         assert!(
-            *ev.activate_time() >= Duration::from_secs(1)
-                && *ev.activate_time() <= Duration::from_secs(3),
+            *ev.activate_time() >= TimeSpan::SECOND && *ev.activate_time() <= TimeSpan::SECOND * 3,
             "activate_time should be within the query window: {:?}",
             ev.activate_time()
         );
@@ -165,13 +164,13 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
 
     // Advance slightly to ensure y=0.25 enters the visible window (default 0.6 measure)
-    let t = start_time + Duration::from_millis(100);
+    let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     let mut found = false;
@@ -227,12 +226,12 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(5000);
+    let reaction_time = TimeSpan::MILLISECOND * 5000;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
 
-    let t = start_time + Duration::from_millis(100);
+    let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     let mut some_count = 0;
@@ -298,16 +297,16 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
 
     // Advance to make the preload window cover the note at y=1.25
     // Note: With new playhead speed (1/240), speed is half of original (1/120)
     // So need more time to reach the same Y position
     // Also reaction time is now 1.2s instead of 0.6s
-    let t = start_time + Duration::from_millis(2400);
+    let t = start_time + TimeSpan::MILLISECOND * 2400;
     let _ = processor.update(t);
 
     let mut found = false;
@@ -363,11 +362,11 @@ fn test_bmson_continue_independent_across_sound_channels() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(5000);
+    let reaction_time = TimeSpan::MILLISECOND * 5000;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
-    let t = start_time + Duration::from_millis(100);
+    let t = start_time + TimeSpan::MILLISECOND * 100;
     let _ = processor.update(t);
 
     let mut durations = Vec::new();
@@ -415,9 +414,9 @@ fn test_bmson_visible_event_activate_time_prediction() {
         ]
     }"#;
 
-    let reaction_time = Duration::from_millis(600);
+    let reaction_time = TimeSpan::MILLISECOND * 600;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
 
     let _ = processor.update(start_time);
@@ -460,9 +459,9 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
         "bpm_events": [ { "y": 480, "bpm": 240.0 } ]
     }"#;
 
-    let reaction_time = Duration::from_millis(2000);
+    let reaction_time = TimeSpan::MILLISECOND * 2000;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
@@ -505,9 +504,9 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
         "stop_events": [ { "y": 480, "duration": 240 } ]
     }"#;
 
-    let reaction_time = Duration::from_millis(3000);
+    let reaction_time = TimeSpan::MILLISECOND * 3000;
     let mut processor = setup_bmson_processor(json, reaction_time);
-    let start_time = Instant::now();
+    let start_time = TimeStamp::now();
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
