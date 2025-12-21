@@ -190,7 +190,7 @@ impl BmsProcessor {
             playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
-            init_bpm: init_bpm.clone(),
+            init_bpm,
         }
     }
 
@@ -247,7 +247,7 @@ impl BmsProcessor {
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
-    fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
+    fn next_flow_event_after(&self, y_from_exclusive: &Decimal) -> Option<(Decimal, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
@@ -270,28 +270,30 @@ impl BmsProcessor {
         let mut cur_y = self.progressed_y.clone();
         // Advance in segments until time slice is used up
         loop {
+            let cur_y_now = cur_y;
             // The next event that affects speed
-            let next_event = self.next_flow_event_after(cur_y.clone());
+            let next_event = self.next_flow_event_after(&cur_y_now);
             if next_event.is_none()
                 || cur_vel <= Decimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end
-                cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
+                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
                 break;
             }
             let Some((event_y, evt)) = next_event else {
-                cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
+                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
                 break;
             };
-            if event_y.clone() <= cur_y.clone() {
+            if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
                 self.apply_flow_event(evt);
                 cur_vel = self.current_velocity();
+                cur_y = cur_y_now;
                 continue;
             }
             // Time required to reach event
-            let distance = event_y.clone() - cur_y.clone();
+            let distance = event_y.clone() - cur_y_now.clone();
             if cur_vel > Decimal::zero() {
                 let time_to_event_secs = distance / cur_vel.clone();
                 // Convert Decimal seconds to TimeSpan
@@ -308,7 +310,7 @@ impl BmsProcessor {
                 }
             }
             // Time not enough to reach event, advance and end
-            cur_y += cur_vel * Decimal::from(remaining_time.as_secs_f64());
+            cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
             break;
         }
 
@@ -763,10 +765,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
     let mut prev = Decimal::zero();
     cum_map.insert(prev.clone(), 0.0);
     let mut cur_bpm = bpm_map
-        .range((
-            std::ops::Bound::Unbounded,
-            std::ops::Bound::Included(prev.clone()),
-        ))
+        .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
         .next_back()
         .map(|(_, b)| b.clone())
         .unwrap_or_else(|| init_bpm.clone());
@@ -784,10 +783,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
             }
             if sy > &prev {
                 let bpm_at_stop = bpm_map
-                    .range((
-                        std::ops::Bound::Unbounded,
-                        std::ops::Bound::Included(sy.clone()),
-                    ))
+                    .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(sy)))
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
@@ -798,10 +794,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
             stop_idx += 1;
         }
         cur_bpm = bpm_map
-            .range((
-                std::ops::Bound::Unbounded,
-                std::ops::Bound::Included(curr.clone()),
-            ))
+            .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
