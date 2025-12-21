@@ -51,13 +51,9 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     );
 
     // Verify display ratio calculation
-    for visible_event in &after_change_events {
+    for (visible_event, display_ratio) in &after_change_events {
         let y_value = visible_event.position().value().to_f64().unwrap_or(0.0);
-        let display_ratio_value = visible_event
-            .display_ratio()
-            .value()
-            .to_f64()
-            .unwrap_or(0.0);
+        let display_ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
 
         // Display ratio should be in reasonable range
         assert!(
@@ -123,7 +119,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
         "Should have visible events after advance"
     );
 
-    for ev in events {
+    for (ev, _) in events {
         let secs = ev.activate_time().as_secs_f64();
         let elapsed = after.duration_since(start_time).as_secs_f64();
         assert!(secs >= elapsed, "activate_time should be >= elapsed");
@@ -176,12 +172,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     );
 
     // Verify display ratio is still valid
-    for visible_event in &after_bpm_events {
-        let ratio_value = visible_event
-            .display_ratio()
-            .value()
-            .to_f64()
-            .unwrap_or(0.0);
+    for (_, display_ratio) in &after_bpm_events {
+        let ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
         assert!(ratio_value.is_finite() && ratio_value >= 0.0);
     }
 }
@@ -220,13 +212,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let initial_events: Vec<_> = processor.visible_events(start_time).collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
-        .map(|visible_event| {
-            visible_event
-                .display_ratio()
-                .value()
-                .to_f64()
-                .unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
@@ -242,13 +228,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events(after_first_scroll)
         .collect::<Vec<_>>()
         .iter()
-        .map(|visible_event| {
-            visible_event
-                .display_ratio()
-                .value()
-                .to_f64()
-                .unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if after_first_ratios.is_empty() {
@@ -278,13 +258,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events(after_scroll_half)
         .collect::<Vec<_>>()
         .iter()
-        .map(|visible_event| {
-            visible_event
-                .display_ratio()
-                .value()
-                .to_f64()
-                .unwrap_or(0.0)
-        })
+        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if after_scroll_half_ratios.is_empty() {

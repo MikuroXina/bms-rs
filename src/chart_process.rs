@@ -35,7 +35,7 @@ pub use prelude::{
 };
 
 // Use custom wrapper types
-pub use types::{PlayheadEvent, VisibleChartEvent};
+pub use types::PlayheadEvent;
 
 /// Events generated during playback (Elm style).
 ///
@@ -232,5 +232,8 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent>;
+    fn visible_events(
+        &mut self,
+        now: Instant,
+    ) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
 }

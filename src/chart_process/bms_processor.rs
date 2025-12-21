@@ -8,8 +8,8 @@ use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
+    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleRangePerBpm, WavId,
+    YCoordinate,
     types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
 };
 
@@ -451,7 +451,10 @@ impl ChartProcessor for BmsProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent> {
+    fn visible_events(
+        &mut self,
+        now: Instant,
+    ) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
@@ -468,16 +471,7 @@ impl ChartProcessor for BmsProcessor {
                 Default::default()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
-
-            let activate_time = event_with_pos.activate_time;
-
-            VisibleChartEvent::new(
-                event_with_pos.id,
-                event_with_pos.position().clone(),
-                event_with_pos.event().clone(),
-                display_ratio,
-                activate_time,
-            )
+            (event_with_pos.clone(), display_ratio)
         })
     }
 }
