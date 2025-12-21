@@ -5,6 +5,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     path::Path,
     sync::OnceLock,
+    time::Duration,
 };
 
 use gametime::{TimeSpan, TimeStamp};
@@ -249,10 +250,6 @@ impl BmsonProcessor {
     }
 }
 
-fn time_span_from_secs_f64(secs: f64) -> TimeSpan {
-    TimeSpan::new((secs.max(0.0) * 1_000_000_000.0) as i64)
-}
-
 impl ChartProcessor for BmsonProcessor {
     fn audio_files(&self) -> HashMap<WavId, &Path> {
         // Note: Audio file paths in BMSON are relative to the chart file, here returning virtual paths
@@ -340,7 +337,12 @@ impl ChartProcessor for BmsonProcessor {
                 .unwrap_or(TimeSpan::ZERO)
                 .as_secs_f64();
             let center_secs = (elapsed_secs * ratio_f64).max(0.0);
-            let center = time_span_from_secs_f64(center_secs);
+            let center_secs = if center_secs.is_finite() {
+                center_secs
+            } else {
+                0.0
+            };
+            let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
             self.all_events
                 .events_in_time_range_offset_from(center, range)
         } else {
@@ -537,6 +539,10 @@ impl AllEventsIndex {
             prev = curr;
         }
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        let to_time_span = |secs: f64| {
+            let secs = if secs.is_finite() { secs.max(0.0) } else { 0.0 };
+            TimeSpan::from_duration(Duration::from_secs_f64(secs))
+        };
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
             let mut last_restart_y = Decimal::zero();
@@ -557,7 +563,7 @@ impl AllEventsIndex {
                     let continue_play = c.then(|| {
                         let to = cum_map.get(&yy).copied().unwrap_or(0.0);
                         let from = cum_map.get(&last_restart_y).copied().unwrap_or(0.0);
-                        time_span_from_secs_f64((to - from).max(0.0))
+                        to_time_span(to - from)
                     });
                     let event = ChartEvent::Note {
                         side,
@@ -567,7 +573,7 @@ impl AllEventsIndex {
                         length,
                         continue_play,
                     };
-                    let at = time_span_from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                    let at = to_time_span(cum_map.get(&yy).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     if !*c {
@@ -575,7 +581,7 @@ impl AllEventsIndex {
                     }
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
-                    let at = time_span_from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                    let at = to_time_span(cum_map.get(&yy).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
@@ -587,7 +593,7 @@ impl AllEventsIndex {
             let event = ChartEvent::BpmChange {
                 bpm: ev.bpm.as_f64().into(),
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -597,7 +603,7 @@ impl AllEventsIndex {
             let event = ChartEvent::ScrollChange {
                 factor: rate.as_f64().into(),
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -613,7 +619,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -625,7 +631,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -637,7 +643,7 @@ impl AllEventsIndex {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -646,8 +652,7 @@ impl AllEventsIndex {
                 let y = pulses_to_y(bar_line.y.0);
                 let y_coord = YCoordinate::from(y);
                 let event = ChartEvent::BarLine;
-                let at =
-                    time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -663,9 +668,7 @@ impl AllEventsIndex {
                 while current_y <= max_y {
                     let y_coord = YCoordinate::from(current_y.clone());
                     let event = ChartEvent::BarLine;
-                    let at = time_span_from_secs_f64(
-                        cum_map.get(y_coord.value()).copied().unwrap_or(0.0),
-                    );
+                    let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     current_y += Decimal::one();
@@ -678,7 +681,7 @@ impl AllEventsIndex {
             let event = ChartEvent::Stop {
                 duration: (stop.duration as f64).into(),
             };
-            let at = time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -698,8 +701,7 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at =
-                    time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -720,8 +722,7 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at =
-                    time_span_from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }

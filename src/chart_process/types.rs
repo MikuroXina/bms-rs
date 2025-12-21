@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::ops::{Bound, Range, RangeBounds};
+use std::time::Duration;
 
 use num::{One, ToPrimitive, Zero};
 
@@ -100,7 +101,9 @@ impl VisibleRangePerBpm {
             TimeSpan::ZERO
         } else {
             let seconds = self.0.clone() * Decimal::from(240);
-            TimeSpan::new((seconds.to_f64().unwrap_or(0.0).max(0.0) * 1_000_000_000.0) as i64)
+            let secs = seconds.to_f64().unwrap_or(0.0).max(0.0);
+            let secs = if secs.is_finite() { secs } else { 0.0 };
+            TimeSpan::from_duration(Duration::from_secs_f64(secs))
         }
     }
 

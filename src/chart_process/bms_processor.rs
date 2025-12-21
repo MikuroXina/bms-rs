@@ -3,6 +3,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use gametime::{TimeSpan, TimeStamp};
@@ -435,7 +436,12 @@ impl ChartProcessor for BmsProcessor {
                 .unwrap_or(TimeSpan::ZERO)
                 .as_secs_f64();
             let center_secs = (elapsed_secs * ratio_f64).max(0.0);
-            let center = time_span_from_secs_f64(center_secs);
+            let center_secs = if center_secs.is_finite() {
+                center_secs
+            } else {
+                0.0
+            };
+            let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs));
             self.all_events
                 .events_in_time_range_offset_from(center, range)
         } else {
@@ -802,7 +808,9 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .iter()
         .map(|(y_coord, indices)| {
             let y = y_coord.value();
-            let at = time_span_from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
+            let at_secs = cum_map.get(y).copied().unwrap_or(0.0).max(0.0);
+            let at_secs = if at_secs.is_finite() { at_secs } else { 0.0 };
+            let at = TimeSpan::from_duration(Duration::from_secs_f64(at_secs));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())
@@ -818,10 +826,6 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         })
         .collect();
     AllEventsIndex::new(new_map)
-}
-
-fn time_span_from_secs_f64(secs: f64) -> TimeSpan {
-    TimeSpan::new((secs.max(0.0) * 1_000_000_000.0) as i64)
 }
 
 #[must_use]
