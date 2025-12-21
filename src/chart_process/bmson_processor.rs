@@ -346,11 +346,7 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(
-        &mut self,
-        now: Instant,
-    ) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
-        self.step_to(now);
+    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
         let scroll_factor = self.current_scroll.clone();

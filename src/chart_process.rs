@@ -232,8 +232,7 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(
-        &mut self,
-        now: Instant,
-    ) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
+    ///
+    /// This does not advance the internal timeline. Call [`update`] first to refresh the visible window.
+    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
 }

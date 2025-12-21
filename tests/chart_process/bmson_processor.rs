@@ -57,7 +57,7 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
 
     // Find the note and assert continue_play duration
     let mut found = false;
-    for (ev, _) in processor.visible_events(t) {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -133,7 +133,7 @@ fn test_bmson_continue_duration_with_bpm_scroll_and_stop() {
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events(t) {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -205,7 +205,7 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     let mut some_count = 0;
     let mut none_count = 0;
     let mut durations = Vec::new();
-    for (ev, _) in processor.visible_events(t) {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => {
@@ -287,7 +287,7 @@ fn test_bmson_continue_accumulates_multiple_stops_between_notes() {
     let _ = processor.update(t);
 
     let mut found = false;
-    for (ev, _) in processor.visible_events(t) {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note {
             continue_play: Some(dur),
             ..
@@ -357,7 +357,7 @@ fn test_bmson_continue_independent_across_sound_channels() {
 
     let mut durations = Vec::new();
     let mut none_count = 0;
-    for (ev, _) in processor.visible_events(t) {
+    for (ev, _) in processor.visible_events() {
         if let ChartEvent::Note { continue_play, .. } = ev.event() {
             match continue_play {
                 Some(d) => durations.push(d.as_secs_f64()),
@@ -414,7 +414,7 @@ fn test_bmson_visible_event_activate_time_prediction() {
     processor.start_play(start_time);
 
     let _ = processor.update(start_time);
-    let events: Vec<_> = processor.visible_events(start_time).collect();
+    let events: Vec<_> = processor.visible_events().collect();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -467,7 +467,7 @@ fn test_bmson_visible_event_activate_time_with_bpm_change() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events: Vec<_> = processor.visible_events(start_time).collect();
+    let events: Vec<_> = processor.visible_events().collect();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;
@@ -520,7 +520,7 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
     processor.start_play(start_time);
     let _ = processor.update(start_time);
 
-    let events: Vec<_> = processor.visible_events(start_time).collect();
+    let events: Vec<_> = processor.visible_events().collect();
     assert!(!events.is_empty(), "Should have visible events at start");
 
     let mut checked = false;

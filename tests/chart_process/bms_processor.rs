@@ -44,7 +44,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let _ = processor.update(after_first_change);
 
     // Check that visible_events method works normally
-    let after_change_events: Vec<_> = processor.visible_events(after_first_change).collect();
+    let after_change_events: Vec<_> = processor.visible_events().collect();
     assert!(
         !after_change_events.is_empty(),
         "Should have visible events"
@@ -113,7 +113,7 @@ fn test_bms_visible_event_activate_time_within_reaction_window() {
 
     let after = start_time + Duration::from_secs(1);
     let _ = processor.update(after);
-    let events: Vec<_> = processor.visible_events(after).collect();
+    let events: Vec<_> = processor.visible_events().collect();
     assert!(
         !events.is_empty(),
         "Should have visible events after advance"
@@ -165,7 +165,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     assert_eq!(*processor.current_bpm(), Decimal::from_str("75.5").unwrap());
 
     // Get visible events after BPM change
-    let after_bpm_events: Vec<_> = processor.visible_events(after_first_change).collect();
+    let after_bpm_events: Vec<_> = processor.visible_events().collect();
     assert!(
         !after_bpm_events.is_empty(),
         "Should still have visible events after BPM change"
@@ -209,7 +209,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     assert_eq!(*processor.current_scroll(), Decimal::one());
 
     // Get initial visible events and their display ratios
-    let initial_events: Vec<_> = processor.visible_events(start_time).collect();
+    let initial_events: Vec<_> = processor.visible_events().collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
         .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
@@ -225,7 +225,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     assert_eq!(*processor.current_scroll(), Decimal::one());
 
     let after_first_ratios: Vec<f64> = processor
-        .visible_events(after_first_scroll)
+        .visible_events()
         .collect::<Vec<_>>()
         .iter()
         .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
@@ -255,7 +255,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     );
 
     let after_scroll_half_ratios: Vec<f64> = processor
-        .visible_events(after_scroll_half)
+        .visible_events()
         .collect::<Vec<_>>()
         .iter()
         .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
