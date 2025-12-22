@@ -19,6 +19,8 @@ use crate::chart_process::types::{
 };
 use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
     // Resource ID mappings
@@ -188,11 +190,15 @@ impl BmsonProcessor {
                 || cur_vel == Decimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
+                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
+                let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_seconds;
                 break;
             }
             let Some((event_y, evt)) = next_event else {
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
+                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
+                let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_seconds;
                 break;
             };
             if event_y <= cur_y_now {
@@ -216,7 +222,9 @@ impl BmsonProcessor {
                     continue;
                 }
             }
-            cur_y = cur_y_now + cur_vel * Decimal::from(remaining_time.as_secs_f64());
+            let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
+            let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+            cur_y = cur_y_now + cur_vel * remaining_seconds;
             break;
         }
 
@@ -337,7 +345,8 @@ impl ChartProcessor for BmsonProcessor {
                 .checked_elapsed_since(started)
                 .unwrap_or(TimeSpan::ZERO);
             // Convert to Decimal for multiplication with Decimal ratio, then back to TimeSpan
-            let elapsed_seconds = Decimal::from(elapsed.as_secs_f64());
+            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
+            let elapsed_seconds = Decimal::from(elapsed_nanos) / NANOS_PER_SECOND;
             let center_seconds = elapsed_seconds * self.playback_ratio.clone();
             let center_secs_f64 = center_seconds.to_f64().unwrap_or(0.0).max(0.0);
             let center_secs_f64 = if center_secs_f64.is_finite() {

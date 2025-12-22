@@ -14,6 +14,8 @@ use crate::bms::prelude::Bms;
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
 
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
     /// Generate a `BaseBpm` from the given source.
@@ -75,8 +77,8 @@ impl VisibleRangePerBpm {
             Self(Decimal::zero())
         } else {
             // Convert TimeSpan to Decimal seconds for calculation with Decimal BPM
-            // Note: Uses f64 intermediate due to gametime API limitations
-            let seconds = Decimal::from(reaction_time.as_secs_f64());
+            let nanos = reaction_time.as_nanos().max(0) as u64;
+            let seconds = Decimal::from(nanos) / NANOS_PER_SECOND;
             Self(seconds / base_bpm.value().clone())
         }
     }
