@@ -76,10 +76,8 @@ impl VisibleRangePerBpm {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
-            // Convert TimeSpan to Decimal seconds for calculation with Decimal BPM
             let nanos = reaction_time.as_nanos().max(0) as u64;
-            let seconds = Decimal::from(nanos) / NANOS_PER_SECOND;
-            Self(seconds / base_bpm.value().clone())
+            Self(Decimal::from(nanos) / NANOS_PER_SECOND / base_bpm.value().clone())
         }
     }
 
@@ -104,12 +102,10 @@ impl VisibleRangePerBpm {
         if self.0.is_zero() {
             TimeSpan::ZERO
         } else {
-            // Convert Decimal to seconds, then to TimeSpan
-            // Note: Uses f64 intermediate due to gametime API limitations
-            let seconds = self.0.clone() * Decimal::from(240);
-            let secs = seconds.to_f64().unwrap_or(0.0).max(0.0);
-            let secs = if secs.is_finite() { secs } else { 0.0 };
-            TimeSpan::from_duration(Duration::from_secs_f64(secs))
+            let nanos = (self.0.clone() * Decimal::from(240) * Decimal::from(NANOS_PER_SECOND))
+                .to_u64()
+                .unwrap_or(0);
+            TimeSpan::from_duration(Duration::from_nanos(nanos))
         }
     }
 

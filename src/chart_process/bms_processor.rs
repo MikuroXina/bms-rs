@@ -281,14 +281,12 @@ impl BmsProcessor {
             {
                 // Advance directly to the end
                 let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
-                cur_y = cur_y_now + cur_vel * remaining_seconds;
+                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
                 break;
             }
             let Some((event_y, evt)) = next_event else {
                 let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
-                cur_y = cur_y_now + cur_vel * remaining_seconds;
+                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
                 break;
             };
             if event_y <= cur_y_now {
@@ -301,11 +299,12 @@ impl BmsProcessor {
             // Time required to reach event
             let distance = event_y.clone() - cur_y_now.clone();
             if cur_vel > Decimal::zero() {
-                let time_to_event_secs = distance / cur_vel.clone();
-                // Convert Decimal seconds to TimeSpan
-                let time_to_event = TimeSpan::from_duration(Duration::from_secs_f64(
-                    time_to_event_secs.to_f64().unwrap_or(0.0),
-                ));
+                let time_to_event_nanos = ((distance / cur_vel.clone())
+                    * Decimal::from(NANOS_PER_SECOND))
+                .to_u64()
+                .unwrap_or(0);
+                let time_to_event =
+                    TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
                 if time_to_event <= remaining_time {
                     // First advance to event point
                     cur_y = event_y;
@@ -317,8 +316,7 @@ impl BmsProcessor {
             }
             // Time not enough to reach event, advance and end
             let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-            let remaining_seconds = Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
-            cur_y = cur_y_now + cur_vel * remaining_seconds;
+            cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
             break;
         }
 
@@ -448,17 +446,11 @@ impl ChartProcessor for BmsProcessor {
             let elapsed = last
                 .checked_elapsed_since(started)
                 .unwrap_or(TimeSpan::ZERO);
-            // Convert to Decimal for multiplication with Decimal ratio, then back to TimeSpan
             let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let elapsed_seconds = Decimal::from(elapsed_nanos) / NANOS_PER_SECOND;
-            let center_seconds = elapsed_seconds * self.playback_ratio.clone();
-            let center_secs_f64 = center_seconds.to_f64().unwrap_or(0.0).max(0.0);
-            let center_secs_f64 = if center_secs_f64.is_finite() {
-                center_secs_f64
-            } else {
-                0.0
-            };
-            let center = TimeSpan::from_duration(Duration::from_secs_f64(center_secs_f64));
+            let center_nanos = (Decimal::from(elapsed_nanos) * self.playback_ratio.clone())
+                .to_u64()
+                .unwrap_or(0);
+            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
             self.all_events
                 .events_in_time_range_offset_from(center, range)
         } else {
@@ -769,10 +761,10 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .collect();
     stop_list.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
-    let mut total = 0.0f64;
+    let mut cum_map: BTreeMap<Decimal, u64> = BTreeMap::new();
+    let mut total_nanos: u64 = 0;
     let mut prev = Decimal::zero();
-    cum_map.insert(prev.clone(), 0.0);
+    cum_map.insert(prev.clone(), 0);
     let mut cur_bpm = bpm_map
         .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
         .next_back()
@@ -785,7 +777,10 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         }
         let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
         let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-        total += delta_y_f64 * 240.0 / cur_bpm_f64;
+        let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
+        if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
+            total_nanos = total_nanos.saturating_add(delta_nanos_f64.round() as u64);
+        }
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
             if sy >= &curr {
                 break;
@@ -798,7 +793,10 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
                     .unwrap_or_else(|| init_bpm.clone());
                 let dur_y_f64 = dur_y.to_f64().unwrap_or(0.0);
                 let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-                total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
+                let dur_nanos_f64 = dur_y_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
+                if dur_nanos_f64.is_finite() && dur_nanos_f64 > 0.0 {
+                    total_nanos = total_nanos.saturating_add(dur_nanos_f64.round() as u64);
+                }
             }
             stop_idx += 1;
         }
@@ -807,7 +805,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        cum_map.insert(curr.clone(), total);
+        cum_map.insert(curr.clone(), total_nanos);
         prev = curr;
     }
 
@@ -816,9 +814,8 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .iter()
         .map(|(y_coord, indices)| {
             let y = y_coord.value();
-            let at_secs = cum_map.get(y).copied().unwrap_or(0.0).max(0.0);
-            let at_secs = if at_secs.is_finite() { at_secs } else { 0.0 };
-            let at = TimeSpan::from_duration(Duration::from_secs_f64(at_secs));
+            let at_nanos = cum_map.get(y).copied().unwrap_or(0);
+            let at = TimeSpan::from_duration(Duration::from_nanos(at_nanos));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())
