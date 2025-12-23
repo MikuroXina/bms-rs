@@ -76,8 +76,11 @@ impl VisibleRangePerBpm {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
-            let nanos = reaction_time.as_nanos().max(0) as u64;
-            Self(Decimal::from(nanos) / NANOS_PER_SECOND / base_bpm.value().clone())
+            Self(
+                Decimal::from(reaction_time.as_nanos().max(0))
+                    / NANOS_PER_SECOND
+                    / base_bpm.value().clone(),
+            )
         }
     }
 

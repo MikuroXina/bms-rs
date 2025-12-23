@@ -190,13 +190,11 @@ impl BmsonProcessor {
                 || cur_vel == Decimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
-                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             }
             let Some((event_y, evt)) = next_event else {
-                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             };
             if event_y <= cur_y_now {
@@ -221,8 +219,7 @@ impl BmsonProcessor {
                     continue;
                 }
             }
-            let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-            cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+            cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
             break;
         }
 
@@ -342,10 +339,10 @@ impl ChartProcessor for BmsonProcessor {
             let elapsed = last
                 .checked_elapsed_since(started)
                 .unwrap_or(TimeSpan::ZERO);
-            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let center_nanos = (Decimal::from(elapsed_nanos) * self.playback_ratio.clone())
-                .to_u64()
-                .unwrap_or(0);
+            let center_nanos = (Decimal::from(elapsed.as_nanos().max(0))
+                * self.playback_ratio.clone())
+            .to_u64()
+            .unwrap_or(0);
             let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
             self.all_events
                 .events_in_time_range_offset_from(center, range)

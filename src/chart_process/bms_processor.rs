@@ -280,13 +280,11 @@ impl BmsProcessor {
                 || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end
-                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             }
             let Some((event_y, evt)) = next_event else {
-                let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-                cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             };
             if event_y <= cur_y_now {
@@ -315,8 +313,8 @@ impl BmsProcessor {
                 }
             }
             // Time not enough to reach event, advance and end
-            let remaining_nanos = remaining_time.as_nanos().max(0) as u64;
-            cur_y = cur_y_now + cur_vel * Decimal::from(remaining_nanos) / NANOS_PER_SECOND;
+            cur_y = cur_y_now
+                + cur_vel * Decimal::from(remaining_time.as_nanos().max(0)) / NANOS_PER_SECOND;
             break;
         }
 
