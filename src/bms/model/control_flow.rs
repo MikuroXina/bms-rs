@@ -93,7 +93,7 @@ impl RandomizedObjects {
                 .entry(cond.clone())
                 .and_modify(|e| {
                     let merged_bms = e.sub.union(*branch.sub.clone());
-                    e.sub = Box::new(merged_bms);
+                    *e.sub = merged_bms;
                 })
                 .or_insert_with(|| branch.clone());
         }
