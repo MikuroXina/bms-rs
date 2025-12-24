@@ -3,6 +3,9 @@
 //! This module re-exports all public types from the BMS module for convenient access.
 //! You can use `use bms_rs::bms::prelude::*;` to import all BMS types at once.
 
+// Re-export number types from `fraction` crate
+pub use fraction::BigDecimal;
+
 // Re-export diagnostics from bms level
 #[cfg(feature = "diagnostics")]
 pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
@@ -67,7 +70,6 @@ pub use super::{
     parse_bms,
     rng::{Rng, RngMock},
 };
-pub use fraction::BigDecimal;
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]
