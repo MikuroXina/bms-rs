@@ -14,7 +14,7 @@ pub struct JudgeObjects {
     /// The judgement level of the score.
     pub rank: Option<JudgeLevel>,
     /// The total gauge percentage when all notes is got as PERFECT.
-    pub total: Option<Decimal>,
+    pub total: Option<BigDecimal>,
     /// Storage for `#EXRANK` definitions
     pub exrank_defs: HashMap<ObjId, ExRankDef>,
     /// Judge events, indexed by time. `#xxxA0:`

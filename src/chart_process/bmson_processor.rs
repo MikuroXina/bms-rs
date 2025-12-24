@@ -32,17 +32,17 @@ pub struct BmsonProcessor {
     // Playback state
     started_at: Option<TimeStamp>,
     last_poll_at: Option<TimeStamp>,
-    progressed_y: Decimal,
+    progressed_y: BigDecimal,
 
     // Flow parameters
-    current_bpm: Decimal,
-    current_scroll: Decimal,
+    current_bpm: BigDecimal,
+    current_scroll: BigDecimal,
     /// Playback ratio
-    playback_ratio: Decimal,
+    playback_ratio: BigDecimal,
     /// Visible range per BPM, representing the relationship between BPM and visible Y range
     visible_range_per_bpm: VisibleRangePerBpm,
     /// Initial BPM at start
-    init_bpm: Decimal,
+    init_bpm: BigDecimal,
 
     /// Preloaded events list (all events in current visible area)
     preloaded_events: Vec<PlayheadEvent>,
@@ -51,16 +51,16 @@ pub struct BmsonProcessor {
     all_events: AllEventsIndex,
 
     /// Indexed flow events by y (BPM/Scroll) for efficient lookup
-    flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>>,
+    flow_events_by_y: BTreeMap<BigDecimal, Vec<FlowEvent>>,
 }
 
 impl BmsonProcessor {
     /// Create BMSON processor with visible range per BPM configuration.
     #[must_use]
     pub fn new(bmson: &Bmson<'_>, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
-        let pulses_to_y = |pulses: i64| Decimal::from(pulses) / pulses_denom.clone();
+        let init_bpm: BigDecimal = bmson.info.init_bpm.as_f64().into();
+        let pulses_denom = BigDecimal::from(4 * bmson.info.resolution.get());
+        let pulses_to_y = |pulses: i64| BigDecimal::from(pulses) / pulses_denom.clone();
 
         // Preprocessing: assign IDs to all audio and image resources
         let mut audio_name_to_id = HashMap::new();
@@ -112,10 +112,10 @@ impl BmsonProcessor {
             next_bmp_id += 1;
         }
 
-        let playback_ratio = Decimal::one();
+        let playback_ratio = BigDecimal::one();
 
         // Pre-index flow events by y for fast next_flow_event_after
-        let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
+        let mut flow_events_by_y: BTreeMap<BigDecimal, Vec<FlowEvent>> = BTreeMap::new();
         for ev in &bmson.bpm_events {
             let y = pulses_to_y(ev.y.0 as i64);
             flow_events_by_y
@@ -139,11 +139,11 @@ impl BmsonProcessor {
             bmp_name_to_id,
             started_at: None,
             last_poll_at: None,
-            progressed_y: Decimal::zero(),
+            progressed_y: BigDecimal::zero(),
             preloaded_events: Vec::new(),
             all_events,
             current_bpm: init_bpm.clone(),
-            current_scroll: Decimal::one(),
+            current_scroll: BigDecimal::one(),
             playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
@@ -153,17 +153,20 @@ impl BmsonProcessor {
 
     /// Current instantaneous displacement velocity (y units per second).
     /// y is the normalized measure unit: `y = pulses / (4*resolution)`, one measure equals 1 in default 4/4.
-    fn current_velocity(&self) -> Decimal {
+    fn current_velocity(&self) -> BigDecimal {
         if self.current_bpm.is_sign_negative() {
-            Decimal::zero()
+            BigDecimal::zero()
         } else {
-            let denom = Decimal::from(240);
-            (self.current_bpm.clone() / denom * self.playback_ratio.clone()).max(Decimal::zero())
+            let denom = BigDecimal::from(240);
+            (self.current_bpm.clone() / denom * self.playback_ratio.clone()).max(BigDecimal::zero())
         }
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL.
-    fn next_flow_event_after(&self, y_from_exclusive: &Decimal) -> Option<(Decimal, FlowEvent)> {
+    fn next_flow_event_after(
+        &self,
+        y_from_exclusive: &BigDecimal,
+    ) -> Option<(BigDecimal, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
@@ -187,7 +190,7 @@ impl BmsonProcessor {
             let cur_y_now = cur_y;
             let next_event = self.next_flow_event_after(&cur_y_now);
             if next_event.is_none()
-                || cur_vel == Decimal::zero()
+                || cur_vel == BigDecimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
                 cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
@@ -204,9 +207,9 @@ impl BmsonProcessor {
                 continue;
             }
             let distance = event_y.clone() - cur_y_now.clone();
-            if cur_vel > Decimal::zero() {
+            if cur_vel > BigDecimal::zero() {
                 let time_to_event_nanos = ((distance / cur_vel.clone())
-                    * Decimal::from(NANOS_PER_SECOND))
+                    * BigDecimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
                 let time_to_event =
@@ -234,7 +237,7 @@ impl BmsonProcessor {
         }
     }
 
-    fn visible_window_y(&self) -> Decimal {
+    fn visible_window_y(&self) -> BigDecimal {
         self.visible_range_per_bpm.window_y(&self.current_bpm)
     }
 
@@ -277,22 +280,22 @@ impl ChartProcessor for BmsonProcessor {
         &self.visible_range_per_bpm
     }
 
-    fn current_bpm(&self) -> &Decimal {
+    fn current_bpm(&self) -> &BigDecimal {
         &self.current_bpm
     }
-    fn current_speed(&self) -> &Decimal {
+    fn current_speed(&self) -> &BigDecimal {
         // to avoid repeated allocations
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        DECIMAL_ONE.get_or_init(Decimal::one)
+        static DECIMAL_ONE: OnceLock<BigDecimal> = OnceLock::new();
+        DECIMAL_ONE.get_or_init(BigDecimal::one)
     }
-    fn current_scroll(&self) -> &Decimal {
+    fn current_scroll(&self) -> &BigDecimal {
         &self.current_scroll
     }
 
     fn start_play(&mut self, now: TimeStamp) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
-        self.progressed_y = Decimal::zero();
+        self.progressed_y = BigDecimal::zero();
         self.preloaded_events.clear();
         self.current_bpm = self.init_bpm.clone();
     }
@@ -339,7 +342,7 @@ impl ChartProcessor for BmsonProcessor {
             let elapsed = last
                 .checked_elapsed_since(started)
                 .unwrap_or(TimeSpan::ZERO);
-            let center_nanos = (Decimal::from(elapsed.as_nanos().max(0))
+            let center_nanos = (BigDecimal::from(elapsed.as_nanos().max(0))
                 * self.playback_ratio.clone())
             .to_u64()
             .unwrap_or(0);
@@ -378,11 +381,11 @@ impl ChartProcessor for BmsonProcessor {
             let event_y = event_with_pos.position().value();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y > Decimal::zero() {
+            let display_ratio_value = if visible_window_y > BigDecimal::zero() {
                 ((event_y.clone() - current_y.clone()) / visible_window_y.clone())
                     * scroll_factor.clone()
             } else {
-                Decimal::zero()
+                BigDecimal::zero()
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
 
@@ -398,15 +401,15 @@ impl ChartProcessor for BmsonProcessor {
         })
     }
 
-    fn playback_ratio(&self) -> &Decimal {
+    fn playback_ratio(&self) -> &BigDecimal {
         &self.playback_ratio
     }
 }
 
 #[derive(Debug, Clone)]
 enum FlowEvent {
-    Bpm(Decimal),
-    Scroll(Decimal),
+    Bpm(BigDecimal),
+    Scroll(BigDecimal),
 }
 
 impl AllEventsIndex {
@@ -416,15 +419,15 @@ impl AllEventsIndex {
         bmp_name_to_id: &HashMap<String, BmpId>,
     ) -> Self {
         use std::collections::BTreeSet;
-        let denom = Decimal::from(4 * bmson.info.resolution.get());
-        let denom_inv = if denom == Decimal::zero() {
-            Decimal::zero()
+        let denom = BigDecimal::from(4 * bmson.info.resolution.get());
+        let denom_inv = if denom == BigDecimal::zero() {
+            BigDecimal::zero()
         } else {
-            Decimal::one() / denom
+            BigDecimal::one() / denom
         };
-        let pulses_to_y = |pulses: u64| Decimal::from(pulses) * denom_inv.clone();
-        let mut points: BTreeSet<Decimal> = BTreeSet::new();
-        points.insert(Decimal::zero());
+        let pulses_to_y = |pulses: u64| BigDecimal::from(pulses) * denom_inv.clone();
+        let mut points: BTreeSet<BigDecimal> = BTreeSet::new();
+        points.insert(BigDecimal::zero());
         for SoundChannel { notes, .. } in &bmson.sound_channels {
             for Note { y, .. } in notes {
                 points.insert(pulses_to_y(y.0));
@@ -463,34 +466,38 @@ impl AllEventsIndex {
                 points.insert(pulses_to_y(bar_line.y.0));
             }
         } else {
-            let max_y = points.iter().cloned().max().unwrap_or_else(Decimal::zero);
+            let max_y = points
+                .iter()
+                .cloned()
+                .max()
+                .unwrap_or_else(BigDecimal::zero);
             let floor = max_y.to_i64().unwrap_or(0);
             for i in 0..=floor {
-                points.insert(Decimal::from(i));
+                points.insert(BigDecimal::from(i));
             }
         }
-        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
-        let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        bpm_map.insert(Decimal::zero(), init_bpm.clone());
+        let init_bpm: BigDecimal = bmson.info.init_bpm.as_f64().into();
+        let mut bpm_map: BTreeMap<BigDecimal, BigDecimal> = BTreeMap::new();
+        bpm_map.insert(BigDecimal::zero(), init_bpm.clone());
         for ev in &bmson.bpm_events {
             bpm_map.insert(pulses_to_y(ev.y.0), ev.bpm.as_f64().into());
         }
-        let mut stop_list: Vec<(Decimal, u64)> = bmson
+        let mut stop_list: Vec<(BigDecimal, u64)> = bmson
             .stop_events
             .iter()
             .map(|st| (pulses_to_y(st.y.0), st.duration))
             .collect();
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut cum_map: BTreeMap<Decimal, u64> = BTreeMap::new();
+        let mut cum_map: BTreeMap<BigDecimal, u64> = BTreeMap::new();
         let mut total_nanos: u64 = 0;
-        let mut prev = Decimal::zero();
+        let mut prev = BigDecimal::zero();
         cum_map.insert(prev.clone(), 0);
         let mut cur_bpm = bpm_map
             .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        let nanos_for_stop = |stop_y: &Decimal, stop_pulses: u64| {
+        let nanos_for_stop = |stop_y: &BigDecimal, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
                     std::ops::Bound::Unbounded,
@@ -541,7 +548,7 @@ impl AllEventsIndex {
         let to_time_span = |nanos: u64| TimeSpan::from_duration(Duration::from_nanos(nanos));
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
-            let mut last_restart_y = Decimal::zero();
+            let mut last_restart_y = BigDecimal::zero();
             for Note { y, x, l, c, .. } in notes {
                 let y_coord = YCoordinate::from(pulses_to_y(y.0));
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
@@ -657,16 +664,16 @@ impl AllEventsIndex {
                 .map(|y_coord| y_coord.value())
                 .max()
                 .cloned()
-                .unwrap_or_else(Decimal::zero);
-            if max_y > Decimal::zero() {
-                let mut current_y = Decimal::zero();
+                .unwrap_or_else(BigDecimal::zero);
+            if max_y > BigDecimal::zero() {
+                let mut current_y = BigDecimal::zero();
                 while current_y <= max_y {
                     let y_coord = YCoordinate::from(current_y.clone());
                     let event = ChartEvent::BarLine;
                     let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
-                    current_y += Decimal::one();
+                    current_y += BigDecimal::one();
                 }
             }
         }

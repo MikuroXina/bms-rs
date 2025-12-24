@@ -75,7 +75,7 @@ impl Bms {
             .map(|s| s.clone().into_owned());
         bms.music_info.genre = Some(value.info.genre.into_owned());
         bms.metadata.play_level = Some(value.info.level as u8);
-        bms.judge.total = Some(Decimal::from(value.info.total.as_f64()));
+        bms.judge.total = Some(BigDecimal::from(value.info.total.as_f64()));
         bms.sprite.back_bmp = value.info.back_image.map(|s| PathBuf::from(s.into_owned()));
         bms.sprite.stage_file = value
             .info
@@ -95,21 +95,21 @@ impl Bms {
         bms.judge.rank = Some(JudgeLevel::OtherInt(judge_rank_value));
 
         // Convert initial BPM
-        bms.bpm.bpm = Some(Decimal::from(value.info.init_bpm.as_f64()));
+        bms.bpm.bpm = Some(BigDecimal::from(value.info.init_bpm.as_f64()));
 
         // Convert resolution
         bms.section_len.section_len_changes.insert(
             Track(0),
             SectionLenChangeObj {
                 track: Track(0),
-                length: Decimal::from(resolution.get()),
+                length: BigDecimal::from(resolution.get()),
             },
         );
 
         // Convert BPM events
         for bpm_event in value.bpm_events {
             let time = convert_pulse_to_obj_time(bpm_event.y, resolution);
-            let bpm = Decimal::from(bpm_event.bpm.as_f64());
+            let bpm = BigDecimal::from(bpm_event.bpm.as_f64());
 
             // Add to scope_defines
             let bpm_def_id = bpm_def_obj_id_issuer.next().unwrap_or_else(|| {
@@ -124,7 +124,7 @@ impl Bms {
         // Convert stop events
         for stop_event in value.stop_events {
             let time = convert_pulse_to_obj_time(stop_event.y, resolution);
-            let duration = Decimal::from(stop_event.duration);
+            let duration = BigDecimal::from(stop_event.duration);
 
             // Add to scope_defines
             let stop_def_id = stop_def_obj_id_issuer.next().unwrap_or_else(|| {
@@ -139,7 +139,7 @@ impl Bms {
         // Convert scroll events
         for scroll_event in value.scroll_events {
             let time = convert_pulse_to_obj_time(scroll_event.y, resolution);
-            let factor = Decimal::from(scroll_event.rate.as_f64());
+            let factor = BigDecimal::from(scroll_event.rate.as_f64());
 
             // Add to scope_defines
             let scroll_def_id = scroll_def_obj_id_issuer.next().unwrap_or_else(|| {

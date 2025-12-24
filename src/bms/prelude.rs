@@ -9,7 +9,7 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
 pub use super::{
-    BmsOutput, BmsWarning, Decimal, ParseConfig,
+    BigDecimal, BmsOutput, BmsWarning, ParseConfig,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{

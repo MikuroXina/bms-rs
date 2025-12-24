@@ -12,11 +12,11 @@ use crate::bms::{
 /// This aggregate manages definition and events of BPM change on playing.
 pub struct BpmObjects {
     /// The initial BPM of the score.
-    pub bpm: Option<Decimal>,
+    pub bpm: Option<BigDecimal>,
     /// BPM change definitions, indexed by [`ObjId`]. `#BPM[01-ZZ]`
-    pub bpm_defs: HashMap<ObjId, Decimal>,
+    pub bpm_defs: HashMap<ObjId, BigDecimal>,
     /// `#BASEBPM` for LR. Replaced by bpm match in LR2.
-    pub base_bpm: Option<Decimal>,
+    pub base_bpm: Option<BigDecimal>,
     /// The BPMs corresponding to the id of the BPM change object.
     /// BPM change events, indexed by time. `#BPM[01-ZZ]` in message
     pub bpm_changes: BTreeMap<ObjTime, BpmChangeObj>,
@@ -93,11 +93,11 @@ impl BpmObjects {
                 let existing = entry.get();
                 let older = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(*existing),
+                    bpm: BigDecimal::from(*existing),
                 };
                 let newer = BpmChangeObj {
                     time,
-                    bpm: Decimal::from(bpm_change),
+                    bpm: BigDecimal::from(bpm_change),
                 };
                 prompt_handler
                     .handle_channel_duplication(ChannelDuplication::BpmChangeEvent {

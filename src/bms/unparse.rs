@@ -726,17 +726,17 @@ impl Bms {
 
         // Helper closures for mapping definitions
 
-        let bpm_value_to_id: HashMap<&'a Decimal, ObjId> =
+        let bpm_value_to_id: HashMap<&'a BigDecimal, ObjId> =
             self.bpm.bpm_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let stop_value_to_id: HashMap<&'a Decimal, ObjId> =
+        let stop_value_to_id: HashMap<&'a BigDecimal, ObjId> =
             self.stop.stop_defs.iter().map(|(k, v)| (v, *k)).collect();
-        let scroll_value_to_id: HashMap<&'a Decimal, ObjId> = self
+        let scroll_value_to_id: HashMap<&'a BigDecimal, ObjId> = self
             .scroll
             .scroll_defs
             .iter()
             .map(|(k, v)| (v, *k))
             .collect();
-        let speed_value_to_id: HashMap<&'a Decimal, ObjId> =
+        let speed_value_to_id: HashMap<&'a BigDecimal, ObjId> =
             self.speed.speed_defs.iter().map(|(k, v)| (v, *k)).collect();
         let text_value_to_id: HashMap<&'a str, ObjId> = self
             .text
@@ -751,7 +751,7 @@ impl Bms {
             .map(|(k, v)| (&v.judge_level, *k))
             .collect();
 
-        let seek_value_to_id: HashMap<&'a Decimal, ObjId> =
+        let seek_value_to_id: HashMap<&'a BigDecimal, ObjId> =
             self.video.seek_defs.iter().map(|(k, v)| (v, *k)).collect();
 
         // Messages: BPM change (#xxx08 or #xxx03)
@@ -787,7 +787,7 @@ impl Bms {
         } = build_event_messages(
             self.bpm.bpm_changes.iter(),
             Some((
-                |id, bpm: &Decimal| Token::Header {
+                |id, bpm: &BigDecimal| Token::Header {
                     name: format!("BPM{id}").into(),
                     args: bpm.to_string().into(),
                 },
@@ -818,7 +818,7 @@ impl Bms {
         } = build_event_messages(
             self.stop.stops.iter(),
             Some((
-                |id, duration: &Decimal| Token::Header {
+                |id, duration: &BigDecimal| Token::Header {
                     name: format!("STOP{id}").into(),
                     args: duration.to_string().into(),
                 },
@@ -845,7 +845,7 @@ impl Bms {
         } = build_event_messages(
             self.scroll.scrolling_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor: &BigDecimal| Token::Header {
                     name: format!("SCROLL{id}").into(),
                     args: factor.to_string().into(),
                 },
@@ -872,7 +872,7 @@ impl Bms {
         } = build_event_messages(
             self.speed.speed_factor_changes.iter(),
             Some((
-                |id, factor: &Decimal| Token::Header {
+                |id, factor: &BigDecimal| Token::Header {
                     name: format!("SPEED{id}").into(),
                     args: factor.to_string().into(),
                 },
@@ -1162,7 +1162,7 @@ impl Bms {
             } = build_event_messages(
                 self.video.seek_events.iter(),
                 Some((
-                    |id, position: &Decimal| Token::Header {
+                    |id, position: &BigDecimal| Token::Header {
                         name: format!("SEEK{id}").into(),
                         args: position.to_string().into(),
                     },

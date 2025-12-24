@@ -1,7 +1,7 @@
 //! Definitions of the note object.
 
 use crate::bms::{
-    Decimal,
+    BigDecimal,
     command::{
         JudgeLevel, ObjId,
         channel::{Channel, NoteChannelId},
@@ -54,7 +54,7 @@ pub struct BpmChangeObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The BPM to be.
-    pub bpm: Decimal,
+    pub bpm: BigDecimal,
 }
 
 impl PartialEq for BpmChangeObj {
@@ -84,7 +84,7 @@ pub struct SectionLenChangeObj {
     /// The target track to change.
     pub track: Track,
     /// The length to be.
-    pub length: Decimal,
+    pub length: BigDecimal,
 }
 
 impl PartialEq for SectionLenChangeObj {
@@ -116,7 +116,7 @@ pub struct StopObj {
     /// Object duration how long stops scrolling of score.
     ///
     /// Note that the duration of stopping will not be changed by a current measure length but BPM.
-    pub duration: Decimal,
+    pub duration: BigDecimal,
 }
 
 impl PartialEq for StopObj {
@@ -228,7 +228,7 @@ pub struct ScrollingFactorObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The scrolling factor to be.
-    pub factor: Decimal,
+    pub factor: BigDecimal,
 }
 
 impl PartialEq for ScrollingFactorObj {
@@ -258,7 +258,7 @@ pub struct SpeedObj {
     /// The time to begin the change of BPM.
     pub time: ObjTime,
     /// The spacing factor to be.
-    pub factor: Decimal,
+    pub factor: BigDecimal,
 }
 
 impl PartialEq for SpeedObj {
@@ -332,7 +332,7 @@ pub struct SeekObj {
     /// The time which the seek event is on.
     pub time: ObjTime,
     /// The seek position value.
-    pub position: Decimal,
+    pub position: BigDecimal,
 }
 
 /// An object to display text.

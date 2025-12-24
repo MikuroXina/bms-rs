@@ -12,7 +12,7 @@ use crate::bms::{
 /// This aggregate manages definition and events of scroll speed change.
 pub struct ScrollObjects {
     /// Scroll speed change definitions, indexed by [`ObjId`]. `#SCROLL[01-ZZ]`
-    pub scroll_defs: HashMap<ObjId, Decimal>,
+    pub scroll_defs: HashMap<ObjId, BigDecimal>,
     /// The scrolling factors corresponding to the id of the scroll speed change object.
     pub scrolling_factor_changes: BTreeMap<ObjTime, ScrollingFactorObj>,
 }

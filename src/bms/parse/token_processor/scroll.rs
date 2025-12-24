@@ -82,7 +82,7 @@ impl ScrollProcessor {
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SCROLL") {
             let factor =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
+                BigDecimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal scroll factor".into())
                 })?);
             let scroll_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;

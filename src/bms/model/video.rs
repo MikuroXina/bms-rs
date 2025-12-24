@@ -20,11 +20,11 @@ pub struct Video {
     /// Video color depth. `#VIDEOCOLORS`
     pub video_colors: Option<u8>,
     /// Video delay. `#VIDEODLY`
-    pub video_dly: Option<Decimal>,
+    pub video_dly: Option<BigDecimal>,
     /// Video frame rate. `#VIDEOF/S`
-    pub video_fs: Option<Decimal>,
+    pub video_fs: Option<BigDecimal>,
     /// Seek event definitions. `#SEEK`
-    pub seek_defs: HashMap<ObjId, Decimal>,
+    pub seek_defs: HashMap<ObjId, BigDecimal>,
     /// Seek events, indexed by time. `#xxx05:`
     pub seek_events: BTreeMap<ObjTime, SeekObj>,
 }

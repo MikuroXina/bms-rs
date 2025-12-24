@@ -82,7 +82,7 @@ impl StopProcessor {
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("STOP") {
             let len =
-                Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
+                BigDecimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
                     ParseWarning::SyntaxError("expected decimal stop length".into())
                 })?);
 

@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bms::{
-    Decimal,
+    BigDecimal,
     command::time::{ObjTime, Track},
 };
 
@@ -44,7 +44,7 @@ impl PulseConverter {
                 .section_len
                 .section_len_changes
                 .get(&Track(current_track))
-                .map_or_else(|| Decimal::from(1u64), |section| section.length.clone())
+                .map_or_else(|| BigDecimal::from(1u64), |section| section.length.clone())
                 .try_into()
                 .unwrap_or(1.0);
             current_pulses = current_pulses.saturating_add((section_len * 4.0) as u64 * resolution);
@@ -102,7 +102,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(1),
-                    length: Decimal::from(0.75),
+                    length: BigDecimal::from(0.75),
                 },
                 &prompt_handler,
             )
@@ -111,7 +111,7 @@ fn pulse_conversion() {
             .push_section_len_change(
                 SectionLenChangeObj {
                     track: Track(2),
-                    length: Decimal::from(1.25),
+                    length: BigDecimal::from(1.25),
                 },
                 &prompt_handler,
             )

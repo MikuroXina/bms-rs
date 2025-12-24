@@ -12,7 +12,7 @@ use gametime::{TimeSpan, TimeStamp};
 
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
-    Decimal,
+    BigDecimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
 use crate::chart_process::types::{
@@ -60,22 +60,22 @@ pub enum ChartEvent {
     /// BPM change
     BpmChange {
         /// New BPM value (beats per minute)
-        bpm: Decimal,
+        bpm: BigDecimal,
     },
     /// Scroll factor change
     ScrollChange {
         /// Scroll factor (relative value)
-        factor: Decimal,
+        factor: BigDecimal,
     },
     /// Speed factor change
     SpeedChange {
         /// Spacing factor (relative value)
-        factor: Decimal,
+        factor: BigDecimal,
     },
     /// Stop scroll event
     Stop {
         /// Stop duration (BMS: converted from chart-defined time units; BMSON: pulse count)
-        duration: Decimal,
+        duration: BigDecimal,
     },
     /// BGA (background animation) change event
     ///
@@ -181,7 +181,7 @@ pub enum ControlEvent {
     /// Default is 1.
     SetPlaybackRatio {
         /// Playback ratio (>= 0)
-        ratio: Decimal,
+        ratio: BigDecimal,
     },
 }
 
@@ -196,13 +196,13 @@ pub trait ChartProcessor {
     fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
 
     /// Read: current BPM (changes with events).
-    fn current_bpm(&self) -> &Decimal;
+    fn current_bpm(&self) -> &BigDecimal;
     /// Read: current Speed factor (changes with events).
-    fn current_speed(&self) -> &Decimal;
+    fn current_speed(&self) -> &BigDecimal;
     /// Read: current Scroll factor (changes with events).
-    fn current_scroll(&self) -> &Decimal;
+    fn current_scroll(&self) -> &BigDecimal;
     /// Read: current playback ratio (default 1).
-    fn playback_ratio(&self) -> &Decimal;
+    fn playback_ratio(&self) -> &BigDecimal;
 
     /// Notify: start playback, record starting absolute time.
     fn start_play(&mut self, now: TimeStamp);

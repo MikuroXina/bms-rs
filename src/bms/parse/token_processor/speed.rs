@@ -81,9 +81,10 @@ impl SpeedProcessor {
         objects: &mut SpeedObjects,
     ) -> Result<()> {
         if let Some(id) = name.strip_prefix_ignore_case("SPEED") {
-            let factor = Decimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
-                ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
-            })?);
+            let factor =
+                BigDecimal::from_fraction(GenericFraction::from_str(args).map_err(|_| {
+                    ParseWarning::SyntaxError(format!("expected decimal but found: {args}"))
+                })?);
             let speed_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
 
             if let Some(older) = objects.speed_defs.get_mut(&speed_obj_id) {

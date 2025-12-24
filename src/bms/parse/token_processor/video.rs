@@ -91,7 +91,7 @@ impl VideoProcessor {
             video.video_file = Some(Path::new(args).into());
         }
         if name.eq_ignore_ascii_case("VIDEOF/S") {
-            let frame_rate = Decimal::from_fraction(
+            let frame_rate = BigDecimal::from_fraction(
                 GenericFraction::<BigUint>::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
             );
@@ -104,7 +104,7 @@ impl VideoProcessor {
             video.video_colors = Some(colors);
         }
         if name.eq_ignore_ascii_case("VIDEODLY") {
-            let delay = Decimal::from_fraction(
+            let delay = BigDecimal::from_fraction(
                 GenericFraction::<BigUint>::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected f64".into()))?,
             );
@@ -114,7 +114,7 @@ impl VideoProcessor {
             use fraction::GenericFraction;
             use num::BigUint;
 
-            let ms = Decimal::from_fraction(
+            let ms = BigDecimal::from_fraction(
                 GenericFraction::<BigUint>::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
             );

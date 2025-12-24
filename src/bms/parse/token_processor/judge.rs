@@ -119,7 +119,7 @@ impl JudgeProcessor {
             );
         }
         if name.eq_ignore_ascii_case("TOTAL") {
-            let total = Decimal::from_fraction(
+            let total = BigDecimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal".into()))?,
             );

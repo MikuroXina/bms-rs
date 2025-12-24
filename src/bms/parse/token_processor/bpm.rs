@@ -83,7 +83,7 @@ impl BpmProcessor {
         objects: &mut BpmObjects,
     ) -> Result<()> {
         if name.eq_ignore_ascii_case("BPM") {
-            let bpm = Decimal::from_fraction(
+            let bpm = BigDecimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
             );
@@ -94,7 +94,7 @@ impl BpmProcessor {
             .or_else(|| name.strip_prefix_ignore_case("EXBPM"))
         {
             let bpm_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let bpm = Decimal::from_fraction(
+            let bpm = BigDecimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
             );
@@ -111,7 +111,7 @@ impl BpmProcessor {
             }
         }
         if name.eq_ignore_ascii_case("BASEBPM") {
-            let bpm = Decimal::from_fraction(
+            let bpm = BigDecimal::from_fraction(
                 GenericFraction::from_str(args)
                     .map_err(|_| ParseWarning::SyntaxError("expected decimal BPM".into()))?,
             );

@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use crate::bms::{
-    Decimal,
+    BigDecimal,
     command::{
         ObjId,
         channel::Channel,
@@ -60,9 +60,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated BPM object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: BigDecimal,
         /// Incoming definition.
-        newer: Decimal,
+        newer: BigDecimal,
     },
     /// OPTION definition is duplicated.
     ChangeOption {
@@ -78,18 +78,18 @@ pub enum DefDuplication<'a> {
         /// Duplicated SPEED object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: BigDecimal,
         /// Incoming definition.
-        newer: Decimal,
+        newer: BigDecimal,
     },
     /// SCROLL definition is duplicated.
     ScrollingFactorChange {
         /// Duplicated SCROLL object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: BigDecimal,
         /// Incoming definition.
-        newer: Decimal,
+        newer: BigDecimal,
     },
     /// TEXT is duplicated.
     Text {
@@ -150,9 +150,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated STOP object id.
         id: ObjId,
         /// Existing definition.
-        older: Decimal,
+        older: BigDecimal,
         /// Incoming definition.
-        newer: Decimal,
+        newer: BigDecimal,
     },
     /// BGA ARGB color definition is duplicated.
     BgaArgb {
@@ -186,9 +186,9 @@ pub enum DefDuplication<'a> {
         /// Duplicated Seek event id.
         id: ObjId,
         /// Existing definition.
-        older: &'a Decimal,
+        older: &'a BigDecimal,
         /// Incoming definition.
-        newer: &'a Decimal,
+        newer: &'a BigDecimal,
     },
 }
 

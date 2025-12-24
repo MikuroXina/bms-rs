@@ -9,7 +9,7 @@ use crate::bms::prelude::*;
 /// This aggregate manages definitions and events of scroll stop.
 pub struct StopObjects {
     /// Stop definitions, indexed by [`ObjId`]. `#STOP[01-ZZ]`
-    pub stop_defs: HashMap<ObjId, Decimal>,
+    pub stop_defs: HashMap<ObjId, BigDecimal>,
     /// Stop lengths by stop object id.
     pub stops: BTreeMap<ObjTime, StopObj>,
     /// Record of used STOP ids from `#STOPxx` messages, for validity checks.
