@@ -1,18 +1,25 @@
 //! Bmson Processor Module.
 #![cfg(feature = "bmson")]
 
-use std::collections::{BTreeMap, HashMap};
-use std::path::Path;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::Path,
+    sync::OnceLock,
+    time::Duration,
+};
+
+use gametime::{TimeSpan, TimeStamp};
+use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
-use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, WavId, YCoordinate},
+use crate::chart_process::types::{
+    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleChartEvent,
+    VisibleRangePerBpm, WavId, YCoordinate,
 };
-use num::{One, ToPrimitive, Zero};
+use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
+
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// ChartProcessor of Bmson files.
 pub struct BmsonProcessor {
@@ -23,8 +30,8 @@ pub struct BmsonProcessor {
     bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
-    started_at: Option<Instant>,
-    last_poll_at: Option<Instant>,
+    started_at: Option<TimeStamp>,
+    last_poll_at: Option<TimeStamp>,
     progressed_y: Decimal,
 
     // Flow parameters
@@ -52,6 +59,8 @@ impl BmsonProcessor {
     #[must_use]
     pub fn new(bmson: &Bmson<'_>, visible_range_per_bpm: VisibleRangePerBpm) -> Self {
         let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
+        let pulses_denom = Decimal::from(4 * bmson.info.resolution.get());
+        let pulses_to_y = |pulses: i64| Decimal::from(pulses) / pulses_denom.clone();
 
         // Preprocessing: assign IDs to all audio and image resources
         let mut audio_name_to_id = HashMap::new();
@@ -108,21 +117,14 @@ impl BmsonProcessor {
         // Pre-index flow events by y for fast next_flow_event_after
         let mut flow_events_by_y: BTreeMap<Decimal, Vec<FlowEvent>> = BTreeMap::new();
         for ev in &bmson.bpm_events {
-            let y = {
-                // pulses_to_y without speed aligns with original semantics
-                let pulses = ev.y.0 as i64;
-                Decimal::from(pulses) / Decimal::from(4 * bmson.info.resolution.get())
-            };
+            let y = pulses_to_y(ev.y.0 as i64);
             flow_events_by_y
                 .entry(y)
                 .or_default()
                 .push(FlowEvent::Bpm(ev.bpm.as_f64().into()));
         }
         for ScrollEvent { y, rate } in &bmson.scroll_events {
-            let y = {
-                let pulses = y.0 as i64;
-                Decimal::from(pulses) / Decimal::from(4 * bmson.info.resolution.get())
-            };
+            let y = pulses_to_y(y.0 as i64);
             flow_events_by_y
                 .entry(y)
                 .or_default()
@@ -145,7 +147,7 @@ impl BmsonProcessor {
             playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
-            init_bpm: init_bpm.clone(),
+            init_bpm,
         }
     }
 
@@ -161,15 +163,15 @@ impl BmsonProcessor {
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL.
-    fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
+    fn next_flow_event_after(&self, y_from_exclusive: &Decimal) -> Option<(Decimal, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .map(|(y, events)| (y.clone(), events[0].clone()))
+            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
     }
 
-    fn step_to(&mut self, now: Instant) {
+    fn step_to(&mut self, now: TimeStamp) {
         let Some(started) = self.started_at else {
             return;
         };
@@ -178,36 +180,46 @@ impl BmsonProcessor {
             return;
         }
 
-        let mut remaining_secs = Decimal::from(now.duration_since(last).as_secs_f64());
+        let mut remaining_time = now - last;
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
         loop {
-            let next_event = self.next_flow_event_after(cur_y.clone());
+            let cur_y_now = cur_y;
+            let next_event = self.next_flow_event_after(&cur_y_now);
             if next_event.is_none()
                 || cur_vel == Decimal::zero()
-                || remaining_secs == Decimal::zero()
+                || remaining_time <= TimeSpan::ZERO
             {
-                cur_y += cur_vel * remaining_secs;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             }
-            let (event_y, evt) = next_event.unwrap();
-            if event_y.clone() <= cur_y.clone() {
+            let Some((event_y, evt)) = next_event else {
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
+                break;
+            };
+            if event_y <= cur_y_now {
                 self.apply_flow_event(evt);
                 cur_vel = self.current_velocity();
+                cur_y = cur_y_now;
                 continue;
             }
-            let distance = event_y.clone() - cur_y.clone();
+            let distance = event_y.clone() - cur_y_now.clone();
             if cur_vel > Decimal::zero() {
-                let time_to_event_secs = distance / cur_vel.clone();
-                if time_to_event_secs <= remaining_secs {
+                let time_to_event_nanos = ((distance / cur_vel.clone())
+                    * Decimal::from(NANOS_PER_SECOND))
+                .to_u64()
+                .unwrap_or(0);
+                let time_to_event =
+                    TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
+                if time_to_event <= remaining_time {
                     cur_y = event_y;
-                    remaining_secs -= time_to_event_secs;
+                    remaining_time -= time_to_event;
                     self.apply_flow_event(evt);
                     cur_vel = self.current_velocity();
                     continue;
                 }
             }
-            cur_y += cur_vel * remaining_secs;
+            cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
             break;
         }
 
@@ -217,8 +229,8 @@ impl BmsonProcessor {
 
     fn apply_flow_event(&mut self, evt: FlowEvent) {
         match evt {
-            FlowEvent::Bpm(bpm) => self.current_bpm = Decimal::from(bpm),
-            FlowEvent::Scroll(s) => self.current_scroll = Decimal::from(s),
+            FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
+            FlowEvent::Scroll(s) => self.current_scroll = s,
         }
     }
 
@@ -277,7 +289,7 @@ impl ChartProcessor for BmsonProcessor {
         &self.current_scroll
     }
 
-    fn start_play(&mut self, now: Instant) {
+    fn start_play(&mut self, now: TimeStamp) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
@@ -285,11 +297,11 @@ impl ChartProcessor for BmsonProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
-    fn started_at(&self) -> Option<Instant> {
+    fn started_at(&self) -> Option<TimeStamp> {
         self.started_at
     }
 
-    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
+    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -298,37 +310,47 @@ impl ChartProcessor for BmsonProcessor {
         let visible_y_length = self.visible_window_y();
         let preload_end_y = cur_y.clone() + visible_y_length;
 
-        // Collect events triggered at current moment
-        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
-
-        // Collect events within preload range
-        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
-
         use std::ops::Bound::{Excluded, Included};
-        // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
+
+        // Collect events triggered at current moment
+        let triggered_events = self.all_events.events_in_y_range((
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
-        )) {
-            for evp in events {
-                triggered_events.push(evp.clone());
-            }
-        }
+        ));
 
-        // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
+        let new_preloaded_events = self.all_events.events_in_y_range((
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
-        )) {
-            for evp in events {
-                new_preloaded_events.push(evp.clone());
-            }
-        }
+        ));
 
         // Update preloaded events list
         self.preloaded_events = new_preloaded_events;
 
         triggered_events.into_iter()
+    }
+
+    fn events_in_time_range(
+        &mut self,
+        range: impl std::ops::RangeBounds<TimeSpan>,
+    ) -> impl Iterator<Item = PlayheadEvent> {
+        let events: Vec<PlayheadEvent> = if let Some(started) = self.started_at {
+            let last = self.last_poll_at.unwrap_or(started);
+            // Calculate center time: elapsed time scaled by playback ratio
+            let elapsed = last
+                .checked_elapsed_since(started)
+                .unwrap_or(TimeSpan::ZERO);
+            let center_nanos = (Decimal::from(elapsed.as_nanos().max(0))
+                * self.playback_ratio.clone())
+            .to_u64()
+            .unwrap_or(0);
+            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
+            self.all_events
+                .events_in_time_range_offset_from(center, range)
+        } else {
+            Vec::new()
+        };
+
+        events.into_iter()
     }
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
@@ -346,7 +368,7 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent> {
+    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
@@ -447,35 +469,28 @@ impl AllEventsIndex {
                 points.insert(Decimal::from(i));
             }
         }
+        let init_bpm: Decimal = bmson.info.init_bpm.as_f64().into();
         let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
-        bpm_map.insert(Decimal::zero(), Decimal::from(bmson.info.init_bpm.as_f64()));
-        let bpm_pairs: Vec<(Decimal, Decimal)> = bmson
-            .bpm_events
-            .iter()
-            .map(|ev| (pulses_to_y(ev.y.0), ev.bpm.as_f64().into()))
-            .collect();
-        bpm_map.extend(bpm_pairs.iter().cloned());
-        points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
+        bpm_map.insert(Decimal::zero(), init_bpm.clone());
+        for ev in &bmson.bpm_events {
+            bpm_map.insert(pulses_to_y(ev.y.0), ev.bpm.as_f64().into());
+        }
         let mut stop_list: Vec<(Decimal, u64)> = bmson
             .stop_events
             .iter()
             .map(|st| (pulses_to_y(st.y.0), st.duration))
             .collect();
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
-        let init_bpm = Decimal::from(bmson.info.init_bpm.as_f64());
-        let mut total = 0.0f64;
+        let mut cum_map: BTreeMap<Decimal, u64> = BTreeMap::new();
+        let mut total_nanos: u64 = 0;
         let mut prev = Decimal::zero();
-        cum_map.insert(prev.clone(), 0.0);
+        cum_map.insert(prev.clone(), 0);
         let mut cur_bpm = bpm_map
-            .range((
-                std::ops::Bound::Unbounded,
-                std::ops::Bound::Included(prev.clone()),
-            ))
+            .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        let seconds_for_stop = |stop_y: Decimal, stop_pulses: u64| {
+        let nanos_for_stop = |stop_y: &Decimal, stop_pulses: u64| {
             let bpm_at_stop = bpm_map
                 .range((
                     std::ops::Bound::Unbounded,
@@ -487,7 +502,12 @@ impl AllEventsIndex {
             let stop_y_len = pulses_to_y(stop_pulses);
             let stop_y_len_f64 = stop_y_len.to_f64().unwrap_or(0.0);
             let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-            stop_y_len_f64 * 240.0 / bpm_at_stop_f64
+            let stop_nanos_f64 = stop_y_len_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
+            if stop_nanos_f64.is_finite() && stop_nanos_f64 > 0.0 {
+                stop_nanos_f64.round() as u64
+            } else {
+                0
+            }
         };
         let mut stop_idx = 0usize;
         for curr in points.into_iter() {
@@ -496,37 +516,39 @@ impl AllEventsIndex {
             }
             let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
             let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-            total += delta_y_f64 * 240.0 / cur_bpm_f64;
-            while stop_idx < stop_list.len() && stop_list[stop_idx].0 <= curr.clone() {
-                let sy = stop_list[stop_idx].0.clone();
-                if sy > prev.clone() {
-                    total += seconds_for_stop(sy.clone(), stop_list[stop_idx].1);
+            let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
+            if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
+                total_nanos = total_nanos.saturating_add(delta_nanos_f64.round() as u64);
+            }
+            while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
+                if sy > &curr {
+                    break;
+                }
+                if sy > &prev {
+                    total_nanos = total_nanos.saturating_add(nanos_for_stop(sy, *stop_pulses));
                 }
                 stop_idx += 1;
             }
             cur_bpm = bpm_map
-                .range((
-                    std::ops::Bound::Unbounded,
-                    std::ops::Bound::Included(curr.clone()),
-                ))
+                .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
                 .next_back()
                 .map(|(_, b)| b.clone())
                 .unwrap_or_else(|| init_bpm.clone());
-            cum_map.insert(curr.clone(), total);
+            cum_map.insert(curr.clone(), total_nanos);
             prev = curr;
         }
         let mut events_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        let to_time_span = |nanos: u64| TimeSpan::from_duration(Duration::from_nanos(nanos));
         let mut id_gen: ChartEventIdGenerator = ChartEventIdGenerator::default();
         for SoundChannel { name, notes } in &bmson.sound_channels {
             let mut last_restart_y = Decimal::zero();
             for Note { y, x, l, c, .. } in notes {
-                let yy = pulses_to_y(y.0);
-                let y_coord = YCoordinate::from(yy.clone());
+                let y_coord = YCoordinate::from(pulses_to_y(y.0));
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
                 if let Some((side, key)) = BmsonProcessor::lane_from_x(x.as_ref().copied()) {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
-                        YCoordinate::from(end_y - yy.clone())
+                        YCoordinate::from(end_y - y_coord.value().clone())
                     });
                     let kind = if *l > 0 {
                         NoteKind::Long
@@ -534,9 +556,9 @@ impl AllEventsIndex {
                         NoteKind::Visible
                     };
                     let continue_play = c.then(|| {
-                        let to = cum_map.get(&yy).copied().unwrap_or(0.0);
-                        let from = cum_map.get(&last_restart_y).copied().unwrap_or(0.0);
-                        Duration::from_secs_f64((to - from).max(0.0))
+                        let to = cum_map.get(y_coord.value()).copied().unwrap_or(0);
+                        let from = cum_map.get(&last_restart_y).copied().unwrap_or(0);
+                        to_time_span(to.saturating_sub(from))
                     });
                     let event = ChartEvent::Note {
                         side,
@@ -546,15 +568,15 @@ impl AllEventsIndex {
                         length,
                         continue_play,
                     };
-                    let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                    let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
-                    events_map.entry(y_coord).or_default().push(evp);
                     if !*c {
-                        last_restart_y = yy;
+                        last_restart_y = y_coord.value().clone();
                     }
+                    events_map.entry(y_coord).or_default().push(evp);
                 } else {
                     let event = ChartEvent::Bgm { wav_id };
-                    let at = Duration::from_secs_f64(cum_map.get(&yy).copied().unwrap_or(0.0));
+                    let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                 }
@@ -566,7 +588,7 @@ impl AllEventsIndex {
             let event = ChartEvent::BpmChange {
                 bpm: ev.bpm.as_f64().into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -576,7 +598,7 @@ impl AllEventsIndex {
             let event = ChartEvent::ScrollChange {
                 factor: rate.as_f64().into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -587,36 +609,36 @@ impl AllEventsIndex {
         for BgaEvent { y, id, .. } in &bmson.bga.bga_events {
             let yy = pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
-            let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
+            let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Base,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.layer_events {
             let yy = pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
-            let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
+            let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Overlay,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for BgaEvent { y, id, .. } in &bmson.bga.poor_events {
             let yy = pulses_to_y(y.0);
             let y_coord = YCoordinate::from(yy);
-            let bmp_id = id_to_bmp.get(&id.0).cloned().flatten();
+            let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
                 layer: BgaLayer::Poor,
                 bmp_id,
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
@@ -625,8 +647,7 @@ impl AllEventsIndex {
                 let y = pulses_to_y(bar_line.y.0);
                 let y_coord = YCoordinate::from(y);
                 let event = ChartEvent::BarLine;
-                let at =
-                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
@@ -642,9 +663,7 @@ impl AllEventsIndex {
                 while current_y <= max_y {
                     let y_coord = YCoordinate::from(current_y.clone());
                     let event = ChartEvent::BarLine;
-                    let at = Duration::from_secs_f64(
-                        cum_map.get(y_coord.value()).copied().unwrap_or(0.0),
-                    );
+                    let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                     let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                     events_map.entry(y_coord).or_default().push(evp);
                     current_y += Decimal::one();
@@ -657,14 +676,13 @@ impl AllEventsIndex {
             let event = ChartEvent::Stop {
                 duration: (stop.duration as f64).into(),
             };
-            let at = Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+            let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
             events_map.entry(y_coord).or_default().push(evp);
         }
         for MineChannel { name, notes } in &bmson.mine_channels {
             for MineEvent { x, y, .. } in notes {
-                let yy = pulses_to_y(y.0);
-                let y_coord = YCoordinate::from(yy.clone());
+                let y_coord = YCoordinate::from(pulses_to_y(y.0));
                 let Some((side, key)) = BmsonProcessor::lane_from_x(*x) else {
                     continue;
                 };
@@ -677,16 +695,14 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at =
-                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
         for KeyChannel { name, notes } in &bmson.key_channels {
             for KeyEvent { x, y, .. } in notes {
-                let yy = pulses_to_y(y.0);
-                let y_coord = YCoordinate::from(yy.clone());
+                let y_coord = YCoordinate::from(pulses_to_y(y.0));
                 let Some((side, key)) = BmsonProcessor::lane_from_x(*x) else {
                     continue;
                 };
@@ -699,8 +715,7 @@ impl AllEventsIndex {
                     length: None,
                     continue_play: None,
                 };
-                let at =
-                    Duration::from_secs_f64(cum_map.get(y_coord.value()).copied().unwrap_or(0.0));
+                let at = to_time_span(cum_map.get(y_coord.value()).copied().unwrap_or(0));
                 let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, at);
                 events_map.entry(y_coord).or_default().push(evp);
             }

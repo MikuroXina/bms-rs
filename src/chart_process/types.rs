@@ -1,12 +1,20 @@
 //! Type definition module
 
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::ops::{Bound, Range, RangeBounds};
+use std::time::Duration;
+
+use num::{One, ToPrimitive, Zero};
+
+use super::TimeSpan;
+
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
 use crate::{bms::Decimal, chart_process::ChartEvent};
-use num::{One, ToPrimitive, Zero};
-use std::collections::BTreeMap;
-use std::time::Duration;
+
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Trait for generating the base BPM used to derive default visible window length.
 pub trait BaseBpmGenerator<S> {
@@ -64,12 +72,15 @@ impl VisibleRangePerBpm {
     /// Create a new VisibleRangePerBpm from base BPM and reaction time
     /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
     #[must_use]
-    pub fn new(base_bpm: &BaseBpm, reaction_time: Duration) -> Self {
+    pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
-            let seconds = Decimal::from(reaction_time.as_secs_f64());
-            Self(seconds / base_bpm.value().clone())
+            Self(
+                Decimal::from(reaction_time.as_nanos().max(0))
+                    / NANOS_PER_SECOND
+                    / base_bpm.value().clone(),
+            )
         }
     }
 
@@ -90,12 +101,14 @@ impl VisibleRangePerBpm {
     /// Formula: reaction_time = visible_range_per_bpm / playhead_speed
     /// where playhead_speed = 1/240 (Y/sec per BPM)
     #[must_use]
-    pub fn to_reaction_time(&self) -> Duration {
+    pub fn to_reaction_time(&self) -> TimeSpan {
         if self.0.is_zero() {
-            Duration::from_secs(0)
+            TimeSpan::ZERO
         } else {
-            let seconds = self.0.clone() * Decimal::from(240);
-            Duration::from_secs_f64(seconds.to_f64().unwrap_or(0.0))
+            let nanos = (self.0.clone() * Decimal::from(240) * Decimal::from(NANOS_PER_SECOND))
+                .to_u64()
+                .unwrap_or(0);
+            TimeSpan::from_duration(Duration::from_nanos(nanos))
         }
     }
 
@@ -455,7 +468,7 @@ pub struct PlayheadEvent {
     /// Chart event
     pub event: ChartEvent,
     /// Activate time since chart playback started
-    pub activate_time: Duration,
+    pub activate_time: TimeSpan,
 }
 
 impl PlayheadEvent {
@@ -465,7 +478,7 @@ impl PlayheadEvent {
         id: ChartEventId,
         position: YCoordinate,
         event: ChartEvent,
-        activate_time: Duration,
+        activate_time: TimeSpan,
     ) -> Self {
         Self {
             position,
@@ -495,7 +508,7 @@ impl PlayheadEvent {
 
     /// Get activate time
     #[must_use]
-    pub const fn activate_time(&self) -> &Duration {
+    pub const fn activate_time(&self) -> &TimeSpan {
         &self.activate_time
     }
 }
@@ -528,7 +541,7 @@ pub struct VisibleChartEvent {
     /// Display ratio
     pub display_ratio: DisplayRatio,
     /// Activate time since chart playback started
-    pub activate_time: Duration,
+    pub activate_time: TimeSpan,
 }
 
 impl VisibleChartEvent {
@@ -539,7 +552,7 @@ impl VisibleChartEvent {
         position: YCoordinate,
         event: ChartEvent,
         display_ratio: DisplayRatio,
-        activate_time: Duration,
+        activate_time: TimeSpan,
     ) -> Self {
         Self {
             position,
@@ -576,7 +589,7 @@ impl VisibleChartEvent {
 
     /// Get activate time
     #[must_use]
-    pub const fn activate_time(&self) -> &Duration {
+    pub const fn activate_time(&self) -> &TimeSpan {
         &self.activate_time
     }
 }
@@ -597,17 +610,258 @@ impl std::hash::Hash for VisibleChartEvent {
 
 #[derive(Debug, Clone)]
 pub(crate) struct AllEventsIndex {
-    map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
+    events: Vec<PlayheadEvent>,
+    by_y: BTreeMap<YCoordinate, Range<usize>>,
+    by_time: BTreeMap<TimeSpan, Vec<usize>>,
 }
 
 impl AllEventsIndex {
     #[must_use]
-    pub const fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
-        Self { map }
+    pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
+        let mut events: Vec<PlayheadEvent> = Vec::new();
+        let mut by_y: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
+
+        for (y_coord, y_events) in map {
+            let start = events.len();
+            events.extend(y_events);
+            let end = events.len();
+            by_y.insert(y_coord, start..end);
+        }
+
+        let mut by_time: BTreeMap<TimeSpan, Vec<usize>> = BTreeMap::new();
+        for (idx, ev) in events.iter().enumerate() {
+            by_time.entry(ev.activate_time).or_default().push(idx);
+        }
+        for indices in by_time.values_mut() {
+            indices.sort_by(|&a, &b| {
+                let Some(a_ev) = events.get(a) else {
+                    return Ordering::Equal;
+                };
+                let Some(b_ev) = events.get(b) else {
+                    return Ordering::Equal;
+                };
+                a_ev.position
+                    .cmp(&b_ev.position)
+                    .then_with(|| a_ev.id.cmp(&b_ev.id))
+            });
+        }
+
+        Self {
+            events,
+            by_y,
+            by_time,
+        }
     }
 
     #[must_use]
-    pub const fn as_map(&self) -> &BTreeMap<YCoordinate, Vec<PlayheadEvent>> {
-        &self.map
+    pub const fn as_events(&self) -> &Vec<PlayheadEvent> {
+        &self.events
+    }
+
+    #[must_use]
+    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
+        &self.by_y
+    }
+
+    #[must_use]
+    pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<YCoordinate>,
+    {
+        self.by_y
+            .range(range)
+            .flat_map(|(_, indices)| self.events.get(indices.clone()).into_iter().flatten())
+            .cloned()
+            .collect()
+    }
+
+    pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<TimeSpan>,
+    {
+        // To avoid panic when `start > end` or the range is empty.
+        let mut start_bound = range.start_bound().cloned();
+        let mut end_bound = range.end_bound().cloned();
+
+        let start_value = match &start_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        let end_value = match &end_bound {
+            Bound::Unbounded => None,
+            Bound::Included(v) | Bound::Excluded(v) => Some(v),
+        };
+        if let (Some(start), Some(end)) = (start_value, end_value)
+            && start > end
+        {
+            std::mem::swap(&mut start_bound, &mut end_bound);
+        }
+
+        self.by_time
+            .range((start_bound, end_bound))
+            .flat_map(|(_, indices)| indices.iter().copied())
+            .filter_map(|idx| self.events.get(idx).cloned())
+            .collect()
+    }
+
+    pub fn events_in_time_range_offset_from<R>(
+        &self,
+        center: TimeSpan,
+        range: R,
+    ) -> Vec<PlayheadEvent>
+    where
+        R: RangeBounds<TimeSpan>,
+    {
+        let start_bound = match range.start_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        let end_bound = match range.end_bound() {
+            Bound::Included(offset) => Bound::Included(center + *offset),
+            Bound::Excluded(offset) => Bound::Excluded(center + *offset),
+            Bound::Unbounded => Bound::Unbounded,
+        };
+        self.events_in_time_range((start_bound, end_bound))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, TimeSpan, YCoordinate};
+
+    fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
+        let y_coord = YCoordinate::from(y);
+        PlayheadEvent::new(
+            ChartEventId::new(id),
+            y_coord,
+            ChartEvent::BarLine,
+            TimeSpan::SECOND * time_secs as i64,
+        )
+    }
+
+    #[test]
+    fn events_in_y_range_uses_btreemap_order_and_preserves_group_order() {
+        let y0 = YCoordinate::from(0.0);
+        let y1 = YCoordinate::from(1.0);
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            y0.clone(),
+            vec![
+                mk_event(2, 0.0, 1),
+                mk_event(1, 0.0, 1),
+                mk_event(3, 0.0, 2),
+            ],
+        );
+        map.insert(y1.clone(), vec![mk_event(4, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_y_range((std::ops::Bound::Included(y0), std::ops::Bound::Included(y1)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![2, 1, 3, 4]);
+    }
+
+    #[test]
+    fn events_in_time_range_respects_bounds_and_orders_within_same_time() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(
+            YCoordinate::from(0.0),
+            vec![mk_event(2, 0.0, 1), mk_event(1, 0.0, 1)],
+        );
+        map.insert(YCoordinate::from(1.0), vec![mk_event(3, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range(TimeSpan::SECOND..TimeSpan::SECOND * 2)
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+    }
+
+    #[test]
+    fn events_in_time_range_swaps_reversed_bounds() {
+        use std::ops::Bound::{Included, Unbounded};
+
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 1)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 2)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range((Included(TimeSpan::SECOND * 2), Included(TimeSpan::SECOND)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1, 2]);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1]);
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_returns_empty_when_end_is_negative() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
+            )
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert!(got_ids.is_empty());
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_excludes_zero_when_end_is_excluded() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert!(got_ids.is_empty());
+    }
+
+    #[test]
+    fn events_in_time_range_offset_from_clamps_negative_start_to_zero() {
+        let mut map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = BTreeMap::new();
+        map.insert(YCoordinate::from(0.0), vec![mk_event(1, 0.0, 0)]);
+        map.insert(YCoordinate::from(1.0), vec![mk_event(2, 1.0, 1)]);
+
+        let idx = AllEventsIndex::new(map);
+
+        let got_ids: Vec<usize> = idx
+            .events_in_time_range_offset_from(
+                TimeSpan::MILLISECOND * 100,
+                (TimeSpan::ZERO - TimeSpan::MILLISECOND * 200)..=TimeSpan::ZERO,
+            )
+            .into_iter()
+            .map(|ev| ev.id.value())
+            .collect();
+        assert_eq!(got_ids, vec![1]);
     }
 }

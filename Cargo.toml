@@ -32,6 +32,7 @@ thiserror = "2"
 rand = { version = "0.9", optional = true }
 ariadne = { version = "0.6", optional = true }
 chumsky = { version = "0.12", optional = true, features = ["serde"] }
+gametime = { version = "0.7", features = ["global_reference"] }
 
 [dev-dependencies]
 pretty_assertions = "1"

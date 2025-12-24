@@ -1,17 +1,22 @@
 //! Bms Processor Module.
 
-use std::collections::{BTreeMap, HashMap};
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
+use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
 use crate::bms::prelude::*;
-use crate::chart_process::{
-    ChartEvent, ChartProcessor, ControlEvent, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm,
-    WavId, YCoordinate,
-    types::{AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio},
+use crate::chart_process::types::{
+    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleChartEvent,
+    VisibleRangePerBpm, WavId, YCoordinate,
 };
+use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
+
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// ChartProcessor of Bms files.
 pub struct BmsProcessor {
@@ -21,8 +26,8 @@ pub struct BmsProcessor {
     bmp_paths: HashMap<BmpId, PathBuf>,
 
     // Playback state
-    started_at: Option<Instant>,
-    last_poll_at: Option<Instant>,
+    started_at: Option<TimeStamp>,
+    last_poll_at: Option<TimeStamp>,
     /// Accumulated displacement progressed (y, actual movement distance unit)
     progressed_y: Decimal,
 
@@ -187,7 +192,7 @@ impl BmsProcessor {
             playback_ratio,
             visible_range_per_bpm,
             flow_events_by_y,
-            init_bpm: init_bpm.clone(),
+            init_bpm,
         }
     }
 
@@ -225,12 +230,8 @@ impl BmsProcessor {
             if track_y <= max_y {
                 let y_coord = YCoordinate::from(track_y);
                 let event = ChartEvent::BarLine;
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -248,16 +249,16 @@ impl BmsProcessor {
     }
 
     /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
-    fn next_flow_event_after(&self, y_from_exclusive: Decimal) -> Option<(Decimal, FlowEvent)> {
+    fn next_flow_event_after(&self, y_from_exclusive: &Decimal) -> Option<(Decimal, FlowEvent)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .map(|(y, events)| (y.clone(), events[0].clone()))
+            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
     }
 
     /// Advance time to `now`, perform segmented integration of progress and speed by events.
-    fn step_to(&mut self, now: Instant) {
+    fn step_to(&mut self, now: TimeStamp) {
         let Some(started) = self.started_at else {
             return;
         };
@@ -266,43 +267,54 @@ impl BmsProcessor {
             return;
         }
 
-        let mut remaining_secs = Decimal::from(now.duration_since(last).as_secs_f64());
+        let mut remaining_time = now - last;
         let mut cur_vel = self.current_velocity();
         let mut cur_y = self.progressed_y.clone();
         // Advance in segments until time slice is used up
         loop {
+            let cur_y_now = cur_y;
             // The next event that affects speed
-            let next_event = self.next_flow_event_after(cur_y.clone());
+            let next_event = self.next_flow_event_after(&cur_y_now);
             if next_event.is_none()
                 || cur_vel <= Decimal::zero()
-                || remaining_secs <= Decimal::zero()
+                || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end
-                cur_y += cur_vel * remaining_secs;
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
                 break;
             }
-            let (event_y, evt) = next_event.unwrap();
-            if event_y.clone() <= cur_y.clone() {
+            let Some((event_y, evt)) = next_event else {
+                cur_y = cur_y_now + cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND;
+                break;
+            };
+            if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
                 self.apply_flow_event(evt);
                 cur_vel = self.current_velocity();
+                cur_y = cur_y_now;
                 continue;
             }
             // Time required to reach event
-            let distance = event_y.clone() - cur_y.clone();
+            let distance = event_y.clone() - cur_y_now.clone();
             if cur_vel > Decimal::zero() {
-                let time_to_event_secs = distance / cur_vel.clone();
-                if time_to_event_secs <= remaining_secs {
+                let time_to_event_nanos = ((distance / cur_vel.clone())
+                    * Decimal::from(NANOS_PER_SECOND))
+                .to_u64()
+                .unwrap_or(0);
+                let time_to_event =
+                    TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
+                if time_to_event <= remaining_time {
                     // First advance to event point
                     cur_y = event_y;
-                    remaining_secs -= time_to_event_secs;
+                    remaining_time -= time_to_event;
                     self.apply_flow_event(evt);
                     cur_vel = self.current_velocity();
                     continue;
                 }
             }
             // Time not enough to reach event, advance and end
-            cur_y += cur_vel * remaining_secs;
+            cur_y = cur_y_now
+                + cur_vel * Decimal::from(remaining_time.as_nanos().max(0)) / NANOS_PER_SECOND;
             break;
         }
 
@@ -367,7 +379,7 @@ impl ChartProcessor for BmsProcessor {
         &self.playback_ratio
     }
 
-    fn start_play(&mut self, now: Instant) {
+    fn start_play(&mut self, now: TimeStamp) {
         self.started_at = Some(now);
         self.last_poll_at = Some(now);
         self.progressed_y = Decimal::zero();
@@ -376,11 +388,11 @@ impl ChartProcessor for BmsProcessor {
         self.current_bpm = self.init_bpm.clone();
     }
 
-    fn started_at(&self) -> Option<Instant> {
+    fn started_at(&self) -> Option<TimeStamp> {
         self.started_at
     }
 
-    fn update(&mut self, now: Instant) -> impl Iterator<Item = PlayheadEvent> {
+    fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
         let prev_y = self.progressed_y.clone();
         self.step_to(now);
         let cur_y = self.progressed_y.clone();
@@ -389,32 +401,18 @@ impl ChartProcessor for BmsProcessor {
         let visible_y_length = self.visible_window_y();
         let preload_end_y = cur_y.clone() + visible_y_length;
 
-        // Collect events triggered at current moment
-        let mut triggered_events: Vec<PlayheadEvent> = Vec::new();
-
-        // Collect events within preload range
-        let mut new_preloaded_events: Vec<PlayheadEvent> = Vec::new();
-
         use std::ops::Bound::{Excluded, Included};
-        // Triggered events: (prev_y, cur_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
+
+        // Collect events triggered at current moment
+        let mut triggered_events = self.all_events.events_in_y_range((
             Excluded(YCoordinate::from(prev_y)),
             Included(YCoordinate::from(cur_y.clone())),
-        )) {
-            for evp in events {
-                triggered_events.push(evp.clone());
-            }
-        }
+        ));
 
-        // Preloaded events: (cur_y, preload_end_y]
-        for (_y_coord, events) in self.all_events.as_map().range((
+        let mut new_preloaded_events = self.all_events.events_in_y_range((
             Excluded(YCoordinate::from(cur_y)),
             Included(YCoordinate::from(preload_end_y)),
-        )) {
-            for evp in events {
-                new_preloaded_events.push(evp.clone());
-            }
-        }
+        ));
 
         // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
         triggered_events.sort_by(|a, b| {
@@ -436,6 +434,30 @@ impl ChartProcessor for BmsProcessor {
         triggered_events.into_iter()
     }
 
+    fn events_in_time_range(
+        &mut self,
+        range: impl std::ops::RangeBounds<TimeSpan>,
+    ) -> impl Iterator<Item = PlayheadEvent> {
+        let events: Vec<PlayheadEvent> = if let Some(started) = self.started_at {
+            let last = self.last_poll_at.unwrap_or(started);
+            // Calculate center time: elapsed time scaled by playback ratio
+            let elapsed = last
+                .checked_elapsed_since(started)
+                .unwrap_or(TimeSpan::ZERO);
+            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
+            let center_nanos = (Decimal::from(elapsed_nanos) * self.playback_ratio.clone())
+                .to_u64()
+                .unwrap_or(0);
+            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
+            self.all_events
+                .events_in_time_range_offset_from(center, range)
+        } else {
+            Vec::new()
+        };
+
+        events.into_iter()
+    }
+
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
         for evt in events {
             match evt {
@@ -451,7 +473,7 @@ impl ChartProcessor for BmsProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: Instant) -> impl Iterator<Item = VisibleChartEvent> {
+    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent> {
         self.step_to(now);
         let current_y = self.progressed_y.clone();
         let visible_window_y = self.visible_window_y();
@@ -502,12 +524,7 @@ impl AllEventsIndex {
             let event = event_for_note_static::<T>(bms, obj, y.clone());
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -519,12 +536,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -536,12 +548,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -553,12 +560,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -570,12 +572,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -589,12 +586,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -609,12 +601,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -629,12 +617,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -647,12 +631,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -664,12 +643,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -681,12 +655,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -698,12 +667,7 @@ impl AllEventsIndex {
             };
 
             let y_coord = YCoordinate::from(y);
-            let evp = PlayheadEvent::new(
-                id_gen.next_id(),
-                y_coord.clone(),
-                event,
-                Duration::from_secs(0),
-            );
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
             events_map.entry(y_coord).or_default().push(evp);
         }
 
@@ -718,12 +682,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
 
@@ -736,12 +696,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
 
@@ -753,12 +709,8 @@ impl AllEventsIndex {
                 };
 
                 let y_coord = YCoordinate::from(y);
-                let evp = PlayheadEvent::new(
-                    id_gen.next_id(),
-                    y_coord.clone(),
-                    event,
-                    Duration::from_secs(0),
-                );
+                let evp =
+                    PlayheadEvent::new(id_gen.next_id(), y_coord.clone(), event, TimeSpan::ZERO);
                 events_map.entry(y_coord).or_default().push(evp);
             }
         }
@@ -774,7 +726,7 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<Decimal> = BTreeSet::new();
     points.insert(Decimal::zero());
-    points.extend(all_events.as_map().keys().map(|yc| yc.value().clone()));
+    points.extend(all_events.as_by_y().keys().map(|yc| yc.value().clone()));
 
     let mut bpm_map: BTreeMap<Decimal, Decimal> = BTreeMap::new();
     let init_bpm = bms
@@ -807,15 +759,12 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         .collect();
     stop_list.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut cum_map: BTreeMap<Decimal, f64> = BTreeMap::new();
-    let mut total = 0.0f64;
+    let mut cum_map: BTreeMap<Decimal, u64> = BTreeMap::new();
+    let mut total_nanos: u64 = 0;
     let mut prev = Decimal::zero();
-    cum_map.insert(prev.clone(), 0.0);
+    cum_map.insert(prev.clone(), 0);
     let mut cur_bpm = bpm_map
-        .range((
-            std::ops::Bound::Unbounded,
-            std::ops::Bound::Included(prev.clone()),
-        ))
+        .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&prev)))
         .next_back()
         .map(|(_, b)| b.clone())
         .unwrap_or_else(|| init_bpm.clone());
@@ -826,44 +775,50 @@ fn precompute_activate_times(bms: &Bms, all_events: &AllEventsIndex) -> AllEvent
         }
         let delta_y_f64 = (curr.clone() - prev.clone()).to_f64().unwrap_or(0.0);
         let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-        total += delta_y_f64 * 240.0 / cur_bpm_f64;
-        while stop_idx < stop_list.len() && stop_list[stop_idx].0 < curr.clone() {
-            let sy = stop_list[stop_idx].0.clone();
-            if sy > prev.clone() {
+        let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
+        if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
+            total_nanos = total_nanos.saturating_add(delta_nanos_f64.round() as u64);
+        }
+        while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
+            if sy >= &curr {
+                break;
+            }
+            if sy > &prev {
                 let bpm_at_stop = bpm_map
-                    .range((
-                        std::ops::Bound::Unbounded,
-                        std::ops::Bound::Included(sy.clone()),
-                    ))
+                    .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(sy)))
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
-                let dur_y_f64 = stop_list[stop_idx].1.to_f64().unwrap_or(0.0);
+                let dur_y_f64 = dur_y.to_f64().unwrap_or(0.0);
                 let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-                total += dur_y_f64 * 240.0 / bpm_at_stop_f64;
+                let dur_nanos_f64 = dur_y_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
+                if dur_nanos_f64.is_finite() && dur_nanos_f64 > 0.0 {
+                    total_nanos = total_nanos.saturating_add(dur_nanos_f64.round() as u64);
+                }
             }
             stop_idx += 1;
         }
         cur_bpm = bpm_map
-            .range((
-                std::ops::Bound::Unbounded,
-                std::ops::Bound::Included(curr.clone()),
-            ))
+            .range((std::ops::Bound::Unbounded, std::ops::Bound::Included(&curr)))
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        cum_map.insert(curr.clone(), total);
+        cum_map.insert(curr.clone(), total_nanos);
         prev = curr;
     }
 
     let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
-        .as_map()
+        .as_by_y()
         .iter()
-        .map(|(y_coord, events)| {
+        .map(|(y_coord, indices)| {
             let y = y_coord.value();
-            let at = Duration::from_secs_f64(cum_map.get(y).copied().unwrap_or(0.0));
-            let new_events: Vec<_> = events
-                .iter()
+            let at_nanos = cum_map.get(y).copied().unwrap_or(0);
+            let at = TimeSpan::from_duration(Duration::from_nanos(at_nanos));
+            let new_events: Vec<_> = all_events
+                .as_events()
+                .get(indices.clone())
+                .into_iter()
+                .flatten()
                 .cloned()
                 .map(|mut evp| {
                     evp.activate_time = at;
