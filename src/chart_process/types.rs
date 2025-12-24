@@ -12,7 +12,8 @@ use super::TimeSpan;
 use crate::bms::prelude::Bms;
 #[cfg(feature = "bmson")]
 use crate::bmson::prelude::Bmson;
-use crate::{bms::BigDecimal, chart_process::ChartEvent};
+use crate::chart_process::ChartEvent;
+use fraction::BigDecimal;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 

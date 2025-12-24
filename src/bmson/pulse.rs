@@ -4,10 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bms::{
-    BigDecimal,
-    command::time::{ObjTime, Track},
-};
+use crate::bms::command::time::{ObjTime, Track};
+use fraction::BigDecimal;
 
 /// Note position for the chart [`super::Bmson`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

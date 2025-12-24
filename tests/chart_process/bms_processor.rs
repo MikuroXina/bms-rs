@@ -3,9 +3,9 @@ use std::str::FromStr;
 use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive};
 
-use bms_rs::bms::BigDecimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
+use fraction::BigDecimal;
 
 /// Setup a BMS processor for testing (without calling start_play)
 fn setup_bms_processor_with_config<T, P, R, M>(

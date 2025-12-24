@@ -9,7 +9,7 @@ pub use crate::diagnostics::{SimpleSource, ToAriadne, emit_bms_warnings};
 
 // Re-export types from bms module
 pub use super::{
-    BigDecimal, BmsOutput, BmsWarning, ParseConfig,
+    BmsOutput, BmsWarning, ParseConfig,
     command::{
         JudgeLevel, LnMode, LnType, ObjId, ObjIdManager, PlayerMode, PoorMode, Volume,
         channel::{
@@ -67,6 +67,7 @@ pub use super::{
     parse_bms,
     rng::{Rng, RngMock},
 };
+pub use fraction::BigDecimal;
 
 // Re-export related members when `rand` feature is enabled
 #[cfg(feature = "rand")]

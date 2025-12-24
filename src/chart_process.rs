@@ -11,13 +11,11 @@ use std::{collections::HashMap, ops::RangeBounds, path::Path};
 use gametime::{TimeSpan, TimeStamp};
 
 use crate::bms::prelude::SwBgaEvent;
-use crate::bms::{
-    BigDecimal,
-    prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
-};
+use crate::bms::prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide};
 use crate::chart_process::types::{
     BmpId, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm, WavId, YCoordinate,
 };
+use fraction::BigDecimal;
 
 pub mod bms_processor;
 pub mod bmson_processor;
