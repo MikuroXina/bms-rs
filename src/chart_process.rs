@@ -16,7 +16,7 @@ use crate::bms::{
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
 use crate::chart_process::types::{
-    BmpId, PlayheadEvent, VisibleChartEvent, VisibleRangePerBpm, WavId, YCoordinate,
+    BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
 pub mod bms_processor;
@@ -232,5 +232,5 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent>;
+    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
 }

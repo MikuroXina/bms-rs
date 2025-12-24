@@ -14,8 +14,8 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleChartEvent,
-    VisibleRangePerBpm, WavId, YCoordinate,
+    AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleRangePerBpm,
+    WavId, YCoordinate,
 };
 use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
@@ -377,8 +377,7 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(&mut self, now: TimeStamp) -> impl Iterator<Item = VisibleChartEvent> {
-        self.step_to(now);
+    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
         let current_y = &self.progressed_y;
         let visible_window_y = self.visible_window_y();
         let scroll_factor = &self.current_scroll;
@@ -394,15 +393,7 @@ impl ChartProcessor for BmsonProcessor {
             };
             let display_ratio = DisplayRatio::from(display_ratio_value);
 
-            let activate_time = event_with_pos.activate_time;
-
-            VisibleChartEvent::new(
-                event_with_pos.id,
-                event_with_pos.position().clone(),
-                event_with_pos.event().clone(),
-                display_ratio,
-                activate_time,
-            )
+            (event_with_pos.clone(), display_ratio)
         })
     }
 
