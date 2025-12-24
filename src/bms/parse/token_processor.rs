@@ -76,7 +76,7 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
 
     /// Returns a shared reference to the prompter.
     #[must_use]
-    pub const fn prompter(&self) -> &P {
+    pub const fn prompter(&self) -> &'a P {
         self.prompter
     }
 
@@ -161,6 +161,17 @@ impl<T: TokenProcessor + ?Sized> TokenProcessor for Box<T> {
     }
 }
 
+impl<T: TokenProcessor + ?Sized> TokenProcessor for Rc<T> {
+    type Output = <T as TokenProcessor>::Output;
+
+    fn process<'a, 't, P: Prompter>(
+        &self,
+        ctx: &mut ProcessContext<'a, 't, P>,
+    ) -> Result<Self::Output, ParseErrorWithRange> {
+        T::process(self, ctx)
+    }
+}
+
 /// A processor [`SequentialProcessor`] which does `first` then `second`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SequentialProcessor<F, S> {
@@ -235,7 +246,8 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
         .then(video::VideoProcessor::new(&case_sensitive_obj_id))
         .then(volume::VolumeProcessor)
         .then(wav::WavProcessor::<T>::new(&case_sensitive_obj_id));
-    random::RandomTokenProcessor::new(rng, sub_processor).map(
+
+    let bms_mapper = sub_processor.map(
         |(
             (
                 (
@@ -290,8 +302,15 @@ pub(crate) fn full_preset<T: KeyLayoutMapper, R: Rng>(
             video,
             volume,
             wav,
+            randomized: Default::default(),
         },
-    )
+    );
+    let bms_mapper = Rc::new(bms_mapper);
+
+    random::RandomTokenProcessor::new(rng, bms_mapper).map(|(mut bms, randomized)| {
+        bms.randomized = randomized;
+        bms
+    })
 }
 
 pub(crate) fn relax_tokens_default<'a>(tokens: &mut TokenStream<'a>) {
