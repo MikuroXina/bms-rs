@@ -87,8 +87,8 @@ impl VisibleRangePerBpm {
     /// Calculate visible window length in y units based on current BPM.
     /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
     #[must_use]
-    pub fn window_y(&self, current_bpm: &Decimal) -> Decimal {
-        current_bpm.clone() * self.value().clone()
+    pub fn window_y(&self, current_bpm: &Decimal) -> YCoordinate {
+        YCoordinate::new(current_bpm.clone() * self.value().clone())
     }
 
     /// Get the internal Decimal value
@@ -241,6 +241,12 @@ impl YCoordinate {
     pub fn as_f64(&self) -> f64 {
         self.0.to_string().parse::<f64>().unwrap_or(0.0)
     }
+
+    /// Creates a zero of Y coordinate.
+    #[must_use]
+    pub fn zero() -> Self {
+        Self(Decimal::zero())
+    }
 }
 
 impl From<Decimal> for YCoordinate {
@@ -263,11 +269,27 @@ impl std::ops::Add for YCoordinate {
     }
 }
 
+impl std::ops::Add for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 + &rhs.0)
+    }
+}
+
 impl std::ops::Sub for YCoordinate {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl std::ops::Sub for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 - &rhs.0)
     }
 }
 
@@ -284,6 +306,24 @@ impl std::ops::Div for YCoordinate {
 
     fn div(self, rhs: Self) -> Self::Output {
         Self(self.0 / rhs.0)
+    }
+}
+
+impl std::ops::Div for &YCoordinate {
+    type Output = YCoordinate;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        YCoordinate(&self.0 / &rhs.0)
+    }
+}
+
+impl Zero for YCoordinate {
+    fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
     }
 }
 
