@@ -6,7 +6,11 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
-use std::{collections::HashMap, ops::RangeBounds, path::Path};
+use std::{
+    collections::HashMap,
+    ops::{RangeBounds, RangeInclusive},
+    path::Path,
+};
 
 use gametime::{TimeSpan, TimeStamp};
 
@@ -232,5 +236,15 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
+    ///
+    /// Returns the event along with its display ratio range.
+    /// - `PlayheadEvent`: The event data and its position.
+    /// - `RangeInclusive<DisplayRatio>`: The visual range on the screen (0.0 = judgment line).
+    ///   - For point events (like normal notes), the range is a single point (start == end).
+    ///   - For long notes, the range covers the length from start to end.
+    ///
+    /// See [`DisplayRatio`].
+    fn visible_events(
+        &mut self,
+    ) -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)>;
 }

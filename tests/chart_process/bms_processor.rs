@@ -95,7 +95,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     // Verify display ratio calculation
     for (visible_event, display_ratio) in &after_change_events {
         let y_value = visible_event.position().value().to_f64().unwrap_or(0.0);
-        let display_ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
+        let display_ratio_value = display_ratio.start().value().to_f64().unwrap_or(0.0);
 
         // Display ratio should be in reasonable range
         assert!(
@@ -178,7 +178,7 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
 
     // Verify display ratio is still valid
     for (_, display_ratio) in &after_bpm_events {
-        let ratio_value = display_ratio.value().to_f64().unwrap_or(0.0);
+        let ratio_value = display_ratio.start().value().to_f64().unwrap_or(0.0);
         assert!(ratio_value.is_finite() && ratio_value >= 0.0);
     }
 }
@@ -199,7 +199,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let initial_events: Vec<_> = processor.visible_events().collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
-        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio)| display_ratio.start().value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
@@ -215,7 +215,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio)| display_ratio.start().value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if after_first_ratios.is_empty() {
@@ -245,7 +245,7 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, display_ratio)| display_ratio.value().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio)| display_ratio.start().value().to_f64().unwrap_or(0.0))
         .collect::<Vec<_>>();
 
     if after_scroll_half_ratios.is_empty() {
