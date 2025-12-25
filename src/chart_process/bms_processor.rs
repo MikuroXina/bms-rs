@@ -319,8 +319,9 @@ impl ChartProcessor for BmsProcessor {
         self.last_poll_at = Some(now);
         self.progressed_y = YCoordinate::zero();
         self.preloaded_events.clear();
-        // Initialize current_bpm to header or default cached value
         self.current_bpm = self.init_bpm.clone();
+        self.current_speed = Decimal::one();
+        self.current_scroll = Decimal::one();
     }
 
     fn started_at(&self) -> Option<TimeStamp> {
