@@ -239,7 +239,7 @@ impl YCoordinate {
     /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
-        self.0.to_string().parse::<f64>().unwrap_or(0.0)
+        self.0.to_f64().unwrap_or(0.0)
     }
 
     /// Creates a zero of Y coordinate.
@@ -350,7 +350,7 @@ impl DisplayRatio {
     /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
-        self.0.to_string().parse::<f64>().unwrap_or(0.0)
+        self.0.to_f64().unwrap_or(0.0)
     }
 
     /// Create a DisplayRatio representing the judgment line (value 0)
@@ -690,6 +690,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, TimeSpan, YCoordinate};
+    use crate::bms::Decimal;
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
         let y_coord = YCoordinate::from(y);
@@ -699,6 +700,13 @@ mod tests {
             ChartEvent::BarLine,
             TimeSpan::SECOND * time_secs as i64,
         )
+    }
+
+    #[test]
+    fn as_f64_ignores_representation_precision() {
+        let d = Decimal::from(0.5).set_precision(0);
+        assert!((YCoordinate::new(d.clone()).as_f64() - 0.5).abs() < 1e-9);
+        assert!((super::DisplayRatio::from(d).as_f64() - 0.5).abs() < 1e-9);
     }
 
     #[test]

@@ -80,6 +80,50 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
 }
 
 #[test]
+fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test.wav",
+                "notes": [
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let mut processor = setup_bmson_processor(json, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
+
+    let mut got_any_ratio = false;
+    for (ev, ratio) in processor.visible_events() {
+        if matches!(ev.event(), ChartEvent::Note { .. }) {
+            assert!(
+                ratio.as_f64() - 0.75 <= f64::EPSILON,
+                "expected display_ratio: 0.75 for visible note, got {}",
+                ratio.as_f64()
+            );
+            got_any_ratio = true;
+            break;
+        }
+    }
+    assert!(got_any_ratio, "expected at least one visible note event");
+}
+
+#[test]
 fn test_bmson_events_in_time_range_returns_note_near_center() {
     let json = r#"{
         "version": "1.0.0",
