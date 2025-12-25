@@ -11,7 +11,7 @@ use std::{
 use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
-use crate::bms::prelude::*;
+use crate::{bms::prelude::*, util::StrExtension};
 use crate::bmson::prelude::*;
 use crate::chart_process::types::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleRangePerBpm,
@@ -248,21 +248,26 @@ impl BmsonProcessor {
     fn visible_window_y(&self) -> YCoordinate {
         self.visible_range_per_bpm.window_y(&self.current_bpm)
     }
+}
 
-    fn lane_from_x(x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
-        let lane_value = x.map_or(0, |l| l.get());
-        let (adjusted_lane, side) = if lane_value > 8 {
-            (lane_value - 8, PlayerSide::Player2)
-        } else {
-            (lane_value, PlayerSide::Player1)
-        };
-        let key = match adjusted_lane {
-            1..=7 => Key::Key(adjusted_lane),
-            8 => Key::Scratch(1),
-            _ => return None,
-        };
-        Some((side, key))
+fn lane_from_x(mode_hint: &str, x: Option<std::num::NonZeroU8>) -> Option<(PlayerSide, Key)> {
+    let lane_value = x?.get();
+
+    if !mode_hint.starts_with_ignore_case("beat") {
+        return Some((PlayerSide::Player1, Key::Key(lane_value)));
     }
+
+    let (adjusted_lane, side) = if lane_value > 8 {
+        (lane_value - 8, PlayerSide::Player2)
+    } else {
+        (lane_value, PlayerSide::Player1)
+    };
+    let key = match adjusted_lane {
+        1..=7 => Key::Key(adjusted_lane),
+        8 => Key::Scratch(1),
+        _ => return None,
+    };
+    Some((side, key))
 }
 
 impl ChartProcessor for BmsonProcessor {
@@ -549,7 +554,9 @@ impl AllEventsIndex {
             for Note { y, x, l, c, .. } in notes {
                 let y_coord = pulses_to_y(y.0);
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
-                if let Some((side, key)) = BmsonProcessor::lane_from_x(x.as_ref().copied()) {
+                if let Some((side, key)) =
+                    lane_from_x(bmson.info.mode_hint.as_ref(), x.as_ref().copied())
+                {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
                         &end_y - &y_coord
@@ -680,7 +687,7 @@ impl AllEventsIndex {
         for MineChannel { name, notes } in &bmson.mine_channels {
             for MineEvent { x, y, .. } in notes {
                 let y_coord = pulses_to_y(y.0);
-                let Some((side, key)) = BmsonProcessor::lane_from_x(*x) else {
+                let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) else {
                     continue;
                 };
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
@@ -700,7 +707,7 @@ impl AllEventsIndex {
         for KeyChannel { name, notes } in &bmson.key_channels {
             for KeyEvent { x, y, .. } in notes {
                 let y_coord = pulses_to_y(y.0);
-                let Some((side, key)) = BmsonProcessor::lane_from_x(*x) else {
+                let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) else {
                     continue;
                 };
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
