@@ -3,6 +3,7 @@
 
 use std::{
     collections::{BTreeMap, HashMap},
+    ops::RangeInclusive,
     path::Path,
     sync::OnceLock,
     time::Duration,
@@ -383,7 +384,9 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
+    fn visible_events(
+        &mut self,
+    ) -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)> {
         let current_y = &self.progressed_y;
         let visible_window_y = self.visible_window_y();
         let scroll_factor = &self.current_scroll;
@@ -392,14 +395,31 @@ impl ChartProcessor for BmsonProcessor {
             let event_y = event_with_pos.position();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y > YCoordinate::zero() {
-                (&(event_y - current_y) / &visible_window_y).value() * scroll_factor
-            } else {
-                Decimal::zero()
+            let calculate_ratio = |y: &YCoordinate| {
+                let display_ratio_value = if visible_window_y > YCoordinate::zero() {
+                    (&(y - current_y) / &visible_window_y).value() * scroll_factor
+                } else {
+                    Decimal::zero()
+                };
+                DisplayRatio::from(display_ratio_value)
             };
-            let display_ratio = DisplayRatio::from(display_ratio_value);
 
-            (event_with_pos.clone(), display_ratio)
+            let start_ratio = calculate_ratio(event_y);
+            let end_ratio = match &event_with_pos.event {
+                ChartEvent::Note {
+                    length: Some(length_y),
+                    ..
+                } => calculate_ratio(length_y),
+                _ => start_ratio.clone(),
+            };
+
+            let range = if start_ratio <= end_ratio {
+                start_ratio..=end_ratio
+            } else {
+                end_ratio..=start_ratio
+            };
+
+            (event_with_pos.clone(), range)
         })
     }
 

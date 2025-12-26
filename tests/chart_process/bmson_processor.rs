@@ -1,7 +1,7 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
+use num::One;
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
@@ -114,9 +114,9 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     for (ev, ratio) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
             assert!(
-                ratio.as_f64() - 0.75 <= f64::EPSILON,
+                ratio.start().as_f64() - 0.75 <= f64::EPSILON,
                 "expected display_ratio: 0.75 for visible note, got {}",
-                ratio.as_f64()
+                ratio.start().as_f64()
             );
             got_any_ratio = true;
             break;
