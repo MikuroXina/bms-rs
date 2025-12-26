@@ -230,7 +230,7 @@ impl BmsProcessor {
             // Time required to reach event
             let distance = event_y.clone() - cur_y_now.clone();
             if cur_vel > Decimal::zero() {
-                let time_to_event_nanos = ((distance.value() / &cur_vel)
+                let time_to_event_nanos = ((distance.as_ref() / &cur_vel)
                     * Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
@@ -351,14 +351,14 @@ impl ChartProcessor for BmsProcessor {
         // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
         triggered_events.sort_by(|a, b| {
             a.position()
-                .value()
-                .partial_cmp(b.position().value())
+                .as_ref()
+                .partial_cmp(b.position().as_ref())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         new_preloaded_events.sort_by(|a, b| {
             a.position()
-                .value()
-                .partial_cmp(b.position().value())
+                .as_ref()
+                .partial_cmp(b.position().as_ref())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -416,8 +416,8 @@ impl ChartProcessor for BmsProcessor {
             let event_y = event_with_pos.position();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y.value() > &Decimal::zero() {
-                (&(event_y - current_y) / &visible_window_y).value() * scroll_factor
+            let display_ratio_value = if visible_window_y.as_ref() > &Decimal::zero() {
+                (&(event_y - current_y) / &visible_window_y).as_ref() * scroll_factor
             } else {
                 Default::default()
             };
@@ -732,7 +732,7 @@ fn precompute_activate_times(
             continue;
         }
         let delta_y_f64 = (curr.clone() - prev.clone())
-            .value()
+            .as_ref()
             .to_f64()
             .unwrap_or(0.0);
         let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);

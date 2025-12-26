@@ -1,7 +1,7 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
+use num::One;
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;

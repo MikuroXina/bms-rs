@@ -215,7 +215,7 @@ impl BmsonProcessor {
             }
             let distance = &event_y - &cur_y_now;
             if cur_vel > Decimal::zero() {
-                let time_to_event_nanos = ((distance.value() / &cur_vel)
+                let time_to_event_nanos = ((distance.as_ref() / &cur_vel)
                     * Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
@@ -393,7 +393,7 @@ impl ChartProcessor for BmsonProcessor {
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
             let display_ratio_value = if visible_window_y > YCoordinate::zero() {
-                (&(event_y - current_y) / &visible_window_y).value() * scroll_factor
+                Decimal::from(&(event_y - current_y) / &visible_window_y) * scroll_factor.clone()
             } else {
                 Decimal::zero()
             };
@@ -473,7 +473,7 @@ impl AllEventsIndex {
                 .cloned()
                 .max()
                 .unwrap_or_else(YCoordinate::zero);
-            let floor = max_y.value().to_i64().unwrap_or(0);
+            let floor = max_y.as_ref().to_i64().unwrap_or(0);
             for i in 0..=floor {
                 points.insert(YCoordinate::new(Decimal::from(i)));
             }
@@ -509,7 +509,7 @@ impl AllEventsIndex {
                 .map(|(_, b)| b.clone())
                 .unwrap_or_else(|| init_bpm.clone());
             let stop_y_len = pulses_to_y(stop_pulses);
-            let stop_y_len_f64 = stop_y_len.value().to_f64().unwrap_or(0.0);
+            let stop_y_len_f64 = stop_y_len.as_ref().to_f64().unwrap_or(0.0);
             let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
             let stop_nanos_f64 = stop_y_len_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
             if stop_nanos_f64.is_finite() && stop_nanos_f64 > 0.0 {
@@ -523,7 +523,7 @@ impl AllEventsIndex {
             if curr <= prev {
                 continue;
             }
-            let delta_y_f64 = (&curr - &prev).value().to_f64().unwrap_or(0.0);
+            let delta_y_f64 = Decimal::from(&curr - &prev).to_f64().unwrap_or(0.0);
             let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
             let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
             if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
@@ -657,7 +657,7 @@ impl AllEventsIndex {
         } else {
             let max_y = events_map
                 .keys()
-                .map(|y_coord| y_coord.value())
+                .map(|y_coord| y_coord.as_ref())
                 .max()
                 .cloned()
                 .unwrap_or_else(Decimal::zero);

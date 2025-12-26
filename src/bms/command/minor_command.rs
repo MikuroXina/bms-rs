@@ -10,18 +10,24 @@ use crate::bms::command::time::ObjTime;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavPan(i64);
 
+impl AsRef<i64> for ExWavPan {
+    fn as_ref(&self) -> &i64 {
+        &self.0
+    }
+}
+
+impl From<ExWavPan> for i64 {
+    fn from(value: ExWavPan) -> Self {
+        value.0
+    }
+}
+
 impl ExWavPan {
     /// Creates a new [`ExWavPan`] value.
     /// Returns `None` if the value is out of range \[-10000, 10000].
     #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=10000).contains(&value).then_some(Self(value))
-    }
-
-    /// Returns the underlying value.
-    #[must_use]
-    pub const fn value(self) -> i64 {
-        self.0
     }
 
     /// Returns the default value (0).
@@ -46,18 +52,24 @@ impl TryFrom<i64> for ExWavPan {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavVolume(i64);
 
+impl AsRef<i64> for ExWavVolume {
+    fn as_ref(&self) -> &i64 {
+        &self.0
+    }
+}
+
+impl From<ExWavVolume> for i64 {
+    fn from(value: ExWavVolume) -> Self {
+        value.0
+    }
+}
+
 impl ExWavVolume {
     /// Creates a new [`ExWavVolume`] value.
     /// Returns `None` if the value is out of range `[-10000, 0]`.
     #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=0).contains(&value).then_some(Self(value))
-    }
-
-    /// Returns the underlying value.
-    #[must_use]
-    pub const fn value(self) -> i64 {
-        self.0
     }
 
     /// Returns the default value (0).
@@ -81,6 +93,18 @@ impl TryFrom<i64> for ExWavVolume {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExWavFrequency(u64);
 
+impl AsRef<u64> for ExWavFrequency {
+    fn as_ref(&self) -> &u64 {
+        &self.0
+    }
+}
+
+impl From<ExWavFrequency> for u64 {
+    fn from(value: ExWavFrequency) -> Self {
+        value.0
+    }
+}
+
 impl ExWavFrequency {
     const MIN_FREQUENCY: u64 = 100;
     const MAX_FREQUENCY: u64 = 100_000;
@@ -92,12 +116,6 @@ impl ExWavFrequency {
         (Self::MIN_FREQUENCY..=Self::MAX_FREQUENCY)
             .contains(&value)
             .then_some(Self(value))
-    }
-
-    /// Returns the underlying value.
-    #[must_use]
-    pub const fn value(self) -> u64 {
-        self.0
     }
 }
 
@@ -274,20 +292,19 @@ mod tests {
 
     #[test]
     fn test_exwav_values() {
-        // Test value() method
         let pan = ExWavPan::try_from(5000).unwrap();
-        assert_eq!(pan.value(), 5000);
+        assert_eq!(i64::from(pan), 5000);
 
         let volume = ExWavVolume::try_from(-5000).unwrap();
-        assert_eq!(volume.value(), -5000);
+        assert_eq!(i64::from(volume), -5000);
 
         let frequency = ExWavFrequency::try_from(48000).unwrap();
-        assert_eq!(frequency.value(), 48000);
+        assert_eq!(u64::from(frequency), 48000);
     }
 
     #[test]
     fn test_exwav_defaults() {
-        assert_eq!(ExWavPan::default().value(), 0);
-        assert_eq!(ExWavVolume::default().value(), 0);
+        assert_eq!(i64::from(ExWavPan::default()), 0);
+        assert_eq!(i64::from(ExWavVolume::default()), 0);
     }
 }

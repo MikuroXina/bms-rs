@@ -39,21 +39,39 @@ pub struct MaxBpmGenerator;
 #[derive(Debug, Clone)]
 pub struct ManualBpmGenerator(pub Decimal);
 
+impl AsRef<Decimal> for ManualBpmGenerator {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
+impl From<Decimal> for ManualBpmGenerator {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ManualBpmGenerator> for Decimal {
+    fn from(value: ManualBpmGenerator) -> Self {
+        value.0
+    }
+}
+
 /// Base BPM wrapper type, encapsulating a `Decimal` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseBpm(pub Decimal);
+
+impl AsRef<Decimal> for BaseBpm {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
 
 impl BaseBpm {
     /// Create a new BaseBpm
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
     }
 }
 
@@ -63,23 +81,35 @@ impl From<Decimal> for BaseBpm {
     }
 }
 
+impl From<BaseBpm> for Decimal {
+    fn from(value: BaseBpm) -> Self {
+        value.0
+    }
+}
+
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleRangePerBpm(Decimal);
+
+impl AsRef<Decimal> for VisibleRangePerBpm {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
 
 impl VisibleRangePerBpm {
     /// Create a new VisibleRangePerBpm from base BPM and reaction time
     /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
     #[must_use]
     pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
-        if base_bpm.value().is_zero() {
+        if base_bpm.as_ref().is_zero() {
             Self(Decimal::zero())
         } else {
             Self(
                 Decimal::from(reaction_time.as_nanos().max(0))
                     / NANOS_PER_SECOND
-                    / base_bpm.value().clone(),
+                    / base_bpm.as_ref().clone(),
             )
         }
     }
@@ -88,13 +118,7 @@ impl VisibleRangePerBpm {
     /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
     #[must_use]
     pub fn window_y(&self, current_bpm: &Decimal) -> YCoordinate {
-        YCoordinate::new(current_bpm.clone() * self.value().clone())
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
+        YCoordinate::new(current_bpm.clone() * self.as_ref().clone())
     }
 
     /// Calculate reaction time from visible range per BPM
@@ -122,6 +146,12 @@ impl VisibleRangePerBpm {
 impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
         Self::from_decimal(value)
+    }
+}
+
+impl From<VisibleRangePerBpm> for Decimal {
+    fn from(value: VisibleRangePerBpm) -> Self {
+        value.0
     }
 }
 
@@ -223,17 +253,17 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct YCoordinate(pub Decimal);
 
+impl AsRef<Decimal> for YCoordinate {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
 impl YCoordinate {
     /// Create a new YCoordinate
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
     }
 
     /// Convert to f64 (for compatibility)
@@ -252,6 +282,12 @@ impl YCoordinate {
 impl From<Decimal> for YCoordinate {
     fn from(value: Decimal) -> Self {
         Self(value)
+    }
+}
+
+impl From<YCoordinate> for Decimal {
+    fn from(value: YCoordinate) -> Self {
+        value.0
     }
 }
 
@@ -334,17 +370,17 @@ impl Zero for YCoordinate {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct DisplayRatio(pub Decimal);
 
+impl AsRef<Decimal> for DisplayRatio {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
 impl DisplayRatio {
     /// Create a new DisplayRatio
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
     }
 
     /// Convert to f64 (for compatibility)
@@ -372,6 +408,12 @@ impl From<Decimal> for DisplayRatio {
     }
 }
 
+impl From<DisplayRatio> for Decimal {
+    fn from(value: DisplayRatio) -> Self {
+        value.0
+    }
+}
+
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
         Self(Decimal::from(value))
@@ -382,17 +424,17 @@ impl From<f64> for DisplayRatio {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
 
+impl AsRef<usize> for WavId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl WavId {
     /// Create a new WavId
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
-    }
-
-    /// Get the internal usize value
-    #[must_use]
-    pub const fn value(self) -> usize {
-        self.0
     }
 }
 
@@ -412,17 +454,17 @@ impl From<WavId> for usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BmpId(pub usize);
 
+impl AsRef<usize> for BmpId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl BmpId {
     /// Create a new BmpId
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
-    }
-
-    /// Get the internal usize value
-    #[must_use]
-    pub const fn value(self) -> usize {
-        self.0
     }
 }
 
@@ -442,17 +484,17 @@ impl From<BmpId> for usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChartEventId(pub usize);
 
+impl AsRef<usize> for ChartEventId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl ChartEventId {
     /// Create a new ChartEventId
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
-    }
-
-    /// Get the internal usize value
-    #[must_use]
-    pub const fn value(self) -> usize {
-        self.0
     }
 }
 
@@ -730,7 +772,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_y_range((std::ops::Bound::Included(y0), std::ops::Bound::Included(y1)))
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert_eq!(got_ids, vec![2, 1, 3, 4]);
     }
@@ -749,7 +791,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range(TimeSpan::SECOND..TimeSpan::SECOND * 2)
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
     }
@@ -767,14 +809,14 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range((Included(TimeSpan::SECOND * 2), Included(TimeSpan::SECOND)))
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
 
         let got_ids: Vec<usize> = idx
             .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert_eq!(got_ids, vec![1]);
     }
@@ -793,7 +835,7 @@ mod tests {
                 ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
             )
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert!(got_ids.is_empty());
     }
@@ -808,7 +850,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert!(got_ids.is_empty());
     }
@@ -827,7 +869,7 @@ mod tests {
                 (TimeSpan::ZERO - TimeSpan::MILLISECOND * 200)..=TimeSpan::ZERO,
             )
             .into_iter()
-            .map(|ev| ev.id.value())
+            .map(|ev| usize::from(ev.id))
             .collect();
         assert_eq!(got_ids, vec![1]);
     }
