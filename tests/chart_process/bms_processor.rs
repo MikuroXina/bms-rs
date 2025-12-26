@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, ToPrimitive};
+use num::{One, ToPrimitive, Zero};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
@@ -69,11 +69,27 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
+    let visible_window_y = processor
+        .visible_range_per_bpm()
+        .window_y(processor.current_bpm());
+    assert!(
+        visible_window_y.value() > &Decimal::zero(),
+        "Expected visible window y > 0, got: {:?}",
+        visible_window_y.value()
+    );
+
     // Check that visible_events method works normally
     let after_change_events: Vec<_> = processor.visible_events().collect();
     assert!(
         !after_change_events.is_empty(),
         "Should have visible events"
+    );
+
+    assert!(
+        after_change_events
+            .iter()
+            .any(|(_, ratio)| ratio.value() > &Decimal::zero()),
+        "Expected at least one display_ratio > 0"
     );
 
     // Verify display ratio calculation
@@ -371,4 +387,31 @@ fn test_bms_events_in_time_range_empty_before_start() {
         )
         .collect();
     assert!(events.is_empty());
+}
+
+#[test]
+fn test_bms_start_play_resets_scroll_to_one() {
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let bms_source = r#"
+#TITLE Scroll Reset Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+
+#SCROLL01 1.0
+#SCROLL02 1.5
+
+#001SC:00020000
+#00111:00000000
+"#;
+    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    let after_scroll_change = start_time + TimeSpan::MILLISECOND * 2700;
+    let _ = processor.update(after_scroll_change).collect::<Vec<_>>();
+    assert_ne!(*processor.current_scroll(), Decimal::one());
+
+    processor.start_play(after_scroll_change + TimeSpan::SECOND);
+    assert_eq!(*processor.current_scroll(), Decimal::one());
 }

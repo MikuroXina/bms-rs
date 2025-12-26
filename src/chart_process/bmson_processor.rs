@@ -306,6 +306,7 @@ impl ChartProcessor for BmsonProcessor {
         self.progressed_y = YCoordinate::zero();
         self.preloaded_events.clear();
         self.current_bpm = self.init_bpm.clone();
+        self.current_scroll = Decimal::one();
     }
 
     fn started_at(&self) -> Option<TimeStamp> {

@@ -1,7 +1,9 @@
 #![cfg(feature = "bmson")]
 
 use gametime::{TimeSpan, TimeStamp};
+use num::{One, ToPrimitive};
 
+use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
@@ -77,6 +79,88 @@ fn test_bmson_continue_duration_references_bpm_and_stop() {
         }
     }
     assert!(found, "Expected to find a note with continue duration");
+}
+
+#[test]
+fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test.wav",
+                "notes": [
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let mut processor = setup_bmson_processor(json, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
+
+    let mut got_any_ratio = false;
+    for (ev, ratio) in processor.visible_events() {
+        if matches!(ev.event(), ChartEvent::Note { .. }) {
+            assert!(
+                ratio.as_f64() - 0.75 <= f64::EPSILON,
+                "expected display_ratio: 0.75 for visible note, got {}",
+                ratio.as_f64()
+            );
+            got_any_ratio = true;
+            break;
+        }
+    }
+    assert!(got_any_ratio, "expected at least one visible note event");
+}
+
+#[test]
+fn test_bmson_start_play_resets_scroll_to_one() {
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240
+        },
+        "sound_channels": [
+            {
+                "name": "test.wav",
+                "notes": [
+                    { "x": 1, "y": 480, "l": 0, "c": false }
+                ]
+            }
+        ],
+        "scroll_events": [
+            { "y": 240, "rate": 0.5 }
+        ]
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let mut processor = setup_bmson_processor(json, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    let after_scroll = start_time + TimeSpan::MILLISECOND * 600;
+    let _ = processor.update(after_scroll).collect::<Vec<_>>();
+    assert_ne!(*processor.current_scroll(), Decimal::one());
+
+    processor.start_play(after_scroll + TimeSpan::SECOND);
+    assert_eq!(*processor.current_scroll(), Decimal::one());
 }
 
 #[test]
