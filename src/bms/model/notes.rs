@@ -15,6 +15,14 @@ struct WavObjArena(Vec<WavObj>);
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WavObjArenaIndex(usize);
 
+impl WavObjArenaIndex {
+    /// Returns the contained arena index value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
 /// The playable objects set for querying by lane or time.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

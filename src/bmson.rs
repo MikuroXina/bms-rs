@@ -384,6 +384,14 @@ pub struct BgaEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BgaId(pub u32);
 
+impl BgaId {
+    /// Returns the contained BGA id value.
+    #[must_use]
+    pub const fn value(self) -> u32 {
+        self.0
+    }
+}
+
 /// Beatoraja implementation of scroll event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScrollEvent {

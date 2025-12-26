@@ -59,10 +59,24 @@ impl FinF64 {
         Self::try_from(float).ok()
     }
 
+    /// Returns the contained finite value.
+    #[inline]
+    #[must_use]
+    pub const fn value(self) -> f64 {
+        self.0
+    }
+
     /// Gets the internal value.
     #[inline]
     #[must_use]
     pub const fn as_f64(self) -> f64 {
+        self.0
+    }
+}
+
+impl TryFromFloatError {
+    /// Returns the contained error payload.
+    pub const fn value(self) {
         self.0
     }
 }

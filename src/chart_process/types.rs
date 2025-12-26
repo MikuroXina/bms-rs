@@ -57,6 +57,20 @@ impl From<ManualBpmGenerator> for Decimal {
     }
 }
 
+impl ManualBpmGenerator {
+    /// Returns a reference to the contained BPM value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained BPM value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+}
+
 /// Base BPM wrapper type, encapsulating a `Decimal` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseBpm(pub Decimal);
@@ -72,6 +86,18 @@ impl BaseBpm {
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
+    }
+
+    /// Returns a reference to the contained BPM value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained BPM value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
     }
 }
 
@@ -112,6 +138,18 @@ impl VisibleRangePerBpm {
                     / base_bpm.as_ref().clone(),
             )
         }
+    }
+
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
     }
 
     /// Calculate visible window length in y units based on current BPM.
@@ -266,6 +304,18 @@ impl YCoordinate {
         Self(value)
     }
 
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
     /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
@@ -383,6 +433,18 @@ impl DisplayRatio {
         Self(value)
     }
 
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
     /// Convert to f64 (for compatibility)
     #[must_use]
     pub fn as_f64(&self) -> f64 {
@@ -436,6 +498,12 @@ impl WavId {
     pub const fn new(id: usize) -> Self {
         Self(id)
     }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
 }
 
 impl From<usize> for WavId {
@@ -466,6 +534,12 @@ impl BmpId {
     pub const fn new(id: usize) -> Self {
         Self(id)
     }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
 }
 
 impl From<usize> for BmpId {
@@ -495,6 +569,12 @@ impl ChartEventId {
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
+    }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
     }
 }
 

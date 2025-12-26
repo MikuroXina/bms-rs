@@ -24,6 +24,12 @@ impl ExWavPan {
         (-10000..=10000).contains(&value).then_some(Self(value))
     }
 
+    /// Returns the contained pan value.
+    #[must_use]
+    pub const fn value(self) -> i64 {
+        self.0
+    }
+
     /// Returns the default value (0).
     #[must_use]
     pub const fn default() -> Self {
@@ -58,6 +64,12 @@ impl ExWavVolume {
     #[must_use]
     pub fn new(value: i64) -> Option<Self> {
         (-10000..=0).contains(&value).then_some(Self(value))
+    }
+
+    /// Returns the contained volume value.
+    #[must_use]
+    pub const fn value(self) -> i64 {
+        self.0
     }
 
     /// Returns the default value (0).
@@ -96,6 +108,12 @@ impl From<ExWavFrequency> for u64 {
 impl ExWavFrequency {
     const MIN_FREQUENCY: u64 = 100;
     const MAX_FREQUENCY: u64 = 100_000;
+
+    /// Returns the contained frequency value.
+    #[must_use]
+    pub const fn value(self) -> u64 {
+        self.0
+    }
 
     /// Creates a new [`ExWavFrequency`] value.
     /// Returns `None` if the value is out of range [100, 100000].

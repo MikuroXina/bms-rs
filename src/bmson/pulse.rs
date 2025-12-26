@@ -19,6 +19,12 @@ impl PulseNumber {
     pub const fn abs_diff(self, other: Self) -> u64 {
         self.0.abs_diff(other.0)
     }
+
+    /// Returns the contained pulse number value.
+    #[must_use]
+    pub const fn value(self) -> u64 {
+        self.0
+    }
 }
 
 /// Converter from [`ObjTime`] into pulses, which split one quarter note evenly.
