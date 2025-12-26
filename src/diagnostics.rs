@@ -130,7 +130,7 @@ pub fn build_report<'a>(
     kind: ReportKind<'a>,
     range: std::ops::Range<usize>,
     title: &str,
-    label_message: impl ToString,
+    label_message: &impl ToString,
     color: Color,
 ) -> Report<'a, (String, std::ops::Range<usize>)> {
     let filename = src.name().to_string();

@@ -147,7 +147,7 @@ impl VideoProcessor {
         if channel == Channel::Seek {
             use super::parse_obj_ids;
 
-            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, seek_id) in pairs {
                 let position = video

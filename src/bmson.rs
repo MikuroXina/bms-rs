@@ -464,12 +464,13 @@ impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
         &self,
         src: &crate::diagnostics::SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let message = format!("{self}");
         build_report(
             src,
             ReportKind::Error,
             0..0,
             "BMSON deserialization error",
-            format!("{}", self),
+            &message,
             Color::Red,
         )
     }

@@ -235,7 +235,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 ));
             }
             self.state_stack.borrow_mut().push(ProcessState::Random {
-                generated: generated.clone(),
+                generated,
                 activated,
             });
 
@@ -458,8 +458,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     && let Some(max) = &scope.max_value
                 {
                     let mut conditions = Vec::new();
-                    let one = BigUint::from(1u64);
-                    let mut current = one.clone();
+                    let mut current = BigUint::from(1u64);
                     while current <= *max {
                         if !scope.covered_values.contains(&current) {
                             conditions.push(current.clone());
@@ -578,15 +577,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 }
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchBeforeActive {
-                        generated: generated.clone(),
-                    });
+                    .push(ProcessState::SwitchBeforeActive { generated });
             } else {
                 self.state_stack
                     .borrow_mut()
-                    .push(ProcessState::SwitchAfterActive {
-                        generated: generated.clone(),
-                    });
+                    .push(ProcessState::SwitchAfterActive { generated });
             }
 
             collector.push_random(ControlFlowValue::GenMax(max));
@@ -819,8 +814,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 && let Some(max) = &scope.max_value
             {
                 let mut conditions = Vec::new();
-                let one = BigUint::from(1u64);
-                let mut current = one.clone();
+                let mut current = BigUint::from(1u64);
                 while current <= *max {
                     if !scope.covered_values.contains(&current) {
                         conditions.push(current.clone());

@@ -303,14 +303,14 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Bgm {
-            let (pairs, w) = parse_obj_ids(track, message.clone(), &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 objects.notes.push_bgm::<T>(time, obj);
             }
         }
         if let Channel::Note { channel_id } = channel {
-            let (pairs, mut w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            let (pairs, mut w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.append(&mut w);
             for (offset, obj) in pairs {
                 objects.notes.push_note(WavObj {

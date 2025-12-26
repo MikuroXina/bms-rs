@@ -214,7 +214,7 @@ impl<'a> ToAriadne for Recovered<'a> {
             ReportKind::Advice,
             span.start..span.end,
             "JSON recovered parsing issue",
-            message,
+            &message,
             Color::Blue,
         )
     }
@@ -233,7 +233,7 @@ impl<'a> ToAriadne for Warning<'a> {
             ReportKind::Warning,
             span.start..span.end,
             "JSON parsing warning",
-            message,
+            &message,
             Color::Yellow,
         )
     }
@@ -252,7 +252,7 @@ impl<'a> ToAriadne for Error<'a> {
             ReportKind::Error,
             span.start..span.end,
             "JSON parsing error",
-            message,
+            &message,
             Color::Red,
         )
     }
