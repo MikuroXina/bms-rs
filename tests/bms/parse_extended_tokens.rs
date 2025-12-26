@@ -114,8 +114,8 @@ fn test_exwav_parsing() {
             .contains_key(&ObjId::try_from("01", false).unwrap())
     );
     let exwav_def = &bms.wav.exwav_defs[&ObjId::try_from("01", false).unwrap()];
-    assert_eq!(i64::from(exwav_def.pan), 10000);
-    assert_eq!(i64::from(exwav_def.volume), 0);
+    assert_eq!(*exwav_def.pan.as_ref(), 10000);
+    assert_eq!(*exwav_def.volume.as_ref(), 0);
     assert_eq!(exwav_def.frequency.map(u64::from), Some(48000));
     assert_eq!(exwav_def.path.to_string_lossy(), "test.wav");
 }

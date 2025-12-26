@@ -16,12 +16,6 @@ impl AsRef<i64> for ExWavPan {
     }
 }
 
-impl From<ExWavPan> for i64 {
-    fn from(value: ExWavPan) -> Self {
-        value.0
-    }
-}
-
 impl ExWavPan {
     /// Creates a new [`ExWavPan`] value.
     /// Returns `None` if the value is out of range \[-10000, 10000].
@@ -55,12 +49,6 @@ pub struct ExWavVolume(i64);
 impl AsRef<i64> for ExWavVolume {
     fn as_ref(&self) -> &i64 {
         &self.0
-    }
-}
-
-impl From<ExWavVolume> for i64 {
-    fn from(value: ExWavVolume) -> Self {
-        value.0
     }
 }
 
@@ -293,10 +281,10 @@ mod tests {
     #[test]
     fn test_exwav_values() {
         let pan = ExWavPan::try_from(5000).unwrap();
-        assert_eq!(i64::from(pan), 5000);
+        assert_eq!(*pan.as_ref(), 5000);
 
         let volume = ExWavVolume::try_from(-5000).unwrap();
-        assert_eq!(i64::from(volume), -5000);
+        assert_eq!(*volume.as_ref(), -5000);
 
         let frequency = ExWavFrequency::try_from(48000).unwrap();
         assert_eq!(u64::from(frequency), 48000);
@@ -304,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_exwav_defaults() {
-        assert_eq!(i64::from(ExWavPan::default()), 0);
-        assert_eq!(i64::from(ExWavVolume::default()), 0);
+        assert_eq!(*ExWavPan::default().as_ref(), 0);
+        assert_eq!(*ExWavVolume::default().as_ref(), 0);
     }
 }

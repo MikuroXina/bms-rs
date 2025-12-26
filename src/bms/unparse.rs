@@ -484,8 +484,8 @@ impl Bms {
                                     name: format!("EXWAV{id}").into(),
                                     args: format!(
                                         "pv {} {} {}",
-                                        i64::from(def.pan),
-                                        i64::from(def.volume),
+                                        def.pan.as_ref(),
+                                        def.volume.as_ref(),
                                         def.path.display()
                                     )
                                     .into(),
@@ -494,8 +494,8 @@ impl Bms {
                                     name: format!("EXWAV{id}").into(),
                                     args: format!(
                                         "pvf {} {} {} {}",
-                                        i64::from(def.pan),
-                                        i64::from(def.volume),
+                                        def.pan.as_ref(),
+                                        def.volume.as_ref(),
                                         u64::from(freq),
                                         def.path.display()
                                     )
