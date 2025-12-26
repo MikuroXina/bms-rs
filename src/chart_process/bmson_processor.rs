@@ -555,7 +555,7 @@ impl AllEventsIndex {
                 let y_coord = pulses_to_y(y.0);
                 let wav_id = audio_name_to_id.get(name.as_ref()).copied();
                 if let Some((side, key)) =
-                    lane_from_x(bmson.info.mode_hint.as_ref(), x.as_ref().copied())
+                    lane_from_x(bmson.info.mode_hint.as_ref(), *x)
                 {
                     let length = (*l > 0).then(|| {
                         let end_y = pulses_to_y(y.0 + l);
