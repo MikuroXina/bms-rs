@@ -88,7 +88,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert!(
         after_change_events
             .iter()
-            .any(|(_, ratio)| ratio.value() > &Decimal::zero()),
+            .any(|(_, ratio)| ratio.start().value() > &Decimal::zero()),
         "Expected at least one display_ratio > 0"
     );
 
