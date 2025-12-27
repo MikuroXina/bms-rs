@@ -18,7 +18,12 @@ fn assert_btree_maps_equal<K, V>(
                 "{} key {:?} mismatch",
                 field_name, key
             ),
-            None => panic!("{} missing key {:?} in right map", field_name, key),
+            None => panic!(
+                "{} missing key {:?} in right map (keys: {:?})",
+                field_name,
+                key,
+                right.keys().collect::<Vec<_>>()
+            ),
         }
     }
 
@@ -53,7 +58,12 @@ fn assert_hash_maps_equal<K, V>(
                 "{} key {:?} mismatch",
                 field_name, key
             ),
-            None => panic!("{} missing key {:?} in right map", field_name, key),
+            None => panic!(
+                "{} missing key {:?} in right map (keys: {:?})",
+                field_name,
+                key,
+                right.keys().collect::<Vec<_>>()
+            ),
         }
     }
 

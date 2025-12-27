@@ -107,7 +107,7 @@ fn test_always_use_older() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change");
+        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
@@ -184,7 +184,7 @@ fn test_always_use_newer() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change");
+        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
@@ -267,7 +267,7 @@ fn test_always_warn_and_use_older() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change");
+        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
@@ -350,7 +350,7 @@ fn test_always_warn_and_use_newer() {
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
     let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
-        panic!("expected at least 1 BPM change");
+        panic!("expected at least 1 BPM change, but got: {:?}", bpm_changes);
     };
     assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)

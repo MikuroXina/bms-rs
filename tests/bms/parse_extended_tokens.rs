@@ -21,7 +21,10 @@ fn test_atbga_parsing() {
     let id_01 = ObjId::try_from("01", false).unwrap();
     let id_02 = ObjId::try_from("02", false).unwrap();
     let Some(atbga_def) = bms.bmp.atbga_defs.get(&id_01) else {
-        panic!("Expected #@BGA{}/ definition to exist", id_01);
+        panic!(
+            "Expected #@BGA{}/ definition to exist, but found: {:?}",
+            id_01, bms.bmp.atbga_defs
+        );
     };
     assert_eq!(atbga_def.source_bmp, id_02);
     assert_eq!(atbga_def.trim_top_left, PixelPoint::new(10, 20));
@@ -51,7 +54,10 @@ fn test_bga_parsing() {
     let id_01 = ObjId::try_from("01", false).unwrap();
     let id_02 = ObjId::try_from("02", false).unwrap();
     let Some(bga_def) = bms.bmp.bga_defs.get(&id_01) else {
-        panic!("Expected #BGA{}/ definition to exist", id_01);
+        panic!(
+            "Expected #BGA{}/ definition to exist, but found: {:?}",
+            id_01, bms.bmp.bga_defs
+        );
     };
     assert_eq!(bga_def.source_bmp, id_02);
     assert_eq!(bga_def.trim_top_left, PixelPoint::new(10, 20));
@@ -80,7 +86,10 @@ fn test_exrank_parsing() {
     // Verify that #EXRANK is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
     let Some(exrank_def) = bms.judge.exrank_defs.get(&id_01) else {
-        panic!("Expected #EXRANK{}/ definition to exist", id_01);
+        panic!(
+            "Expected #EXRANK{}/ definition to exist, but found: {:?}",
+            id_01, bms.judge.exrank_defs
+        );
     };
     assert_eq!(exrank_def.judge_level, JudgeLevel::Normal);
 }
@@ -135,7 +144,10 @@ fn test_changeoption_parsing() {
     // Verify that #CHANGEOPTION is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
     let Some(option) = bms.option.change_options.get(&id_01) else {
-        panic!("Expected #CHANGEOPTION{}/ definition to exist", id_01);
+        panic!(
+            "Expected #CHANGEOPTION{}/ definition to exist, but found: {:?}",
+            id_01, bms.option.change_options
+        );
     };
     assert_eq!(option, "test_option");
 }
@@ -161,7 +173,10 @@ fn test_text_parsing() {
     // Verify that #TEXT is parsed correctly
     let id_01 = ObjId::try_from("01", false).unwrap();
     let Some(text) = bms.text.texts.get(&id_01) else {
-        panic!("Expected #TEXT{}/ definition to exist", id_01);
+        panic!(
+            "Expected #TEXT{}/ definition to exist, but found: {:?}",
+            id_01, bms.text.texts
+        );
     };
     assert_eq!(text, "test_text");
 }

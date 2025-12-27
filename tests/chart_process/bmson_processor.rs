@@ -13,11 +13,17 @@ use bms_rs::chart_process::prelude::*;
 fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
     let output = parse_bmson(json);
     let Some(bmson) = output.bmson else {
-        panic!("Failed to parse BMSON in test setup");
+        panic!(
+            "Failed to parse BMSON in test setup. Errors: {:?}",
+            output.errors
+        );
     };
 
     let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
-        panic!("Failed to generate base BPM in test setup");
+        panic!(
+            "Failed to generate base BPM in test setup. Info: {:?}",
+            bmson.info
+        );
     };
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     BmsonProcessor::new(&bmson, visible_range_per_bpm)
@@ -344,7 +350,11 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     // Both c=true notes should be ~0.25s and ~0.50s (since last restart at y=240)
     durations.sort_by(f64::total_cmp);
     let [a, b] = durations.as_slice() else {
-        panic!("Expected two continue durations, got {}", durations.len());
+        panic!(
+            "Expected two continue durations, got {}: {:?}",
+            durations.len(),
+            durations
+        );
     };
     let a = *a;
     let b = *b;
@@ -480,7 +490,11 @@ fn test_bmson_continue_independent_across_sound_channels() {
     assert_eq!(durations.len(), 2, "Expected two continue durations");
     durations.sort_by(f64::total_cmp);
     let [a, b] = durations.as_slice() else {
-        panic!("Expected two continue durations, got {}", durations.len());
+        panic!(
+            "Expected two continue durations, got {}: {:?}",
+            durations.len(),
+            durations
+        );
     };
     let a = *a;
     let b = *b;

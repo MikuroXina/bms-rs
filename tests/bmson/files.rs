@@ -11,7 +11,9 @@ use bms_rs::bmson::{
 fn test_bmson100_lostokens() {
     let data = include_str!("files/lostokens.bmson");
     let output = parse_bmson(data);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "lostokens");
     assert_eq!(bmson.info.level, 5);
@@ -22,7 +24,9 @@ fn test_bmson100_lostokens() {
 fn test_bmson100_bemusic_story_48key() {
     let data = include_str!("files/bemusicstory_483_48K_ANOTHER.bmson");
     let output = parse_bmson(data);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     // Basic fields assertion
     assert_eq!(bmson.info.title.as_ref(), "BE-MUSiC⇒STORY");
     // Bga
@@ -74,7 +78,9 @@ fn test_parse_bmson_success() {
     }"#;
 
     let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     assert_eq!(bmson.info.title.as_ref(), "Test Song");
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.level, 5);
@@ -100,7 +106,9 @@ fn test_parse_bmson_with_zero_resolution() {
     }"#;
 
     let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
@@ -123,7 +131,9 @@ fn test_parse_bmson_with_negative_resolution() {
     }"#;
 
     let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(480).expect("480 should be a valid NonZeroU64")
@@ -145,7 +155,9 @@ fn test_parse_bmson_with_missing_resolution() {
     }"#;
 
     let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
@@ -173,7 +185,9 @@ fn test_parse_bmson_with_large_resolution() {
     );
 
     let output = parse_bmson(&json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Failed to parse BMSON: {:?}", output.errors));
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(large_value).expect("large_value should be a valid NonZeroU64")
@@ -229,7 +243,11 @@ fn test_parse_bmson_with_invalid_json() {
     // Should have exactly one deserialize error
     assert_eq!(output.errors.len(), 1);
     let [first_error] = output.errors.as_slice() else {
-        panic!("Expected exactly one error, got {}", output.errors.len());
+        panic!(
+            "Expected exactly one error, got {}: {:?}",
+            output.errors.len(),
+            output.errors
+        );
     };
     let BmsonParseError::Deserialize { error } = first_error else {
         panic!("Expected deserialize error but got: {first_error:?}");
@@ -273,7 +291,11 @@ fn test_parse_bmson_with_missing_required_field() {
     // Should have exactly one deserialize error
     assert_eq!(output.errors.len(), 1);
     let [first_error] = output.errors.as_slice() else {
-        panic!("Expected exactly one error, got {}", output.errors.len());
+        panic!(
+            "Expected exactly one error, got {}: {:?}",
+            output.errors.len(),
+            output.errors
+        );
     };
     let BmsonParseError::Deserialize { error } = first_error else {
         panic!("Expected deserialize error but got: {first_error:?}");
@@ -410,7 +432,9 @@ fn test_parse_bmson_with_trailing_comma() {
     }
 
     // The parsing should succeed despite trailing commas
-    let bmson = output.bmson.expect("Expected parsing to succeed");
+    let bmson = output
+        .bmson
+        .unwrap_or_else(|| panic!("Expected parsing to succeed: {:?}", output.errors));
 
     println!("Parsing succeeded - checking content consistency with trailing commas");
 

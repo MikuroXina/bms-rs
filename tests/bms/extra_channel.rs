@@ -95,7 +95,10 @@ fn test_channel_text() {
 fn test_channel_judge() {
     // Test channel A0 (Judge)
     let Some(Channel::Judge) = read_channel("A0") else {
-        panic!("Channel A0 should be Judge");
+        panic!(
+            "Channel A0 should be Judge, but got: {:?}",
+            read_channel("A0")
+        );
     };
 
     let src = r#"
