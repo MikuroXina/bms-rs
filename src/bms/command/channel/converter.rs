@@ -74,10 +74,8 @@ impl KeyMappingConvertLaneRotateShuffle {
         if keys.is_empty() {
             return result;
         }
-        if keys.len() == 1 {
-            if let Some(&key) = keys.first() {
-                result.insert(key, key);
-            }
+        if let &[key] = keys {
+            result.insert(key, key);
             return result;
         }
 
