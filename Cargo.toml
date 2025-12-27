@@ -44,3 +44,72 @@ required-features = ["diagnostics"]
 [[example]]
 name = "comprehensive_diagnostics"
 required-features = ["diagnostics"]
+
+[lints.rust]
+missing_docs = "warn"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+
+[lints.clippy]
+# Documentation & API
+doc_markdown = "warn"
+missing_errors_doc = "warn"
+missing_docs_in_private_items = "warn"
+
+# API semantics & usability
+must_use_candidate = "warn"
+must_use_unit = "warn"
+missing_const_for_fn = "warn"
+missing_const_for_thread_local = "warn"
+default_trait_access = "warn"
+option_option = "warn"
+ptr_arg = "warn"
+incompatible_msrv = "warn"
+panic_in_result_fn = "warn"
+
+# Borrowing & cloning
+redundant_clone = "warn"
+clone_on_copy = "warn"
+implicit_clone = "warn"
+unnecessary_to_owned = "warn"
+needless_borrow = "warn"
+needless_borrows_for_generic_args = "warn"
+needless_borrowed_reference = "warn"
+trivially_copy_pass_by_ref = "warn"
+
+# Code style
+redundant_closure_for_method_calls = "warn"
+redundant_closure = "warn"
+redundant_closure_call = "warn"
+redundant_else = "warn"
+redundant_feature_names = "warn"
+semicolon_if_nothing_returned = "warn"
+module_name_repetitions = "warn"
+match_bool = "warn"
+needless_range_loop = "warn"
+shadow_unrelated = "warn"
+macro_use_imports = "warn"
+explicit_deref_methods = "warn"
+significant_drop_in_scrutinee = "warn"
+
+# Numeric comparisons
+float_cmp = "warn"
+
+# Concurrency & async
+await_holding_lock = "warn"
+async_yields_async = "warn"
+future_not_send = "warn"
+large_futures = "warn"
+if_let_mutex = "warn"
+
+# Performance & memory
+manual_memcpy = "warn"
+
+# Modules & imports
+wildcard_imports = "warn"
+
+# Safety & error handling
+unwrap_used = "warn"
+expect_used = "warn"
+indexing_slicing = "warn"
