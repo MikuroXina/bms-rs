@@ -321,7 +321,7 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjT
 
 /// Converts a lane number to [`Key`] and [`PlayerSide`]
 fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
-    let lane_value = lane.map_or(0, |l| l.get());
+    let lane_value = lane.map_or(0, std::num::NonZero::get);
 
     // Handle player sides
     let (adjusted_lane, side) = if lane_value > 8 {

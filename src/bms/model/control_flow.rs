@@ -44,7 +44,7 @@ impl RandomizedBranch {
 
     /// Get the condition value.
     #[must_use]
-    pub fn condition(&self) -> &BigUint {
+    pub const fn condition(&self) -> &BigUint {
         &self.condition
     }
 
@@ -122,7 +122,7 @@ impl RandomizedObjects {
     ///
     /// `None` indicates the block does not have a generator assigned yet.
     #[must_use]
-    pub fn generating(&self) -> Option<&ControlFlowValue> {
+    pub const fn generating(&self) -> Option<&ControlFlowValue> {
         self.generating.as_ref()
     }
 

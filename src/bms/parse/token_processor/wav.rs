@@ -3,7 +3,7 @@
 //! - `#WAV[01-ZZ] path` - Sound file definition. Each one has own playback channel, so the sound of the same ID won't be played overlapping. ID range may be narrower by some BMS players.
 //! - `#EXWAV[01-ZZ] [p/v/f pan volume frequency] path` - Sound file definition with effect. It defines a sound with applied some effects.
 //! - `#LNOBJ wav_id` - It specifies the sound object `wav_id` as the end of a long note. Deprecated.
-//! - `#WAVCMD command wav_id value` - It applies the effect to the sound object, for MacBeat.
+//! - `#WAVCMD command wav_id value` - It applies the effect to the sound object, for `MacBeat`.
 //!   - `command` is `00`: Relative tone modification. Defaults to 60.
 //!   - `command` is `01`: Relative volume percentage modification.
 //!   - `command` is `02`: Changes playback time will be `value` of 0.5 milliseconds. 0 will do nothing.

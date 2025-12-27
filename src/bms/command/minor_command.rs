@@ -143,7 +143,7 @@ pub struct StpEvent {
     pub duration: Duration,
 }
 
-/// MacBeat `#WAVCMD` event.
+/// `MacBeat` `#WAVCMD` event.
 ///
 /// Used for `#WAVCMD` command, represents `pitch`/`volume`/`time` adjustment for a specific WAV object.
 /// - `param`: adjustment type (`pitch`/`volume`/`time`)

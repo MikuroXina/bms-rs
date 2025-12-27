@@ -95,7 +95,7 @@ struct Collector<'t> {
 }
 
 impl<'t> Collector<'t> {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             stack: Vec::new(),
             finished_objects: Vec::new(),

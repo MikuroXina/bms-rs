@@ -10,7 +10,7 @@ use crate::bms::prelude::*;
 impl Bms {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
-    /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
+    /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
     #[must_use]
     pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -1264,7 +1264,7 @@ struct EventUnit<'a, Event> {
     id: Option<ObjId>,
 }
 
-/// Complete result from build_messages_event containing all processing outputs
+/// Complete result from `build_messages_event` containing all processing outputs
 struct EventProcessingResult<'a> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
@@ -1273,23 +1273,23 @@ struct EventProcessingResult<'a> {
 /// Generic function to process message types with optional ID allocation
 ///
 /// This function processes time-indexed events from an iterator and converts them into message tokens.
-/// It supports both ID allocation mode (using token_creator and key_extractor) and direct mode (without ID allocation).
+/// It supports both ID allocation mode (using `token_creator` and `key_extractor`) and direct mode (without ID allocation).
 ///
 /// # PROCESSING FLOW OVERVIEW:
 /// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
 /// 2. **SPLIT INTO MESSAGE SEGMENTS**: Each group is further split into message segments with stricter rules:
 ///    - Strictly increasing time (prevents overlaps)
 ///    - Consistent denominators (ensures accurate representation)
-/// 3. **GENERATE TOKENS**: Each message segment becomes one Token::Message with all events encoded
+/// 3. **GENERATE TOKENS**: Each message segment becomes one `Token::Message` with all events encoded
 ///
 /// Arguments:
 ///     events: An iterator yielding (&time, &event) pairs to process
-///     id_allocation: Optional tuple containing (token_creator, key_extractor, id_manager) for ID allocation mode
-///     channel_mapper: Function to map events to channels
-///     message_formatter: Function to format events into [char; 2]
+///     `id_allocation`: Optional tuple containing (`token_creator`, `key_extractor`, `id_manager`) for ID allocation mode
+///     `channel_mapper`: Function to map events to channels
+///     `message_formatter`: Function to format events into [char; 2]
 ///
 /// Returns:
-///     EventProcessingResult containing message_tokens, late_def_tokens, and updated maps
+///     `EventProcessingResult` containing `message_tokens`, `late_def_tokens`, and updated maps
 ///
 /// The function leverages Rust's iterator chains for efficient processing and supports
 /// both ID-based and direct value-based event processing.
@@ -1480,7 +1480,7 @@ fn is_denominator_compatible<'a, Event>(
         || event_denominator.is_multiple_of(reference_denominator)
 }
 
-/// Convert a message segment of events into a single Token::Message
+/// Convert a message segment of events into a single `Token::Message`
 fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
     message_segment: Vec<EventUnit<'a, Event>>,
     message_formatter: &MessageFormatter,

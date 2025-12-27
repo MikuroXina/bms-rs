@@ -54,7 +54,7 @@ impl ResourcesProcessor {
         if name.eq_ignore_ascii_case("CDDA") {
             let big_uint = BigUint::from_str(args)
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            resources.cdda.push(big_uint)
+            resources.cdda.push(big_uint);
         }
         if name.eq_ignore_ascii_case("MATERIALSWAV") {
             resources.materials_wav.push(Path::new(args).into());

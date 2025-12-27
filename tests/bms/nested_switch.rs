@@ -564,7 +564,7 @@ fn nested_switch_in_random() {
     );
 }
 
-/// https://hitkey.bms.ms/cmds.htm#TEST-CASES
+/// <https://hitkey.bms.ms/cmds.htm#TEST-CASES>
 #[test]
 fn test_switch_insane() {
     const SRC: &str = r"

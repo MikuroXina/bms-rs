@@ -18,7 +18,7 @@ use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// ChartProcessor of Bms files.
+/// `ChartProcessor` of Bms files.
 pub struct BmsProcessor {
     /// Precomputed WAV id to path mapping
     wav_paths: HashMap<WavId, PathBuf>,
@@ -677,7 +677,7 @@ impl AllEventsIndex {
     }
 }
 
-/// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
+/// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
 fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,

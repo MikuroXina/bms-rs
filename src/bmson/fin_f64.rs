@@ -77,6 +77,6 @@ impl FinF64 {
 impl TryFromFloatError {
     /// Returns the contained error payload.
     pub const fn value(self) {
-        self.0
+        self.0;
     }
 }

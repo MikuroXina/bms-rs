@@ -7,7 +7,7 @@ use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
 
-/// Setup a BMSON processor for testing (without calling start_play)
+/// Setup a BMSON processor for testing (without calling `start_play`)
 fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
     let output = parse_bmson(json);
     let bmson = output.bmson.expect("Failed to parse BMSON");

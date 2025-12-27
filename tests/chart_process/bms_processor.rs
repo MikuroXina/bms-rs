@@ -7,7 +7,7 @@ use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
-/// Setup a BMS processor for testing (without calling start_play)
+/// Setup a BMS processor for testing (without calling `start_play`)
 fn setup_bms_processor_with_config<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
@@ -39,13 +39,13 @@ where
     BmsProcessor::new::<T>(&bms, visible_range_per_bpm)
 }
 
-/// Setup a BMS processor with AlwaysUseOlder prompter
+/// Setup a BMS processor with `AlwaysUseOlder` prompter
 fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
     let config = default_config().prompter(AlwaysUseOlder);
     setup_bms_processor_with_config(source, config, reaction_time)
 }
 
-/// Setup a BMS processor with AlwaysWarnAndUseNewer prompter
+/// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
 fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     setup_bms_processor_with_config(source, config, reaction_time)

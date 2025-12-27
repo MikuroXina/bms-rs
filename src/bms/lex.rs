@@ -123,11 +123,9 @@ impl<'a> TokenStream<'a> {
             let token = if line_head.trim().starts_with("#") {
                 let command_body = line_head.trim().trim_start_matches("#");
                 let message_head: Vec<_> = command_body.chars().take(6).collect();
-                let is_message_command = message_head
-                    .iter()
-                    .take(5)
-                    .all(|c| c.is_ascii_alphanumeric())
-                    && message_head.get(5) == Some(&':');
+                let is_message_command =
+                    message_head.iter().take(5).all(char::is_ascii_alphanumeric)
+                        && message_head.get(5) == Some(&':');
                 if is_message_command {
                     Self::parse_message(line_head, &cursor)
                 } else {

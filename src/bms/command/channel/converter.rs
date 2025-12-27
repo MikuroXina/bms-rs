@@ -16,7 +16,7 @@ pub trait KeyConverter {
 
 /// A trait for converting [`super::PlayerSide`] and [`super::Key`] pairs in different layouts.
 ///
-/// This trait provides an interface for converting (PlayerSide, Key) pairs,
+/// This trait provides an interface for converting (`PlayerSide`, Key) pairs,
 /// making it suitable for transformations that need to consider both player side and key.
 pub trait PlayerSideKeyConverter {
     /// Convert a single `(PlayerSide, Key)` pair to another layout.
@@ -139,7 +139,7 @@ impl KeyConverter for KeyMappingConvertLaneRandomShuffle {
     }
 }
 
-/// A modifier that flips between PlayerSide::Player1 and PlayerSide::Player2.
+/// A modifier that flips between `PlayerSide::Player1` and `PlayerSide::Player2`.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyMappingConvertFlip;
 
@@ -293,7 +293,7 @@ mod channel_mode_tests {
         }
     }
 
-    /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
+    /// Test the flip modifier that swaps `PlayerSide::Player1` and `PlayerSide::Player2`.
     #[test]
     fn test_player_side_key_converter_flip() {
         let mut converter = KeyMappingConvertFlip;

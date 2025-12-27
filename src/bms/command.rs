@@ -253,7 +253,7 @@ impl ObjId {
             .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
     }
 
-    /// Returns an iterator over all possible ObjId values, ordered by priority:
+    /// Returns an iterator over all possible `ObjId` values, ordered by priority:
     /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
     ///
     /// Total: 3843 values (excluding null "00"), with first 1295 being Base36.
@@ -411,7 +411,7 @@ impl<'a, K> ObjIdManager<'a, K>
 where
     K: std::hash::Hash + Eq + ?Sized,
 {
-    /// Creates a new empty ObjIdManager.
+    /// Creates a new empty `ObjIdManager`.
     #[must_use]
     pub fn new() -> Self {
         let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
@@ -423,7 +423,7 @@ where
         }
     }
 
-    /// Creates a new ObjIdManager with iterator of assigned entries.
+    /// Creates a new `ObjIdManager` with iterator of assigned entries.
     pub fn from_entries<I: IntoIterator<Item = (&'a K, ObjId)>>(iter: I) -> Self {
         let mut value_to_id: HashMap<&'a K, ObjId> = HashMap::new();
         let mut used_ids: HashSet<ObjId> = HashSet::new();
@@ -453,7 +453,7 @@ where
         self.value_to_id.contains_key(key)
     }
 
-    /// Gets or allocates an ObjId for a key without creating tokens.
+    /// Gets or allocates an `ObjId` for a key without creating tokens.
     pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
         if let Some(&id) = self.value_to_id.get(key) {
             Some(id)

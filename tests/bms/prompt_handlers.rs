@@ -37,7 +37,7 @@ const SOURCE_WITH_CONFLICTS: &str = r#"
     // Same time as first
 "#;
 
-/// Test AlwaysUseOlder behavior with various conflict types
+/// Test `AlwaysUseOlder` behavior with various conflict types
 #[test]
 fn test_always_use_older() {
     let LexOutput {
@@ -111,7 +111,7 @@ fn test_always_use_older() {
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
 }
 
-/// Test AlwaysUseNewer behavior with various conflict types
+/// Test `AlwaysUseNewer` behavior with various conflict types
 #[test]
 fn test_always_use_newer() {
     let LexOutput {
@@ -185,7 +185,7 @@ fn test_always_use_newer() {
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(160));
 }
 
-/// Test AlwaysWarnAndUseOlder behavior with various conflict types
+/// Test `AlwaysWarnAndUseOlder` behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_older() {
     let LexOutput {
@@ -265,7 +265,7 @@ fn test_always_warn_and_use_older() {
     assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
 }
 
-/// Test AlwaysWarnAndUseNewer behavior with various conflict types
+/// Test `AlwaysWarnAndUseNewer` behavior with various conflict types
 #[test]
 fn test_always_warn_and_use_newer() {
     let LexOutput {

@@ -82,7 +82,7 @@ impl AsRef<Decimal> for BaseBpm {
 }
 
 impl BaseBpm {
-    /// Create a new BaseBpm
+    /// Create a new `BaseBpm`
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
@@ -114,7 +114,7 @@ impl From<BaseBpm> for Decimal {
 }
 
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
-/// Formula: visible_y_range = current_bpm * visible_range_per_bpm
+/// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleRangePerBpm(Decimal);
 
@@ -125,8 +125,8 @@ impl AsRef<Decimal> for VisibleRangePerBpm {
 }
 
 impl VisibleRangePerBpm {
-    /// Create a new VisibleRangePerBpm from base BPM and reaction time
-    /// Formula: visible_range_per_bpm = reaction_time_seconds / base_bpm
+    /// Create a new `VisibleRangePerBpm` from base BPM and reaction time
+    /// Formula: `visible_range_per_bpm` = `reaction_time_seconds` / `base_bpm`
     #[must_use]
     pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
         if base_bpm.value().is_zero() {
@@ -160,8 +160,8 @@ impl VisibleRangePerBpm {
     }
 
     /// Calculate reaction time from visible range per BPM
-    /// Formula: reaction_time = visible_range_per_bpm / playhead_speed
-    /// where playhead_speed = 1/240 (Y/sec per BPM)
+    /// Formula: `reaction_time` = `visible_range_per_bpm` / `playhead_speed`
+    /// where `playhead_speed` = 1/240 (Y/sec per BPM)
     #[must_use]
     pub fn to_reaction_time(&self) -> TimeSpan {
         if self.0.is_zero() {
@@ -299,7 +299,7 @@ impl AsRef<Decimal> for YCoordinate {
 }
 
 impl YCoordinate {
-    /// Create a new YCoordinate
+    /// Create a new `YCoordinate`
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
@@ -428,7 +428,7 @@ impl AsRef<Decimal> for DisplayRatio {
 }
 
 impl DisplayRatio {
-    /// Create a new DisplayRatio
+    /// Create a new `DisplayRatio`
     #[must_use]
     pub const fn new(value: Decimal) -> Self {
         Self(value)
@@ -452,13 +452,13 @@ impl DisplayRatio {
         self.0.to_f64().unwrap_or(0.0)
     }
 
-    /// Create a DisplayRatio representing the judgment line (value 0)
+    /// Create a `DisplayRatio` representing the judgment line (value 0)
     #[must_use]
     pub fn at_judgment_line() -> Self {
         Self(Decimal::zero())
     }
 
-    /// Create a DisplayRatio representing the position where note starts to appear (value 1)
+    /// Create a `DisplayRatio` representing the position where note starts to appear (value 1)
     #[must_use]
     pub fn at_appearance() -> Self {
         Self(Decimal::one())
@@ -494,7 +494,7 @@ impl AsRef<usize> for WavId {
 }
 
 impl WavId {
-    /// Create a new WavId
+    /// Create a new `WavId`
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
@@ -530,7 +530,7 @@ impl AsRef<usize> for BmpId {
 }
 
 impl BmpId {
-    /// Create a new BmpId
+    /// Create a new `BmpId`
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
@@ -566,7 +566,7 @@ impl AsRef<usize> for ChartEventId {
 }
 
 impl ChartEventId {
-    /// Create a new ChartEventId
+    /// Create a new `ChartEventId`
     #[must_use]
     pub const fn new(id: usize) -> Self {
         Self(id)
@@ -635,7 +635,7 @@ pub struct PlayheadEvent {
 }
 
 impl PlayheadEvent {
-    /// Create a new ChartEventWithPosition
+    /// Create a new `ChartEventWithPosition`
     #[must_use]
     pub const fn new(
         id: ChartEventId,
