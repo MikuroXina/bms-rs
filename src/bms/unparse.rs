@@ -496,7 +496,7 @@ impl Bms {
                                         "pvf {} {} {} {}",
                                         def.pan.as_ref(),
                                         def.volume.as_ref(),
-                                        u64::from(freq),
+                                        freq.value(),
                                         def.path.display()
                                     )
                                     .into(),

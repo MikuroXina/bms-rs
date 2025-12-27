@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(volume.value(), -5000);
 
         let frequency = ExWavFrequency::try_from(48000).unwrap();
-        assert_eq!(u64::from(frequency), 48000);
+        assert_eq!(frequency.value(), 48000);
     }
 
     #[test]

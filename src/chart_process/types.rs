@@ -852,7 +852,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_y_range((std::ops::Bound::Included(y0), std::ops::Bound::Included(y1)))
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![2, 1, 3, 4]);
     }
@@ -871,7 +871,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range(TimeSpan::SECOND..TimeSpan::SECOND * 2)
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
     }
@@ -889,14 +889,14 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range((Included(TimeSpan::SECOND * 2), Included(TimeSpan::SECOND)))
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
 
         let got_ids: Vec<usize> = idx
             .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1]);
     }
@@ -915,7 +915,7 @@ mod tests {
                 ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
             )
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert!(got_ids.is_empty());
     }
@@ -930,7 +930,7 @@ mod tests {
         let got_ids: Vec<usize> = idx
             .events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert!(got_ids.is_empty());
     }
@@ -949,7 +949,7 @@ mod tests {
                 (TimeSpan::ZERO - TimeSpan::MILLISECOND * 200)..=TimeSpan::ZERO,
             )
             .into_iter()
-            .map(|ev| usize::from(ev.id))
+            .map(|ev| ev.id.value())
             .collect();
         assert_eq!(got_ids, vec![1]);
     }
