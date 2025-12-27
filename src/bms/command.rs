@@ -461,14 +461,13 @@ where
     /// Gets or allocates an `ObjId` for a key without creating tokens.
     pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
         if let Some(&id) = self.value_to_id.get(key) {
-            Some(id)
-        } else if let Some(new_id) = self.unused_ids.pop_front() {
-            self.used_ids.insert(new_id);
-            self.value_to_id.insert(key, new_id);
-            Some(new_id)
-        } else {
-            None
+            return Some(id);
         }
+
+        let new_id = self.unused_ids.pop_front()?;
+        self.used_ids.insert(new_id);
+        self.value_to_id.insert(key, new_id);
+        Some(new_id)
     }
 
     /// Get assigned ids as an iterator.

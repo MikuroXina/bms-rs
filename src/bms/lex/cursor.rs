@@ -59,10 +59,7 @@ impl<'a> Cursor<'a> {
     #[must_use]
     pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
-        if ret.is_empty() {
-            return None;
-        }
-        Some(&self.source[ret])
+        (!ret.is_empty()).then(|| &self.source[ret])
     }
 
     /// Move cursor, through and return the next token with range.

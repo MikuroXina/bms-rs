@@ -1325,14 +1325,12 @@ where
                 .as_mut()
                 .and_then(|(token_creator, key_extractor, manager)| {
                     let key = key_extractor(event);
-                    if manager.is_assigned(key) {
-                        manager.get_or_new_id(key)
-                    } else if let Some(new) = manager.get_or_new_id(key) {
+                    let is_assigned = manager.is_assigned(key);
+                    let id = manager.get_or_new_id(key);
+                    if !is_assigned && let Some(new) = id {
                         late_def_tokens.push(token_creator(new, key));
-                        Some(new)
-                    } else {
-                        None
                     }
+                    id
                 });
             EventUnit {
                 time,
