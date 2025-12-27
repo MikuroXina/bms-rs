@@ -393,7 +393,7 @@ impl ChartProcessor for BmsonProcessor {
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
             let display_ratio_value = if visible_window_y > YCoordinate::zero() {
-                Decimal::from(&(event_y - current_y) / &visible_window_y) * scroll_factor.clone()
+                &Decimal::from(&(event_y - current_y) / &visible_window_y) * scroll_factor
             } else {
                 Decimal::zero()
             };
