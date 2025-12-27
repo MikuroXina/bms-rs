@@ -58,7 +58,7 @@ impl ToAriadne for PlayingWarning {
             ReportKind::Warning,
             0..0,
             "Playing warning",
-            &self.to_string(),
+            &self,
             Color::Yellow,
         )
     }
