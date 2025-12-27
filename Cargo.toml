@@ -55,7 +55,7 @@ broken_intra_doc_links = "deny"
 # Documentation & API
 doc_markdown = "warn"
 missing_errors_doc = "warn"
-missing_docs_in_private_items = "warn"
+#missing_docs_in_private_items = "warn"
 
 # API semantics & usability
 must_use_candidate = "warn"
