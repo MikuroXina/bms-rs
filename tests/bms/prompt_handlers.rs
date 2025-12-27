@@ -106,9 +106,12 @@ fn test_always_use_older() {
     // Check that the older BPM change event is used (01, not 03)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
+    let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
+        panic!("expected at least 1 BPM change");
+    };
+    assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01) - check the BPM value
-    assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
+    assert_eq!(bpm_change_0.bpm, Decimal::from(120));
 }
 
 /// Test `AlwaysUseNewer` behavior with various conflict types
@@ -180,9 +183,12 @@ fn test_always_use_newer() {
     // Check that the newer BPM change event is used (03, not 01)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
+    let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
+        panic!("expected at least 1 BPM change");
+    };
+    assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_changes[0].1.bpm, Decimal::from(160));
+    assert_eq!(bpm_change_0.bpm, Decimal::from(160));
 }
 
 /// Test `AlwaysWarnAndUseOlder` behavior with various conflict types
@@ -260,9 +266,12 @@ fn test_always_warn_and_use_older() {
     // Check that the older BPM change event is used (01, not 03)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
+    let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
+        panic!("expected at least 1 BPM change");
+    };
+    assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the older event (01)
-    assert_eq!(bpm_changes[0].1.bpm, Decimal::from(120));
+    assert_eq!(bpm_change_0.bpm, Decimal::from(120));
 }
 
 /// Test `AlwaysWarnAndUseNewer` behavior with various conflict types
@@ -340,7 +349,10 @@ fn test_always_warn_and_use_newer() {
     // Check that the newer BPM change event is used (03, not 01)
     let bpm_changes: Vec<_> = bms.bpm.bpm_changes.iter().collect();
     assert_eq!(bpm_changes.len(), 2); // Two different times
-    assert_eq!(bpm_changes[0].0, &ObjTime::start_of(1.into()));
+    let Some((time_0, bpm_change_0)) = bpm_changes.first().copied() else {
+        panic!("expected at least 1 BPM change");
+    };
+    assert_eq!(time_0, &ObjTime::start_of(1.into()));
     // The BPM change should be for the newer event (03)
-    assert_eq!(bpm_changes[0].1.bpm, Decimal::from(160));
+    assert_eq!(bpm_change_0.bpm, Decimal::from(160));
 }

@@ -26,7 +26,7 @@ impl TokenProcessor for VolumeProcessor {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut objects) {
+                match Self::on_header(name.as_ref(), args.as_ref(), &mut objects) {
                     Ok(()) => Ok(Vec::new()),
                     Err(warn) => Ok(vec![warn.into_wrapper(token)]),
                 }
@@ -36,7 +36,7 @@ impl TokenProcessor for VolumeProcessor {
                 channel,
                 message,
             } => {
-                match self.on_message(
+                match Self::on_message(
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
@@ -54,7 +54,7 @@ impl TokenProcessor for VolumeProcessor {
 }
 
 impl VolumeProcessor {
-    fn on_header(&self, name: &str, args: &str, volume: &mut VolumeObjects) -> Result<()> {
+    fn on_header(name: &str, args: &str, volume: &mut VolumeObjects) -> Result<()> {
         if name.eq_ignore_ascii_case("VOLWAV") {
             let volume_value = args
                 .parse()
@@ -68,7 +68,6 @@ impl VolumeProcessor {
     }
 
     fn on_message(
-        &self,
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,

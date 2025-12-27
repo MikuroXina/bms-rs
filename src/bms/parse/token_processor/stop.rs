@@ -104,20 +104,20 @@ impl StopProcessor {
             // Parse xxx.yyy zzzz
             use std::time::Duration;
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 3 {
+            let [measure_pos, _unused, ms] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "stp measure/pos must be 3 digits".into(),
                 ));
-            }
+            };
 
-            let (measure, pos) = args[0].split_once('.').unwrap_or((args[0], "000"));
+            let (measure, pos) = measure_pos.split_once('.').unwrap_or((measure_pos, "000"));
             let measure: u16 = measure
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected measure u16".into()))?;
             let pos: u16 = pos
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u16".into()))?;
-            let ms: u64 = args[2]
+            let ms: u64 = ms
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u64".into()))?;
             let time = ObjTime::new(measure as u64, pos as u64, 1000).ok_or_else(|| {

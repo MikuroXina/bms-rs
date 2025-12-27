@@ -1470,7 +1470,7 @@ fn is_denominator_compatible<'a, Event>(
     // Find the maximum denominator from the current message segment as reference
     let reference_denominator = message_segment
         .iter()
-        .map(|event_unit| event_unit.time.denominator_u64())
+        .map(|unit| unit.time.denominator_u64())
         .max()
         .unwrap_or(1);
 
@@ -1498,7 +1498,13 @@ where
 
     // EXTRACT METADATA FROM MESSAGE SEGMENT
     // All events in message segment should have same track and channel (guaranteed by grouping logic)
-    let first_event = &message_segment[0];
+    let Some(first_event) = message_segment.first() else {
+        return Token::Message {
+            track: Track(0),
+            channel: Channel::Bgm,
+            message: Cow::Borrowed(""),
+        };
+    };
     let (track, channel) = (first_event.time.track(), first_event.channel);
 
     // CALCULATE MESSAGE LENGTH
@@ -1531,9 +1537,10 @@ where
         let time_idx = (time.numerator() * (lcm_denom / denom_u64)) as usize;
 
         // Ensure we don't go out of bounds (safety check)
-        if time_idx < message_len {
-            message_parts[time_idx] = chars.iter().collect::<String>();
-        }
+        let Some(slot) = message_parts.get_mut(time_idx) else {
+            continue;
+        };
+        *slot = chars.iter().collect::<String>();
     }
 
     Token::Message {

@@ -32,7 +32,7 @@ impl TokenProcessor for SectionLenProcessor {
                 channel,
                 message,
             } => {
-                match self.on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
+                match Self::on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
                     Ok(()) => Ok(None),
                     Err(warn) => Ok(Some(warn.into_wrapper(token))),
                 }
@@ -45,7 +45,6 @@ impl TokenProcessor for SectionLenProcessor {
 
 impl SectionLenProcessor {
     fn on_message(
-        &self,
         track: Track,
         channel: Channel,
         message: &str,

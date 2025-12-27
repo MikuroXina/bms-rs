@@ -89,6 +89,12 @@ impl TokenProcessor for BmpProcessor {
 }
 
 impl BmpProcessor {
+    fn bga_layer(channel: Channel) -> Result<BgaLayer> {
+        BgaLayer::from_channel(channel).ok_or(ParseWarning::SyntaxError(format!(
+            "invalid channel for BgaLayer: {channel:?}",
+        )))
+    }
+
     fn on_header(
         &self,
         name: &str,
@@ -125,28 +131,28 @@ impl BmpProcessor {
         }
         if let Some(id) = name.strip_prefix_ignore_case("EXBMP") {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 2 {
+            let [argb_spec, path] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(format!(
-                    "expected 2 arguments but got {args:?}",
+                    "expected 2 arguments but got {args:?}"
                 )));
-            }
+            };
 
-            let parts: Vec<&str> = args[0].split(',').collect();
-            if parts.len() != 4 {
+            let parts: Vec<&str> = argb_spec.split(',').collect();
+            let [alpha_s, red_s, green_s, blue_s] = parts.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "expected 4 comma-separated values".into(),
                 ));
-            }
-            let alpha = parts[0]
+            };
+            let alpha = alpha_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("invalid alpha value".into()))?;
-            let red = parts[1]
+            let red = red_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("invalid red value".into()))?;
-            let green = parts[2]
+            let green = green_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("invalid green value".into()))?;
-            let blue = parts[3]
+            let blue = blue_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("invalid blue value".into()))?;
             let transparent_color = Argb {
@@ -156,7 +162,6 @@ impl BmpProcessor {
                 blue,
             };
 
-            let path = args[1];
             let bmp_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             let to_insert = Bmp {
                 file: path.into(),
@@ -176,21 +181,21 @@ impl BmpProcessor {
         }
         if let Some(id) = name.strip_prefix_ignore_case("ARGB") {
             let parts: Vec<_> = args.split(',').collect();
-            if parts.len() != 4 {
+            let [alpha_s, red_s, green_s, blue_s] = parts.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "expected 4 comma-separated values".into(),
                 ));
-            }
-            let alpha = parts[0]
+            };
+            let alpha = alpha_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected u8 alpha value".into()))?;
-            let red = parts[1]
+            let red = red_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected u8 red value".into()))?;
-            let green = parts[2]
+            let green = green_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected u8 green value".into()))?;
-            let blue = parts[3]
+            let blue = blue_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected u8 blue value".into()))?;
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
@@ -218,32 +223,32 @@ impl BmpProcessor {
         }
         if let Some(id) = name.strip_prefix_ignore_case("@BGA") {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 7 {
+            let [bmp_index, sx_s, sy_s, w_s, h_s, dx_s, dy_s] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(format!(
                     "expected 7 arguments but found: {args:?}"
                 )));
-            }
+            };
 
-            let sx = args[1]
+            let sx = sx_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let sy = args[2]
+            let sy = sy_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let w = args[3]
+            let w = w_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let h = args[4]
+            let h = h_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let dx = args[5]
+            let dx = dx_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let dy = args[6]
+            let dy = dy_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let source_bmp = ObjId::try_from(args[0], *self.case_sensitive_obj_id.borrow())?;
+            let source_bmp = ObjId::try_from(bmp_index, *self.case_sensitive_obj_id.borrow())?;
             let trim_top_left = (sx, sy);
             let trim_size = (w, h);
             let draw_point = (dx, dy);
@@ -270,32 +275,32 @@ impl BmpProcessor {
             && let Some(id) = name.strip_prefix_ignore_case("BGA")
         {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 7 {
+            let [bmp_index, x1_s, y1_s, x2_s, y2_s, dx_s, dy_s] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(format!(
                     "expected 7 arguments but found: {args:?}"
                 )));
-            }
+            };
 
-            let x1 = args[1]
+            let x1 = x1_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let y1 = args[2]
+            let y1 = y1_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let x2 = args[3]
+            let x2 = x2_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let y2 = args[4]
+            let y2 = y2_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let dx = args[5]
+            let dx = dx_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            let dy = args[6]
+            let dy = dy_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
             let id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
-            let source_bmp = ObjId::try_from(args[0], *self.case_sensitive_obj_id.borrow())?;
+            let source_bmp = ObjId::try_from(bmp_index, *self.case_sensitive_obj_id.borrow())?;
             let to_insert = BgaDef {
                 id,
                 source_bmp,
@@ -317,14 +322,14 @@ impl BmpProcessor {
         }
         if let Some(id) = name.strip_prefix_ignore_case("SWBGA") {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 2 {
+            let [spec, pattern] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(format!(
                     "expected 2 arguments but found: {args:?}"
                 )));
-            }
+            };
 
             // Parse fr:time:line:loop:a,r,g,b pattern
-            let mut parts = args[0].split(':');
+            let mut parts = spec.split(':');
             let frame_rate = parts
                 .next()
                 .ok_or_else(|| ParseWarning::SyntaxError("swbga frame_rate".into()))?
@@ -354,23 +359,23 @@ impl BmpProcessor {
                 .next()
                 .ok_or_else(|| ParseWarning::SyntaxError("swbga argb".into()))?;
             let argb_parts: Vec<_> = argb_str.split(',').collect();
-            if argb_parts.len() != 4 {
+            let [alpha_s, red_s, green_s, blue_s] = argb_parts.as_slice() else {
                 return Err(ParseWarning::SyntaxError("swbga argb 4 values".into()));
-            }
-            let alpha = argb_parts[0]
+            };
+            let alpha = alpha_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("swbga argb alpha".into()))?;
-            let red = argb_parts[1]
+            let red = red_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("swbga argb red".into()))?;
-            let green = argb_parts[2]
+            let green = green_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("swbga argb green".into()))?;
-            let blue = argb_parts[3]
+            let blue = blue_s
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("swbga argb blue".into()))?;
 
-            let pattern = args[1].to_owned();
+            let pattern = pattern.to_string();
             let sw_obj_id = ObjId::try_from(id, *self.case_sensitive_obj_id.borrow())?;
             let ev = SwBgaEvent {
                 frame_rate,
@@ -421,8 +426,7 @@ impl BmpProcessor {
                     if !objects.bmp_files.contains_key(&obj) {
                         return Err(ParseWarning::UndefinedObject(obj));
                     }
-                    let layer = BgaLayer::from_channel(channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
+                    let layer = Self::bga_layer(channel)?;
                     objects.push_bga_change(
                         BgaObj {
                             time,
@@ -442,8 +446,7 @@ impl BmpProcessor {
                 let (pairs, w) = parse_hex_values(track, &message);
                 warnings.extend(w);
                 for (time, opacity_value) in pairs {
-                    let layer = BgaLayer::from_channel(channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
+                    let layer = Self::bga_layer(channel)?;
                     objects.push_bga_opacity_change(
                         BgaOpacityObj {
                             time,
@@ -463,8 +466,7 @@ impl BmpProcessor {
                 let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
                 warnings.extend(w);
                 for (time, argb_id) in pairs {
-                    let layer = BgaLayer::from_channel(channel)
-                        .unwrap_or_else(|| panic!("Invalid channel for BgaLayer: {channel:?}"));
+                    let layer = Self::bga_layer(channel)?;
                     let argb = objects
                         .argb_defs
                         .get(&argb_id)

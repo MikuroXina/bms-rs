@@ -32,7 +32,7 @@ impl TokenProcessor for ResourcesProcessor {
         let mut resources = Resources::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut resources) {
+                match Self::on_header(name.as_ref(), args.as_ref(), &mut resources) {
                     Ok(()) => Ok(None),
                     Err(warn) => Ok(Some(warn.into_wrapper(token))),
                 }
@@ -44,7 +44,7 @@ impl TokenProcessor for ResourcesProcessor {
 }
 
 impl ResourcesProcessor {
-    fn on_header(&self, name: &str, args: &str, resources: &mut Resources) -> Result<()> {
+    fn on_header(name: &str, args: &str, resources: &mut Resources) -> Result<()> {
         if name.eq_ignore_ascii_case("MIDIFILE") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected midi filename".into()));

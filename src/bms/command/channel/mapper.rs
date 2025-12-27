@@ -33,14 +33,15 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         _ => '1', // Default fallback
     };
 
-    NoteChannelId::try_from([first_char as u8, second_char as u8]).unwrap()
+    match NoteChannelId::try_from([first_char as u8, second_char as u8]) {
+        Ok(v) => v,
+        Err(_) => unreachable!(),
+    }
 }
 
 /// Convert from [`ChannelId`] to [`KeyLayoutBeat`].
 fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutBeat> {
-    let chars = channel_id.0.map(|c| c as char);
-    let first_char = chars[0];
-    let second_char = chars[1];
+    let [first_char, second_char] = channel_id.0.map(|c| c as char);
 
     // Parse NoteKind and PlayerSide from first character
     let (kind, side) = match first_char {

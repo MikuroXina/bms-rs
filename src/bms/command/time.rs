@@ -70,11 +70,14 @@ impl ObjTime {
         // Reduce the fraction to the simplest form.
         // Note: 0.gcd(&num) == num, when num > 0
         let gcd = numerator.gcd(&denominator.get());
+        let reduced_denominator = denominator.get() / gcd;
         Self {
             track: Track(track),
             numerator: numerator / gcd,
-            denominator: NonZeroU64::new(denominator.get() / gcd)
-                .expect("GCD should never make denominator zero"),
+            denominator: match NonZeroU64::new(reduced_denominator) {
+                Some(v) => v,
+                None => unreachable!(),
+            },
         }
     }
 
@@ -84,7 +87,7 @@ impl ObjTime {
         Self {
             track,
             numerator: 0,
-            denominator: NonZeroU64::new(1).expect("1 is not zero"),
+            denominator: NonZeroU64::MIN,
         }
     }
 

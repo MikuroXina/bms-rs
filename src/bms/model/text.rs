@@ -20,6 +20,11 @@ pub struct TextObjects {
 
 impl TextObjects {
     /// Adds a new text object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_text_event(
         &mut self,
         text_obj: TextObj,

@@ -1,3 +1,5 @@
+//! Tests for `bms_rs::bms`.
+
 mod base_62;
 mod comment;
 mod control_flow_model;

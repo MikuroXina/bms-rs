@@ -21,7 +21,7 @@ use crate::{
     util::StrExtension,
 };
 
-/// It processes `#RANK`` and `#EXRANKxx` definitions and objects on `Judge` channel.
+/// It processes `#RANK` and `#EXRANKxx` definitions and objects on `Judge` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JudgeProcessor {
     case_sensitive_obj_id: Rc<RefCell<bool>>,
@@ -110,13 +110,10 @@ impl JudgeProcessor {
                 .map_err(|_| ParseWarning::SyntaxError("expected u64".into()))?;
 
             let judge_level = JudgeLevel::OtherInt(value);
-            objects.exrank_defs.insert(
-                ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                ExRankDef {
-                    id: ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                    judge_level,
-                },
-            );
+            let id = ObjId::try_from("00", false)?;
+            objects
+                .exrank_defs
+                .insert(id, ExRankDef { id, judge_level });
         }
         if name.eq_ignore_ascii_case("TOTAL") {
             let total = Decimal::from_fraction(

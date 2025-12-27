@@ -1,5 +1,7 @@
 #![cfg(feature = "bmson")]
 
+//! Integration tests for `bms_rs::chart_process::BmsonProcessor`.
+
 use gametime::{TimeSpan, TimeStamp};
 use num::One;
 
@@ -10,11 +12,13 @@ use bms_rs::chart_process::prelude::*;
 /// Setup a BMSON processor for testing (without calling `start_play`)
 fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
     let output = parse_bmson(json);
-    let bmson = output.bmson.expect("Failed to parse BMSON");
+    let Some(bmson) = output.bmson else {
+        panic!("Failed to parse BMSON in test setup");
+    };
 
-    let base_bpm = StartBpmGenerator
-        .generate(&bmson)
-        .expect("Failed to generate base BPM");
+    let Some(base_bpm) = StartBpmGenerator.generate(&bmson) else {
+        panic!("Failed to generate base BPM in test setup");
+    };
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
     BmsonProcessor::new(&bmson, visible_range_per_bpm)
 }
@@ -338,9 +342,12 @@ fn test_bmson_multiple_continue_and_noncontinue_in_same_channel() {
     assert_eq!(none_count, 2, "Expected two non-continue notes with None");
     assert_eq!(some_count, 2, "Expected two continue notes with Some");
     // Both c=true notes should be ~0.25s and ~0.50s (since last restart at y=240)
-    durations.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let a = durations[0];
-    let b = durations[1];
+    durations.sort_by(f64::total_cmp);
+    let [a, b] = durations.as_slice() else {
+        panic!("Expected two continue durations, got {}", durations.len());
+    };
+    let a = *a;
+    let b = *b;
     assert!(
         (a - 0.25).abs() < 0.02 && (b - 0.50).abs() < 0.02,
         "continue timepoints should be ~0.25s and ~0.50s, got {:.6} and {:.6}",
@@ -471,9 +478,12 @@ fn test_bmson_continue_independent_across_sound_channels() {
     // The two c=true notes should each have a timepoint, independent from each other:
     // there should be ~0.5s and ~0.75s values
     assert_eq!(durations.len(), 2, "Expected two continue durations");
-    durations.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let a = durations[0];
-    let b = durations[1];
+    durations.sort_by(f64::total_cmp);
+    let [a, b] = durations.as_slice() else {
+        panic!("Expected two continue durations, got {}", durations.len());
+    };
+    let a = *a;
+    let b = *b;
     assert!(
         (a - 0.5).abs() < 0.02 && (b - 0.75).abs() < 0.02,
         "Expected ~0.5s and ~0.75s timepoints, got {:.6} and {:.6}",

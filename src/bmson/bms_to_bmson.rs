@@ -67,6 +67,13 @@ impl Bms {
         const HARD_WIDTH: f64 = 15.0;
         const VERY_HARD_WIDTH: f64 = 8.0;
 
+        fn finite(float: f64) -> FinF64 {
+            let Some(v) = FinF64::new(float) else {
+                unreachable!();
+            };
+            v
+        }
+
         let mut warnings = Vec::new();
         let converter = PulseConverter::new(&self);
         let judge_rank = FinF64::new(match self.judge.rank {
@@ -78,11 +85,10 @@ impl Bms {
         })
         .unwrap_or_else(|| {
             warnings.push(BmsToBmsonWarning::InvalidJudgeRank);
-            FinF64::new(1.0).expect("Internal error: 1.0 is not a valid FinF64")
+            finite(1.0)
         });
 
-        let resolution = NonZeroU64::new(self.resolution_for_pulses())
-            .expect("resolution_for_pulses should return non-zero value");
+        let resolution = NonZeroU64::new(self.resolution_for_pulses()).unwrap_or(NonZeroU64::MIN);
 
         let last_obj_time = self
             .last_obj_time()
@@ -102,7 +108,7 @@ impl Bms {
                     bpm: FinF64::new(bpm_change.bpm.clone().to_f64().unwrap_or(120.0))
                         .unwrap_or_else(|| {
                             warnings.push(BmsToBmsonWarning::InvalidBpm);
-                            FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
+                            finite(120.0)
                         }),
                 })
                 .collect();
@@ -156,7 +162,7 @@ impl Bms {
                 );
                 FinF64::new(bpm_value).unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidBpm);
-                    FinF64::new(120.0).expect("Internal error: 120.0 is not a valid FinF64")
+                    finite(120.0)
                 })
             },
             judge_rank,
@@ -170,7 +176,7 @@ impl Bms {
                 );
                 FinF64::new(total_value).unwrap_or_else(|| {
                     warnings.push(BmsToBmsonWarning::InvalidTotal);
-                    FinF64::new(100.0).expect("Internal error: 100.0 is not a valid FinF64")
+                    finite(100.0)
                 })
             },
             back_image: self
@@ -344,14 +350,13 @@ impl Bms {
             .scrolling_factor_changes
             .values()
             .filter_map(|scroll| {
-                let rate = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0));
-                if rate.is_none() {
+                let Some(rate) = FinF64::new(scroll.factor.clone().to_f64().unwrap_or(1.0)) else {
                     warnings.push(BmsToBmsonWarning::InvalidScrollingFactor);
                     return None;
-                }
+                };
                 Some(ScrollEvent {
                     y: converter.get_pulses_at(scroll.time),
-                    rate: rate.expect("rate should be valid FinF64"),
+                    rate,
                 })
             })
             .collect();

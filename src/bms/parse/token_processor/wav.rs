@@ -242,12 +242,12 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         }
         if name.eq_ignore_ascii_case("WAVCMD") {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 3 {
+            let [param, wav_index, value] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "expected 3 arguments for #WAVCMD".into(),
                 ));
-            }
-            let param = match args[0] {
+            };
+            let param = match *param {
                 "00" => WavCmdParam::Pitch,
                 "01" => WavCmdParam::Volume,
                 "02" => WavCmdParam::Time,
@@ -257,8 +257,8 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                     ));
                 }
             };
-            let wav_index = ObjId::try_from(args[1], *self.case_sensitive_obj_id.borrow())?;
-            let value: u32 = args[2]
+            let wav_index = ObjId::try_from(wav_index, *self.case_sensitive_obj_id.borrow())?;
+            let value: u32 = value
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;
             // Validity check

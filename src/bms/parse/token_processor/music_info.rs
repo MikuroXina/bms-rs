@@ -41,7 +41,7 @@ impl TokenProcessor for MusicInfoProcessor {
 }
 
 impl MusicInfoProcessor {
-    fn on_header(&self, name: &str, args: &str, music_info: &mut MusicInfo) -> Result<()> {
+    fn on_header(self, name: &str, args: &str, music_info: &mut MusicInfo) -> Result<()> {
         if name.eq_ignore_ascii_case("GENRE") {
             music_info.genre = Some(args.to_string());
         }

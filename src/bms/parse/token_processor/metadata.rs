@@ -53,7 +53,7 @@ impl TokenProcessor for MetadataProcessor {
 }
 
 impl MetadataProcessor {
-    fn on_header(&self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
+    fn on_header(self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
         if name.eq_ignore_ascii_case("PLAYER") {
             metadata.player = Some(PlayerMode::from_str(args)?);
         }
@@ -90,7 +90,7 @@ impl MetadataProcessor {
         Ok(())
     }
 
-    fn on_comment(&self, line: &str, metadata: &mut Metadata) -> Result<()> {
+    fn on_comment(self, line: &str, metadata: &mut Metadata) -> Result<()> {
         let line = line.trim();
         if line.starts_with("%EMAIL") {
             metadata.email = Some(line.trim_start_matches("%EMAIL").trim().to_string());

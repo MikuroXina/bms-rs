@@ -74,13 +74,25 @@ impl KeyMappingConvertLaneRotateShuffle {
         if keys.is_empty() {
             return result;
         }
+        if keys.len() == 1 {
+            if let Some(&key) = keys.first() {
+                result.insert(key, key);
+            }
+            return result;
+        }
 
         let inc = rng.next_int_bound(2) == 1;
         let start = rng.next_int_bound(keys.len() as i32 - 1) as usize + if inc { 1 } else { 0 };
 
         let mut rlane = start;
         for lane in 0..keys.len() {
-            result.insert(keys[lane], keys[rlane]);
+            let Some(&lane_key) = keys.get(lane) else {
+                unreachable!();
+            };
+            let Some(&mapped_key) = keys.get(rlane) else {
+                unreachable!();
+            };
+            result.insert(lane_key, mapped_key);
             rlane = if inc {
                 (rlane + 1) % keys.len()
             } else {
@@ -125,8 +137,8 @@ impl KeyMappingConvertLaneRandomShuffle {
         let mut l = keys.to_vec();
         for &lane in keys {
             let r = rng.next_int_bound(l.len() as i32) as usize;
-            result.insert(lane, l[r]);
-            l.remove(r);
+            let mapped = l.swap_remove(r);
+            result.insert(lane, mapped);
         }
 
         result

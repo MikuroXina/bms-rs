@@ -183,7 +183,10 @@ pub const fn default_resolution() -> u64 {
 }
 
 const fn default_resolution_nonzero() -> NonZeroU64 {
-    NonZeroU64::new(default_resolution()).expect("default_resolution should be non-zero")
+    match NonZeroU64::new(default_resolution()) {
+        Some(v) => v,
+        None => NonZeroU64::MIN,
+    }
 }
 
 fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
@@ -222,8 +225,9 @@ where
         {
             match v {
                 0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v.unsigned_abs())
-                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
+                v => Ok(
+                    NonZeroU64::new(v.unsigned_abs()).unwrap_or_else(default_resolution_nonzero)
+                ),
             }
         }
 
@@ -233,8 +237,7 @@ where
         {
             match v {
                 0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v)
-                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
+                v => Ok(NonZeroU64::new(v).unwrap_or_else(default_resolution_nonzero)),
             }
         }
 
@@ -258,9 +261,7 @@ where
             if av > (u64::MAX as f64) {
                 return Err(E::custom(format!("Resolution value too large: {}", v)));
             }
-            Ok(NonZeroU64::new(av as u64).expect(
-                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
-            ))
+            Ok(NonZeroU64::new(av as u64).unwrap_or_else(default_resolution_nonzero))
         }
     }
 
@@ -558,7 +559,7 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
         && let Err(e) = serde_fallback
         && !errors
             .iter()
-            .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
+            .any(|err| matches!(err, BmsonParseError::JsonError { .. }))
     {
         let span = SimpleSpan::new((), 0..json.len());
         errors.push(BmsonParseError::JsonError {
@@ -568,8 +569,8 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
 
     // Try to deserialize the JSON value into Bmson
     let bmson = json_value
-        .map(|value| serde_path_to_error::deserialize(&value))
-        .and_then(|value| match value {
+        .map(|json_value| serde_path_to_error::deserialize(&json_value))
+        .and_then(|deserialize_result| match deserialize_result {
             Ok(bmson) => Some(bmson),
             Err(error) => {
                 errors.push(BmsonParseError::Deserialize { error });

@@ -180,6 +180,10 @@ impl ObjId {
     /// Parses the object id from the string `value`.
     ///
     /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning::SyntaxError`] if `value` is not exactly two ASCII-alphanumeric characters.
     pub fn try_from(
         value: &str,
         case_sensitive_obj_id: bool,
@@ -263,15 +267,19 @@ impl ObjId {
             b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
         // Generate all Base36 values first (1296 values: "00" to "ZZ")
-        let base36_values = (0..36usize).flat_map(move |first_idx| {
-            (0..36usize)
-                .map(move |second_idx| Self([BASE36_CHARS[first_idx], BASE36_CHARS[second_idx]]))
+        let base36_values = BASE36_CHARS.iter().copied().flat_map(|first| {
+            BASE36_CHARS
+                .iter()
+                .copied()
+                .map(move |second| Self([first, second]))
         });
 
         // Generate all Base62 values, then filter out Base36 ones and "00"
-        let remaining_values = (0..62usize).flat_map(move |first_idx| {
-            (0..62usize)
-                .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
+        let remaining_values = BASE62_CHARS.iter().copied().flat_map(|first| {
+            BASE62_CHARS
+                .iter()
+                .copied()
+                .map(move |second| Self([first, second]))
                 .filter(move |obj_id| {
                     // Skip "00" and Base36 values (already yielded above)
                     !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
@@ -519,8 +527,14 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(all_values[0], ObjId::try_from("01", false).unwrap()); // First Base36 value
-        assert_eq!(all_values[1294], ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
+        let Some(first) = all_values.first().copied() else {
+            panic!("expected ObjId::all_values() to be non-empty");
+        };
+        assert_eq!(first, ObjId::try_from("01", false).unwrap()); // First Base36 value
+        let Some(last_base36) = all_values.get(1294).copied() else {
+            panic!("expected ObjId::all_values() to contain Base36 values");
+        };
+        assert_eq!(last_base36, ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

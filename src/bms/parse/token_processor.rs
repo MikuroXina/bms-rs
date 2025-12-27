@@ -99,6 +99,10 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Iterates over all remaining tokens and collects warnings from the handler.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseErrorWithRange`] if `f` returns an error for any token.
     pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
     where
         F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
@@ -120,6 +124,10 @@ pub trait TokenProcessor {
     type Output;
 
     /// Processes commands by consuming all the stream `input`. It mutates `input`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseErrorWithRange`] when the token processor encounters a fatal parse error.
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,

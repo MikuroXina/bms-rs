@@ -23,18 +23,18 @@ fn switch() {
     ";
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms: _,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -62,18 +62,18 @@ fn nested_switch_simpler() {
     ";
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms: _,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -118,126 +118,170 @@ fn nested_switch() {
 
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+    assert_eq!(lex_warnings, vec![]);
+    {
+        let rng = RngMock([BigUint::from(1u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        let bms = bms.unwrap();
+        assert_eq!(parse_warnings, vec![]);
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(5)
+                    )
                     .to_channel_id(),
-                wav_id: id55,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id55,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        let bms = bms.unwrap();
+        assert_eq!(parse_warnings, vec![]);
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(
-                    PlayerSide::Player1,
-                    NoteKind::Visible,
-                    Key::Scratch(1)
-                )
-                .to_channel_id(),
-                wav_id: id66,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Scratch(1)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id66,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        let bms = bms.unwrap();
+        assert_eq!(parse_warnings, vec![]);
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
+                    wav_id: id33,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
+                    .to_channel_id(),
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
 }
 
 #[test]
@@ -280,126 +324,170 @@ fn nested_random_in_switch() {
 
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+    assert_eq!(lex_warnings, vec![]);
+    {
+        let rng = RngMock([BigUint::from(1u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(5)
+                    )
                     .to_channel_id(),
-                wav_id: id55,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id55,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(
-                    PlayerSide::Player1,
-                    NoteKind::Visible,
-                    Key::Scratch(1)
-                )
-                .to_channel_id(),
-                wav_id: id66,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Scratch(1)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id66,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
+                    wav_id: id33,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
+                    .to_channel_id(),
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
 }
 
 #[test]
@@ -442,126 +530,170 @@ fn nested_switch_in_random() {
 
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+    assert_eq!(lex_warnings, vec![]);
+    {
+        let rng = RngMock([BigUint::from(1u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(5))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(5)
+                    )
                     .to_channel_id(),
-                wav_id: id55,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id55,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(2))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 1, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(2)
+                    )
                     .to_channel_id(),
-                wav_id: id22,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(
-                    PlayerSide::Player1,
-                    NoteKind::Visible,
-                    Key::Scratch(1)
-                )
-                .to_channel_id(),
-                wav_id: id66,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id22,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Scratch(1)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
-
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-        vec![
-            WavObj {
-                offset: ObjTime::start_of(1.into()),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(1))
+                    wav_id: id66,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
                     .to_channel_id(),
-                wav_id: id11,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(3))
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
+    {
+        let rng = RngMock([BigUint::from(2u64)]);
+        let ParseOutput {
+            bms,
+            parse_warnings,
+        } = Bms::from_token_stream(
+            &tokens,
+            default_config_with_rng(rng).prompter(AlwaysUseNewer),
+        );
+        assert_eq!(parse_warnings, vec![]);
+        let bms = bms.unwrap();
+        assert_eq!(
+            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+            vec![
+                WavObj {
+                    offset: ObjTime::start_of(1.into()),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(1)
+                    )
                     .to_channel_id(),
-                wav_id: id33,
-            },
-            WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
-                channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
+                    wav_id: id11,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 2, 4).expect("4 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(3)
+                    )
                     .to_channel_id(),
-                wav_id: id44,
-            }
-        ]
-    );
+                    wav_id: id33,
+                },
+                WavObj {
+                    offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
+                    channel_id: KeyLayoutBeat::new(
+                        PlayerSide::Player1,
+                        NoteKind::Visible,
+                        Key::Key(4)
+                    )
+                    .to_channel_id(),
+                    wav_id: id44,
+                }
+            ]
+        );
+    }
 }
 
 /// <https://hitkey.bms.ms/cmds.htm#TEST-CASES>
@@ -619,13 +751,13 @@ fn test_switch_insane() {
     ] {
         let ParseOutput {
             bms,
-            parse_warnings: warnings,
+            parse_warnings,
         } = Bms::from_token_stream(
             &tokens,
             default_config_with_rng(rng).prompter(AlwaysUseNewer),
         );
         let bms = bms.unwrap();
-        assert_eq!(warnings, vec![]);
+        assert_eq!(parse_warnings, vec![]);
         assert_eq!(
             bms.notes().all_notes().cloned().collect::<Vec<_>>(),
             expected

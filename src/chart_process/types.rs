@@ -894,12 +894,12 @@ mod tests {
             .collect();
         assert_eq!(got_ids, vec![1, 2]);
 
-        let got_ids: Vec<usize> = idx
+        let got_ids_unbounded: Vec<usize> = idx
             .events_in_time_range((Unbounded, Included(TimeSpan::SECOND)))
             .into_iter()
             .map(|ev| ev.id.value())
             .collect();
-        assert_eq!(got_ids, vec![1]);
+        assert_eq!(got_ids_unbounded, vec![1]);
     }
 
     #[test]
