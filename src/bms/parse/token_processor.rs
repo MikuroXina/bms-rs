@@ -15,7 +15,6 @@ use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
-mod identity;
 mod judge;
 mod metadata;
 mod music_info;
