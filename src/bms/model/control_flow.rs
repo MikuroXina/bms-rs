@@ -189,11 +189,9 @@ impl RandomizedObjects {
             None => return Bms::default(),
         };
 
-        if let Some(branch) = self.branches.get(&val) {
-            *branch.sub.clone()
-        } else {
-            Bms::default()
-        }
+        self.branches
+            .get(&val)
+            .map_or_else(Bms::default, |branch| (*branch.sub).clone())
     }
 
     /// Exports this randomized block as `#RANDOM/#SETRANDOM + #IF/#ELSEIF/#ENDIF` tokens.

@@ -331,7 +331,6 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key(1),
         2 => Key::Key(2),
         3 => Key::Key(3),
         4 => Key::Key(4),

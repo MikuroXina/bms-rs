@@ -1,7 +1,8 @@
 //! Definitions of time in BMS.
 
-use num::Integer;
 use std::num::NonZeroU64;
+
+use num::Integer;
 
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -74,9 +75,11 @@ impl ObjTime {
         Self {
             track: Track(track),
             numerator: numerator / gcd,
-            denominator: match NonZeroU64::new(reduced_denominator) {
-                Some(v) => v,
-                None => unreachable!(),
+            denominator: {
+                let Some(reduced_denominator_nz) = NonZeroU64::new(reduced_denominator) else {
+                    panic!("reduced denominator must be non-zero");
+                };
+                reduced_denominator_nz
             },
         }
     }

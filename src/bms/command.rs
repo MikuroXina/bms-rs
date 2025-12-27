@@ -121,7 +121,7 @@ pub(crate) fn base62_to_byte(base62: u8) -> u8 {
         b'0'..=b'9' => base62 - b'0',
         b'A'..=b'Z' => base62 - b'A' + 10,
         b'a'..=b'z' => base62 - b'a' + 36,
-        _ => unreachable!(),
+        _ => panic!("invalid base62 byte: {base62}"),
     }
 }
 

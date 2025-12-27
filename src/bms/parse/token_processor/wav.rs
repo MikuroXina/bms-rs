@@ -262,14 +262,10 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;
             // Validity check
-            match param {
-                WavCmdParam::Pitch if !(0..=127).contains(&value) => {
-                    return Err(ParseWarning::SyntaxError(
-                        "pitch must be in between 0 and 127".into(),
-                    ));
-                }
-                WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */ }
-                _ => {}
+            if matches!(param, WavCmdParam::Pitch) && !(0..=127).contains(&value) {
+                return Err(ParseWarning::SyntaxError(
+                    "pitch must be in between 0 and 127".into(),
+                ));
             }
             let ev = WavCmdEvent {
                 param,

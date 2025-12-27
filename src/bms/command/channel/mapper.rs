@@ -21,7 +21,6 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
 
     // Second character based on Key
     let second_char = match key {
-        Key::Key(1) => '1',
         Key::Key(2) => '2',
         Key::Key(3) => '3',
         Key::Key(4) => '4',
@@ -33,10 +32,10 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         _ => '1', // Default fallback
     };
 
-    match NoteChannelId::try_from([first_char as u8, second_char as u8]) {
-        Ok(v) => v,
-        Err(_) => unreachable!(),
-    }
+    let Ok(channel_id) = NoteChannelId::try_from([first_char as u8, second_char as u8]) else {
+        panic!("generated note channel id should be valid");
+    };
+    channel_id
 }
 
 /// Convert from [`ChannelId`] to [`KeyLayoutBeat`].

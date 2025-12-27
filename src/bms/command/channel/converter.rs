@@ -85,12 +85,9 @@ impl KeyMappingConvertLaneRotateShuffle {
         let start = rng.next_int_bound(keys.len() as i32 - 1) as usize + if inc { 1 } else { 0 };
 
         let mut rlane = start;
-        for lane in 0..keys.len() {
-            let Some(&lane_key) = keys.get(lane) else {
-                unreachable!();
-            };
+        for &lane_key in keys {
             let Some(&mapped_key) = keys.get(rlane) else {
-                unreachable!();
+                break;
             };
             result.insert(lane_key, mapped_key);
             rlane = if inc {

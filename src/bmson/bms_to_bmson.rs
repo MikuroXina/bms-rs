@@ -68,10 +68,10 @@ impl Bms {
         const VERY_HARD_WIDTH: f64 = 8.0;
 
         fn finite(float: f64) -> FinF64 {
-            let Some(v) = FinF64::new(float) else {
-                unreachable!();
+            let Some(float) = FinF64::new(float) else {
+                panic!("expected finite float");
             };
-            v
+            float
         }
 
         let mut warnings = Vec::new();
