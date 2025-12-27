@@ -805,16 +805,16 @@ fn event_for_note_static<T: KeyLayoutMapper>(
     let Some((side, key, kind)) = lane else {
         return ChartEvent::Bgm { wav_id };
     };
-    let length = if kind == NoteKind::Long {
-        bms.notes()
-            .next_obj_by_key(obj.channel_id, obj.offset)
-            .map(|next_obj| {
-                let next_y = y_memo.get_y(next_obj.offset);
-                next_y - y
-            })
-    } else {
-        None
-    };
+    let length = (kind == NoteKind::Long)
+        .then(|| {
+            bms.notes()
+                .next_obj_by_key(obj.channel_id, obj.offset)
+                .map(|next_obj| {
+                    let next_y = y_memo.get_y(next_obj.offset);
+                    next_y - y
+                })
+        })
+        .flatten();
     ChartEvent::Note {
         side,
         key,

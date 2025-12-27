@@ -109,12 +109,8 @@ impl std::fmt::Display for JudgeLevel {
     }
 }
 
-pub(crate) const fn char_to_base62(ch: char) -> Option<u8> {
-    if ch.is_ascii_alphanumeric() {
-        Some(ch as u32 as u8)
-    } else {
-        None
-    }
+pub(crate) fn char_to_base62(ch: char) -> Option<u8> {
+    ch.is_ascii_alphanumeric().then_some(ch as u8)
 }
 
 pub(crate) fn base62_to_byte(base62: u8) -> u8 {
