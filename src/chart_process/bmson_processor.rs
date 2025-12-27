@@ -159,7 +159,8 @@ impl BmsonProcessor {
             Decimal::zero()
         } else {
             let denom = Decimal::from(240);
-            (self.current_bpm.clone() / denom * self.playback_ratio.clone()).max(Decimal::zero())
+            let base = &self.current_bpm / &denom;
+            (&base * &self.playback_ratio).max(Decimal::zero())
         }
     }
 
@@ -393,7 +394,7 @@ impl ChartProcessor for BmsonProcessor {
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
             let display_ratio_value = if visible_window_y > YCoordinate::zero() {
-                (&(event_y - current_y) / &visible_window_y).value() * scroll_factor
+                &Decimal::from(&(event_y - current_y) / &visible_window_y) * scroll_factor
             } else {
                 Decimal::zero()
             };
@@ -427,7 +428,10 @@ impl AllEventsIndex {
         } else {
             Decimal::one() / denom
         };
-        let pulses_to_y = |pulses: u64| YCoordinate::new(Decimal::from(pulses) * denom_inv.clone());
+        let pulses_to_y = |pulses: u64| {
+            let pulses = Decimal::from(pulses);
+            YCoordinate::new(&pulses * &denom_inv)
+        };
         let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
         points.insert(YCoordinate::zero());
         for SoundChannel { notes, .. } in &bmson.sound_channels {
@@ -523,7 +527,7 @@ impl AllEventsIndex {
             if curr <= prev {
                 continue;
             }
-            let delta_y_f64 = (&curr - &prev).value().to_f64().unwrap_or(0.0);
+            let delta_y_f64 = Decimal::from(&curr - &prev).to_f64().unwrap_or(0.0);
             let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
             let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
             if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {

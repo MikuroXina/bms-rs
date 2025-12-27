@@ -415,7 +415,7 @@ impl BmpProcessor {
             | Channel::BgaPoor
             | Channel::BgaLayer
             | Channel::BgaLayer2) => {
-                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
                 warnings.extend(w);
                 for (time, obj) in pairs {
                     if !objects.bmp_files.contains_key(&obj) {
@@ -439,7 +439,7 @@ impl BmpProcessor {
             | Channel::BgaLayer2Opacity
             | Channel::BgaPoorOpacity) => {
                 use super::parse_hex_values;
-                let (pairs, w) = parse_hex_values(track, message);
+                let (pairs, w) = parse_hex_values(track, &message);
                 warnings.extend(w);
                 for (time, opacity_value) in pairs {
                     let layer = BgaLayer::from_channel(channel)
@@ -460,7 +460,7 @@ impl BmpProcessor {
             | Channel::BgaLayer2Argb
             | Channel::BgaPoorArgb) => {
                 use super::parse_obj_ids;
-                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
                 warnings.extend(w);
                 for (time, argb_id) in pairs {
                     let layer = BgaLayer::from_channel(channel)
@@ -479,7 +479,7 @@ impl BmpProcessor {
             }
             Channel::BgaKeybound => {
                 use super::parse_obj_ids;
-                let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+                let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
                 warnings.extend(w);
                 for (time, keybound_id) in pairs {
                     let event = objects

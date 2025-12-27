@@ -153,7 +153,7 @@ impl StopProcessor {
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Stop {
-            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 // Record used STOP id for validity checks

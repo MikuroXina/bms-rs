@@ -34,6 +34,7 @@ mod volume;
 mod wav;
 
 /// A checkpoint of input position, allowing temporary rewinds/restores.
+#[derive(Debug, Clone, Copy)]
 pub struct Checkpoint<'a, 't>(pub &'a [&'t TokenWithRange<'t>]);
 
 /// Processing context passed through token processors.
@@ -429,13 +430,13 @@ impl TokenModifier for DefaultTokenRelaxer {
 
 fn parse_obj_ids(
     track: Track,
-    message: SourceRangeMixin<&str>,
+    message: &SourceRangeMixin<&str>,
     case_sensitive_obj_id: &RefCell<bool>,
 ) -> (Vec<(ObjTime, ObjId)>, Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
         warnings.push(
-            ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(&message),
+            ParseWarning::SyntaxError("expected 2-digit object ids".into()).into_wrapper(message),
         );
     }
 
@@ -452,7 +453,7 @@ fn parse_obj_ids(
                 Ok(id) if id.is_null() => None,
                 Ok(id) => ObjTime::new(track.0, i as u64, denom).map(|time| (time, id)),
                 Err(warning) => {
-                    warnings.push(warning.into_wrapper(&message));
+                    warnings.push(warning.into_wrapper(message));
                     None
                 }
             }
@@ -462,17 +463,17 @@ fn parse_obj_ids(
 
 fn parse_hex_values(
     track: Track,
-    message: SourceRangeMixin<&str>,
+    message: &SourceRangeMixin<&str>,
 ) -> (Vec<(ObjTime, u8)>, Vec<ParseWarningWithRange>) {
     let mut warnings = Vec::new();
     if !message.content().len().is_multiple_of(2) {
         warnings.push(
-            ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(&message),
+            ParseWarning::SyntaxError("expected 2-digit hex values".into()).into_wrapper(message),
         );
     }
 
     let denom = message.content().len() as u64 / 2;
-    let message = message
+    let parsed = message
         .content()
         .chars()
         .tuples()
@@ -484,14 +485,14 @@ fn parse_hex_values(
                 |_| {
                     warnings.push(
                         ParseWarning::SyntaxError(format!("invalid hex digits ({buf:?}"))
-                            .into_wrapper(&message),
+                            .into_wrapper(message),
                     );
                     None
                 },
                 |value| ObjTime::new(track.0, i as u64, denom).map(|time| (time, value)),
             )
         });
-    (message.collect(), warnings)
+    (parsed.collect(), warnings)
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {

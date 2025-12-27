@@ -111,7 +111,7 @@ impl SpeedProcessor {
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Speed {
-            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 let factor = objects

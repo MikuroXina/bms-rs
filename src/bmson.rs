@@ -384,6 +384,14 @@ pub struct BgaEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BgaId(pub u32);
 
+impl BgaId {
+    /// Returns the contained BGA id value.
+    #[must_use]
+    pub const fn value(self) -> u32 {
+        self.0
+    }
+}
+
 /// Beatoraja implementation of scroll event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ScrollEvent {
@@ -464,12 +472,13 @@ impl ToAriadne for serde_path_to_error::Error<serde_json::Error> {
         &self,
         src: &crate::diagnostics::SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
+        let message = format!("{self}");
         build_report(
             src,
             ReportKind::Error,
             0..0,
             "BMSON deserialization error",
-            format!("{}", self),
+            &message,
             Color::Red,
         )
     }

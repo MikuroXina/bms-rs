@@ -39,9 +39,47 @@ pub struct MaxBpmGenerator;
 #[derive(Debug, Clone)]
 pub struct ManualBpmGenerator(pub Decimal);
 
+impl AsRef<Decimal> for ManualBpmGenerator {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
+impl From<Decimal> for ManualBpmGenerator {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ManualBpmGenerator> for Decimal {
+    fn from(value: ManualBpmGenerator) -> Self {
+        value.0
+    }
+}
+
+impl ManualBpmGenerator {
+    /// Returns a reference to the contained BPM value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained BPM value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+}
+
 /// Base BPM wrapper type, encapsulating a `Decimal` value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseBpm(pub Decimal);
+
+impl AsRef<Decimal> for BaseBpm {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
 
 impl BaseBpm {
     /// Create a new BaseBpm
@@ -50,10 +88,16 @@ impl BaseBpm {
         Self(value)
     }
 
-    /// Get the internal Decimal value
+    /// Returns a reference to the contained BPM value.
     #[must_use]
     pub const fn value(&self) -> &Decimal {
         &self.0
+    }
+
+    /// Consumes self and returns the contained BPM value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
     }
 }
 
@@ -63,10 +107,22 @@ impl From<Decimal> for BaseBpm {
     }
 }
 
+impl From<BaseBpm> for Decimal {
+    fn from(value: BaseBpm) -> Self {
+        value.0
+    }
+}
+
 /// Visible range per BPM, representing the relationship between BPM and visible Y range.
 /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleRangePerBpm(Decimal);
+
+impl AsRef<Decimal> for VisibleRangePerBpm {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
 
 impl VisibleRangePerBpm {
     /// Create a new VisibleRangePerBpm from base BPM and reaction time
@@ -84,17 +140,23 @@ impl VisibleRangePerBpm {
         }
     }
 
+    /// Returns a reference to the contained value.
+    #[must_use]
+    pub const fn value(&self) -> &Decimal {
+        &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
+    }
+
     /// Calculate visible window length in y units based on current BPM.
     /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
     #[must_use]
     pub fn window_y(&self, current_bpm: &Decimal) -> YCoordinate {
-        YCoordinate::new(current_bpm.clone() * self.value().clone())
-    }
-
-    /// Get the internal Decimal value
-    #[must_use]
-    pub const fn value(&self) -> &Decimal {
-        &self.0
+        YCoordinate::new(current_bpm * self.value())
     }
 
     /// Calculate reaction time from visible range per BPM
@@ -105,7 +167,8 @@ impl VisibleRangePerBpm {
         if self.0.is_zero() {
             TimeSpan::ZERO
         } else {
-            let nanos = (self.0.clone() * Decimal::from(240) * Decimal::from(NANOS_PER_SECOND))
+            let base = &self.0 * &Decimal::from(240);
+            let nanos = (&base * &Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
             TimeSpan::from_duration(Duration::from_nanos(nanos))
@@ -122,6 +185,12 @@ impl VisibleRangePerBpm {
 impl From<Decimal> for VisibleRangePerBpm {
     fn from(value: Decimal) -> Self {
         Self::from_decimal(value)
+    }
+}
+
+impl From<VisibleRangePerBpm> for Decimal {
+    fn from(value: VisibleRangePerBpm) -> Self {
+        value.0
     }
 }
 
@@ -223,6 +292,12 @@ impl<'a> BaseBpmGenerator<Bmson<'a>> for ManualBpmGenerator {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct YCoordinate(pub Decimal);
 
+impl AsRef<Decimal> for YCoordinate {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
 impl YCoordinate {
     /// Create a new YCoordinate
     #[must_use]
@@ -230,10 +305,16 @@ impl YCoordinate {
         Self(value)
     }
 
-    /// Get the internal Decimal value
+    /// Returns a reference to the contained value.
     #[must_use]
     pub const fn value(&self) -> &Decimal {
         &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
     }
 
     /// Convert to f64 (for compatibility)
@@ -252,6 +333,12 @@ impl YCoordinate {
 impl From<Decimal> for YCoordinate {
     fn from(value: Decimal) -> Self {
         Self(value)
+    }
+}
+
+impl From<YCoordinate> for Decimal {
+    fn from(value: YCoordinate) -> Self {
+        value.0
     }
 }
 
@@ -334,6 +421,12 @@ impl Zero for YCoordinate {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct DisplayRatio(pub Decimal);
 
+impl AsRef<Decimal> for DisplayRatio {
+    fn as_ref(&self) -> &Decimal {
+        &self.0
+    }
+}
+
 impl DisplayRatio {
     /// Create a new DisplayRatio
     #[must_use]
@@ -341,10 +434,16 @@ impl DisplayRatio {
         Self(value)
     }
 
-    /// Get the internal Decimal value
+    /// Returns a reference to the contained value.
     #[must_use]
     pub const fn value(&self) -> &Decimal {
         &self.0
+    }
+
+    /// Consumes self and returns the contained value.
+    #[must_use]
+    pub fn into_value(self) -> Decimal {
+        self.0
     }
 
     /// Convert to f64 (for compatibility)
@@ -372,6 +471,12 @@ impl From<Decimal> for DisplayRatio {
     }
 }
 
+impl From<DisplayRatio> for Decimal {
+    fn from(value: DisplayRatio) -> Self {
+        value.0
+    }
+}
+
 impl From<f64> for DisplayRatio {
     fn from(value: f64) -> Self {
         Self(Decimal::from(value))
@@ -382,6 +487,12 @@ impl From<f64> for DisplayRatio {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WavId(pub usize);
 
+impl AsRef<usize> for WavId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl WavId {
     /// Create a new WavId
     #[must_use]
@@ -389,7 +500,7 @@ impl WavId {
         Self(id)
     }
 
-    /// Get the internal usize value
+    /// Returns the contained id value.
     #[must_use]
     pub const fn value(self) -> usize {
         self.0
@@ -412,6 +523,12 @@ impl From<WavId> for usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BmpId(pub usize);
 
+impl AsRef<usize> for BmpId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl BmpId {
     /// Create a new BmpId
     #[must_use]
@@ -419,7 +536,7 @@ impl BmpId {
         Self(id)
     }
 
-    /// Get the internal usize value
+    /// Returns the contained id value.
     #[must_use]
     pub const fn value(self) -> usize {
         self.0
@@ -442,6 +559,12 @@ impl From<BmpId> for usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChartEventId(pub usize);
 
+impl AsRef<usize> for ChartEventId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
 impl ChartEventId {
     /// Create a new ChartEventId
     #[must_use]
@@ -449,7 +572,7 @@ impl ChartEventId {
         Self(id)
     }
 
-    /// Get the internal usize value
+    /// Returns the contained id value.
     #[must_use]
     pub const fn value(self) -> usize {
         self.0

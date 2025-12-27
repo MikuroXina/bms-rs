@@ -130,7 +130,7 @@ impl BpmProcessor {
     ) -> Result<Vec<ParseWarningWithRange>> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::BpmChange {
-            let (pairs, w) = parse_obj_ids(track, message.clone(), &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, obj) in pairs {
                 // Record used BPM change id for validity checks
@@ -144,7 +144,7 @@ impl BpmProcessor {
             }
         }
         if channel == Channel::BpmChangeU8 {
-            let (pairs, w) = parse_hex_values(track, message);
+            let (pairs, w) = parse_hex_values(track, &message);
             warnings.extend(w);
             for (time, value) in pairs {
                 objects.push_bpm_change_u8(time, value, prompter)?;

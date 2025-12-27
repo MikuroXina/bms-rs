@@ -150,9 +150,9 @@ fn test_prelude_minor_command_imports() {
 
     // Test that we can use the minor command types
     assert_eq!(_wav_cmd_param, WavCmdParam::Pitch);
-    assert_eq!(_ex_wav_pan.value(), 0);
-    assert_eq!(_ex_wav_volume.value(), 0);
-    assert_eq!(_ex_wav_frequency.value(), 100);
+    assert_eq!(*_ex_wav_pan.as_ref(), 0);
+    assert_eq!(*_ex_wav_volume.as_ref(), 0);
+    assert_eq!(u64::from(_ex_wav_frequency), 100);
 }
 
 #[test]

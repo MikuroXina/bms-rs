@@ -8,6 +8,14 @@ use std::num::NonZeroU64;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Track(pub u64);
 
+impl Track {
+    /// Returns the contained track number.
+    #[must_use]
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+}
+
 impl std::fmt::Display for Track {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Track: {:03}", self.0)

@@ -138,7 +138,7 @@ impl JudgeProcessor {
     ) -> core::result::Result<Vec<ParseWarningWithRange>, ParseWarning> {
         let mut warnings: Vec<ParseWarningWithRange> = Vec::new();
         if channel == Channel::Judge {
-            let (pairs, w) = parse_obj_ids(track, message, &self.case_sensitive_obj_id);
+            let (pairs, w) = parse_obj_ids(track, &message, &self.case_sensitive_obj_id);
             warnings.extend(w);
             for (time, judge_id) in pairs {
                 let exrank_def = objects

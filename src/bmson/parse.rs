@@ -208,13 +208,12 @@ impl<'a> ToAriadne for Recovered<'a> {
         src: &SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
-        let message = self.0.to_string();
         build_report(
             src,
             ReportKind::Advice,
             span.start..span.end,
             "JSON recovered parsing issue",
-            message,
+            &self.0,
             Color::Blue,
         )
     }
@@ -227,13 +226,12 @@ impl<'a> ToAriadne for Warning<'a> {
         src: &SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
-        let message = self.0.to_string();
         build_report(
             src,
             ReportKind::Warning,
             span.start..span.end,
             "JSON parsing warning",
-            message,
+            &self.0,
             Color::Yellow,
         )
     }
@@ -246,13 +244,12 @@ impl<'a> ToAriadne for Error<'a> {
         src: &SimpleSource<'b>,
     ) -> Report<'b, (String, std::ops::Range<usize>)> {
         let span = self.0.span();
-        let message = self.0.to_string();
         build_report(
             src,
             ReportKind::Error,
             span.start..span.end,
             "JSON parsing error",
-            message,
+            &self.0,
             Color::Red,
         )
     }
