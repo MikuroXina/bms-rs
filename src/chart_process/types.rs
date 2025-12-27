@@ -156,7 +156,7 @@ impl VisibleRangePerBpm {
     /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
     #[must_use]
     pub fn window_y(&self, current_bpm: &Decimal) -> YCoordinate {
-        YCoordinate::new(current_bpm.clone() * self.value().clone())
+        YCoordinate::new(current_bpm * self.value())
     }
 
     /// Calculate reaction time from visible range per BPM
@@ -167,7 +167,8 @@ impl VisibleRangePerBpm {
         if self.0.is_zero() {
             TimeSpan::ZERO
         } else {
-            let nanos = (self.0.clone() * Decimal::from(240) * Decimal::from(NANOS_PER_SECOND))
+            let base = &self.0 * &Decimal::from(240);
+            let nanos = (&base * &Decimal::from(NANOS_PER_SECOND))
                 .to_u64()
                 .unwrap_or(0);
             TimeSpan::from_duration(Duration::from_nanos(nanos))

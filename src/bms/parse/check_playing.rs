@@ -76,7 +76,7 @@ impl ToAriadne for PlayingError {
             ReportKind::Error,
             0..0,
             "Playing error",
-            &self.to_string(),
+            &self,
             Color::Red,
         )
     }

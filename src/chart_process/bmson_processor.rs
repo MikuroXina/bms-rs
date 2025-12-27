@@ -159,7 +159,8 @@ impl BmsonProcessor {
             Decimal::zero()
         } else {
             let denom = Decimal::from(240);
-            (self.current_bpm.clone() / denom * self.playback_ratio.clone()).max(Decimal::zero())
+            let base = &self.current_bpm / &denom;
+            (&base * &self.playback_ratio).max(Decimal::zero())
         }
     }
 
@@ -427,7 +428,10 @@ impl AllEventsIndex {
         } else {
             Decimal::one() / denom
         };
-        let pulses_to_y = |pulses: u64| YCoordinate::new(Decimal::from(pulses) * denom_inv.clone());
+        let pulses_to_y = |pulses: u64| {
+            let pulses = Decimal::from(pulses);
+            YCoordinate::new(&pulses * &denom_inv)
+        };
         let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
         points.insert(YCoordinate::zero());
         for SoundChannel { notes, .. } in &bmson.sound_channels {

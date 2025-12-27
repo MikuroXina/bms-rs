@@ -166,8 +166,9 @@ impl BmsProcessor {
             Decimal::from(f64::EPSILON)
         } else {
             let denom = Decimal::from(240);
-            let base = self.current_bpm.clone() / denom;
-            let v = base * self.current_speed.clone() * self.playback_ratio.clone();
+            let base = &self.current_bpm / &denom;
+            let v1 = &base * &self.current_speed;
+            let v = &v1 * &self.playback_ratio;
             v.max(Decimal::from(f64::EPSILON))
         }
     }
@@ -379,7 +380,8 @@ impl ChartProcessor for BmsProcessor {
                 .checked_elapsed_since(started)
                 .unwrap_or(TimeSpan::ZERO);
             let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let center_nanos = (Decimal::from(elapsed_nanos) * self.playback_ratio.clone())
+            let elapsed_nanos = Decimal::from(elapsed_nanos);
+            let center_nanos = (&elapsed_nanos * &self.playback_ratio)
                 .to_u64()
                 .unwrap_or(0);
             let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));

@@ -194,7 +194,7 @@ impl ToAriadne for LexWarningWithRange {
         let (start, end) = self.as_span();
         let filename = src.name().to_string();
         Report::build(ReportKind::Warning, (filename.clone(), start..end))
-            .with_message("lex: ".to_string() + &self.content().to_string())
+            .with_message(format!("lex: {}", self.content()))
             .with_label(Label::new((filename, start..end)).with_color(Color::Yellow))
             .finish()
     }
