@@ -183,10 +183,10 @@ pub const fn default_resolution() -> u64 {
 }
 
 const fn default_resolution_nonzero() -> NonZeroU64 {
-    match NonZeroU64::new(default_resolution()) {
-        Some(v) => v,
-        None => NonZeroU64::MIN,
-    }
+    let Some(v) = NonZeroU64::new(default_resolution()) else {
+        return NonZeroU64::MIN;
+    };
+    v
 }
 
 fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
@@ -223,22 +223,14 @@ where
         where
             E: Error,
         {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(
-                    NonZeroU64::new(v.unsigned_abs()).unwrap_or_else(default_resolution_nonzero)
-                ),
-            }
+            Ok(NonZeroU64::new(v.unsigned_abs()).unwrap_or_else(default_resolution_nonzero))
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
             E: Error,
         {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v).unwrap_or_else(default_resolution_nonzero)),
-            }
+            Ok(NonZeroU64::new(v).unwrap_or_else(default_resolution_nonzero))
         }
 
         fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
@@ -322,10 +314,7 @@ where
     D: Deserializer<'de>,
 {
     let opt = Option::<u8>::deserialize(deserializer)?;
-    Ok(match opt {
-        Some(0) | None => None,
-        Some(v) => NonZeroU8::new(v),
-    })
+    Ok(opt.and_then(NonZeroU8::new))
 }
 
 /// BPM change note.
@@ -570,12 +559,10 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
     // Try to deserialize the JSON value into Bmson
     let bmson = json_value
         .map(|json_value| serde_path_to_error::deserialize(&json_value))
-        .and_then(|deserialize_result| match deserialize_result {
-            Ok(bmson) => Some(bmson),
-            Err(error) => {
-                errors.push(BmsonParseError::Deserialize { error });
-                None
-            }
+        .and_then(|deserialize_result| {
+            deserialize_result
+                .map_err(|error| errors.push(BmsonParseError::Deserialize { error }))
+                .ok()
         });
 
     BmsonParseOutput { bmson, errors }

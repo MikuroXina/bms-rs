@@ -32,10 +32,11 @@ impl TokenProcessor for ResourcesProcessor {
         let mut resources = Resources::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
-                match Self::on_header(name.as_ref(), args.as_ref(), &mut resources) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
+                Ok(
+                    Self::on_header(name.as_ref(), args.as_ref(), &mut resources)
+                        .map(|()| None)
+                        .unwrap_or_else(|warn| Some(warn.into_wrapper(token))),
+                )
             }
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;

@@ -36,17 +36,15 @@ impl TokenProcessor for MetadataProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), &mut metadata)
+                .map(|()| None)
+                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
             Token::Message { .. } => Ok(None),
-            Token::NotACommand(line) => match self.on_comment(line, &mut metadata) {
-                Ok(()) => Ok(None),
-                Err(warn) => Ok(Some(warn.into_wrapper(token))),
-            },
+            Token::NotACommand(line) => Ok(self
+                .on_comment(line, &mut metadata)
+                .map(|()| None)
+                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
         })?;
         Ok(metadata)
     }

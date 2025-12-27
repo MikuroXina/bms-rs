@@ -28,12 +28,10 @@ impl TokenProcessor for MusicInfoProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut music_info = MusicInfo::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut music_info) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), &mut music_info)
+                .map(|()| None)
+                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(music_info)

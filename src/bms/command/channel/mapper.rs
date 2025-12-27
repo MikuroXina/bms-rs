@@ -289,10 +289,7 @@ impl KeyMapping for KeyLayoutBeatNanasi {
 impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn to_channel_id(self) -> NoteChannelId {
         let (side, kind, key) = self.as_tuple();
-        let key = match key {
-            FootPedal => FreeZone,
-            other => other,
-        };
+        let key = if let FootPedal = key { FreeZone } else { key };
         let beat = KeyLayoutBeat::new(side, kind, key);
         key_layout_beat_to_channel_id(beat)
     }
@@ -300,10 +297,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
-        let key = match key {
-            FreeZone => FootPedal,
-            other => other,
-        };
+        let key = if let FreeZone = key { FootPedal } else { key };
         Some(Self::new(side, kind, key))
     }
 }

@@ -503,18 +503,9 @@ fn parse_hex_values(
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {
-    let result = message
-        .chars()
-        .try_fold(String::with_capacity(message.len()), |mut acc, ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '.' {
-                acc.push(ch);
-                Ok(acc)
-            } else {
-                Err(acc)
-            }
-        });
-    match result {
-        Ok(_) => Cow::Borrowed(message),
-        Err(filtered) => Cow::Owned(filtered),
+    let allow = |ch: char| ch.is_ascii_alphanumeric() || ch == '-' || ch == '.';
+    if message.chars().all(allow) {
+        return Cow::Borrowed(message);
     }
+    Cow::Owned(message.chars().filter(|&ch| allow(ch)).collect())
 }

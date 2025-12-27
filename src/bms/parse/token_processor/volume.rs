@@ -26,27 +26,22 @@ impl TokenProcessor for VolumeProcessor {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
-                match Self::on_header(name.as_ref(), args.as_ref(), &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
+                Ok(Self::on_header(name.as_ref(), args.as_ref(), &mut objects)
+                    .map(|()| Vec::new())
+                    .unwrap_or_else(|warn| vec![warn.into_wrapper(token)]))
             }
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match Self::on_message(
-                    *track,
-                    *channel,
-                    message.as_ref().into_wrapper(token),
-                    prompter,
-                    &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            } => Ok(Self::on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut objects,
+            )
+            .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
             Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)

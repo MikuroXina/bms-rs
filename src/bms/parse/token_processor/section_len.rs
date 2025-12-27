@@ -31,12 +31,11 @@ impl TokenProcessor for SectionLenProcessor {
                 track,
                 channel,
                 message,
-            } => {
-                match Self::on_message(*track, *channel, message.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
-            }
+            } => Ok(
+                Self::on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
+                    .map(|()| None)
+                    .unwrap_or_else(|warn| Some(warn.into_wrapper(token))),
+            ),
             Token::Header { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)

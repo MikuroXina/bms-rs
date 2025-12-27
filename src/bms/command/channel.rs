@@ -403,18 +403,20 @@ impl Key {
     /// Returns the key number if it's a Key variant.
     #[must_use]
     pub const fn key_number(&self) -> Option<u8> {
-        match self {
-            Self::Key(n) => Some(*n),
-            _ => None,
+        if let Self::Key(n) = self {
+            Some(*n)
+        } else {
+            None
         }
     }
 
     /// Returns the scratch number if it's a Scratch variant.
     #[must_use]
     pub const fn scratch_number(&self) -> Option<u8> {
-        match self {
-            Self::Scratch(n) => Some(*n),
-            _ => None,
+        if let Self::Scratch(n) = self {
+            Some(*n)
+        } else {
+            None
         }
     }
 

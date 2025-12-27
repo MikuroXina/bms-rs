@@ -152,11 +152,9 @@ impl RandomizedObjects {
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
     pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
-        use std::collections::btree_map::Entry;
-        match self.branches.entry(condition.clone()) {
-            Entry::Occupied(o) => o.into_mut(),
-            Entry::Vacant(v) => v.insert(RandomizedBranch::new(condition, Bms::default())),
-        }
+        self.branches
+            .entry(condition)
+            .or_insert_with_key(|cond| RandomizedBranch::new(cond.clone(), Bms::default()))
     }
 
     /// Returns an iterator over all branches in ascending condition order.
