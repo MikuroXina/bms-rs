@@ -228,7 +228,12 @@ impl Notes {
             .get(&channel_id)
             .into_iter()
             .flatten()
-            .map(|&arena_index| (arena_index, &self.arena.0[arena_index.0]))
+            .filter_map(|&arena_index| {
+                self.arena
+                    .0
+                    .get(arena_index.0)
+                    .map(|obj| (arena_index, obj))
+            })
     }
 
     /// Retrieves notes in the specified time span.
@@ -255,7 +260,12 @@ impl Notes {
         self.idx_by_time
             .range(time_span)
             .flat_map(|(_, indexes)| indexes)
-            .map(|&arena_index| (arena_index, &self.arena.0[arena_index.0]))
+            .filter_map(|&arena_index| {
+                self.arena
+                    .0
+                    .get(arena_index.0)
+                    .map(|obj| (arena_index, obj))
+            })
     }
 
     /// Finds next object on the key `Key` from the time `ObjTime`.
@@ -332,54 +342,37 @@ impl Notes {
 
     fn remove_index(&mut self, idx: usize, removing: &WavObj) {
         let channel_id = removing.channel_id;
-        if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
-            .iter()
-            .position(|id| id.0 == idx)
+        if let Some(indexes) = self.idx_by_channel.get_mut(&channel_id)
+            && let Some(pos) = indexes.iter().position(|id| id.0 == idx)
         {
-            self.idx_by_channel
-                .get_mut(&channel_id)
-                .expect("channel_id should exist in idx_by_channel")
-                .swap_remove(ids_by_channel_idx);
+            indexes.swap_remove(pos);
         }
-        if let Some(ids_by_time_idx) = self.idx_by_time[&removing.offset]
-            .iter()
-            .position(|id| id.0 == idx)
+        if let Some(indexes) = self.idx_by_time.get_mut(&removing.offset)
+            && let Some(pos) = indexes.iter().position(|id| id.0 == idx)
         {
-            self.idx_by_time
-                .get_mut(&removing.offset)
-                .expect("offset should exist in idx_by_time")
-                .swap_remove(ids_by_time_idx);
+            indexes.swap_remove(pos);
         }
     }
 
     /// Removes the latest note from the notes.
     pub fn pop_note(&mut self) -> Option<WavObj> {
-        let last_idx = self.arena.0.len();
+        let last_idx = self.arena.0.len().checked_sub(1)?;
         let last = self.arena.0.pop()?;
-        if let Some(ids_by_wav_id_idx) = self.idx_by_wav_id[&last.wav_id]
-            .iter()
-            .position(|id| id.0 == last_idx)
+        if let Some(indexes) = self.idx_by_wav_id.get_mut(&last.wav_id)
+            && let Some(pos) = indexes.iter().position(|id| id.0 == last_idx)
         {
-            self.idx_by_wav_id
-                .get_mut(&last.wav_id)?
-                .swap_remove(ids_by_wav_id_idx);
+            indexes.swap_remove(pos);
         }
         let channel_id = last.channel_id;
-        if let Some(ids_by_channel_idx) = self.idx_by_channel[&channel_id]
-            .iter()
-            .position(|id| id.0 == last_idx)
+        if let Some(indexes) = self.idx_by_channel.get_mut(&channel_id)
+            && let Some(pos) = indexes.iter().position(|id| id.0 == last_idx)
         {
-            self.idx_by_channel
-                .get_mut(&channel_id)?
-                .swap_remove(ids_by_channel_idx);
+            indexes.swap_remove(pos);
         }
-        if let Some(ids_by_time_idx) = self.idx_by_time[&last.offset]
-            .iter()
-            .position(|id| id.0 == last_idx)
+        if let Some(indexes) = self.idx_by_time.get_mut(&last.offset)
+            && let Some(pos) = indexes.iter().position(|id| id.0 == last_idx)
         {
-            self.idx_by_time
-                .get_mut(&last.offset)?
-                .swap_remove(ids_by_time_idx);
+            indexes.swap_remove(pos);
         }
         Some(last)
     }
@@ -394,7 +387,10 @@ impl Notes {
         };
         let mut objs = Vec::with_capacity(indexes.len());
         for WavObjArenaIndex(idx) in indexes {
-            let removing = std::mem::replace(&mut self.arena.0[idx], WavObj::dangling());
+            let Some(removing_slot) = self.arena.0.get_mut(idx) else {
+                continue;
+            };
+            let removing = std::mem::replace(removing_slot, WavObj::dangling());
             self.remove_index(idx, &removing);
             objs.push(removing);
         }
@@ -414,7 +410,7 @@ impl Notes {
         T: KeyLayoutMapper,
     {
         let &WavObjArenaIndex(to_pop) = self.idx_by_wav_id.get(&wav_id)?.last()?;
-        let removing = std::mem::replace(&mut self.arena.0[to_pop], WavObj::dangling());
+        let removing = std::mem::replace(self.arena.0.get_mut(to_pop)?, WavObj::dangling());
         self.remove_index(to_pop, &removing);
         Some(removing)
     }
@@ -445,7 +441,10 @@ impl Notes {
             .map(|(i, _)| i)
             .collect();
         for removing_idx in removing_indexes {
-            let removing = std::mem::replace(&mut self.arena.0[removing_idx], WavObj::dangling());
+            let Some(removing_slot) = self.arena.0.get_mut(removing_idx) else {
+                continue;
+            };
+            let removing = std::mem::replace(removing_slot, WavObj::dangling());
             self.remove_index(removing_idx, &removing);
         }
     }
@@ -457,7 +456,7 @@ impl Notes {
             .get(&src)
             .into_iter()
             .flatten()
-            .map(|idx| &self.arena.0[idx.0])
+            .filter_map(|idx| self.arena.0.get(idx.0))
             .find(|obj| obj.offset == at)
         else {
             return;
@@ -484,14 +483,10 @@ impl Notes {
 
             // Drain all ids from ids_by_channel where channel id matches
             let src = obj.channel_id;
-            if let Some(idx_by_channel_idx) = self.idx_by_channel[&src]
-                .iter()
-                .position(|&idx| idx == target)
+            if let Some(indexes) = self.idx_by_channel.get_mut(&src)
+                && let Some(pos) = indexes.iter().position(|&idx| idx == target)
             {
-                self.idx_by_channel
-                    .get_mut(&src)
-                    .expect("src channel_id should exist in idx_by_channel")
-                    .swap_remove(idx_by_channel_idx);
+                indexes.swap_remove(pos);
             }
             self.idx_by_channel.entry(dst).or_default().push(target);
 
@@ -512,12 +507,10 @@ impl Notes {
             return Some(new_time);
         }
 
-        let idx_by_time = self.idx_by_time[&old_time]
-            .iter()
-            .position(|&idx| idx == target)?;
-        self.idx_by_time
-            .get_mut(&to_change.offset)?
-            .swap_remove(idx_by_time);
+        if let Some(indexes) = self.idx_by_time.get_mut(&old_time) {
+            let idx_by_time = indexes.iter().position(|&idx| idx == target)?;
+            indexes.swap_remove(idx_by_time);
+        }
         self.idx_by_time.entry(new_time).or_default().push(target);
         to_change.offset = new_time;
         Some(old_time)

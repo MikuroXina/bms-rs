@@ -21,6 +21,11 @@ pub struct VolumeObjects {
 
 impl VolumeObjects {
     /// Adds a new BGM volume change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bgm_volume_change(
         &mut self,
         volume_obj: BgmVolumeObj,
@@ -51,6 +56,11 @@ impl VolumeObjects {
     }
 
     /// Adds a new KEY volume change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_key_volume_change(
         &mut self,
         volume_obj: KeyVolumeObj,

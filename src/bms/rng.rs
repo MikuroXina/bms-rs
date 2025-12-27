@@ -81,8 +81,11 @@ pub struct RngMock<const N: usize>(pub [BigUint; N]);
 
 impl<const N: usize> Rng for RngMock<N> {
     fn generate(&mut self, _range: RangeInclusive<BigUint>) -> BigUint {
+        let Some(first) = self.0.first().cloned() else {
+            return BigUint::default();
+        };
         self.0.rotate_left(1);
-        self.0[N - 1].clone()
+        first
     }
 }
 

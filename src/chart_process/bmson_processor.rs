@@ -21,12 +21,12 @@ use crate::{bms::prelude::*, util::StrExtension};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// ChartProcessor of Bmson files.
+/// `ChartProcessor` of Bmson files.
 pub struct BmsonProcessor {
     // Resource ID mappings
-    /// Audio filename to WavId mapping
+    /// Audio filename to `WavId` mapping
     audio_name_to_id: HashMap<String, WavId>,
-    /// Image filename to BmpId mapping
+    /// Image filename to `BmpId` mapping
     bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
@@ -661,7 +661,7 @@ impl AllEventsIndex {
         } else {
             let max_y = events_map
                 .keys()
-                .map(|y_coord| y_coord.value())
+                .map(super::types::YCoordinate::value)
                 .max()
                 .cloned()
                 .unwrap_or_else(Decimal::zero);

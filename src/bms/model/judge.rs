@@ -23,6 +23,11 @@ pub struct JudgeObjects {
 
 impl JudgeObjects {
     /// Adds a new judge object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_judge_event(
         &mut self,
         judge_obj: JudgeObj,

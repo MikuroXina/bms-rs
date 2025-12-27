@@ -4,7 +4,7 @@
 //!
 //! # Usage
 //!
-//! - **NOTE**: BMS files now is almost with Shift_JIS encoding. It's recommended to use [`encoding_rs`](https://crates.io/crates/encoding_rs) crate to parse raw file to `Cow<str>`, which is a compatible type of `&str`, using `AsRef::as_ref`.
+//! - **NOTE**: BMS files now is almost with `Shift_JIS` encoding. It's recommended to use [`encoding_rs`](https://crates.io/crates/encoding_rs) crate to parse raw file to `Cow<str>`, which is a compatible type of `&str`, using `AsRef::as_ref`.
 //!
 //! ## Simple Usage
 //!
@@ -136,9 +136,6 @@
 //!    |-----------------|
 //! ```
 
-#![warn(missing_docs)]
-#![warn(clippy::must_use_candidate)]
-#![deny(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod bms;

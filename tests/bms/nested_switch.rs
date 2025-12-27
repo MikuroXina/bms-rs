@@ -23,18 +23,18 @@ fn switch() {
     ";
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms: _,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -62,18 +62,18 @@ fn nested_switch_simpler() {
     ";
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let rng = RngMock([BigUint::from(1u64)]);
     let ParseOutput {
         bms: _,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream(
         &tokens,
         default_config_with_rng(rng).prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
 }
 
 #[test]
@@ -116,23 +116,9 @@ fn nested_switch() {
     let id55 = ObjId::try_from("55", false).unwrap();
     let id66 = ObjId::try_from("66", false).unwrap();
 
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -157,22 +143,13 @@ fn nested_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -191,7 +168,7 @@ fn nested_switch() {
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
-                    Key::Scratch(1)
+                    Key::Scratch(1),
                 )
                 .to_channel_id(),
                 wav_id: id66,
@@ -201,22 +178,13 @@ fn nested_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    let bms = bms.unwrap();
-    assert_eq!(warnings, vec![]);
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -235,8 +203,8 @@ fn nested_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 }
 
@@ -278,23 +246,9 @@ fn nested_random_in_switch() {
     let id55 = ObjId::try_from("55", false).unwrap();
     let id66 = ObjId::try_from("66", false).unwrap();
 
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -319,22 +273,13 @@ fn nested_random_in_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -353,7 +298,7 @@ fn nested_random_in_switch() {
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
-                    Key::Scratch(1)
+                    Key::Scratch(1),
                 )
                 .to_channel_id(),
                 wav_id: id66,
@@ -363,22 +308,13 @@ fn nested_random_in_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -397,8 +333,8 @@ fn nested_random_in_switch() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 }
 
@@ -440,23 +376,9 @@ fn nested_switch_in_random() {
     let id55 = ObjId::try_from("55", false).unwrap();
     let id66 = ObjId::try_from("66", false).unwrap();
 
-    let LexOutput {
-        tokens,
-        lex_warnings: warnings,
-    } = TokenStream::parse_lex(SRC);
-    assert_eq!(warnings, vec![]);
-    let rng = RngMock([BigUint::from(1u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -481,22 +403,13 @@ fn nested_switch_in_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(1u64), BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -515,7 +428,7 @@ fn nested_switch_in_random() {
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
-                    Key::Scratch(1)
+                    Key::Scratch(1),
                 )
                 .to_channel_id(),
                 wav_id: id66,
@@ -525,22 +438,13 @@ fn nested_switch_in_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let rng = RngMock([BigUint::from(2u64)]);
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(rng).prompter(AlwaysUseNewer),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -555,16 +459,16 @@ fn nested_switch_in_random() {
                 wav_id: id33,
             },
             WavObj {
-                offset: ObjTime::new(1, 3, 4).expect("2 should be a valid denominator"),
+                offset: ObjTime::new(1, 3, 4).expect("4 should be a valid denominator"),
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 }
 
-/// https://hitkey.bms.ms/cmds.htm#TEST-CASES
+/// <https://hitkey.bms.ms/cmds.htm#TEST-CASES>
 #[test]
 fn test_switch_insane() {
     const SRC: &str = r"
@@ -603,12 +507,6 @@ fn test_switch_insane() {
         wav_id: ObjId::try_from("55", false).unwrap(),
     }];
 
-    let LexOutput {
-        tokens,
-        lex_warnings,
-    } = TokenStream::parse_lex(SRC);
-    assert_eq!(lex_warnings, vec![]);
-
     for rng in [
         Box::new(RngMock([BigUint::from(1u64)])) as Box<dyn Rng>,
         Box::new(RngMock([BigUint::from(1u64), BigUint::from(2u64)])),
@@ -617,18 +515,6 @@ fn test_switch_insane() {
         Box::new(RngMock([BigUint::from(3u64), BigUint::from(2u64)])),
         Box::new(RngMock([BigUint::from(4u64)])),
     ] {
-        let ParseOutput {
-            bms,
-            parse_warnings: warnings,
-        } = Bms::from_token_stream(
-            &tokens,
-            default_config_with_rng(rng).prompter(AlwaysUseNewer),
-        );
-        let bms = bms.unwrap();
-        assert_eq!(warnings, vec![]);
-        assert_eq!(
-            bms.notes().all_notes().cloned().collect::<Vec<_>>(),
-            expected
-        );
+        super::test_bms_assert_objs(SRC, rng, expected.clone());
     }
 }

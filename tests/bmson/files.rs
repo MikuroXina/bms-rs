@@ -228,8 +228,11 @@ fn test_parse_bmson_with_invalid_json() {
 
     // Should have exactly one deserialize error
     assert_eq!(output.errors.len(), 1);
-    let BmsonParseError::Deserialize { error } = &output.errors[0] else {
-        panic!("Expected deserialize error but got: {:?}", output.errors[0]);
+    let [first_error] = output.errors.as_slice() else {
+        panic!("Expected exactly one error, got {}", output.errors.len());
+    };
+    let BmsonParseError::Deserialize { error } = first_error else {
+        panic!("Expected deserialize error but got: {first_error:?}");
     };
 
     // The error should contain path information about the invalid field "level"
@@ -269,8 +272,11 @@ fn test_parse_bmson_with_missing_required_field() {
 
     // Should have exactly one deserialize error
     assert_eq!(output.errors.len(), 1);
-    let BmsonParseError::Deserialize { error } = &output.errors[0] else {
-        panic!("Expected deserialize error but got: {:?}", output.errors[0]);
+    let [first_error] = output.errors.as_slice() else {
+        panic!("Expected exactly one error, got {}", output.errors.len());
+    };
+    let BmsonParseError::Deserialize { error } = first_error else {
+        panic!("Expected deserialize error but got: {first_error:?}");
     };
 
     // Should indicate missing "info" field
@@ -353,9 +359,9 @@ fn test_chumsky_detects_missing_commas() {
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.genre.as_ref(), "Test Genre");
     assert_eq!(bmson.info.level, 5);
-    assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
-    assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
-    assert_eq!(bmson.info.total.as_f64(), 100.0);
+    assert!((bmson.info.init_bpm.as_f64() - 120.0).abs() <= f64::EPSILON);
+    assert!((bmson.info.judge_rank.as_f64() - 100.0).abs() <= f64::EPSILON);
+    assert!((bmson.info.total.as_f64() - 100.0).abs() <= f64::EPSILON);
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")
@@ -414,9 +420,9 @@ fn test_parse_bmson_with_trailing_comma() {
     assert_eq!(bmson.info.artist.as_ref(), "Test Artist");
     assert_eq!(bmson.info.genre.as_ref(), "Test Genre");
     assert_eq!(bmson.info.level, 5);
-    assert_eq!(bmson.info.init_bpm.as_f64(), 120.0);
-    assert_eq!(bmson.info.judge_rank.as_f64(), 100.0);
-    assert_eq!(bmson.info.total.as_f64(), 100.0);
+    assert!((bmson.info.init_bpm.as_f64() - 120.0).abs() <= f64::EPSILON);
+    assert!((bmson.info.judge_rank.as_f64() - 100.0).abs() <= f64::EPSILON);
+    assert!((bmson.info.total.as_f64() - 100.0).abs() <= f64::EPSILON);
     assert_eq!(
         bmson.info.resolution,
         NonZeroU64::new(240).expect("240 should be a valid NonZeroU64")

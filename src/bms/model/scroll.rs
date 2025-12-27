@@ -19,6 +19,11 @@ pub struct ScrollObjects {
 
 impl ScrollObjects {
     /// Adds a new scrolling factor change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_scrolling_factor_change(
         &mut self,
         scrolling_factor_change: ScrollingFactorObj,

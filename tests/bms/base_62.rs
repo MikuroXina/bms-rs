@@ -5,22 +5,22 @@ use pretty_assertions::assert_eq;
 fn test_not_base_62() {
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(
         r"
         #WAVaa hoge.wav
         #WAVAA fuga.wav
     ",
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
     let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 1);
@@ -34,7 +34,7 @@ fn test_not_base_62() {
 fn test_base_62() {
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(
         r"
         #WAVaa hoge.wav
@@ -43,15 +43,15 @@ fn test_base_62() {
         #BASE 62
     ",
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
     let ParseOutput {
         bms,
-        parse_warnings: warnings,
+        parse_warnings,
     } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
         &tokens,
         default_config().prompter(AlwaysUseNewer),
     );
-    assert_eq!(warnings, vec![]);
+    assert_eq!(parse_warnings, vec![]);
     let bms = bms.expect("no errors");
     eprintln!("{bms:?}");
     assert_eq!(bms.wav.wav_files.len(), 2);

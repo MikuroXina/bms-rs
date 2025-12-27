@@ -61,8 +61,7 @@ impl Bms {
         let mut stop_def_obj_id_issuer = ObjId::all_values();
         let mut scroll_def_obj_id_issuer = ObjId::all_values();
 
-        let resolution =
-            NonZeroU64::new(value.info.resolution.get()).expect("resolution should be non-zero");
+        let resolution = NonZeroU64::new(value.info.resolution.get()).unwrap_or(NonZeroU64::MIN);
 
         // Convert info to header
         bms.music_info.title = Some(value.info.title.into_owned());
@@ -316,12 +315,12 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjT
     let numerator = remaining_pulses;
     let denominator = pulses_per_measure;
 
-    ObjTime::new(track, numerator, denominator).expect("resolution should be non-zero")
+    ObjTime::new(track, numerator, denominator).unwrap_or_else(|| ObjTime::start_of(track.into()))
 }
 
 /// Converts a lane number to [`Key`] and [`PlayerSide`]
 fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
-    let lane_value = lane.map_or(0, |l| l.get());
+    let lane_value = lane.map_or(0, std::num::NonZero::get);
 
     // Handle player sides
     let (adjusted_lane, side) = if lane_value > 8 {
@@ -332,7 +331,6 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key(1),
         2 => Key::Key(2),
         3 => Key::Key(3),
         4 => Key::Key(4),

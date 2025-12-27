@@ -31,6 +31,11 @@ pub struct Video {
 
 impl Video {
     /// Adds a new seek object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_seek_event(
         &mut self,
         seek_obj: SeekObj,

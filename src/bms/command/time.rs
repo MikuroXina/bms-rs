@@ -1,7 +1,8 @@
 //! Definitions of time in BMS.
 
-use num::Integer;
 use std::num::NonZeroU64;
+
+use num::Integer;
 
 /// A track, or measure, or bar, in the score. It must greater than 0, but some scores may include the 0 track, where the object is in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -70,11 +71,16 @@ impl ObjTime {
         // Reduce the fraction to the simplest form.
         // Note: 0.gcd(&num) == num, when num > 0
         let gcd = numerator.gcd(&denominator.get());
+        let reduced_denominator = denominator.get() / gcd;
         Self {
             track: Track(track),
             numerator: numerator / gcd,
-            denominator: NonZeroU64::new(denominator.get() / gcd)
-                .expect("GCD should never make denominator zero"),
+            denominator: {
+                let Some(reduced_denominator_nz) = NonZeroU64::new(reduced_denominator) else {
+                    panic!("reduced denominator must be non-zero");
+                };
+                reduced_denominator_nz
+            },
         }
     }
 
@@ -84,7 +90,7 @@ impl ObjTime {
         Self {
             track,
             numerator: 0,
-            denominator: NonZeroU64::new(1).expect("1 is not zero"),
+            denominator: NonZeroU64::MIN,
         }
     }
 

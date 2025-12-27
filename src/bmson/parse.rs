@@ -59,13 +59,15 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
                 just('r').to('\r'),
                 just('t').to('\t'),
                 just('u').ignore_then(text::digits(16).exactly(4).to_slice().validate(
-                    |digits, e, emitter| {
-                        char::from_u32(u32::from_str_radix(digits, 16).unwrap()).unwrap_or_else(
-                            || {
-                                emitter.emit(Rich::custom(e.span(), "invalid unicode character"));
-                                '\u{FFFD}' // unicode replacement character
-                            },
-                        )
+                    |hex_digits, e, emitter| {
+                        let Ok(codepoint) = u32::from_str_radix(hex_digits, 16) else {
+                            emitter.emit(Rich::custom(e.span(), "invalid unicode character"));
+                            return '\u{FFFD}';
+                        };
+                        char::from_u32(codepoint).unwrap_or_else(|| {
+                            emitter.emit(Rich::custom(e.span(), "invalid unicode character"));
+                            '\u{FFFD}'
+                        })
                     },
                 )),
             )))
@@ -144,8 +146,8 @@ pub fn parser<'a>() -> impl Parser<'a, &'a str, Value, extra::Err<Rich<'a, char>
         let object = members
             .map(|pairs| {
                 let mut map = serde_json::Map::new();
-                for (key, value) in pairs {
-                    map.insert(key, value);
+                for (key, json_value) in pairs {
+                    map.insert(key, json_value);
                 }
                 Value::Object(map)
             })

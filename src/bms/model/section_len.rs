@@ -27,6 +27,11 @@ impl SectionLenObjects {
 
 impl SectionLenObjects {
     /// Adds a new section length change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_section_len_change(
         &mut self,
         section_len_change: SectionLenChangeObj,

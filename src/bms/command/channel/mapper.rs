@@ -21,7 +21,6 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
 
     // Second character based on Key
     let second_char = match key {
-        Key::Key(1) => '1',
         Key::Key(2) => '2',
         Key::Key(3) => '3',
         Key::Key(4) => '4',
@@ -33,14 +32,15 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         _ => '1', // Default fallback
     };
 
-    NoteChannelId::try_from([first_char as u8, second_char as u8]).unwrap()
+    let Ok(channel_id) = NoteChannelId::try_from([first_char as u8, second_char as u8]) else {
+        panic!("generated note channel id should be valid");
+    };
+    channel_id
 }
 
 /// Convert from [`ChannelId`] to [`KeyLayoutBeat`].
 fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutBeat> {
-    let chars = channel_id.0.map(|c| c as char);
-    let first_char = chars[0];
-    let second_char = chars[1];
+    let [first_char, second_char] = channel_id.0.map(|c| c as char);
 
     // Parse NoteKind and PlayerSide from first character
     let (kind, side) = match first_char {
@@ -289,10 +289,7 @@ impl KeyMapping for KeyLayoutBeatNanasi {
 impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn to_channel_id(self) -> NoteChannelId {
         let (side, kind, key) = self.as_tuple();
-        let key = match key {
-            FootPedal => FreeZone,
-            other => other,
-        };
+        let key = if let FootPedal = key { FreeZone } else { key };
         let beat = KeyLayoutBeat::new(side, kind, key);
         key_layout_beat_to_channel_id(beat)
     }
@@ -300,10 +297,7 @@ impl KeyLayoutMapper for KeyLayoutBeatNanasi {
     fn from_channel_id(channel_id: NoteChannelId) -> Option<Self> {
         let beat = channel_id_to_key_layout_beat(channel_id)?;
         let (side, kind, key) = beat.as_tuple();
-        let key = match key {
-            FreeZone => FootPedal,
-            other => other,
-        };
+        let key = if let FreeZone = key { FootPedal } else { key };
         Some(Self::new(side, kind, key))
     }
 }

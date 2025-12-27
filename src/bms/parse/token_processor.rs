@@ -15,7 +15,6 @@ use crate::util::StrExtension;
 
 mod bmp;
 mod bpm;
-mod identity;
 mod judge;
 mod metadata;
 mod music_info;
@@ -100,6 +99,10 @@ impl<'a, 't, P> ProcessContext<'a, 't, P> {
     }
 
     /// Iterates over all remaining tokens and collects warnings from the handler.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseErrorWithRange`] if `f` returns an error for any token.
     pub fn all_tokens<F, I>(&mut self, mut f: F) -> Result<(), ParseErrorWithRange>
     where
         F: FnMut(&'a TokenWithRange<'t>, &P) -> Result<I, ParseError>,
@@ -121,6 +124,10 @@ pub trait TokenProcessor {
     type Output;
 
     /// Processes commands by consuming all the stream `input`. It mutates `input`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseErrorWithRange`] when the token processor encounters a fatal parse error.
     fn process<'a, 't, P: Prompter>(
         &self,
         ctx: &mut ProcessContext<'a, 't, P>,
@@ -496,18 +503,9 @@ fn parse_hex_values(
 }
 
 fn filter_message(message: &str) -> Cow<'_, str> {
-    let result = message
-        .chars()
-        .try_fold(String::with_capacity(message.len()), |mut acc, ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '.' {
-                acc.push(ch);
-                Ok(acc)
-            } else {
-                Err(acc)
-            }
-        });
-    match result {
-        Ok(_) => Cow::Borrowed(message),
-        Err(filtered) => Cow::Owned(filtered),
+    let allow = |ch: char| ch.is_ascii_alphanumeric() || ch == '-' || ch == '.';
+    if message.chars().all(allow) {
+        return Cow::Borrowed(message);
     }
+    Cow::Owned(message.chars().filter(|&ch| allow(ch)).collect())
 }

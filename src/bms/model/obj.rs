@@ -193,18 +193,14 @@ impl BgaLayer {
     #[must_use]
     pub const fn from_channel(channel: Channel) -> Option<Self> {
         match channel {
-            Channel::BgaBase => Some(Self::Base),
-
-            Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(Self::Base),
-            Channel::BgaLayer => Some(Self::Overlay),
-
-            Channel::BgaLayerArgb | Channel::BgaLayerOpacity => Some(Self::Overlay),
-            Channel::BgaLayer2 => Some(Self::Overlay2),
-
-            Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => Some(Self::Overlay2),
-            Channel::BgaPoor => Some(Self::Poor),
-
-            Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(Self::Poor),
+            Channel::BgaBase | Channel::BgaBaseArgb | Channel::BgaBaseOpacity => Some(Self::Base),
+            Channel::BgaLayer | Channel::BgaLayerArgb | Channel::BgaLayerOpacity => {
+                Some(Self::Overlay)
+            }
+            Channel::BgaLayer2 | Channel::BgaLayer2Argb | Channel::BgaLayer2Opacity => {
+                Some(Self::Overlay2)
+            }
+            Channel::BgaPoor | Channel::BgaPoorArgb | Channel::BgaPoorOpacity => Some(Self::Poor),
             _ => None,
         }
     }
