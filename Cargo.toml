@@ -47,9 +47,14 @@ required-features = ["diagnostics"]
 
 [lints.rust]
 missing_docs = "warn"
+unused_crate_dependencies = "warn"
+unused_extern_crates = "warn"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
+private_doc_tests = "warn"
+invalid_html_tags = "warn"
+bare_urls = "warn"
 
 [lints.clippy]
 # Documentation & API
@@ -120,3 +125,23 @@ unwrap_used = "warn"
 unnecessary_unwrap = "warn"
 unreachable = "warn"
 indexing_slicing = "warn"
+
+# Performance
+vec_init_then_push = "warn"
+format_push_string = "warn"
+string_extend_chars = "warn"
+iter_with_drain = "warn"
+
+# Cargo
+multiple_crate_versions = "warn"
+wildcard_dependencies = "deny"
+negative_feature_names = "warn"
+
+# Restriction
+print_stdout = "warn"
+print_stderr = "warn"
+panic = "warn"
+string_add = "warn"
+
+# Complexity
+extra_unused_lifetimes = "warn"
