@@ -33,8 +33,8 @@ impl TokenProcessor for SectionLenProcessor {
                 message,
             } => Ok(
                 Self::on_message(*track, *channel, message.as_ref(), prompter, &mut objects)
-                    .map(|()| None)
-                    .unwrap_or_else(|warn| Some(warn.into_wrapper(token))),
+                    .err()
+                    .map(|warn| warn.into_wrapper(token)),
             ),
             Token::Header { .. } | Token::NotACommand(_) => Ok(None),
         })?;

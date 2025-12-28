@@ -34,8 +34,8 @@ impl TokenProcessor for ResourcesProcessor {
             Token::Header { name, args } => {
                 Ok(
                     Self::on_header(name.as_ref(), args.as_ref(), &mut resources)
-                        .map(|()| None)
-                        .unwrap_or_else(|warn| Some(warn.into_wrapper(token))),
+                        .err()
+                        .map(|warn| warn.into_wrapper(token)),
                 )
             }
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),

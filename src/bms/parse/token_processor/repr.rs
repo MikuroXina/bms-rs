@@ -42,8 +42,8 @@ impl TokenProcessor for RepresentationProcessor {
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), &mut repr)
-                .map(|()| None)
-                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(repr)

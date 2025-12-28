@@ -38,13 +38,13 @@ impl TokenProcessor for MetadataProcessor {
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), &mut metadata)
-                .map(|()| None)
-                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message { .. } => Ok(None),
             Token::NotACommand(line) => Ok(self
                 .on_comment(line, &mut metadata)
-                .map(|()| None)
-                .unwrap_or_else(|warn| Some(warn.into_wrapper(token)))),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
         })?;
         Ok(metadata)
     }
