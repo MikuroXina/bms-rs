@@ -910,15 +910,16 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        let got_ids: Vec<usize> = idx
-            .events_in_time_range_offset_from(
+        assert!(
+            idx.events_in_time_range_offset_from(
                 TimeSpan::MILLISECOND * 100,
                 ..=(TimeSpan::ZERO - TimeSpan::MILLISECOND * 200),
             )
             .into_iter()
             .map(|ev| ev.id.value())
-            .collect();
-        assert!(got_ids.is_empty());
+            .next()
+            .is_none()
+        );
     }
 
     #[test]
@@ -928,12 +929,13 @@ mod tests {
 
         let idx = AllEventsIndex::new(map);
 
-        let got_ids: Vec<usize> = idx
-            .events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
-            .into_iter()
-            .map(|ev| ev.id.value())
-            .collect();
-        assert!(got_ids.is_empty());
+        assert!(
+            idx.events_in_time_range_offset_from(TimeSpan::ZERO, ..TimeSpan::ZERO)
+                .into_iter()
+                .map(|ev| ev.id.value())
+                .next()
+                .is_none()
+        );
     }
 
     #[test]

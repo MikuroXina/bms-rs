@@ -120,8 +120,8 @@ impl<'a> TokenStream<'a> {
         let mut tokens = vec![];
         let mut warnings = vec![];
         while let Some((token_range, line_head)) = cursor.next_token_with_range() {
-            let token = if line_head.trim().starts_with("#") {
-                let command_body = line_head.trim().trim_start_matches("#");
+            let token = if line_head.trim().starts_with('#') {
+                let command_body = line_head.trim().trim_start_matches('#');
                 let message_head: Vec<_> = command_body.chars().take(6).collect();
                 let is_message_command =
                     message_head.iter().take(5).all(char::is_ascii_alphanumeric)

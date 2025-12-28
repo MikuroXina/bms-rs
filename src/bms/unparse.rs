@@ -783,7 +783,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
-            ..
         } = build_event_messages(
             self.bpm.bpm_changes.iter(),
             Some((
@@ -814,7 +813,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: stop_late_def_tokens,
             message_tokens: stop_message_tokens,
-            ..
         } = build_event_messages(
             self.stop.stops.iter(),
             Some((
@@ -841,7 +839,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: scroll_late_def_tokens,
             message_tokens: scroll_message_tokens,
-            ..
         } = build_event_messages(
             self.scroll.scrolling_factor_changes.iter(),
             Some((
@@ -868,7 +865,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: speed_late_def_tokens,
             message_tokens: speed_message_tokens,
-            ..
         } = build_event_messages(
             self.speed.speed_factor_changes.iter(),
             Some((
@@ -1062,7 +1058,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: text_late_def_tokens,
             message_tokens: text_message_tokens,
-            ..
         } = build_event_messages(
             self.text.text_events.iter(),
             Some((
@@ -1088,7 +1083,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: judge_late_def_tokens,
             message_tokens: judge_message_tokens,
-            ..
         } = build_event_messages(
             self.judge.judge_events.iter(),
             Some((
@@ -1158,7 +1152,6 @@ impl Bms {
             let EventProcessingResult {
                 late_def_tokens: seek_late_def_tokens,
                 message_tokens: seek_message_tokens,
-                ..
             } = build_event_messages(
                 self.video.seek_events.iter(),
                 Some((

@@ -389,12 +389,14 @@ fn test_bms_events_in_time_range_empty_before_start() {
     let mut processor =
         setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
 
-    let events: Vec<_> = processor
-        .events_in_time_range(
-            (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
-        )
-        .collect();
-    assert!(events.is_empty());
+    assert!(
+        processor
+            .events_in_time_range(
+                (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
+            )
+            .next()
+            .is_none()
+    );
 }
 
 #[test]

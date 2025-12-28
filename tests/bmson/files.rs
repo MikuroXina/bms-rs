@@ -365,7 +365,7 @@ fn test_chumsky_detects_missing_commas() {
     // Verify that the errors are related to missing commas
     let has_comma_error = json_parse_errors.iter().any(|error| {
         let error_str = format!("{:?}", error);
-        error_str.contains("expected") && error_str.contains(",")
+        error_str.contains("expected") && error_str.contains(',')
     });
     assert!(
         has_comma_error,
