@@ -57,7 +57,41 @@ invalid_html_tags = "warn"
 bare_urls = "warn"
 
 [lints.clippy]
-# Documentation & API
+# Auto-fixable: borrowing & cloning
+redundant_clone = "warn"
+clone_on_copy = "warn"
+implicit_clone = "warn"
+unnecessary_to_owned = "warn"
+needless_borrow = "warn"
+needless_borrows_for_generic_args = "warn"
+needless_borrowed_reference = "warn"
+trivially_copy_pass_by_ref = "warn"
+
+# Auto-fixable: code simplification
+redundant_closure_for_method_calls = "warn"
+redundant_closure = "warn"
+redundant_closure_call = "warn"
+redundant_else = "warn"
+redundant_feature_names = "warn"
+semicolon_if_nothing_returned = "warn"
+match_bool = "warn"
+match_same_arms = "warn"
+collapsible_match = "warn"
+option_if_let_else = "warn"
+manual_map = "warn"
+manual_filter = "warn"
+bind_instead_of_map = "warn"
+needless_range_loop = "warn"
+explicit_deref_methods = "warn"
+
+# Auto-fixable: performance
+vec_init_then_push = "warn"
+format_push_string = "warn"
+string_extend_chars = "warn"
+or_fun_call = "warn"
+unnecessary_unwrap = "warn"
+
+# Documentation
 doc_markdown = "warn"
 missing_errors_doc = "warn"
 #missing_docs_in_private_items = "warn"
@@ -73,36 +107,11 @@ ptr_arg = "warn"
 incompatible_msrv = "warn"
 panic_in_result_fn = "warn"
 
-# Borrowing & cloning
-redundant_clone = "warn"
-clone_on_copy = "warn"
-implicit_clone = "warn"
-unnecessary_to_owned = "warn"
-needless_borrow = "warn"
-needless_borrows_for_generic_args = "warn"
-needless_borrowed_reference = "warn"
-trivially_copy_pass_by_ref = "warn"
-
-# Code style
-redundant_closure_for_method_calls = "warn"
-redundant_closure = "warn"
-redundant_closure_call = "warn"
-redundant_else = "warn"
-redundant_feature_names = "warn"
-semicolon_if_nothing_returned = "warn"
-#module_name_repetitions = "warn"
-match_bool = "warn"
-match_same_arms = "warn"
-collapsible_match = "warn"
-option_if_let_else = "warn"
-manual_map = "warn"
-manual_filter = "warn"
-bind_instead_of_map = "warn"
-needless_range_loop = "warn"
+# Style
 shadow_unrelated = "warn"
 macro_use_imports = "warn"
-explicit_deref_methods = "warn"
 significant_drop_in_scrutinee = "warn"
+#module_name_repetitions = "warn"
 
 # Numeric comparisons
 float_cmp = "warn"
@@ -114,24 +123,17 @@ future_not_send = "warn"
 large_futures = "warn"
 if_let_mutex = "warn"
 
-# Performance & memory
+# Performance
 manual_memcpy = "warn"
+iter_with_drain = "warn"
 
 # Modules & imports
 wildcard_imports = "warn"
 
 # Safety & error handling
 unwrap_used = "warn"
-unnecessary_unwrap = "warn"
 unreachable = "warn"
 indexing_slicing = "warn"
-
-# Performance
-vec_init_then_push = "warn"
-format_push_string = "warn"
-string_extend_chars = "warn"
-iter_with_drain = "warn"
-or_fun_call = "warn"
 
 # Cargo
 multiple_crate_versions = "warn"
