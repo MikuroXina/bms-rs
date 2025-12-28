@@ -47,7 +47,7 @@ required-features = ["diagnostics"]
 
 [lints.rust]
 missing_docs = "warn"
-unused_crate_dependencies = "warn"
+unused_crate_dependencies = "allow"
 unused_extern_crates = "warn"
 
 [lints.rustdoc]
@@ -66,6 +66,7 @@ needless_borrow = "warn"
 needless_borrows_for_generic_args = "warn"
 needless_borrowed_reference = "warn"
 trivially_copy_pass_by_ref = "warn"
+borrow_as_ptr = "warn"
 
 # Auto-fixable: code simplification
 redundant_closure_for_method_calls = "warn"
@@ -83,6 +84,48 @@ manual_filter = "warn"
 bind_instead_of_map = "warn"
 needless_range_loop = "warn"
 explicit_deref_methods = "warn"
+match_single_binding = "warn"
+if_then_some_else_none = "warn"
+filter_map_identity = "warn"
+map_identity = "warn"
+manual_filter_map = "warn"
+manual_find = "warn"
+manual_let_else = "allow"
+manual_strip = "warn"
+no_effect = "warn"
+unnecessary_operation = "warn"
+zero_divided_by_zero = "warn"
+
+# Auto-fixable: comparisons & logic
+double_comparisons = "warn"
+comparison_chain = "warn"
+partialeq_to_none = "warn"
+redundant_comparisons = "warn"
+needless_bitwise_bool = "warn"
+collapsible_if = "warn"
+
+# Auto-fixable: expressions
+verbose_bit_mask = "warn"
+panicking_overflow_checks = "warn"
+
+# Auto-fixable: collections
+search_is_some = "warn"
+unnecessary_fold = "warn"
+manual_try_fold = "warn"
+iter_nth_zero = "warn"
+iter_next_slice = "warn"
+iter_count = "warn"
+manual_flatten = "warn"
+vec_resize_to_zero = "warn"
+needless_collect = "warn"
+
+# Auto-fixable: types
+type_complexity = "warn"
+borrowed_box = "warn"
+vec_box = "warn"
+box_collection = "warn"
+redundant_allocation = "warn"
+unnecessary_box_returns = "warn"
 
 # Auto-fixable: performance
 vec_init_then_push = "warn"
@@ -90,31 +133,88 @@ format_push_string = "warn"
 string_extend_chars = "warn"
 or_fun_call = "warn"
 unnecessary_unwrap = "warn"
+unnecessary_lazy_evaluations = "warn"
+extra_unused_type_parameters = "warn"
+copy_iterator = "warn"
+manual_memcpy = "warn"
+iter_with_drain = "warn"
+
+# Auto-fixable: strings
+string_lit_as_bytes = "warn"
+string_from_utf8_as_bytes = "warn"
+string_add = "warn"
+string_add_assign = "warn"
+string_slice = "allow"
+
+# Auto-fixable: patterns
+needless_match = "warn"
+match_wild_err_arm = "warn"
+single_char_pattern = "warn"
+str_split_at_newline = "warn"
+
+# Auto-fixable: structure
+double_must_use = "warn"
+must_use_unit = "warn"
+missing_const_for_fn = "warn"
+missing_const_for_thread_local = "warn"
+unused_self = "allow"
+unused_unit = "warn"
+unused_rounding = "warn"
+
+# Auto-fixable: literals & standards
+decimal_literal_representation = "warn"
+unreadable_literal = "allow"
+separated_literal_suffix = "warn"
+inconsistent_digit_grouping = "warn"
+unseparated_literal_suffix = "allow"
+int_plus_one = "warn"
+octal_escapes = "warn"
+zero_sized_map_values = "warn"
+
+# Auto-fixable: conversions
+as_conversions = "allow"
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_ptr_alignment = "warn"
+cast_sign_loss = "allow"
+fn_to_numeric_cast = "warn"
+fn_to_numeric_cast_with_truncation = "warn"
+char_lit_as_u8 = "warn"
+unnecessary_cast = "warn"
 
 # Documentation
 doc_markdown = "warn"
 missing_errors_doc = "warn"
-#missing_docs_in_private_items = "warn"
+missing_docs_in_private_items = "allow"
 
 # API semantics & usability
 must_use_candidate = "warn"
-must_use_unit = "warn"
-missing_const_for_fn = "warn"
-missing_const_for_thread_local = "warn"
-#default_trait_access = "warn"
-option_option = "warn"
-ptr_arg = "warn"
 incompatible_msrv = "warn"
 panic_in_result_fn = "warn"
+return_self_not_must_use = "warn"
+should_implement_trait = "warn"
 
 # Style
 shadow_unrelated = "warn"
 macro_use_imports = "warn"
 significant_drop_in_scrutinee = "warn"
-#module_name_repetitions = "warn"
+module_name_repetitions = "allow"
+similar_names = "allow"
+struct_excessive_bools = "warn"
+struct_field_names = "warn"
+too_many_lines = "allow"
+unneeded_field_pattern = "allow"
+unused_async = "warn"
+used_underscore_binding = "allow"
+wildcard_imports = "warn"
+verbose_file_reads = "warn"
 
 # Numeric comparisons
 float_cmp = "warn"
+float_cmp_const = "warn"
+float_equality_without_abs = "warn"
 
 # Concurrency & async
 await_holding_lock = "warn"
@@ -122,18 +222,21 @@ async_yields_async = "warn"
 future_not_send = "warn"
 large_futures = "warn"
 if_let_mutex = "warn"
-
-# Performance
-manual_memcpy = "warn"
-iter_with_drain = "warn"
+mutex_atomic = "warn"
 
 # Modules & imports
-wildcard_imports = "warn"
+module_inception = "warn"
+redundant_pub_crate = "warn"
+self_named_module_files = "allow"
 
 # Safety & error handling
 unwrap_used = "warn"
 unreachable = "warn"
 indexing_slicing = "warn"
+expect_used = "allow"
+panic = "allow"
+unimplemented = "warn"
+todo = "warn"
 
 # Cargo
 multiple_crate_versions = "warn"
@@ -141,10 +244,17 @@ wildcard_dependencies = "deny"
 negative_feature_names = "warn"
 
 # Restriction
-print_stdout = "warn"
-print_stderr = "warn"
-panic = "warn"
-string_add = "warn"
+print_stdout = "allow"
+print_stderr = "allow"
+empty_drop = "warn"
+empty_structs_with_brackets = "warn"
+exit = "warn"
+lossy_float_literal = "warn"
+rc_buffer = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+wildcard_enum_match_arm = "allow"
 
 # Complexity
 extra_unused_lifetimes = "warn"
+cognitive_complexity = "allow"
+too_many_arguments = "warn"
