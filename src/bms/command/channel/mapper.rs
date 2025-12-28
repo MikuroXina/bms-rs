@@ -32,10 +32,8 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
         _ => '1', // Default fallback
     };
 
-    let Ok(channel_id) = NoteChannelId::try_from([first_char as u8, second_char as u8]) else {
-        panic!("generated note channel id should be valid");
-    };
-    channel_id
+    NoteChannelId::try_from([first_char as u8, second_char as u8])
+        .expect("generated note channel id should be valid")
 }
 
 /// Convert from [`ChannelId`] to [`KeyLayoutBeat`].

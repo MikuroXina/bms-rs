@@ -75,12 +75,8 @@ impl ObjTime {
         Self {
             track: Track(track),
             numerator: numerator / gcd,
-            denominator: {
-                let Some(reduced_denominator_nz) = NonZeroU64::new(reduced_denominator) else {
-                    panic!("reduced denominator must be non-zero");
-                };
-                reduced_denominator_nz
-            },
+            denominator: NonZeroU64::new(reduced_denominator)
+                .expect("reduced denominator must be non-zero"),
         }
     }
 

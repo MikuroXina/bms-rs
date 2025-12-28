@@ -68,10 +68,7 @@ impl Bms {
         const VERY_HARD_WIDTH: f64 = 8.0;
 
         fn finite(float: f64) -> FinF64 {
-            let Some(float) = FinF64::new(float) else {
-                panic!("expected finite float");
-            };
-            float
+            FinF64::new(float).expect("expected finite float")
         }
 
         let mut warnings = Vec::new();
@@ -237,10 +234,7 @@ impl Bms {
                     .map(|map| map.kind())
                 {
                     Some(NoteKind::Landmine) => {
-                        let damage = FinF64::new(100.0).unwrap_or_else(|| {
-                            // This should never happen as 100.0 is a valid FinF64 value
-                            panic!("Internal error: 100.0 is not a valid FinF64")
-                        });
+                        let damage = FinF64::new(100.0).expect("100.0 should be a valid FinF64");
                         mine_map.entry(note.wav_id).or_default().push(MineEvent {
                             x: note_lane,
                             y: pulses,

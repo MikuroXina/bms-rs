@@ -170,10 +170,7 @@ const fn default_mode_hint_cow() -> Cow<'static, str> {
 /// Default relative percentage, 100%.
 #[must_use]
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).unwrap_or_else(|| {
-        // This should never happen as 100.0 is a valid FinF64 value
-        panic!("Internal error: 100.0 is not a valid FinF64")
-    })
+    FinF64::new(100.0).expect("100.0 should be a valid FinF64")
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.

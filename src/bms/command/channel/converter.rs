@@ -201,7 +201,7 @@ mod channel_mode_tests {
                 let v = s.split_whitespace().collect::<Vec<_>>();
                 let [list, seed] = v.as_slice() else {
                     println!("{:?}", v);
-                    panic!("Invalid input");
+                    panic!("Invalid input: expected [list, seed]");
                 };
                 let list = list
                     .chars()
