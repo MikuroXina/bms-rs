@@ -85,9 +85,9 @@ impl TokenProcessor for BmpProcessor {
 
 impl BmpProcessor {
     fn bga_layer(channel: Channel) -> Result<BgaLayer> {
-        BgaLayer::from_channel(channel).ok_or(ParseWarning::SyntaxError(format!(
-            "invalid channel for BgaLayer: {channel:?}",
-        )))
+        BgaLayer::from_channel(channel).ok_or_else(|| {
+            ParseWarning::SyntaxError(format!("invalid channel for BgaLayer: {channel:?}",))
+        })
     }
 
     fn on_header(

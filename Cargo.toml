@@ -131,6 +131,7 @@ vec_init_then_push = "warn"
 format_push_string = "warn"
 string_extend_chars = "warn"
 iter_with_drain = "warn"
+or_fun_call = "warn"
 
 # Cargo
 multiple_crate_versions = "warn"
