@@ -50,8 +50,8 @@ impl TokenProcessor for VideoProcessor {
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut video)
-                .map(|()| Vec::new())
-                .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
@@ -64,8 +64,9 @@ impl TokenProcessor for VideoProcessor {
                     prompter,
                     &mut video,
                 )
-                .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
-            Token::NotACommand(_) => Ok(Vec::new()),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(video)
     }

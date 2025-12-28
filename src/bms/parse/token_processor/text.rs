@@ -42,8 +42,8 @@ impl TokenProcessor for TextProcessor {
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => Ok(self
                 .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
-                .map(|()| Vec::new())
-                .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
@@ -56,8 +56,9 @@ impl TokenProcessor for TextProcessor {
                     prompter,
                     &mut objects,
                 )
-                .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
-            Token::NotACommand(_) => Ok(Vec::new()),
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }
