@@ -307,7 +307,13 @@ impl Bms {
 /// Converts a pulse number to [`ObjTime`]
 fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjTime {
     // Simple conversion: assume 4/4 time signature and convert pulses to track/time
-    let pulses_per_measure = resolution.get() * 4; // 4 quarter notes per measure
+    let pulses_per_measure = resolution.get().checked_mul(4).unwrap_or_else(|| {
+        panic!(
+            "resolution too large: {}. Maximum supported value is u64::MAX / 4 = {}",
+            resolution.get(),
+            u64::MAX / 4
+        );
+    }); // 4 quarter notes per measure
     let track = pulse.0 / pulses_per_measure;
     let remaining_pulses = pulse.0 % pulses_per_measure;
 
@@ -315,7 +321,8 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjT
     let numerator = remaining_pulses;
     let denominator = pulses_per_measure;
 
-    ObjTime::new(track, numerator, denominator).unwrap_or_else(|| ObjTime::start_of(track.into()))
+    ObjTime::new(track, numerator, denominator)
+        .expect("pulses_per_measure should be non-zero after overflow check")
 }
 
 /// Converts a lane number to [`Key`] and [`PlayerSide`]
