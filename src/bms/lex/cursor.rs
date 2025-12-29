@@ -59,10 +59,7 @@ impl<'a> Cursor<'a> {
     #[must_use]
     pub fn peek_next_token(&self) -> Option<&'a str> {
         let ret = self.peek_next_token_range();
-        if ret.is_empty() {
-            return None;
-        }
-        Some(&self.source[ret])
+        (!ret.is_empty()).then(|| &self.source[ret])
     }
 
     /// Move cursor, through and return the next token with range.
@@ -96,6 +93,10 @@ impl<'a> Cursor<'a> {
     }
 
     /// Moves cursor then passes the next token to `op`. This state will be recovered if `op` returned `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error produced by `op`.
     pub fn try_next_token<R: 'a, F: FnOnce(&'a str) -> Result<Option<R>>>(
         &mut self,
         op: F,
@@ -138,10 +139,11 @@ impl<'a> Cursor<'a> {
 
         // If the slice right before the line feed is a CRLF sequence ("\r\n"),
         // exclude the carriage return (\r) from the returned line content.
-        let line_end_index = if self
-            .source
-            .get(self.index + remaining_end - 1..=self.index + remaining_end)
-            == Some("\r\n")
+        let line_end_index = if remaining_end != 0
+            && self
+                .source
+                .get(self.index + remaining_end - 1..=self.index + remaining_end)
+                == Some("\r\n")
         {
             self.index + remaining_end - 1
         } else {
@@ -265,15 +267,15 @@ fn test_next_line_crlf() {
     assert_eq!(cursor.next_line_remaining(), "");
 
     // reset for entire variant
-    let mut cursor = Cursor::new(SOURCE);
-    assert_eq!(cursor.next_token(), Some("#TITLE"));
-    assert_eq!(cursor.next_line_entire(), "#TITLE Hello");
+    let mut cursor_entire = Cursor::new(SOURCE);
+    assert_eq!(cursor_entire.next_token(), Some("#TITLE"));
+    assert_eq!(cursor_entire.next_line_entire(), "#TITLE Hello");
 
-    assert_eq!(cursor.next_token(), Some("#ARTIST"));
-    assert_eq!(cursor.next_line_entire(), "#ARTIST Foo");
+    assert_eq!(cursor_entire.next_token(), Some("#ARTIST"));
+    assert_eq!(cursor_entire.next_line_entire(), "#ARTIST Foo");
 
-    assert_eq!(cursor.next_token(), Some("LAST"));
-    assert_eq!(cursor.next_line_entire(), "LAST");
+    assert_eq!(cursor_entire.next_token(), Some("LAST"));
+    assert_eq!(cursor_entire.next_line_entire(), "LAST");
 }
 
 #[test]
@@ -293,13 +295,13 @@ fn test_next_line_no_trailing_newline() {
     assert_eq!(cursor.next_line_remaining(), "");
 
     // reset for entire variant
-    let mut cursor = Cursor::new(SOURCE);
-    assert_eq!(cursor.next_token(), Some("#A"));
-    assert_eq!(cursor.next_line_entire(), "#A Alpha");
+    let mut cursor_entire = Cursor::new(SOURCE);
+    assert_eq!(cursor_entire.next_token(), Some("#A"));
+    assert_eq!(cursor_entire.next_line_entire(), "#A Alpha");
 
-    assert_eq!(cursor.next_token(), Some("#B"));
-    assert_eq!(cursor.next_line_entire(), "#B Beta");
+    assert_eq!(cursor_entire.next_token(), Some("#B"));
+    assert_eq!(cursor_entire.next_line_entire(), "#B Beta");
 
-    assert_eq!(cursor.next_token(), Some("END"));
-    assert_eq!(cursor.next_line_entire(), "END");
+    assert_eq!(cursor_entire.next_token(), Some("END"));
+    assert_eq!(cursor_entire.next_line_entire(), "END");
 }

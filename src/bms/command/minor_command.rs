@@ -143,6 +143,7 @@ pub struct StpEvent {
     pub duration: Duration,
 }
 
+#[allow(clippy::doc_markdown)]
 /// MacBeat `#WAVCMD` event.
 ///
 /// Used for `#WAVCMD` command, represents `pitch`/`volume`/`time` adjustment for a specific WAV object.

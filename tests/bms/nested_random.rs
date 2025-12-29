@@ -1,6 +1,5 @@
 use bms_rs::bms::prelude::*;
 use num::BigUint;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn nested_random() {
@@ -42,23 +41,9 @@ fn nested_random() {
     let id55 = ObjId::try_from("55", false).unwrap();
     let id66 = ObjId::try_from("66", false).unwrap();
 
-    let LexOutput {
-        tokens,
-        lex_warnings,
-    } = TokenStream::parse_lex(SRC);
-    assert_eq!(lex_warnings, vec![]);
-
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream::<'_, KeyLayoutBeat, _, _, _>(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -83,21 +68,13 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(1u64), BigUint::from(2u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(1u64), BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -116,7 +93,7 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(
                     PlayerSide::Player1,
                     NoteKind::Visible,
-                    Key::Scratch(1)
+                    Key::Scratch(1),
                 )
                 .to_channel_id(),
                 wav_id: id66,
@@ -126,21 +103,13 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 
-    let ParseOutput {
-        bms,
-        parse_warnings: warnings,
-    } = Bms::from_token_stream(
-        &tokens,
-        default_config_with_rng(RngMock([BigUint::from(2u64)])),
-    );
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
-    assert_eq!(
-        bms.notes().all_notes().cloned().collect::<Vec<_>>(),
+    super::test_bms_assert_objs(
+        SRC,
+        RngMock([BigUint::from(2u64)]),
         vec![
             WavObj {
                 offset: ObjTime::start_of(1.into()),
@@ -159,7 +128,7 @@ fn nested_random() {
                 channel_id: KeyLayoutBeat::new(PlayerSide::Player1, NoteKind::Visible, Key::Key(4))
                     .to_channel_id(),
                 wav_id: id44,
-            }
-        ]
+            },
+        ],
     );
 }

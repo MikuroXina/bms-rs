@@ -32,10 +32,11 @@ impl TokenProcessor for ResourcesProcessor {
         let mut resources = Resources::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
             Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut resources) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
+                Ok(
+                    Self::on_header(name.as_ref(), args.as_ref(), &mut resources)
+                        .err()
+                        .map(|warn| warn.into_wrapper(token)),
+                )
             }
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
@@ -44,7 +45,7 @@ impl TokenProcessor for ResourcesProcessor {
 }
 
 impl ResourcesProcessor {
-    fn on_header(&self, name: &str, args: &str, resources: &mut Resources) -> Result<()> {
+    fn on_header(name: &str, args: &str, resources: &mut Resources) -> Result<()> {
         if name.eq_ignore_ascii_case("MIDIFILE") {
             if args.is_empty() {
                 return Err(ParseWarning::SyntaxError("expected midi filename".into()));
@@ -54,7 +55,7 @@ impl ResourcesProcessor {
         if name.eq_ignore_ascii_case("CDDA") {
             let big_uint = BigUint::from_str(args)
                 .map_err(|_| ParseWarning::SyntaxError("expected integer".into()))?;
-            resources.cdda.push(big_uint)
+            resources.cdda.push(big_uint);
         }
         if name.eq_ignore_ascii_case("MATERIALSWAV") {
             resources.materials_wav.push(Path::new(args).into());

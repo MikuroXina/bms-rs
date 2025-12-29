@@ -10,7 +10,7 @@ use crate::bms::prelude::*;
 impl Bms {
     /// Convert Bms to Vec<Token> (in conventional order: header -> definitions -> resources -> messages).
     /// - Avoid duplicate parsing: directly construct Tokens using model data;
-    /// - For messages requiring ObjId, prioritize reusing existing definitions; if missing, allocate new ObjId and add definition Token (only reflected in returned Token list).
+    /// - For messages requiring `ObjId`, prioritize reusing existing definitions; if missing, allocate new `ObjId` and add definition Token (only reflected in returned Token list).
     #[must_use]
     pub fn unparse<'a, T: KeyLayoutMapper>(&'a self) -> Vec<Token<'a>> {
         let mut tokens: Vec<Token<'a>> = Vec::new();
@@ -783,7 +783,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: other_late_def_tokens,
             message_tokens: other_message_tokens,
-            ..
         } = build_event_messages(
             self.bpm.bpm_changes.iter(),
             Some((
@@ -814,7 +813,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: stop_late_def_tokens,
             message_tokens: stop_message_tokens,
-            ..
         } = build_event_messages(
             self.stop.stops.iter(),
             Some((
@@ -841,7 +839,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: scroll_late_def_tokens,
             message_tokens: scroll_message_tokens,
-            ..
         } = build_event_messages(
             self.scroll.scrolling_factor_changes.iter(),
             Some((
@@ -868,7 +865,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: speed_late_def_tokens,
             message_tokens: speed_message_tokens,
-            ..
         } = build_event_messages(
             self.speed.speed_factor_changes.iter(),
             Some((
@@ -1062,7 +1058,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: text_late_def_tokens,
             message_tokens: text_message_tokens,
-            ..
         } = build_event_messages(
             self.text.text_events.iter(),
             Some((
@@ -1088,7 +1083,6 @@ impl Bms {
         let EventProcessingResult {
             late_def_tokens: judge_late_def_tokens,
             message_tokens: judge_message_tokens,
-            ..
         } = build_event_messages(
             self.judge.judge_events.iter(),
             Some((
@@ -1158,7 +1152,6 @@ impl Bms {
             let EventProcessingResult {
                 late_def_tokens: seek_late_def_tokens,
                 message_tokens: seek_message_tokens,
-                ..
             } = build_event_messages(
                 self.video.seek_events.iter(),
                 Some((
@@ -1264,7 +1257,7 @@ struct EventUnit<'a, Event> {
     id: Option<ObjId>,
 }
 
-/// Complete result from build_messages_event containing all processing outputs
+/// Complete result from `build_messages_event` containing all processing outputs
 struct EventProcessingResult<'a> {
     message_tokens: Vec<Token<'a>>,
     late_def_tokens: Vec<Token<'a>>,
@@ -1273,23 +1266,23 @@ struct EventProcessingResult<'a> {
 /// Generic function to process message types with optional ID allocation
 ///
 /// This function processes time-indexed events from an iterator and converts them into message tokens.
-/// It supports both ID allocation mode (using token_creator and key_extractor) and direct mode (without ID allocation).
+/// It supports both ID allocation mode (using `token_creator` and `key_extractor`) and direct mode (without ID allocation).
 ///
 /// # PROCESSING FLOW OVERVIEW:
 /// 1. **GROUP EVENTS**: Events are grouped by track, channel, and non-strictly increasing time
 /// 2. **SPLIT INTO MESSAGE SEGMENTS**: Each group is further split into message segments with stricter rules:
 ///    - Strictly increasing time (prevents overlaps)
 ///    - Consistent denominators (ensures accurate representation)
-/// 3. **GENERATE TOKENS**: Each message segment becomes one Token::Message with all events encoded
+/// 3. **GENERATE TOKENS**: Each message segment becomes one `Token::Message` with all events encoded
 ///
 /// Arguments:
 ///     events: An iterator yielding (&time, &event) pairs to process
-///     id_allocation: Optional tuple containing (token_creator, key_extractor, id_manager) for ID allocation mode
-///     channel_mapper: Function to map events to channels
-///     message_formatter: Function to format events into [char; 2]
+///     `id_allocation`: Optional tuple containing (`token_creator`, `key_extractor`, `id_manager`) for ID allocation mode
+///     `channel_mapper`: Function to map events to channels
+///     `message_formatter`: Function to format events into [char; 2]
 ///
 /// Returns:
-///     EventProcessingResult containing message_tokens, late_def_tokens, and updated maps
+///     `EventProcessingResult` containing `message_tokens`, `late_def_tokens`, and updated maps
 ///
 /// The function leverages Rust's iterator chains for efficient processing and supports
 /// both ID-based and direct value-based event processing.
@@ -1325,14 +1318,12 @@ where
                 .as_mut()
                 .and_then(|(token_creator, key_extractor, manager)| {
                     let key = key_extractor(event);
-                    if manager.is_assigned(key) {
-                        manager.get_or_new_id(key)
-                    } else if let Some(new) = manager.get_or_new_id(key) {
+                    let is_assigned = manager.is_assigned(key);
+                    let id = manager.get_or_new_id(key);
+                    if !is_assigned && let Some(new) = id {
                         late_def_tokens.push(token_creator(new, key));
-                        Some(new)
-                    } else {
-                        None
                     }
+                    id
                 });
             EventUnit {
                 time,
@@ -1470,7 +1461,7 @@ fn is_denominator_compatible<'a, Event>(
     // Find the maximum denominator from the current message segment as reference
     let reference_denominator = message_segment
         .iter()
-        .map(|event_unit| event_unit.time.denominator_u64())
+        .map(|unit| unit.time.denominator_u64())
         .max()
         .unwrap_or(1);
 
@@ -1480,7 +1471,7 @@ fn is_denominator_compatible<'a, Event>(
         || event_denominator.is_multiple_of(reference_denominator)
 }
 
-/// Convert a message segment of events into a single Token::Message
+/// Convert a message segment of events into a single `Token::Message`
 fn convert_message_segment_to_token<'a, Event, MessageFormatter>(
     message_segment: Vec<EventUnit<'a, Event>>,
     message_formatter: &MessageFormatter,
@@ -1498,7 +1489,13 @@ where
 
     // EXTRACT METADATA FROM MESSAGE SEGMENT
     // All events in message segment should have same track and channel (guaranteed by grouping logic)
-    let first_event = &message_segment[0];
+    let Some(first_event) = message_segment.first() else {
+        return Token::Message {
+            track: Track(0),
+            channel: Channel::Bgm,
+            message: Cow::Borrowed(""),
+        };
+    };
     let (track, channel) = (first_event.time.track(), first_event.channel);
 
     // CALCULATE MESSAGE LENGTH
@@ -1531,9 +1528,10 @@ where
         let time_idx = (time.numerator() * (lcm_denom / denom_u64)) as usize;
 
         // Ensure we don't go out of bounds (safety check)
-        if time_idx < message_len {
-            message_parts[time_idx] = chars.iter().collect::<String>();
-        }
+        let Some(slot) = message_parts.get_mut(time_idx) else {
+            continue;
+        };
+        *slot = chars.iter().collect::<String>();
     }
 
     Token::Message {

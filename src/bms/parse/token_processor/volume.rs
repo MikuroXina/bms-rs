@@ -26,27 +26,22 @@ impl TokenProcessor for VolumeProcessor {
         let mut objects = VolumeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
             Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
+                Ok(Self::on_header(name.as_ref(), args.as_ref(), &mut objects)
+                    .map(|()| Vec::new())
+                    .unwrap_or_else(|warn| vec![warn.into_wrapper(token)]))
             }
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match self.on_message(
-                    *track,
-                    *channel,
-                    message.as_ref().into_wrapper(token),
-                    prompter,
-                    &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            } => Ok(Self::on_message(
+                *track,
+                *channel,
+                message.as_ref().into_wrapper(token),
+                prompter,
+                &mut objects,
+            )
+            .unwrap_or_else(|warn| vec![warn.into_wrapper(token)])),
             Token::NotACommand(_) => Ok(Vec::new()),
         })?;
         Ok(objects)
@@ -54,7 +49,7 @@ impl TokenProcessor for VolumeProcessor {
 }
 
 impl VolumeProcessor {
-    fn on_header(&self, name: &str, args: &str, volume: &mut VolumeObjects) -> Result<()> {
+    fn on_header(name: &str, args: &str, volume: &mut VolumeObjects) -> Result<()> {
         if name.eq_ignore_ascii_case("VOLWAV") {
             let volume_value = args
                 .parse()
@@ -68,7 +63,6 @@ impl VolumeProcessor {
     }
 
     fn on_message(
-        &self,
         track: Track,
         channel: Channel,
         message: SourceRangeMixin<&str>,

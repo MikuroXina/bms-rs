@@ -61,8 +61,7 @@ impl Bms {
         let mut stop_def_obj_id_issuer = ObjId::all_values();
         let mut scroll_def_obj_id_issuer = ObjId::all_values();
 
-        let resolution =
-            NonZeroU64::new(value.info.resolution.get()).expect("resolution should be non-zero");
+        let resolution = value.info.resolution;
 
         // Convert info to header
         bms.music_info.title = Some(value.info.title.into_owned());
@@ -308,7 +307,13 @@ impl Bms {
 /// Converts a pulse number to [`ObjTime`]
 fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjTime {
     // Simple conversion: assume 4/4 time signature and convert pulses to track/time
-    let pulses_per_measure = resolution.get() * 4; // 4 quarter notes per measure
+    let pulses_per_measure = resolution.get().checked_mul(4).unwrap_or_else(|| {
+        panic!(
+            "resolution too large: {}. Maximum supported value is u64::MAX / 4 = {}",
+            resolution.get(),
+            u64::MAX / 4
+        );
+    }); // 4 quarter notes per measure
     let track = pulse.0 / pulses_per_measure;
     let remaining_pulses = pulse.0 % pulses_per_measure;
 
@@ -316,12 +321,13 @@ fn convert_pulse_to_obj_time(pulse: PulseNumber, resolution: NonZeroU64) -> ObjT
     let numerator = remaining_pulses;
     let denominator = pulses_per_measure;
 
-    ObjTime::new(track, numerator, denominator).expect("resolution should be non-zero")
+    ObjTime::new(track, numerator, denominator)
+        .expect("pulses_per_measure should be non-zero after overflow check")
 }
 
 /// Converts a lane number to [`Key`] and [`PlayerSide`]
 fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
-    let lane_value = lane.map_or(0, |l| l.get());
+    let lane_value = lane.map_or(0, std::num::NonZero::get);
 
     // Handle player sides
     let (adjusted_lane, side) = if lane_value > 8 {
@@ -332,13 +338,7 @@ fn convert_lane_to_key_side(lane: Option<NonZeroU8>) -> (Key, PlayerSide) {
 
     // Convert lane to key
     let key = match adjusted_lane {
-        1 => Key::Key(1),
-        2 => Key::Key(2),
-        3 => Key::Key(3),
-        4 => Key::Key(4),
-        5 => Key::Key(5),
-        6 => Key::Key(6),
-        7 => Key::Key(7),
+        key @ 1..=7 => Key::Key(key),
         8 => Key::Scratch(1),
         _ => Key::Key(1), // Default fallback
     };

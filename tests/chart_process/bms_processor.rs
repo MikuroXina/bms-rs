@@ -1,3 +1,5 @@
+//! Integration tests for `bms_rs::chart_process::BmsProcessor`.
+
 use std::str::FromStr;
 
 use gametime::{TimeSpan, TimeStamp};
@@ -7,7 +9,7 @@ use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
-/// Setup a BMS processor for testing (without calling start_play)
+/// Setup a BMS processor for testing (without calling `start_play`)
 fn setup_bms_processor_with_config<T, P, R, M>(
     source: &str,
     config: ParseConfig<T, P, R, M>,
@@ -21,16 +23,19 @@ where
 {
     let LexOutput {
         tokens,
-        lex_warnings: warnings,
+        lex_warnings,
     } = TokenStream::parse_lex(source);
-    assert_eq!(warnings, vec![]);
+    assert_eq!(lex_warnings, vec![]);
 
     let ParseOutput {
-        bms,
-        parse_warnings: warnings,
+        bms: bms_res,
+        parse_warnings,
     } = Bms::from_token_stream(&tokens, config);
-    assert_eq!(warnings, vec![]);
-    let bms = bms.unwrap();
+    assert_eq!(parse_warnings, vec![]);
+    let bms = match bms_res {
+        Ok(bms) => bms,
+        Err(err) => panic!("Failed to parse BMS in test setup: {err:?}"),
+    };
 
     let base_bpm = StartBpmGenerator
         .generate(&bms)
@@ -39,13 +44,13 @@ where
     BmsProcessor::new::<T>(&bms, visible_range_per_bpm)
 }
 
-/// Setup a BMS processor with AlwaysUseOlder prompter
+/// Setup a BMS processor with `AlwaysUseOlder` prompter
 fn setup_bms_processor_with_older_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
     let config = default_config().prompter(AlwaysUseOlder);
     setup_bms_processor_with_config(source, config, reaction_time)
 }
 
-/// Setup a BMS processor with AlwaysWarnAndUseNewer prompter
+/// Setup a BMS processor with `AlwaysWarnAndUseNewer` prompter
 fn setup_bms_processor_with_newer_prompter(source: &str, reaction_time: TimeSpan) -> BmsProcessor {
     let config = default_config().prompter(AlwaysWarnAndUseNewer);
     setup_bms_processor_with_config(source, config, reaction_time)
@@ -167,7 +172,10 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     // So need twice the time to reach the same Y position
     let after_first_change = start_time + TimeSpan::SECOND * 2;
     let _ = processor.update(after_first_change);
-    assert_eq!(*processor.current_bpm(), Decimal::from_str("75.5").unwrap());
+    let bpm_75_5 = Decimal::from_str("75.5").unwrap_or_else(|err| {
+        panic!("Failed to parse Decimal literal in test: {err:?}");
+    });
+    assert_eq!(*processor.current_bpm(), bpm_75_5);
 
     // Get visible events after BPM change
     let after_bpm_events: Vec<_> = processor.visible_events().collect();
@@ -236,10 +244,10 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     // Advance to second Scroll change point (scroll 0.5)
     let after_scroll_half = after_first_scroll + TimeSpan::SECOND * 2;
     let _ = processor.update(after_scroll_half);
-    assert_eq!(
-        *processor.current_scroll(),
-        Decimal::from_str("0.5").unwrap()
-    );
+    let scroll_half = Decimal::from_str("0.5").unwrap_or_else(|err| {
+        panic!("Failed to parse Decimal literal in test: {err:?}");
+    });
+    assert_eq!(*processor.current_scroll(), scroll_half);
 
     let after_scroll_half_ratios: Vec<f64> = processor
         .visible_events()
@@ -381,12 +389,14 @@ fn test_bms_events_in_time_range_empty_before_start() {
     let mut processor =
         setup_bms_processor_with_newer_prompter(source, TimeSpan::MILLISECOND * 600);
 
-    let events: Vec<_> = processor
-        .events_in_time_range(
-            (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
-        )
-        .collect();
-    assert!(events.is_empty());
+    assert!(
+        processor
+            .events_in_time_range(
+                (TimeSpan::ZERO - TimeSpan::MILLISECOND * 100)..=(TimeSpan::MILLISECOND * 100),
+            )
+            .next()
+            .is_none()
+    );
 }
 
 #[test]

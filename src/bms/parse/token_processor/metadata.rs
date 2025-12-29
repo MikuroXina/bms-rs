@@ -36,24 +36,22 @@ impl TokenProcessor for MetadataProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut metadata = Metadata::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut metadata) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), &mut metadata)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message { .. } => Ok(None),
-            Token::NotACommand(line) => match self.on_comment(line, &mut metadata) {
-                Ok(()) => Ok(None),
-                Err(warn) => Ok(Some(warn.into_wrapper(token))),
-            },
+            Token::NotACommand(line) => Ok(self
+                .on_comment(line, &mut metadata)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
         })?;
         Ok(metadata)
     }
 }
 
 impl MetadataProcessor {
-    fn on_header(&self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
+    fn on_header(self, name: &str, args: &str, metadata: &mut Metadata) -> Result<()> {
         if name.eq_ignore_ascii_case("PLAYER") {
             metadata.player = Some(PlayerMode::from_str(args)?);
         }
@@ -90,7 +88,7 @@ impl MetadataProcessor {
         Ok(())
     }
 
-    fn on_comment(&self, line: &str, metadata: &mut Metadata) -> Result<()> {
+    fn on_comment(self, line: &str, metadata: &mut Metadata) -> Result<()> {
         let line = line.trim();
         if line.starts_with("%EMAIL") {
             metadata.email = Some(line.trim_start_matches("%EMAIL").trim().to_string());

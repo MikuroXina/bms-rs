@@ -130,7 +130,7 @@ pub enum ChartEvent {
     ///
     /// Triggered when playback position reaches judge level change time point, used to adjust the strictness of the judgment window.
     JudgeLevelChange {
-        /// Judge level (VeryHard, Hard, Normal, Easy, OtherInt)
+        /// Judge level (`VeryHard`, Hard, Normal, Easy, `OtherInt`)
         level: crate::bms::command::JudgeLevel,
     },
     /// Video seek event (requires minor-command feature)
@@ -169,8 +169,8 @@ pub enum ControlEvent {
     /// Set: visible range per BPM
     ///
     /// The visible range per BPM controls the relationship between BPM and visible Y range.
-    /// Formula: visible_y_range = current_bpm * visible_range_per_bpm
-    /// This replaces the old SetDefaultVisibleYLength event.
+    /// Formula: `visible_y_range` = `current_bpm` * `visible_range_per_bpm`
+    /// This replaces the old `SetDefaultVisibleYLength` event.
     SetVisibleRangePerBpm {
         /// Visible range per BPM (y coordinate units per BPM, >0)
         visible_range_per_bpm: VisibleRangePerBpm,

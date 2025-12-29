@@ -44,7 +44,7 @@ impl RandomizedBranch {
 
     /// Get the condition value.
     #[must_use]
-    pub fn condition(&self) -> &BigUint {
+    pub const fn condition(&self) -> &BigUint {
         &self.condition
     }
 
@@ -122,7 +122,7 @@ impl RandomizedObjects {
     ///
     /// `None` indicates the block does not have a generator assigned yet.
     #[must_use]
-    pub fn generating(&self) -> Option<&ControlFlowValue> {
+    pub const fn generating(&self) -> Option<&ControlFlowValue> {
         self.generating.as_ref()
     }
 
@@ -152,11 +152,9 @@ impl RandomizedObjects {
     ///
     /// If the branch does not exist, a new one with an empty `Bms` is inserted and returned.
     pub fn branch_entry(&mut self, condition: BigUint) -> &mut RandomizedBranch {
-        use std::collections::btree_map::Entry;
-        match self.branches.entry(condition.clone()) {
-            Entry::Occupied(o) => o.into_mut(),
-            Entry::Vacant(v) => v.insert(RandomizedBranch::new(condition, Bms::default())),
-        }
+        self.branches
+            .entry(condition)
+            .or_insert_with_key(|cond| RandomizedBranch::new(cond.clone(), Bms::default()))
     }
 
     /// Returns an iterator over all branches in ascending condition order.
@@ -189,11 +187,9 @@ impl RandomizedObjects {
             None => return Bms::default(),
         };
 
-        if let Some(branch) = self.branches.get(&val) {
-            *branch.sub.clone()
-        } else {
-            Bms::default()
-        }
+        self.branches
+            .get(&val)
+            .map_or_else(Bms::default, |branch| (*branch.sub).clone())
     }
 
     /// Exports this randomized block as `#RANDOM/#SETRANDOM + #IF/#ELSEIF/#ENDIF` tokens.

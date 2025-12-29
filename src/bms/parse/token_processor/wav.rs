@@ -3,7 +3,7 @@
 //! - `#WAV[01-ZZ] path` - Sound file definition. Each one has own playback channel, so the sound of the same ID won't be played overlapping. ID range may be narrower by some BMS players.
 //! - `#EXWAV[01-ZZ] [p/v/f pan volume frequency] path` - Sound file definition with effect. It defines a sound with applied some effects.
 //! - `#LNOBJ wav_id` - It specifies the sound object `wav_id` as the end of a long note. Deprecated.
-//! - `#WAVCMD command wav_id value` - It applies the effect to the sound object, for MacBeat.
+//! - `#WAVCMD command wav_id value` - It applies the effect to the sound object, for `MacBeat`.
 //!   - `command` is `00`: Relative tone modification. Defaults to 60.
 //!   - `command` is `01`: Relative volume percentage modification.
 //!   - `command` is `02`: Changes playback time will be `value` of 0.5 milliseconds. 0 will do nothing.
@@ -58,28 +58,24 @@ impl<T: KeyLayoutMapper> TokenProcessor for WavProcessor<T> {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = WavObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match self.on_message(
+            } => Ok(self
+                .on_message(
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
                     &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
-            Token::NotACommand(_) => Ok(Vec::new()),
+                )
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }
@@ -242,12 +238,12 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
         }
         if name.eq_ignore_ascii_case("WAVCMD") {
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 3 {
+            let [param, wav_index, value] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "expected 3 arguments for #WAVCMD".into(),
                 ));
-            }
-            let param = match args[0] {
+            };
+            let param = match *param {
                 "00" => WavCmdParam::Pitch,
                 "01" => WavCmdParam::Volume,
                 "02" => WavCmdParam::Time,
@@ -257,19 +253,15 @@ impl<T: KeyLayoutMapper> WavProcessor<T> {
                     ));
                 }
             };
-            let wav_index = ObjId::try_from(args[1], *self.case_sensitive_obj_id.borrow())?;
-            let value: u32 = args[2]
+            let wav_index = ObjId::try_from(wav_index, *self.case_sensitive_obj_id.borrow())?;
+            let value: u32 = value
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("wavcmd value u32".into()))?;
             // Validity check
-            match param {
-                WavCmdParam::Pitch if !(0..=127).contains(&value) => {
-                    return Err(ParseWarning::SyntaxError(
-                        "pitch must be in between 0 and 127".into(),
-                    ));
-                }
-                WavCmdParam::Time => { /* 0 means original length, less than 50ms is unreliable */ }
-                _ => {}
+            if matches!(param, WavCmdParam::Pitch) && !(0..=127).contains(&value) {
+                return Err(ParseWarning::SyntaxError(
+                    "pitch must be in between 0 and 127".into(),
+                ));
             }
             let ev = WavCmdEvent {
                 param,

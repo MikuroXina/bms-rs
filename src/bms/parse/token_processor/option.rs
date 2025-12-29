@@ -43,29 +43,25 @@ impl TokenProcessor for OptionProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = OptionObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match self.on_message(
+            } => Ok(self
+                .on_message(
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
-            Token::NotACommand(_) => Ok(Vec::new()),
+                )
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }

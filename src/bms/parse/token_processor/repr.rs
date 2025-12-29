@@ -40,12 +40,10 @@ impl TokenProcessor for RepresentationProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut repr = BmsSourceRepresentation::default();
         ctx.all_tokens(|token, _prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), &mut repr) {
-                    Ok(()) => Ok(None),
-                    Err(warn) => Ok(Some(warn.into_wrapper(token))),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), &mut repr)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message { .. } | Token::NotACommand(_) => Ok(None),
         })?;
         Ok(repr)

@@ -95,7 +95,7 @@ struct Collector<'t> {
 }
 
 impl<'t> Collector<'t> {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             stack: Vec::new(),
             finished_objects: Vec::new(),
@@ -186,6 +186,18 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         Ok(final_bms)
     }
 
+    fn top_state<'t>(
+        &self,
+        token: &TokenWithRange<'t>,
+    ) -> Result<ProcessState, ParseErrorWithRange> {
+        self.state_stack.borrow().last().cloned().ok_or_else(|| {
+            SourceRangeMixin::new(
+                ParseError::UnexpectedControlFlow("internal control flow state is empty"),
+                token.range().clone(),
+            )
+        })
+    }
+
     fn finish_current_branch<'t>(
         &self,
         collector: &mut Collector<'t>,
@@ -212,7 +224,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector: &mut Collector<'t>| {
+        let push_new_one = |collector_mut: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -239,17 +251,12 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 activated,
             });
 
-            collector.push_random(ControlFlowValue::GenMax(max));
+            collector_mut.push_random(ControlFlowValue::GenMax(max));
 
             Ok(None)
         };
 
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_random");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
@@ -272,7 +279,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector: &mut Collector<'t>| {
+        let push_new_one = |collector_mut: &mut Collector<'t>| {
             let generated: BigUint = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -287,15 +294,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 generated: generated.clone(),
                 activated,
             });
-            collector.push_random(ControlFlowValue::Set(generated));
+            collector_mut.push_random(ControlFlowValue::Set(generated));
             Ok(None)
         };
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_set_random");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Root
             | ProcessState::IfBlock { .. }
@@ -318,7 +320,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector: &mut Collector<'t>, generated: BigUint| {
+        let push_new_one = |collector_mut: &mut Collector<'t>, generated: BigUint| {
             let cond = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -334,29 +336,24 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                 activated,
             });
 
-            self.finish_current_branch(collector, prompter)?;
-            collector.start_branch(cond);
+            self.finish_current_branch(collector_mut, prompter)?;
+            collector_mut.start_branch(cond);
 
             Ok(None)
         };
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_if");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Random { generated, .. } => push_new_one(collector, generated),
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.visit_end_if(collector, prompter, token)?;
-                let ProcessState::Random { generated, .. } = self
-                    .state_stack
-                    .borrow()
-                    .last()
-                    .cloned()
-                    .expect("state_stack should not be empty in visit_if (pattern matching)")
-                else {
-                    panic!("ElseBlock is not on Random");
+                let generated = match self.state_stack.borrow().last().cloned() {
+                    Some(ProcessState::Random { generated, .. }) => generated,
+                    _ => {
+                        return Err(SourceRangeMixin::new(
+                            ParseError::UnexpectedControlFlow("#IF must be on a random scope"),
+                            token.range().clone(),
+                        ));
+                    }
                 };
                 push_new_one(collector, generated)
             }
@@ -374,24 +371,21 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_else_if");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::IfBlock {
                 if_chain_has_been_activated,
                 ..
             } => {
                 self.state_stack.borrow_mut().pop();
-                let ProcessState::Random { generated, .. } =
-                    self.state_stack.borrow().last().cloned().expect(
-                        "state_stack should not be empty in visit_else_if (pattern matching)",
-                    )
-                else {
-                    panic!("IfBlock is not on Random");
+                let generated = match self.state_stack.borrow().last().cloned() {
+                    Some(ProcessState::Random { generated, .. }) => generated,
+                    _ => {
+                        return Err(SourceRangeMixin::new(
+                            ParseError::UnexpectedControlFlow("#ELSEIF must be on a random scope"),
+                            token.range().clone(),
+                        ));
+                    }
                 };
 
                 self.finish_current_branch(collector, prompter)?;
@@ -436,12 +430,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<(), ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_else");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::IfBlock {
                 if_chain_has_been_activated,
@@ -489,12 +478,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<(), ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_end_if");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::IfBlock { .. } | ProcessState::ElseBlock { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -514,12 +498,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<(), ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_end_random");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Random { .. }
             | ProcessState::IfBlock { .. }
@@ -552,7 +531,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector: &mut Collector<'t>| {
+        let push_new_one = |collector_mut: &mut Collector<'t>| {
             let max: BigUint = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -584,16 +563,11 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                     .push(ProcessState::SwitchAfterActive { generated });
             }
 
-            collector.push_random(ControlFlowValue::GenMax(max));
+            collector_mut.push_random(ControlFlowValue::GenMax(max));
 
             Ok(None)
         };
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_switch");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -611,7 +585,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<Option<ParseWarningWithRange>, ParseErrorWithRange> {
-        let push_new_one = |collector: &mut Collector<'t>| {
+        let push_new_one = |collector_mut: &mut Collector<'t>| {
             let generated: BigUint = match args.parse().map_err(|_| {
                 SourceRangeMixin::new(
                     ParseWarning::SyntaxError(format!("expected integer but got {args:?}")),
@@ -635,15 +609,10 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
                         generated: generated.clone(),
                     });
             }
-            collector.push_random(ControlFlowValue::Set(generated));
+            collector_mut.push_random(ControlFlowValue::Set(generated));
             Ok(None)
         };
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_set_switch");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::Random { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -672,12 +641,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         };
 
         loop {
-            let top = self
-                .state_stack
-                .borrow()
-                .last()
-                .cloned()
-                .expect("state_stack should not be empty in visit_case loop");
+            let top = self.top_state(token)?;
             if let ProcessState::Random { .. }
             | ProcessState::IfBlock { .. }
             | ProcessState::ElseBlock { .. } = top
@@ -701,12 +665,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
 
         self.finish_current_branch(collector, prompter)?;
 
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_case");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
                 if generated == cond {
@@ -750,12 +709,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         _prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> core::result::Result<(), ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_skip");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::SwitchActive { .. } => {
                 self.state_stack.borrow_mut().pop();
@@ -782,12 +736,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
     ) -> core::result::Result<(), ParseErrorWithRange> {
         self.finish_current_branch(collector, prompter)?;
 
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_default");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::SwitchBeforeActive { generated } => {
                 self.state_stack.borrow_mut().pop();
@@ -838,12 +787,7 @@ impl<R: Rng, N: TokenProcessor<Output = Bms> + Clone> RandomTokenProcessor<R, N>
         prompter: &impl crate::bms::parse::Prompter,
         token: &TokenWithRange<'t>,
     ) -> Result<(), ParseErrorWithRange> {
-        let top = self
-            .state_stack
-            .borrow()
-            .last()
-            .cloned()
-            .expect("state_stack should not be empty in visit_end_switch");
+        let top = self.top_state(token)?;
         match top {
             ProcessState::SwitchBeforeActive { .. }
             | ProcessState::SwitchActive { .. }

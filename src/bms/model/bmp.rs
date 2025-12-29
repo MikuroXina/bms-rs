@@ -50,6 +50,11 @@ impl BmpObjects {
 
 impl BmpObjects {
     /// Adds a new bga change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_change(
         &mut self,
         bga: BgaObj,
@@ -76,6 +81,11 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA opacity change object to the graphics.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_opacity_change(
         &mut self,
         opacity_obj: BgaOpacityObj,
@@ -111,6 +121,11 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA ARGB color change object to the graphics.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_argb_change(
         &mut self,
         argb_obj: BgaArgbObj,
@@ -138,6 +153,11 @@ impl BmpObjects {
     }
 
     /// Adds a new BGA keybound object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bga_keybound_event(
         &mut self,
         keybound_obj: BgaKeyboundObj,

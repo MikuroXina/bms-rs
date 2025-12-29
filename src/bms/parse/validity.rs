@@ -196,25 +196,18 @@ impl Bms {
             // Build LN intervals by pairing consecutive Long notes
             let long_times: Vec<ObjTime> = lane_objs
                 .iter()
-                .filter(|o| {
-                    KeyLayoutBeat::from_channel_id(o.channel_id)
-                        .expect("channel_id should be valid")
-                        .kind()
-                        == NoteKind::Long
+                .filter_map(|o| {
+                    let map = KeyLayoutBeat::from_channel_id(o.channel_id)?;
+                    (map.kind() == NoteKind::Long).then_some(o.offset)
                 })
-                .map(|o| o.offset)
                 .collect();
 
             // Overlap single vs single at the same time
             let mut single_offsets = HashSet::new();
             for (single_obj, map) in lane_objs
                 .iter()
-                .map(|obj| {
-                    (
-                        obj,
-                        KeyLayoutBeat::from_channel_id(obj.channel_id)
-                            .expect("channel_id should be valid"),
-                    )
+                .filter_map(|obj| {
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
@@ -230,12 +223,8 @@ impl Bms {
             // Overlap landmine vs single at the same time
             for (landmine_obj, map) in lane_objs
                 .iter()
-                .map(|obj| {
-                    (
-                        obj,
-                        KeyLayoutBeat::from_channel_id(obj.channel_id)
-                            .expect("channel_id should be valid"),
-                    )
+                .filter_map(|obj| {
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {
@@ -258,25 +247,27 @@ impl Bms {
                 let pos = long_times.partition_point(|&x| x < t);
 
                 // Check if we're exactly at a long note time
-                if pos < long_times.len() && long_times[pos] == t {
-                    // We're exactly at a long note time
-                    if pos % 2 == 0 && pos + 1 < long_times.len() {
-                        // Even index: this is a start of an interval
-                        // Check if next element is the end (handles zero-length case)
-                        return Some((long_times[pos], long_times[pos + 1]));
-                    } else if pos > 0 && long_times[pos - 1] == long_times[pos] {
-                        // Odd index: this is an end of an interval
-                        // We're at the end time, which should not be considered "inside" the interval
-                        // But for zero-length intervals, start == end, so we need to check if
-                        // this end matches the previous start
-                        return Some((long_times[pos - 1], long_times[pos]));
+                if long_times.get(pos).copied() == Some(t) {
+                    if pos % 2 == 0 {
+                        let end = long_times.get(pos + 1).copied()?;
+                        return Some((t, end));
                     }
-                } else if pos % 2 == 1 && long_times[pos - 1] <= t {
-                    // We're positioned at the end of an interval
-                    // The interval we're potentially inside is [long_times[pos-1], long_times[pos]]
-                    // Since we know long_times[pos] > t (from partition_point), we just need to check
-                    // if long_times[pos-1] <= t
-                    return Some((long_times[pos - 1], long_times[pos]));
+
+                    if pos > 0 {
+                        let start = long_times.get(pos - 1).copied()?;
+                        if start == t {
+                            return Some((start, t));
+                        }
+                    }
+                    return None;
+                }
+
+                if pos % 2 == 1 {
+                    let start = long_times.get(pos - 1).copied()?;
+                    let end = long_times.get(pos).copied()?;
+                    if start <= t {
+                        return Some((start, end));
+                    }
                 }
 
                 None
@@ -285,12 +276,8 @@ impl Bms {
             // Overlap single vs long: any visible single inside any LN interval
             for (single_obj, map) in lane_objs
                 .iter()
-                .map(|obj| {
-                    (
-                        obj,
-                        KeyLayoutBeat::from_channel_id(obj.channel_id)
-                            .expect("channel_id should be valid"),
-                    )
+                .filter_map(|obj| {
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Visible)
             {
@@ -310,12 +297,8 @@ impl Bms {
             let mut warned_ln_intervals: HashSet<(ObjTime, ObjTime)> = HashSet::new();
             for (landmine_obj, map) in lane_objs
                 .iter()
-                .map(|obj| {
-                    (
-                        obj,
-                        KeyLayoutBeat::from_channel_id(obj.channel_id)
-                            .expect("channel_id should be valid"),
-                    )
+                .filter_map(|obj| {
+                    KeyLayoutBeat::from_channel_id(obj.channel_id).map(|map| (obj, map))
                 })
                 .filter(|(_, map)| map.kind() == NoteKind::Landmine)
             {

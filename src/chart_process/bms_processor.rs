@@ -18,7 +18,7 @@ use crate::chart_process::{ChartEvent, ChartProcessor, ControlEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// ChartProcessor of Bms files.
+/// `ChartProcessor` of Bms files.
 pub struct BmsProcessor {
     /// Precomputed WAV id to path mapping
     wav_paths: HashMap<WavId, PathBuf>,
@@ -677,7 +677,7 @@ impl AllEventsIndex {
     }
 }
 
-/// Precompute absolute activate_time for all events based on BPM segmentation and Stops.
+/// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
 fn precompute_activate_times(
     bms: &Bms,
     all_events: &AllEventsIndex,
@@ -805,16 +805,16 @@ fn event_for_note_static<T: KeyLayoutMapper>(
     let Some((side, key, kind)) = lane else {
         return ChartEvent::Bgm { wav_id };
     };
-    let length = if kind == NoteKind::Long {
-        bms.notes()
-            .next_obj_by_key(obj.channel_id, obj.offset)
-            .map(|next_obj| {
-                let next_y = y_memo.get_y(next_obj.offset);
-                next_y - y
-            })
-    } else {
-        None
-    };
+    let length = (kind == NoteKind::Long)
+        .then(|| {
+            bms.notes()
+                .next_obj_by_key(obj.channel_id, obj.offset)
+                .map(|next_obj| {
+                    let next_y = y_memo.get_y(next_obj.offset);
+                    next_y - y
+                })
+        })
+        .flatten();
     ChartEvent::Note {
         side,
         key,

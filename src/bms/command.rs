@@ -109,19 +109,17 @@ impl std::fmt::Display for JudgeLevel {
     }
 }
 
-pub(crate) const fn char_to_base62(ch: char) -> Option<u8> {
-    match ch {
-        '0'..='9' | 'A'..='Z' | 'a'..='z' => Some(ch as u32 as u8),
-        _ => None,
-    }
+pub(crate) fn char_to_base62(ch: char) -> Option<u8> {
+    ch.is_ascii_alphanumeric().then_some(ch as u8)
 }
 
 pub(crate) fn base62_to_byte(base62: u8) -> u8 {
+    #[allow(clippy::panic)]
     match base62 {
         b'0'..=b'9' => base62 - b'0',
         b'A'..=b'Z' => base62 - b'A' + 10,
         b'a'..=b'z' => base62 - b'a' + 36,
-        _ => unreachable!(),
+        _ => panic!("invalid base62 byte: {base62}"),
     }
 }
 
@@ -180,6 +178,10 @@ impl ObjId {
     /// Parses the object id from the string `value`.
     ///
     /// If `case_sensitive_obj_id` is true, then the object id considered as a case-sensitive. Otherwise, it will be all uppercase characters.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning::SyntaxError`] if `value` is not exactly two ASCII-alphanumeric characters.
     pub fn try_from(
         value: &str,
         case_sensitive_obj_id: bool,
@@ -253,7 +255,7 @@ impl ObjId {
             .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || c.is_ascii_lowercase())
     }
 
-    /// Returns an iterator over all possible ObjId values, ordered by priority:
+    /// Returns an iterator over all possible `ObjId` values, ordered by priority:
     /// first all Base36 values (0-9, A-Z), then remaining Base62 values.
     ///
     /// Total: 3843 values (excluding null "00"), with first 1295 being Base36.
@@ -263,15 +265,19 @@ impl ObjId {
             b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
         // Generate all Base36 values first (1296 values: "00" to "ZZ")
-        let base36_values = (0..36usize).flat_map(move |first_idx| {
-            (0..36usize)
-                .map(move |second_idx| Self([BASE36_CHARS[first_idx], BASE36_CHARS[second_idx]]))
+        let base36_values = BASE36_CHARS.iter().copied().flat_map(|first| {
+            BASE36_CHARS
+                .iter()
+                .copied()
+                .map(move |second| Self([first, second]))
         });
 
         // Generate all Base62 values, then filter out Base36 ones and "00"
-        let remaining_values = (0..62usize).flat_map(move |first_idx| {
-            (0..62usize)
-                .map(move |second_idx| Self([BASE62_CHARS[first_idx], BASE62_CHARS[second_idx]]))
+        let remaining_values = BASE62_CHARS.iter().copied().flat_map(|first| {
+            BASE62_CHARS
+                .iter()
+                .copied()
+                .map(move |second| Self([first, second]))
                 .filter(move |obj_id| {
                     // Skip "00" and Base36 values (already yielded above)
                     !obj_id.is_null() && !obj_id.is_base36() && obj_id.is_base62()
@@ -411,7 +417,7 @@ impl<'a, K> ObjIdManager<'a, K>
 where
     K: std::hash::Hash + Eq + ?Sized,
 {
-    /// Creates a new empty ObjIdManager.
+    /// Creates a new empty `ObjIdManager`.
     #[must_use]
     pub fn new() -> Self {
         let unused_ids: VecDeque<ObjId> = ObjId::all_values().collect();
@@ -423,7 +429,7 @@ where
         }
     }
 
-    /// Creates a new ObjIdManager with iterator of assigned entries.
+    /// Creates a new `ObjIdManager` with iterator of assigned entries.
     pub fn from_entries<I: IntoIterator<Item = (&'a K, ObjId)>>(iter: I) -> Self {
         let mut value_to_id: HashMap<&'a K, ObjId> = HashMap::new();
         let mut used_ids: HashSet<ObjId> = HashSet::new();
@@ -453,17 +459,16 @@ where
         self.value_to_id.contains_key(key)
     }
 
-    /// Gets or allocates an ObjId for a key without creating tokens.
+    /// Gets or allocates an `ObjId` for a key without creating tokens.
     pub fn get_or_new_id(&mut self, key: &'a K) -> Option<ObjId> {
         if let Some(&id) = self.value_to_id.get(key) {
-            Some(id)
-        } else if let Some(new_id) = self.unused_ids.pop_front() {
-            self.used_ids.insert(new_id);
-            self.value_to_id.insert(key, new_id);
-            Some(new_id)
-        } else {
-            None
+            return Some(id);
         }
+
+        let new_id = self.unused_ids.pop_front()?;
+        self.used_ids.insert(new_id);
+        self.value_to_id.insert(key, new_id);
+        Some(new_id)
     }
 
     /// Get assigned ids as an iterator.
@@ -519,8 +524,14 @@ mod tests {
         }
 
         // Verify some specific values
-        assert_eq!(all_values[0], ObjId::try_from("01", false).unwrap()); // First Base36 value
-        assert_eq!(all_values[1294], ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
+        let Some(first) = all_values.first().copied() else {
+            panic!("expected ObjId::all_values() to be non-empty");
+        };
+        assert_eq!(first, ObjId::try_from("01", false).unwrap()); // First Base36 value
+        let Some(last_base36) = all_values.get(1294).copied() else {
+            panic!("expected ObjId::all_values() to contain Base36 values");
+        };
+        assert_eq!(last_base36, ObjId::try_from("ZZ", false).unwrap()); // Last Base36 value
 
         // Verify that "00" is not included
         assert!(!all_values.contains(&ObjId::null()));

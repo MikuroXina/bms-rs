@@ -21,12 +21,12 @@ use crate::{bms::prelude::*, util::StrExtension};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
-/// ChartProcessor of Bmson files.
+/// `ChartProcessor` of Bmson files.
 pub struct BmsonProcessor {
     // Resource ID mappings
-    /// Audio filename to WavId mapping
+    /// Audio filename to `WavId` mapping
     audio_name_to_id: HashMap<String, WavId>,
-    /// Image filename to BmpId mapping
+    /// Image filename to `BmpId` mapping
     bmp_name_to_id: HashMap<String, BmpId>,
 
     // Playback state
@@ -614,10 +614,10 @@ impl AllEventsIndex {
             events_map.entry(y).or_default().push(evp);
         }
         let mut id_to_bmp: HashMap<u32, Option<BmpId>> = HashMap::new();
-        for BgaHeader { id, name, .. } in &bmson.bga.bga_header {
+        for BgaHeader { id, name } in &bmson.bga.bga_header {
             id_to_bmp.insert(id.0, bmp_name_to_id.get(name.as_ref()).copied());
         }
-        for BgaEvent { y, id, .. } in &bmson.bga.bga_events {
+        for BgaEvent { y, id } in &bmson.bga.bga_events {
             let y = pulses_to_y(y.0);
             let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
@@ -628,7 +628,7 @@ impl AllEventsIndex {
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
             events_map.entry(y).or_default().push(evp);
         }
-        for BgaEvent { y, id, .. } in &bmson.bga.layer_events {
+        for BgaEvent { y, id } in &bmson.bga.layer_events {
             let y = pulses_to_y(y.0);
             let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
@@ -639,7 +639,7 @@ impl AllEventsIndex {
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);
             events_map.entry(y).or_default().push(evp);
         }
-        for BgaEvent { y, id, .. } in &bmson.bga.poor_events {
+        for BgaEvent { y, id } in &bmson.bga.poor_events {
             let y = pulses_to_y(y.0);
             let bmp_id = id_to_bmp.get(&id.0).copied().flatten();
             let event = ChartEvent::BgaChange {
@@ -661,7 +661,7 @@ impl AllEventsIndex {
         } else {
             let max_y = events_map
                 .keys()
-                .map(|y_coord| y_coord.value())
+                .map(super::types::YCoordinate::value)
                 .max()
                 .cloned()
                 .unwrap_or_else(Decimal::zero);
@@ -707,7 +707,7 @@ impl AllEventsIndex {
             }
         }
         for KeyChannel { name, notes } in &bmson.key_channels {
-            for KeyEvent { x, y, .. } in notes {
+            for KeyEvent { x, y } in notes {
                 let y_coord = pulses_to_y(y.0);
                 let Some((side, key)) = lane_from_x(bmson.info.mode_hint.as_ref(), *x) else {
                     continue;

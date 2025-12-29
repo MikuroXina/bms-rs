@@ -45,28 +45,24 @@ impl TokenProcessor for StopProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = StopObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match self.on_message(
+            } => Ok(self
+                .on_message(
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
                     &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
-            Token::NotACommand(_) => Ok(Vec::new()),
+                )
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }
@@ -104,20 +100,20 @@ impl StopProcessor {
             // Parse xxx.yyy zzzz
             use std::time::Duration;
             let args: Vec<_> = args.split_whitespace().collect();
-            if args.len() != 3 {
+            let [measure_pos, _unused, ms] = args.as_slice() else {
                 return Err(ParseWarning::SyntaxError(
                     "stp measure/pos must be 3 digits".into(),
                 ));
-            }
+            };
 
-            let (measure, pos) = args[0].split_once('.').unwrap_or((args[0], "000"));
+            let (measure, pos) = measure_pos.split_once('.').unwrap_or((measure_pos, "000"));
             let measure: u16 = measure
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected measure u16".into()))?;
             let pos: u16 = pos
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u16".into()))?;
-            let ms: u64 = args[2]
+            let ms: u64 = ms
                 .parse()
                 .map_err(|_| ParseWarning::SyntaxError("expected pos u64".into()))?;
             let time = ObjTime::new(measure as u64, pos as u64, 1000).ok_or_else(|| {

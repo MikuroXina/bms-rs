@@ -48,6 +48,11 @@ impl BpmObjects {
 
 impl BpmObjects {
     /// Adds a new BPM change object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bpm_change(
         &mut self,
         bpm_change: BpmChangeObj,
@@ -78,6 +83,11 @@ impl BpmObjects {
     }
 
     /// Adds a new BPM change (on [`Channel::BpmChangeU8`] channel) object to the notes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseWarning`](crate::bms::parse::ParseWarning) if a conflict is found and the
+    /// provided [`Prompter`] decides to treat it as an error.
     pub fn push_bpm_change_u8(
         &mut self,
         time: ObjTime,

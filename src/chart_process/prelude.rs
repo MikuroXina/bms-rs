@@ -1,6 +1,6 @@
 //! Chart Process module prelude
 //!
-//! This module provides re-exports of commonly used types and traits from the chart_process module,
+//! This module provides re-exports of commonly used types and traits from the `chart_process` module,
 //! allowing users to import all needed items in one go.
 
 // Re-export types

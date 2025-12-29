@@ -21,7 +21,7 @@ use crate::{
     util::StrExtension,
 };
 
-/// It processes `#RANK`` and `#EXRANKxx` definitions and objects on `Judge` channel.
+/// It processes `#RANK` and `#EXRANKxx` definitions and objects on `Judge` channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JudgeProcessor {
     case_sensitive_obj_id: Rc<RefCell<bool>>,
@@ -44,29 +44,25 @@ impl TokenProcessor for JudgeProcessor {
     ) -> core::result::Result<Self::Output, ParseErrorWithRange> {
         let mut objects = JudgeObjects::default();
         ctx.all_tokens(|token, prompter| match token.content() {
-            Token::Header { name, args } => {
-                match self.on_header(name.as_ref(), args.as_ref(), prompter, &mut objects) {
-                    Ok(()) => Ok(Vec::new()),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
+            Token::Header { name, args } => Ok(self
+                .on_header(name.as_ref(), args.as_ref(), prompter, &mut objects)
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
             Token::Message {
                 track,
                 channel,
                 message,
-            } => {
-                match self.on_message(
+            } => Ok(self
+                .on_message(
                     *track,
                     *channel,
                     message.as_ref().into_wrapper(token),
                     prompter,
                     &mut objects,
-                ) {
-                    Ok(ws) => Ok(ws),
-                    Err(warn) => Ok(vec![warn.into_wrapper(token)]),
-                }
-            }
-            Token::NotACommand(_) => Ok(Vec::new()),
+                )
+                .err()
+                .map(|warn| warn.into_wrapper(token))),
+            Token::NotACommand(_) => Ok(None),
         })?;
         Ok(objects)
     }
@@ -110,13 +106,10 @@ impl JudgeProcessor {
                 .map_err(|_| ParseWarning::SyntaxError("expected u64".into()))?;
 
             let judge_level = JudgeLevel::OtherInt(value);
-            objects.exrank_defs.insert(
-                ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                ExRankDef {
-                    id: ObjId::try_from("00", false).expect("00 must be valid ObjId"),
-                    judge_level,
-                },
-            );
+            let id = ObjId::try_from("00", false)?;
+            objects
+                .exrank_defs
+                .insert(id, ExRankDef { id, judge_level });
         }
         if name.eq_ignore_ascii_case("TOTAL") {
             let total = Decimal::from_fraction(

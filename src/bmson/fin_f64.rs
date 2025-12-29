@@ -73,10 +73,3 @@ impl FinF64 {
         self.0
     }
 }
-
-impl TryFromFloatError {
-    /// Returns the contained error payload.
-    pub const fn value(self) {
-        self.0
-    }
-}

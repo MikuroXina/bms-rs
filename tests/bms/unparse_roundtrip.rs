@@ -18,7 +18,12 @@ fn assert_btree_maps_equal<K, V>(
                 "{} key {:?} mismatch",
                 field_name, key
             ),
-            None => panic!("{} missing key {:?} in right map", field_name, key),
+            None => panic!(
+                "{} missing key {:?} in right map (keys: {:?})",
+                field_name,
+                key,
+                right.keys().collect::<Vec<_>>()
+            ),
         }
     }
 
@@ -53,7 +58,12 @@ fn assert_hash_maps_equal<K, V>(
                 "{} key {:?} mismatch",
                 field_name, key
             ),
-            None => panic!("{} missing key {:?} in right map", field_name, key),
+            None => panic!(
+                "{} missing key {:?} in right map (keys: {:?})",
+                field_name,
+                key,
+                right.keys().collect::<Vec<_>>()
+            ),
         }
     }
 
@@ -82,7 +92,10 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         parse_warnings: warnings1,
     } = Bms::from_token_stream(&tokens, default_config().prompter(AlwaysWarnAndUseOlder));
     assert_eq!(warnings1, vec![]);
-    let bms1 = bms1.unwrap();
+    let bms1 = match bms1 {
+        Ok(bms) => bms,
+        Err(err) => panic!("Failed to parse BMS for roundtrip test: {err:?}"),
+    };
 
     // Bms -> tokens (unparse)
     let tokens2 = bms1.unparse::<KeyLayoutBeat>();
@@ -100,7 +113,10 @@ fn roundtrip_source_bms_tokens_bms(source: &str) {
         default_config().prompter(AlwaysWarnAndUseOlder),
     );
     assert_eq!(warnings2, vec![]);
-    let bms2 = bms2.unwrap();
+    let bms2 = match bms2 {
+        Ok(bms) => bms,
+        Err(err) => panic!("Failed to parse BMS after unparse for roundtrip test: {err:?}"),
+    };
 
     // Compare individual parts first to provide better debugging information
     assert_eq!(bms2.repr, bms1.repr, "Representations don't match");

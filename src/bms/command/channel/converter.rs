@@ -16,7 +16,7 @@ pub trait KeyConverter {
 
 /// A trait for converting [`super::PlayerSide`] and [`super::Key`] pairs in different layouts.
 ///
-/// This trait provides an interface for converting (PlayerSide, Key) pairs,
+/// This trait provides an interface for converting (`PlayerSide`, Key) pairs,
 /// making it suitable for transformations that need to consider both player side and key.
 pub trait PlayerSideKeyConverter {
     /// Convert a single `(PlayerSide, Key)` pair to another layout.
@@ -74,13 +74,20 @@ impl KeyMappingConvertLaneRotateShuffle {
         if keys.is_empty() {
             return result;
         }
+        if let &[key] = keys {
+            result.insert(key, key);
+            return result;
+        }
 
         let inc = rng.next_int_bound(2) == 1;
         let start = rng.next_int_bound(keys.len() as i32 - 1) as usize + if inc { 1 } else { 0 };
 
         let mut rlane = start;
-        for lane in 0..keys.len() {
-            result.insert(keys[lane], keys[rlane]);
+        for &lane_key in keys {
+            let Some(&mapped_key) = keys.get(rlane) else {
+                break;
+            };
+            result.insert(lane_key, mapped_key);
             rlane = if inc {
                 (rlane + 1) % keys.len()
             } else {
@@ -125,8 +132,8 @@ impl KeyMappingConvertLaneRandomShuffle {
         let mut l = keys.to_vec();
         for &lane in keys {
             let r = rng.next_int_bound(l.len() as i32) as usize;
-            result.insert(lane, l[r]);
-            l.remove(r);
+            let mapped = l.swap_remove(r);
+            result.insert(lane, mapped);
         }
 
         result
@@ -139,7 +146,7 @@ impl KeyConverter for KeyMappingConvertLaneRandomShuffle {
     }
 }
 
-/// A modifier that flips between PlayerSide::Player1 and PlayerSide::Player2.
+/// A modifier that flips between `PlayerSide::Player1` and `PlayerSide::Player2`.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyMappingConvertFlip;
 
@@ -194,7 +201,7 @@ mod channel_mode_tests {
                 let v = s.split_whitespace().collect::<Vec<_>>();
                 let [list, seed] = v.as_slice() else {
                     println!("{:?}", v);
-                    panic!("Invalid input");
+                    panic!("Invalid input: expected [list, seed]");
                 };
                 let list = list
                     .chars()
@@ -293,7 +300,7 @@ mod channel_mode_tests {
         }
     }
 
-    /// Test the flip modifier that swaps PlayerSide::Player1 and PlayerSide::Player2.
+    /// Test the flip modifier that swaps `PlayerSide::Player1` and `PlayerSide::Player2`.
     #[test]
     fn test_player_side_key_converter_flip() {
         let mut converter = KeyMappingConvertFlip;

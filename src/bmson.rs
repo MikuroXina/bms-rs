@@ -170,10 +170,7 @@ const fn default_mode_hint_cow() -> Cow<'static, str> {
 /// Default relative percentage, 100%.
 #[must_use]
 pub fn default_percentage() -> FinF64 {
-    FinF64::new(100.0).unwrap_or_else(|| {
-        // This should never happen as 100.0 is a valid FinF64 value
-        panic!("Internal error: 100.0 is not a valid FinF64")
-    })
+    FinF64::new(100.0).expect("100.0 should be a valid FinF64")
 }
 
 /// Default resolution pulses per quarter note in 4/4 measure, 240 pulses.
@@ -183,7 +180,10 @@ pub const fn default_resolution() -> u64 {
 }
 
 const fn default_resolution_nonzero() -> NonZeroU64 {
-    NonZeroU64::new(default_resolution()).expect("default_resolution should be non-zero")
+    let Some(v) = NonZeroU64::new(default_resolution()) else {
+        return NonZeroU64::MIN;
+    };
+    v
 }
 
 fn deserialize_resolution<'de, D>(deserializer: D) -> Result<NonZeroU64, D::Error>
@@ -220,22 +220,14 @@ where
         where
             E: Error,
         {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v.unsigned_abs())
-                    .expect("NonZeroU64::new should not fail for non-zero i64 value")),
-            }
+            Ok(NonZeroU64::new(v.unsigned_abs()).unwrap_or_else(default_resolution_nonzero))
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
             E: Error,
         {
-            match v {
-                0 => Ok(default_resolution_nonzero()),
-                v => Ok(NonZeroU64::new(v)
-                    .expect("NonZeroU64::new should not fail for non-zero u64 value")),
-            }
+            Ok(NonZeroU64::new(v).unwrap_or_else(default_resolution_nonzero))
         }
 
         fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
@@ -258,9 +250,7 @@ where
             if av > (u64::MAX as f64) {
                 return Err(E::custom(format!("Resolution value too large: {}", v)));
             }
-            Ok(NonZeroU64::new(av as u64).expect(
-                "NonZeroU64::new should not fail for non-zero u64 value converted from f64",
-            ))
+            Ok(NonZeroU64::new(av as u64).unwrap_or_else(default_resolution_nonzero))
         }
     }
 
@@ -321,10 +311,7 @@ where
     D: Deserializer<'de>,
 {
     let opt = Option::<u8>::deserialize(deserializer)?;
-    Ok(match opt {
-        Some(0) | None => None,
-        Some(v) => NonZeroU8::new(v),
-    })
+    Ok(opt.and_then(NonZeroU8::new))
 }
 
 /// BPM change note.
@@ -558,7 +545,7 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
         && let Err(e) = serde_fallback
         && !errors
             .iter()
-            .any(|e| matches!(e, BmsonParseError::JsonError { .. }))
+            .any(|err| matches!(err, BmsonParseError::JsonError { .. }))
     {
         let span = SimpleSpan::new((), 0..json.len());
         errors.push(BmsonParseError::JsonError {
@@ -568,13 +555,11 @@ pub fn parse_bmson<'a>(json: &'a str) -> BmsonParseOutput<'a> {
 
     // Try to deserialize the JSON value into Bmson
     let bmson = json_value
-        .map(|value| serde_path_to_error::deserialize(&value))
-        .and_then(|value| match value {
-            Ok(bmson) => Some(bmson),
-            Err(error) => {
-                errors.push(BmsonParseError::Deserialize { error });
-                None
-            }
+        .map(|json_value| serde_path_to_error::deserialize(&json_value))
+        .and_then(|deserialize_result| {
+            deserialize_result
+                .map_err(|error| errors.push(BmsonParseError::Deserialize { error }))
+                .ok()
         });
 
     BmsonParseOutput { bmson, errors }
