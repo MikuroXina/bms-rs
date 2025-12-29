@@ -384,7 +384,9 @@ impl ChartProcessor for BmsonProcessor {
         }
     }
 
-    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)> {
+    fn visible_events(
+        &mut self,
+    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
         let current_y = &self.progressed_y;
         let visible_window_y = self.visible_window_y();
         let scroll_factor = &self.current_scroll;
@@ -393,14 +395,35 @@ impl ChartProcessor for BmsonProcessor {
             let event_y = event_with_pos.position();
             // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
             // Note: scroll can be non-zero positive or negative values
-            let display_ratio_value = if visible_window_y > YCoordinate::zero() {
+            let start_display_ratio_value = if visible_window_y > YCoordinate::zero() {
                 &Decimal::from(&(event_y - current_y) / &visible_window_y) * scroll_factor
             } else {
                 Decimal::zero()
             };
-            let display_ratio = DisplayRatio::from(display_ratio_value);
+            let start_display_ratio = DisplayRatio::from(start_display_ratio_value);
 
-            (event_with_pos.clone(), display_ratio)
+            // Calculate end position for long notes
+            let end_display_ratio = if let ChartEvent::Note {
+                length: Some(length),
+                ..
+            } = event_with_pos.event()
+            {
+                let end_y = event_y.clone() + length.clone();
+                let end_display_ratio_value = if visible_window_y > YCoordinate::zero() {
+                    &Decimal::from(&(end_y - current_y.clone()) / &visible_window_y) * scroll_factor
+                } else {
+                    Decimal::zero()
+                };
+                DisplayRatio::from(end_display_ratio_value)
+            } else {
+                // Normal notes and other events: start and end are the same
+                start_display_ratio.clone()
+            };
+
+            (
+                event_with_pos.clone(),
+                start_display_ratio..=end_display_ratio,
+            )
         })
     }
 
