@@ -21,15 +21,11 @@ fn key_layout_beat_to_channel_id(beat: KeyLayoutBeat) -> NoteChannelId {
 
     // Second character based on Key
     let second_char = match key {
-        Key::Key(2) => '2',
-        Key::Key(3) => '3',
-        Key::Key(4) => '4',
-        Key::Key(5) => '5',
+        Key::Key(key @ 1..=5) => char::from_digit(key as u32, 10).unwrap_or('0'),
         Key::Scratch(1) => '6',
         Key::FreeZone => '7',
-        Key::Key(6) => '8',
-        Key::Key(7) => '9',
-        _ => '1', // Default fallback
+        Key::Key(key @ 6..=7) => char::from_digit((key + 2) as u32, 10).unwrap_or('0'),
+        _ => '0', // Default fallback
     };
 
     NoteChannelId::try_from([first_char as u8, second_char as u8])
@@ -55,15 +51,10 @@ fn channel_id_to_key_layout_beat(channel_id: NoteChannelId) -> Option<KeyLayoutB
 
     // Parse Key from second character
     let key = match second_char {
-        '1' => Key::Key(1),
-        '2' => Key::Key(2),
-        '3' => Key::Key(3),
-        '4' => Key::Key(4),
-        '5' => Key::Key(5),
+        '1'..='5' => Key::Key(second_char as u8 - b'0'),
         '6' => Key::Scratch(1),
         '7' => Key::FreeZone,
-        '8' => Key::Key(6),
-        '9' => Key::Key(7),
+        '8'..='9' => Key::Key(second_char as u8 - b'0' - 2),
         _ => return None,
     };
 
@@ -232,10 +223,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
         let (side, kind, key) = self.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
-            (Player1, Key(6)) => (Player2, Key(2)),
-            (Player1, Key(7)) => (Player2, Key(3)),
-            (Player1, Key(8)) => (Player2, Key(4)),
-            (Player1, Key(9)) => (Player2, Key(5)),
+            (Player1, Key(key_u8 @ 6..=9)) => (Player2, Key(key_u8 - 4)),
             other => other,
         };
         let beat = KeyLayoutBeat::new(side, kind, key);
@@ -248,10 +236,7 @@ impl KeyLayoutMapper for KeyLayoutPms {
         let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=5)) => (Player1, key),
-            (Player2, Key(2)) => (Player1, Key(6)),
-            (Player2, Key(3)) => (Player1, Key(7)),
-            (Player2, Key(4)) => (Player1, Key(8)),
-            (Player2, Key(5)) => (Player1, Key(9)),
+            (Player2, Key(key_u8 @ 2..=5)) => (Player1, Key(key_u8 + 4)),
             other => other,
         };
         Some(Self::new(side, kind, key))
@@ -334,12 +319,7 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
             (Player1, Scratch(2)) => (Player2, Scratch(1)),
             (Player1, FootPedal) => (Player2, Key(1)),
-            (Player1, Key(8)) => (Player2, Key(2)),
-            (Player1, Key(9)) => (Player2, Key(3)),
-            (Player1, Key(10)) => (Player2, Key(4)),
-            (Player1, Key(11)) => (Player2, Key(5)),
-            (Player1, Key(12)) => (Player2, Key(6)),
-            (Player1, Key(13)) => (Player2, Key(7)),
+            (Player1, Key(key_u8 @ 8..=13)) => (Player2, Key(key_u8 - 6)),
             (s, other) => (s, other),
         };
         let beat = KeyLayoutBeat::new(side, kind, key);
@@ -352,14 +332,9 @@ impl KeyLayoutMapper for KeyLayoutDscOctFp {
         let (side, kind, key) = beat.as_tuple();
         let (side, key) = match (side, key) {
             (Player1, Key(1..=7) | Scratch(1)) => (Player1, key),
-            (Player2, Key(1)) => (Player1, FootPedal),
-            (Player2, Key(2)) => (Player1, Key(8)),
-            (Player2, Key(3)) => (Player1, Key(9)),
-            (Player2, Key(4)) => (Player1, Key(10)),
-            (Player2, Key(5)) => (Player1, Key(11)),
-            (Player2, Key(6)) => (Player1, Key(12)),
-            (Player2, Key(7)) => (Player1, Key(13)),
             (Player2, Scratch(1)) => (Player1, Scratch(2)),
+            (Player2, Key(1)) => (Player1, FootPedal),
+            (Player2, Key(key_u8 @ 2..=7)) => (Player1, Key(key_u8 + 6)),
             (s, k) => (s, k),
         };
         Some(Self::new(side, kind, key))
