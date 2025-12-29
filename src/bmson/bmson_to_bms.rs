@@ -61,7 +61,7 @@ impl Bms {
         let mut stop_def_obj_id_issuer = ObjId::all_values();
         let mut scroll_def_obj_id_issuer = ObjId::all_values();
 
-        let resolution = NonZeroU64::new(value.info.resolution.get()).unwrap_or(NonZeroU64::MIN);
+        let resolution = value.info.resolution;
 
         // Convert info to header
         bms.music_info.title = Some(value.info.title.into_owned());
