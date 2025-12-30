@@ -104,7 +104,7 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     // Verify display ratio calculation
     for (visible_event, display_ratio_range) in &after_change_events {
         let y_value = visible_event.position().as_ref().to_f64().unwrap_or(0.0);
-        let display_ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
+        let display_ratio_value = display_ratio_range.start().as_f64();
 
         // Display ratio should be in reasonable range
         assert!(
