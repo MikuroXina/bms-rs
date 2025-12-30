@@ -510,7 +510,7 @@ fn precompute_activate_times(
         let delta_y_value = delta_y.value();
         let delta_nanos = if cur_bpm > Decimal::zero() {
             let numerator = delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-            (numerator / cur_bpm).to_u64().unwrap_or(0)
+            (numerator / cur_bpm).round().to_u64().unwrap_or(0)
         } else {
             0
         };
@@ -528,7 +528,7 @@ fn precompute_activate_times(
                 let dur_nanos = if bpm_at_stop > Decimal::zero() {
                     let numerator =
                         dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
-                    (numerator / bpm_at_stop).to_u64().unwrap_or(0)
+                    (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
                 } else {
                     0
                 };

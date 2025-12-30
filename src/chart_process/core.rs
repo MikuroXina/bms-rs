@@ -247,20 +247,16 @@ impl ProcessorCore {
                 || remaining_time <= TimeSpan::ZERO
             {
                 // Advance directly to the end
-                cur_y = cur_y_now
-                    + YCoordinate::new(
-                        cur_vel * Decimal::from(remaining_time.as_nanos().max(0))
-                            / NANOS_PER_SECOND,
-                    );
+                let delta_y = (cur_vel * Decimal::from(remaining_time.as_nanos().max(0)))
+                    / Decimal::from(NANOS_PER_SECOND);
+                cur_y = cur_y_now + YCoordinate::new(delta_y.round());
                 break;
             }
 
             let Some((event_y, evt)) = next_event else {
-                cur_y = cur_y_now
-                    + YCoordinate::new(
-                        cur_vel * Decimal::from(remaining_time.as_nanos().max(0))
-                            / NANOS_PER_SECOND,
-                    );
+                let delta_y = (cur_vel * Decimal::from(remaining_time.as_nanos().max(0)))
+                    / Decimal::from(NANOS_PER_SECOND);
+                cur_y = cur_y_now + YCoordinate::new(delta_y.round());
                 break;
             };
 
@@ -277,6 +273,7 @@ impl ProcessorCore {
             if cur_vel > Decimal::zero() {
                 let time_to_event_nanos = ((distance.value() / &cur_vel)
                     * Decimal::from(NANOS_PER_SECOND))
+                .round()
                 .to_u64()
                 .unwrap_or(0);
                 let time_to_event =
@@ -348,11 +345,12 @@ impl ProcessorCore {
         visible_window_y: &YCoordinate,
         scroll_factor: &Decimal,
     ) -> DisplayRatio {
-        if visible_window_y.value() > &Decimal::zero() {
-            let ratio_value =
-                (event_y - current_y).value() / visible_window_y.value() * scroll_factor.clone();
+        let window_value = visible_window_y.value();
+        if window_value > &Decimal::zero() {
+            let ratio_value = (event_y - current_y).value() / window_value * scroll_factor.clone();
             DisplayRatio::from(ratio_value)
         } else {
+            // Should not happen theoretically; indicates configuration issue if it does
             DisplayRatio::at_judgment_line()
         }
     }
