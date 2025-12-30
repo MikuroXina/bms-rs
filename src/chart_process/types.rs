@@ -732,16 +732,6 @@ impl AllEventsIndex {
     }
 
     #[must_use]
-    pub const fn as_events(&self) -> &Vec<PlayheadEvent> {
-        &self.events
-    }
-
-    #[must_use]
-    pub const fn as_by_y(&self) -> &BTreeMap<YCoordinate, Range<usize>> {
-        &self.by_y
-    }
-
-    #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<YCoordinate>,

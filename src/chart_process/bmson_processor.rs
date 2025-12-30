@@ -4,7 +4,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
     path::Path,
-    sync::OnceLock,
 };
 
 use gametime::{TimeSpan, TimeStamp};
@@ -156,9 +155,7 @@ impl ChartProcessor for BmsonProcessor {
     }
 
     fn current_speed(&self) -> &Decimal {
-        // BMSON doesn't have current_speed, use 1.0
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        DECIMAL_ONE.get_or_init(Decimal::one)
+        &self.core.current_speed
     }
 
     fn current_scroll(&self) -> &Decimal {
@@ -178,26 +175,7 @@ impl ChartProcessor for BmsonProcessor {
     }
 
     fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
-        let prev_y = self.core.progressed_y().clone();
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        let speed = DECIMAL_ONE.get_or_init(Decimal::one);
-        self.core.step_to(now, speed);
-        let cur_y = self.core.progressed_y();
-
-        // Calculate preload range: current y + visible y range
-        let visible_y_length = self.core.visible_window_y(speed);
-        let preload_end_y = cur_y + &visible_y_length;
-
-        use std::ops::Bound::{Excluded, Included};
-
-        // Collect events triggered at current moment
-        let triggered_events = self
-            .core
-            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
-
-        self.core.update_preloaded_events(&preload_end_y);
-
-        triggered_events.into_iter()
+        self.core.update_base(now).into_iter()
     }
 
     fn events_in_time_range(
@@ -216,9 +194,7 @@ impl ChartProcessor for BmsonProcessor {
     fn visible_events(
         &mut self,
     ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        static DECIMAL_ONE: OnceLock<Decimal> = OnceLock::new();
-        let speed = DECIMAL_ONE.get_or_init(Decimal::one);
-        self.core.compute_visible_events(speed).into_iter()
+        self.core.compute_visible_events().into_iter()
     }
 }
 

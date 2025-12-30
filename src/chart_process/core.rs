@@ -33,9 +33,9 @@ impl FlowEvent {
                 core.current_bpm = bpm.clone();
                 core.mark_velocity_dirty();
             }
-            FlowEvent::Speed(_s) => {
-                // Speed is format-specific (BMS only)
-                // Handled by the concrete processor implementation
+            FlowEvent::Speed(s) => {
+                core.current_speed = s.clone();
+                core.mark_velocity_dirty();
             }
             FlowEvent::Scroll(s) => {
                 core.current_scroll = s.clone();
@@ -62,6 +62,7 @@ pub struct ProcessorCore {
     // Flow parameters
     pub(crate) current_bpm: Decimal,
     pub(crate) current_scroll: Decimal,
+    pub(crate) current_speed: Decimal,
     pub(crate) playback_ratio: Decimal,
     pub(crate) visible_range_per_bpm: VisibleRangePerBpm,
 
@@ -93,6 +94,7 @@ impl ProcessorCore {
             progressed_y: YCoordinate::zero(),
             current_bpm: init_bpm.clone(),
             current_scroll: Decimal::one(),
+            current_speed: Decimal::one(),
             playback_ratio: Decimal::one(),
             visible_range_per_bpm,
             cached_velocity: None,
@@ -112,6 +114,7 @@ impl ProcessorCore {
         self.preloaded_events.clear();
         self.current_bpm = self.init_bpm.clone();
         self.current_scroll = Decimal::one();
+        self.current_speed = Decimal::one();
         self.mark_velocity_dirty();
     }
 
@@ -132,6 +135,28 @@ impl ProcessorCore {
         self.last_poll_at = Some(time);
     }
 
+    /// Core update logic shared by BMS and BMSON processors.
+    ///
+    /// This method advances the timeline and returns triggered events.
+    pub fn update_base(&mut self, now: TimeStamp) -> Vec<PlayheadEvent> {
+        let prev_y = self.progressed_y().clone();
+        self.step_to(now);
+        let cur_y = self.progressed_y();
+
+        // Calculate preload range: current y + visible y range
+        let visible_y_length = self.visible_window_y();
+        let preload_end_y = cur_y + &visible_y_length;
+
+        use std::ops::Bound::{Excluded, Included};
+
+        // Collect events triggered at current moment
+        let triggered_events = self.events_in_y_range((Excluded(&prev_y), Included(cur_y)));
+
+        self.update_preloaded_events(&preload_end_y);
+
+        triggered_events
+    }
+
     /// Get the current Y position.
     #[must_use]
     pub const fn progressed_y(&self) -> &YCoordinate {
@@ -141,9 +166,9 @@ impl ProcessorCore {
     /// Calculate velocity with caching.
     ///
     /// Formula: `velocity = (bpm / 240) * speed * playback_ratio`
-    pub fn calculate_velocity(&mut self, speed: &Decimal) -> Decimal {
+    pub fn calculate_velocity(&mut self) -> Decimal {
         if self.velocity_dirty || self.cached_velocity.is_none() {
-            let computed = self.compute_velocity(speed);
+            let computed = self.compute_velocity();
             self.cached_velocity = Some(computed.clone());
             self.velocity_dirty = false;
             computed
@@ -157,13 +182,13 @@ impl ProcessorCore {
     }
 
     /// Compute velocity without caching (internal use).
-    fn compute_velocity(&self, speed: &Decimal) -> Decimal {
+    fn compute_velocity(&self) -> Decimal {
         if self.current_bpm <= Decimal::zero() {
             Decimal::from(f64::EPSILON)
         } else {
             let denom = Decimal::from(240);
             let base = &self.current_bpm / &denom;
-            let v1 = base * speed.clone();
+            let v1 = base * self.current_speed.clone();
             let v = &v1 * &self.playback_ratio;
             v.max(Decimal::from(f64::EPSILON))
         }
@@ -190,7 +215,7 @@ impl ProcessorCore {
     /// Advance time to `now`, performing segmented integration.
     ///
     /// This is the core time progression algorithm, shared between BMS and BMSON.
-    pub fn step_to(&mut self, now: TimeStamp, speed: &Decimal) {
+    pub fn step_to(&mut self, now: TimeStamp) {
         let Some(started) = self.started_at else {
             return;
         };
@@ -200,7 +225,7 @@ impl ProcessorCore {
         }
 
         let mut remaining_time = now - last;
-        let mut cur_vel = self.calculate_velocity(speed);
+        let mut cur_vel = self.calculate_velocity();
         let mut cur_y = self.progressed_y.clone();
 
         // Advance in segments until time slice is used up
@@ -233,7 +258,7 @@ impl ProcessorCore {
             if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
                 evt.apply_to(self);
-                cur_vel = self.calculate_velocity(speed);
+                cur_vel = self.calculate_velocity();
                 cur_y = cur_y_now;
                 continue;
             }
@@ -253,7 +278,7 @@ impl ProcessorCore {
                     cur_y = event_y;
                     remaining_time -= time_to_event;
                     evt.apply_to(self);
-                    cur_vel = self.calculate_velocity(speed);
+                    cur_vel = self.calculate_velocity();
                     continue;
                 }
             }
@@ -272,9 +297,12 @@ impl ProcessorCore {
 
     /// Get visible window length in Y units.
     #[must_use]
-    pub fn visible_window_y(&self, speed: &Decimal) -> YCoordinate {
-        self.visible_range_per_bpm
-            .window_y(&self.current_bpm, speed, &self.playback_ratio)
+    pub fn visible_window_y(&self) -> YCoordinate {
+        self.visible_range_per_bpm.window_y(
+            &self.current_bpm,
+            &self.current_speed,
+            &self.playback_ratio,
+        )
     }
 
     /// Get events in a Y range.
@@ -322,12 +350,9 @@ impl ProcessorCore {
 
     /// Compute visible events with their display ratios.
     #[must_use]
-    pub fn compute_visible_events(
-        &self,
-        speed: &Decimal,
-    ) -> Vec<(PlayheadEvent, RangeInclusive<DisplayRatio>)> {
+    pub fn compute_visible_events(&self) -> Vec<(PlayheadEvent, RangeInclusive<DisplayRatio>)> {
         let current_y = &self.progressed_y;
-        let visible_window_y = self.visible_window_y(speed);
+        let visible_window_y = self.visible_window_y();
         let scroll_factor = &self.current_scroll;
 
         self.preloaded_events
@@ -415,14 +440,12 @@ mod tests {
             std::collections::BTreeMap::new(),
         );
 
-        let speed = Decimal::one();
-
         // First call computes velocity
-        let v1 = core.calculate_velocity(&speed);
+        let v1 = core.calculate_velocity();
         assert!(v1 > Decimal::zero());
 
         // Second call should use cache
-        let v2 = core.calculate_velocity(&speed);
+        let v2 = core.calculate_velocity();
         assert_eq!(v1, v2);
     }
 

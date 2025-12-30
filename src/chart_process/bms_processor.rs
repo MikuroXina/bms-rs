@@ -28,9 +28,6 @@ pub struct BmsProcessor {
 
     /// Core processor logic
     core: ProcessorCore,
-
-    /// Current speed factor (BMS-specific)
-    current_speed: Decimal,
 }
 
 impl BmsProcessor {
@@ -99,7 +96,6 @@ impl BmsProcessor {
             wav_paths,
             bmp_paths,
             core,
-            current_speed: Decimal::one(),
         }
     }
 
@@ -172,7 +168,7 @@ impl ChartProcessor for BmsProcessor {
     }
 
     fn current_speed(&self) -> &Decimal {
-        &self.current_speed
+        &self.core.current_speed
     }
 
     fn current_scroll(&self) -> &Decimal {
@@ -185,7 +181,6 @@ impl ChartProcessor for BmsProcessor {
 
     fn start_play(&mut self, now: TimeStamp) {
         self.core.start_play(now);
-        self.current_speed = Decimal::one();
     }
 
     fn started_at(&self) -> Option<TimeStamp> {
@@ -193,32 +188,7 @@ impl ChartProcessor for BmsProcessor {
     }
 
     fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
-        let prev_y = self.core.progressed_y().clone();
-        self.core.step_to(now, &self.current_speed);
-        let cur_y = self.core.progressed_y();
-
-        // Calculate preload range: current y + visible y range
-        let visible_y_length = self.core.visible_window_y(&self.current_speed);
-        let preload_end_y = cur_y + &visible_y_length;
-
-        use std::ops::Bound::{Excluded, Included};
-
-        // Collect events triggered at current moment
-        let mut triggered_events = self
-            .core
-            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
-
-        self.core.update_preloaded_events(&preload_end_y);
-
-        // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
-        triggered_events.sort_by(|a, b| {
-            a.position()
-                .value()
-                .partial_cmp(b.position().value())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        triggered_events.into_iter()
+        self.core.update_base(now).into_iter()
     }
 
     fn events_in_time_range(
@@ -237,9 +207,7 @@ impl ChartProcessor for BmsProcessor {
     fn visible_events(
         &mut self,
     ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        self.core
-            .compute_visible_events(&self.current_speed)
-            .into_iter()
+        self.core.compute_visible_events().into_iter()
     }
 }
 
@@ -478,21 +446,20 @@ impl AllEventsIndex {
         }
 
         BmsProcessor::generate_barlines_for_bms(bms, y_memo, &mut events_map, &mut id_gen);
-        let pre_index = Self::new(events_map);
-        precompute_activate_times(bms, &pre_index, y_memo)
+        precompute_activate_times(bms, &events_map, y_memo)
     }
 }
 
 /// Precompute absolute `activate_time` for all events based on BPM segmentation and Stops.
 fn precompute_activate_times(
     bms: &Bms,
-    all_events: &AllEventsIndex,
+    events_map: &BTreeMap<YCoordinate, Vec<PlayheadEvent>>,
     y_memo: &YMemo,
 ) -> AllEventsIndex {
     use std::collections::{BTreeMap, BTreeSet};
     let mut points: BTreeSet<YCoordinate> = BTreeSet::new();
     points.insert(YCoordinate::zero());
-    points.extend(all_events.as_by_y().keys().cloned());
+    points.extend(events_map.keys().cloned());
 
     let mut bpm_map: BTreeMap<YCoordinate, Decimal> = BTreeMap::new();
     let init_bpm = bms
@@ -576,17 +543,13 @@ fn precompute_activate_times(
         prev = curr;
     }
 
-    let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = all_events
-        .as_by_y()
+    let new_map: BTreeMap<YCoordinate, Vec<PlayheadEvent>> = events_map
         .iter()
-        .map(|(y_coord, indices)| {
+        .map(|(y_coord, events)| {
             let at_nanos = cum_map.get(y_coord).copied().unwrap_or(0);
             let at = TimeSpan::from_duration(std::time::Duration::from_nanos(at_nanos));
-            let new_events: Vec<_> = all_events
-                .as_events()
-                .get(indices.clone())
-                .into_iter()
-                .flatten()
+            let new_events: Vec<_> = events
+                .iter()
                 .cloned()
                 .map(|mut evp| {
                     evp.activate_time = at;
