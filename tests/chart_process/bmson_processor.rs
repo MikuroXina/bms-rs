@@ -125,10 +125,11 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let mut got_any_ratio = false;
     for (ev, ratio_range) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
+            let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
             assert!(
-                ratio_range.start().as_f64() - 0.75 <= f64::EPSILON,
+                ratio - 0.75 <= f64::EPSILON,
                 "expected display_ratio: 0.75 for visible note, got {}",
-                ratio_range.start().as_f64()
+                ratio
             );
             got_any_ratio = true;
             break;
