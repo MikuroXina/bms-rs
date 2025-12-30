@@ -126,15 +126,15 @@ impl AsRef<Decimal> for VisibleRangePerBpm {
 
 impl VisibleRangePerBpm {
     /// Create a new `VisibleRangePerBpm` from base BPM and reaction time
-    /// Formula: `visible_range_per_bpm` = `reaction_time_seconds` / `base_bpm`
+    /// Formula: `visible_range_per_bpm` = `reaction_time_seconds` * 240 / `base_bpm`
     #[must_use]
     pub fn new(base_bpm: &BaseBpm, reaction_time: TimeSpan) -> Self {
         if base_bpm.value().is_zero() {
             Self(Decimal::zero())
         } else {
             Self(
-                Decimal::from(reaction_time.as_nanos().max(0))
-                    / NANOS_PER_SECOND
+                Decimal::from(reaction_time.as_nanos().max(0)) / NANOS_PER_SECOND
+                    * Decimal::from(240u64)
                     / base_bpm.value().clone(),
             )
         }
@@ -152,11 +152,19 @@ impl VisibleRangePerBpm {
         self.0
     }
 
-    /// Calculate visible window length in y units based on current BPM.
-    /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm`.
+    /// Calculate visible window length in y units based on current BPM, speed, and playback ratio.
+    /// Formula: `visible_window_y = current_bpm * visible_range_per_bpm * current_speed * playback_ratio / 240`
+    /// This ensures events stay in visible window for exactly `reaction_time` duration.
     #[must_use]
-    pub fn window_y(&self, current_bpm: &Decimal) -> YCoordinate {
-        YCoordinate::new(current_bpm * self.value())
+    pub fn window_y(
+        &self,
+        current_bpm: &Decimal,
+        current_speed: &Decimal,
+        playback_ratio: &Decimal,
+    ) -> YCoordinate {
+        let speed_factor = current_speed * playback_ratio;
+        let adjusted = current_bpm * self.value() * speed_factor / Decimal::from(240u64);
+        YCoordinate::new(adjusted)
     }
 
     /// Calculate reaction time from visible range per BPM
@@ -317,12 +325,6 @@ impl YCoordinate {
         self.0
     }
 
-    /// Convert to f64 (for compatibility)
-    #[must_use]
-    pub fn as_f64(&self) -> f64 {
-        self.0.to_f64().unwrap_or(0.0)
-    }
-
     /// Creates a zero of Y coordinate.
     #[must_use]
     pub fn zero() -> Self {
@@ -444,12 +446,6 @@ impl DisplayRatio {
     #[must_use]
     pub fn into_value(self) -> Decimal {
         self.0
-    }
-
-    /// Convert to f64 (for compatibility)
-    #[must_use]
-    pub fn as_f64(&self) -> f64 {
-        self.0.to_f64().unwrap_or(0.0)
     }
 
     /// Create a `DisplayRatio` representing the judgment line (value 0)
@@ -813,7 +809,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::{AllEventsIndex, ChartEvent, ChartEventId, PlayheadEvent, TimeSpan, YCoordinate};
-    use crate::bms::Decimal;
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {
         let y_coord = YCoordinate::from(y);
@@ -823,13 +818,6 @@ mod tests {
             ChartEvent::BarLine,
             TimeSpan::SECOND * time_secs as i64,
         )
-    }
-
-    #[test]
-    fn as_f64_ignores_representation_precision() {
-        let d = Decimal::from(0.5).set_precision(0);
-        assert!((YCoordinate::new(d.clone()).as_f64() - 0.5).abs() < 1e-9);
-        assert!((super::DisplayRatio::from(d).as_f64() - 0.5).abs() < 1e-9);
     }
 
     #[test]

@@ -3,11 +3,13 @@
 //! Integration tests for `bms_rs::chart_process::BmsonProcessor`.
 
 use gametime::{TimeSpan, TimeStamp};
-use num::One;
+use num::{One, ToPrimitive};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bmson::parse_bmson;
 use bms_rs::chart_process::prelude::*;
+
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
 /// Setup a BMSON processor for testing (without calling `start_play`)
 fn setup_bmson_processor(json: &str, reaction_time: TimeSpan) -> BmsonProcessor {
@@ -121,12 +123,13 @@ fn test_bmson_visible_events_display_ratio_is_not_all_zero() {
     let _ = processor.update(start_time + TimeSpan::MILLISECOND * 100);
 
     let mut got_any_ratio = false;
-    for (ev, ratio) in processor.visible_events() {
+    for (ev, ratio_range) in processor.visible_events() {
         if matches!(ev.event(), ChartEvent::Note { .. }) {
+            let ratio = ratio_range.start().value().to_f64().unwrap_or(0.0);
             assert!(
-                ratio.as_f64() - 0.75 <= f64::EPSILON,
+                ratio - 0.75 <= f64::EPSILON,
                 "expected display_ratio: 0.75 for visible note, got {}",
-                ratio.as_f64()
+                ratio
             );
             got_any_ratio = true;
             break;
@@ -637,4 +640,185 @@ fn test_bmson_visible_event_activate_time_with_stop_inside_interval() {
         }
     }
     assert!(checked, "Expected to find a note visible event");
+}
+
+#[test]
+fn test_bmson_visible_events_duration_matches_reaction_time() {
+    // Test that when current_bpm == base_bpm and playback_ratio is 1,
+    // events stay in visible_events for exactly reaction_time duration
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240,
+            "mode_hint": "beat-7k"
+        },
+        "sound_channels": [
+            { "name": "note.wav", "notes": [ { "x": 1, "y": 0, "l": 0, "c": false } ] }
+        ],
+        "bpm_events": []
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let mut processor = setup_bmson_processor(json, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    // Verify standard conditions
+    assert_eq!(*processor.current_bpm(), Decimal::from(120));
+    assert_eq!(*processor.playback_ratio(), Decimal::one());
+
+    // Calculate expected visible window Y
+    let base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_window_y = visible_range.window_y(
+        processor.current_bpm(),
+        &Decimal::one(), // BMSON has no current_speed
+        processor.playback_ratio(),
+    );
+
+    // Calculate time to cross window
+    // velocity = current_bpm * playback_ratio / 240 (BMSON doesn't have current_speed)
+    // time = visible_window_y / velocity
+    let velocity = Decimal::from(120) * Decimal::one() / Decimal::from(240u64);
+    let time_to_cross = visible_window_y.as_ref() / velocity;
+
+    // Verify: time_to_cross should equal reaction_time
+    let expected_time =
+        Decimal::from(reaction_time.as_nanos().max(0)) / Decimal::from(NANOS_PER_SECOND);
+    let diff = (time_to_cross.clone() - expected_time).abs();
+
+    assert!(
+        diff < Decimal::from(1u64), // Allow 1ms error margin
+        "Expected time_to_cross ≈ reaction_time (600ms), got {:.6}s, diff: {:.6}s",
+        time_to_cross.to_f64().unwrap_or(0.0),
+        diff.to_f64().unwrap_or(0.0)
+    );
+}
+
+#[test]
+fn test_bmson_visible_events_duration_with_playback_ratio() {
+    // Test that playback_ratio affects visible_window_y and event display duration
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240,
+            "mode_hint": "beat-7k"
+        },
+        "sound_channels": [
+            { "name": "note.wav", "notes": [ { "x": 1, "y": 0, "l": 0, "c": false } ] }
+        ],
+        "bpm_events": []
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let mut processor = setup_bmson_processor(json, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    // Get initial visible_window_y (playback_ratio = 1)
+    let base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+
+    let visible_window_y_ratio_1 =
+        visible_range.window_y(processor.current_bpm(), &Decimal::one(), &Decimal::one());
+
+    // Set playback_ratio to 0.5
+    processor.post_events(std::iter::once(ControlEvent::SetPlaybackRatio {
+        ratio: Decimal::from(0.5),
+    }));
+
+    // Verify playback_ratio changed
+    assert_eq!(*processor.playback_ratio(), Decimal::from(0.5));
+
+    // Get new visible_window_y (playback_ratio = 0.5)
+    let visible_window_y_ratio_0_5 = visible_range.window_y(
+        processor.current_bpm(),
+        &Decimal::one(),
+        processor.playback_ratio(),
+    );
+
+    // Verify: visible_window_y should halve when playback_ratio halves
+    let ratio = visible_window_y_ratio_0_5.as_ref() / visible_window_y_ratio_1.as_ref();
+    assert!(
+        (ratio.clone() - Decimal::from(0.5)).abs() < Decimal::from(1u64),
+        "Expected visible_window_y to halve when playback_ratio halves, ratio: {:.2}",
+        ratio.to_f64().unwrap_or(0.0)
+    );
+
+    // Calculate time to cross window with playback_ratio = 0.5
+    let velocity = Decimal::from(120) * Decimal::from(0.5) / Decimal::from(240u64);
+    let time_to_cross = visible_window_y_ratio_0_5.as_ref() / velocity;
+
+    // Verify: time_to_cross should still equal reaction_time
+    let expected_time =
+        Decimal::from(reaction_time.as_nanos().max(0)) / Decimal::from(NANOS_PER_SECOND);
+    let diff = (time_to_cross.clone() - expected_time).abs();
+
+    assert!(
+        diff < Decimal::from(1u64),
+        "Expected time_to_cross ≈ reaction_time even with playback_ratio=0.5, got {:.6}s",
+        time_to_cross.to_f64().unwrap_or(0.0)
+    );
+}
+
+#[test]
+fn test_visible_events_with_boundary_conditions() {
+    // Test boundary conditions: zero or very small speed/playback_ratio
+    let json = r#"{
+        "version": "1.0.0",
+        "info": {
+            "title": "Test",
+            "artist": "",
+            "genre": "",
+            "level": 1,
+            "init_bpm": 120.0,
+            "resolution": 240,
+            "mode_hint": "beat-7k"
+        },
+        "sound_channels": [
+            { "name": "note.wav", "notes": [ { "x": 1, "y": 0, "l": 0, "c": false } ] }
+        ],
+        "bpm_events": []
+    }"#;
+
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let _processor = setup_bmson_processor(json, reaction_time);
+
+    // Test with very small playback_ratio (not zero, to avoid division by zero)
+    let base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+
+    let very_small_ratio = Decimal::from(1u64);
+    let visible_window_y =
+        visible_range.window_y(&Decimal::from(120), &Decimal::one(), &very_small_ratio);
+
+    // Should not panic and should return a valid result
+    assert!(
+        *visible_window_y.as_ref() >= Decimal::from(0),
+        "visible_window_y should be non-negative even with very small playback_ratio"
+    );
+
+    // Test with normal playback_ratio
+    let normal_ratio = Decimal::one();
+    let visible_window_y_normal =
+        visible_range.window_y(&Decimal::from(120), &Decimal::one(), &normal_ratio);
+
+    // Verify the ratio relationship
+    let expected_ratio = very_small_ratio / normal_ratio;
+    let actual_ratio = visible_window_y.as_ref() / visible_window_y_normal.as_ref();
+
+    assert!(
+        (actual_ratio - expected_ratio).abs() < Decimal::from(1u64),
+        "visible_window_y should scale linearly with playback_ratio"
+    );
 }

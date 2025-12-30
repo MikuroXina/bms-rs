@@ -22,6 +22,9 @@ use crate::chart_process::types::{
 pub mod bms_processor;
 pub mod bmson_processor;
 
+// Core processor logic
+pub mod core;
+
 // Type definition module
 pub mod types;
 
@@ -232,5 +235,11 @@ pub trait ChartProcessor {
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>);
 
     /// Query: all events in current visible area (preload logic).
-    fn visible_events(&mut self) -> impl Iterator<Item = (PlayheadEvent, DisplayRatio)>;
+    ///
+    /// Returns a range of display positions for each event:
+    /// - For normal notes: `start()` and `end()` are the same position
+    /// - For long notes: `start()` is the note head position, `end()` is the note tail position
+    fn visible_events(
+        &mut self,
+    ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)>;
 }

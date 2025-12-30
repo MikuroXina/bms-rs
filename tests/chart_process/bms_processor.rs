@@ -9,6 +9,8 @@ use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::*;
 use bms_rs::chart_process::prelude::*;
 
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
 /// Setup a BMS processor for testing (without calling `start_play`)
 fn setup_bms_processor_with_config<T, P, R, M>(
     source: &str,
@@ -74,9 +76,11 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
-    let visible_window_y = processor
-        .visible_range_per_bpm()
-        .window_y(processor.current_bpm());
+    let visible_window_y = processor.visible_range_per_bpm().window_y(
+        processor.current_bpm(),
+        processor.current_speed(),
+        processor.playback_ratio(),
+    );
     assert!(
         visible_window_y.as_ref() > &Decimal::zero(),
         "Expected visible window y > 0, got: {:?}",
@@ -93,14 +97,14 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     assert!(
         after_change_events
             .iter()
-            .any(|(_, ratio)| ratio.as_ref() > &Decimal::zero()),
+            .any(|(_, range)| range.start().as_ref() > &Decimal::zero()),
         "Expected at least one display_ratio > 0"
     );
 
     // Verify display ratio calculation
-    for (visible_event, display_ratio) in &after_change_events {
+    for (visible_event, display_ratio_range) in &after_change_events {
         let y_value = visible_event.position().as_ref().to_f64().unwrap_or(0.0);
-        let display_ratio_value = display_ratio.as_ref().to_f64().unwrap_or(0.0);
+        let display_ratio_value = display_ratio_range.start().value().to_f64().unwrap_or(0.0);
 
         // Display ratio should be in reasonable range
         assert!(
@@ -185,8 +189,8 @@ fn test_lilith_mx_bpm_changes_affect_visible_window() {
     );
 
     // Verify display ratio is still valid
-    for (_, display_ratio) in &after_bpm_events {
-        let ratio_value = display_ratio.as_ref().to_f64().unwrap_or(0.0);
+    for (_, display_ratio_range) in &after_bpm_events {
+        let ratio_value = display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0);
         assert!(ratio_value.is_finite() && ratio_value >= 0.0);
     }
 }
@@ -207,7 +211,9 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
     let initial_events: Vec<_> = processor.visible_events().collect();
     let initial_ratios: Vec<f64> = initial_events
         .iter()
-        .map(|(_, display_ratio)| display_ratio.as_ref().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio_range)| {
+            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if initial_ratios.is_empty() {
@@ -223,7 +229,9 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, display_ratio)| display_ratio.as_ref().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio_range)| {
+            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if after_first_ratios.is_empty() {
@@ -253,7 +261,9 @@ fn test_bemuse_ext_scroll_half_display_ratio_scaling() {
         .visible_events()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(_, display_ratio)| display_ratio.as_ref().to_f64().unwrap_or(0.0))
+        .map(|(_, display_ratio_range)| {
+            display_ratio_range.start().as_ref().to_f64().unwrap_or(0.0)
+        })
         .collect::<Vec<_>>();
 
     if after_scroll_half_ratios.is_empty() {
@@ -424,4 +434,54 @@ fn test_bms_start_play_resets_scroll_to_one() {
 
     processor.start_play(after_scroll_change + TimeSpan::SECOND);
     assert_eq!(*processor.current_scroll(), Decimal::one());
+}
+
+#[test]
+fn test_visible_events_duration_matches_reaction_time() {
+    // Test that when current_bpm == base_bpm and speed/ratio are 1,
+    // events stay in visible_events for exactly reaction_time duration
+    let reaction_time = TimeSpan::MILLISECOND * 600;
+    let bms_source = r#"
+#TITLE Reaction Time Test
+#ARTIST Test
+#BPM 120
+#PLAYER 1
+
+#00111:00000001
+"#;
+    let mut processor = setup_bms_processor_with_newer_prompter(bms_source, reaction_time);
+    let start_time = TimeStamp::start();
+    processor.start_play(start_time);
+
+    // Verify standard conditions
+    assert_eq!(*processor.current_bpm(), Decimal::from(120));
+    assert_eq!(*processor.current_speed(), Decimal::one());
+    assert_eq!(*processor.playback_ratio(), Decimal::one());
+
+    // Calculate expected visible window Y
+    let base_bpm = BaseBpm::from(Decimal::from(120));
+    let visible_range = VisibleRangePerBpm::new(&base_bpm, reaction_time);
+    let visible_window_y = visible_range.window_y(
+        processor.current_bpm(),
+        processor.current_speed(),
+        processor.playback_ratio(),
+    );
+
+    // Calculate time to cross window
+    // velocity = current_bpm * current_speed * playback_ratio / 240
+    // time = visible_window_y / velocity
+    let velocity = Decimal::from(120) * Decimal::one() * Decimal::one() / Decimal::from(240u64);
+    let time_to_cross = visible_window_y.as_ref() / velocity;
+
+    // Verify: time_to_cross should equal reaction_time
+    let expected_time =
+        Decimal::from(reaction_time.as_nanos().max(0)) / Decimal::from(NANOS_PER_SECOND);
+    let diff = (time_to_cross.clone() - expected_time).abs();
+
+    assert!(
+        diff < Decimal::from(1u64), // Allow 1ms error margin
+        "Expected time_to_cross ≈ reaction_time (600ms), got {:.6}s, diff: {:.6}s",
+        time_to_cross.to_f64().unwrap_or(0.0),
+        diff.to_f64().unwrap_or(0.0)
+    );
 }
