@@ -74,9 +74,11 @@ fn test_bemuse_ext_basic_visible_events_functionality() {
     let after_first_change = start_time + TimeSpan::SECOND;
     let _ = processor.update(after_first_change);
 
-    let visible_window_y = processor
-        .visible_range_per_bpm()
-        .window_y(processor.current_bpm());
+    let visible_window_y = processor.visible_range_per_bpm().window_y(
+        processor.current_bpm(),
+        processor.current_speed(),
+        processor.playback_ratio(),
+    );
     assert!(
         visible_window_y.as_ref() > &Decimal::zero(),
         "Expected visible window y > 0, got: {:?}",

@@ -247,7 +247,12 @@ impl BmsonProcessor {
     }
 
     fn visible_window_y(&self) -> YCoordinate {
-        self.visible_range_per_bpm.window_y(&self.current_bpm)
+        // BMSON doesn't have current_speed, use 1.0
+        self.visible_range_per_bpm.window_y(
+            &self.current_bpm,
+            &Decimal::one(),
+            &self.playback_ratio,
+        )
     }
 }
 

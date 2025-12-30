@@ -266,9 +266,13 @@ impl BmsProcessor {
         }
     }
 
-    /// Calculate visible window length (y units): based on current BPM and visible range per BPM
+    /// Calculate visible window length (y units): based on current BPM, speed, playback ratio and visible range per BPM
     fn visible_window_y(&self) -> YCoordinate {
-        self.visible_range_per_bpm.window_y(&self.current_bpm)
+        self.visible_range_per_bpm.window_y(
+            &self.current_bpm,
+            &self.current_speed,
+            &self.playback_ratio,
+        )
     }
 
     pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
