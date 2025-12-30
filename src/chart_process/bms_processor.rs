@@ -206,7 +206,7 @@ impl ChartProcessor for BmsProcessor {
         // Collect events triggered at current moment
         let mut triggered_events = self
             .core
-            .events_in_y_range((Excluded(prev_y), Included(cur_y.clone())));
+            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
 
         self.core.update_preloaded_events(&preload_end_y);
 
