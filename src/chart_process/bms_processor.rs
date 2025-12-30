@@ -3,13 +3,14 @@
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 use gametime::{TimeSpan, TimeStamp};
 use num::{One, ToPrimitive, Zero};
 
+use crate::bms::Decimal;
 use crate::bms::prelude::*;
+use crate::chart_process::core::{FlowEvent, ProcessorCore};
 use crate::chart_process::types::{
     AllEventsIndex, BmpId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, VisibleRangePerBpm,
     WavId, YCoordinate,
@@ -25,31 +26,11 @@ pub struct BmsProcessor {
     /// Precomputed BMP id to path mapping
     bmp_paths: HashMap<BmpId, PathBuf>,
 
-    // Playback state
-    started_at: Option<TimeStamp>,
-    last_poll_at: Option<TimeStamp>,
-    /// Accumulated displacement progressed (y, actual movement distance unit)
-    progressed_y: YCoordinate,
+    /// Core processor logic
+    core: ProcessorCore,
 
-    /// All events mapping (sorted by Y coordinate)
-    all_events: AllEventsIndex,
-
-    /// Preloaded events list (all events in current visible area)
-    preloaded_events: Vec<PlayheadEvent>,
-
-    // Flow parameters
-    current_bpm: Decimal,
+    /// Current speed factor (BMS-specific)
     current_speed: Decimal,
-    current_scroll: Decimal,
-    /// Playback ratio
-    playback_ratio: Decimal,
-    /// Visible range per BPM, representing the relationship between BPM and visible Y range
-    visible_range_per_bpm: VisibleRangePerBpm,
-
-    /// Indexed flow events by y (for fast lookup of next flow-affecting event)
-    flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
-    /// Initial BPM at start (header or default)
-    init_bpm: Decimal,
 }
 
 impl BmsProcessor {
@@ -66,8 +47,6 @@ impl BmsProcessor {
             .as_ref()
             .cloned()
             .unwrap_or_else(|| Decimal::from(120));
-
-        let playback_ratio = Decimal::one();
 
         let all_events = AllEventsIndex::precompute_all_events::<T>(bms, &y_memo);
 
@@ -109,21 +88,18 @@ impl BmsProcessor {
                 .push(FlowEvent::Speed(change.factor.clone()));
         }
 
+        let core = ProcessorCore::new(
+            init_bpm,
+            visible_range_per_bpm,
+            all_events,
+            flow_events_by_y,
+        );
+
         Self {
             wav_paths,
             bmp_paths,
-            started_at: None,
-            last_poll_at: None,
-            progressed_y: YCoordinate::zero(),
-            all_events,
-            preloaded_events: Vec::new(),
-            current_bpm: init_bpm.clone(),
+            core,
             current_speed: Decimal::one(),
-            current_scroll: Decimal::one(),
-            playback_ratio,
-            visible_range_per_bpm,
-            flow_events_by_y,
-            init_bpm,
         }
     }
 
@@ -161,120 +137,6 @@ impl BmsProcessor {
         }
     }
 
-    fn current_velocity(&self) -> Decimal {
-        if self.current_bpm <= Decimal::zero() {
-            Decimal::from(f64::EPSILON)
-        } else {
-            let denom = Decimal::from(240);
-            let base = &self.current_bpm / &denom;
-            let v1 = &base * &self.current_speed;
-            let v = &v1 * &self.playback_ratio;
-            v.max(Decimal::from(f64::EPSILON))
-        }
-    }
-
-    /// Get the next event that affects speed (sorted by y ascending): BPM/SCROLL/SPEED changes.
-    fn next_flow_event_after(
-        &self,
-        y_from_exclusive: &YCoordinate,
-    ) -> Option<(YCoordinate, FlowEvent)> {
-        use std::ops::Bound::{Excluded, Unbounded};
-        self.flow_events_by_y
-            .range((Excluded(y_from_exclusive), Unbounded))
-            .next()
-            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
-    }
-
-    /// Advance time to `now`, perform segmented integration of progress and speed by events.
-    fn step_to(&mut self, now: TimeStamp) {
-        let Some(started) = self.started_at else {
-            return;
-        };
-        let last = self.last_poll_at.unwrap_or(started);
-        if now <= last {
-            return;
-        }
-
-        let mut remaining_time = now - last;
-        let mut cur_vel = self.current_velocity();
-        let mut cur_y = self.progressed_y.clone();
-        // Advance in segments until time slice is used up
-        loop {
-            let cur_y_now = cur_y;
-            // The next event that affects speed
-            let next_event = self.next_flow_event_after(&cur_y_now);
-            if next_event.is_none()
-                || cur_vel <= Decimal::zero()
-                || remaining_time <= TimeSpan::ZERO
-            {
-                // Advance directly to the end
-                cur_y = cur_y_now
-                    + YCoordinate::new(
-                        cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND,
-                    );
-                break;
-            }
-            let Some((event_y, evt)) = next_event else {
-                cur_y = cur_y_now
-                    + YCoordinate::new(
-                        cur_vel * remaining_time.as_nanos().max(0) / NANOS_PER_SECOND,
-                    );
-                break;
-            };
-            if event_y <= cur_y_now {
-                // Defense: avoid infinite loop if event position doesn't advance
-                self.apply_flow_event(evt);
-                cur_vel = self.current_velocity();
-                cur_y = cur_y_now;
-                continue;
-            }
-            // Time required to reach event
-            let distance = event_y.clone() - cur_y_now.clone();
-            if cur_vel > Decimal::zero() {
-                let time_to_event_nanos = ((distance.value() / &cur_vel)
-                    * Decimal::from(NANOS_PER_SECOND))
-                .to_u64()
-                .unwrap_or(0);
-                let time_to_event =
-                    TimeSpan::from_duration(Duration::from_nanos(time_to_event_nanos));
-                if time_to_event <= remaining_time {
-                    // First advance to event point
-                    cur_y = event_y;
-                    remaining_time -= time_to_event;
-                    self.apply_flow_event(evt);
-                    cur_vel = self.current_velocity();
-                    continue;
-                }
-            }
-            // Time not enough to reach event, advance and end
-            cur_y = cur_y_now
-                + YCoordinate::new(
-                    &cur_vel * Decimal::from(remaining_time.as_nanos().max(0)) / NANOS_PER_SECOND,
-                );
-            break;
-        }
-
-        self.progressed_y = cur_y;
-        self.last_poll_at = Some(now);
-    }
-
-    fn apply_flow_event(&mut self, evt: FlowEvent) {
-        match evt {
-            FlowEvent::Bpm(bpm) => self.current_bpm = bpm,
-            FlowEvent::Speed(s) => self.current_speed = s,
-            FlowEvent::Scroll(s) => self.current_scroll = s,
-        }
-    }
-
-    /// Calculate visible window length (y units): based on current BPM, speed, playback ratio and visible range per BPM
-    fn visible_window_y(&self) -> YCoordinate {
-        self.visible_range_per_bpm.window_y(
-            &self.current_bpm,
-            &self.current_speed,
-            &self.playback_ratio,
-        )
-    }
-
     pub(crate) fn lane_of_channel_id<T: KeyLayoutMapper>(
         channel_id: NoteChannelId,
     ) -> Option<(PlayerSide, Key, NoteKind)> {
@@ -302,56 +164,51 @@ impl ChartProcessor for BmsProcessor {
     }
 
     fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
-        &self.visible_range_per_bpm
+        &self.core.visible_range_per_bpm
     }
 
     fn current_bpm(&self) -> &Decimal {
-        &self.current_bpm
+        &self.core.current_bpm
     }
+
     fn current_speed(&self) -> &Decimal {
         &self.current_speed
     }
+
     fn current_scroll(&self) -> &Decimal {
-        &self.current_scroll
+        &self.core.current_scroll
     }
 
     fn playback_ratio(&self) -> &Decimal {
-        &self.playback_ratio
+        &self.core.playback_ratio
     }
 
     fn start_play(&mut self, now: TimeStamp) {
-        self.started_at = Some(now);
-        self.last_poll_at = Some(now);
-        self.progressed_y = YCoordinate::zero();
-        self.preloaded_events.clear();
-        self.current_bpm = self.init_bpm.clone();
+        self.core.start_play(now);
         self.current_speed = Decimal::one();
-        self.current_scroll = Decimal::one();
     }
 
     fn started_at(&self) -> Option<TimeStamp> {
-        self.started_at
+        self.core.started_at()
     }
 
     fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
-        let prev_y = self.progressed_y.clone();
-        self.step_to(now);
-        let cur_y = &self.progressed_y;
+        let prev_y = self.core.progressed_y().clone();
+        self.core.step_to(now, &self.current_speed);
+        let cur_y = self.core.progressed_y();
 
         // Calculate preload range: current y + visible y range
-        let visible_y_length = self.visible_window_y();
+        let visible_y_length = self.core.visible_window_y(&self.current_speed);
         let preload_end_y = cur_y + &visible_y_length;
 
         use std::ops::Bound::{Excluded, Included};
 
         // Collect events triggered at current moment
         let mut triggered_events = self
-            .all_events
-            .events_in_y_range((Excluded(&prev_y), Included(cur_y)));
+            .core
+            .events_in_y_range((Excluded(prev_y), Included(cur_y.clone())));
 
-        let mut new_preloaded_events = self
-            .all_events
-            .events_in_y_range((Excluded(cur_y), Included(&preload_end_y)));
+        self.core.update_preloaded_events(&preload_end_y);
 
         // Sort to maintain stable order if needed (BTreeMap range is ordered by y)
         triggered_events.sort_by(|a, b| {
@@ -360,15 +217,6 @@ impl ChartProcessor for BmsProcessor {
                 .partial_cmp(b.position().value())
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        new_preloaded_events.sort_by(|a, b| {
-            a.position()
-                .value()
-                .partial_cmp(b.position().value())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        // Update preloaded events list
-        self.preloaded_events = new_preloaded_events;
 
         triggered_events.into_iter()
     }
@@ -377,83 +225,21 @@ impl ChartProcessor for BmsProcessor {
         &mut self,
         range: impl std::ops::RangeBounds<TimeSpan>,
     ) -> impl Iterator<Item = PlayheadEvent> {
-        let events: Vec<PlayheadEvent> = if let Some(started) = self.started_at {
-            let last = self.last_poll_at.unwrap_or(started);
-            // Calculate center time: elapsed time scaled by playback ratio
-            let elapsed = last
-                .checked_elapsed_since(started)
-                .unwrap_or(TimeSpan::ZERO);
-            let elapsed_nanos = elapsed.as_nanos().max(0) as u64;
-            let elapsed_nanos = Decimal::from(elapsed_nanos);
-            let center_nanos = (&elapsed_nanos * &self.playback_ratio)
-                .to_u64()
-                .unwrap_or(0);
-            let center = TimeSpan::from_duration(Duration::from_nanos(center_nanos));
-            self.all_events
-                .events_in_time_range_offset_from(center, range)
-        } else {
-            Vec::new()
-        };
-
-        events.into_iter()
+        self.core.events_in_time_range(range).into_iter()
     }
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
         for evt in events {
-            match evt {
-                ControlEvent::SetVisibleRangePerBpm {
-                    visible_range_per_bpm,
-                } => {
-                    self.visible_range_per_bpm = visible_range_per_bpm;
-                }
-                ControlEvent::SetPlaybackRatio { ratio } => {
-                    self.playback_ratio = ratio;
-                }
-            }
+            self.core.handle_control_event(evt);
         }
     }
 
     fn visible_events(
         &mut self,
     ) -> impl Iterator<Item = (PlayheadEvent, std::ops::RangeInclusive<DisplayRatio>)> {
-        let current_y = &self.progressed_y;
-        let visible_window_y = self.visible_window_y();
-        let scroll_factor = &self.current_scroll;
-
-        self.preloaded_events.iter().map(move |event_with_pos| {
-            let event_y = event_with_pos.position();
-            // Calculate display ratio: (event_y - current_y) / visible_window_y * scroll_factor
-            // Note: scroll can be non-zero positive or negative values
-            let start_display_ratio_value = if visible_window_y.value() > &Decimal::zero() {
-                (&(event_y - current_y) / &visible_window_y).value() * scroll_factor
-            } else {
-                Default::default()
-            };
-            let start_display_ratio = DisplayRatio::from(start_display_ratio_value);
-
-            // Calculate end position for long notes
-            let end_display_ratio = if let ChartEvent::Note {
-                length: Some(length),
-                ..
-            } = event_with_pos.event()
-            {
-                let end_y = event_y.clone() + length.clone();
-                let end_display_ratio_value = if visible_window_y.value() > &Decimal::zero() {
-                    (&(end_y - current_y.clone()) / &visible_window_y).value() * scroll_factor
-                } else {
-                    Default::default()
-                };
-                DisplayRatio::from(end_display_ratio_value)
-            } else {
-                // Normal notes and other events: start and end are the same
-                start_display_ratio.clone()
-            };
-
-            (
-                event_with_pos.clone(),
-                start_display_ratio..=end_display_ratio,
-            )
-        })
+        self.core
+            .compute_visible_events(&self.current_speed)
+            .into_iter()
     }
 }
 
@@ -506,13 +292,6 @@ impl YMemo {
             .map_or_else(Decimal::one, |(_, obj)| obj.factor.clone());
         YCoordinate((section_y + fraction) * factor)
     }
-}
-
-#[derive(Debug, Clone)]
-enum FlowEvent {
-    Bpm(Decimal),
-    Speed(Decimal),
-    Scroll(Decimal),
 }
 
 impl AllEventsIndex {
@@ -802,7 +581,7 @@ fn precompute_activate_times(
         .iter()
         .map(|(y_coord, indices)| {
             let at_nanos = cum_map.get(y_coord).copied().unwrap_or(0);
-            let at = TimeSpan::from_duration(Duration::from_nanos(at_nanos));
+            let at = TimeSpan::from_duration(std::time::Duration::from_nanos(at_nanos));
             let new_events: Vec<_> = all_events
                 .as_events()
                 .get(indices.clone())
