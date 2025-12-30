@@ -306,7 +306,7 @@ impl AllEventsIndex {
             .next_back()
             .map(|(_, b)| b.clone())
             .unwrap_or_else(|| init_bpm.clone());
-        let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| {
+        let nanos_for_stop = |stop_y: &YCoordinate, stop_pulses: u64| -> u64 {
             let bpm_at_stop = bpm_map
                 .range((
                     std::ops::Bound::Unbounded,
@@ -315,12 +315,11 @@ impl AllEventsIndex {
                 .next_back()
                 .map(|(_, b)| b.clone())
                 .unwrap_or_else(|| init_bpm.clone());
-            let stop_y_len = pulses_to_y(stop_pulses);
-            let stop_y_len_f64 = stop_y_len.value().to_f64().unwrap_or(0.0);
-            let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-            let stop_nanos_f64 = stop_y_len_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
-            if stop_nanos_f64.is_finite() && stop_nanos_f64 > 0.0 {
-                stop_nanos_f64.round() as u64
+            if bpm_at_stop > Decimal::zero() {
+                let stop_y_len = pulses_to_y(stop_pulses);
+                let numerator =
+                    stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
+                (numerator / bpm_at_stop).to_u64().unwrap_or(0)
             } else {
                 0
             }
@@ -330,12 +329,14 @@ impl AllEventsIndex {
             if curr <= prev {
                 continue;
             }
-            let delta_y_f64 = Decimal::from(&curr - &prev).to_f64().unwrap_or(0.0);
-            let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-            let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
-            if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
-                total_nanos = total_nanos.saturating_add(delta_nanos_f64.round() as u64);
-            }
+            let delta_y = Decimal::from(&curr - &prev);
+            let delta_nanos = if cur_bpm > Decimal::zero() {
+                let numerator = &delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
+                (numerator / cur_bpm).to_u64().unwrap_or(0)
+            } else {
+                0
+            };
+            total_nanos = total_nanos.saturating_add(delta_nanos);
             while let Some((sy, stop_pulses)) = stop_list.get(stop_idx) {
                 if sy > &curr {
                     break;

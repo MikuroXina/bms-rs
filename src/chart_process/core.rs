@@ -228,8 +228,17 @@ impl ProcessorCore {
         let mut cur_vel = self.calculate_velocity();
         let mut cur_y = self.progressed_y.clone();
 
+        // Prevent infinite loops in edge cases
+        let mut iterations = 0usize;
+        const MAX_ITERATIONS: usize = 1000;
+
         // Advance in segments until time slice is used up
         loop {
+            iterations += 1;
+            if iterations > MAX_ITERATIONS {
+                // Force exit to prevent infinite loop
+                break;
+            }
             let cur_y_now = cur_y.clone();
             let next_event = self.next_flow_event_after(&cur_y_now);
 

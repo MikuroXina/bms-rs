@@ -506,17 +506,17 @@ fn precompute_activate_times(
         if curr <= prev {
             continue;
         }
-        let delta_y_f64 = (curr.clone() - prev.clone())
-            .value()
-            .to_f64()
-            .unwrap_or(0.0);
-        let cur_bpm_f64 = cur_bpm.to_f64().unwrap_or(120.0);
-        let delta_nanos_f64 = delta_y_f64 * 240.0 / cur_bpm_f64 * NANOS_PER_SECOND as f64;
-        if delta_nanos_f64.is_finite() && delta_nanos_f64 > 0.0 {
-            total_nanos = total_nanos.saturating_add(delta_nanos_f64.round() as u64);
-        }
+        let delta_y = curr.clone() - prev.clone();
+        let delta_y_value = delta_y.value();
+        let delta_nanos = if cur_bpm > Decimal::zero() {
+            let numerator = delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
+            (numerator / cur_bpm).to_u64().unwrap_or(0)
+        } else {
+            0
+        };
+        total_nanos = total_nanos.saturating_add(delta_nanos);
         while let Some((sy, dur_y)) = stop_list.get(stop_idx) {
-            if sy >= &curr {
+            if sy > &curr {
                 break;
             }
             if sy > &prev {
@@ -525,12 +525,14 @@ fn precompute_activate_times(
                     .next_back()
                     .map(|(_, b)| b.clone())
                     .unwrap_or_else(|| init_bpm.clone());
-                let dur_y_f64 = dur_y.to_f64().unwrap_or(0.0);
-                let bpm_at_stop_f64 = bpm_at_stop.to_f64().unwrap_or(120.0);
-                let dur_nanos_f64 = dur_y_f64 * 240.0 / bpm_at_stop_f64 * NANOS_PER_SECOND as f64;
-                if dur_nanos_f64.is_finite() && dur_nanos_f64 > 0.0 {
-                    total_nanos = total_nanos.saturating_add(dur_nanos_f64.round() as u64);
-                }
+                let dur_nanos = if bpm_at_stop > Decimal::zero() {
+                    let numerator =
+                        dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
+                    (numerator / bpm_at_stop).to_u64().unwrap_or(0)
+                } else {
+                    0
+                };
+                total_nanos = total_nanos.saturating_add(dur_nanos);
             }
             stop_idx += 1;
         }
