@@ -153,14 +153,19 @@ where
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get command line arguments
     let args: Vec<String> = env::args().collect();
-    let program_name = args.first().map(std::string::String::as_str).unwrap_or("export_events_toml");
+    let program_name = args
+        .first()
+        .map(std::string::String::as_str)
+        .unwrap_or("export_events_toml");
     if args.len() < 2 {
         eprintln!("Usage: {} <bms/bmson_file_path>", program_name);
         eprintln!("Example: {} tests/bms/files/lilith_mx.bms", program_name);
         std::process::exit(1);
     }
 
-    let file_path = args.get(1).expect("args[1] should exist after length check");
+    let file_path = args
+        .get(1)
+        .expect("args[1] should exist after length check");
     let source = std::fs::read_to_string(file_path)?;
 
     // Determine file type by extension
