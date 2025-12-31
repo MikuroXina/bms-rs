@@ -6,18 +6,15 @@ use std::collections::{BTreeMap, HashMap};
 use gametime::TimeSpan;
 use num::{One, ToPrimitive, Zero};
 
-use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
 use crate::chart_process::base_bpm::VisibleRangePerBpm;
-use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
 use crate::chart_process::resource::{BmpId, NameBasedResourceMapping, WavId};
-use crate::chart_process::{AllEventsIndex, YCoordinate};
+use crate::chart_process::{AllEventsIndex, ChartEventIdGenerator, PlayheadEvent, YCoordinate};
 use crate::util::StrExtension;
 
-use super::EventParseOutput;
-use super::core::FlowEvent;
+use super::{EventParseOutput, FlowEvent};
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 

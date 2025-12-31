@@ -10,19 +10,16 @@ use std::collections::BTreeMap;
 
 use gametime::TimeSpan;
 
+use self::resource::{BmpId, ResourceMapping, WavId};
 use crate::bms::prelude::SwBgaEvent;
 use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::core::FlowEvent;
-use crate::chart_process::resource::{BmpId, ResourceMapping, WavId};
+use crate::chart_process::player::FlowEvent;
 
 // BaseBpm logic
 pub mod base_bpm;
-
-// Core processor logic
-pub mod core;
 
 // Resource mapping module
 pub mod resource;
@@ -422,7 +419,7 @@ impl From<f64> for DisplayRatio {
 /// Provides efficient lookup of events by Y coordinate or time.
 #[derive(Debug, Clone)]
 pub struct AllEventsIndex {
-    events: Vec<core::PlayheadEvent>,
+    events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
 }
@@ -433,8 +430,8 @@ impl AllEventsIndex {
     /// # Arguments
     /// * `map` - Events indexed by their Y coordinate
     #[must_use]
-    pub fn new(map: BTreeMap<YCoordinate, Vec<core::PlayheadEvent>>) -> Self {
-        let mut events: Vec<core::PlayheadEvent> = Vec::new();
+    pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
+        let mut events: Vec<PlayheadEvent> = Vec::new();
         let mut by_y: BTreeMap<YCoordinate, Range<usize>> = BTreeMap::new();
 
         for (y_coord, y_events) in map {
@@ -474,7 +471,7 @@ impl AllEventsIndex {
     /// # Arguments
     /// * `range` - The Y coordinate range to query
     #[must_use]
-    pub fn events_in_y_range<R>(&self, range: R) -> Vec<core::PlayheadEvent>
+    pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<YCoordinate>,
     {
@@ -489,7 +486,7 @@ impl AllEventsIndex {
     ///
     /// # Arguments
     /// * `range` - The time range to query
-    pub fn events_in_time_range<R>(&self, range: R) -> Vec<core::PlayheadEvent>
+    pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<TimeSpan>,
     {
@@ -527,7 +524,7 @@ impl AllEventsIndex {
         &self,
         center: TimeSpan,
         range: R,
-    ) -> Vec<core::PlayheadEvent>
+    ) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<TimeSpan>,
     {
@@ -545,13 +542,148 @@ impl AllEventsIndex {
     }
 }
 
+const NANOS_PER_SECOND: u64 = 1_000_000_000;
+
+/// Identifier type which is unique over all chart events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChartEventId(pub usize);
+
+impl AsRef<usize> for ChartEventId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl ChartEventId {
+    /// Create a new `ChartEventId`
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for ChartEventId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ChartEventId> for usize {
+    fn from(id: ChartEventId) -> Self {
+        id.0
+    }
+}
+
+/// Generator for sequential `ChartEventId`s
+#[derive(Debug, Clone, Default)]
+pub struct ChartEventIdGenerator {
+    next: usize,
+}
+
+impl ChartEventIdGenerator {
+    /// Create a new generator starting from `start`
+    #[must_use]
+    pub const fn new(start: usize) -> Self {
+        Self { next: start }
+    }
+
+    /// Allocate and return the next `ChartEventId`
+    #[must_use]
+    pub const fn next_id(&mut self) -> ChartEventId {
+        let id = ChartEventId(self.next);
+        self.next += 1;
+        id
+    }
+
+    /// Return the next `ChartEventId` that will be used
+    #[must_use]
+    pub const fn peek_next(&self) -> ChartEventId {
+        ChartEventId::new(self.next)
+    }
+}
+
+/// Timeline event and position wrapper type.
+///
+/// Represents an event in chart playback and its position on the timeline.
+#[derive(Debug, Clone)]
+pub struct PlayheadEvent {
+    /// Event identifier
+    pub id: ChartEventId,
+    /// Event position on timeline (y coordinate)
+    pub position: YCoordinate,
+    /// Chart event
+    pub event: ChartEvent,
+    /// Activate time since chart playback started
+    pub activate_time: TimeSpan,
+}
+
+impl PlayheadEvent {
+    /// Create a new `ChartEventWithPosition`
+    #[must_use]
+    pub const fn new(
+        id: ChartEventId,
+        position: YCoordinate,
+        event: ChartEvent,
+        activate_time: TimeSpan,
+    ) -> Self {
+        Self {
+            position,
+            event,
+            id,
+            activate_time,
+        }
+    }
+
+    /// Get event identifier
+    #[must_use]
+    pub const fn id(&self) -> ChartEventId {
+        self.id
+    }
+
+    /// Get event position
+    #[must_use]
+    pub const fn position(&self) -> &YCoordinate {
+        &self.position
+    }
+
+    /// Get chart event
+    #[must_use]
+    pub const fn event(&self) -> &ChartEvent {
+        &self.event
+    }
+
+    /// Get activate time
+    #[must_use]
+    pub const fn activate_time(&self) -> &TimeSpan {
+        &self.activate_time
+    }
+}
+
+impl PartialEq for PlayheadEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for PlayheadEvent {}
+
+impl std::hash::Hash for PlayheadEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
     use super::{
-        AllEventsIndex, ChartEvent, TimeSpan, YCoordinate,
-        core::{ChartEventId, PlayheadEvent},
+        AllEventsIndex, ChartEvent, TimeSpan, YCoordinate, {ChartEventId, PlayheadEvent},
     };
 
     fn mk_event(id: usize, y: f64, time_secs: u64) -> PlayheadEvent {

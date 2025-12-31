@@ -7,10 +7,9 @@
 pub use super::resource::{BmpId, WavId};
 
 // Re-export types from parent module
-pub use super::{AllEventsIndex, DisplayRatio, YCoordinate};
-
-// Re-export types from core module
-pub use super::core::{ChartEventId, ChartEventIdGenerator, PlayheadEvent};
+pub use super::{
+    AllEventsIndex, ChartEventId, ChartEventIdGenerator, DisplayRatio, PlayheadEvent, YCoordinate,
+};
 
 // Re-export base BPM logic
 pub use super::base_bpm::{

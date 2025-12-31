@@ -10,14 +10,14 @@ use num::{ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::chart_process::base_bpm::VisibleRangePerBpm;
-use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
 use crate::chart_process::resource::{BmpId, HashMapResourceMapping, WavId};
 use crate::chart_process::y_calculator::BmsYCalculator;
 use crate::chart_process::{AllEventsIndex, YCoordinate};
+use crate::chart_process::{ChartEventIdGenerator, PlayheadEvent};
 
 use super::EventParseOutput;
-use super::core::FlowEvent;
+use super::FlowEvent;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 
