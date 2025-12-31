@@ -24,7 +24,7 @@ pub use super::resource::{HashMapResourceMapping, NameBasedResourceMapping, Reso
 pub use super::y_calculator::{BmsYCalculator, create_bmson_y_calculator};
 
 // Re-export parser types
-pub use super::parser::{BmsParser, BmsonParser, EventParseOutput};
+pub use super::parser::EventParseOutput;
 
 // Re-export player types
 pub use super::player::UniversalChartPlayer;

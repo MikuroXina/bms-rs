@@ -43,7 +43,7 @@ where
         .generate(&bms)
         .unwrap_or_else(|| BaseBpm::new(Decimal::from(120)));
     let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, reaction_time);
-    let processor = BmsProcessor::new::<T>(&bms);
+    let processor = BmsProcessor::<T>::new(&bms);
     processor.to_player(visible_range_per_bpm)
 }
 
