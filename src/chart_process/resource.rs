@@ -93,17 +93,21 @@ pub trait ResourceMapping {
     /// Returns `None` if the ID is not found in the mapping.
     fn get_bmp_path(&self, id: BmpId) -> Option<&Path>;
 
-    /// Convert to a `HashMap` format for WAV files.
+    /// Iterate over all audio file mappings.
     ///
-    /// This is useful for backward compatibility and for contexts where
-    /// a `HashMap` is more convenient.
-    fn to_wav_map(&self) -> HashMap<WavId, &Path>;
+    /// This is more efficient than collecting into a `HashMap`, as it avoids
+    /// intermediate allocations. Use this for processing all audio files.
+    fn for_each_wav_path<F>(&self, f: F)
+    where
+        F: FnMut(WavId, &Path);
 
-    /// Convert to a `HashMap` format for BMP files.
+    /// Iterate over all BMP file mappings.
     ///
-    /// This is useful for backward compatibility and for contexts where
-    /// a `HashMap` is more convenient.
-    fn to_bmp_map(&self) -> HashMap<BmpId, &Path>;
+    /// This is more efficient than collecting into a `HashMap`, as it avoids
+    /// intermediate allocations. Use this for processing all image files.
+    fn for_each_bmp_path<F>(&self, f: F)
+    where
+        F: FnMut(BmpId, &Path);
 }
 
 /// HashMap-based resource mapping implementation.
@@ -161,24 +165,28 @@ impl ResourceMapping for HashMapResourceMapping {
         self.bmp_paths.get(&id).map(std::path::PathBuf::as_path)
     }
 
-    fn to_wav_map(&self) -> HashMap<WavId, &Path> {
-        self.wav_paths
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
+    fn for_each_wav_path<F>(&self, mut f: F)
+    where
+        F: FnMut(WavId, &Path),
+    {
+        for (id, path) in &self.wav_paths {
+            f(*id, path);
+        }
     }
 
-    fn to_bmp_map(&self) -> HashMap<BmpId, &Path> {
-        self.bmp_paths
-            .iter()
-            .map(|(id, path)| (*id, path.as_path()))
-            .collect()
+    fn for_each_bmp_path<F>(&self, mut f: F)
+    where
+        F: FnMut(BmpId, &Path),
+    {
+        for (id, path) in &self.bmp_paths {
+            f(*id, path);
+        }
     }
 }
 
 /// Name-based resource mapping implementation.
 ///
-/// This implementation stores mappings from resource names to IDs.
+/// This implementation stores bidirectional mappings between resource names and IDs.
 /// It's commonly used for BMSON format charts where resources are identified by filenames.
 ///
 /// Note: This implementation returns virtual paths (the name itself as a Path).
@@ -188,20 +196,39 @@ pub struct NameBasedResourceMapping {
     /// Audio filename to ID mapping
     audio_name_to_id: HashMap<String, WavId>,
 
+    /// Audio ID to filename mapping (for reverse lookup)
+    audio_id_to_name: HashMap<WavId, String>,
+
     /// Image filename to ID mapping
     bmp_name_to_id: HashMap<String, BmpId>,
+
+    /// Image ID to filename mapping (for reverse lookup)
+    bmp_id_to_name: HashMap<BmpId, String>,
 }
 
 impl NameBasedResourceMapping {
     /// Create a new `NameBasedResourceMapping`.
     #[must_use]
-    pub const fn new(
+    pub fn new(
         audio_name_to_id: HashMap<String, WavId>,
         bmp_name_to_id: HashMap<String, BmpId>,
     ) -> Self {
+        // Build reverse mappings for O(1) lookup by ID
+        let audio_id_to_name: HashMap<WavId, String> = audio_name_to_id
+            .iter()
+            .map(|(name, id)| (*id, name.clone()))
+            .collect();
+
+        let bmp_id_to_name: HashMap<BmpId, String> = bmp_name_to_id
+            .iter()
+            .map(|(name, id)| (*id, name.clone()))
+            .collect();
+
         Self {
             audio_name_to_id,
+            audio_id_to_name,
             bmp_name_to_id,
+            bmp_id_to_name,
         }
     }
 
@@ -210,18 +237,22 @@ impl NameBasedResourceMapping {
     pub fn empty() -> Self {
         Self {
             audio_name_to_id: HashMap::new(),
+            audio_id_to_name: HashMap::new(),
             bmp_name_to_id: HashMap::new(),
+            bmp_id_to_name: HashMap::new(),
         }
     }
 
     /// Insert an audio file mapping.
     pub fn insert_audio(&mut self, name: String, id: WavId) {
-        self.audio_name_to_id.insert(name, id);
+        self.audio_name_to_id.insert(name.clone(), id);
+        self.audio_id_to_name.insert(id, name);
     }
 
     /// Insert a BMP file mapping.
     pub fn insert_bmp(&mut self, name: String, id: BmpId) {
-        self.bmp_name_to_id.insert(name, id);
+        self.bmp_name_to_id.insert(name.clone(), id);
+        self.bmp_id_to_name.insert(id, name);
     }
 
     /// Get WAV ID by filename.
@@ -239,37 +270,31 @@ impl NameBasedResourceMapping {
 
 impl ResourceMapping for NameBasedResourceMapping {
     fn get_wav_path(&self, id: WavId) -> Option<&Path> {
-        // Find the name corresponding to this ID and return it as a virtual path
-        for (name, wav_id) in &self.audio_name_to_id {
-            if *wav_id == id {
-                return Some(Path::new(name));
-            }
-        }
-        None
+        // O(1) reverse lookup using the ID-to-name mapping
+        self.audio_id_to_name.get(&id).map(Path::new)
     }
 
     fn get_bmp_path(&self, id: BmpId) -> Option<&Path> {
-        // Find the name corresponding to this ID and return it as a virtual path
-        for (name, bmp_id) in &self.bmp_name_to_id {
-            if *bmp_id == id {
-                return Some(Path::new(name));
-            }
+        // O(1) reverse lookup using the ID-to-name mapping
+        self.bmp_id_to_name.get(&id).map(Path::new)
+    }
+
+    fn for_each_wav_path<F>(&self, mut f: F)
+    where
+        F: FnMut(WavId, &Path),
+    {
+        for (name, id) in &self.audio_name_to_id {
+            f(*id, Path::new(name));
         }
-        None
     }
 
-    fn to_wav_map(&self) -> HashMap<WavId, &Path> {
-        self.audio_name_to_id
-            .iter()
-            .map(|(name, id)| (*id, Path::new(name)))
-            .collect()
-    }
-
-    fn to_bmp_map(&self) -> HashMap<BmpId, &Path> {
-        self.bmp_name_to_id
-            .iter()
-            .map(|(name, id)| (*id, Path::new(name)))
-            .collect()
+    fn for_each_bmp_path<F>(&self, mut f: F)
+    where
+        F: FnMut(BmpId, &Path),
+    {
+        for (name, id) in &self.bmp_name_to_id {
+            f(*id, Path::new(name));
+        }
     }
 }
 
@@ -303,21 +328,25 @@ mod tests {
         );
         assert_eq!(mapping.get_bmp_path(BmpId::new(999)), None);
 
-        // Test to_wav_map
-        let wav_hashmap = mapping.to_wav_map();
-        assert_eq!(wav_hashmap.len(), 2);
-        assert_eq!(
-            wav_hashmap.get(&WavId::new(1)),
-            Some(&PathBuf::from("audio1.wav").as_path())
-        );
+        // Test for_each_wav_path
+        let mut wav_count = 0;
+        mapping.for_each_wav_path(|id, path| {
+            wav_count += 1;
+            if id == WavId::new(1) {
+                assert_eq!(path, Path::new("audio1.wav"));
+            }
+        });
+        assert_eq!(wav_count, 2);
 
-        // Test to_bmp_map
-        let bmp_hashmap = mapping.to_bmp_map();
-        assert_eq!(bmp_hashmap.len(), 2);
-        assert_eq!(
-            bmp_hashmap.get(&BmpId::new(1)),
-            Some(&PathBuf::from("image1.bmp").as_path())
-        );
+        // Test for_each_bmp_path
+        let mut bmp_count = 0;
+        mapping.for_each_bmp_path(|id, path| {
+            bmp_count += 1;
+            if id == BmpId::new(1) {
+                assert_eq!(path, Path::new("image1.bmp"));
+            }
+        });
+        assert_eq!(bmp_count, 2);
     }
 
     #[test]
@@ -354,17 +383,24 @@ mod tests {
         assert_eq!(mapping.get_bmp_id("bg1.png"), Some(BmpId::new(0)));
         assert_eq!(mapping.get_bmp_id("nonexistent.png"), None);
 
-        // Test to_wav_map
-        let wav_hashmap = mapping.to_wav_map();
-        assert_eq!(wav_hashmap.len(), 2);
-        assert_eq!(
-            wav_hashmap.get(&WavId::new(0)),
-            Some(&Path::new("song1.wav"))
-        );
+        // Test for_each_wav_path
+        let mut wav_count = 0;
+        mapping.for_each_wav_path(|id, path| {
+            wav_count += 1;
+            if id == WavId::new(0) {
+                assert_eq!(path, Path::new("song1.wav"));
+            }
+        });
+        assert_eq!(wav_count, 2);
 
-        // Test to_bmp_map
-        let bmp_hashmap = mapping.to_bmp_map();
-        assert_eq!(bmp_hashmap.len(), 2);
-        assert_eq!(bmp_hashmap.get(&BmpId::new(0)), Some(&Path::new("bg1.png")));
+        // Test for_each_bmp_path
+        let mut bmp_count = 0;
+        mapping.for_each_bmp_path(|id, path| {
+            bmp_count += 1;
+            if id == BmpId::new(0) {
+                assert_eq!(path, Path::new("bg1.png"));
+            }
+        });
+        assert_eq!(bmp_count, 2);
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Provides traits and implementations for playing pre-parsed chart events.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
 use std::path::Path;
 
@@ -42,11 +42,21 @@ pub trait ChartPlayer {
     /// Get the visible range per BPM configuration.
     fn visible_range_per_bpm(&self) -> &crate::chart_process::base_bpm::VisibleRangePerBpm;
 
-    /// Get all audio files mapping.
-    fn audio_files(&self) -> HashMap<WavId, &Path>;
+    /// Iterate over all audio file mappings.
+    ///
+    /// This is more efficient than collecting into a `HashMap`, as it avoids
+    /// intermediate allocations. Use this for processing all audio files.
+    fn for_each_audio_file<F>(&self, f: F)
+    where
+        F: FnMut(WavId, &Path);
 
-    /// Get all BMP files mapping.
-    fn bmp_files(&self) -> HashMap<BmpId, &Path>;
+    /// Iterate over all BMP file mappings.
+    ///
+    /// This is more efficient than collecting into a `HashMap`, as it avoids
+    /// intermediate allocations. Use this for processing all image files.
+    fn for_each_bmp_file<F>(&self, f: F)
+    where
+        F: FnMut(BmpId, &Path);
 
     /// Update playback to the given time and return triggered events.
     ///
@@ -140,17 +150,6 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
             output.resources,
         )
     }
-
-    /// Get the processor core (for advanced usage).
-    #[must_use]
-    pub const fn core(&self) -> &ProcessorCore {
-        &self.core
-    }
-
-    /// Get mutable reference to the processor core (for advanced usage).
-    pub const fn core_mut(&mut self) -> &mut ProcessorCore {
-        &mut self.core
-    }
 }
 
 impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
@@ -182,12 +181,18 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
         &self.core.visible_range_per_bpm
     }
 
-    fn audio_files(&self) -> HashMap<WavId, &Path> {
-        self.resources.to_wav_map()
+    fn for_each_audio_file<F>(&self, f: F)
+    where
+        F: FnMut(WavId, &Path),
+    {
+        self.resources.for_each_wav_path(f);
     }
 
-    fn bmp_files(&self) -> HashMap<BmpId, &Path> {
-        self.resources.to_bmp_map()
+    fn for_each_bmp_file<F>(&self, f: F)
+    where
+        F: FnMut(BmpId, &Path),
+    {
+        self.resources.for_each_bmp_path(f);
     }
 
     fn update(&mut self, now: TimeStamp) -> impl Iterator<Item = PlayheadEvent> {
@@ -202,9 +207,7 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
     }
 
     fn post_events(&mut self, events: impl Iterator<Item = ControlEvent>) {
-        for event in events {
-            self.core.handle_control_event(event);
-        }
+        events.for_each(|event| self.core.handle_control_event(event));
     }
 
     fn visible_events(
@@ -283,20 +286,28 @@ mod tests {
         );
 
         // Test audio files access
-        let audio_files = player.audio_files();
-        assert_eq!(audio_files.len(), 2);
-        assert_eq!(
-            audio_files.get(&WavId::new(0)),
-            Some(&std::path::Path::new("audio1.wav"))
-        );
+        let mut audio_count = 0;
+        let mut found_audio1 = false;
+        player.for_each_audio_file(|id, path| {
+            audio_count += 1;
+            if id == WavId::new(0) && path == std::path::Path::new("audio1.wav") {
+                found_audio1 = true;
+            }
+        });
+        assert_eq!(audio_count, 2);
+        assert!(found_audio1);
 
         // Test BMP files access
-        let bmp_files = player.bmp_files();
-        assert_eq!(bmp_files.len(), 2);
-        assert_eq!(
-            bmp_files.get(&BmpId::new(0)),
-            Some(&std::path::Path::new("img1.bmp"))
-        );
+        let mut bmp_count = 0;
+        let mut found_img1 = false;
+        player.for_each_bmp_file(|id, path| {
+            bmp_count += 1;
+            if id == BmpId::new(0) && path == std::path::Path::new("img1.bmp") {
+                found_img1 = true;
+            }
+        });
+        assert_eq!(bmp_count, 2);
+        assert!(found_img1);
     }
 
     #[test]
@@ -324,8 +335,7 @@ mod tests {
         let now = TimeStamp::now();
 
         // 测试未开始播放时 update 不产生事件
-        let events_before_start: Vec<_> = player.update(now).collect();
-        assert_eq!(events_before_start.len(), 0);
+        assert_eq!(player.update(now).count(), 0);
 
         // 开始播放
         player.start_play(now);
@@ -333,9 +343,8 @@ mod tests {
 
         // 推进时间
         let after_1s = now + TimeSpan::SECOND;
-        let events: Vec<_> = player.update(after_1s).collect();
         // 没有事件，所以应该是空的
-        assert_eq!(events.len(), 0);
+        assert_eq!(player.update(after_1s).count(), 0);
     }
 
     #[test]
@@ -418,13 +427,13 @@ mod tests {
             .events_in_time_range(TimeSpan::MILLISECOND * 500..=TimeSpan::MILLISECOND * 1500)
             .collect();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].activate_time(), &TimeSpan::SECOND);
+        assert_eq!(events.first().unwrap().activate_time(), &TimeSpan::SECOND);
 
         // 查询 [0s, 2.5s] 范围内的事件
-        let events2: Vec<_> = player
+        let count = player
             .events_in_time_range(TimeSpan::ZERO..=TimeSpan::MILLISECOND * 2500)
-            .collect();
-        assert_eq!(events2.len(), 3);
+            .count();
+        assert_eq!(count, 3);
     }
 
     #[test]
@@ -503,10 +512,8 @@ mod tests {
         let _ = player.update(after_1s).count();
 
         // 获取可见事件（应该为空）
-        let visible_events: Vec<_> = player.visible_events().collect();
-
         // 没有事件，所以应该是空的
-        assert_eq!(visible_events.len(), 0);
+        assert_eq!(player.visible_events().count(), 0);
     }
 
     #[test]
