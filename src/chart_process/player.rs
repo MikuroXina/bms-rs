@@ -12,9 +12,10 @@ use crate::bms::Decimal;
 
 use super::ControlEvent;
 use super::EventParseOutput;
-use super::core::ProcessorCore;
+use super::core::{PlayheadEvent, ProcessorCore};
 use super::resource::ResourceMapping;
-use super::types::{BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate};
+use super::resource::{BmpId, WavId};
+use super::{DisplayRatio, YCoordinate};
 
 /// Chart player trait.
 ///
@@ -39,7 +40,7 @@ pub trait ChartPlayer {
     fn playback_ratio(&self) -> &Decimal;
 
     /// Get the visible range per BPM configuration.
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm;
+    fn visible_range_per_bpm(&self) -> &crate::chart_process::base_bpm::VisibleRangePerBpm;
 
     /// Get all audio files mapping.
     fn audio_files(&self) -> HashMap<WavId, &Path>;
@@ -103,10 +104,10 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     /// * `resources` - Resource mapping implementation
     #[must_use]
     pub fn new(
-        all_events: super::types::AllEventsIndex,
+        all_events: super::AllEventsIndex,
         flow_events_by_y: BTreeMap<YCoordinate, Vec<super::core::FlowEvent>>,
         init_bpm: Decimal,
-        visible_range_per_bpm: VisibleRangePerBpm,
+        visible_range_per_bpm: crate::chart_process::base_bpm::VisibleRangePerBpm,
         resources: R,
     ) -> Self {
         let core = ProcessorCore::new(
@@ -130,7 +131,7 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     #[must_use]
     pub fn from_parse_output(
         output: EventParseOutput,
-        visible_range_per_bpm: VisibleRangePerBpm,
+        visible_range_per_bpm: crate::chart_process::base_bpm::VisibleRangePerBpm,
     ) -> Self
     where
         R: From<Box<dyn ResourceMapping + 'static>>,
@@ -213,7 +214,7 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
         &self.core.playback_ratio
     }
 
-    fn visible_range_per_bpm(&self) -> &VisibleRangePerBpm {
+    fn visible_range_per_bpm(&self) -> &crate::chart_process::base_bpm::VisibleRangePerBpm {
         &self.core.visible_range_per_bpm
     }
 
@@ -252,8 +253,11 @@ impl<R: ResourceMapping> ChartPlayer for UniversalChartPlayer<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chart_process::types::AllEventsIndex;
-    use crate::chart_process::{base_bpm::BaseBpm, resource::HashMapResourceMapping};
+    use crate::chart_process::{
+        AllEventsIndex,
+        base_bpm::{BaseBpm, VisibleRangePerBpm},
+        resource::HashMapResourceMapping,
+    };
     use num::One;
     use std::collections::{BTreeMap, HashMap};
 

@@ -9,13 +9,12 @@ use num::{ToPrimitive, Zero};
 
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
+use crate::chart_process::base_bpm::VisibleRangePerBpm;
+use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
-use crate::chart_process::resource::{HashMapResourceMapping, ResourceMapping};
-use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, PlayheadEvent, VisibleRangePerBpm, WavId,
-    YCoordinate,
-};
+use crate::chart_process::resource::{BmpId, HashMapResourceMapping, ResourceMapping, WavId};
 use crate::chart_process::y_calculator::BmsYCalculator;
+use crate::chart_process::{AllEventsIndex, YCoordinate};
 
 use super::EventParseOutput;
 use super::core::FlowEvent;
@@ -353,8 +352,8 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
                 (y, change.bpm.clone())
             })
             .collect();
-        bpm_map.extend(bpm_pairs.iter().cloned());
-        points.extend(bpm_pairs.iter().map(|(y, _)| y.clone()));
+        bpm_map.extend(bpm_pairs.clone());
+        points.extend(bpm_pairs.into_iter().map(|(y, _)| y));
 
         let mut stop_list: Vec<(YCoordinate, Decimal)> = bms
             .stop
@@ -409,7 +408,7 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
                         .unwrap_or_else(|| init_bpm.clone());
 
                     let dur_nanos = if bpm_at_stop > Decimal::zero() {
-                        let numerator =
+                        let numerator: Decimal =
                             dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
                         (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
                     } else {

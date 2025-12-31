@@ -3,16 +3,19 @@
 //! This module provides re-exports of commonly used types and traits from the `chart_process` module,
 //! allowing users to import all needed items in one go.
 
-// Re-export types
-pub use super::types::{
-    BmpId, ChartEventId, ChartEventIdGenerator, DisplayRatio, VisibleRangePerBpm, WavId,
-    YCoordinate,
-};
+// Re-export types from resource module
+pub use super::resource::{BmpId, WavId};
+
+// Re-export types from parent module
+pub use super::{AllEventsIndex, DisplayRatio, YCoordinate};
+
+// Re-export types from core module
+pub use super::core::{ChartEventId, ChartEventIdGenerator, PlayheadEvent};
 
 // Re-export base BPM logic
 pub use super::base_bpm::{
     BaseBpm, BaseBpmGenerator, ManualBpmGenerator, MaxBpmGenerator, MinBpmGenerator,
-    StartBpmGenerator,
+    StartBpmGenerator, VisibleRangePerBpm,
 };
 
 // Re-export event types

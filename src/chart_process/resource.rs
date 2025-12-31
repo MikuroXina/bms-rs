@@ -6,7 +6,77 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::types::{BmpId, WavId};
+/// WAV audio file ID wrapper type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WavId(pub usize);
+
+impl AsRef<usize> for WavId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl WavId {
+    /// Create a new `WavId`
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for WavId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<WavId> for usize {
+    fn from(id: WavId) -> Self {
+        id.0
+    }
+}
+
+/// BMP/BGA image file ID wrapper type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BmpId(pub usize);
+
+impl AsRef<usize> for BmpId {
+    fn as_ref(&self) -> &usize {
+        &self.0
+    }
+}
+
+impl BmpId {
+    /// Create a new `BmpId`
+    #[must_use]
+    pub const fn new(id: usize) -> Self {
+        Self(id)
+    }
+
+    /// Returns the contained id value.
+    #[must_use]
+    pub const fn value(self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for BmpId {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl From<BmpId> for usize {
+    fn from(id: BmpId) -> Self {
+        id.0
+    }
+}
 
 /// Trait for resource mapping, providing a unified interface for accessing chart resources.
 ///

@@ -9,7 +9,7 @@ use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use num::{One, Zero};
 
-use super::types::YCoordinate;
+use super::YCoordinate;
 
 /// BMS Y-coordinate calculator.
 ///

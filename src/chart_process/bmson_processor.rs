@@ -9,12 +9,11 @@ use num::{One, ToPrimitive, Zero};
 use crate::bms::Decimal;
 use crate::bms::prelude::*;
 use crate::bmson::prelude::*;
+use crate::chart_process::base_bpm::VisibleRangePerBpm;
+use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
-use crate::chart_process::resource::{NameBasedResourceMapping, ResourceMapping};
-use crate::chart_process::types::{
-    AllEventsIndex, BmpId, ChartEventIdGenerator, PlayheadEvent, VisibleRangePerBpm, WavId,
-    YCoordinate,
-};
+use crate::chart_process::resource::{BmpId, NameBasedResourceMapping, ResourceMapping, WavId};
+use crate::chart_process::{AllEventsIndex, YCoordinate};
 use crate::util::StrExtension;
 
 use super::EventParseOutput;
@@ -439,7 +438,7 @@ impl<'a> BmsonProcessor<'a> {
         } else {
             let max_y = events_map
                 .keys()
-                .map(super::types::YCoordinate::value)
+                .map(super::YCoordinate::value)
                 .max()
                 .cloned()
                 .unwrap_or_else(Decimal::zero);
