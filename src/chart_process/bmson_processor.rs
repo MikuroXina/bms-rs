@@ -262,6 +262,7 @@ impl<'a> BmsonProcessor<'a> {
                     stop_y_len.value() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
                 (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
             } else {
+                // BPM <= 0 is invalid; stop duration contributes no time
                 0
             }
         };
@@ -278,6 +279,7 @@ impl<'a> BmsonProcessor<'a> {
                 let numerator = delta_y * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
                 (numerator / cur_bpm).round().to_u64().unwrap_or(0)
             } else {
+                // BPM <= 0 is invalid; treat as no time progression to avoid division issues
                 0
             };
 
@@ -457,7 +459,7 @@ impl<'a> BmsonProcessor<'a> {
         for stop in &bmson.stop_events {
             let y = pulses_to_y(stop.y.0);
             let event = crate::chart_process::ChartEvent::Stop {
-                duration: (stop.duration as f64).into(),
+                duration: Decimal::from(stop.duration),
             };
             let at = to_time_span(cum_map.get(&y).copied().unwrap_or(0));
             let evp = PlayheadEvent::new(id_gen.next_id(), y.clone(), event, at);

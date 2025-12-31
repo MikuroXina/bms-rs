@@ -297,12 +297,13 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
     ) {
         // Find the maximum Y value of all events
         let Some(max_y) = events_map.last_key_value().map(|(key, _)| key.clone()) else {
+            // If no events exist, at least generate a barline at y=0
+            let y_zero = y_memo.get_y(ObjTime::start_of(0.into()));
+            let event = crate::chart_process::ChartEvent::BarLine;
+            let evp = PlayheadEvent::new(id_gen.next_id(), y_zero.clone(), event, TimeSpan::ZERO);
+            events_map.entry(y_zero).or_default().push(evp);
             return;
         };
-
-        if max_y.0 <= Decimal::zero() {
-            return;
-        }
 
         // Get the track number of the last object
         let last_obj_time = bms
@@ -393,6 +394,7 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
                     delta_y_value * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
                 (numerator / cur_bpm).round().to_u64().unwrap_or(0)
             } else {
+                // BPM <= 0 is invalid; treat as no time progression to avoid division issues
                 0
             };
 
@@ -414,6 +416,7 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
                             dur_y.clone() * Decimal::from(240u64) * Decimal::from(NANOS_PER_SECOND);
                         (numerator / bpm_at_stop).round().to_u64().unwrap_or(0)
                     } else {
+                        // BPM <= 0 is invalid; stop duration contributes no time
                         0
                     };
 
