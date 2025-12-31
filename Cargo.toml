@@ -37,6 +37,8 @@ gametime = { version = "0.7", features = ["global_reference"] }
 [dev-dependencies]
 pretty_assertions = "1"
 csv = "1"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
 
 [[example]]
 name = "diagnostics_example"
@@ -48,6 +50,9 @@ required-features = ["diagnostics"]
 
 [[example]]
 name = "export_events_csv"
+
+[[example]]
+name = "export_events_toml"
 
 [lints.rust]
 missing_docs = "warn"
