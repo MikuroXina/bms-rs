@@ -123,10 +123,7 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     /// - Playback ratio
     /// - Visible range configuration
     pub fn reset(&mut self) {
-        self.core.started_at = None;
-        self.core.last_poll_at = None;
-        self.core.progressed_y = YCoordinate::zero();
-        self.core.preloaded_events.clear();
+        self.core.reset();
     }
 
     /// Start playback at the given time.
@@ -222,14 +219,14 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     /// Get currently visible events with their display ratios.
     ///
     /// Returns an iterator of tuples containing:
-    /// - The event with its position
+    /// - A reference to the event with its position
     /// - The display ratio range (start..=end) for rendering
     ///
     /// For normal notes and events, start and end are the same.
     /// For long notes, the range represents the note's length.
     pub fn visible_events(
         &self,
-    ) -> impl Iterator<Item = (PlayheadEvent, RangeInclusive<DisplayRatio>)> {
+    ) -> impl Iterator<Item = (&PlayheadEvent, RangeInclusive<DisplayRatio>)> {
         self.core.compute_visible_events().into_iter()
     }
 }
@@ -262,6 +259,31 @@ impl FlowEvent {
                 // Scroll doesn't affect velocity
             }
         }
+    }
+
+    /// Get the priority of this flow event.
+    ///
+    /// Lower values indicate higher priority. The priority order is:
+    /// - BPM (0): Most fundamental parameter, must be applied first
+    /// - Speed (1): Depends on BPM, as velocity = (BPM/240) * Speed
+    /// - Scroll (2): Doesn't affect velocity, only display
+    const fn priority(&self) -> u8 {
+        match self {
+            FlowEvent::Bpm(_) => 0,
+            FlowEvent::Speed(_) => 1,
+            FlowEvent::Scroll(_) => 2,
+        }
+    }
+
+    /// Sort multiple flow events by priority.
+    ///
+    /// Events will be sorted in-place according to their priority:
+    /// BPM first, then Speed, then Scroll.
+    ///
+    /// # Arguments
+    /// * `events` - The events to sort (modified in-place)
+    pub fn sort_by_priority(events: &mut [FlowEvent]) {
+        events.sort_by_key(FlowEvent::priority);
     }
 }
 
@@ -336,6 +358,16 @@ impl ProcessorCore {
         self.current_scroll = Decimal::one();
         self.current_speed = Decimal::one();
         self.mark_velocity_dirty();
+    }
+
+    /// Reset the processor core state.
+    ///
+    /// Clears playback state but preserves flow parameters (BPM, Speed, Scroll, etc.).
+    pub fn reset(&mut self) {
+        self.started_at = None;
+        self.last_poll_at = None;
+        self.progressed_y = YCoordinate::zero();
+        self.preloaded_events.clear();
     }
 
     /// Get the playback start time.
@@ -419,17 +451,20 @@ impl ProcessorCore {
         self.velocity_dirty = true;
     }
 
-    /// Get the next flow event after the given Y position (exclusive).
+    /// Get the next flow events after the given Y position (exclusive).
+    ///
+    /// Returns all flow events at the next Y position, as there may be multiple
+    /// events (BPM, Speed, Scroll) at the same position.
     #[must_use]
-    pub fn next_flow_event_after(
+    pub fn next_flow_events_after(
         &self,
         y_from_exclusive: &YCoordinate,
-    ) -> Option<(YCoordinate, FlowEvent)> {
+    ) -> Option<(YCoordinate, Vec<FlowEvent>)> {
         use std::ops::Bound::{Excluded, Unbounded};
         self.flow_events_by_y
             .range((Excluded(y_from_exclusive), Unbounded))
             .next()
-            .and_then(|(y, events)| events.first().cloned().map(|evt| (y.clone(), evt)))
+            .map(|(y, events)| (y.clone(), events.clone()))
     }
 
     /// Advance time to `now`, performing segmented integration.
@@ -460,9 +495,9 @@ impl ProcessorCore {
                 break;
             }
             let cur_y_now = cur_y.clone();
-            let next_event = self.next_flow_event_after(&cur_y_now);
+            let next_events = self.next_flow_events_after(&cur_y_now);
 
-            if next_event.is_none()
+            if next_events.is_none()
                 || cur_vel <= Decimal::zero()
                 || remaining_time <= TimeSpan::ZERO
             {
@@ -473,7 +508,7 @@ impl ProcessorCore {
                 break;
             }
 
-            let Some((event_y, evt)) = next_event else {
+            let Some((event_y, events)) = next_events else {
                 let delta_y = (cur_vel * Decimal::from(remaining_time.as_nanos().max(0)))
                     / Decimal::from(NANOS_PER_SECOND);
                 cur_y = cur_y_now + YCoordinate::new(delta_y.round());
@@ -482,7 +517,12 @@ impl ProcessorCore {
 
             if event_y <= cur_y_now {
                 // Defense: avoid infinite loop if event position doesn't advance
-                evt.apply_to(self);
+                // Apply all events at this position
+                let mut sorted_events = events;
+                FlowEvent::sort_by_priority(&mut sorted_events);
+                for evt in sorted_events {
+                    evt.apply_to(self);
+                }
                 cur_vel = self.calculate_velocity();
                 cur_y = cur_y_now;
                 continue;
@@ -503,7 +543,12 @@ impl ProcessorCore {
                     // First advance to event point
                     cur_y = event_y;
                     remaining_time -= time_to_event;
-                    evt.apply_to(self);
+                    // Apply all events at this position
+                    let mut sorted_events = events;
+                    FlowEvent::sort_by_priority(&mut sorted_events);
+                    for evt in sorted_events {
+                        evt.apply_to(self);
+                    }
                     cur_vel = self.calculate_velocity();
                     continue;
                 }
@@ -540,15 +585,37 @@ impl ProcessorCore {
     }
 
     /// Update preloaded events based on current Y position.
+    ///
+    /// This method incrementally updates the preloaded events:
+    /// 1. Removes events that have already passed (position <= current Y)
+    /// 2. Adds new events that have entered the preload range
+    ///
+    /// This is more efficient than completely rebuilding the vector on every call.
     pub fn update_preloaded_events(&mut self, preload_end_y: &YCoordinate) {
         use std::ops::Bound::{Excluded, Included};
 
         let cur_y = &self.progressed_y;
-        let new_preloaded_events = self
-            .all_events
-            .events_in_y_range((Excluded(cur_y), Included(preload_end_y)));
 
-        self.preloaded_events = new_preloaded_events;
+        // Remove events that have already passed
+        let cutoff_idx = self
+            .preloaded_events
+            .partition_point(|ev| ev.position() <= cur_y);
+        self.preloaded_events.drain(..cutoff_idx);
+
+        // Get new events that have entered the preload range
+        // Only query from the last preloaded event to preload_end_y
+        let last_preloaded_y = self
+            .preloaded_events
+            .last()
+            .map(|ev| ev.position().clone())
+            .unwrap_or_else(|| cur_y.clone());
+
+        if last_preloaded_y < *preload_end_y {
+            let new_events = self
+                .all_events
+                .events_in_y_range((Excluded(&last_preloaded_y), Included(preload_end_y)));
+            self.preloaded_events.extend(new_events);
+        }
     }
 
     /// Get preloaded events.
@@ -576,8 +643,10 @@ impl ProcessorCore {
     }
 
     /// Compute visible events with their display ratios.
+    ///
+    /// Returns references to events to avoid unnecessary cloning.
     #[must_use]
-    pub fn compute_visible_events(&self) -> Vec<(PlayheadEvent, RangeInclusive<DisplayRatio>)> {
+    pub fn compute_visible_events(&self) -> Vec<(&PlayheadEvent, RangeInclusive<DisplayRatio>)> {
         let current_y = &self.progressed_y;
         let visible_window_y = self.visible_window_y();
         let scroll_factor = &self.current_scroll;
@@ -606,10 +675,7 @@ impl ProcessorCore {
                     start_display_ratio.clone()
                 };
 
-                (
-                    event_with_pos.clone(),
-                    start_display_ratio..=end_display_ratio,
-                )
+                (event_with_pos, start_display_ratio..=end_display_ratio)
             })
             .collect()
     }
@@ -712,5 +778,103 @@ mod tests {
 
         // (11 - 10) / 2 = 0.5
         assert!((ratio.value().to_f64().unwrap() - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_flow_event_priority_order() {
+        // Test that events are sorted by priority: BPM > Speed > Scroll
+        let mut events = vec![
+            FlowEvent::Scroll(Decimal::from(2)),
+            FlowEvent::Bpm(Decimal::from(180)),
+            FlowEvent::Speed(Decimal::from(2)),
+        ];
+
+        FlowEvent::sort_by_priority(&mut events);
+
+        // Verify order: BPM (0) > Speed (1) > Scroll (2)
+        let Some(first) = events.first() else {
+            panic!("events should not be empty");
+        };
+        let Some(second) = events.get(1) else {
+            panic!("events should have at least 2 elements");
+        };
+        let Some(third) = events.get(2) else {
+            panic!("events should have at least 3 elements");
+        };
+
+        assert!(matches!(first, FlowEvent::Bpm(_)));
+        assert!(matches!(second, FlowEvent::Speed(_)));
+        assert!(matches!(third, FlowEvent::Scroll(_)));
+    }
+
+    #[test]
+    fn test_multiple_flow_events_at_same_position() {
+        // Test that all events at the same position are applied
+        let mut flow_events_by_y = BTreeMap::new();
+        let y = YCoordinate::from(100.0);
+
+        flow_events_by_y.insert(
+            y.clone(),
+            vec![
+                FlowEvent::Bpm(Decimal::from(180)),
+                FlowEvent::Speed(Decimal::from(2)),
+            ],
+        );
+
+        let mut core = ProcessorCore::new(
+            Decimal::from(120),
+            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            AllEventsIndex::new(BTreeMap::new()),
+            flow_events_by_y,
+        );
+
+        // Apply all events at this position
+        let events = core.flow_events_by_y.get(&y).cloned().unwrap();
+        let mut sorted_events = events;
+        FlowEvent::sort_by_priority(&mut sorted_events);
+        for evt in sorted_events {
+            evt.apply_to(&mut core);
+        }
+
+        // Verify both events were applied
+        assert_eq!(core.current_bpm, Decimal::from(180));
+        assert_eq!(core.current_speed, Decimal::from(2));
+
+        // Verify velocity is calculated correctly: (180 / 240) * 2.0 = 1.5
+        let velocity = core.calculate_velocity();
+        let expected = Decimal::from(180) / Decimal::from(240) * Decimal::from(2);
+        assert_eq!(velocity, expected);
+    }
+
+    #[test]
+    fn test_next_flow_events_after_returns_all() {
+        // Test that next_flow_events_after returns all events at a position
+        let mut flow_events_by_y = BTreeMap::new();
+        let y1 = YCoordinate::from(100.0);
+        let y2 = YCoordinate::from(200.0);
+
+        flow_events_by_y.insert(
+            y1.clone(),
+            vec![
+                FlowEvent::Bpm(Decimal::from(180)),
+                FlowEvent::Speed(Decimal::from(2)),
+            ],
+        );
+        flow_events_by_y.insert(y2, vec![FlowEvent::Scroll(Decimal::from(1))]);
+
+        let core = ProcessorCore::new(
+            Decimal::from(120),
+            VisibleRangePerBpm::new(&BaseBpm::new(Decimal::from(120)), TimeSpan::SECOND),
+            AllEventsIndex::new(BTreeMap::new()),
+            flow_events_by_y,
+        );
+
+        // Get events after position 0
+        let result = core.next_flow_events_after(&YCoordinate::zero());
+        assert!(result.is_some());
+
+        let (y, events) = result.unwrap();
+        assert_eq!(y, y1);
+        assert_eq!(events.len(), 2); // Should return both BPM and Speed events
     }
 }

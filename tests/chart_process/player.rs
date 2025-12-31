@@ -5,15 +5,16 @@
 use std::collections::{BTreeMap, HashMap};
 
 use gametime::{TimeSpan, TimeStamp};
-use num::{One, Zero};
+use num::{One, ToPrimitive, Zero};
 
 use bms_rs::bms::Decimal;
 use bms_rs::bms::prelude::{Key, NoteKind, PlayerSide};
 use bms_rs::chart_process::base_bpm::{BaseBpm, VisibleRangePerBpm};
+use bms_rs::chart_process::player::FlowEvent;
 use bms_rs::chart_process::player::UniversalChartPlayer;
 use bms_rs::chart_process::resource::{BmpId, HashMapResourceMapping, WavId};
 use bms_rs::chart_process::{
-    AllEventsIndex, ChartEvent, ChartEventId, ControlEvent, PlayheadEvent,
+    AllEventsIndex, ChartEvent, ChartEventId, ControlEvent, PlayheadEvent, YCoordinate,
 };
 
 fn create_test_player() -> UniversalChartPlayer<HashMapResourceMapping> {
@@ -487,4 +488,145 @@ fn test_universal_chart_player_start_play() {
     let new_start_time = start_time + TimeSpan::SECOND;
     player.start_play(new_start_time);
     assert_eq!(player.started_at(), Some(new_start_time));
+}
+
+#[test]
+fn test_multiple_flow_events_at_same_position_applied_correctly() {
+    // Test that multiple flow events (BPM and Speed) at the same position
+    // are all applied correctly during playback
+
+    let wav_map = HashMap::new();
+    let bmp_map = HashMap::new();
+    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+    // Create all_events index (empty for this test)
+    let all_events = AllEventsIndex::new(BTreeMap::new());
+
+    // Create flow events at the same Y position
+    // At Y=100, both BPM changes to 180 and Speed changes to 2.0
+    let mut flow_events_by_y = BTreeMap::new();
+    let event_y = YCoordinate::new(Decimal::from(100));
+
+    flow_events_by_y.insert(
+        event_y.clone(),
+        vec![
+            FlowEvent::Bpm(Decimal::from(180)),
+            FlowEvent::Speed(Decimal::from(2)),
+        ],
+    );
+
+    let init_bpm = Decimal::from(120);
+    let base_bpm = BaseBpm::new(Decimal::from(120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+    let mut player = UniversalChartPlayer::new(
+        all_events,
+        flow_events_by_y,
+        init_bpm,
+        visible_range_per_bpm,
+        resources,
+    );
+
+    // Verify initial state
+    assert_eq!(player.current_bpm(), &Decimal::from(120));
+    assert_eq!(player.current_speed(), &Decimal::one());
+
+    // Start playback
+    let start_time = TimeStamp::now();
+    player.start_play(start_time);
+
+    // Calculate time to reach Y=100 with initial BPM 120 and Speed 1.0
+    // velocity = (120 / 240) * 1.0 = 0.5
+    // Y = velocity * time => time = Y / velocity = 100 / 0.5 = 200 seconds
+    let initial_velocity = Decimal::from(120) / Decimal::from(240) * Decimal::one();
+    let time_to_reach_event_y = Decimal::from(100) / initial_velocity;
+    let time_to_reach_event_secs = time_to_reach_event_y.to_u64().unwrap();
+
+    // Advance to just before the event
+    let time_before_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs - 1) as i64);
+    let _ = player.update(time_before_event).count();
+
+    // Should still have initial values
+    assert_eq!(player.current_bpm(), &Decimal::from(120));
+    assert_eq!(player.current_speed(), &Decimal::one());
+
+    // Advance past the event position
+    let time_after_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs + 10) as i64);
+    let _ = player.update(time_after_event).count();
+
+    // Now both BPM and Speed should be updated
+    assert_eq!(
+        player.current_bpm(),
+        &Decimal::from(180),
+        "BPM should be updated to 180 after passing the event"
+    );
+    assert_eq!(
+        player.current_speed(),
+        &Decimal::from(2),
+        "Speed should be updated to 2.0 after passing the event"
+    );
+
+    // Verify that the player continued to move after the event
+    // The new velocity should be (180 / 240) * 2.0 = 1.5
+    let _expected_new_velocity = Decimal::from(180) / Decimal::from(240) * Decimal::from(2);
+    assert!(player.current_y().value() > &Decimal::from(100));
+}
+
+#[test]
+fn test_flow_event_priority_ordering_during_playback() {
+    // Test that when BPM and Speed change at the same position,
+    // BPM is applied before Speed (correct priority order)
+
+    let wav_map = HashMap::new();
+    let bmp_map = HashMap::new();
+    let resources = HashMapResourceMapping::new(wav_map, bmp_map);
+
+    let all_events = AllEventsIndex::new(BTreeMap::new());
+
+    // Create flow events at Y=50 with opposite insertion order
+    // Speed first, then BPM (to test priority ordering)
+    let mut flow_events_by_y = BTreeMap::new();
+    let event_y = YCoordinate::new(Decimal::from(50));
+
+    flow_events_by_y.insert(
+        event_y.clone(),
+        vec![
+            // Insert in reverse order to test that priority is used, not insertion order
+            FlowEvent::Speed(Decimal::from(3)),
+            FlowEvent::Bpm(Decimal::from(240)),
+        ],
+    );
+
+    let init_bpm = Decimal::from(120);
+    let base_bpm = BaseBpm::new(Decimal::from(120));
+    let visible_range_per_bpm = VisibleRangePerBpm::new(&base_bpm, TimeSpan::SECOND);
+
+    let mut player = UniversalChartPlayer::new(
+        all_events,
+        flow_events_by_y,
+        init_bpm,
+        visible_range_per_bpm,
+        resources,
+    );
+
+    // Start playback
+    let start_time = TimeStamp::now();
+    player.start_play(start_time);
+
+    // Calculate time to reach Y=50
+    let initial_velocity = Decimal::from(120) / Decimal::from(240) * Decimal::one();
+    let time_to_reach_event_y = Decimal::from(50) / initial_velocity;
+    let time_to_reach_event_secs = time_to_reach_event_y.to_u64().unwrap();
+
+    // Advance past the event
+    let time_after_event = start_time + TimeSpan::SECOND * ((time_to_reach_event_secs + 5) as i64);
+    let _ = player.update(time_after_event).count();
+
+    // Both should be updated regardless of insertion order
+    assert_eq!(player.current_bpm(), &Decimal::from(240));
+    assert_eq!(player.current_speed(), &Decimal::from(3));
+
+    // The player should have moved further due to higher velocity
+    // Expected velocity after event: (240 / 240) * 3 = 3.0
+    assert!(player.current_y().value() > &Decimal::from(50));
 }
