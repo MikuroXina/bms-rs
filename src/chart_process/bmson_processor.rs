@@ -1,4 +1,5 @@
 //! Bmson Processor Module.
+#![cfg(feature = "bmson")]
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -16,8 +17,8 @@ use crate::chart_process::types::{
 };
 use crate::util::StrExtension;
 
+use super::EventParseOutput;
 use super::core::FlowEvent;
-use super::parser::EventParseOutput;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 

@@ -11,8 +11,8 @@ use gametime::{TimeSpan, TimeStamp};
 use crate::bms::Decimal;
 
 use super::ControlEvent;
+use super::EventParseOutput;
 use super::core::ProcessorCore;
-use super::parser::EventParseOutput;
 use super::resource::ResourceMapping;
 use super::types::{BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate};
 
@@ -119,13 +119,13 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
         Self { resources, core }
     }
 
-    /// Create a universal chart player from parser output.
+    /// Create a universal chart player from processor output.
     ///
     /// This is a convenience method that creates a player from the output
-    /// of a `ChartParser::parse()` call.
+    /// of a `ChartProcessor::process()` call.
     ///
     /// # Arguments
-    /// * `output` - The parse output from a chart parser
+    /// * `output` - The process output from a chart processor
     /// * `visible_range_per_bpm` - Visible range configuration
     #[must_use]
     pub fn from_parse_output(

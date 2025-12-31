@@ -17,8 +17,8 @@ use crate::chart_process::types::{
 };
 use crate::chart_process::y_calculator::BmsYCalculator;
 
+use super::EventParseOutput;
 use super::core::FlowEvent;
-use super::parser::EventParseOutput;
 
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 

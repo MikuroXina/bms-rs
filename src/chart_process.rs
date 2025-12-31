@@ -6,6 +6,8 @@
 //! - BMSON: `info.resolution` is the number of pulses corresponding to a quarter note (1/4), so one measure length is `4 * resolution` pulses; all position y is normalized to measure units through `pulses / (4 * resolution)`.
 //! - Speed (default 1.0): Only affects display coordinates (e.g., `visible_notes` `distance_to_hit`), that is, scales the y difference proportionally; does not change time progression and BPM values, nor the actual duration of that measure.
 
+use std::collections::BTreeMap;
+
 use gametime::TimeSpan;
 
 use crate::bms::prelude::SwBgaEvent;
@@ -13,7 +15,9 @@ use crate::bms::{
     Decimal,
     prelude::{Argb, BgaLayer, Key, NoteKind, PlayerSide},
 };
-use crate::chart_process::types::{BmpId, VisibleRangePerBpm, WavId, YCoordinate};
+use crate::chart_process::core::FlowEvent;
+use crate::chart_process::resource::ResourceMapping;
+use crate::chart_process::types::{AllEventsIndex, BmpId, VisibleRangePerBpm, WavId, YCoordinate};
 
 // Core processor logic
 pub mod core;
@@ -27,8 +31,33 @@ pub mod resource;
 // Y coordinate calculator module
 pub mod y_calculator;
 
-// Chart parser module
-pub mod parser;
+/// Output of chart processing.
+///
+/// Contains all the information needed for chart playback.
+pub struct EventParseOutput {
+    /// All events with their positions and activation times
+    pub all_events: AllEventsIndex,
+
+    /// Flow events (BPM/Speed/Scroll changes) indexed by Y coordinate
+    pub flow_events_by_y: BTreeMap<YCoordinate, Vec<FlowEvent>>,
+
+    /// Initial BPM
+    pub init_bpm: Decimal,
+
+    /// Resource mapping
+    pub resources: Box<dyn ResourceMapping>,
+}
+
+/// Chart processor trait.
+///
+/// Defines the interface for processing different chart formats
+/// into a unified `EventParseOutput`.
+pub trait ChartProcessor {
+    /// Process the chart and generate event list.
+    ///
+    /// Returns an `EventParseOutput` containing all events and metadata.
+    fn process(&self) -> EventParseOutput;
+}
 
 // Chart player module
 pub mod player;

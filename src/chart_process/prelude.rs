@@ -14,7 +14,7 @@ pub use super::types::{
 pub use super::{ChartEvent, ControlEvent};
 
 // Re-export traits
-pub use super::parser::ChartParser;
+pub use super::ChartProcessor;
 pub use super::player::ChartPlayer;
 
 // Re-export resource mapping
@@ -23,8 +23,8 @@ pub use super::resource::{HashMapResourceMapping, NameBasedResourceMapping, Reso
 // Re-export Y calculator
 pub use super::y_calculator::{BmsYCalculator, create_bmson_y_calculator};
 
-// Re-export parser types
-pub use super::parser::EventParseOutput;
+// Re-export processor types
+pub use super::EventParseOutput;
 
 // Re-export player types
 pub use super::player::UniversalChartPlayer;
