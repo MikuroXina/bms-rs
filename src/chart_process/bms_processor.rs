@@ -361,7 +361,9 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
             .values()
             .map(|st| {
                 let sy = y_memo.get_y(st.time);
-                (sy, st.duration.clone())
+                // BMS STOP duration is in 192nd notes. Convert to beats: 1 beat = 48 * 192nd notes
+                let duration_in_beats = st.duration.clone() / Decimal::from(48u64);
+                (sy, duration_in_beats)
             })
             .collect();
         stop_list.sort_by(|a, b| a.0.cmp(&b.0));
