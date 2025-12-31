@@ -19,14 +19,30 @@ use crate::chart_process::types::{
     BmpId, DisplayRatio, PlayheadEvent, VisibleRangePerBpm, WavId, YCoordinate,
 };
 
-pub mod bms_processor;
-pub mod bmson_processor;
-
 // Core processor logic
 pub mod core;
 
 // Type definition module
 pub mod types;
+
+// Resource mapping module
+pub mod resource;
+
+// Y coordinate calculator module
+pub mod y_calculator;
+
+// Chart parser module
+pub mod parser;
+
+// Chart player module
+pub mod player;
+
+// BMS processor implementation
+pub mod bms_processor;
+
+// BMSON processor implementation
+#[cfg(feature = "bmson")]
+pub mod bmson_processor;
 
 // Prelude module
 pub mod prelude;

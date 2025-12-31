@@ -686,14 +686,21 @@ impl std::hash::Hash for PlayheadEvent {
     }
 }
 
+/// Indexed collection of all chart events.
+///
+/// Provides efficient lookup of events by Y coordinate or time.
 #[derive(Debug, Clone)]
-pub(crate) struct AllEventsIndex {
+pub struct AllEventsIndex {
     events: Vec<PlayheadEvent>,
     by_y: BTreeMap<YCoordinate, Range<usize>>,
     by_time: BTreeMap<TimeSpan, Vec<usize>>,
 }
 
 impl AllEventsIndex {
+    /// Create a new event index from a map of Y coordinates to events.
+    ///
+    /// # Arguments
+    /// * `map` - Events indexed by their Y coordinate
     #[must_use]
     pub fn new(map: BTreeMap<YCoordinate, Vec<PlayheadEvent>>) -> Self {
         let mut events: Vec<PlayheadEvent> = Vec::new();
@@ -731,6 +738,10 @@ impl AllEventsIndex {
         }
     }
 
+    /// Get all events within a Y coordinate range.
+    ///
+    /// # Arguments
+    /// * `range` - The Y coordinate range to query
     #[must_use]
     pub fn events_in_y_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
@@ -743,6 +754,10 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Get all events within a time range.
+    ///
+    /// # Arguments
+    /// * `range` - The time range to query
     pub fn events_in_time_range<R>(&self, range: R) -> Vec<PlayheadEvent>
     where
         R: RangeBounds<TimeSpan>,
@@ -772,6 +787,11 @@ impl AllEventsIndex {
             .collect()
     }
 
+    /// Get all events within a time range offset from a center time.
+    ///
+    /// # Arguments
+    /// * `center` - The center time point
+    /// * `range` - The offset range from the center
     pub fn events_in_time_range_offset_from<R>(
         &self,
         center: TimeSpan,

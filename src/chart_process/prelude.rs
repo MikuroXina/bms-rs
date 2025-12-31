@@ -13,8 +13,22 @@ pub use super::types::{
 // Re-export event types
 pub use super::{ChartEvent, ControlEvent};
 
-// Re-export trait
+// Re-export traits
 pub use super::ChartProcessor;
+pub use super::parser::ChartParser;
+pub use super::player::ChartPlayer;
+
+// Re-export resource mapping
+pub use super::resource::{HashMapResourceMapping, NameBasedResourceMapping, ResourceMapping};
+
+// Re-export Y calculator
+pub use super::y_calculator::{BmsYCalculator, create_bmson_y_calculator};
+
+// Re-export parser types
+pub use super::parser::{BmsParser, BmsonParser, EventParseOutput};
+
+// Re-export player types
+pub use super::player::UniversalChartPlayer;
 
 // Re-export common types from bms module
 pub use crate::bms::prelude::{BgaLayer, Key, NoteKind, PlayerSide};
