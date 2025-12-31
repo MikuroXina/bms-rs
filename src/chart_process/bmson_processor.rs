@@ -12,7 +12,7 @@ use crate::bmson::prelude::*;
 use crate::chart_process::base_bpm::VisibleRangePerBpm;
 use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
-use crate::chart_process::resource::{BmpId, NameBasedResourceMapping, ResourceMapping, WavId};
+use crate::chart_process::resource::{BmpId, NameBasedResourceMapping, WavId};
 use crate::chart_process::{AllEventsIndex, YCoordinate};
 use crate::util::StrExtension;
 
@@ -30,7 +30,7 @@ pub struct BmsonProcessor<'a> {
     _phantom: std::marker::PhantomData<&'a ()>,
 
     /// Parsed chart output
-    output: EventParseOutput,
+    output: EventParseOutput<NameBasedResourceMapping>,
 }
 
 impl<'a> BmsonProcessor<'a> {
@@ -92,10 +92,7 @@ impl<'a> BmsonProcessor<'a> {
         let flow_events_by_y = Self::build_flow_events(bmson);
 
         // Build resource mapping
-        let resources = Box::new(NameBasedResourceMapping::new(
-            audio_name_to_id,
-            bmp_name_to_id,
-        ));
+        let resources = NameBasedResourceMapping::new(audio_name_to_id, bmp_name_to_id);
 
         let output = EventParseOutput {
             all_events,
@@ -136,8 +133,8 @@ impl<'a> BmsonProcessor<'a> {
 
     /// Get access to the resource mapping.
     #[must_use]
-    pub fn resources(&self) -> &dyn ResourceMapping {
-        self.output.resources.as_ref()
+    pub const fn resources(&self) -> &NameBasedResourceMapping {
+        &self.output.resources
     }
 
     /// Precompute all events from BMSON chart.

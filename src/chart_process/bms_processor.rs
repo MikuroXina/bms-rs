@@ -12,7 +12,7 @@ use crate::bms::prelude::*;
 use crate::chart_process::base_bpm::VisibleRangePerBpm;
 use crate::chart_process::core::{ChartEventIdGenerator, PlayheadEvent};
 use crate::chart_process::player::UniversalChartPlayer;
-use crate::chart_process::resource::{BmpId, HashMapResourceMapping, ResourceMapping, WavId};
+use crate::chart_process::resource::{BmpId, HashMapResourceMapping, WavId};
 use crate::chart_process::y_calculator::BmsYCalculator;
 use crate::chart_process::{AllEventsIndex, YCoordinate};
 
@@ -30,7 +30,7 @@ pub struct BmsProcessor<'a, T: KeyLayoutMapper> {
     _phantom: std::marker::PhantomData<&'a T>,
 
     /// Parsed chart output
-    output: EventParseOutput,
+    output: EventParseOutput<HashMapResourceMapping>,
 }
 
 impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
@@ -58,7 +58,7 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
         let flow_events_by_y = Self::build_flow_events(bms, &y_calc);
 
         // Build resource mapping
-        let resources = Box::new(Self::build_resources(bms));
+        let resources = Self::build_resources(bms);
 
         let output = EventParseOutput {
             all_events,
@@ -99,8 +99,8 @@ impl<'a, T: KeyLayoutMapper> BmsProcessor<'a, T> {
 
     /// Get access to the resource mapping.
     #[must_use]
-    pub fn resources(&self) -> &dyn ResourceMapping {
-        self.output.resources.as_ref()
+    pub const fn resources(&self) -> &HashMapResourceMapping {
+        &self.output.resources
     }
 
     /// Precompute all events from BMS chart.

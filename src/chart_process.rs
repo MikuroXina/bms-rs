@@ -33,7 +33,7 @@ pub mod y_calculator;
 /// Output of chart processing.
 ///
 /// Contains all the information needed for chart playback.
-pub struct EventParseOutput {
+pub struct EventParseOutput<R: ResourceMapping> {
     /// All events with their positions and activation times
     pub all_events: AllEventsIndex,
 
@@ -44,18 +44,18 @@ pub struct EventParseOutput {
     pub init_bpm: Decimal,
 
     /// Resource mapping
-    pub resources: Box<dyn ResourceMapping>,
+    pub resources: R,
 }
 
 /// Chart processor trait.
 ///
 /// Defines the interface for processing different chart formats
 /// into a unified `EventParseOutput`.
-pub trait ChartProcessor {
+pub trait ChartProcessor<R: ResourceMapping> {
     /// Process the chart and generate event list.
     ///
     /// Returns an `EventParseOutput` containing all events and metadata.
-    fn process(&self) -> EventParseOutput;
+    fn process(&self) -> EventParseOutput<R>;
 }
 
 // Chart player module

@@ -130,21 +130,15 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     /// * `visible_range_per_bpm` - Visible range configuration
     #[must_use]
     pub fn from_parse_output(
-        output: EventParseOutput,
+        output: EventParseOutput<R>,
         visible_range_per_bpm: crate::chart_process::base_bpm::VisibleRangePerBpm,
-    ) -> Self
-    where
-        R: From<Box<dyn ResourceMapping + 'static>>,
-    {
-        // Unbox the resources
-        let resources: R = output.resources.into();
-
+    ) -> Self {
         Self::new(
             output.all_events,
             output.flow_events_by_y,
             output.init_bpm,
             visible_range_per_bpm,
-            resources,
+            output.resources,
         )
     }
 
@@ -157,35 +151,6 @@ impl<R: ResourceMapping> UniversalChartPlayer<R> {
     /// Get mutable reference to the processor core (for advanced usage).
     pub const fn core_mut(&mut self) -> &mut ProcessorCore {
         &mut self.core
-    }
-}
-
-// Implement From for HashMapResourceMapping
-impl From<Box<dyn ResourceMapping + 'static>> for super::resource::HashMapResourceMapping {
-    fn from(boxed: Box<dyn ResourceMapping + 'static>) -> Self {
-        // Fallback: convert through the trait interface
-        let wav_map = boxed.to_wav_map();
-        let bmp_map = boxed.to_bmp_map();
-
-        let wav_paths: HashMap<WavId, std::path::PathBuf> = wav_map
-            .into_iter()
-            .map(|(k, v)| (k, v.to_path_buf()))
-            .collect();
-
-        let bmp_paths: HashMap<BmpId, std::path::PathBuf> = bmp_map
-            .into_iter()
-            .map(|(k, v)| (k, v.to_path_buf()))
-            .collect();
-
-        super::resource::HashMapResourceMapping::new(wav_paths, bmp_paths)
-    }
-}
-
-// Implement From for NameBasedResourceMapping
-impl From<Box<dyn ResourceMapping + 'static>> for super::resource::NameBasedResourceMapping {
-    fn from(_boxed: Box<dyn ResourceMapping + 'static>) -> Self {
-        // Fallback: create empty mapping (not ideal but works for compilation)
-        super::resource::NameBasedResourceMapping::empty()
     }
 }
 
