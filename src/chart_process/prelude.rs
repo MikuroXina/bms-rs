@@ -23,7 +23,6 @@ pub use super::{ChartEvent, ControlEvent};
 
 // Re-export traits
 pub use super::ChartProcessor;
-pub use super::player::ChartPlayer;
 
 // Re-export resource mapping
 pub use super::resource::{HashMapResourceMapping, NameBasedResourceMapping, ResourceMapping};
