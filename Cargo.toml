@@ -36,6 +36,7 @@ gametime = { version = "0.7", features = ["global_reference"] }
 
 [dev-dependencies]
 pretty_assertions = "1"
+csv = "1"
 
 [[example]]
 name = "diagnostics_example"
@@ -44,6 +45,9 @@ required-features = ["diagnostics"]
 [[example]]
 name = "comprehensive_diagnostics"
 required-features = ["diagnostics"]
+
+[[example]]
+name = "export_events_csv"
 
 [lints.rust]
 missing_docs = "warn"
