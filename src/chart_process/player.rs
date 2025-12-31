@@ -362,12 +362,16 @@ impl ProcessorCore {
 
     /// Reset the processor core state.
     ///
-    /// Clears playback state but preserves flow parameters (BPM, Speed, Scroll, etc.).
+    /// Clears playback state and resets flow parameters to initial values.
     pub fn reset(&mut self) {
         self.started_at = None;
         self.last_poll_at = None;
         self.progressed_y = YCoordinate::zero();
         self.preloaded_events.clear();
+        self.current_bpm = self.init_bpm.clone();
+        self.current_scroll = Decimal::one();
+        self.current_speed = Decimal::one();
+        self.mark_velocity_dirty();
     }
 
     /// Get the playback start time.
